@@ -622,6 +622,11 @@ function WizardModelsStep({
               />
               <span>{row.label ?? row.modelId}</span>
             </label>
+            {!row.toolCalling && (
+              <p className="models-hint" role="note">
+                {fill(UI_TEXT.providerModelNoToolCalling, { model: row.ref })}
+              </p>
+            )}
             {isCustom && draft.models.includes(row.modelId) && (
               <ModelLimitsFields
                 id={row.ref}

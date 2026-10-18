@@ -267,6 +267,11 @@ happened, not what was planned; superseded entries are kept.
   alphabetically earlier file-cap noise, and package versions remain visible
   after email scrubbing. Exit documentation now agrees with blocker-only exit 1.
 
+- The activity-bar icon is now the extension's own mark: the squiggled "m"
+  from the Marketplace icon as a single-colour mask, replacing the Meta logo
+  silhouette. The Marketplace icon, banner and social preview already used
+  the "m"; the activity-bar icon was missed.
+
 ### Fixed
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
@@ -306,6 +311,298 @@ happened, not what was planned; superseded entries are kept.
   name that only starts with two dots is an ordinary folder there too now,
   and a genuine `..` segment still fails closed.
 
+- A reply from a provider you added yourself (an Anthropic, OpenAI or
+  Mistral key, a local server and the others) or from a ChatGPT plan is no
+  longer cut off 30 seconds after the request starts. Since 0.15.0 any answer
+  that took longer, such as a long written answer or one the model thinks
+  about first, was lost, and for a provider you added the error read
+  "Models & Agents is not available in this build." A reply now has no limit
+  on its total time; one that goes silent ends after 5 minutes with nothing
+  received, and the message says so.
+
+- Local report sources sort every tied list to a total order, so the same
+  inputs produce byte-identical source facts whatever order records arrive
+  in: Git commits, tags, branches and worktrees break key ties on their
+  full serialized bytes, session check runs break remaining ties on
+  serialized bytes after the existing timestamp/check/outcome/commit/
+  duration fields, usage breakdown and limit keys do the same, scrubbed
+  question ids do the same, and agent file order normalizes Windows
+  separators before comparing. Permuted valid inputs additionally render
+  byte-identical changes, project, session and usage reports in Markdown,
+  HTML, JSON and text. Distinct records that scrub to the same key still
+  collide at the collector's unique row keys; that pre-existing collector
+  limitation is recorded, not changed, by this repair. Runtime discovery
+  also refuses directory entries shaped like session files, so a folder
+  named `*.jsonl` can no longer mark a usage read partial (C-M113-1,
+  RVM113S tie-breaks, RVCM1131 findings 1–3).
+
+- Tab's Help description and all 14 translations now explain that only
+  **Allow always in this workspace** saves the model and price; **Allow once**
+  saves nothing, covers this window, and each new window asks again. The
+  generated reference no longer promises one extra question for legacy consent
+  (RVM94KR4G).
+
+- Tab consent review RVM94KR3G: accepting image generation's price or turning
+  voice off preserves Tab's **Allow once**, including requests waiting to
+  send. Revocation is per feature; **Ask again** and Tab's own price acceptance
+  changes end its consent, and a changed model or price asks for its own key.
+  The legacy **Allow always** migration saves the model and price only when answered
+  **Allow always in this workspace**; **Allow once** saves nothing and the
+  next window asks again.
+
+- Tab consent and hook-policy review RVM94KR2 (M94 lane K, redesign). Each
+  point fails closed.
+  - Tab's consent is keyed by model and price. A question open for one model
+    no longer answers a request for another; **Allow once** stays in its
+    window and is never written down; **Allow always** is kept with the model
+    and price it named. An **Allow always** kept by an earlier version asks
+    a migration question: only **Allow always in this workspace** saves the
+    model and price; **Allow once** saves nothing and the next window asks
+    again. An answer given after **Ask again** sends nothing.
+  - A hook file or setting change stops Tab reading from the moment it is
+    noticed, before the `ConfigChange` hook runs, until it has reloaded.
+  - A request's last check now runs immediately before it is sent, after the
+    key read and rate pacing: a changed model, consent or hook configuration
+    sends nothing, and the request costs nothing.
+  - A hook's cached read verdict counts only for the model it was asked about
+    and the configuration it ran under.
+
+- Tab hook review RVM94KR (M94 lane K). Each point fails closed.
+  - A `spark-hooks.json` that is present but does not load in full no longer
+    reads as "no hooks": invalid JSON, an unreadable or oversized file, an
+    unknown event name, an invalid Tab group or a guard whose matcher never
+    names `TabRead`. Tab then reads no file, and the status bar says **Tab
+    paused: hook file has errors** in all 14 languages until it is fixed.
+  - A Tab request is bound to the trust, Tab settings, `files.exclude`,
+    ignore files and hook configuration in force when it starts. It is
+    checked again after the paid question, at dispatch (after the debounce or
+    a wait for a free slot) and before its answer shows, and dropped if
+    anything moved.
+  - The paid question names the request's own model, the request sends only
+    that model, and a request for another model than the one last allowed
+    asks again, **Allow always** included.
+  - A hook whose wait for a process slot was cancelled now gives its
+    admitted resource lease back.
+  - The privacy guide said configured Cursor Tab hooks did not run; they do,
+    and the guide, README and this entry now say what they receive.
+
+- Unproved version 1 monthly rollup dollars are refused before money validation,
+  preserving the other usage days and the translated precision notice even for
+  overflow or negative literals (M121A round 4). Changes that round to zero show
+  `0%`; the money guard also checks nested and generic mapped keys, including
+  remapped (`as`) names and lib-declared records beneath ordinary wrappers.
+
+- Legacy money reads fail closed on overflow, underflow, negative zero and
+  unconvertible exponents (M121A round 3), preserving the precision-refusal
+  notice instead of accepting a rounded zero.
+
+- Usage period-change percentages and cost sorting use exact dollars,
+  including charges smaller than a nano-dollar. Portable usage summaries
+  share the same exact percentage calculation; very small monetary labels
+  keep their digits beyond Intl's precision limit. The money guard resolves
+  union/intersection members, apparent types and inherited interfaces.
+
+- Exact money keeps every promise on every Node version (M121A fix round).
+  Version 1 journals and schedules read dollars through a small JSON parse
+  that keeps each number's written digits, so a literal a double cannot
+  carry is refused on Node 20 exactly as on newer runtimes instead of being
+  rounded into the record. Usage charts label the original amount in every
+  status line, data table and previous-period figure; only the plotted
+  geometry stays approximate, so a single xAI tick no longer reads as ten
+  times its charge. The exact-money type guard now also sees through
+  finite-key records and mapped types.
+
+- Tests only: the exact-money guard cites PLAN.md by heading and quoted
+  phrase instead of by line number. A line number named a different sentence
+  after every edit above it, and the old check only asked that the numbered
+  line was not blank; each sanctioned entry's clause must now be in PLAN.md
+  exactly once, under M121's heading, so PLAN edits elsewhere no longer turn
+  the suite red and a deleted, reworded, duplicated or moved clause does.
+
+- **Automatic compaction review repairs** (M101, RVCM1011C): hidden options
+  preserve the complete ACP and CLI manuals, including invalid-argument help.
+  Help filters structured option identities rather than flag substrings.
+  Revoked consent, paid switch, trust or evaluation refuses only that
+  compaction and lets the ordinary turn continue; actual ledger failures
+  still fail closed. The native setting keeps 0.17.1's description (it shows
+  or hides the first-turn notice while automatic compaction is inactive), and
+  the README and ACP page do not describe the inactive feature.
+
+- **Automatic compaction admission, third review** (M101, RVCM1011B): one
+  authority reserves each actual request's input estimate and full output
+  allowance, settles reported usage and refunds the difference. Consent,
+  paid switch, trust and evaluation are checked at preparation and final
+  dispatch, including retries; revocation stops the send. Unevaluated
+  automatic compaction is absent from paid surfaces and help; the native
+  setting only shows or hides the first-turn notice.
+  Turn-on confirms its rates, manual summary forks keep their own identity,
+  and ACP Once covers one workspace within the agent process.
+
+- **Automatic compaction admission** (M101, RVCM1011): shared first-charge
+  consent precedes spending; daily Stop and unreadable storage refuse even
+  near-window protection. Each HTTP attempt gets a fresh claim, known
+  nonsends refund, and settlement failure ends the owning turn before any
+  continuation. ACP/exec use their transport's sole daily debit. ACP adds
+  `--auto-compaction` as an explicit paid opt-in; exec paid defaults remain
+  off. The evaluated latch remains false.
+
+- The installed CLI, ACP agent and headless runs share the account service
+  instead of answering "Accounts are unavailable": Meta's Model API entry is
+  built in, so `providers accounts` (list, add, remove, order, thresholds),
+  `auth set --provider meta --account <id>`, `exec --account <id>` and
+  ACP's `/accounts` (list, current, thresholds) work with no pre-existing
+  file. The `account` picker serves the Model API backend only; the Muse
+  Code backend runs on its subscription, and an accounts failure leaves the
+  session working without accounts. Choosing another account in a session
+  stays refused until the pooled owner lands, and says which account the
+  session keeps instead of reporting unavailable — including across the
+  runtime/ACP bundle boundary. A malformed user row refuses and is left
+  untouched (the built-in entry applies only with no file); a vendor-limit
+  stop names the blocked account and its reset even with no usage page
+  bundled; a pooled `exec` run names the missing pool owner instead of
+  the connection text. The Models panel stop notice names the blocked
+  account too, and a refused providers file (a malformed row, unparsable
+  JSON, duplicate account ids, or a provider id that does not match its
+  key) says the file was refused and left unchanged instead of the
+  connection sentence — on the terminal, through ACP list/current/thresholds
+  and picker selection, as the Models panel's own error, from `exec
+  --account` readiness instead of a keyring-outage message, from developer
+  multiple-accounts open instead of a raw stack, and on the terminal crash
+  line as the sentence itself.
+
+- Models & Agents keeps the visible section during lazy navigation and reserves
+  its remembered height on reload. The first visit estimates its host rows.
+  Visual captures wait for money amounts, and filtered model tables now have
+  reviewed coverage across every theme, width and interaction state.
+
+- Release-train bundle diet (repository only, no user-visible change):
+  shared top-level initialisers the bundler cannot drop (computed
+  `Math.ceil`, `String.raw`, `String.fromCodePoint`, `'0'.repeat`,
+  templates over constants, call-argument `new Set`) are literals or pure
+  factories now, and single-surface schemas live behind pure builders, so
+  small bundles stop carrying them: usagePanel.js back under its cap with
+  room to spare. Recorded in `docs/certification/train-bundle-diet.md`.
+
+- Older-fixes train bundle split (repository only, no user-visible change):
+  the verify loop's session side (the loop, its ledger and the diagnostics
+  history, with their 23 exclusive model-text keys in a `VERIFY_MODEL_TEXT`
+  block of their own) loads as `dist/modelApiTools.js`'s sibling
+  `dist/modelApiVerify.js` on the first turn that verifies tool edits, so
+  `dist/modelApi.js` is back under its unchanged 525 KiB cap with room to
+  spare. A bundle that cannot load fails the turn or check run that needed
+  it, never a silent skip. Recorded in
+  `docs/certification/train-older-fixes.md`.
+
+- A confirmed run on a ChatGPT or Copilot plan model (hook model, review,
+  scheduled prompt) no longer fails with "the model changed" before it is
+  sent. The subscription client proceeds while the confirmation is still
+  allowed and refuses with the run's own guidance only once it has lapsed,
+  like the other clients (M106, RVCM1062F).
+
+- Fixed the RVCM1062G findings on that plan-model success path. A confirmed
+  scheduled run now records its start receipt and scheduled-prompt tally,
+  and a paid-gate lapse during ChatGPT sign-in or Copilot token counting
+  still refuses before anything is sent — through the same
+  confirmed-dispatch helper the other branches use. A lapsed confirmation
+  names the hook, schedule or review instead of the generic plan retry
+  sentence, and a catalogue request id is accepted against a session
+  confirmation id (M106, RVCM1062G;
+  `docs/certification/m106-capability-binding.md`).
+
+- Fixed the RVCM1062H findings: the last two confirmed-dispatch paths that
+  decided by themselves now route through the shared helper. A still-allowed
+  scheduled or hook confirmation on a configured provider (which carries no
+  origin) dispatches instead of refusing with "Models & Agents is not
+  available in this build", and a lapsed confirmation there keeps the run's
+  own guidance instead of that sentence. An inventory test fails if any site
+  but the helper ever refuses a confirmed dispatch again (M106, RVCM1062H;
+  `docs/certification/m106-capability-binding.md`).
+
+- Reviewing Git changes now works on machines and repositories with no Git
+  filters configured (for example without Git LFS installed). Broken since
+  0.15.0, it refused every native review there with "Git could not read the
+  changes to review" (lane REVIEWEXIT).
+
+### Documentation
+
+- PLAN.md had grown to 4,157,477 bytes, 36,827 short of the 4 MiB bound at
+  which `check:plan`, `check:roadmap` and `/report` refuse it. Closed history
+  moved to `docs/plan-archive/`, byte for byte: the design record of 50
+  decisions (`decisions.md`; PLAN.md §2 keeps each heading, a paragraph that
+  states the rule in force and a link), 140 gate records dated 2026-10-08 or
+  earlier (`gates.md`) and 7 closed 0.17.0 sections (`milestones.md`).
+  PLAN.md is 3,472,457 bytes. Passages that open branches touch, passages
+  tests cite and live tables stayed in place; every parsed fact is unchanged
+  and ROADMAP.md regenerates identical. `check:plan` now fails when PLAN.md
+  passes 85% of the bound and names the archive procedure in CONTRIBUTING.md,
+  and `test/unit/planArchive.test.ts` hashes every archived passage.
+
+- `npm run plan:archive` (repository only) moves passages of PLAN.md into
+  `docs/plan-archive/` and proves each move before writing: the old file is
+  rebuilt byte for byte from the result, and the plan reader must parse the
+  same facts. `status` shows the plan's size against the bound and the gate
+  and checks every archived block's hash. A design record now goes to the
+  archive in the change that adds it; PLAN.md keeps the rule in force and
+  the link (AGENTS.md, CONTRIBUTING.md).
+
+- Headless `exec` runs reported every result sentence in English whatever the
+  run language, because the language table was installed into the entry
+  bundle's copy instead of the headless bundle's copy the result (and, through
+  it, the engine) reads from. The run language now reaches the request-cap,
+  budget and error sentences and the engine's limit notice.
+- Model API turns reaching the hidden 50-call bound stopped as an English
+  internal error and lost their answer. They now reserve the last permitted
+  call for a summary without tools, keep it, report a translated request-limit
+  notice, return ACP `max_turn_requests`, and accept a new message to continue.
+  The default is now 200 calls; an existing caller request allowance wins,
+  including `exec --max-requests` above 200 (production ACP binds none).
+  Money caps remain enforced.
+- A request that declares no tools (the wrap-up, compaction without
+  reused tools, the Git drafts, the reviewer and hook-model calls with no
+  tools) omits both the tools list and the tool choice on every wire
+  format. That omitted shape is the only one every provider accepts:
+  xAI answers 400 to a tool choice with no tools, which broke `/compact`,
+  automatic compaction, the Git drafts and the wrap-up on xAI — a person
+  on xAI can compact again. The instructions stay byte-identical
+  (golden `10-turn-limit-wrap-up`, re-recorded for the omitted shape).
+  The turn's first model call always runs with tools, even when it is also
+  the last one allowed: an answer completes the turn (exec exit 0), while a
+  tool request ends it at the request cap. A wrap-up answer always completes
+  with `max_turn_requests` (exec `request_cap`, exit 5), whatever ended the
+  wrap-up: a plain or truncated answer, a Stop hook blocking or answering
+  `continue: false`, or a hook cancelling the turn. Stop hooks still run on
+  a wrap-up turn; a hook asking for more work is answered with a notice.
+  Steering, scheduled-prompt steers and goal wakes arriving before the
+  wrap-up keep their own turn with tools, and never feed the wrap-up; the
+  wrap-up is never measured as the turn body, and compaction after a limit
+  stop reuses the last ordinary body. A hook-model call that would take the
+  turn's last call fails instead, before any paid popup or tally, so the
+  hook's own on-failure rule decides. Call-limit and
+  output-limit stops carry their own evidence stop reason instead of the
+  money stop, and the reference names the turn behavior on the Conversation
+  entry instead of the paid budget. `setModelCallAllowance` is required on
+  the attempt session surface, so best-of-N attempts reserve the wrap-up
+  through it. (Team-task ceilings return with the teams wiring lane: that
+  lane binds team tasks through the same member.)
+- One `usableReply` rule decides whether a turn's reply may answer what was
+  asked: only a turn that completed without a limit yields it. The
+  same-model judge, the playbook review, both Git drafts, the reviewer, the
+  hook models, and the handoff brief all go through it, so a capped turn's
+  summary is never taken as a verdict, review, draft, or brief. The wire
+  keeps `completed` with `max_turn_requests`; a source guard fails any new
+  raw completed-terminal read outside the accessor.
+- The wrap-up phase is now decided where every request is built, so a
+  whole-stream retry, media recovery, or overflow recovery on the last
+  permitted call still sends the wrap-up (no tools, the note appended) and
+  the turn ends with its text. A wrap-up request that itself cannot be
+  completed (rate limit, model error, money stop, hook stop) still ends
+  with the typed request-limit stop, now saying in one translated sentence
+  that the summary could not be produced and why. A goal wake held across
+  a failed wrap-up keeps its own turn with tools. When the wrap-up itself
+  overflows the context window, the turn ends failed saying
+  "Context window full: /compact or /handoff" instead, and anything the
+  turn was holding is still re-queued for its own turn. Image generation refuses
+  on the same reserved slot as every other caller-ledger side call.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
@@ -563,7 +860,57 @@ happened, not what was planned; superseded entries are kept.
 
 - ACP permission answers retain the selected persistent rule's identity;
   consent for one command prefix cannot silently install another stage's rule.
+- Tool results are bounded before they reach the model (Model API): one
+  choke point cuts any result past 16,000 estimated tokens, any line past
+  8,000 characters, or any result past a quarter of the remaining window.
+  A cut keeps the full text in `.muse-spark/tool-results/` for paging and
+  tells the model and the person what was cut and how to read more. A
+  provider "prompt is too long" refusal trims the largest results, compacts
+  once when available, then ends the turn with what to do next, in at most
+  three sends. The cap is `museSpark.modelApiMaxToolOutputBytes` (64,000
+  bytes by default); `exec --max-tool-output-bytes` raises it for one
+  headless run. One oversized result can no longer fill the model's window
+  and end the conversation.
 
+- Tool-result bound, round 2: the window share is now measured in bytes, so
+  dense text (pasted hex, minified JSON, CJK) cannot slip several times its
+  token cap past a character count; the type system holds the rule instead of
+  a source-scanning test (a bare string no longer compiles into a request).
+  Cut notices count exactly what was kept and omitted. Spill files are plain
+  workspace files, removed when their session is deleted and pruned past 30
+  days. A refusal the lane has not recorded for its format no longer triggers
+  a resend: the turn ends with the short sentence instead. A too-small
+  `--max-tool-output-bytes` is refused with its translated reason.
+
+- Lane REASONSHAPES (provider reasoning gaps, all shapes UNVERIFIED until
+  the 26-request capture plan answers): DeepSeek `ultra` now rides as
+  `reasoning_effort: "max"` per its thinking-mode table instead of
+  refusing, and beta-base entries send strict tool schemas. Groq sends `reasoning_format: "parsed"` where the model
+  reasons. Together sends the hybrid toggle `reasoning: {enabled: false}`
+  for Thinking off. Z.ai sends the `thinking` switch (off only where the
+  model affirms it), preserved thinking where a turn replays reasoning,
+  and main-turn JSON mode where affirmed. llama.cpp sends
+  `reasoning_effort` as named (`none` disables). Mistral reads chunk-list
+  thinking and replays it as a thinking chunk. Ollama sends `think: "max"`.
+  OpenRouter drops tools for models that refuse them. The effort slider
+  offers each Muse Code model's own tiers (including Ultra where served)
+  and falls back to its default. Copilot drops past search calls instead
+  of failing the turn.
+
+- Lane REASONSHAPESR2 (Anthropic/OpenAI/xAI reasoning gaps, all shapes
+  UNVERIFIED until the 27-request capture plan answers): Thinking off
+  and each effort name now follow the model's own record — a value the
+  model does not take is refused before dispatch instead of sent, and an
+  unlisted level falls back to the provider default instead of a
+  neighbour. Thinking blocks replay between tool turns; Thinking off
+  sends each model's affirmed switch (`disabled`, Sonnet 5.5's
+  `between_tools`); manual-only models think with a tier-sized budget
+  and Opus 4.5 sends the interleaved-thinking header. Models with no
+  effort evidence (xAI's `grok-build-0.1` and the 4.20 pair) send no
+  reasoning field at all, so their turns go through. The composer
+  offers each configured model's own levels and default, and OpenAI
+  turns carry pro mode and reasoning context at the wire (no switch for
+  them yet). `exec --effort` accepts `none`.
 - After Muse Code restarted, a conversation could continue on a different
   model than the one shown (and at that model's price). It now keeps the
   model you chose: the choice is applied and read back from Muse Code before
@@ -639,6 +986,23 @@ happened, not what was planned; superseded entries are kept.
   bypass, and a digest of the complete eval task definitions). The host's
   scalar request assembly stays with the lead's loopback run pending
   recorded exchanges.
+- Fixed: the app's own statuses (such as automatic compaction awaiting
+  evaluation) no longer speak as the model's reply on the editor
+  protocol — they arrive as their own session notice where the editor
+  can show one, as a separate panel notice as before, and on terminal
+  stderr in headless runs (F82).
+- Fixed: a configured model without confirmed tool calling is listed
+  with its limit stated instead of vanishing silently, is flagged when
+  added, and is refused for agent turns with the same sentence (F83).
+- Fixed: terminal `providers add` without `--model` lists the key's
+  models and says to pass `--model <id>` (repeatable) instead of the
+  panel's tick wording (F85).
+- Provider-truth review: resource-governor and account statuses use
+  the same session notice on the editor protocol; a refused model
+  switch keeps the session on its model and carries the refusal
+  sentence in the protocol error; `providers list` states the
+  tool-calling limit; a key test that read no model list still gets
+  the terminal's own wording (F82, F83, F85).
 
 - Test-overhaul review: paid-popup lazy-load checks now build the real
   runtime instead of writing a replacement formatter, retaining locale
@@ -691,6 +1055,14 @@ happened, not what was planned; superseded entries are kept.
   at once, before the rest of the sign-in facts are read; a skills "Not now" is
   remembered even when the click reaches a window that never showed the
   notice.
+
+- Activation budget, after merging main into the panel wording: the Install
+  and Remove Bundled Skills commands load with the installer they run
+  (dist/bundledSkills.js) instead of at activation. Activation growth over
+  the pre-K baseline goes from 3,717 bytes (over the 3,072-byte allowance)
+  to 2,290 bytes. No behaviour change: the same steps, said in the window's
+  language; a missing bundle refuses the run and the next run tries again.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
@@ -790,6 +1162,28 @@ happened, not what was planned; superseded entries are kept.
   reported back and kept when the session is loaded again. The Manual and
   Edit Automatically descriptions now say commands are asked about unless
   a permission rule allows them.
+- Usage and cost say what really happened (lane USAGETRUE): on the Muse
+  Code backend, `usage summary` now shows the cached input, reasoning
+  tokens and cache hit rate from each request's own reported counters
+  instead of Unknown. Total request time and latency percentiles come
+  from each request's own duration. Plan spend carries the equivalent
+  API price at the used tier's published rates (a `-contributor` model
+  prices at contributor rates) and is named by the subscription meter's
+  own plan name instead of a bare "Plan". The models breakdown shows the
+  model and tier each request was really sent as. The daily view no
+  longer prints the same day twice: hourly rows of one day name the hour.
+  The panel, the terminal agent and the editor protocol share the same
+  journal, aggregates and text, so all editors show the same numbers.
+
+- Usage-truth review fixes (lane USAGEFIX): a completion report the CLI
+  delivers twice is journaled once, so tokens, time and the equivalent
+  price are never doubled. Each request's start is its own start, not
+  the turn's, so later requests in one turn no longer overlap the first
+  in the calls export. Hourly rows keep the timezone they were recorded
+  in, so a later timezone change cannot move an hour onto another day.
+  The journal format is version 3 for the stored plan name; older
+  releases count the new lines as a newer version instead of dropping
+  them, and this release still reads versions 1 and 2.
 
 ## [0.18.2] - 2026-10-12
 

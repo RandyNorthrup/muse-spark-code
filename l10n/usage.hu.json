@@ -37,11 +37,19 @@
     "other": "A hívásonkénti CSV-exportálás csak az utolsó {count} napra érhető el."
   },
   "exportComplete": "Használat exportálva.",
+  "exportTooLarge": "Ez az export túl nagy a böngészőhöz. Válasszon rövidebb időszakot, vagy exportáljon a CLI használatával.",
+  "exportBound": "A böngészős exportok korlátja {limit}, a JSON-kódolást is beleértve.",
+  "editorActionsUnavailable": "Ez az oldal nem tudja megnyitni a szerkesztő beállításait vagy az előzmények mappáját, és nem tudja módosítani a modellek árait. Használja a szerkesztő beállításait és a Modellek és ügynökök vezérlőit. Az olvasás, szűrők, diagramok és exportok itt továbbra is elérhetők.",
+  "readOnlyActions": "Ez a szöveges felület csak olvasható. Diagramokhoz, előzménykezeléshez és letöltésekhez nyissa meg a kísérőoldalt.",
   "deleteHistory": "Használati előzmények törlése…",
   "deleteTitle": "Törli a használati előzményeket?",
   "deleteConfirm": {
     "one": "Törli a gépen lévő {count} használati rekordot? A költési naplók és a megadott engedélyek megmaradnak.",
     "other": "Törli a gépen lévő {count} használati rekordot? A költési naplók és a megadott engedélyek megmaradnak."
+  },
+  "deleteConfirmResources": {
+    "one": "Az erőforrás-előzmények {count} bejegyzését is törli.",
+    "other": "Az erőforrás-előzmények {count} bejegyzését is törli."
   },
   "deleteAction": "Előzmények törlése",
   "deleteComplete": "Használati előzmények törölve.",
@@ -216,13 +224,5 @@
   "sortAscending": "Növekvő rendezés",
   "sortDescending": "Csökkenő rendezés",
   "retentionNote": "A hívásonkénti részletek {detailDays} napig, a napi összegzések {historyDays} napig maradnak meg.",
-  "privacyNote": "Az előzmények ezen a gépen maradnak. Nem tartalmaznak promptokat, válaszokat, eszközargumentumokat, elérési utakat vagy kulcsokat.",
-  "exportTooLarge": "Ez az export túl nagy a böngészőhöz. Válasszon rövidebb időszakot, vagy exportáljon a CLI használatával.",
-  "exportBound": "A böngészős exportok korlátja {limit}, a JSON-kódolást is beleértve.",
-  "editorActionsUnavailable": "Ez az oldal nem tudja megnyitni a szerkesztő beállításait vagy az előzmények mappáját, és nem tudja módosítani a modellek árait. Használja a szerkesztő beállításait és a Modellek és ügynökök vezérlőit. Az olvasás, szűrők, diagramok és exportok itt továbbra is elérhetők.",
-  "readOnlyActions": "Ez a szöveges felület csak olvasható. Diagramokhoz, előzménykezeléshez és letöltésekhez nyissa meg a kísérőoldalt.",
-  "deleteConfirmResources": {
-    "one": "Az erőforrás-előzmények {count} bejegyzését is törli.",
-    "other": "Az erőforrás-előzmények {count} bejegyzését is törli."
-  }
+  "privacyNote": "Az előzmények ezen a gépen maradnak. Nem tartalmaznak promptokat, válaszokat, eszközargumentumokat, elérési utakat vagy kulcsokat."
 }

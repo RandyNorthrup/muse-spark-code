@@ -47,7 +47,7 @@ import {
 } from '../../shared/constants'
 import { createNativeOrphanDriver, createOrphanRecovery } from './orphanRecovery'
 import { createProcessOwnership } from './processOwnership'
-import { MuseCodeHost } from '../../core/backends/musecode/MuseCodeHost'
+import { MuseCodeHost, museCodeEffortPort } from '../../core/backends/musecode/MuseCodeHost'
 import type { CoreLogger } from '../../core/logging'
 import { withDeadline } from '../../core/timeouts'
 
@@ -130,6 +130,8 @@ export async function startTeamMuseCodeHost(options: {
     const host = new MuseCodeHost(
       { connection, initializeResult: initialized, exited, close: () => connection.close() },
       options.log,
+      undefined,
+      museCodeEffortPort,
     )
     // Same field already captured and parsed by MuseCodeHost; no new wire shape.
     const fingerprint = z

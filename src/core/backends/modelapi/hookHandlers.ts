@@ -141,6 +141,13 @@ export interface HookModelPolicy {
     readonly kind: 'prompt' | 'agent'
     readonly modelId: string
   }) => Promise<boolean>
+  /**
+   * Whether the turn's remaining call allowance is reserved for its own
+   * requests: a hook-model run now would take the reserved slot. Checked
+   * before the paid popup and the tally; a reserved slot fails the handler
+   * so the hook's own on-failure rule decides. Absent, no slot is reserved.
+   */
+  readonly isTurnCallReserved?: (() => boolean) | undefined
   /** Counts the run on the hookModels tally line. */
   readonly noteHookModelRun: () => void
   /** Settles the run's reported use into tokens and cost. */
@@ -414,6 +421,9 @@ export async function runTypedHandler(
         ...(handlers.noteHookModelUsage !== undefined && {
           noteHookModelUsage: handlers.noteHookModelUsage,
         }),
+        ...(handlers.isTurnCallReserved !== undefined && {
+          isTurnCallReserved: handlers.isTurnCallReserved,
+        }),
         modelId: handlers.modelId,
       },
       signal,
@@ -424,11 +434,13 @@ export async function runTypedHandler(
 }
 
 /**
- * Runs one `prompt` or `agent` handler: the paid gate first, then one model
- * call, then the answer parsed like a command's. The gate (kill switch),
- * the price check and the paid-use popup all run before any model request;
- * a refused or denied run never reaches the model. The run is tallied on
- * the hookModels line, apart from the conversation.
+ * Runs one `prompt` or `agent` handler: the paid gate, then one model call,
+ * then the answer parsed like a command's. The gate (kill switch), the
+ * price check and the paid-use popup all run before any model request;
+ * a refused or denied run never reaches the model. The reserved-slot check
+ * runs before the popup and the tally, so a skipped run is failed, never
+ * asked for nor counted. The run is tallied on the hookModels line, apart
+ * from the conversation.
  */
 export async function runModelHandler(
   config: TypedHandlerConfig,
@@ -460,6 +472,15 @@ export async function runModelHandler(
   if (Buffer.byteLength(payloadJson) > HOOK_STDIN_MAX_BYTES) {
     warn(`${config.event}: ${kind} hook input exceeds limit; the model was not asked`)
     return failed(`${kind} hook input exceeds limit`)
+  }
+  // A skipped call is a failed hook answer with its own typed reason: the
+  // turn's call allowance is used up. Before the popup and the tally, so
+  // nothing is asked to be paid and nothing is counted for a call that is
+  // not made; the hook's own on-failure rule decides.
+  if (policy.isTurnCallReserved?.() === true) {
+    const reason = `${config.event}: ${kind} hook model call skipped: the turn's remaining call allowance is reserved for its own requests`
+    warn(reason)
+    return failed(reason)
   }
   const isAllowed = await policy.allowsHookModelUse({ event: config.event, kind, modelId })
   if (!isAllowed) {

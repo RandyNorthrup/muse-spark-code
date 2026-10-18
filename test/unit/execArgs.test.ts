@@ -6,6 +6,7 @@ import {
   serveOptionsFor,
 } from '../../src/runtime/exec/execArgs'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
+import { capRefusalReason } from '../../src/core/backends/modelapi/toolResultBound'
 import { PAID_PRICES_USD, UI_TEXT } from '../../src/shared/constants'
 import type { PaidUseRequest } from '../../src/shared/paid'
 
@@ -239,6 +240,9 @@ describe('M80 args (A1–A10, F1)', () => {
     { timeout: '9' },
     { timeout: '21601' },
     { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': '501' },
+    { backend: 'modelApi', 'max-budget-usd': '1', 'max-tool-output-bytes': '0' },
+    { backend: 'modelApi', 'max-budget-usd': '1', 'max-tool-output-bytes': '1023' },
+    { backend: 'museCode', 'max-tool-output-bytes': '70000' },
     { timeout: '10.1' },
     { backend: ['modelApi'] },
     { unknown: true },
@@ -263,6 +267,7 @@ describe('M80 args (A1–A10, F1)', () => {
       'fail-on-denial': true,
       timeout: '10',
       'max-requests': '1',
+      'max-tool-output-bytes': '128000',
       'prompt-file': '/prompt',
       'untrusted-file': ['a', 'b'],
     }
@@ -272,9 +277,32 @@ describe('M80 args (A1–A10, F1)', () => {
       paidFeatures: ['imageGeneration'],
       timeoutMs: 10_000,
       maxRequests: 1,
+      maxToolOutputBytes: 128_000,
       budgetUsd: Usd.from('2').toAmount(),
     })
     expect(parseExec({}, ['-'])).toMatchObject({ ok: true, options: { prompt: { kind: 'stdin' } } })
+  })
+  it('TOOLCAP refuses a below-floor tool-output guard with its translated sentence', () => {
+    const values = { backend: 'modelApi', 'max-budget-usd': '1' }
+    expect(parseExec({ ...values, 'max-tool-output-bytes': '10' }, ['hi'])).toEqual({
+      ok: false,
+      reason: capRefusalReason({ kind: 'below-floor' }),
+    })
+    expect(parseExec({ ...values, 'max-tool-output-bytes': 'abc' }, ['hi'])).toEqual({
+      ok: false,
+      reason: UI_TEXT.execNumberInvalid,
+    })
+    const floor = parseExec({ ...values, 'max-tool-output-bytes': '1024' }, ['hi'])
+    if (!floor.ok) throw new Error(floor.reason)
+    expect(floor.options.maxToolOutputBytes).toBe(1024)
+  })
+  it('accepts --effort none for Thinking off (lane REASONSHAPESR2)', () => {
+    // The terminal agent can be told to send none; the record decides
+    // what the wire carries.
+    expect(parseExec({ effort: 'none' }, ['hi'])).toMatchObject({
+      ok: true,
+      options: { effort: 'none' },
+    })
   })
   it('A8 refuses duplicate, missing and shared stdin sources', () => {
     for (const positions of [[], [''], ['a', 'b']]) expect(parseExec({}, positions).ok).toBe(false)

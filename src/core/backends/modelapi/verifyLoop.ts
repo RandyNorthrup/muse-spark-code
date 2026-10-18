@@ -13,6 +13,7 @@ import {
   MODEL_API_MODEL_TEXT,
   MODEL_TEXT,
   VERIFY_AUTHORIZE_ATTEMPTS,
+  VERIFY_MODEL_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import type { EditedFile, FileDiagnostics } from '../../verify/diagnosticsReport'
@@ -52,13 +53,13 @@ export interface CheckRun {
 }
 
 const SKIP_REASONS: Readonly<Record<CheckSkip, string>> = {
-  rejected: MODEL_API_MODEL_TEXT.checkSkipRejected,
-  hookDenied: MODEL_API_MODEL_TEXT.checkSkipHookDenied,
-  refused: MODEL_API_MODEL_TEXT.checkSkipRefused,
+  rejected: VERIFY_MODEL_TEXT.checkSkipRejected,
+  hookDenied: VERIFY_MODEL_TEXT.checkSkipHookDenied,
+  refused: VERIFY_MODEL_TEXT.checkSkipRefused,
   restricted: MODEL_API_MODEL_TEXT.checkSkipRestricted,
   unsafePath: MODEL_TEXT.checkSkipUnsafePath,
-  changed: MODEL_API_MODEL_TEXT.checkSkipChanged,
-  stopped: MODEL_API_MODEL_TEXT.checkSkipStopped,
+  changed: VERIFY_MODEL_TEXT.checkSkipChanged,
+  stopped: VERIFY_MODEL_TEXT.checkSkipStopped,
 }
 
 /** Why a command was not run, in the model's words, with the user's or the hook's own. */
@@ -66,7 +67,7 @@ export function skipReason(skip: CheckSkip, detail?: string): string {
   const reason = SKIP_REASONS[skip]
   return detail === undefined || detail.trim() === ''
     ? reason
-    : fill(MODEL_API_MODEL_TEXT.checkDetail, { reason, detail })
+    : fill(VERIFY_MODEL_TEXT.checkDetail, { reason, detail })
 }
 
 type FinishedOutcome = Exclude<CheckOutcome, 'notRun'>
@@ -83,9 +84,9 @@ export function outcomeOf(result: ShellResult): FinishedOutcome {
 }
 
 const OUTCOME_LINES: Readonly<Record<FinishedOutcome, string>> = {
-  passed: MODEL_API_MODEL_TEXT.checkPassed,
-  failed: MODEL_API_MODEL_TEXT.checkFailed,
-  timedOut: MODEL_API_MODEL_TEXT.checkTimedOut,
+  passed: VERIFY_MODEL_TEXT.checkPassed,
+  failed: VERIFY_MODEL_TEXT.checkFailed,
+  timedOut: VERIFY_MODEL_TEXT.checkTimedOut,
   cancelled: MODEL_API_MODEL_TEXT.checkCancelled,
 }
 
@@ -124,7 +125,7 @@ export function skippedCheck(
       skip,
       ...(detail !== undefined && detail.trim() !== '' && { detail }),
     },
-    text: fill(MODEL_API_MODEL_TEXT.checkNotRun, {
+    text: fill(VERIFY_MODEL_TEXT.checkNotRun, {
       name: check.name,
       reason: skipReason(skip, detail),
     }),
@@ -170,5 +171,5 @@ export async function authorizeThenGuard(steps: {
 
 /** The checks' part of a message: a heading and each check. */
 export function checksSection(runs: readonly CheckRun[]): string {
-  return [MODEL_API_MODEL_TEXT.verifyChecksHeading, ...runs.map((run) => run.text)].join('\n\n')
+  return [VERIFY_MODEL_TEXT.verifyChecksHeading, ...runs.map((run) => run.text)].join('\n\n')
 }

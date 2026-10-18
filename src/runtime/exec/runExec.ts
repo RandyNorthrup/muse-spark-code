@@ -46,6 +46,7 @@ import {
   PAID_PRICES_USD,
   MODEL_API_IMAGE_MODEL,
   SECRET_KEYS,
+  THINKING_OFF_EFFORT,
   UI_TEXT,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
@@ -375,6 +376,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let isCompactionPrompt = false
   let terminal: string | null = null
   let incompleteReason: string | null = null
+  let modelCallLimitReason: string | undefined
   let backendErrorKind: string | undefined
   let catalogueHttpStatus: number | undefined
   let status: ExecStatus = 'failed'
@@ -447,6 +449,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       terminal = event.terminal
       incompleteReason = event.reason ?? null
       backendErrorKind = event.errorKind
+      if (event.errorKind === 'max_turn_requests') {
+        modelCallLimitReason = event.reason
+        sink.emit({ type: 'limit', limit: 'requests' })
+      }
     } else if (event.type === 'tokenUsage' && options.backend === 'museCode') {
       latestTokens = {
         inputTokens: event.inputTokens,
@@ -457,6 +463,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     } else if (event.type === 'questionRequested') {
       questionsDeclined += 1
       sink.emit({ type: 'question_declined', count: 1 })
+    } else if (event.type === 'backendNotice') {
+      // The app's own words, on stderr beside the run: never part of the
+      // model's message. The backend emits each notice once per session.
+      // The notice's own level names the log line, so an info status does
+      // not read as a warning.
+      if (event.level === 'error') log.error(event.text)
+      else if (event.level === 'warning') log.warn(event.text)
+      else log.info(event.text)
     } else if (
       event.type === 'itemCompleted' &&
       event.item.kind !== 'agentMessage' &&
@@ -735,6 +749,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         usageRecording,
         exec: {
           isEphemeral: options.ephemeral,
+          ...(ledger !== undefined &&
+            options.maxRequests !== undefined && {
+              remainingModelCalls: () => (options.maxRequests ?? 0) - ledger.totals().requests,
+            }),
           outputCap,
           ...(providerRun !== undefined && { providerRun }),
           ...((providerRun !== undefined || isPlanRun || options.model === undefined) &&
@@ -965,7 +983,16 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               )
               effort = typeof config?.currentValue === 'string' ? config.currentValue : null
             } else {
-              if (!effortLevelsFor(model ?? undefined).includes(options.effort)) {
+              // A configured-provider id carries no static tiers (lane
+              // REASONSHAPESR2, XAI-G01): the record governs, so the value
+              // rides and the wire omits or refuses from the record. The
+              // static table still guards bare (Meta) ids, where `none`
+              // is not a tier either.
+              if (
+                !(model ?? '').includes('/') &&
+                (options.effort === THINKING_OFF_EFFORT ||
+                  !effortLevelsFor(model ?? undefined).includes(options.effort))
+              ) {
                 setup.isUsageError = true
                 error = UI_TEXT.execEffortUnavailable
                 return
@@ -1154,7 +1181,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         (last?.usage !== 'valid' || last.settlement !== 'priced')
       )
         status = 'accounting_unverified'
-      else status = stopReason === 'end_turn' ? 'completed' : 'failed'
+      else if (stopReason === 'max_turn_requests') {
+        status = 'request_cap'
+        error = modelCallLimitReason ?? plural(UI_TEXT.modelApiTurnLimit, totals?.requests ?? 0)
+      } else status = stopReason === 'end_turn' ? 'completed' : 'failed'
     }
     if (status === 'accounting_unverified') error = UI_TEXT.execAccountingUnverified
     const signal = lifecycle.cause?.kind === 'signal' ? lifecycle.cause.signal : null

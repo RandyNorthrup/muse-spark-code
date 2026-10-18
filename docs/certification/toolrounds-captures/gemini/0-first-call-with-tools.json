@@ -1,0 +1,85 @@
+{
+  "vendor": "gemini",
+  "model": "gemini-3.8-flash",
+  "variant": "0-first-call-with-tools",
+  "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+  "requestBody": {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Read the file a.txt with the tool, then tell me what it says."
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "functionDeclarations": [
+          {
+            "name": "read_file",
+            "description": "Read a file.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": ["path"]
+            }
+          }
+        ]
+      }
+    ],
+    "toolConfig": {
+      "functionCallingConfig": {
+        "mode": "ANY"
+      }
+    },
+    "generationConfig": {
+      "maxOutputTokens": 400
+    }
+  },
+  "status": 200,
+  "response": {
+    "candidates": [
+      {
+        "content": {
+          "parts": [
+            {
+              "functionCall": {
+                "name": "read_file",
+                "args": {
+                  "path": "a.txt"
+                },
+                "id": "call_109647"
+              },
+              "thoughtSignature": "EvcBCvQBAWkUfROBmLYBL/hj7WZimdU3kcBUfSs9o/v2ZnUzFxd0bL7ieo7La6c5KQjgAOaUnqTC1F2OWlEA4k7XLAZlqwRKrJpE8hg2CvyQPEIaCFaEdLOPFOD0Of9mzuV8wBptrcUUOylRwQ8pTtqae8wYWNO6YLe3jRq+ed3bAvPVIX/uYQdWxpt+rbIuXjljEGmkKykKIntBTnmKHJ7AI/QVrLz6ykGDT8Pw/dXx4mI39Fb0Lp82fi6BNNKBi5kgWIsiHas4k7nxI4+BLtJyQ02oEMBV9LdcAOjiUMjGDBSlZr3vWdWyy6n2Jy9eQCA1iCyoBaw4gA=="
+            }
+          ],
+          "role": "model"
+        },
+        "finishReason": "STOP",
+        "index": 0,
+        "finishMessage": "Model generated function call(s)."
+      }
+    ],
+    "usageMetadata": {
+      "promptTokenCount": 59,
+      "candidatesTokenCount": 18,
+      "totalTokenCount": 119,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 59
+        }
+      ],
+      "thoughtsTokenCount": 42,
+      "serviceTier": "standard"
+    },
+    "modelVersion": "gemini-3.8-flash",
+    "responseId": "iDvNao7IF--1qtsPvo3c6Q0"
+  }
+}

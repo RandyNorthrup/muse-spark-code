@@ -272,3 +272,40 @@ placeholder); no test was deleted or skipped.
   google-chrome/chromium/chromium-browser all report "no … in …"); the lead
   runs it. No screenshot gate was run (`check:visual` never runs per owner).
 - `security:sast` needs semgrep (see above).
+
+## Merge with main 821566c0f: activation budget (2026-10-17, wslpc)
+
+Merging main (PR 166 and PR 174 included) into this branch put the
+activation bundle over its allowance: `test/unit/modelsActivationBudget.test.ts`
+measured baseline 561,352, current 565,069, growth 3,717 bytes against
+3,072 (exit 1). Main alone measured 563,995 (growth 2,643, 429 bytes of
+room); this branch's own activation code adds 1,074 bytes (authService
++570, bundledSkills +289, webviewSetup +145, cliAccount +38, extension +32;
+esbuild metafile with the test's own plugins and externals).
+
+Fix, following main's ACTROOM precedent (move the next on-demand body, not
+this branch's own small growth): the Install and Remove Bundled Skills
+commands move from `src/host/skills/bundledSkills.ts` (activation) to
+`src/host/skills/bundledSkillsCommands.ts`, exported by
+`bundledSkillsEntry.ts` into dist/bundledSkills.js, which those commands
+already loaded to do their work. The entry installs the caller's language
+table before each command runs, like every lazy factory; the command
+bodies are unchanged except that they call the installer directly instead
+of through the loader. The offer and the loader stay at activation.
+
+- After: growth 2,290 bytes (`modelsActivationBudget` 1 passed);
+  dist/bundledSkills.js 18.2 KiB (budget 50 KiB); `npm run build` exit 0.
+- New split guard row: `scripts/check-bundle-split.mjs` pins
+  `src/host/skills/bundledSkillsCommands.ts` to dist/bundledSkills.js.
+  Red drill: `src/extension.ts` calling the command body through a static
+  import → `check-bundle-split` exit 1 ("dist/extension.js carries
+  src/host/skills/bundledSkillsCommands.ts, which loads only with the
+  installer"); reverted byte-exact (SHA-256 checked), rebuild exit 0.
+- typecheck 0, eslint `--max-warnings=0` on the five changed files 0,
+  deadcode 0, cycles 0, duplication 0 clones.
+- No unit test runs these command bodies (main's test overhaul deleted the
+  suite that drove them with stand-ins). Real-life step for the lead: in the
+  packed product run "Install Bundled Skills" and "Remove Bundled Skills"
+  from the command palette, and Install from the panel's offer: each says
+  what it did in the window's language and offers the restart while Muse
+  Code runs.

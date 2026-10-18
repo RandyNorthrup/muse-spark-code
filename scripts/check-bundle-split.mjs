@@ -95,6 +95,7 @@ import {
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
   MODEL_API_TOOLS_ONLY,
+  MODEL_API_VERIFY_ONLY,
   MODEL_API_BOUNDARY_SOURCES,
   checkDeferredBundles,
   checkResourceBundles,
@@ -201,6 +202,8 @@ const LAZY_ONLY = [
   'modelPolicy.ts',
   // M73: observation packing's store, its placeholder and recall_output.
   'observationPack.ts',
+  // TOOLCAP: the one tool-result bound every result passes before the conversation.
+  'toolResultBound.ts',
   'autoCompact.ts',
   'permissions.ts',
   'promptCache.ts',
@@ -212,9 +215,8 @@ const LAZY_ONLY = [
   'tools.ts',
   // M81: what a browser check hands the model and the row.
   'browserCalls.ts',
-  // The verify loop's session side and its tool surface (M68).
-  'verifyLedger.ts',
-  'verifyLoop.ts',
+  // The verify loop's tool surface (M68): its loop, ledger and history
+  // load with dist/modelApiVerify.js (MODEL_API_VERIFY_ONLY).
   'verifyTools.ts',
 
   // M91-M: MCP forms' types and log text load with the backend; their checks
@@ -283,6 +285,7 @@ for (const name of onDisk) {
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
     Number(PLUGIN_HOOKS_ONLY.includes(name)) +
     Number(MODEL_API_TOOLS_ONLY.includes(name)) +
+    Number(MODEL_API_VERIFY_ONLY.includes(name)) +
     Number(TYPES_ONLY.has(name)) +
     Number(UNBUNDLED.has(name))
   if (lists !== 1) {
@@ -304,6 +307,7 @@ for (const name of [
   ...HOOK_RUNTIME_ONLY,
   ...PLUGIN_HOOKS_ONLY,
   ...MODEL_API_TOOLS_ONLY,
+  ...MODEL_API_VERIFY_ONLY,
   ...TYPES_ONLY,
   ...UNBUNDLED,
 ]) {
@@ -878,10 +882,12 @@ for (const file of RULES_FILE_ONLY) {
 }
 
 // M89: the bundled skills installer loads on its first install, removal or
-// offer; the activation bundle has its loader, its offer and its types only.
+// offer, and its two commands load with it; the activation bundle has its
+// loader, its offer and its types only.
 const BUNDLED_SKILLS_ONLY = [
   'src/host/skills/bundledSkillsEntry.ts',
   'src/host/skills/bundledSkillsInstall.ts',
+  'src/host/skills/bundledSkillsCommands.ts',
 ]
 const bundledSkills = inputsOf(BUNDLED_SKILLS)
 for (const file of BUNDLED_SKILLS_ONLY) {
@@ -1193,8 +1199,23 @@ const TEXT_BLOCKS = [
   },
   {
     block: 'MODEL_API_MODEL_TEXT',
-    sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
-    readers: [BUNDLES.modelApi.output, 'dist/mcpPool.js', 'dist/modelApiMcp.js'],
+    sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyAccessRefused'],
+    // The verify chunk reads two skip/outcome keys of this block, so it
+    // carries the block whole (one object is carried whole, D6).
+    readers: [
+      BUNDLES.modelApi.output,
+      'dist/mcpPool.js',
+      'dist/modelApiMcp.js',
+      'dist/modelApiVerify.js',
+    ],
+  },
+  // The verify loop's own words (M68): the loop, its ledger and the
+  // diagnostics history read them through the lazy verify chunk. The two
+  // skip reasons the session itself reads stay in MODEL_API_MODEL_TEXT.
+  {
+    block: 'VERIFY_MODEL_TEXT',
+    sentinels: ['verifyChecksHeading', 'verifyUncheckedCodeLoading'],
+    readers: ['dist/modelApiVerify.js'],
   },
   {
     block: 'CODE_INTEL_MODEL_TEXT',

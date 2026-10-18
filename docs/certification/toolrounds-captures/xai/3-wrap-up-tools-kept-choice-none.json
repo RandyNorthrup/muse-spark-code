@@ -1,0 +1,165 @@
+{
+  "vendor": "xai",
+  "model": "grok-4.3",
+  "variant": "3-wrap-up-tools-kept-choice-none",
+  "url": "https://api.x.ai/v1/responses",
+  "requestBody": {
+    "model": "grok-4.3",
+    "max_output_tokens": 400,
+    "store": false,
+    "tools": [
+      {
+        "type": "function",
+        "name": "read_file",
+        "description": "Read a file.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": ["path"]
+        }
+      }
+    ],
+    "tool_choice": "none",
+    "input": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "id": "rs_2f691c59-c72d-9709-8c42-6dd0cd11eda9",
+        "summary": [
+          {
+            "text": "Reading a.txt to report its contents.",
+            "type": "summary_text"
+          }
+        ],
+        "type": "reasoning",
+        "status": "completed"
+      },
+      {
+        "arguments": "{\"path\":\"a.txt\"}",
+        "call_id": "call-eedf2a0b-9912-4610-a918-104a70aaa7c5-0",
+        "name": "read_file",
+        "type": "function_call",
+        "id": "fc_2f691c59-c72d-9709-8c42-6dd0cd11eda9_0",
+        "status": "completed"
+      },
+      {
+        "type": "function_call_output",
+        "call_id": "call-eedf2a0b-9912-4610-a918-104a70aaa7c5-0",
+        "output": "hello from a.txt"
+      },
+      {
+        "role": "developer",
+        "content": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "created_at": 1791834968,
+    "completed_at": 1791834971,
+    "id": "dcc5d93a-d7bd-9bf6-875d-aaf6acc81aa0",
+    "max_output_tokens": 400,
+    "model": "grok-4.3",
+    "object": "response",
+    "output": [
+      {
+        "id": "rs_dcc5d93a-d7bd-9bf6-875d-aaf6acc81aa0",
+        "summary": [
+          {
+            "text": "Reading a.txt to report its contents.\n\nThe file contains \"hello from a.txt\". I cannot call any more tools this turn.",
+            "type": "summary_text"
+          }
+        ],
+        "type": "reasoning",
+        "status": "completed"
+      },
+      {
+        "content": [
+          {
+            "type": "output_text",
+            "text": "I called the read_file tool on a.txt which returned \"hello from a.txt\" and nothing else remains.",
+            "logprobs": [],
+            "annotations": []
+          }
+        ],
+        "id": "msg_dcc5d93a-d7bd-9bf6-875d-aaf6acc81aa0",
+        "role": "assistant",
+        "type": "message",
+        "status": "completed"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "reasoning": {
+      "effort": "low",
+      "summary": "detailed"
+    },
+    "temperature": 0.7,
+    "text": {
+      "format": {
+        "type": "text"
+      }
+    },
+    "tool_choice": "none",
+    "tools": [
+      {
+        "type": "function",
+        "description": "Read a file.",
+        "name": "read_file",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": ["path"]
+        },
+        "strict": false
+      }
+    ],
+    "top_p": 0.95,
+    "usage": {
+      "input_tokens": 353,
+      "input_tokens_details": {
+        "cached_tokens": 128
+      },
+      "output_tokens": 299,
+      "output_tokens_details": {
+        "reasoning_tokens": 277
+      },
+      "total_tokens": 652,
+      "num_sources_used": 0,
+      "num_server_side_tools_used": 0,
+      "cost_in_usd_ticks": 10543500,
+      "context_details": {
+        "input_tokens": 353,
+        "output_tokens": 307
+      }
+    },
+    "user": null,
+    "incomplete_details": null,
+    "status": "completed",
+    "store": false,
+    "metadata": {
+      "system_fingerprint": "fp_eb3c003fc66c14ed"
+    },
+    "background": false,
+    "service_tier": "default",
+    "truncation": "disabled",
+    "top_logprobs": 0,
+    "presence_penalty": 0,
+    "frequency_penalty": 0,
+    "prompt_cache_key": null,
+    "max_tool_calls": null,
+    "safety_identifier": null,
+    "error": null,
+    "instructions": null
+  }
+}

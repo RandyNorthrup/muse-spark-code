@@ -1,40 +1,36 @@
 // The bundled skills for Muse Code as the activation bundle sees them (M89,
 // PLAN.md D6, D68): the installer's bundle, dist/bundledSkills.js, required
-// the first time it is needed (only types come from its side here); the
-// panel's one-time offer; and the two commands, which say what the installer
-// did in the user's language and then offer the restart a skill change needs
-// (a running `muse serve` keeps the skills it started with, as for Manage
-// Skills). Every VS Code interaction is injected.
+// the first time it is needed (only types come from its side here), and the
+// panel's one-time offer. The two commands, which say what the installer did
+// in the user's language and then offer the restart a skill change needs,
+// live in that bundle (bundledSkillsCommands.ts), so they load with the
+// installer they run. Every VS Code interaction is injected.
 
 import { UI_TEXT } from '../../shared/constants'
-import { fill, plural } from '../../shared/l10n/text'
+import { fill } from '../../shared/l10n/text'
 import type { NoticeAction } from '../../shared/protocol'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
-import type {
-  BundledSkillsFailure,
-  BundledSkillsInstallDeps,
-  BundledSkillsInstallResult,
-  BundledSkillsPaths,
-  BundledSkillsRemoveResult,
-  BundledSkillsStatus,
-} from './bundledSkillsInstall'
+import type * as Entry from './bundledSkillsEntry'
+import type { BundledSkillsPaths, BundledSkillsStatus } from './bundledSkillsInstall'
 
-/** The installer and playbook charter entries, shipped and loaded together. */
+export type { BundledSkillsCommandDeps } from './bundledSkillsCommands'
+
+/** The installer, its two commands and the playbook charter, shipped and loaded together. */
 export interface BundledSkillsBundle {
   readonly bundledSkillsStatus: (paths: BundledSkillsPaths) => Promise<BundledSkillsStatus>
-  readonly installBundledSkills: (
-    deps: BundledSkillsInstallDeps,
-  ) => Promise<BundledSkillsInstallResult>
-  readonly removeBundledSkills: (paths: BundledSkillsPaths) => Promise<BundledSkillsRemoveResult>
+  /** Install for Muse Code, or update the extension's copy, in the caller's language. */
+  readonly runBundledSkillsInstall: typeof Entry.runBundledSkillsInstall
+  /** Remove what the install made, and only that, in the caller's language. */
+  readonly runBundledSkillsRemove: typeof Entry.runBundledSkillsRemove
   /** I binds this only to playbook reviews; ordinary request builders never read it. */
   readonly playbookReviewerCharter: () => string
 }
 
 const BUNDLE_FUNCTIONS = [
   'bundledSkillsStatus',
-  'installBundledSkills',
-  'removeBundledSkills',
+  'runBundledSkillsInstall',
+  'runBundledSkillsRemove',
   'playbookReviewerCharter',
 ]
 
@@ -207,113 +203,4 @@ export function createBundledSkillsOffer(deps: BundledSkillsOfferDeps): BundledS
       await rememberDecline((key, value) => deps.state.update(key, value), deps.keys, answer)
     },
   }
-}
-
-export interface BundledSkillsCommandDeps {
-  readonly bundle: () => BundledSkillsBundle
-  /** Read at each run: the config home follows `museSpark.environmentVariables`. */
-  readonly paths: () => BundledSkillsPaths
-  readonly platform: NodeJS.Platform
-  readonly now: () => number
-  readonly newId: () => string
-  readonly showInformation: (message: string) => void
-  /** Said and logged (`loggedPopups`). */
-  readonly showError: (message: string) => void
-  /** Whether a `muse serve` runs that started with the old skills. */
-  readonly isMuseCodeRunning: () => boolean
-  /** The skill commands' restart offer; true when the user chose to. */
-  readonly confirmRestart: () => Promise<boolean>
-  readonly restart: () => Promise<void>
-  readonly log: Logger
-}
-
-function reasonText(failure: BundledSkillsFailure): string {
-  return failure.reason.kind === 'notOurs' ? UI_TEXT.bundledSkillsNotOurs : failure.reason.message
-}
-
-function failureText(template: string, failure: BundledSkillsFailure): string {
-  return fill(template, { folder: failure.folder, reason: reasonText(failure) })
-}
-
-async function offerRestart(deps: BundledSkillsCommandDeps): Promise<void> {
-  if (!deps.isMuseCodeRunning() || !(await deps.confirmRestart())) {
-    return
-  }
-  await deps.restart()
-  deps.showInformation(UI_TEXT.restartedNotice)
-}
-
-/** Install for Muse Code, or update the extension's copy: the same steps, said once done. */
-export async function runBundledSkillsInstall(deps: BundledSkillsCommandDeps): Promise<void> {
-  const result = await deps.bundle().installBundledSkills({
-    ...deps.paths(),
-    platform: deps.platform,
-    now: deps.now,
-    newId: deps.newId,
-  })
-  const tag = result.tag ?? NONE
-  deps.log.info(
-    `Bundled skills ${tag}: installed [${result.installed.join(', ')}], skipped [${result.skipped.join(', ')}], removed [${result.removed.join(', ')}]`,
-  )
-  const said = [
-    ...(result.installed.length === 0
-      ? []
-      : [
-          plural(UI_TEXT.bundledSkillsInstalled, result.installed.length, {
-            tag,
-            skills: listed(result.installed),
-          }),
-        ]),
-    ...(result.skipped.length === 0
-      ? []
-      : [
-          plural(UI_TEXT.bundledSkillsSkipped, result.skipped.length, {
-            skills: listed(result.skipped),
-          }),
-        ]),
-    ...(result.removed.length === 0
-      ? []
-      : [
-          plural(UI_TEXT.bundledSkillsRemoved, result.removed.length, {
-            skills: listed(result.removed),
-          }),
-        ]),
-  ]
-  if (said.length > 0) {
-    deps.showInformation(said.join('. '))
-  }
-  for (const failure of [result.failure, result.undoFailure]) {
-    if (failure !== undefined) {
-      deps.showError(failureText(UI_TEXT.bundledSkillsInstallFailed, failure))
-    }
-  }
-  if (result.failure === undefined) {
-    await offerRestart(deps)
-  }
-}
-
-/** Remove what the install made, and only that. */
-export async function runBundledSkillsRemove(deps: BundledSkillsCommandDeps): Promise<void> {
-  const result = await deps.bundle().removeBundledSkills(deps.paths())
-  if (!result.hadCopy) {
-    deps.showInformation(UI_TEXT.bundledSkillsNothingToRemove)
-    return
-  }
-  deps.log.info(`Bundled skills removed: [${result.removed.join(', ')}]`)
-  // A removal that stopped before its first link says only why.
-  if (result.failure === undefined || result.removed.length > 0) {
-    deps.showInformation(
-      plural(UI_TEXT.bundledSkillsRemoved, result.removed.length, {
-        skills: listed(result.removed),
-      }),
-    )
-  }
-  if (result.failure !== undefined) {
-    deps.showError(failureText(UI_TEXT.bundledSkillsRemoveFailed, result.failure))
-    // Nothing removed, nothing for a restart to pick up.
-    if (result.removed.length === 0) {
-      return
-    }
-  }
-  await offerRestart(deps)
 }

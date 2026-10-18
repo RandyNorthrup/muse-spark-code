@@ -332,7 +332,8 @@
     "effort": "選擇 Muse 在每則回答上投入的心力。",
     "output": "選擇結果格式：text、json或jsonl。",
     "max-budget-usd": "以USD設定本次執行的硬性支出上限。",
-    "max-requests": "設定模型請求次數上限。",
+    "max-requests": "設定請求數量上限。最後一次模型呼叫不使用工具並產生最終摘要。",
+    "max-tool-output-bytes": "提高本次執行的單個工具結果位元組上限。",
     "timeout": "以秒設定執行時間上限。",
     "fail-on-denial": "權限遭拒時停止執行。",
     "ephemeral": "將工作階段保留在記憶體中，不儲存。",
@@ -1108,8 +1109,8 @@
     "paid:webSearch": "開啟或關閉付費網頁搜尋。",
     "paid:subagents": "開啟或關閉付費子代理程式。",
     "paid:scheduledPrompts": "開啟或關閉付費已排程的提示詞。",
-    "paid:autoReviewer": "開啟或關閉付費自動審查器。",
     "paid:autoCompaction": "Turn paid automatic compaction on or off.",
+    "paid:autoReviewer": "開啟或關閉付費自動審查器。",
     "paid:bestOfN": "開啟或關閉付費 N 選最優。",
     "paid:tab": "開啟或關閉付費 Tab 補全。",
     "paid:legalExplanation": "開啟或關閉法律發現的付費說明。費用記在已儲存的 Model API 金鑰下。",
@@ -2546,10 +2547,17 @@
   "paidConfirmAutoCompaction": "自動壓縮以 {price} 的費率使用所選模型。訂閱不承擔此費用。",
   "autoCompactionAwaitingEvaluation": "自動壓縮正在等待評估，目前未啟用。",
   "autoCompactionFailed": "自動壓縮失敗；繼續使用原始上下文。",
-  "contextWindowFull": "上下文視窗已滿：/compact 或 /handoff",
   "autoCompactionBudgetRefused": "自動壓縮未執行：每日付費預算拒絕了該請求。請提高預算或明天重試；將繼續使用原始上下文。",
+  "contextWindowFull": "上下文視窗已滿：/compact 或 /handoff",
   "contextWindowFullAcp": "上下文視窗已滿：自動壓縮需要在編輯器中進行一次性核准；請核准其付費使用請求，或執行 /compact。無法顯示核准的用戶端將保持其關閉狀態。",
   "contextWindowFullExec": "上下文視窗已滿：請使用 --auto-compaction --max-budget-usd <amount> 重新執行，以自動壓縮，或縮短工作。",
+  "toolResultCutPreview": "工具結果已截斷:共 {total} 個字元,保留了開頭和結尾(開頭 {head} 整行,結尾 {tail} 整行;省略了 {omitted} 個字元)。完整結果位於 {spill}。它會隨工作階段一併刪除。",
+  "contextWindowTooLong": "對話（{tokens}個詞元）比此模型的視窗（{maximum}個詞元）大{over}個詞元。請/compact壓縮對話、切換到視窗更大的模型或開始新對話；沒有任何內容被刪除。",
+  "toolResultCapRefused": "{source}工具輸出上限{value}被拒絕（{reason}）；改用預設值{fallback}。",
+  "toolResultCapBelowFloor": "低於可讀下限 {floor} 位元組",
+  "toolResultCapAboveWindow": "大於約 {window} 個詞元的模型視窗",
+  "toolResultSpillFailed": "無法將完整的工具結果保存在 {spill} 中;僅保留截斷後的文字。",
+  "toolResultCutPreviewUnkept": "工具結果已截斷:共 {total} 個字元,保留了開頭和結尾(省略了 {omitted} 個字元)。完整結果未能保存。",
   "sessionBudgetStopped": "已停止：下一個要求（約 {estimate}）將超出階段預算 {cap}（已使用 {spent}）。該要求未傳送。",
   "sessionBudgetStoreUnavailable": "無法讀取或儲存階段支出記錄。在記錄可用之前，無法傳送新要求。",
   "sessionBudgetLegacyFeesUnknown": "對話支出尚未完全驗證。請等待待處理要求完成，或開始新對話以使用支出上限。",
@@ -2665,6 +2673,7 @@
   "agentStopReasons": {
     "normal": "正常結束",
     "budget": "預算耗盡",
+    "limit": "已達到呼叫上限",
     "error": "錯誤",
     "cancelled": "使用者停止",
     "unknown": "無法使用"
@@ -3119,7 +3128,8 @@
     "medium": "中",
     "high": "高",
     "xhigh": "超高",
-    "max": "最高"
+    "max": "最高",
+    "ultra": "終極"
   },
   "toolLabels": {
     "judge": "評判器",
@@ -3544,6 +3554,24 @@
   "execTooManyFiles": {
     "other": "最多允許 {count} 個輸入檔案。"
   },
+  "referenceTurnLimit": "Model API 每輪預設可呼叫模型 200 次。呼叫方現有的請求上限優先。首次呼叫一律攜帶工具執行：有回答則本輪正常完成，有工具請求則在本輪達到請求上限時結束。執行過工具的輪次，其最後一次呼叫產生不帶工具的摘要；傳送訊息以繼續。",
+  "modelApiWrapUpReserved": "剩餘請求已保留用於最終回答。影像未產生。",
+  "modelApiTurnLimit": {
+    "other": "本輪在呼叫模型 {count} 次後停止。傳送訊息以繼續。"
+  },
+  "modelApiWrapUpTruncated": {
+    "other": "最終回答被輸出上限截斷，本輪在呼叫模型 {count} 次後停止。部分回答已保留。傳送訊息以繼續。"
+  },
+  "modelApiWrapUpHookBlocked": "停止鉤子要求了更多工作，但本輪已達到模型呼叫上限，因此最終回答保持不變。",
+  "modelApiWrapUpFailed": {
+    "other": "本輪在 {count} 次模型呼叫後停止，但未能產生最終摘要（{reason}）。"
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "速率受限",
+    "modelError": "模型錯誤",
+    "budget": "預算停止",
+    "stopped": "已停止"
+  },
   "execRequestCapReached": {
     "other": "已達到 {count} 次請求嘗試的上限。"
   },
@@ -3565,6 +3593,9 @@
   "providerTestOk": {
     "other": "金鑰有效 · {count} 個模型。"
   },
+  "providerModelNoToolCalling": "{model} 無法執行編碼代理，因為尚未確認其工具呼叫能力。",
+  "providerAddPickModel": "使用 --model <id> 新增其中一個或多個模型（可重複）：",
+  "providerAddNeedsModel": "請使用 --model <id> 至少指定一個模型（可重複）。",
   "providerProbeUnreachable": "無法連線至提供者。",
   "providerProbeUnparseable": "無法讀取模型清單。",
   "providerProbeNoKey": "未提供金鑰。",

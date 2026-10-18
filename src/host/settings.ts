@@ -148,6 +148,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiRepoMap: boolean
   /** Observation packing on the Model API backend (M73): a conversation reads it when it starts. */
   readonly modelApiObservationPacking: boolean
+  /** TOOLCAP: the per-result byte guard. Validated where used; unusable values fall back. */
+  readonly modelApiMaxToolOutputBytes: number
   readonly modelApiAutoCompaction: boolean
   readonly modelApiStrictTools: boolean
   readonly modelApiParallelReads: boolean
@@ -277,6 +279,7 @@ const settingSchemas = {
 
   modelApiRepoMap: z.boolean(),
   modelApiObservationPacking: z.boolean(),
+  modelApiMaxToolOutputBytes: z.number().check(z.int(), z.gte(0)),
   modelApiAutoCompaction: z.boolean(),
   modelApiStrictTools: z.boolean(),
   modelApiParallelReads: z.boolean(),
@@ -422,6 +425,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     formatOnEdit: readSetting(config, 'formatOnEdit', log),
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
+    modelApiMaxToolOutputBytes: readSetting(config, 'modelApiMaxToolOutputBytes', log),
     modelApiAutoCompaction: readSetting(config, 'modelApiAutoCompaction', log),
     modelApiStrictTools: readSetting(config, 'modelApiStrictTools', log),
     modelApiParallelReads: readSetting(config, 'modelApiParallelReads', log),

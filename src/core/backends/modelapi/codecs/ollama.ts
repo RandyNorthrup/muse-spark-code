@@ -59,7 +59,7 @@ import type {
 export const OLLAMA_CHAT_PATH = '/api/chat'
 
 /** What `think` takes on the native request: a switch or a level [OL-chat]. */
-export type OllamaThink = boolean | 'low' | 'medium' | 'high'
+export type OllamaThink = boolean | 'low' | 'medium' | 'high' | 'max'
 
 /**
  * The `think` level for a canonical effort tier. `none` (the Thinking
@@ -78,9 +78,11 @@ export function thinkForEffort(effort: string): OllamaThink {
       return 'medium'
     }
     case 'high':
-    case 'xhigh':
-    case 'max': {
+    case 'xhigh': {
       return 'high'
+    }
+    case 'max': {
+      return 'max'
     }
     default: {
       return true

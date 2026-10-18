@@ -33,6 +33,7 @@ import { Usd, multiplyUsd, type UsdAmount } from '../../src/shared/usd'
 import type { PaidQuote } from '../../src/shared/paid'
 import { RULES_PREAMBLE } from '../../src/shared/constants'
 import { toolDefinitions, type ToolDefinitionOptions } from '../../src/core/backends/modelapi/tools'
+import { restoredToolText } from '../../src/core/backends/modelapi/schemas'
 import {
   instructionsFor,
   type InstructionFacts,
@@ -209,7 +210,11 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
 
   function send(pack: ObservationPack, output: string): InputItem[] {
     const call: InputItem = { ...RECORDED.call }
-    const result: InputItem = { type: 'function_call_output', call_id: CALL_ID, output }
+    const result: InputItem = {
+      type: 'function_call_output',
+      call_id: CALL_ID,
+      output: restoredToolText(output),
+    }
     const projected = pack.project([call, result])
     pack.noteSent(projected)
     return projected
@@ -257,7 +262,11 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
   it('does not count a retried send of the same request twice', () => {
     const pack = new ObservationPack()
     const call: InputItem = { ...RECORDED.call }
-    const result: InputItem = { type: 'function_call_output', call_id: CALL_ID, output: BIG }
+    const result: InputItem = {
+      type: 'function_call_output',
+      call_id: CALL_ID,
+      output: restoredToolText(BIG),
+    }
     const projected = pack.project([call, result])
     pack.noteSent(projected)
     pack.noteSent(projected)
@@ -267,7 +276,11 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
 
   it('keeps the swap sticky across a resume and forgets it after a reset', () => {
     const call: InputItem = { ...RECORDED.call }
-    const result: InputItem = { type: 'function_call_output', call_id: CALL_ID, output: BIG }
+    const result: InputItem = {
+      type: 'function_call_output',
+      call_id: CALL_ID,
+      output: restoredToolText(BIG),
+    }
     const resumed = new ObservationPack()
     resumed.restorePackedCallIds([CALL_ID], [call, result])
     // A resumed session packs from its first request, not after whole sends.
@@ -974,12 +987,24 @@ describe('invariant 7: golden request bytes with new features off', () => {
   ]
 
   it('keeps every recorded golden request in the sent key order', () => {
+    // A tools-disabled wrap-up declares no tools, so the wire carries no
+    // `tools` or `tool_choice` keys either (xAI answers 400 to a choice
+    // with no tools): golden 10-turn-limit-wrap-up pins that shape beside
+    // the full one, request by request.
+    const wrapUpKeys = BODY_KEYS.filter((key) => key !== 'tools' && key !== 'tool_choice')
     const files = goldenFiles()
     expect(files.length).toBeGreaterThan(0)
     for (const file of files) {
-      for (const request of goldenRequests(file)) {
+      const shapes = file === '10-turn-limit-wrap-up.json' ? [BODY_KEYS, wrapUpKeys] : undefined
+      const requests = goldenRequests(file)
+      if (shapes !== undefined) {
+        expect(requests.length).toBe(shapes.length)
+      }
+      for (const [index, request] of requests.entries()) {
         const parsed: unknown = JSON.parse(request)
-        expect(Object.keys(z.record(z.string(), z.unknown()).parse(parsed))).toEqual(BODY_KEYS)
+        expect(Object.keys(z.record(z.string(), z.unknown()).parse(parsed))).toEqual(
+          shapes?.[index] ?? BODY_KEYS,
+        )
       }
     }
   })

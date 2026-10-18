@@ -21,6 +21,7 @@ import type {
   CreateResponseBody,
   FunctionOutputPart,
   InputContentPart,
+  InputItem,
   OutputItem,
   StreamEvent,
 } from '../../core/backends/modelapi/schemas'
@@ -227,9 +228,24 @@ class CopilotClient implements ProviderClient {
         )
         message.content.push(this.api.result(item.call_id, result.content))
         messages.push(message)
-      } else if (item.type !== 'reasoning') throw this.fail('unsupported-content')
+      } else {
+        this.skipUnsendable(item)
+      }
     }
     return messages
+  }
+  /**
+   * Drops what the vscode language-model API cannot carry: reasoning
+   * (this API has no thinking part) and hosted search calls (acceptance
+   * 11: never declared to a BYO model; the reply that used them replays
+   * as text). Anything else fails the turn loudly instead of running on
+   * silently dropped content.
+   */
+  private skipUnsendable(item: InputItem): void {
+    if (item.type === 'reasoning' || item.type === 'web_search_call') {
+      return
+    }
+    throw this.fail('unsupported-content')
   }
   private async tokens(
     input: string | vscode.LanguageModelChatMessage,

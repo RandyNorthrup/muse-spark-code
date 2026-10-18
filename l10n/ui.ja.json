@@ -332,7 +332,8 @@
     "effort": "各回答に Muse がかける手間を選びます。",
     "output": "結果形式をtext、json、jsonlから選びます。",
     "max-budget-usd": "この実行の厳格な支出上限をUSDで設定します。",
-    "max-requests": "モデルへのリクエスト上限を設定します。",
+    "max-requests": "リクエストの上限を設定します。最後のモデル呼び出しはツールを使わずに最終要約を作成します。",
+    "max-tool-output-bytes": "この実行のツール結果あたりのバイト上限を引き上げる。",
     "timeout": "実行時間の上限を秒で設定します。",
     "fail-on-denial": "権限が拒否されたら実行を停止します。",
     "ephemeral": "セッションを保存せずメモリに保持します。",
@@ -1108,8 +1109,8 @@
     "paid:webSearch": "有料の Web 検索をオンまたはオフにします。",
     "paid:subagents": "有料のサブエージェントをオンまたはオフにします。",
     "paid:scheduledPrompts": "有料の予定されたプロンプトをオンまたはオフにします。",
-    "paid:autoReviewer": "有料の自動レビュー担当をオンまたはオフにします。",
     "paid:autoCompaction": "Turn paid automatic compaction on or off.",
+    "paid:autoReviewer": "有料の自動レビュー担当をオンまたはオフにします。",
     "paid:bestOfN": "有料のベスト・オブ・N をオンまたはオフにします。",
     "paid:tab": "有料の Tab 補完をオンまたはオフにします。",
     "paid:legalExplanation": "法的な検出結果の有料説明をオンまたはオフにします。保存された Model API キーに課金されます。",
@@ -2546,10 +2547,17 @@
   "paidConfirmAutoCompaction": "自動圧縮は選択したモデルを {price} の料金で使用します。サブスクリプションでは支払われません。",
   "autoCompactionAwaitingEvaluation": "自動コンパクションは評価待ちのため無効です。",
   "autoCompactionFailed": "自動コンパクションに失敗しました。元のコンテキストで続行します。",
-  "contextWindowFull": "コンテキストウィンドウがいっぱいです: /compact または /handoff",
   "autoCompactionBudgetRefused": "自動圧縮は実行されませんでした: 日次有料予算が拒否しました。予算を引き上げるか、明日再試行してください。元のコンテキストが維持されます。",
+  "contextWindowFull": "コンテキストウィンドウがいっぱいです: /compact または /handoff",
   "contextWindowFullAcp": "コンテキストウィンドウが一杯です: 自動圧縮にはエディターでの一度限りの承認が必要です。有料使用リクエストを承認するか、/compact を実行してください。承認を表示できないクライアントでは無効のままになります。",
   "contextWindowFullExec": "コンテキストウィンドウが一杯です: --auto-compaction --max-budget-usd <amount> を付けて再実行すると自動圧縮されます。またはタスクを短くしてください。",
+  "toolResultCutPreview": "ツール結果を切り詰めました:{total} 文字のうち冒頭と末尾を保持(冒頭 {head} 行、末尾 {tail} 行の完全な行、{omitted} 文字省略)。完全な結果は {spill} にあります。セッションとともに削除されます。",
+  "contextWindowTooLong": "会話({tokens}トークン)がこのモデルのウィンドウ({maximum}トークン)を{over}トークン上回っています。/compactで会話を圧縮するか、より大きなウィンドウのモデルに切り替えるか、新しい会話を開始してください。何も削除されていません。",
+  "toolResultCapRefused": "{source}のツール出力上限{value}は拒否されました({reason})。デフォルトの{fallback}を使用します。",
+  "toolResultCapBelowFloor": "{floor}バイトの読み取り可能な下限を下回っています",
+  "toolResultCapAboveWindow": "モデルのウィンドウである約{window}トークンを上回っています",
+  "toolResultSpillFailed": "ツールの完全な結果を {spill} に保存できませんでした。切り詰めたテキストだけが残ります。",
+  "toolResultCutPreviewUnkept": "ツール結果を切り詰めました:{total} 文字のうち冒頭と末尾を保持({omitted} 文字省略)。完全な結果は保存できませんでした。",
   "sessionBudgetStopped": "停止しました: 次のリクエスト (約 {estimate}) がセッション予算 {cap} を超えます (使用済み {spent})。送信されませんでした。",
   "sessionBudgetStoreUnavailable": "セッションの支出台帳を読み取りまたは保存できませんでした。台帳が利用可能になるまで新しいリクエストを送信できません。",
   "sessionBudgetLegacyFeesUnknown": "会話の支出は完全には確認されていません。保留中のリクエストが完了するまで待つか、支出上限を使用するために新しい会話を開始してください。",
@@ -2665,6 +2673,7 @@
   "agentStopReasons": {
     "normal": "正常終了",
     "budget": "予算を使い切りました",
+    "limit": "呼び出し上限に達しました",
     "error": "エラー",
     "cancelled": "ユーザーが停止",
     "unknown": "利用不可"
@@ -3119,7 +3128,8 @@
     "medium": "中",
     "high": "高",
     "xhigh": "超高",
-    "max": "最大"
+    "max": "最大",
+    "ultra": "ウルトラ"
   },
   "toolLabels": {
     "judge": "ジャッジ",
@@ -3544,6 +3554,24 @@
   "execTooManyFiles": {
     "other": "入力ファイルの上限は {count} 個です。"
   },
+  "referenceTurnLimit": "Model API のターンは既定で 200 回のモデル呼び出しです。呼び出し側の既存のリクエスト制限が優先されます。最初の呼び出しは常にツール付きで実行されます。回答があればターンは正常に完了し、ツール要求があればリクエスト上限で終了します。ツールを実行したターンの最後の呼び出しはツールなしの要約を生成します。続けるにはメッセージを送信してください。",
+  "modelApiWrapUpReserved": "残りのリクエストは最終回答のために確保されています。画像は生成されませんでした。",
+  "modelApiTurnLimit": {
+    "other": "モデルの呼び出しが {count} 回に達したため、このターンは停止しました。続けるにはメッセージを送信してください。"
+  },
+  "modelApiWrapUpTruncated": {
+    "other": "最終回答が出力上限で途切れたため、このターンはモデルの呼び出しが {count} 回に達して停止しました。部分的な回答は保持されます。続けるにはメッセージを送信してください。"
+  },
+  "modelApiWrapUpHookBlocked": "停止フックが追加の作業を求めましたが、このターンはモデル呼び出しの上限に達したため、最終回答がそのまま残ります。",
+  "modelApiWrapUpFailed": {
+    "other": "ターンはモデル呼び出し{count}回で停止しましたが、最終サマリーを作成できませんでした（{reason}）。"
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "レート制限",
+    "modelError": "モデルエラー",
+    "budget": "予算停止",
+    "stopped": "停止"
+  },
   "execRequestCapReached": {
     "other": "リクエスト試行の上限 {count} 回に達しました。"
   },
@@ -3565,6 +3593,9 @@
   "providerTestOk": {
     "other": "キーは有効です · {count} モデル。"
   },
+  "providerModelNoToolCalling": "{model} はツール呼び出しが確認されていないため、コーディングエージェントを実行できません。",
+  "providerAddPickModel": "これらのモデルの1つ以上を --model <id> で追加してください（繰り返し可）：",
+  "providerAddNeedsModel": "--model <id> で少なくとも1つのモデルを指定してください（繰り返し可）。",
   "providerProbeUnreachable": "プロバイダーに接続できませんでした。",
   "providerProbeUnparseable": "モデル一覧を読み取れませんでした。",
   "providerProbeNoKey": "キーが指定されていません。",

@@ -97,6 +97,7 @@ import type { AssembledProviderRun } from './exec/providerExec'
 const { readProvidersFile } = providersFile
 
 export interface ExecRuntimeOptions {
+  readonly remainingModelCalls?: () => number
   readonly outputCap?: (policy: ModelPolicy) => number
   readonly providerRun?: AssembledProviderRun
   readonly responseAccounting?: RuntimeAccountingEntry.RuntimeResponseAccounting
@@ -582,8 +583,11 @@ function modelApiManager(
     // ACP and headless share the panel's packing/recall engine. Without a
     // VS Code setting here, use D81.6's enabled policy in every editor.
     isObservationPackingOn: () => true,
+    // TOOLCAP: the headless run's --max-tool-output-bytes, if raised for one run.
+    maxToolOutputBytes: () => deps.options.maxToolOutputBytes,
     // M82's cap and reply line are VS Code settings; ACP exposes neither.
     sessionBudgetUsd: () => Usd.from(SETTING_DEFAULTS.modelApiSessionBudgetUsd).toAmount(),
+    remainingModelCalls: deps.exec?.remainingModelCalls,
     pacingOwner: deps,
     strictTools: () => SETTING_DEFAULTS.modelApiStrictTools,
     parallelReads: () => SETTING_DEFAULTS.modelApiParallelReads,
