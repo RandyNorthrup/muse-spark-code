@@ -187,7 +187,13 @@ async function isFile(file: string): Promise<boolean> {
  * time is never half written.
  */
 async function prepareWindowsBirthReader(systemRoot: string): Promise<string> {
-  const localAppData = process.env['LOCALAPPDATA'] ?? path.win32.join(homedir(), 'AppData', 'Local')
+  // Only an absolute folder is built in: a relative one would put the reader
+  // under whatever folder this process happens to run in.
+  const fromEnv = process.env['LOCALAPPDATA']
+  const localAppData =
+    fromEnv !== undefined && path.win32.isAbsolute(fromEnv)
+      ? fromEnv
+      : path.win32.join(homedir(), 'AppData', 'Local')
   const folder = path.win32.join(localAppData, ACP_DATA_FOLDER.win32, WINDOWS_BIRTH_READER_FOLDER)
   const digest = createHash('sha256')
     .update(WINDOWS_BIRTH_READER_SOURCE)
@@ -224,8 +230,12 @@ async function prepareWindowsBirthReader(systemRoot: string): Promise<string> {
 const windowsBirthReader: { ready?: Promise<string> | undefined } = {}
 
 async function windowsStartTime(pid: number): Promise<number | undefined> {
-  // The system folder the environment names (never an assumed drive).
-  const systemRoot = process.env['SystemRoot'] ?? process.env['windir']
+  // The system folder the environment names (never an assumed drive, and
+  // never a relative one: the compiler under it would be looked up from
+  // whatever folder this process happens to run in).
+  const systemRoot = [process.env['SystemRoot'], process.env['windir']].find(
+    (root) => root !== undefined && path.win32.isAbsolute(root),
+  )
   if (systemRoot === undefined) {
     return undefined
   }
