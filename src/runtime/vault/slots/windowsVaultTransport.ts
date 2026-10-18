@@ -49,11 +49,13 @@ try {
 `
 }
 
-/** One private helper per use; screen-lock waits last until the broker cancels. */
-export function windowsVaultTransport(
+/**
+ * A guarded helper launch: the helper shape is proven, then PowerShell
+ * starts it with no inherited credentials, shell, or visible console window.
+ */
+export async function spawnGuardedHelper(
   helper: WindowsVaultExecutable,
-  signal?: AbortSignal,
-): WindowsVaultTransport {
+): Promise<Awaited<ReturnType<typeof spawnResourceProcess>>> {
   if (
     !path.isAbsolute(helper.file) ||
     !helper.file.toLowerCase().endsWith('.exe') ||
@@ -61,6 +63,36 @@ export function windowsVaultTransport(
     !/^[a-f0-9]{64}$/u.test(helper.sha256)
   )
     throw new Error(UI_TEXT.vault.noAccess)
+  // Do not inherit credentials, a shell, or a visible console window.
+  try {
+    return await spawnResourceProcess(
+      'contained',
+      helper.powershell,
+      [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-EncodedCommand',
+        Buffer.from(windowsVaultGuardScript(helper.file, helper.sha256), 'utf16le').toString(
+          'base64',
+        ),
+      ],
+      {
+        cwd: path.dirname(helper.powershell),
+        env: {},
+        windowsHide: true,
+      },
+    )
+  } catch {
+    throw new Error(UI_TEXT.vault.noAccess)
+  }
+}
+
+/** One private helper per use; screen-lock waits last until the broker cancels. */
+export function windowsVaultTransport(
+  helper: WindowsVaultExecutable,
+  signal?: AbortSignal,
+): WindowsVaultTransport {
   return {
     exchange: async (header, key) => {
       if (signal?.aborted || header.length > VAULT_LIMITS.text) {
@@ -79,31 +111,7 @@ export function windowsVaultTransport(
       ) {
         throw new Error(UI_TEXT.vault.noAccess)
       }
-      // Do not inherit credentials, a shell, or a visible console window.
-      let launched: Awaited<ReturnType<typeof spawnResourceProcess>>
-      try {
-        launched = await spawnResourceProcess(
-          'contained',
-          helper.powershell,
-          [
-            '-NoLogo',
-            '-NoProfile',
-            '-NonInteractive',
-            '-EncodedCommand',
-            Buffer.from(windowsVaultGuardScript(helper.file, helper.sha256), 'utf16le').toString(
-              'base64',
-            ),
-          ],
-          {
-            cwd: path.dirname(helper.powershell),
-            env: {},
-            windowsHide: true,
-          },
-        )
-      } catch {
-        throw new Error(UI_TEXT.vault.noAccess)
-      }
-      const { child, stop } = launched
+      const { child, stop } = await spawnGuardedHelper(helper)
       return await new Promise((resolve, reject) => {
         const chunks: Buffer[] = []
         let size = 0

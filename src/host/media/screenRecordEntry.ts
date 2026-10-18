@@ -4,6 +4,15 @@
 export { runScreenRecordingCommand, openRecordingPreview } from './previewPanel'
 export { macosScreenRecordingDriver } from '../../core/media/record/macos'
 export { windowsScreenRecorder } from '../../core/media/record/windows'
-export { linuxRecordingDriver } from '../../core/media/record/linux'
+export { findLatestRecording, linuxRecordingDriver } from '../../core/media/record/linux'
+export {
+  createLatestRecordingPort,
+  createLinuxLatestPort,
+  createMacosLatestPort,
+  createWindowsLatestPort,
+  createWindowsPrivateDirectory,
+  isScreenshotRecordingName,
+  resolveWindowsVideosDir,
+} from './recordingLatest'
 export type { RecordingCommandDeps, RecordingPreviewDeps } from './screenRecordBundle'
 export type { ScreenRecordingPreview } from '../../core/media/record/driver'

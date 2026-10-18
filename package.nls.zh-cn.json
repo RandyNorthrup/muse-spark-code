@@ -230,7 +230,7 @@
   "config.accounts.severalOnThisDevice.description": "为兼容性保留；此偏好设置在此构建中不起作用。",
   "command.vault.title": "凭据库",
   "command.lockVault.title": "立即锁定凭据库",
-  "config.vault.description": "为兼容性保留；此偏好设置在此构建中不起作用。",
+  "config.vault.enabled.description": "打开或关闭按用户的凭据库。在配置此设置之前，沿用已存储的旧版 museSpark.vault 值。",
   "config.vault.protection.description": "为兼容性保留；此偏好设置在此构建中不起作用。",
   "config.vault.agentFence.description": "控制交互式 Model API shell 命令的凭据隔离。验证、计划、工作进程和钩子始终保持隔离。",
   "config.vault.lockAfterIdleMinutes.description": "为兼容性保留；此偏好设置在此构建中不起作用。",

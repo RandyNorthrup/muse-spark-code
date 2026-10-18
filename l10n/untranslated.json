@@ -75,7 +75,18 @@
       "legalUsage",
       "referenceScreenRecording",
       "referenceLatestRecording",
-      "referenceUploadedFiles"
+      "referenceUploadedFiles",
+      "vault.windowsTpm",
+      "vault.secureEnclave",
+      "vault.linuxTpm2",
+      "vault.windowsDpapi",
+      "vault.secretService",
+      "vault.rolesHint",
+      "vault.workspacesHint",
+      "vault.daysHint",
+      "vault.startHourHint",
+      "vault.endHourHint",
+      "vault.ceilingHint"
     ],
     "cs": [
       "groupModel",

@@ -230,7 +230,7 @@
   "config.accounts.severalOnThisDevice.description": "為相容性保留；此偏好設定在此組建中不起作用。",
   "command.vault.title": "憑證庫",
   "command.lockVault.title": "立即鎖定憑證庫",
-  "config.vault.description": "為相容性保留；此偏好設定在此組建中不起作用。",
+  "config.vault.enabled.description": "開啟或關閉按使用者的憑證庫。在設定此設定之前，沿用已儲存的舊版 museSpark.vault 值。",
   "config.vault.protection.description": "為相容性保留；此偏好設定在此組建中不起作用。",
   "config.vault.agentFence.description": "控制互動式 Model API shell 命令的認證資訊隔離。驗證、排程、工作程序和掛鉤始終保持隔離。",
   "config.vault.lockAfterIdleMinutes.description": "為相容性保留；此偏好設定在此組建中不起作用。",

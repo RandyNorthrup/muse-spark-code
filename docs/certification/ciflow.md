@@ -546,3 +546,500 @@ run once by hand, then weekly, checking out only this repository's
 `package.json` and `package-lock.json` and warming one npm cache per
 capacity OS, holding no secret. `setup-node` restores by key prefix, so any
 recent seed warms every `ci/pr-<number>` run on the same OS.
+
+## CISHARDS — more shards, every shard on the organization's runners (2026-10-17, this rig)
+
+`gh` has no credential on this rig (`gh auth login` required), so the
+durations below come from the public Actions API, which needs none:
+`actions/workflows/363874181/runs` for the runs and
+`actions/runs/<id>/jobs?per_page=100` for each job's
+`completed_at − started_at`. `ci.yml` almost never runs on `main` itself
+(pull_request, merge_group, dispatch and `ci/pr-*` pushes only, and the
+merge queue is off), so "the last green runs on main" are the green runs of
+main-line commits: PR #210's split run and the two green merge-train runs
+just before it.
+
+### Baseline (all green, 2026-10-17)
+
+Run 39078180972 (PR #210, part `home`; wall 10.4 min):
+
+| Job                                                                                    | Duration                  |
+| -------------------------------------------------------------------------------------- | ------------------------- |
+| route                                                                                  | 0.1 min                   |
+| tests (ubuntu-latest, shards 1–4)                                                      | 1.4 / 1.4 / 1.0 / 1.4 min |
+| tests (windows-latest, macos-latest) in scnetsolutions/muse-spark-code-ci (`org` wait) | 10.1 min                  |
+| static gates, slowest (macos build, windows lint)                                      | 3.9 / 5.0 min             |
+| integration (ubuntu / windows)                                                         | 1.2 / 2.0 min             |
+| dictation helper, semgrep, gitleaks, packages                                          | 2.2 / 2.2 / 0.5 / 2.0 min |
+
+Its capacity run 39078260135 on branch `ci/pr-210` (part `org`; wall
+8.0 min), current counts 4 Ubuntu (home) + 8 Windows + 8 macOS (org):
+
+| Shards                     | Slowest job       | Fastest job       |
+| -------------------------- | ----------------- | ----------------- |
+| windows-latest, shards 1–8 | 2.8 min (shard 8) | 1.3 min (shard 4) |
+| macos-latest, shards 1–8   | 2.2 min (shard 8) | 1.1 min (shard 2) |
+
+Run 39070870774 (merge train 2026-10-17-3, part `all`; wall 11.6 min):
+Windows shards 2.0–2.9 min, macOS 1.3–2.3 min, Ubuntu 1.4–2.0 min;
+slowest static gate 9.2 min (macos lint). Run 39065488443 (train
+2026-10-17-1, part `all`; wall 24.4 min): same shards, the wall is
+personal-account queueing — that is the ~21-minute scale the brief names.
+The suite is 311 files (`test/unit`, plus `test/e2e` in the same run);
+every current shard is already under 5 minutes, but the slowest Windows
+shard (2.9 min) times the documented ~60% hosted swing (PLAN.md §8) lands
+at 4.6 min — no margin left as the suite grows back.
+
+### Chosen counts and arithmetic
+
+Ubuntu 8, Windows 16, macOS 16: forty shards, every one of them in part
+`org` when `ORG_CI` is on. Windows and macOS run files serially
+(`vitest.config.ts`: `fileParallelism` off on win32 and hosted macOS), so
+shard test time halves with the file count: slowest Windows shard test
+≈ 2.9 − 0.7 (warm setup) ≈ 2.2 min per 1/8 of the suite → ≈ 1.1 min per
+1/16, plus ≈ 0.7 min setup ≈ 1.8 min typical, × 1.6 variance ≈ 2.9 min.
+Cold org start adds ≈ 1 min `npm ci` (measured 11–12 s download, above) →
+≈ 2.8 min × 1.6 ≈ 4.5 min, still under 5. macOS: ≈ 8 min suite / 16 ≈
+0.5 min + setup ≈ 1.5 min × 1.6 ≈ 2.4 min. Ubuntu (parallel workers):
+2.0 min max at 1/4 → ≈ 1.3 min at 1/8 × 1.6 ≈ 2.1 min.
+
+Expected wall: the org unit phase ≈ slowest shard + route/setup ≈ 4–5
+min; the home run ≈ max(slowest static gate, org wait) ≈ 10 min; and a
+split pull request runs zero shard jobs on the personal account (was four
+Ubuntu), so queued runs stop waiting behind its shards. Part-`all` runs
+(forks, Dependabot, merge groups) keep everything here with forty smaller
+shards instead of twenty: more setup minutes in total, a shorter slowest
+tail. Timeouts stay 20 warm / 25 org: ceilings, not targets.
+
+### What changed (this lane)
+
+`build.yml`: the `unit` matrix runs 8 Ubuntu + 16 Windows + 16 macOS shards
+(`SHARDS` 8/16/16; Ubuntu excludes 9–16), and runs none of them in a `home`
+run (`if: inputs.part != 'home'`), so part `org` carries all forty. The
+`org` job stands for the shards on all three platforms and its summary
+header reads `Unit shards (Ubuntu, Windows, macOS)`. The `required`
+aggregate requires `org` (not `unit`) when `PART=home` and `unit` (not
+`org`) otherwise; the seven required names are unchanged. `ci.yml` keeps
+its route: same-repo PRs with the key go `home`, everything else stays
+`all`. PLAN.md D122 and CONTRIBUTING.md's capacity section name the forty
+shards.
+
+### Local proof (this rig, 2026-10-17)
+
+- Both workflows parse as YAML. The `fromJSON` matrix expressions,
+  simulated for every (`part`, `fast`) combination, give 40 combos
+  (8 Ubuntu + 16 Windows + 16 macOS) on `all` and `org`, none built on
+  `home` (`unit` is skipped by its `if`), 1 unsharded Ubuntu combo on
+  `fast`, and every shard index within its `SHARDS` (8/16/16). The
+  simulation caught one real bug before it shipped: the first edit left
+  `part == 'org'` in the exclude's empty branch, which would have run
+  `--shard=9/8` … `--shard=16/8` on Ubuntu in the capacity run; the empty
+  branch is now `fast` only.
+- The `required` step, read out of `build.yml` and run under GitHub's
+  `bash --noprofile --norc -eo pipefail`, 7/7: `home` passes only on `org`
+  success (failure, cancelled and skipped all exit 1); `all` passes only on
+  `unit` success. Break drill on a copy: `= success` → `!= failure` on the
+  org check lets a skipped `org` through (exit 0); the file as committed
+  exits 1.
+- The `route` step, read out of `ci.yml`, 9/9 with the 2026-10-17
+  expectations (capacity push → `org`, bad branch → exit 1, own PR with key
+  → `home`, everything else → `all`).
+- `actionlint` 1.7.12 (latest release; shellcheck present, so `run:`
+  scripts were checked): exit 0 on both workflows. `zizmor` 1.31.1
+  `--offline`: the two known low findings, both on untouched lines
+  (`build.yml`'s install of the just-built agent tarball, `ci.yml`'s
+  `./.github/workflows/build.yml` self path); `--persona=pedantic` adds the
+  known `matrix.part.gates` template finding, also untouched. Nothing on a
+  changed line.
+- `prettier --check` on all six changed files, `npm run check:plan`
+  (plan-format-v1, 218 milestones, 0 drift) and `npm run build`: exit 0.
+  No JS/TS file changed, so ESLint and typecheck have no files in scope;
+  no unit-test file names the shard matrix, and workflow steps are proved
+  by driving the extracted steps above, not by a new test file (no-fakes
+  rule: a unit test would feed the steps invented event values).
+
+### Hosted proof (lead's push; the real gate)
+
+The push of this branch opens a same-repository PR run here and a
+`ci/pr-<n>` run there. It must show all of this, recorded on the PR:
+
+- Here: `route` picks `home`; `unit` is skipped; `org` pushes `GITHUB_SHA`
+  as `ci/pr-<n>` (and `ci/base` at its first parent) and succeeds with a
+  summary reading `Unit shards (Ubuntu, Windows, macOS): success` followed
+  by forty linked shard rows.
+- There: a push-triggered run on `ci/pr-<n>` at that same SHA; `route`
+  picks `org`; all forty `tests (<os>, shard N)` succeed, none over
+  ~5 minutes.
+- The required `quality (ubuntu-latest)`, `quality (windows-latest)` and
+  `quality (macos-latest)` are green here with the ruleset unchanged, and
+  both walls plus every shard time go into this record against the baseline
+  above.
+
+## CISHARDS2 — every Windows and macOS job runs on the organization's runners (2026-10-18, this rig)
+
+### Inventory: every job still on windows-latest or macos-latest on the personal side
+
+Read off the workflow files at this lane's base (`a72759811`). Durations
+are `completed_at − started_at` from the public Actions API (no credential):
+run 39078180972 (PR #210, part `home`) for CI jobs, run 39080679626 (hosts),
+run 39078180976 (browser-check) and run 39069570743 (forks). The longest
+unit test shard is 2.9 min (Windows shard, merge-train run 39070870774).
+
+| #   | Job (workflow)                                      | Runner today   | Before (min)      | Moves to                            | Label there                                               |
+| --- | --------------------------------------------------- | -------------- | ----------------- | ----------------------------------- | --------------------------------------------------------- |
+| 1   | static gates, lint (build.yml `checks`)             | windows-latest | 5.0               | org run, `part` `org`               | larger (`msc-windows-8core`)                              |
+| 2   | static gates, unit lint (build.yml `checks`)        | windows-latest | 1.8               | org run                             | larger (named in the brief with the other gates)          |
+| 3   | static gates, build (build.yml `checks`)            | windows-latest | 4.8               | org run                             | larger                                                    |
+| 4   | static gates, lint (build.yml `checks`)             | macos-latest   | 3.7               | org run                             | standard (PR218FIX: no larger macOS runner on a free org) |
+| 5   | static gates, unit lint (build.yml `checks`)        | macos-latest   | 1.3               | org run                             | standard (as row 4)                                       |
+| 6   | static gates, build (build.yml `checks`)            | macos-latest   | 3.9               | org run                             | standard (as row 4)                                       |
+| 7   | unit shards 1–16 (build.yml `unit`)                 | windows/macos  | moved by CISHARDS | stays in the org run                | standard (brief: shards stay free)                        |
+| 8   | integration (build.yml, windows)                    | windows-latest | 2.0               | org run                             | standard (under the 2.9 min shard bar)                    |
+| 9   | compile dictation helper (build.yml `native-build`) | macos-latest   | 2.2               | org run                             | standard (under the bar)                                  |
+| 10  | package helper, darwin (hosts.yml `native-helpers`) | macos-latest   | 0.8               | moves with its workflow (see below) | standard                                                  |
+| 11  | agent package (hosts.yml, windows)                  | windows-latest | 1.1               | moves with its workflow             | standard                                                  |
+| 12  | agent package (hosts.yml, macos)                    | macos-latest   | 0.6               | moves with its workflow             | standard                                                  |
+| 13  | package helper, darwin (forks.yml `native-helpers`) | macos-latest   | 0.8               | moves with its workflow             | standard                                                  |
+| 14  | captures (browser-check.yml, windows)               | windows-latest | 3.1               | org run, per-OS split               | larger (over the 2.9 min bar)                             |
+| 15  | captures (browser-check.yml, macos)                 | macos-latest   | 2.4               | org run, per-OS split               | standard (under the bar)                                  |
+
+Ubuntu jobs (static gates, unit shards 1–8, integration, helpers,
+packages, aggregates) and the `org` wait itself stay on the personal
+account, as do all jobs of every fork, Dependabot, merge-group, manual,
+schedule and push run (part `all`, as now).
+
+### How each moves
+
+- **build.yml (rows 1–9).** The `checks`, `integration` and `native-build`
+  matrices pick their operating systems from `part`: `home` keeps only the
+  Ubuntu leg here, `org` (the capacity repository's push run) runs only the
+  Windows/macOS legs, `all` runs everything here as now. `native-build` is
+  skipped in `home` exactly like `unit` already is. `packages` stays on
+  Ubuntu here but runs after `org` in a `home` run: the `org` job downloads
+  the two darwin artifacts from the capacity run it just waited for and
+  re-uploads them under their existing names, so `packages` and the release
+  reuse path read them unchanged. The `required` aggregate keeps its seven
+  names; in a `home` run the Windows/macOS quality names and the dictation
+  helper name require `org` instead of the Ubuntu-only legs here.
+- **hosts.yml and forks.yml (rows 10–13).** Their jobs consume each other's
+  artifacts inside one run (`native-helpers` → `packages`/`vsix` →
+  `agent`/`fork`), which cannot cross repositories, so the whole workflow
+  moves: a routed same-repository pull request run (new `route` job, same
+  nine cases as `ci.yml`'s) skips every job here, and the capacity
+  repository's `ci/pr-<n>` push run runs every job there. Any other event
+  runs everything here, as now.
+- **browser-check.yml (rows 14–15).** Its per-OS captures upload only their
+  own result files, so it splits: a routed run keeps the Ubuntu capture
+  here and runs the Windows and macOS captures in the capacity run; any
+  other event runs all three here.
+- **Larger labels.** `runs-on` selects the larger label only when all three
+  hold: `part == 'org'`, the repository variable `LARGE_RUNNERS == 'on'`,
+  and the job's row above says larger. `vars` resolves in the repository
+  that owns the run, so the variable lives on the organization repository
+  alone (lead step: `gh variable set LARGE_RUNNERS --body on` there, before
+  pushing the pull request — it is read when each job starts); a
+  fork's `pull_request` run is part `all` on its own repository and can
+  never satisfy the first condition. Standard runners stay free for this
+  public repository; only the rows above marked larger bill the
+  organization's budget.
+- **The App token never runs pull-request code.** The `org` job's steps are
+  enumerated in the implementation record below; it mints the token,
+  clones, pushes the merge commit, polls the public run API and relays the
+  two darwin artifacts. It runs no `npm ci`, no script and no binary the
+  pull request carries.
+
+### Expected cost per pull-request run (arithmetic, before-minutes as estimate)
+
+Prices: Windows 8-core $0.042/min; standard runners $0.
+Larger-runner minutes on a typical pull request (no browser-path files):
+Windows gates 5.0 + 1.8 + 4.8 = 11.6 min × 0.042 = **≈ $0.49 per run**.
+A browser-path pull request adds the Windows capture 3.1 × 0.042 = $0.130,
+total ≈ $0.62. At $40 a month that is about 81 typical runs before the
+budget stops paid usage (the lead switches `LARGE_RUNNERS` off first).
+macOS stays on free standard runners: the GitHub-owned macOS larger labels
+need a Team or Enterprise plan and the capacity organization is free
+(PR218FIX, below). Larger runners should finish the same gates
+faster; the after-minutes replace these estimates once the first hosted
+run lands, in the implementation record below.
+
+### Implementation record (this lane)
+
+`build.yml` (checks/integration/native-build legs by `part`, `native-build`
+skipped in `home`, `packages` after `org` with a producer assert, `org`
+relays the two darwin artifacts, `required` keeps its seven names with
+per-check meaning), `ci.yml` (header), `hosts.yml`/`forks.yml` (new `route`,
+whole-workflow move), `browser-check.yml` (new `route`, per-OS split,
+larger Windows capture). Larger labels apply only when `part == 'org'`
+and that repository's `LARGE_RUNNERS` is `on`. PLAN.md D122,
+CONTRIBUTING.md (capacity section + lead step 7) and CHANGELOG.md move with
+the code.
+
+**Local proof (this rig, 2026-10-18).** Both actionlint 1.7.12 (shellcheck
+present, so `run:` scripts were checked) and prettier: exit 0 on all eight
+workflows; `npm run check:plan` (plan-format-v1, 218 milestones, 0 drift),
+`npm run typecheck` (all five compiler projects) and `npm run build`
+(every bundle within budget): exit 0. No JS/TS file changed, so ESLint has
+no file in scope; the hook's changed-file ESLint ran on every commit.
+`zizmor` 1.31.1 `--offline` on the five touched workflows: three
+low findings, every one on a line this change does not touch (build's
+install of the just-built agent tarball, ci's `./.github/workflows`
+self path, hosts' install of the just-built agent package);
+`--persona=pedantic` adds three template-injection helps, also untouched
+(`matrix.part.gates`, `matrix.fork`, `matrix.release`, all from static
+lists). `temp/cishards2-drills.mjs` drives the steps out of the committed
+files under GitHub's `bash --noprofile --norc -eo pipefail`: 125/125 green
+— ci route 9/9, hosts/forks/browser routes 8/8 each, required 5 checks ×
+home/all green plus home org-failed/cancelled/skipped (15 red), home
+Ubuntu-leg failures failing only their own names, all-part producer
+failures, fast-tier greens, packages assert 5/5, checks/integration/captures
+matrix simulation for every part, runs-on label simulation
+(org+large → larger labels, large off/unset or part all/home →
+standard), and `bash -n` on the wait, relay and push steps. Break drill on
+a copy (`test "$ORG" = success` → `!= failure`) lets a skipped `org`
+through; the committed file rejects it. One drill bug was found and fixed
+in the driver itself (its expression tokenizer glued parentheses to names);
+the workflow expressions were never changed for it.
+
+**The App token never installs or runs pull-request code.** The `org` job's
+steps after this change, in order: create-github-app-token (pinned v3.3.0,
+contents+workflows of the capacity repository only), checkout
+(fetch-depth 0, no credentials), `git push` of the two refs through a
+credential helper that reads the step environment, the wait loop (`gh api`
+reads of the public run endpoints with the job's own token, summary
+write), `gh run download` of the two darwin artifacts from that run, and
+their re-upload under the existing names. No `npm ci`, no `node`, no
+script and no binary the pull request carries runs in this job; the
+downloaded helpers are only re-uploaded (the `test -f` guards fail the job
+if the layout ever differs). The checkout action clones but executes
+nothing from the tree.
+
+**After-minutes.** Larger-runner minutes are not yet measured (no hosted
+run on this lane); the $1.40/$1.53 estimates above use the before-minutes.
+The lead's hosted run replaces them here with the six gate times, the
+Windows capture time, and the true billed total.
+
+### Hosted proof (lead's push; the real gate)
+
+The push of this branch opens a same-repository pull request run here and
+a `ci/pr-<n>` push run in `scnetsolutions/muse-spark-code-ci` (plus
+hosts/forks/browser-check runs there when their paths match). It must show
+all of this, recorded on the pull request:
+
+- Here, the `CI` run's `route` picks `home`; `unit` and `native-build` are
+  skipped; `checks` holds only the three Ubuntu gates; `integration` holds
+  only Ubuntu; `org` pushes `GITHUB_SHA` as `ci/pr-<n>` (and `ci/base` at
+  its first parent), succeeds with the forty shard rows plus the gate,
+  integration and helper legs, and re-uploads `muse-dictate-darwin` and
+  `muse-vault-darwin`; `packages` consumes them unchanged.
+- There, the `ci/pr-<n>` run's `route` picks `org`; the Windows static
+  gates run on `msc-windows-8core` (once the lead sets `LARGE_RUNNERS` to
+  `on` there before pushing; before that, standard labels), the macOS gates
+  on standard `macos-latest`, every other moved leg on standard runners;
+  all succeed.
+- **No job running on `windows-latest` or `macos-latest` remains on the
+  personal run**: its jobs list shows Ubuntu legs, `route`, the `org` wait
+  (Ubuntu), the aggregates and the Linux helpers/packages only. Hosts,
+  Forks and browser-check personal runs of the pull request show `route`,
+  the `relay` job, skipped jobs (Hosts/Forks) or the Ubuntu capture only
+  (browser-check).
+- The required `quality (ubuntu/windows/macos-latest)`, `dictation helper
+(macos)` and `package (.vsix)` are green here with the ruleset unchanged.
+- Both walls, every moved leg's minutes (the after column), and the billed
+  total go into this record against the estimates above.
+- Dependabot, fork, merge-group and manual runs are unaffected (part `all`,
+  standard labels); the lead's `LARGE_RUNNERS` step stays a variable flip,
+  never a workflow edit.
+
+### Review fixes (RVCISHARDS2, 2026-10-17, this rig)
+
+Three defects the lane's matrix-only simulation could not see, each proved
+before its fix by `temp/rv-cishards2-drill.mjs` (parsed-workflow facts plus
+the `required` step executed under `bash -eo pipefail`; 15 failures before,
+all pass after):
+
+- build.yml's `checks` job kept `if: inputs.part != 'org'`, so the capacity
+  run — the only run whose `checks` matrix holds Windows and macOS — skipped
+  the static gates entirely, and a `home` run's `quality (windows-latest)` /
+  `quality (macos-latest)` could go green with those gates run nowhere (the
+  larger-runner `runs-on` branch was dead with it). The job-level condition
+  is gone; the matrix picks each part's operating systems.
+- hosts.yml's, forks.yml's and browser-check.yml's jobs all `needs: route`
+  with no status function in their conditions, so GitHub's implicit
+  `success()` over `needs` skipped every one of them whenever `route` itself
+  is skipped — a push to `main` here would have run the whole Hosts workflow
+  as an empty success. Each job now carries `!cancelled()`, and chained jobs
+  require their predecessor's success explicitly.
+- forks.yml's and browser-check.yml's new `ci/pr-*` push triggers had no
+  `paths`, so every capacity push would have run them in full; they now
+  mirror their `pull_request` paths, as hosts.yml already did.
+
+The hosted proof above must additionally show the Windows and macOS
+`static gates (...)` jobs present and green in the capacity run, and a
+push to `main` here still running the full Hosts workflow.
+
+### Review fixes (PR218FIX, 2026-10-18, this rig)
+
+Six Codex threads on PR #218 (branch `ci/more-shards2`): three were already
+fixed by RVCISHARDS2 and are verified present, not redone; three applied.
+
+- build.yml:77 (static gates skipped in org builds): already fixed
+  (`ed4feb907`) — no job-level guard; the matrix picks each part's systems.
+- forks.yml:90 (relay offloaded results): FIXED (`a1d6a761d`) — hosts.yml,
+  forks.yml and browser-check.yml each gain a `relay` job that runs only in
+  a `home` run, polls the capacity repository's run of the same workflow on
+  the pushed merge commit, and takes its result (failure there fails here).
+  When no run appears within ten minutes, the capacity push matched none of
+  that workflow's paths, so no run was started: the job succeeds with a
+  warning instead of failing a pull request whose latest push touched none
+  of those paths (a docs-only follow-up push to a src pull request must stay
+  green). build.yml's `org` job already fails closed when the push itself is
+  missing, so a genuinely lost push still goes red there.
+- hosts.yml:70 (Hosts skipped on source main pushes): already fixed
+  (`54b617125`) — every job carries `!cancelled()`.
+- browser-check.yml:44 (path filtering on capacity pushes): already fixed
+  (`684a9f091`) — both push triggers mirror their `pull_request` paths.
+- build.yml:417 (artifact downloads): FIXED (`9d6232c68`) — the relay mints
+  a fresh App token after the wait (actions read on the capacity repository
+  alone) and the two `gh run download` calls use it instead of this run's
+  own `github.token`, which is scoped to this repository; the push token is
+  not reused because it may have expired during the wait.
+- hosts.yml:106 (fast PR runs): FIXED (`a1d6a761d`) — the three auxiliary
+  routes gain `ci.yml`'s fast-tier condition (`FAST`, `pull_request` with
+  `CI_MERGE_QUEUE == 'on'` → `all`), so a fast-tier pull request keeps every
+  Hosts/Forks job and every browser capture local, matching the build,
+  which pushes no capacity branch in that tier.
+
+Drill `temp/pr218fix-drill.mjs` (local only, not committed) drives the steps
+out of the committed files under GitHub's `bash --noprofile --norc -eo
+pipefail`, 18/18 green: each of the three routes gives `all` with
+`FAST=true` and `home` with `FAST=false`, and the pre-fix step gives `home`
+for a fast pull request (the bug); each `relay` step exits 0 on a successful
+capacity run, 1 on a failed one, and 0 with a warning when no run appears.
+`bash -n` passes on all three relay steps. Hosted runs are the proof (below).
+
+Lead measurement (org run 39083598004 with `LARGE_RUNNERS=on`, static gates
+on standard labels): two causes, both fixed in this lane. First, `runs-on`
+is read when each job starts, so a variable set after the push reaches only
+jobs that start later — the early static gates kept standard labels while
+the later Windows browser capture (run 39083598068) took
+`msc-windows-8core`. CONTRIBUTING.md step 7 now says to set the variable
+before pushing. Second, the macOS gates can never take a larger label on
+this free organization: the GitHub-owned macOS larger labels
+(`macos-latest-xlarge`) need a Team or Enterprise plan
+([Actions runner pricing](https://docs.github.com/en/enterprise-cloud@latest/billing/reference/actions-runner-pricing):
+"Larger runners are only available for organizations and enterprises using
+the GitHub Team or GitHub Enterprise Cloud plans"), so that label would
+queue forever; `msc-windows-8core` works because it is the organization's
+own runner (proven by run 39083598068). build.yml now selects the larger
+label for Windows gates only, macOS stays standard like the macOS browser
+capture; the inventory rows 4–6, the cost arithmetic (≈ $0.49 typical,
+≈ $0.62 browser-path, ≈ 81 runs per $40) and PLAN.md/CONTRIBUTING.md/
+CHANGELOG.md say so. The next hosted run (variable set before the push)
+must show: the capacity run's three Windows `static gates` jobs on
+`msc-windows-8core`, the two macOS `static gates` jobs on standard
+`macos-latest`, all green; the home run's `org` relay step green
+(capacity-scoped download); and each auxiliary `relay` job green with its
+capacity run linked in the summary.
+
+### Relay without a new App permission (PR218FIX2, 2026-10-18, this rig)
+
+Hosted run 39086224761 (job 117553280594, 2026-10-18 01:30Z) failed at the
+step PR218FIX added: `##[error]The permissions requested are not granted to
+this installation.` Minting a fresh capacity-scoped App token with
+`permission-actions: read` needs the Actions permission on the
+`msc-ci-capacity` installation, which it does not have — and adding one is
+not wanted. The org run itself (scnetsolutions/muse-spark-code-ci run 39086262404) succeeded.
+
+**Chosen token: this run's own `GITHUB_TOKEN`** (`GH_TOKEN: ${{
+github.token }}` on the `bring the macOS helpers back` step); the
+`relay-token` mint step is deleted, so the workflow requests no permission
+the app lacks. Source and why, measured rather than assumed:
+
+- The failed run is itself the measurement for reachability: its `wait`
+  step already reads the capacity repository's runs and jobs endpoints with
+  `GH_TOKEN: ${{ github.token }}` and got past the wait — only the
+  relay-token mint failed. This run's token reaches the public capacity
+  repository.
+- The REST reference for Actions artifacts
+  ([download a repository artifact](https://docs.github.com/en/rest/actions/artifacts?apiVersion=2022-11-28#download-a-repository-artifact),
+  read 2026-10-18) says anyone with read access may download, and only a
+  private repository needs a token with repo scope. The capacity repository
+  is public, so any authenticated token — this run's included — has read
+  access. `gh run download` lists and fetches through exactly these
+  endpoints.
+- It is the narrowest of the tokens the workflow already has. The other
+  candidate, the push token (`steps.token.outputs.token`), carries
+  contents write plus workflows write and expires one hour after mint
+  while the wait may run up to six hours — broader, and possibly dead on
+  arrival. This run's token holds only contents read here, lives as long
+  as the job, and adds no App permission.
+
+**The next hosted run must show:** the home run's `org` job green end to
+end with the org run linked in its summary, the two darwin artifacts
+re-uploaded under their existing names, and `packages` consuming them
+unchanged. No local simulation counts as proof: this rig has no credential
+for the capacity repository, so the download transport itself is proved
+only by that hosted relay step going green.
+
+### Review fixes (PR218FIX3, 2026-10-18, this rig)
+
+One Codex P1 thread on PR #218 (branch `ci/more-shards2`), first result:
+
+- browser-check.yml:49 (capacity trigger on incremental, not cumulative,
+  paths; forks.yml/hosts.yml same): ACCEPTED and fixed at the cause. The
+  `push: branches: [ci/pr-*]` triggers of browser-check.yml and forks.yml
+  and the `push: branches: [main, ci/pr-*]` trigger of hosts.yml carry no
+  `paths:` filter anymore: a push filter sees only the incremental
+  force-push diff while the `pull_request` filter sees the cumulative PR
+  diff, so the mirrored filters skipped the capacity run whenever the latest
+  update touched only an unrelated file, and each `relay` then passed with
+  no Windows or macOS run anywhere. Every capacity push now starts its
+  workflow, and the `route` job's new `touches` output re-applies the path
+  list: a `ci/pr-*` push diffs the merge commit against its first parent
+  (`HEAD^1..HEAD`, the cumulative PR diff — the same `$GITHUB_SHA^1` the
+  `org` job pushes as `ci/base`); a `main` push diffs the push's own
+  commits (`before..HEAD`, what the removed filter did there); anything else
+  keeps `true`. The offloaded jobs run unless `touches == 'false'` (a
+  skipped `route` leaves it empty, which still runs — the RVCISHARDS2
+  fallback). A non-merge capacity tip, a missing base or a diff error fails
+  closed to `true` with a warning, never to a skipped gate. Each `relay`'s
+  no-run branch now fails closed (exit 1): with unfiltered starts, no run
+  appearing means the push or Actions there failed.
+
+**Local proof (this rig, 2026-10-18).** `temp/pr218fix3-drill.mjs`
+(local only, not committed) drives the `touches` step out of each committed
+workflow file under GitHub's `bash --noprofile --norc -eo pipefail`,
+against real git repos shaped as GitHub shapes them (merge commits with
+first parent main): 13/13 green — the stale push (browser file changed,
+docs-only head commit) gives `true` on browser-check and hosts; a docs-only
+PR gives `false` on all three; a `main` push gives `true`/`false` on its own
+commits; a non-merge capacity tip and a missing base fail closed to `true`
+with warnings; non-push events keep `true`. The drill also asserts each
+`touches` pattern list equals its `pull_request` `paths:` list as sets, and
+that every `relay` fails closed with no silent no-run pass left.
+`actionlint` 1.7.12 (latest release; shellcheck present, so the three new
+`run:` scripts were checked): exit 0 on all eight workflows. `shellcheck`
+`-S warning`: clean on all three extracted steps. `prettier --check` on the
+five changed files, `npm run check:plan` (plan-format-v1, 218 milestones,
+0 drift), `npm run typecheck` (all five compiler projects) and `npm run
+build`: exit 0. No JS/TS file changed, so ESLint has no file in scope; the
+hook's changed-file ESLint ran on every commit. No unit-test file names
+these steps, and workflow steps are proved by driving the extracted steps
+above, not by a new test file (no-fakes rule: a unit test would feed the
+steps invented event values).
+
+**Hosted proof (lead's push; the real gate).** The push of this branch must
+show all of this, recorded on the pull request:
+
+- A pull request whose latest push touches only an unrelated file after an
+  earlier browser/hosts/fork path change: the home Browser/Hosts/Forks runs
+  start (cumulative match), each capacity `ci/pr-<n>` run starts too, its
+  `route` logs `Touches these paths: true (the cumulative merge diff
+touches these paths)`, and the offloaded jobs run green.
+- A pull request touching none of those paths: the home runs never start
+  (unchanged), each capacity run's `route` logs `touches: false` and its
+  jobs skip, and the capacity run still concludes success.
+- A push to `main` here touching only docs still runs only `route` (the
+  in-workflow incremental gate), as the removed push filter did.
+- No `relay` takes the no-run branch; if one ever does, it fails the run
+  with `the push or Actions there failed`.

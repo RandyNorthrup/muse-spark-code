@@ -29,7 +29,7 @@ import {
   type ResourceAdmission,
   type ResourceLaunchRequest,
 } from './queue'
-import { ResourceTreeRegistry } from './trees/registry'
+import { ResourceTreeRegistry, RESOURCE_MEMBERSHIP_UNPROVEN } from './trees/registry'
 import type {
   ResourceAdmissionPort,
   ResourceLease,
@@ -53,6 +53,19 @@ const TREE_BOUND: ReadonlySet<ResourceLaunchProfile | undefined> = new Set([
 ])
 const isTreeBound = (profile: ResourceLaunchProfile | undefined) => TREE_BOUND.has(profile)
 
+/**
+ * Fixed sampler-failure cause, preserved through the sampler boundary for
+ * the installed receipt (RVCM109JD P2-2): the finished-tree membership race
+ * is the only cause the receipt may ever whitelist; every other sampler
+ * failure stays fatal there.
+ */
+export type ResourceSamplerCause = 'unproven-membership' | 'sampler-error'
+function samplerCauseOf(error: unknown): ResourceSamplerCause {
+  return error instanceof Error && error.message === RESOURCE_MEMBERSHIP_UNPROVEN
+    ? 'unproven-membership'
+    : 'sampler-error'
+}
+
 interface Work {
   kind: ResourceKind
   class: ResourceClass
@@ -73,6 +86,8 @@ interface Work {
   limited: boolean
   /** The last verified tree reading, reused by J's history (no extra OS query). */
   usage: ResourceTreeUsage | undefined
+  /** Fixed cause of the latest sampler failure; read by the installed receipt. */
+  samplerCause: ResourceSamplerCause | undefined
 }
 /** J's work source row: a registered tree and its last verified reading. */
 export interface ResourceTreeUsageRow {
@@ -313,17 +328,23 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
           work.ended = true
           const result = await work.registry?.kill(work.ticket)
           work.limited = result?.status === 'done'
-          if (!work.limited) this.options.onError()
+          if (!work.limited) {
+            // A policy stop the kernel refused is a sampler failure of its
+            // own: stamp its cause so a stale race cause cannot stand in.
+            work.samplerCause = 'sampler-error'
+            this.options.onError()
+          }
         }
       }
       const usage = await work.registry?.usage(work.ticket)
       work.known = usage !== undefined && usage !== null
       if (work.known) work.usage = usage ?? undefined
-    } catch {
+    } catch (error: unknown) {
       work.known = false
       if (work.ticket !== undefined) work.registry?.unregister(work.ticket)
       work.ticket = undefined
       work.usage = undefined
+      work.samplerCause = samplerCauseOf(error)
       this.options.onError()
     }
   }
@@ -531,6 +552,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       births: [],
       limited: false,
       usage: undefined,
+      samplerCause: undefined,
     }
     this.work.add(work)
     let creating: Promise<ResourceTempRoot> | undefined

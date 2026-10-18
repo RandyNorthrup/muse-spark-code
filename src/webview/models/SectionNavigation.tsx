@@ -1,6 +1,6 @@
 import { UI_TEXT } from '../../shared/constants'
 import type { ModelsPanelSection } from '../../shared/modelsPanel'
-import { MODEL_SECTIONS } from './sections'
+import { MODEL_SECTIONS, type PanelSectionDef } from './sections'
 
 /** Identical shell during entry loading and the live panel: no reload shrink. */
 export function SectionNavigation({
@@ -8,15 +8,18 @@ export function SectionNavigation({
   pendingSection,
   pendingShown = false,
   navigate,
+  sections = MODEL_SECTIONS.filter((section) => section.isOffered?.(undefined) ?? true),
 }: {
   readonly activeId: ModelsPanelSection
   readonly pendingSection?: ModelsPanelSection | undefined
   readonly pendingShown?: boolean
   readonly navigate?: ((section: ModelsPanelSection) => void) | undefined
+  /** Only sections the host offers; a hidden section gets no nav button. */
+  readonly sections?: readonly PanelSectionDef[]
 }) {
   return (
     <nav className="models-nav" aria-label={UI_TEXT.modelsPanelTitle}>
-      {MODEL_SECTIONS.map((section) => (
+      {sections.map((section) => (
         <button
           key={section.id}
           type="button"

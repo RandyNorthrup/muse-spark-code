@@ -17,6 +17,9 @@ import {
   type ResourceTreeKillResult,
 } from './actions'
 
+/** The exact sampler cause the installed receipt whitelists (RVCM109JD P2-2). */
+export const RESOURCE_MEMBERSHIP_UNPROVEN = 'Resource root membership not proven'
+
 /** Local launch authority. OS readers prove membership; tickets never confer it alone. */
 export class ResourceTreeRegistry implements ResourceTreeReader {
   private readonly entries = new Map<string, { ticket: ResourceTicket; ready: boolean }>()
@@ -51,7 +54,7 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
     this.entries.set(ticket.id, entry)
     try {
       if (!(await this.reader.contains(structuredClone(ticket), structuredClone(ticket.root))))
-        throw new Error('Resource root membership not proven')
+        throw new Error(RESOURCE_MEMBERSHIP_UNPROVEN)
       if (this.entries.get(ticket.id) !== entry) throw new Error('Resource registration cancelled')
       entry.ready = true
       return structuredClone(ticket)

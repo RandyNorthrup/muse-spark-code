@@ -5184,6 +5184,197 @@ page wait for M104's bridge. The TUI waits for M110a0 lane T. The
 [certification](docs/certification/m118.md) names each pending binding; shared
 logic and fake adapter tests do not establish installed-editor parity.
 
+## The vault
+
+Windows native development builds use `node scripts/build-windows-vault-pipe.mjs`.
+CI packages the resulting pipe helper; installed users do not compile it.
+Its owner-only pipe refuses remote clients and relays kernel-attested client
+identities. The guarded native probe checks the server's user SID and DACL,
+sends no private bytes, and returns its PID/start time for the lock check.
+Late close or reply frames for
+retired clients preserve other connections. Credential Manager results are
+validated, copied into owned byte buffers and erased. File checks refuse
+widened DACLs and linked paths. The POSIX native paths are bound behind the reviewed availability switch;
+the Windows pipe helper still waits on lane C-M109-1c and the Windows
+installed-build checks in [the M109 record](docs/certification/m109.md).
+Windows also adopts protocol v2's import receipts and two-step reset, with
+typed Credential Manager repair reasons and anchor removal under the exclusive writer.
+A vault writer keeps exclusive ownership for its entire operation, even if
+suspended or hung. Its thirty-second lease and ten-second renewals are
+informational: another writer may take over only after proving that the
+recorded process has exited, using this installation's machine identity,
+boot identity, PID namespace and OS birth. Host names are display labels;
+matching names on different machines never prove death. A different boot on
+the same installation proves death. Unknown ownership refuses access.
+Notes are flushed before atomic exclusive publication and stay complete
+throughout the operation. A failed release is retried and this process can
+adopt its own abandoned note. Reset and Restore can replace unreadable,
+foreign or unknown ownership only after explicit confirmation naming the
+known holder and warning that another program still writing would lose its
+changes. Confirmation applies to the exact note shown, which is checked
+again at retirement. Ordinary operations keep refusing. Fences detect local
+ownership mistakes; exclusivity does not depend on a fence check being
+atomic with a filesystem or credential-store mutation.
+Local operations share one queue by native vault-directory identity, including
+case variants, and await every dispatched file or OS-store mutation before
+releasing ownership. A protected anchor behind an authenticated vault file is
+never accepted: a valid pending journal repairs it forward, otherwise opening
+refuses the regression. Linked directory components remain refused.
+
+Windows damaged-document retention is repaired and qualified; production
+Reset/Restore process-death recovery also passes on Win11. The installed
+broker/panel bindings are connected; macOS replay and the Windows pipe
+helper stay pending as named in the record.
+
+One encrypted vault per user holds API keys, OAuth tokens, SSH keys, sudo and
+other passwords, website logins with their TOTP seeds, session cookies and any
+named secret. Agents get handles and approved, scoped, logged uses, never
+values. Every approval names the exact use and binds to it. One click locks
+everything. It works the same in every editor; see
+[the M109 record](docs/certification/m109.md) for the lanes, the captures and
+what is still open.
+
+The `Vault` command (`museSpark.vault`) opens the vault panel and `Lock vault
+now` (`museSpark.lockVault`, Ctrl+Alt+Shift+L / Cmd+Alt+Shift+L) ends every
+use in every window. The panel host and the native editor ship in
+`dist/vault.js`, loaded on the first vault command; activation reads no vault
+and starts no broker. The installed POSIX client and broker factory are bound
+behind the reviewed availability switch, and the Models & Agents panel mounts
+the vault section around the same broker-backed service. Every broker use
+still refuses while the broker itself is unavailable, and every destructive
+step keeps its explicit confirmation. No value is ever logged, and no handle
+is substituted into a command, a file or the model's text.
+
+Settings (all machine-scoped, so no workspace can change them):
+`museSpark.vault.enabled` (on; an explicitly stored legacy `museSpark.vault`
+boolean remains effective until the new flag is explicitly configured), `museSpark.vault.protection` (`auto`: the
+operating system's credential store, the same one every editor and the ACP
+agent use, plus a one-time recovery code shown at setup),
+`museSpark.vault.agentFence` (on), `museSpark.vault.lockAfterIdleMinutes`
+(240) and `museSpark.vault.lockOnScreenLock` (on). The internal POSIX broker uses Linux Secret Service and the macOS login
+Keychain. Linux requires an available Secret Service and an unlocked keyring;
+a signed-in desktop session normally supplies them. macOS needs an unlocked
+login Keychain. Touch ID / Keychain biometry is not
+offered: the required Apple Developer ID is unavailable (M109 decision 10).
+Linux hardware unlock and screen-lock integration remain in C-M109-2.
+
+The terminal/ACP/headless handlers run against the same broker-backed vault
+on Linux and macOS. Windows follows through lane C-M109-1c's pipe helper; until
+then the vault reports itself switched off there. The companion page has no
+vault surface yet, and existing extension keys still live in SecretStorage
+until the key-store migration moves them.
+No activation read or broker start is added. The VSIX package check follows production build and lazy-loader dependencies and refuses every omitted sibling bundle. On POSIX, the session owns a broker
+started through governed handoff: closing its first window or CLI does not stop
+other clients. Simultaneous starts wait for one broker; the last disconnect
+starts the 30-second idle period, then Lock runs before exit. Signal shutdown
+uses the same cleanup. Client registrations are removed on exit, and a later
+start prunes proven-dead registrations. Internal broker composition,
+its installed-runtime contract and the native receipts are documented in
+[the broker process contract](docs/design/vault-broker-process.md) and
+[the POSIX certification](docs/certification/cm109-1b.md).
+The generated-only Linux native receipt runs with a private bus and keyring:
+`sh test/hosts/run-vault-posix.sh` (requires `dbus-run-session`,
+`gnome-keyring-daemon`, `setsid`, and a production build). It checks the native OS-store
+slot and installed broker without reading the desktop vault or calling a model.
+The
+receipt names `finished-native-helper-membership-race` only when the exact
+sampler work has ended and its native process group is gone; live or
+unclassified resource warnings fail acceptance. It verifies helper-tree and
+temporary-file retirement before cleanup.
+On macOS the composed broker wraps the key with the login Keychain only;
+it does not use the Secure Enclave.
+
+The terminal, ACP and headless commands load `dist/vaultRuntime.js` on the
+first vault need. Its POSIX connection and broker factory ship as lazy installed siblings
+behind the reviewed availability switch, which is on for Linux and macOS.
+No activation read or broker start is added. The VSIX package check follows production build and lazy-loader dependencies and refuses every omitted sibling bundle. On POSIX, the session owns a broker
+started through governed handoff: closing its first window or CLI does not stop
+other clients. Simultaneous starts wait for one broker; the last disconnect
+starts the 30-second idle period, then Lock runs before exit. Signal shutdown
+uses the same cleanup. Client registrations are removed on exit, and a later
+start prunes proven-dead registrations.
+
+The terminal grammar is `muse-spark-code-acp vault` followed by `setup`,
+`recover`, `reset`, `status`,
+`unlock [slot-id]`, `lock`, `list`, `add <metadata-json>`, `remove <item-id>`,
+`grant <grant-json>`, `revoke <grant-id>`, `audit`, `import <path>`,
+`receipts`, `public-key <item-id>` or `watch`. Every handler was run successfully against
+an injected fake-only local port in the H certification; installed-command
+success remains the integration check. `audit` accepts `--item`, `--requester`,
+`--kind` and `--outcome`. IDs, metadata and grant JSON use the shared schemas.
+Keep secrets out of names, labels and command arguments.
+
+`setup` creates the vault: it prints the one-time recovery code and writes
+nothing until you answer that you saved it; cancelling leaves no vault.
+`recover` unlocks with that code, read from the terminal with echo off. Both
+refuse without an interactive terminal, so headless runs never set up or
+recover a vault.
+
+`reset` is offered only when the vault can no longer be opened (its files are
+missing or damaged while this user's anchor still names it). It states that
+every stored secret is gone and that rollback protection restarts with a new
+anchor, asks you to continue, then asks you to type `RESET`. It records the
+reset in `reset.v1` beside the vault (a value-free line), keeps a copy of the
+damaged document aside, and clears the exact anchor state under the writer
+lock; a file from the old vault never
+opens again. The Vault section shows **Reset Vault** in the same state, with
+the same two steps. Reset refuses while the vault is unlocked and detects
+missing or damaged documents and pending transactions as well as slot files.
+Its public framing checks also detect impossible MAC, nonce, tag, salt,
+wrapped-key and ciphertext lengths or encodings, inconsistent identities and
+generations, invalid pending history, and a candidate that matches neither
+the protected anchor nor an intent's prior state. Reset requires an interactive
+terminal; a headless refusal names Reset explicitly.
+
+`add` reads private material as one bounded JSON line from standard input,
+with byte fields encoded as base64. Terminal echo stays off while reading;
+base64 is only an input encoding, not encryption. Values never come from an
+argument, environment variable or file. An explicit `import <path>` imports
+only a credential file the vault discovered in your home folder (SSH keys,
+`.git-credentials`, `.netrc`, `.npmrc`, AWS credentials, Docker config). The
+import is all or nothing: every credential in the file goes in under one
+commit, or none does, and a cancelled import writes nothing. It prints each
+imported item's name and kind, never a value; the items are hidden from
+agents until you review them. Profile and field identities remain private in
+the encrypted material after source deletion. Import verifies every parent and
+the opened file within your home; replacing a directory with a junction or
+symlink refuses Import and Delete. Closing or locking the panel cancels a sent
+import, while ordinary change notifications preserve your Keep/Delete choice.
+If the report or Keep/Delete step fails after an import committed, the panel
+reloads the stored items and reports the failure. A changed source file is
+kept when Delete refuses.
+You then keep the original file or delete it. `receipts` lists imports
+whose record was kept or orphaned and whose source or secret still exists,
+so a refused Delete can be finished from the terminal with the same Keep or
+Delete choice the panel offers. `grant` displays every
+scope field and requires explicit terminal confirmation. `watch` displays
+exact requester/use details, asks through the terminal, and answers only the
+same unexpired request id and digest. Pipes cannot approve grants or uses.
+
+ACP `/vault` supports `status` (the default), `list`, `lock` and `audit` locally,
+without sending the command to a model. Vault permissions offer Allow once,
+Allow for this session where permitted, and Deny; ACP's `allow_always` means
+that session choice only. Bypass does not grant a secret. Lock can interrupt
+an active turn or permission question.
+
+Lock, cancel and expiry withdraw a pending vault permission and settle its
+card. Command-bound TOTP consent says that the process sees the code. Agent
+audit replies include only currently visible items. Headless refusals retain
+their reason; only a missing unattended grant recommends creating one.
+
+Turning `museSpark.vault.agentFence` off applies only to an interactive shell.
+Workers, schedules, checks and hooks retain the credential and Git-helper
+fence. Approved environment injection cannot restore loader or startup
+variables.
+
+Local headless `exec --vault` requires existing unattended grants and never
+prompts. Missing grants, presence, taint, unavailable bindings or a failed
+vault use end the run with `denied` (exit 7), independently of
+`--fail-on-denial`. `--key-stdin` and CI cannot enable the vault. Ordinary
+headless behavior without the flag is unchanged. Companion and native panel
+routes carry only public state and bound answers; add/edit opens the host's
+local terminal and never sends a value through the bridge.
+
 ## Development
 
 `npm run schema:exec -- --check` checks the exec and sharing JSON schemas
@@ -5377,7 +5568,7 @@ DEFLATE compression after `vsce` creates the archive. Python 3 (`python3`,
 are skipped, including Windows' Microsoft Store aliases. The step preserves
 entry paths, metadata, every UI JSON value and all other uncompressed bytes.
 Only packaged translation JSON whitespace is compacted; source tables stay
-unchanged and malformed JSON refuses publication. The 3000 KiB universal VSIX budget covers the measured 0.16.0 combined train plus D6's margin; individual bundle caps follow their recorded measurements.
+unchanged and malformed JSON refuses publication. Each platform's VSIX package meets the same 3700 KiB budget, which covers the measured universal package plus D6's margin (one package per platform: PLAN.md D123); individual bundle caps follow their recorded measurements.
 The legal scanner's pinned data is embedded in its lazy bundle, with separate
 notice/provenance files in both packages.
 
@@ -5542,8 +5733,9 @@ as **admin move required**, preserving the release channels' outcomes. The
 the administrator's fast-forward recovery; the ruleset stays in place.
 The workflow creates a GitHub Release with
 that `.vsix`, the ACP tarball, both inventories, the exec schemas from `docs/schemas/` and `SHA256SUMS`, with the
-CHANGELOG section as its notes and package provenance attestations. The same
-VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX; the same
+CHANGELOG section as its notes and package provenance attestations. Each
+target's VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX,
+which serve each person their platform's package; the same
 ACP tarball goes to npm with provenance by npm trusted publishing: npm
 trusts `release.yml` in the tag-only `marketplace` environment, so the npm
 job reads no npm token. Marketplace and Open VSX use their tokens from that
@@ -5551,7 +5743,7 @@ environment (`VSCE_PAT`, `OVSX_PAT`); a missing token is reported as a
 skip. Network errors get bounded retries;
 already-published versions require matching artifact hashes/integrity. A final
 summary reports every channel and fails if any channel failed. A `.vsix` packed
-locally has no macOS helper, so only CI's universal artifact is published.
+locally has no macOS helper, so only CI's per-target artifacts are published.
 See [the release and recovery guide](docs/RELEASING.md) for half-published
 states, npm EOTP, signing decisions and the M80 hooks (the schemas as
 release assets and the Action's `v0` tag). A manual run of `release.yml` on

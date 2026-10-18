@@ -1,0 +1,1674 @@
+{
+  "lane": "CM109LEASER2",
+  "base": "18dbcb0e8",
+  "machine": "win11",
+  "generatedUtc": "2026-10-12T01:53:40.807Z",
+  "scope": "Six in-scope findings; no paid/live calls, dependencies, merges, pushes, hook or cap changes. Finding 6 is lead-owned.",
+  "initialCommit": "9cf17b367",
+  "files": [
+    "CHANGELOG.md",
+    "PLAN.md",
+    "README.md",
+    "ROADMAP.md",
+    "docs/certification/m109-lease-r2-verification.json",
+    "docs/certification/m109.md",
+    "docs/certification/spawn-inventory.json",
+    "docs/ide-compatibility/host-api.md",
+    "docs/reference.md",
+    "docs/roadmap/entries.json",
+    "l10n/ui.cs.json",
+    "l10n/ui.de.json",
+    "l10n/ui.es.json",
+    "l10n/ui.fr.json",
+    "l10n/ui.hu.json",
+    "l10n/ui.it.json",
+    "l10n/ui.ja.json",
+    "l10n/ui.ko.json",
+    "l10n/ui.pl.json",
+    "l10n/ui.pt-br.json",
+    "l10n/ui.ru.json",
+    "l10n/ui.tr.json",
+    "l10n/ui.zh-cn.json",
+    "l10n/ui.zh-tw.json",
+    "src/core/locks/fileLease.ts",
+    "src/core/locks/processOwner.ts",
+    "src/core/vault/broker/channel.ts",
+    "src/core/vault/broker/manageClient.ts",
+    "src/core/vault/broker/management.ts",
+    "src/core/vault/broker/ports.ts",
+    "src/core/vault/crypto.ts",
+    "src/core/vault/store.ts",
+    "src/host/vault/vaultPanelEntry.ts",
+    "src/host/vault/vaultPanelHost.ts",
+    "src/host/vault/vaultPanelService.ts",
+    "src/runtime/reference.node.generated.ts",
+    "src/runtime/vault/vaultCommand.ts",
+    "src/shared/constants.ts",
+    "src/shared/featureCatalog.ts",
+    "src/shared/l10n/en.ts",
+    "src/shared/reference/reference.generated.json",
+    "src/shared/reference/reference.generated.ts",
+    "src/shared/vaultProtocol.ts",
+    "test/unit/vault/deathOnlyLease.test.ts",
+    "test/unit/vault/ownerEvidence.test.ts",
+    "test/unit/vault/vaultPanelHost.test.ts",
+    "test/unit/vault/writerLease.test.ts",
+    "test/unit/vault/writerLifetime.test.ts",
+    "test/unit/vaultCommand.test.ts"
+  ],
+  "sourceDigests": [
+    {
+      "file": "src/core/locks/fileLease.ts",
+      "sha256": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4"
+    },
+    {
+      "file": "src/core/locks/processOwner.ts",
+      "sha256": "39896c722ac035de5ab62dc45ca3f4d677977cb00fe9bca85ee7bc1ee04541d2"
+    },
+    {
+      "file": "src/core/vault/broker/channel.ts",
+      "sha256": "b65d83ee939cae059a8828861c7a60ba6c8fc5e3909a602df177e8e5b32b0cc2"
+    },
+    {
+      "file": "src/core/vault/broker/manageClient.ts",
+      "sha256": "0d5c138893f5bcfbf27363df477f5da0ec05edc75ab0228607dc0b584951480c"
+    },
+    {
+      "file": "src/core/vault/broker/management.ts",
+      "sha256": "da66b700c31b3270d173f3979e360e99f7b55798f1fa1193c16488c03b3ece04"
+    },
+    {
+      "file": "src/core/vault/broker/ports.ts",
+      "sha256": "549c4c8ade08bccb37b7d48030d3422fdc4f8868f1f44e72fd7aa17880a911f5"
+    },
+    {
+      "file": "src/core/vault/crypto.ts",
+      "sha256": "c418504d62c207ad587c3901ae1bc000de41c2b34b9f2f76c27fb7551897d4b8"
+    },
+    {
+      "file": "src/core/vault/store.ts",
+      "sha256": "5a3bd883dfdd8464e8cf1f87784786a0a936cd2eae84726cdad4311634dca7bc"
+    },
+    {
+      "file": "src/host/vault/vaultPanelEntry.ts",
+      "sha256": "be69e43399359cb528061a885744cbc6bc904284e5be1d1778da52442fe2a23f"
+    },
+    {
+      "file": "src/host/vault/vaultPanelHost.ts",
+      "sha256": "39fbf7c1a1bb79f4e27511249865cba3c71b80350a69b1bd946d66fe389ba5aa"
+    },
+    {
+      "file": "src/host/vault/vaultPanelService.ts",
+      "sha256": "ffe18323523d7067bd1c9f18ba6445f65e5042f5c99c136ebc2e92002057a7f7"
+    },
+    {
+      "file": "src/runtime/reference.node.generated.ts",
+      "sha256": "d9df187419349ee8d98d90bb198dcb8c44ed4682ba6f849b826de5598caea35f"
+    },
+    {
+      "file": "src/runtime/vault/vaultCommand.ts",
+      "sha256": "6fe8db3b00c26c3955fb7fcb5bba1d6388667fdada10d544a2e9c857df276c87"
+    },
+    {
+      "file": "src/shared/constants.ts",
+      "sha256": "f8645db04aaaca482a2d3d29ecc8f29f09d9ca85341bafc788df26269a2aadd2"
+    },
+    {
+      "file": "src/shared/featureCatalog.ts",
+      "sha256": "4bb25b3d799c45c5f4adbe544411eb8c093b04d2ede3ca29e550d107f947da80"
+    },
+    {
+      "file": "src/shared/l10n/en.ts",
+      "sha256": "bda14a270fdc626163fc41a3af0563f678d906451200fc3334b56f10802ac954"
+    },
+    {
+      "file": "src/shared/reference/reference.generated.json",
+      "sha256": "74b7ff85965dbf70c9bb854aaa74da8a4a3fd137ac26cffe8205b4f318645afc"
+    },
+    {
+      "file": "src/shared/reference/reference.generated.ts",
+      "sha256": "2c0c627ce37cadc90415a00d789c577b4ad34833f578ba906542212b341161ad"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "sha256": "c69a526d904a3aa2c8e6f50ff32a8c68ab6d0668c64a7199b792334b84ffb160"
+    }
+  ],
+  "batches": [
+    {
+      "batch": [
+        "test/unit/vault/writerLease.test.ts",
+        "test/unit/vault/writerLifetime.test.ts",
+        "test/unit/vault/vaultStore.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 218.287,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/writerLease.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 23
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/vaultStore.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 37
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/writerLifetime.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 13
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/fileLease.test.ts",
+        "test/unit/runtimePullRequestProcessBirth.test.ts",
+        "test/unit/runtimePullRequestRecords.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 31.871,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/fileLease.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 29,
+            "skip": 1
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/runtimePullRequestRecords.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 22
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/runtimePullRequestProcessBirth.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 4
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/runtimePullRequestInterleavings.test.ts",
+        "test/unit/runtimePullRequestCheckout.test.ts",
+        "test/unit/nativeGitPipeline.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 65.515,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/runtimePullRequestCheckout.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 69
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/nativeGitPipeline.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 20
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/runtimePullRequestInterleavings.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 17
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/accountsCommand.test.ts",
+        "test/unit/acpAccounts.test.ts",
+        "test/unit/acpAgent.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 40.384,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/acpAgent.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 142
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/acpAccounts.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 28
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/accountsCommand.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 23
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/acpEstimate.test.ts",
+        "test/unit/acpModelApi.test.ts",
+        "test/unit/acpQuestionDeferral.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 33.14,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/acpQuestionDeferral.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 80
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/acpModelApi.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 12
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/acpEstimate.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 6
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/acpReportObserver.test.ts",
+        "test/unit/acpReports.test.ts",
+        "test/unit/acpResources.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 20.999,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/acpResources.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 8
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/acpReports.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 6
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/acpReportObserver.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 3
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/acpRuntime.test.ts",
+        "test/unit/acpSharing.test.ts",
+        "test/unit/acpUsage.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 31.676,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/acpRuntime.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 43
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/acpSharing.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 27
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/acpUsage.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 7
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/acpVault.test.ts",
+        "test/unit/attachArgs.test.ts",
+        "test/unit/cliUsage.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 22.444,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/acpVault.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 20
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/cliUsage.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 11
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/attachArgs.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 5
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/conversationController.test.ts",
+        "test/unit/estimateCommand.test.ts",
+        "test/unit/execAccounts.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 63.066,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/conversationController.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 687
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/estimateCommand.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 18
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/execAccounts.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 12
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/execArgs.test.ts",
+        "test/unit/execProvider.test.ts",
+        "test/unit/execResources.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 33.442,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/execProvider.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 17
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/execResources.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 6
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/execArgs.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 55
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/execRun.test.ts",
+        "test/unit/execVault.test.ts",
+        "test/unit/fontCli.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 52.083,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/execRun.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 94
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/execVault.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 25
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/fontCli.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 3
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/fontsInstall.test.ts",
+        "test/unit/legalArgs.test.ts",
+        "test/unit/m106Wiring.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 27.152,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/m106Wiring.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 14
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/fontsInstall.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 11
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/legalArgs.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 12
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/nativeGitAdapter.test.ts",
+        "test/unit/nativeGitService.test.ts",
+        "test/unit/nativeGitSpawn.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 78.967,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/nativeGitAdapter.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 31
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/nativeGitService.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 28
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/nativeGitSpawn.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 14
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/paidPortBoundaries.test.ts",
+        "test/unit/playbookCommand.test.ts",
+        "test/unit/playbookSurface.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 22.271,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/playbookCommand.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 24
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/paidPortBoundaries.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 17
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/playbookSurface.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 4
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/providersX.test.ts",
+        "test/unit/providersXFix.test.ts",
+        "test/unit/referenceEntry.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 28.666,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/providersX.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 34
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/providersXFix.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 16
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/referenceEntry.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 15
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/reportCommand.test.ts",
+        "test/unit/reportsCommand.test.ts",
+        "test/unit/runtimeChatGpt.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 25.793,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/runtimeChatGpt.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 35
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/reportsCommand.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 15
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/reportCommand.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 20
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/runtimeServices.test.ts",
+        "test/unit/scheduleCommand.test.ts",
+        "test/unit/scheduleReportCli.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 24.033,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/runtimeServices.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 10
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/scheduleCommand.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 13
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/scheduleReportCli.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 5
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/shareCommand.test.ts",
+        "test/unit/sharePreviewFix.test.ts",
+        "test/unit/vault/approvals.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 21.704,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/shareCommand.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 101
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/approvals.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 14
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/sharePreviewFix.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 4
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/audit.test.ts",
+        "test/unit/vault/backup.test.ts",
+        "test/unit/vault/broker.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 21.862,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/backup.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 19
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/broker.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 20
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/audit.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 1,
+            "skip": 18
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/channel.test.ts",
+        "test/unit/vault/credentialAdapter.test.ts",
+        "test/unit/vault/crypto.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 19.306,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/crypto.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 13
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/channel.test.ts",
+          "state": "pass",
+          "tests": {
+            "skip": 52,
+            "pass": 6
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/credentialAdapter.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 3
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/deathOnlyLease.test.ts",
+        "test/unit/vault/delegation.test.ts",
+        "test/unit/vault/execBrokerLease.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 22.078,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/deathOnlyLease.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 285
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/delegation.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 19
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/execBrokerLease.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 4
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/execHelpers.test.ts",
+        "test/unit/vault/fleet.test.ts",
+        "test/unit/vault/importReset.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 21.956,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/execHelpers.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 9
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/importReset.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 9
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/fleet.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 20
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/interleavings.test.ts",
+        "test/unit/vault/kdf.test.ts",
+        "test/unit/vault/keyslots.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 24.845,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/interleavings.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 35
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/keyslots.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 5
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/kdf.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 5
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/limits.test.ts",
+        "test/unit/vault/migrationAdapters.test.ts",
+        "test/unit/vault/ownerEvidence.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 19.008,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/ownerEvidence.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 3
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/limits.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 3
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/migrationAdapters.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 3
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/peer.test.ts",
+        "test/unit/vault/redemption.test.ts",
+        "test/unit/vault/remote.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 19.191,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/redemption.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 10
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/remote.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 24
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/peer.test.ts",
+          "state": "skip",
+          "tests": {
+            "skip": 1
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/reviewFixes.test.ts",
+        "test/unit/vault/reviewRound2.test.ts",
+        "test/unit/vault/reviewRound3.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 20.613,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/reviewFixes.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 16
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/reviewRound2.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 17
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/reviewRound3.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 7
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/reviewRound4.test.ts",
+        "test/unit/vault/reviewRound5.test.ts",
+        "test/unit/vault/rvcm1091a.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 20.471,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/rvcm1091a.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 10
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/reviewRound4.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 8
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/reviewRound5.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 7
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/rvcm1091a2.test.ts",
+        "test/unit/vault/rvcm1091a3.test.ts",
+        "test/unit/vault/rvcm1091a3Import.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 19.102,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/rvcm1091a2.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 8
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/rvcm1091a3Import.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 8
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/rvcm1091a3.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 12
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/rvcm1091a3Panel.test.ts",
+        "test/unit/vault/rvcm1091a4.test.ts",
+        "test/unit/vault/rvcm1091b.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 20.695,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/rvcm1091a4.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 170
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/rvcm1091a3Panel.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 9
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/rvcm1091b.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 7
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/sshAgent.test.ts",
+        "test/unit/vault/sshBroker.test.ts",
+        "test/unit/vault/sshConnection.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 19.189,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/sshAgent.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 18
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/sshBroker.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 13
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/sshConnection.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 6
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/sshTransport.test.ts",
+        "test/unit/vault/taint.test.ts",
+        "test/unit/vault/totp.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 19.072,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/sshTransport.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 10
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/taint.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 12
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/totp.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 8
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/vaultExec.test.ts",
+        "test/unit/vault/vaultManagement.test.ts",
+        "test/unit/vault/vaultNativeEditor.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 20.624,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/vaultManagement.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 13
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/vaultExec.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 10
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/vaultNativeEditor.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 18
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/vaultPanelHost.test.ts",
+        "test/unit/vault/vaultRuntimeEntry.test.ts",
+        "test/unit/vault/webCsvImport.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 19.227,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/vaultPanelHost.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 26
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/webCsvImport.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 10
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/vaultRuntimeEntry.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 7
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vault/webFill.test.ts",
+        "test/unit/vault/webPageRead.test.ts",
+        "test/unit/vault/webSessions.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 45.47,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/webFill.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 33
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/webPageRead.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 4
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/webSessions.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 24
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/vaultCommand.test.ts",
+        "test/unit/vaultInput.test.ts",
+        "test/unit/vaultSurface.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 19.818,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vaultInput.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 25
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vaultCommand.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 38
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vaultSurface.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 12
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/windowsCredentialVaultSlot.test.ts",
+        "test/unit/windowsVaultChannel.test.ts",
+        "test/unit/windowsVaultPipeNative.test.ts"
+      ],
+      "exit": 1,
+      "seconds": 80.813,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/windowsVaultPipeNative.test.ts",
+          "state": "fail",
+          "tests": {
+            "pass": 26,
+            "fail": 2
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/windowsCredentialVaultSlot.test.ts",
+          "state": "fail",
+          "tests": {
+            "pass": 19,
+            "fail": 2
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/windowsVaultChannel.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 3
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/windowsVaultPipeRelay.test.ts",
+        "test/unit/vault/vaultPanelBuild.test.ts",
+        "test/unit/featureCatalogDetails.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 20.63,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/windowsVaultPipeRelay.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 27
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/vault/vaultPanelBuild.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 2
+          }
+        },
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/featureCatalogDetails.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 4
+          }
+        }
+      ]
+    },
+    {
+      "batch": [
+        "test/unit/spawnBoundaries.test.ts",
+        "test/unit/browserUiText.test.ts",
+        "test/unit/usageL10nGate.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 18.266,
+      "rows": [
+        {
+          "file": "C:/lanes/CM109LEASE/test/unit/spawnBoundaries.test.ts",
+          "state": "pass",
+          "tests": {
+            "pass": 10
+          }
+        }
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "name": "machine-evidence",
+      "file": "src/core/locks/processOwner.ts",
+      "suite": "test/unit/vault/deathOnlyLease.test.ts",
+      "exit": 1,
+      "before": "4908d3fec61b79b9da6b07f3240e922d3fda2a945cbb311fc70da5fce3253041",
+      "restored": "4908d3fec61b79b9da6b07f3240e922d3fda2a945cbb311fc70da5fce3253041",
+      "failed": [
+        "      Tests  35 failed | 248 passed (283)",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 82",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 84",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 85",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 86",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 108",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 109",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 110",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 111",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 112",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 113",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 114",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 115",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 116",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 117",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 118",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 119",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 120",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 121",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 122",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 123",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 124",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 125",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 126",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 127",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 128",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 129",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 130",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 131",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 132",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 133",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > death truth table 134",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > confirmed recovery replaces a \"foreign\" note while normal operations refuse",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > owner evidence: same hostname on another machine",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > requires exact birth evidence for pid reuse; unavailable and legacy births prove nothing",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > refuses a foreign-machine writer and carries only process/time facts to translated text"
+      ]
+    },
+    {
+      "name": "atomic-publication",
+      "file": "src/core/locks/fileLease.ts",
+      "suite": "test/unit/vault/deathOnlyLease.test.ts",
+      "exit": 1,
+      "before": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4",
+      "restored": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4",
+      "failed": [
+        "      Tests  4 failed | 279 passed (283)",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > interrupting atomic note create leaves no lock or a complete note",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > interrupting atomic note write leaves no lock or a complete note",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > interrupting atomic note flush leaves no lock or a complete note",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > interrupting atomic note publish leaves no lock or a complete note"
+      ]
+    },
+    {
+      "name": "immutable-note",
+      "file": "src/core/locks/fileLease.ts",
+      "suite": "test/unit/vault/deathOnlyLease.test.ts",
+      "exit": 1,
+      "before": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4",
+      "restored": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4",
+      "failed": [
+        "      Tests  1 failed | 282 passed (283)",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > renewal preserves the complete published death-only note"
+      ]
+    },
+    {
+      "name": "release-retry",
+      "file": "src/core/locks/fileLease.ts",
+      "suite": "test/unit/vault/deathOnlyLease.test.ts",
+      "exit": 1,
+      "before": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4",
+      "restored": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4",
+      "failed": [
+        "      Tests  1 failed | 282 passed (283)",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > retries transient release and adopts its own hold after bounded release failures"
+      ]
+    },
+    {
+      "name": "own-adoption",
+      "file": "src/core/vault/store.ts",
+      "suite": "test/unit/vault/deathOnlyLease.test.ts",
+      "exit": 1,
+      "before": "5c83c781954349744523b083270b4b14a6ad6521b26667311cd1fc403eee838e",
+      "restored": "5c83c781954349744523b083270b4b14a6ad6521b26667311cd1fc403eee838e",
+      "failed": [
+        "      Tests  1 failed | 282 passed (283)",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > retries transient release and adopts its own hold after bounded release failures"
+      ]
+    },
+    {
+      "name": "confirmed-recovery",
+      "file": "src/core/locks/fileLease.ts",
+      "suite": "test/unit/vault/deathOnlyLease.test.ts",
+      "exit": 1,
+      "before": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4",
+      "restored": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4",
+      "failed": [
+        "      Tests  6 failed | 277 passed (283)",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > confirmed recovery replaces a \"\" note while normal operations refuse",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > confirmed recovery replaces a \"{\" note while normal operations refuse",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > confirmed recovery replaces a \"foreign\" note while normal operations refuse",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > rechecks the confirmed bytes after retirement and authorization before dispatch",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > the real Reset confirmation clears an unreadable hold; anchored=false",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > the real Reset confirmation clears an unreadable hold; anchored=true"
+      ]
+    },
+    {
+      "name": "retirement-recheck",
+      "file": "src/core/locks/fileLease.ts",
+      "suite": "test/unit/vault/deathOnlyLease.test.ts",
+      "exit": 1,
+      "before": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4",
+      "restored": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4",
+      "failed": [
+        "      Tests  1 failed | 282 passed (283)",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > rechecks the confirmed bytes after retirement and authorization before dispatch"
+      ]
+    },
+    {
+      "name": "recovery-authorization",
+      "file": "src/core/locks/fileLease.ts",
+      "suite": "test/unit/vault/deathOnlyLease.test.ts",
+      "exit": 1,
+      "before": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4",
+      "restored": "2ea8319cc7b355e2972a8262f63b3b8d6cdee61235540667bae4e1e5cb1791b4",
+      "failed": [
+        "      Tests  1 failed | 282 passed (283)",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > rechecks the confirmed bytes after retirement and authorization before dispatch"
+      ]
+    },
+    {
+      "name": "failed-probe-cache",
+      "file": "src/core/locks/processOwner.ts",
+      "suite": "test/unit/vault/ownerEvidence.test.ts",
+      "exit": 1,
+      "before": "4908d3fec61b79b9da6b07f3240e922d3fda2a945cbb311fc70da5fce3253041",
+      "restored": "4908d3fec61b79b9da6b07f3240e922d3fda2a945cbb311fc70da5fce3253041",
+      "failed": [
+        "      Tests  2 failed | 1 passed (3)",
+        " FAIL  test/unit/vault/ownerEvidence.test.ts > base-system owner evidence > reads this process once without Python or a second Windows launch",
+        " FAIL  test/unit/vault/ownerEvidence.test.ts > base-system owner evidence > remembers failed evidence briefly and retries after its bounded cache expires"
+      ]
+    },
+    {
+      "name": "base-mac-tools",
+      "file": "src/core/locks/processOwner.ts",
+      "suite": "test/unit/vault/ownerEvidence.test.ts",
+      "exit": 1,
+      "before": "4908d3fec61b79b9da6b07f3240e922d3fda2a945cbb311fc70da5fce3253041",
+      "restored": "4908d3fec61b79b9da6b07f3240e922d3fda2a945cbb311fc70da5fce3253041",
+      "failed": [
+        "      Tests  1 failed | 2 passed (3)",
+        " FAIL  test/unit/vault/ownerEvidence.test.ts > base-system owner evidence > never makes exact birth depend on the macOS developer-tools shim"
+      ]
+    },
+    {
+      "name": "private-writer-facts",
+      "file": "src/core/vault/store.ts",
+      "suite": "test/unit/vault/deathOnlyLease.test.ts",
+      "exit": 1,
+      "before": "4d1bd242ffd560ff4c85b331d38fa532a83149f070f798622ec23b6f2bd78fec",
+      "restored": "4d1bd242ffd560ff4c85b331d38fa532a83149f070f798622ec23b6f2bd78fec",
+      "failed": [
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > malformed pid facts remain recoverable through a valid private challenge",
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > malformed time facts remain recoverable through a valid private challenge"
+      ]
+    },
+    {
+      "name": "boot-format",
+      "file": "src/core/locks/processOwner.ts",
+      "suite": "test/unit/vault/deathOnlyLease.test.ts",
+      "exit": 1,
+      "before": "39896c722ac035de5ab62dc45ca3f4d677977cb00fe9bca85ee7bc1ee04541d2",
+      "restored": "39896c722ac035de5ab62dc45ca3f4d677977cb00fe9bca85ee7bc1ee04541d2",
+      "failed": [
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > legacy boot timestamps are unknown and UUID spelling never proves a reboot"
+      ]
+    },
+    {
+      "name": "boot-spelling",
+      "file": "src/core/locks/processOwner.ts",
+      "suite": "test/unit/vault/deathOnlyLease.test.ts",
+      "exit": 1,
+      "before": "39896c722ac035de5ab62dc45ca3f4d677977cb00fe9bca85ee7bc1ee04541d2",
+      "restored": "39896c722ac035de5ab62dc45ca3f4d677977cb00fe9bca85ee7bc1ee04541d2",
+      "failed": [
+        " FAIL  test/unit/vault/deathOnlyLease.test.ts > vault takeover requires proven death > legacy boot timestamps are unknown and UUID spelling never proves a reboot"
+      ]
+    }
+  ],
+  "productionBytes": [
+    {
+      "file": "dist/extension.js",
+      "bytes": 567707
+    },
+    {
+      "file": "dist/vault.js",
+      "bytes": 34127
+    },
+    {
+      "file": "dist/vaultBoundaries.js",
+      "bytes": 40298
+    },
+    {
+      "file": "dist/vaultRuntime.js",
+      "bytes": 20619
+    },
+    {
+      "file": "dist/mcpVault.js",
+      "bytes": 13812
+    },
+    {
+      "file": "dist/usagePanel.js",
+      "bytes": 76827
+    }
+  ],
+  "independentVaultHost": {
+    "bytes": 51193,
+    "cap": 51200
+  },
+  "summary": {
+    "uniqueRelatedAndSupplementalFiles": 114,
+    "relatedCases": {
+      "pass": 3162,
+      "skip": 72,
+      "fail": 4
+    },
+    "supplemental": "Both localization supplements: 13 cases pass. Final deathOnly: 286 pass. Final writerLease/writerLifetime/ownerEvidence: 39 pass. No timeout overrides.",
+    "nativeFailures": [
+      {
+        "file": "C:/lanes/CM109LEASE/test/unit/windowsVaultPipeNative.test.ts",
+        "state": "fail",
+        "tests": {
+          "pass": 26,
+          "fail": 2
+        }
+      },
+      {
+        "file": "C:/lanes/CM109LEASE/test/unit/windowsCredentialVaultSlot.test.ts",
+        "state": "fail",
+        "tests": {
+          "pass": 19,
+          "fail": 2
+        }
+      }
+    ]
+  },
+  "gateReceipts": [
+    {
+      "name": "check-l10n",
+      "exit": 0,
+      "summary": [
+        "l10n: 14 UI tables, 14 usage tables, 252 manifest strings, 1550 source files; 0 problems"
+      ]
+    },
+    {
+      "name": "check-host-api",
+      "exit": 0,
+      "summary": ["Regenerated node:os import count; final check exits 0."]
+    },
+    {
+      "name": "check-reference",
+      "exit": 0,
+      "summary": ["node scripts/gen-reference.mjs --check exits 0."]
+    },
+    {
+      "name": "check-roadmap",
+      "exit": 0,
+      "summary": ["node scripts/gen-roadmap.mjs --check exits 0."]
+    },
+    {
+      "name": "check-bundle-size",
+      "exit": 1,
+      "summary": [
+        "ok   dist/resourceGovernor.js: 106.3 KiB (budget 125 KiB)",
+        "OVER dist/usagePanel.js: 75.0 KiB (budget 75 KiB)",
+        "ok   dist/webview/chunks/R7LMSZDU.js (PopoverMenu): 3.0 KiB (budget 25 KiB)",
+        "OVER dist/webview surface English: 26.5 KiB (budget 25 KiB)",
+        "ok   dist/webview PopoverMenu: 3.0 KiB (budget 25 KiB)",
+        "ok   dist/webview deferred overlays: 6.7 KiB (budget 10 KiB)"
+      ]
+    },
+    {
+      "name": "check-bundle-split",
+      "exit": 0,
+      "summary": [
+        "ok   dist/resourceGovernor.js: loads only on the first governed spawn, never at activation",
+        "ok   dist/resourceProcess.js: loads only on the first governed process launch, never at activation"
+      ]
+    },
+    {
+      "name": "check-host-globals",
+      "exit": 0,
+      "summary": ["ok   dist/resourceGovernor.js: 0 reference(s) to navigator"]
+    },
+    {
+      "name": "third-party-notices",
+      "exit": 0,
+      "summary": []
+    }
+  ],
+  "notes": [
+    "check-reference/check-roadmap script paths in the first receipt were wrong; corrected gen-reference --check and gen-roadmap --check both exit 0.",
+    "host API regenerated for node:os import count 38 -> 37; recheck exits 0.",
+    "Duplication now contains only two unchanged Model API test pairs; own clones removed.",
+    "Timebox exceeded.",
+    "Native Credential Manager refusal and foreign-token PowerShell DLL initialization failures require interactive qualification.",
+    "Linux/macOS must rerun all four owning files, fileLease, six caller files and the complete non-hub related graph; SIGSTOP/SIGKILL are now permanent in writerLease.",
+    "Final ESLint over changed source/test files exits 0. Final host and unit typechecks exit 0; earlier full five-project typecheck exits 0.",
+    "Final owning post-compatibility replay: writerLease 23 + writerLifetime 13 + ownerEvidence 3, all 39 pass."
+  ],
+  "codeCommit": "37207d50b",
+  "postHook": {
+    "stagedAndCommittedSourceDiffEqual": true,
+    "independentHostBytes": 51193,
+    "cap": 51200,
+    "cleanAtCodeCommit": true,
+    "noLaneTestRunnerRetained": true
+  }
+}

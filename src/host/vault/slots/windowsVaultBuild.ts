@@ -45,6 +45,15 @@ const runCompiler = (
   )
 const cache = new Map<string, WindowsVaultExecutable>()
 
+function extractGuard(source: string): string {
+  const guardSource = source
+    .split('// BEGIN VAULT PATH GUARD', 2)[1]
+    ?.split('// END VAULT PATH GUARD', 1)[0]
+  if (guardSource === undefined || guardSource.trim() === '')
+    throw new Error(UI_TEXT.vault.noAccess)
+  return guardSource
+}
+
 /** Only this process's completed build supplies a trusted digest, never a cache sidecar. */
 export async function windowsVaultExecutable(deps: {
   readonly storageDir: string
@@ -57,11 +66,7 @@ export async function windowsVaultExecutable(deps: {
     if (!path.isAbsolute(deps.storageDir) || !path.isAbsolute(deps.systemRoot))
       throw new Error(UI_TEXT.vault.noAccess)
     const source = await deps.readSource()
-    const guardSource = source
-      .split('// BEGIN VAULT PATH GUARD', 2)[1]
-      ?.split('// END VAULT PATH GUARD', 1)[0]
-    if (guardSource === undefined || guardSource.trim() === '')
-      throw new Error(UI_TEXT.vault.noAccess)
+    const guardSource = extractGuard(source)
     const name = jobFileName(build, source)
     const cacheKey = `${deps.storageDir}\0${deps.systemRoot}\0${name}`
     const cached = cache.get(cacheKey)
@@ -123,4 +128,25 @@ export async function windowsVaultExecutable(deps: {
     if (isResourcePaused(error)) throw error
     throw new Error(UI_TEXT.vault.noAccess, { cause: error })
   }
+}
+
+/**
+ * The pipe helper: the shared guard region plus the pipe program, compiled
+ * as one source. The digest names the composed bytes, so a slot helper and
+ * a pipe helper never share a file.
+ */
+export async function windowsPipeExecutable(deps: {
+  readonly storageDir: string
+  readonly systemRoot: string
+  readonly readSlotSource: () => Promise<string>
+  readonly readPipeSource: () => Promise<string>
+  readonly run?: RunProgram
+  readonly report?: () => void
+}): Promise<WindowsVaultExecutable> {
+  const guardSource = extractGuard(await deps.readSlotSource())
+  const source = `${guardSource}\n${await deps.readPipeSource()}`
+  return await windowsVaultExecutable({
+    ...deps,
+    readSource: () => Promise.resolve(source),
+  })
 }

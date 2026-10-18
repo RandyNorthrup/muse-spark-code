@@ -139,7 +139,7 @@ import type {
 import { AcpVault } from '../acp/vault'
 import { runtimeVaultLoader } from './vault/vaultRuntime'
 import { runVaultCommand, vaultUsage } from './vault/vaultCommand'
-import { chooseVaultDecision, readVaultMaterial } from './vault/vaultInput'
+import { chooseVaultDecision, readVaultLine, readVaultMaterial } from './vault/vaultInput'
 
 const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
@@ -847,6 +847,9 @@ async function serve(
             .execute(text, context),
       },
       paid: runtime.paid,
+      // The vault's asker: broker approvals route back as
+      // session/request_permission, and /vault commands work in sessions.
+      vault: acpVault,
       playbookBundle: () => {
         const bundle = loadPlaybook()
         return {
@@ -1330,6 +1333,10 @@ async function main(): Promise<number> {
         return await runVaultCommand(command.options, {
           open: openVaultCommands,
           readMaterial: (signal) => readVaultMaterial(process.stdin, process.stderr, signal),
+          readLine: (prompt, signal) =>
+            readVaultLine(process.stdin, process.stderr, prompt, signal),
+          // The one-time recovery code must reach a person, never a redirected file.
+          isInteractive: process.stdin.isTTY && process.stdout.isTTY,
           choose: (title, choices, signal) =>
             chooseVaultDecision(process.stdin, process.stderr, title, choices, signal),
           print: (text) => {

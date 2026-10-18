@@ -1,0 +1,480 @@
+{
+  "rig": "Kubuntu",
+  "date": "2026-10-10",
+  "repoTimeouts": true,
+  "drills": [
+    {
+      "name": "slot-identity-before-part-a",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/slots/osStoreVaultSlot.ts",
+          "sha256": "6668c9d18297b64faea14fdfa55d3ff6965b418aa55de95a8eb84364831d664a"
+        }
+      ],
+      "evidence": ["refuses swapped immutable identity before reading the OS store"]
+    },
+    {
+      "name": "idle",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/brokerProcess.ts",
+          "sha256": "b8a12c03f476ea9af6fbcd883f9974baced79cea1c954b0ee101e7c72ba67ea8"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > starts in owner-only files and locks before empty idle exit"
+      ]
+    },
+    {
+      "name": "stale",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/brokerProcess.ts",
+          "sha256": "b8a12c03f476ea9af6fbcd883f9974baced79cea1c954b0ee101e7c72ba67ea8"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > recovers a stale socket left before discovery was published",
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > restarts after SIGKILL without trusting stale discovery or leaking its guardian"
+      ]
+    },
+    {
+      "name": "epoch",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/vaultBrokerEntry.ts",
+          "sha256": "d74b0c573c9e1e7d4095b6587a621d03c9e33ad53a9b01b42448377bebb055c2"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerComposition.test.ts > broker composition over part A blocks > confirms setup, encrypts a private add, forwards change/lock callbacks and reopens through the same OS anchor"
+      ]
+    },
+    {
+      "name": "uid",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/core/vault/broker/peer.ts",
+          "sha256": "a48db9c34ef1b8a5f649cf09c70584bf9e13363a3a0dc3bb0b77ba0b79563613"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/peer.test.ts > native Unix foreign-user rejection > owner-only socket denies another user and OS uid still refuses on a deliberately relaxed test socket"
+      ]
+    },
+    {
+      "name": "provider",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/slots/posixVaultSlots.ts",
+          "sha256": "a52a98b41d09681ff5e8398095cf22bfc56a3c82f3dd2b5e927dc70a9da93d8a"
+        }
+      ],
+      "evidence": [
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > implements provider selection on linux and denies unsupported presence",
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > implements provider selection on darwin and denies unsupported presence"
+      ]
+    },
+    {
+      "name": "package",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "scripts/lib/acpNativeSources.mjs",
+          "sha256": "1ab92d635b49a5112cf8411ee80e014a10f46e46b669844adb6fc9819015b015"
+        }
+      ],
+      "evidence": [
+        "test/unit/resourceAcpPackaging.test.mjs > C-M109-1b packages the broker and both Linux peer helpers before packing"
+      ]
+    },
+    {
+      "name": "kernel-exclusion",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/core/vault/broker/peer.c",
+          "sha256": "3c5cb6cd8f782b9c1302592dfd61d65ab1e785522083103b2a3b31c1a3dc273e"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > releases its native kernel lock on private-input EOF"
+      ]
+    },
+    {
+      "name": "capacity",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/brokerProcess.ts",
+          "sha256": "b8a12c03f476ea9af6fbcd883f9974baced79cea1c954b0ee101e7c72ba67ea8"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > bounds open transport connections before accepting another frame"
+      ]
+    },
+    {
+      "name": "socket-mode",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/brokerProcess.ts",
+          "sha256": "b8a12c03f476ea9af6fbcd883f9974baced79cea1c954b0ee101e7c72ba67ea8"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > starts in owner-only files and locks before empty idle exit",
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > restarts after SIGKILL without trusting stale discovery or leaking its guardian"
+      ]
+    },
+    {
+      "name": "startup-path",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/posixNative.ts",
+          "sha256": "8a470798867148f8f8d7bf3ba0491153a8ebdb6587129fa0e17ee08a3130ca47"
+        },
+        {
+          "path": "src/core/vault/broker/peer.c",
+          "sha256": "3c5cb6cd8f782b9c1302592dfd61d65ab1e785522083103b2a3b31c1a3dc273e"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > refuses a symlink and a permissive startup lock before any channel starts"
+      ]
+    },
+    {
+      "name": "closed-observer",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/brokerProcess.ts",
+          "sha256": "cd186967d9210cdf5f3c4bba9d7d411365bc936bdd77b1c3abc625ed7fd3423b"
+        }
+      ],
+      "evidence": [
+        "Vitest reports an unhandled generated lock-failure rejection after the close-only observer is removed."
+      ]
+    },
+    {
+      "name": "idle-last-client",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/brokerProcess.ts",
+          "sha256": "cd186967d9210cdf5f3c4bba9d7d411365bc936bdd77b1c3abc625ed7fd3423b"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > starts in owner-only files and locks before empty idle exit",
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > keeps two authenticated clients alive and exits after the last closes"
+      ]
+    },
+    {
+      "name": "release-on-failure",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/brokerProcess.ts",
+          "sha256": "cd186967d9210cdf5f3c4bba9d7d411365bc936bdd77b1c3abc625ed7fd3423b"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > retains a lock failure while disposing and releasing discovery and the kernel lock"
+      ]
+    },
+    {
+      "name": "singleton",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/core/vault/broker/peer.c",
+          "sha256": "6e7dc6cbeb6edf28da36a57b51d9490d020fa7d238e05150f035270a19755b0e"
+        },
+        {
+          "path": "src/runtime/vault/brokerProcess.ts",
+          "sha256": "cd186967d9210cdf5f3c4bba9d7d411365bc936bdd77b1c3abc625ed7fd3423b"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > refuses a concurrent broker without disturbing a live client",
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > releases its native kernel lock on private-input EOF"
+      ]
+    },
+    {
+      "name": "slot-erasure",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/slots/osStoreVaultSlot.ts",
+          "sha256": "bbe40682c5ac5395c0d8a71cc95840203cde35e7de9adbd86970ae7f890f9f12"
+        }
+      ],
+      "evidence": [
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > round trips generated keys on linux without a key in the record",
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > round trips generated keys on darwin without a key in the record",
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > serializes removal with a new wrap and wipes failed verification",
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > normalizes and erases native numeric arrays captured on Kubuntu",
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > erases owned input and replaces native diagnostics on denied storage",
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > refuses malformed stored bytes and wipes them"
+      ]
+    },
+    {
+      "name": "slot-null",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/slots/osStoreVaultSlot.ts",
+          "sha256": "bbe40682c5ac5395c0d8a71cc95840203cde35e7de9adbd86970ae7f890f9f12"
+        }
+      ],
+      "evidence": [
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > round trips generated keys on linux without a key in the record",
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > round trips generated keys on darwin without a key in the record",
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > normalizes the native missing-entry null captured on Secret Service"
+      ]
+    },
+    {
+      "name": "slot-length",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/slots/osStoreVaultSlot.ts",
+          "sha256": "bbe40682c5ac5395c0d8a71cc95840203cde35e7de9adbd86970ae7f890f9f12"
+        }
+      ],
+      "evidence": [
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > refuses malformed stored bytes and wipes them"
+      ]
+    },
+    {
+      "name": "slot-key",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/slots/osStoreVaultSlot.ts",
+          "sha256": "bbe40682c5ac5395c0d8a71cc95840203cde35e7de9adbd86970ae7f890f9f12"
+        }
+      ],
+      "evidence": [
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > does not touch storage with an invalid key or an unsupported platform"
+      ]
+    },
+    {
+      "name": "slot-serialization",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/slots/osStoreVaultSlot.ts",
+          "sha256": "bbe40682c5ac5395c0d8a71cc95840203cde35e7de9adbd86970ae7f890f9f12"
+        }
+      ],
+      "evidence": [
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > serializes removal with a new wrap and wipes failed verification"
+      ]
+    },
+    {
+      "name": "parsed-copy",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/slots/osStoreVaultSlot.ts",
+          "sha256": "bbe40682c5ac5395c0d8a71cc95840203cde35e7de9adbd86970ae7f890f9f12"
+        }
+      ],
+      "evidence": [
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > normalizes and erases native numeric arrays captured on Kubuntu"
+      ]
+    },
+    {
+      "name": "broker-budget",
+      "exitCode": 1,
+      "evidence": ["OVER dist/vaultBroker.js"],
+      "restored": [
+        {
+          "path": "dist/vaultBroker.js",
+          "sha256": "3206ecbba8c32e26b9d8ea0b3c7bc3b63c6cc1e31b8ad4e75ba016d0e0224e1d"
+        }
+      ]
+    },
+    {
+      "name": "broker-globals",
+      "exitCode": 1,
+      "evidence": ["FAIL dist/vaultBroker.js: 1 reference(s) to navigator"],
+      "restored": [
+        {
+          "path": "dist/vaultBroker.js",
+          "sha256": "3206ecbba8c32e26b9d8ea0b3c7bc3b63c6cc1e31b8ad4e75ba016d0e0224e1d"
+        }
+      ]
+    },
+    {
+      "name": "broker-split",
+      "exitCode": 1,
+      "evidence": [
+        "dist/extension.js carries src/runtime/vault/posixNative.ts, which belongs to the broker child"
+      ],
+      "restored": [
+        {
+          "path": "dist/meta/extension.json",
+          "sha256": "38066342afa2b259fc7014973deb7bbb6697efb1f0258f24eb4c8d1e8aab3e99"
+        }
+      ]
+    },
+    {
+      "name": "chmod-error-window",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/brokerProcess.ts",
+          "sha256": "e59259a00ea3e3a0bba83fc1cbdc90a2990e0896164c349f73869ae9d905832f"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > shuts down when the server fails during the socket permission fix: expected 0 to be greater than 0"
+      ]
+    },
+    {
+      "name": "entry-signal-buffer",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/vaultBrokerEntry.ts",
+          "sha256": "ceee3f8aa1080dfd9e6cc2947866c61b08571a81aab7b5caf24c85f250c675c1"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/vaultBrokerEntry.test.ts > vault broker entry signal handling > closes a starting broker when a signal arrives before startup resolves: Test timed out in 5000ms"
+      ]
+    },
+    {
+      "name": "slot-typed-error",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/slots/osStoreVaultSlot.ts",
+          "sha256": "dc6cd5f79fa6097ad9b5177f104513f6f4a09018a9ef5036d2a3ecf5e28d34ff"
+        }
+      ],
+      "evidence": [
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > throws the typed store error with no native text on denied storage",
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > throws the typed store error when the entry cannot be read",
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > an unusable OS store survives slot unlock as the typed error (3 failed, 10 passed under the mutation)"
+      ]
+    },
+    {
+      "name": "committed-not-revocation",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/core/vault/broker/repository.ts",
+          "sha256": "98b03db16fa31c9f297a0831447f0c25282863b03c55ea9d0b33cd446a8ac89e"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerComposition.test.ts > broker composition over part A blocks > a committed grant save reaches watchers through subscribeCommitted (fails when saveGrant fires notify instead of notifyCommitted; first version passed under the drill because confirmSetup also emits changed, now cleared before the save)"
+      ]
+    },
+    {
+      "name": "lock-erases-pending",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/core/vault/broker/management.ts",
+          "sha256": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerComposition.test.ts > broker composition over part A blocks > a broker lock erases a pending setup through onLocked (fails when noteLocked skips discard)"
+      ]
+    },
+    {
+      "name": "chmod-server-owned",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/brokerProcess.ts",
+          "sha256": "1d7800d96dc3d728e73383cf45f0e5a848866806f82b04c357f1e3d747b07ef8"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > shuts down when the server fails during the socket permission fix (guard reverted to HEAD bytes: fails with 'expected true to be false' on the server-listening assertion, proving the leak; the pre-existing assertions stayed green without the guard)"
+      ]
+    },
+    {
+      "name": "single-changed-event",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/core/vault/broker/management.ts",
+          "sha256": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerComposition.test.ts > broker composition over part A blocks > a committed grant save reaches watchers through subscribeCommitted (temporary second constructor subscriber, the RVCM1091B2 P3 class: fails with \"expected [ 'changed', 'changed' ] to deeply equal [ 'changed' ]\"; restored byte-exact, git diff empty)"
+      ]
+    },
+    {
+      "name": "readme-key-protection",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "README.md",
+          "sha256": "54c997ca99b73052daeee3da00c5541612377145b1f76f5189528105af5edaa4"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/readmeVaultProtection.test.ts > vault key-protection docs > names only the protection the composed broker wires (old 'also uses the Secure Enclave' sentence restored temporarily: fails on the corrected-sentence assertion; README restored byte-exact afterwards)"
+      ]
+    },
+    {
+      "name": "composition-home",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/vaultBrokerEntry.ts",
+          "sha256": "58e4394d250d2c1bfd08cd328de4487a4906c678f536f18cf31cdc45fae8cfe4"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerAdoption.test.ts > broker composition adopts the round-3 contracts > imports only a file discovered under the composed home, hidden until kept (composition pointed at a sibling directory: fails; restored byte-exact afterwards)",
+        "test/unit/vault/brokerAdoption.test.ts > broker composition adopts the round-3 contracts > deleteImport removes the staged items and the source file (same drill: fails; the three non-import cases still passed)"
+      ]
+    },
+    {
+      "name": "composition-onLocked",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/vaultBrokerEntry.ts",
+          "sha256": "58e4394d250d2c1bfd08cd328de4487a4906c678f536f18cf31cdc45fae8cfe4"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerAdoption.test.ts > broker composition adopts the round-3 contracts > a broker lock during the composed reset audit fails it locked and writes nothing (onLocked wiring replaced with a no-op: fails; the other four cases still passed; restored byte-exact afterwards)"
+      ]
+    },
+    {
+      "name": "anchor-compare-delete",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/keyringAnchor.ts",
+          "sha256": "237fcf374ebf64ddc874a27221c0e37f8ae991a85e5ccc0f2bcab57053bc9cdc"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/vaultManagement.test.ts > C-M109-1 keyring rollback anchor > resets exactly this vault by compare-and-delete and refuses another vault (reset reading instead of deleting: fails; restored byte-exact, git diff empty)",
+        "test/unit/vault/brokerAdoption.test.ts > broker composition adopts the round-3 contracts > resetBegin is refused while healthy; a lost vault resets on the exact word (same drill: fails)"
+      ]
+    }
+  ]
+}

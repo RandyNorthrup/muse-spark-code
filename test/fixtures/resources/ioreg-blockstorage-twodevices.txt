@@ -1,0 +1,31 @@
++-o IOBlockStorageDriver  <class IOBlockStorageDriver, id 0x10000047c, registered, matched, active, busy 0 (283 ms), retain 8>
+    {
+      "IOPropertyMatch" = {"device-type"="Generic"}
+      "CFBundleIdentifier" = "com.apple.iokit.IOStorageFamily"
+      "IOProviderClass" = "IOBlockStorageDevice"
+      "IOClass" = "IOBlockStorageDriver"
+      "IOProbeScore" = 0
+      "CFBundleIdentifierKernel" = "com.apple.iokit.IOStorageFamily"
+      "IOMatchedAtBoot" = Yes
+      "Statistics" = {"Operations (Write)"=112514728,"Latency Time (Write)"=0,"Bytes (Read)"=340295938048,"Errors (Write)"=0,"Total Time (Read)"=10600846688109,"Latency Time (Read)"=0,"Retries (Read)"=0,"Errors (Read)"=0,"Total Time (Write)"=14356996224381,"Bytes (Write)"=973600534528,"Operations (Read)"=27422299,"Retries (Write)"=0}
+      "IOMatchCategory" = "IODefaultMatchCategory"
+      "IOPowerManagement" = {"CapabilityFlags"=0,"CurrentPowerState"=0}
+      "IOGeneralInterest" = "IOCommand is not serializable"
+    }
+    
+
++-o IOBlockStorageDriver  <class IOBlockStorageDriver, id 0x100000464, registered, matched, active, busy 0 (2 ms), retain 6>
+    {
+      "IOPropertyMatch" = {"device-type"="Generic"}
+      "CFBundleIdentifier" = "com.apple.iokit.IOStorageFamily"
+      "IOProviderClass" = "IOBlockStorageDevice"
+      "IOClass" = "IOBlockStorageDriver"
+      "IOProbeScore" = 0
+      "CFBundleIdentifierKernel" = "com.apple.iokit.IOStorageFamily"
+      "IOMatchedAtBoot" = Yes
+      "Statistics" = {"Operations (Write)"=0,"Latency Time (Write)"=0,"Bytes (Read)"=0,"Errors (Write)"=0,"Total Time (Read)"=0,"Latency Time (Read)"=0,"Retries (Read)"=0,"Errors (Read)"=0,"Total Time (Write)"=0,"Bytes (Write)"=0,"Operations (Read)"=0,"Retries (Write)"=0}
+      "IOMatchCategory" = "IODefaultMatchCategory"
+      "IOPowerManagement" = {"CapabilityFlags"=0,"CurrentPowerState"=0}
+    }
+    
+

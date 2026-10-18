@@ -55,6 +55,12 @@
     "src/runtime/resources/resourceJournalEntry.ts",
     // Vault schemas shared by real Node bundle readers (D6).
     "src/shared/vaultBoundariesEntry.ts",
+    "src/runtime/vault/vaultBrokerEntry.ts",
+    "src/runtime/vault/vaultRuntimeEntry.ts",
+    // Installed lazy vault siblings, loaded by their same-build runtime paths.
+    "src/runtime/vault/brokerBindings.ts",
+    "src/runtime/vault/posixEntry.ts",
+    "src/runtime/vault/storeEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     "src/core/legal/entry.ts",
@@ -150,11 +156,18 @@
     "src/runtime/schedules/backgroundEntry.ts",
     // The vault's window (M109 W), required by path on the first vault command.
     "src/host/vault/vaultPanelEntry.ts",
+    // The vault's explicit-action code, required by path on the first vault
+    // action (RVAPP-CM1091D5 BYTES).
+    "src/host/vault/vaultActionsEntry.ts",
     // The vault harness page and its runner (M109 U): the page is the harness
     // build's esbuild entry, which knip does not read, and the runner is run
     // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
     "test/harness/vault/main.tsx",
     "test/harness/vault/run.mjs",
+    // The mounted-vault harness page and its runner (C-M109-1 P1): same
+    // by-path shape as U's (`node test/harness/vault/run-mounted.mjs`).
+    "test/harness/vault/mounted.tsx",
+    "test/harness/vault/run-mounted.mjs",
     // M115 schedule scenes: test/harness/index.html imports this page module.
     "test/harness/schedules.mjs",
     "test/unit/**/*.test.{ts,tsx,mjs}",
@@ -171,6 +184,21 @@
     // its only in-repo importer was the deleted KV-stand-in test).
     "infra/marketplace-hook/worker.js",
     "test/e2e/**/*.test.ts",
+    // POSIX broker SIGKILL fixture is another esbuild entry launched by path.
+    "test/unit/helpers/vault/brokerProcessChild.ts",
+    // esbuild replaces the production admission module with this generated-client entry.
+    "test/unit/helpers/vault/sessionAdmission.ts",
+    "test/unit/helpers/vault/sessionClientChild.ts",
+    "test/unit/helpers/vault/sessionBrokerChild.ts",
+    // Built once by writerCrashPosix.test.ts; a real generated-only SIGKILL child.
+    "test/unit/helpers/vault/writerCrashChild.ts",
+    // Built once by epochCrashPosix.test.ts; a real generated-only SIGKILL epoch child.
+    "test/unit/helpers/vault/epochCrashChild.ts",
+    // Built once by brokerWithoutKeyring.test.ts; a real generated-only broker
+    // child with the OS-store admission replaced.
+    "test/unit/helpers/vault/sessionBrokerNoKeyringChild.ts",
+    // Windows pipe relay peer, launched by path from windowsPipeRelay.test.ts.
+    "test/unit/helpers/vault/pipeRelayPeer.mjs",
     // The reports e2e bundles this entry with esbuild by path
     // (test/e2e/reports.e2e.test.ts), which knip does not trace.
     "test/e2e/reportsEntry.ts",
@@ -206,16 +234,22 @@
     "src/core/vault/backup.ts",
     "src/core/vault/broker/audit.ts",
     "src/core/vault/broker/epoch.ts",
+    // RVMSM109: restored held work MSM109 deleted as scaffolding. windowsPipe
+    // is lane C-M109-1c's contract (docs/design/vault-windows-pipe-helper.md);
+    // the two migration codecs are the key-store migration's (D89.14, lane M).
+    "src/core/vault/broker/windowsPipe.ts",
     "src/core/vault/exec/brokerLease.ts",
     "src/core/vault/exec/entry.ts",
     "src/core/vault/exec/helpers.ts",
     "src/core/vault/exec/tools.ts",
     "src/core/vault/fleet.ts",
     "src/core/vault/keyslots.ts",
+    "src/core/vault/migrate/accountSecrets.ts",
     "src/core/vault/migrate/importFile.ts",
     "src/core/vault/migrate/material.ts",
     "src/core/vault/migrate/migrate.ts",
     "src/core/vault/migrate/modelApi.ts",
+    "src/core/vault/migrate/providerCredentials.ts",
     "src/core/vault/remote.ts",
     "src/core/vault/ssh/brokerAccess.ts",
     "src/core/vault/ssh/endpoint.ts",

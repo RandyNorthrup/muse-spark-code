@@ -38,8 +38,11 @@
 
 .models-nav {
   display: flex;
-  gap: 4px;
-  margin-bottom: 0;
+
+  /* RVCM1091D P3: the gap clears the focus ring's reach (width + offset),
+   * as the other panels' var(--ms-gap) rows do. */
+  gap: var(--ms-gap);
+  margin-bottom: 12px;
   border-bottom: 1px solid var(--vscode-panel-border);
   padding-bottom: 8px;
 }
