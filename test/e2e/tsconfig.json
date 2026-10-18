@@ -1,13 +1,10 @@
 {
   // Process-level e2e tests (vitest, real child processes): the same
-  // environment as the unit tests, whose helpers they share; `vscode` in
-  // those helpers resolves to the unit mock through the vitest alias.
+  // environment as the unit tests, whose helpers they share.
   "extends": "../unit/tsconfig.json",
   "include": [
     "./**/*.ts",
     "../unit/helpers/**/*.ts",
-    "../action/**/*.ts",
-    "../unit/mocks/**/*.ts",
     "../../src/**/*.ts",
     "../../src/**/*.tsx",
     "../../package.json"
