@@ -400,3 +400,67 @@ the five PR214FIX2 fixes are the HEAD commits (`e5a578cd08`,
   over the 3072 B cap; cause under investigation (never raised).
 - All other listed CI failures are downstream of these (require every
   selected-tier job / wait for the capacity repository).
+
+## PR214W1 fixes (2026-10-18, branch `fix/nolimits-2-w1`)
+
+`e8e2f0f47b` host-api record regenerated (timers/promises 25 to 27).
+`e36ba11d9d` discovery + Copilot: `AgentHost.listModels` takes the
+turn signal through the Model API and codec clients (the controller
+aborts the outstanding listing when a send is invalidated and lists
+again next); the Muse Code host joins it to the channel cancel in the
+shared command wait; Copilot `countInputTokens` cancels its tokenizer
+source on it, forwarded through the registry and configured wrappers.
+`modelDiscoveryCancel` drives the real client at a never-answering
+fetch: abort ends the wait `cancelled`; with the wiring reverted it
+hangs past the 5 s default (gate seen to fire).
+`02fb4bdf09` web fetch: past `WEB_FETCH_BUFFER_WINDOW_BYTES` (5 MiB,
+renamed from the refusing `MAX_BODY`) the decompressor stream stops
+and the page converts truncated-with-notice, never refused; caller
+caps keep their refusal; a cut multi-byte tail shortens whole.
+`SECURITY.md` promises the window plus the fetch deadline for
+same-host redirects, matching the loop. `webFetchBomb` drives the
+real fetch on two recorded exchanges (norvig `big.txt`, 2,702,205
+wire bytes to 6,488,666 past the window; `example.com`, 400 to 577 —
+each with capture date, command and hashed wire bytes under
+`test/fixtures/webfetch/`): the large page reads truncated with the
+connection released (fails when the window refuses), the small page
+converts through the real converter, a named smaller cap refuses.
+`9eb6dd73d0` + `9777777f19` share the command wait with the listing
+signal (no second race) and trim the watchdog to the same single
+count per silent period (`mspCommandWaits` green).
+`1a5e7782fd` invariants: the M101 tool-description drift reached the
+branch without its goldens. Rebuilt tools/instructions/cache keys
+with the real builders; every request's recorded input, model,
+instructions and scalars verified byte-untouched — only tools and
+their derived keys changed. 42/42.
+`1943a22ee3` shares the capture reader (the duplication gate allows
+no clones). `e388d84ec8` drops the unused `VAULT_UI_TICK_MS` the
+static-gates chain stops at after host-api (from main, no reader).
+
+Gates, true exits, final tree: prettier clean; full `npm run lint`
+exit 0; `npm run typecheck` exit 0 (all five projects);
+`check:plan` 0 drift; `check:l10n` 0 problems; `check:reference`
+current; `check:host-api` 0 problems; `deadcode` exit 0; `cycles`
+clean; `duplication` 0 clones; `npm run build` exit 0 (301 oks,
+bundle caps and split checks included); `security:audit` exit 0.
+Suites on the final tree, repo timeouts, no `--testTimeout`:
+invariants 42, webFetchBomb 3, modelDiscoveryCancel 1,
+mspCommandWaits 3. SAST not run (in neither the brief gates nor the
+failed CI step). `npm run package` stops at the missing arm64
+`muse-created` helper, which CI builds in its arch matrix
+(`build.yml`): environmental, not code.
+
+`modelsActivationBudget` remainder (needs the owner): baseline
+561,352, current 564,799, growth 3,447 — 375 over the 3,072 cap, and
+not dietable in-lane. Measured per file against the merge base
+(combined overlays, byte-exact): MuseCodeHost 335 (watchdog dedup +
+listing signal), timeouts/constants/toolIo 165 (`setLongTimeout`,
+localized subjects, shell-timer adoption), mapNotification 28
+(retry ceiling), extension 16 (import kill-path signal), backend
+manager 4, agentBackend 0 (types erase) — 548 total, every byte
+beside a thread that demands it. This lane nets +49 (CI head 3,398
+
+- 49 = 3,447: the gate was red before the lane). A lazy bundle
+  cannot help this gate: the test builds `src/extension.ts` unsplit,
+  so dynamically imported code counts the same. No budget, limit or
+  test was raised, weakened or skipped.
