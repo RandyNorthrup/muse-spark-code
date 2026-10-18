@@ -1,9 +1,10 @@
 # Headless runs and GitHub CI (Unofficial)
 
 M80 integration guide, 2026-10-02. All four implementation lanes (A contracts,
-B engine and CLI, C Action, D packaging and docs) are integrated, and their
-fake-only tests pass on Linux, macOS and Windows. The hosted `action-check.yml`
-matrix (W, fake-only) runs and passes on same-repository pull requests. The live
+B engine and CLI, C Action, D packaging and docs) are integrated. Their
+fake-only tests and the fake-only `action-check.yml` matrix (W) were deleted on
+2026-10-17 (no fakes; [unproven.md](real-life/unproven.md) lists what they
+covered). The live
 receipt LA passed on 2026-10-05 for main at `30de7c89`, using the unsigned
 candidate package. The live receipt L, and LR now that 0.12.0 is released, are
 still open, so this page does not claim certified headless or Action support,
@@ -652,24 +653,10 @@ never file bytes. Headless `--record`, `/record` and `/attach` are usage errors
 (exit 2); there is no unattended screen recorder or implicit paid transcription.
 These flags do not change M80's pending live/hosted certification.
 
-`.github/workflows/action-check.yml` runs W with the composite Action on the
-three hosted runners against the fake-only test package, whose bin
-(`test/action/exec-test-launcher.ts`) answers only Meta's origin with a scripted
-fake and reports hashes and booleans only. W-review first reads
-`test/action/w-fixture.txt`; W-text first writes the new
-`test/action/w-text-fix.txt` (write_file replaces an existing file only as the
-model last read it, D27); W-image first generates the unignored
-generated/m80.png; each then returns its final reply. `test/action/w-check.mjs`
-judges each invocation. `test/e2e/execTestLauncher.e2e.test.ts` packs the same
-launcher and rehearses all four scenarios through the real run-exec entry on
-each platform.
-Two responses each report 10 input/5 output tokens. Upward micro-USD reservations
-are $0.216270 for two replies, $0.226270 with image, within $1.00.
-Simulated priced cost is $0.000004 text/review and $0.010004 with returned image,
-about one cent; **actual fake W spend is $0**. Image case must publish no patch/
-manifest and never invoke apply. Contributor $0.10 refuses below $0.108135
-before any billable call. W also requires startup/env/argv traps, trusted gate
-drills and exact digest/head/lease bare-repo apply tests on Linux/macOS/Windows.
+W, the fake-only Action check (`action-check.yml`), ran the composite Action
+on the three hosted runners against a fake-only test package whose bin answered
+Meta's origin with a scripted fake. It was deleted on 2026-10-17 (no fakes),
+with its test package and judge.
 
 `.github/workflows/action-live.yml` is LA's workflow. Only the repository
 owner starts it, by hand (`workflow_dispatch`, on the default branch; no other
@@ -677,8 +664,8 @@ trigger). It packs the product package from the dispatched commit, checks its
 digest, and runs `./action` on Ubuntu against one open same-repository pull
 request in review or text (fix) mode. The run uses the real
 `MUSE_MODEL_API_KEY`, `muse-spark-1.3-contributor`, a $0.25 cap, a 10-minute
-deadline, `contents: read` and `pull-requests: read`, and posts no comment. W's
-startup traps and token sentinel apply. `test/action/la-check.mjs` requires a
+deadline, `contents: read` and `pull-requests: read`, and posts no comment. Startup
+traps and a token sentinel are planted. `test/action/la-check.mjs` requires a
 completed result within the cap and no fired trap, sentinel or key-shaped
 string in the published outputs. The step summary records the commit, the
 `action/` tree, the package SHA-256, the outputs and the ledger.

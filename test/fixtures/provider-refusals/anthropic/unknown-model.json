@@ -1,0 +1,32 @@
+{
+  "id": "unknown-model",
+  "provider": "anthropic",
+  "sentAt": "2026-10-13T01:28:25.535Z",
+  "method": "POST",
+  "url": "https://api.anthropic.com/v1/messages",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "no-such-model-real-life",
+    "max_tokens": 16,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with the one word OK."
+      }
+    ]
+  },
+  "status": 404,
+  "responseHeaders": {
+    "anthropic-organization-id": "b87bde03-6e98-41c8-b530-f25f9c07e726",
+    "anthropic-workspace-id": "wrkspc_01WmnxfaY7YV4ij2MxytLENQ",
+    "request-id": "req_011CfyNLGR21KLirXaEvwWUN"
+  },
+  "response": {
+    "type": "error",
+    "error": {
+      "type": "not_found_error",
+      "message": "model: no-such-model-real-life"
+    },
+    "request_id": "req_011CfyNLGR21KLirXaEvwWUN"
+  }
+}
