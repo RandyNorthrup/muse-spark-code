@@ -281,6 +281,87 @@ manifest.test.ts, usagePackaging.test.mjs, vsixPackaging.test.mjs}`
   `node dist/acp.js dictate` → `Unknown argument: dictate` (exit 1).
   Stand-in grep over the surviving lane-changed test files: no hits.
 
+## PR224W1 final result (2026-10-18, macmini, lane `ms/msm9m35-w1`)
+
+Thread verdicts (all six measured at `dfafc6ddaa`, fixed or answered):
+
+- `dictation.ts:466` twice-refused kill: already fixed by `923887be3`
+  (answered with that commit; no change).
+- `dictationHost.ts:108` stale cleanup directory: already fixed by
+  `8069fec1b` (answered with that commit; no change).
+- `linuxHelperPins.ts:64` unpublished CPU variants: already fixed by
+  `c5913257c` (answered with that commit; no change).
+- `linuxModel.ts` empty download lock: already fixed by `30fc11457`
+  (answered with that commit; no change).
+- `en.ts:4560` Allow-once scope: OPEN, fixed in `e48f22e76` —
+  `paidUseVoiceDetail` and `paidConfirmVoice` promised "Allow once
+  covers this window" while the registry is once-per-use (`ab631cd75`).
+  Both strings now say one recording, in English and all 14 tables
+  (Tab's window-scoped promise untouched); the stale
+  `conversationController.ts:9911` comment matches. `check:l10n` 0
+  problems; `check:reference` passes unchanged (voice detail text is
+  not in the reference; only Tab's "covers this window" remains).
+- `dictation.ts:420` clean-stop kill refused: OPEN, fixed in
+  `82bfb0919` — `finishStop` cleared the reaping, published idle and
+  spawned the queued press when the exit was never observed. It now
+  retains the reaping and retries the kill in `retainUntilExit` until
+  the exit is seen (which gained an optional end-report for the
+  retired recording's `onStopped`), exactly as the failure path does.
+  Proven with `test/unit/dictationRefusedKill.test.ts`: the new
+  clean-stop case fails before the fix (idle after one refused kill),
+  all four pass after (repo-default timeout; the 10 s named per-test
+  timeout stands: settlement needs two sequential 2 s quit-grace
+  waits). Later refactored into shared setup helpers (`30d918c57`)
+  with no behavior change.
+
+CI failures:
+
+- `check:host-api` stale on all three OS gates: reproduced locally
+  (single count drift: `node:fs/promises` 118 → 119 from the `rmdir`
+  import in `8069fec1b`), fixed in `f5586514e` by regenerating with
+  `npm run check:host-api -- --write`; the diff is exactly that count.
+  Gate now 0 problems. All other `quality`/`dictation helper` failures
+  were downstream of this (require-every-job).
+- VSIX over budget (3,826,413 B vs 3,788,800 B): reproduced the cause
+  locally with a faithful replication of the stage+pack pipeline
+  (kept in gitignored `temp/` on this rig for re-measurement; only the
+  two unbuilt `muse-created` binaries are absent, a constant on both
+  sides). Measured, in the real archive format:
+  base `81dacaf5a` 3,330,713 B, lane base `dfafc6ddaa` 3,362,249 B,
+  this lane's head 3,361,980 B — this lane's own delta is −269 B.
+  The overage is inherited, and its staged components are all genuine
+  payload: code archive `runtime.bundles.json.br` +11,830 (the
+  `voiceLinux.js`/`dictation.js` bundles), tables archive
+  `ui.tables.json.br` +11,481 (required feature strings),
+  `THIRD_PARTY_NOTICES.txt` +3,935 (required whisper/ggml licence
+  text), `package.nls.*` ~+8,000 (required setting strings),
+  `dist/uiText.js` +1,172. No dead weight found: no sourcemaps/tests
+  ship, the unreleased companion webview is already excluded from the
+  VSIX, webview chunks net to zero, and per-module metafiles show the
+  new bundles share (solid-Brotli-deduplicated) infrastructure. The
+  3,700 KiB cap is PROVISIONAL by its own comment
+  (`scripts/check-vsix-size.mjs`: set from a thin Kubuntu build with
+  an empty arm64 helper and no macOS artifacts; "the hosted CI
+  universal VSIX on the release PR sets the final cap (lead decision,
+  PLAN.md D6)"). No budget raised, no feature cut, no gate weakened:
+  this item needs the lead's D6 cap decision on the release PR.
+
+Gates on the final tree (exit codes): typecheck 0 (all projects);
+ESLint 0 errors 0 warnings on every changed source/test file
+(`l10n/*.json` are outside eslint's scope by repo design — "file
+ignored", covered by `check:l10n`); Prettier clean; `check:plan` 0
+drift; `check:l10n` 0 problems; `check:reference` current;
+`check:host-api` 0 problems; `npm run build` 0; `deadcode` 0; cycles
+0; duplication 0 clones (the refactor above also cleared one
+pre-existing 6-line clone in `linuxDictationRemoval.test.ts` that CI
+never reached because `run-s` stops at the earlier host-api failure).
+Suites (repo-default timeout): dictationRefusedKill 4/4;
+paidConsentBundle + modelsActivationBudget with it 6/6;
+linuxDictationRemoval + linuxDownloadLock 6/6. `npm run package`
+cannot complete on this rig (no `native/linux/*/muse-created`;
+built in CI's helper job) — the replicated pipeline above stands in
+for measurement only.
+
 ## PR224W1 first result (2026-10-18, macmini, head `dfafc6ddaa`)
 
 One line per thread and per CI failure, measured by reading the head tree:
