@@ -86,13 +86,48 @@ Already safe (no change needed):
   workspace (PLAN.md D24) — that is the documented working directory,
   not a lookup path we add.
 
-## Fix (to land below)
+## Fix (landed, commit `42b84f88d6`)
 
-Every child environment built for `muse serve` — and for any other
-external program started in a workspace — drops PATH entries that are
-relative, empty, or inside the workspace (resolved through links, as
-`src/core/legal/workspace.ts` does with `realpathSync`), on Windows,
-macOS and Linux alike. Nothing else in PATH changes. Proven by driving
-the real environment builder with a real temporary workspace and a real
-planted program: the planted program is not reachable from the child's
-PATH; a real system program still is.
+- `src/core/executables.ts`: new `sanitizePathForWorkspace` — drops PATH
+  entries that are empty, relative, or inside the workspace root (resolved
+  through an injected `realpath`, falling back to lexical compare;
+  separators normalised to `/` before comparing, case-insensitive on
+  Windows). Kept entries stay byte-identical and in order.
+- `src/core/backends/musecode/launch.ts`: `ChildEnvironmentInput` gains
+  `workspaceRoot` and `realpath`; `buildChildEnvironment` guards every PATH
+  spelling (all case variants on Windows) and never adds a PATH key.
+- `src/host/backend/museCodeBackendManager.ts` (`childEnvironment`) and
+  `src/runtime/backends.ts` (ACP/CLI override) pass the workspace root and
+  `realpathSync`. The account login terminal (`accountHomes.ts:183`)
+  inherits the guard through the environment it spreads; `muse login`
+  (`runtime/main.ts:1347`) uses the guarded `childEnvironment()`.
+- Windows current-directory semantics: our own lookups already resolve
+  absolute paths only; the CLI's own lookups are guarded by the sanitized
+  PATH. `cwd` stays the workspace (PLAN.md D24).
+
+## Proof
+
+`test/unit/pathGuard.test.ts` (7 tests, all passing on the rig):
+
+- Pure cases: empty/relative dropped, workspace and its children dropped,
+  same-prefix sibling kept, Windows case-insensitive spellings.
+- `buildChildEnvironment` without a workspace root leaves PATH untouched,
+  and never adds a PATH key.
+- Real filesystem: a temporary workspace with `bin/<planted>` plus a
+  junction resolving inside it. On the raw PATH the planted program
+  resolves (the threat is real); the real `buildChildEnvironment` with
+  `realpathSync` returns a child PATH of exactly the two outside entries,
+  the planted program no longer resolves, and the real `node` beside the
+  running process still does.
+
+Gates on the lane branch (final tree, repository's own timeout throughout,
+never `--testTimeout`):
+
+- eslint zero warnings on all changed files (exit 0); prettier clean.
+- `test/unit/pathGuard.test.ts` + `test/unit/executables.test.ts`: 11/11 pass.
+- `npx vitest related --run` over the four changed src files: 10 files
+  passed, 7 skipped (pre-existing suite skips); 123 tests passed.
+- `npm run typecheck` (all five projects): exit 0.
+- `node scripts/check-l10n.mjs`: 0 problems (no new user-visible strings).
+- `node scripts/check-plan.mjs`: 0 drift.
+- `npm run build`: exit 0 (bundle-size and split gates included).
