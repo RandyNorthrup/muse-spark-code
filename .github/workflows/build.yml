@@ -4,6 +4,10 @@
 # groups, manual runs, release.yml) runs every gate on three platforms, unit
 # shards (eight on Ubuntu, sixteen each on Windows and macOS), the
 # integration runs, the macOS helper and the universal packages.
+# With ORG_CI on (D122, CISHARDS2), a same-repository pull request is part
+# `home`: every Windows and macOS leg (static gates, unit shards, Windows
+# integration, the macOS helper) runs in the capacity repository (part
+# `org`) and only Ubuntu legs plus the aggregates run here.
 # Accessibility left the pull-request path: it runs on merge groups, manual
 # runs and releases, never on a pull_request event. The required check names
 # come from the `required` aggregate below on both tiers.
@@ -24,11 +28,14 @@ on:
         type: boolean
         default: false
       # Where this run's jobs belong (D122). `all` runs every job of the tier
-      # here. `home` runs every job here except the unit shards, and its `org`
-      # job runs those shards (eight on Ubuntu, sixteen each on Windows and
-      # macOS) in the capacity repository scnetsolutions/muse-spark-code-ci;
-      # `org` (the capacity repository's own run) runs only those shards.
-      # Release builds and every caller that passes nothing get `all`.
+      # here. `home` runs only the Ubuntu legs here (static gates, unit
+      # shards 1-8, Ubuntu integration, the Linux helpers and the universal
+      # packages), and its `org` job runs every Windows and macOS leg
+      # (static gates, all sixteen Windows and macOS unit shards, Windows
+      # integration, the macOS helper) in the capacity repository
+      # scnetsolutions/muse-spark-code-ci; `org` (the capacity repository's
+      # own run) runs only those legs. Release builds and every caller that
+      # passes nothing get `all`.
       part:
         description: all, home or org (D122)
         type: string
@@ -48,7 +55,12 @@ jobs:
   checks:
     name: static gates (${{ matrix.os }}, ${{ matrix.part.name }})
     if: ${{ inputs.part != 'org' }}
-    runs-on: ${{ matrix.os }}
+    # Larger runners (CISHARDS2): in the capacity repository's own run
+    # (`org`), and only while its `LARGE_RUNNERS` variable is `on`, the
+    # Windows and macOS gates take the larger labels. `vars` resolves in the
+    # repository that owns the run, so a fork's `pull_request` run (part
+    # `all` on its own repository) can never take this branch.
+    runs-on: ${{ inputs.part == 'org' && vars.LARGE_RUNNERS == 'on' && (matrix.os == 'windows-latest' && 'msc-windows-8core' || matrix.os == 'macos-latest' && 'macos-latest-xlarge' || matrix.os) || matrix.os }}
     # One serial job outgrew its 25 minutes on macOS (CIFIX017R3, run
     # 37992331755: 21.8 min in round 2, cancelled at 25 in round 3 during
     # check:host-api, no hang): type-aware ESLint alone took 17.7 min there
@@ -59,7 +71,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
+        # CISHARDS2: a `home` run keeps only the Ubuntu gates here; the
+        # Windows and macOS gates run in the capacity run (`org`). `all`
+        # keeps every gate here, as before.
+        os: ${{ fromJSON(inputs.part == 'home' && '["ubuntu-latest"]' || inputs.part == 'org' && '["windows-latest","macos-latest"]' || inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
         part:
           - name: lint
             gates: 'format:check lint:js:main lint:js:tests lint:css lint:ps'
@@ -232,13 +247,15 @@ jobs:
 
   integration:
     name: integration (${{ matrix.os }})
-    if: ${{ inputs.part != 'org' && !inputs.fast }}
+    # CISHARDS2: Ubuntu integration stays here; Windows integration runs in
+    # the capacity run. Standard runners: 2.0 min, under the longest shard.
+    if: ${{ !inputs.fast }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: ${{ fromJSON(inputs.part == 'home' && '["ubuntu-latest"]' || inputs.part == 'org' && '["windows-latest"]' || '["ubuntu-latest","windows-latest"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -269,15 +286,22 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run test:integration
 
-  # D122: in a `home` run this job stands for the unit shards on all three
-  # platforms. It pushes the pull request's merge commit to the capacity
+  # D122: in a `home` run this job stands for every Windows and macOS leg
+  # (CISHARDS2: static gates, unit shards, Windows integration, the macOS
+  # helper). It pushes the pull request's merge commit to the capacity
   # repository as ci/pr-<number>, where ci.yml runs part `org` on the
   # organization's runners (a newer commit replaces the branch, and ci.yml's
   # concurrency cancels the older run there), then waits for that run and
   # succeeds only if it succeeded. The push token comes from the capacity
   # GitHub App: one hour, contents and workflow files of that one repository,
   # revoked when the job ends. The wait reads the public run with this job's
-  # own read-only token.
+  # own read-only token. Last, the macOS helper artifacts the `packages` job
+  # needs come back through this job the same way the result did: it reads
+  # them from that run over the API and uploads them under their existing
+  # names. This job mints the App token but never installs or runs the pull
+  # request's code: its steps are the token action, a clone, `git push`,
+  # `gh` API reads and artifact relay — no `npm ci`, no script, no binary
+  # the pull request carries.
   org:
     name: tests (ubuntu-latest, windows-latest, macos-latest) in scnetsolutions/muse-spark-code-ci
     if: ${{ inputs.part == 'home' }}
@@ -335,6 +359,7 @@ jobs:
       # ten minutes after the push means the push or Actions there failed;
       # the job says so instead of waiting out its limit.
       - name: wait for the capacity repository's run and take its result
+        id: wait
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -372,13 +397,47 @@ jobs:
               echo "| the job list could not be read: $(cat "$errors") | |"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "$url concluded $conclusion"
+          echo "run=$id" >> "$GITHUB_OUTPUT"
           test "$conclusion" = success
+      # The `packages` job runs here and needs the macOS helpers, which now
+      # build in the capacity run. They come back the way the result did:
+      # this job reads them from that run over the API with its own
+      # read-only token and uploads them under their existing names. Reading
+      # files is all it does with them: nothing here executes them.
+      - name: bring the macOS helpers back for the packages job
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.wait.outputs.run }}
+        run: |
+          test -n "$RUN_ID"
+          base="$RUNNER_TEMP/back"
+          rm -rf "$base"
+          gh run download "$RUN_ID" --repo "$CAPACITY" --name muse-dictate-darwin --dir "$base/darwin"
+          gh run download "$RUN_ID" --repo "$CAPACITY" --name muse-vault-darwin --dir "$base/vault"
+          test -f "$base/darwin/muse-dictate"
+          test -f "$base/darwin/muse-dictate-screen.tgz"
+          test -f "$base/vault/muse-vault"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-dictate-darwin
+          path: |
+            ${{ runner.temp }}/back/darwin/muse-dictate
+            ${{ runner.temp }}/back/darwin/muse-dictate-screen.tgz
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-vault-darwin
+          path: ${{ runner.temp }}/back/vault/muse-vault
+          if-no-files-found: error
 
   # The matrix emits the five existing non-security required names on BOTH
   # events. Every name rejects a failed/cancelled/missing selected-tier job.
-  # A `home` run keeps no unit shard here (`unit` is skipped) and requires
-  # `org` instead, so `quality (ubuntu-latest)`, `quality (windows-latest)`
-  # and `quality (macos-latest)` still mean those shards passed (D122).
+  # A `home` run keeps no Windows or macOS leg here (`unit` and
+  # `native-build` are skipped, `checks` and `integration` hold only their
+  # Ubuntu legs) and requires `org` instead, so `quality (ubuntu-latest)`,
+  # `quality (windows-latest)` and `quality (macos-latest)` still mean those
+  # legs passed (D122, CISHARDS2).
   required:
     name: ${{ matrix.check }}
     if: ${{ always() && inputs.part != 'org' }}
@@ -413,6 +472,7 @@ jobs:
           FAST: ${{ inputs.fast }}
           PART: ${{ inputs.part }}
           EVENT: ${{ github.event_name }}
+          CHECK: ${{ matrix.check }}
           CHECKS: ${{ needs.checks.result }}
           UNIT: ${{ needs.unit.result }}
           ORG: ${{ needs.org.result }}
@@ -424,23 +484,38 @@ jobs:
           SECRETS: ${{ needs.secrets.result }}
           SAST: ${{ needs.sast.result }}
         run: |
-          test "$CHECKS" = success
           test "$SECRETS" = success
           test "$SAST" = success
-          # D122: a `home` run's forty unit shards ran in the capacity
+          # D122: a `home` run's Windows and macOS legs ran in the capacity
           # repository, and `org` succeeded only if that run did; its own
           # `unit` is skipped, so requiring it would fail every home run.
-          # Every other run's shards ran here and `org` is skipped.
+          # Every other run's legs ran here and `org` is skipped.
           if [ "$PART" = home ]; then
             test "$ORG" = success
           else
             test "$UNIT" = success
           fi
+          # In a `home` run `checks` holds only the Ubuntu gates, so the
+          # Windows and macOS quality names mean the capacity run's legs
+          # (`org` above), and the helper name means the helper built there.
+          # Every other run's legs ran here.
+          case "$CHECK" in
+            "quality (ubuntu-latest)" | "package (.vsix)")
+              test "$CHECKS" = success ;;
+            "quality (windows-latest)" | "quality (macos-latest)" | "dictation helper (macos)")
+              if [ "$PART" != home ]; then
+                test "$CHECKS" = success
+              fi ;;
+          esac
           if [ "$FAST" != true ]; then
             test "$INTEGRATION" = success
-            test "$HELPER" = success
             test "$LINUX_HELPER" = success
             test "$PACKAGES" = success
+            # The helper compiled here except in a `home` run, where it
+            # compiled in the capacity run `org` already covers.
+            if [ "$PART" != home ]; then
+              test "$HELPER" = success
+            fi
           fi
           # Accessibility runs on merge groups, manual runs and releases, but
           # never on a pull_request event: there it is skipped, not failed.
@@ -454,7 +529,10 @@ jobs:
   # fails when the finished binary carries another.
   native-build:
     name: compile dictation helper (macos)
-    if: ${{ inputs.part != 'org' && !inputs.fast }}
+    # CISHARDS2: the helper compiles in the capacity run (`org`), like the
+    # unit shards already do; a `home` run takes it back through `org`.
+    # Standard runner: 2.2 min, under the longest shard.
+    if: ${{ inputs.part != 'home' && !inputs.fast }}
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
@@ -487,7 +565,7 @@ jobs:
             native/darwin/muse-dictate-screen.tgz
           if-no-files-found: error
 
-  # The .vsix with both helpers: what release.yml publishes.
+  # The .vsix with the helpers from both accounts: what release.yml publishes.
   linux-native-build:
     name: compile created-path helper (linux ${{ matrix.arch }})
     if: ${{ inputs.part != 'org' && !inputs.fast }}
@@ -517,14 +595,36 @@ jobs:
 
   packages:
     name: universal release artifacts
-    if: ${{ inputs.part != 'org' && !inputs.fast }}
-    needs: [checks, native-build, linux-native-build]
+    # CISHARDS2: `native-build` is skipped in a `home` run and `org` is
+    # skipped everywhere else, so `always()` starts this job and its first
+    # step requires the producers that built for this part (like `required`).
+    if: ${{ always() && inputs.part != 'org' && !inputs.fast }}
+    needs: [checks, native-build, linux-native-build, org]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: require the jobs that built for this part
+        shell: bash
+        env:
+          PART: ${{ inputs.part }}
+          CHECKS: ${{ needs.checks.result }}
+          NATIVE: ${{ needs.native-build.result }}
+          LINUX: ${{ needs.linux-native-build.result }}
+          ORG: ${{ needs.org.result }}
+        run: |
+          test "$CHECKS" = success
+          test "$LINUX" = success
+          # A `home` run's macOS helpers came back through `org` (its own
+          # `native-build` is skipped); every other run built them here and
+          # `org` is skipped.
+          if [ "$PART" = home ]; then
+            test "$ORG" = success
+          else
+            test "$NATIVE" = success
+          fi
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
