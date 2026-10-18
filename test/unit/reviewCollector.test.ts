@@ -7,29 +7,15 @@ import { chmod, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { describe, expect, it } from 'vitest'
-import { GitExitError } from '../../src/host/git'
+
 import {
   createReviewCollector,
   type ReviewCollectorDeps,
 } from '../../src/host/review/reviewCollector'
+import { realGit } from './helpers/realGit'
 import { usingTempDir } from './helpers/temporaryFolders'
 
 const runFile = promisify(execFile)
-
-/** Real git, its failures as the product's own exit error with real codes. */
-const realGit: ReviewCollectorDeps['runGit'] = async (args, cwd, timeoutMs) => {
-  try {
-    const finished = await runFile('git', [...args], { cwd, timeout: timeoutMs })
-    return finished.stdout
-  } catch (error: unknown) {
-    const failure = error as { readonly code?: unknown; readonly stderr?: unknown }
-    throw new GitExitError(
-      typeof failure.code === 'number' ? failure.code : -1,
-      typeof failure.stderr === 'string' ? failure.stderr : '',
-      [...args].join(' '),
-    )
-  }
-}
 
 const neverPick: ReviewCollectorDeps['pickOne'] = () =>
   Promise.reject(new Error('no picker runs in these reviews'))

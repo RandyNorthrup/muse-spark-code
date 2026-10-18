@@ -10,35 +10,19 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { GitExitError } from '../../src/host/git'
 import {
   newWorktree,
   removeWorktree,
   type WorktreeDeps,
 } from '../../src/host/commands/worktreeCommands'
 import { UI_TEXT } from '../../src/shared/constants'
+import { realGit } from './helpers/realGit'
 
 const runFile = promisify(execFile)
 const sleep = (ms: number): Promise<void> =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, ms)
   })
-
-/** Real git; its failures as the product's own exit error with real codes. */
-const realGit: WorktreeDeps['runGit'] = async (args, cwd, timeoutMs) => {
-  try {
-    const finished = await runFile('git', [...args], { cwd, timeout: timeoutMs })
-    return finished.stdout
-  } catch (error: unknown) {
-    // execFile rejects with code/stderr fields; the cast names them for the GitExitError mapping.
-    const failure = error as { readonly code?: unknown; readonly stderr?: unknown }
-    throw new GitExitError(
-      typeof failure.code === 'number' ? failure.code : -1,
-      typeof failure.stderr === 'string' ? failure.stderr : '',
-      [...args].join(' '),
-    )
-  }
-}
 
 interface Seen {
   readonly errors: string[]
@@ -234,12 +218,13 @@ describe('worktreeCommands failures', () => {
     }
   })
 
-  it('removes a dirty worktree only after the second yes, with force', async () => {
+  /** Adds a branch worktree in the shared repo, returning its folder. */
+  async function addWorktree(branch: string): Promise<string> {
     const added: string[] = []
     await newWorktree(
       makeDeps(seen(), {
         workspaceRoot: repo,
-        askBranchName: () => Promise.resolve('feature-dirty'),
+        askBranchName: () => Promise.resolve(branch),
         pick: (items) => Promise.resolve(items[0]?.id),
         recordWorktree: (folder) => {
           added.push(folder)
@@ -249,8 +234,11 @@ describe('worktreeCommands failures', () => {
     )
     const folder = added[0] ?? ''
     expect(existsSync(folder)).toBe(true)
-    await writeFile(path.join(folder, 'dirty.txt'), 'uncommitted\n')
-    const seenMessages = seen()
+    return folder
+  }
+
+  /** Removes the folder through the flow, recording every confirm asked. */
+  async function removeRecording(folder: string, seenMessages: Seen): Promise<string[]> {
     const confirms: string[] = []
     await removeWorktree(
       makeDeps(seenMessages, {
@@ -262,37 +250,23 @@ describe('worktreeCommands failures', () => {
         },
       }),
     )
+    return confirms
+  }
+
+  it('removes a dirty worktree only after the second yes, with force', async () => {
+    const folder = await addWorktree('feature-dirty')
+    await writeFile(path.join(folder, 'dirty.txt'), 'uncommitted\n')
+    const seenMessages = seen()
+    const confirms = await removeRecording(folder, seenMessages)
     expect(confirms).toEqual([UI_TEXT.worktreeRemoveConfirm, UI_TEXT.worktreeDirtyConfirm])
     expect(existsSync(folder)).toBe(false)
     expect(seenMessages.errors).toEqual([])
   })
 
   it('removes a clean worktree with only the first yes', async () => {
-    const added: string[] = []
-    await newWorktree(
-      makeDeps(seen(), {
-        workspaceRoot: repo,
-        askBranchName: () => Promise.resolve('feature-clean'),
-        pick: (items) => Promise.resolve(items[0]?.id),
-        recordWorktree: (folder) => {
-          added.push(folder)
-          return Promise.resolve()
-        },
-      }),
-    )
-    const folder = added[0] ?? ''
+    const folder = await addWorktree('feature-clean')
     const seenMessages = seen()
-    const confirms: string[] = []
-    await removeWorktree(
-      makeDeps(seenMessages, {
-        workspaceRoot: repo,
-        pick: () => Promise.resolve(folder),
-        confirm: (message) => {
-          confirms.push(message)
-          return Promise.resolve(true)
-        },
-      }),
-    )
+    const confirms = await removeRecording(folder, seenMessages)
     expect(confirms).toEqual([UI_TEXT.worktreeRemoveConfirm])
     expect(existsSync(folder)).toBe(false)
     expect(seenMessages.errors).toEqual([])
