@@ -30,7 +30,6 @@ import type { CoreLogger } from '../logging'
 import { isSamePath } from '../paths'
 import { pathModule } from '../workspaceRoot'
 import { worktreeAddArgs, worktreeHookPath, worktreeRemoveArgs } from '../worktrees'
-import { HOOK_MAX_STOP_CONTINUATIONS } from '../../shared/constants'
 import type { ExtensionHookEvent } from '../backends/modelapi/extensionHooks'
 import type { BestOfNRequest } from '../../shared/bestOfN'
 import { validateBestOfNRequest } from '../../shared/bestOfN'
@@ -187,7 +186,7 @@ interface RunningAttempt {
   patch: string | undefined
   isCapturing: boolean
   gitDir: string | undefined
-  /** TeammateIdle keeps so far; past `HOOK_MAX_STOP_CONTINUATIONS` the attempt stops. */
+  /** TeammateIdle keeps so far, counted for the panel; keeps run until the hook releases the attempt. */
   teammateKeeps: number
 }
 
@@ -604,10 +603,10 @@ export class BestOfNRunner {
    * An attempt stopped while its siblings run (M91 lane E): TeammateIdle
    * fires from the parent's snapshot, because attempts run with hooks off.
    * A block keeps the attempt working inside its consented run — the driver
-   * sends one more turn, billed to the run's ceiling — up to
-   * `HOOK_MAX_STOP_CONTINUATIONS` keeps, then the attempt stops for good.
-   * True when the attempt keeps working; its completion waits for the next
-   * event.
+   * sends one more turn, billed to the run's ceiling — for as many rounds as
+   * the work needs, until the hook releases the attempt, its siblings finish,
+   * or the person stops the run. True when the attempt keeps working; its
+   * completion waits for the next event.
    */
   private async maybeKeepWorking(run: LiveRun, entry: RunningAttempt): Promise<boolean> {
     const fireTeammateIdle = this.deps.extensionHooks?.fireTeammateIdle
@@ -619,7 +618,7 @@ export class BestOfNRunner {
         candidate.attempt.attemptId !== entry.attempt.attemptId &&
         !isTerminal(candidate.attempt.status),
     ).length
-    if (siblingsRunning === 0 || entry.teammateKeeps >= HOOK_MAX_STOP_CONTINUATIONS) {
+    if (siblingsRunning === 0) {
       return false
     }
     let verdict: BestOfNTeammateIdleResult
