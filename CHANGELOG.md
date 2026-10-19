@@ -8,6 +8,27 @@ happened, not what was planned; superseded entries are kept.
 ## [Unreleased]
 
 ### Added
+- The schedules bundle defers its editor-delivery binding: `dist/schedules.js`
+  is 179,540 B against its 250 KiB budget, and the binding (workspace
+  targets, run dispatch, grant checks) loads as the new
+  `dist/scheduleDelivery.js` (37,290 B against its 50 KiB budget) on the
+  first delivery. Terminal runs without editor delivery never load it. The
+  schedule billing popup also loads past the activation split, through the
+  paid entry, instead of an eager host import (record:
+  `docs/certification/schedule-delivery-diet.md`).
+- The conversation bundle defers its schedule surfaces: `dist/conversation.js`
+  is 258,055 B against its 300 KiB budget, and the delivery target readout,
+  scheduled-question settlement and schedules panel commands load as the new
+  `dist/scheduleSurfaces.js` (9,528 B against its 25 KiB budget) on the first
+  schedule delivery, panel command or scheduled question (record:
+  `docs/certification/schedule-surfaces-diet.md`).
+
+- Terminal schedule management is merged with the no-hold money model: a
+  schedule fire admits against the schedule's own caps and the person's
+  daily limit as one claim, and the reservation journal is gone. Management
+  (`add`, `list`, `timeline`, `pause`, `resume`, `remove`) passes from the
+  packed CLI; execution refuses while delivery is uncertified (record:
+  `docs/real-life/pr207-2026-10-18.md`).
 
 - History can delete a conversation for good on the Model API backend: a
   Delete action on each row asks for confirmation naming the conversation,

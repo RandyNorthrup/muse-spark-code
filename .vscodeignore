@@ -30,6 +30,8 @@
 !dist/teamRunners.js
 !dist/teamScheduler.js
 !dist/schedules.js
+!dist/scheduleDelivery.js
+!dist/scheduleSurfaces.js
 !dist/foreignHooks.js
 !dist/hookRuntime.js
 !dist/extensionHooks.js

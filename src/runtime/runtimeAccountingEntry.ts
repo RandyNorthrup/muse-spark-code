@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { createDailySpend, paidDailyBudgetRow } from '../host/paid/dailySpend'
+import { assertScheduleOwnCap } from '../core/paid/scheduleBudget'
+import type { ScheduleV2 } from '../shared/scheduleV2'
 import {
   isModelApiError,
   type ProviderClient,
@@ -190,31 +192,48 @@ export function createRuntimeDailyBudget(deps: {
     if (Usd.from(spentUsd).add(Usd.from(amountUsd)).compare(Usd.from(limitUsd)) > 0)
       throw overDaily(amountUsd, limitUsd, spentUsd)
   }
+  /**
+   * One request about to be sent: `undefined` when the person set no daily
+   * limit (only the settings file is read); otherwise its claim, refused with
+   * the stop sentence when its estimate would pass what is left of today.
+   */
+  const admit = (estimateUsd: UsdAmount, signal: AbortSignal): SpendClaim | undefined => {
+    signal.throwIfAborted()
+    if (!isPositiveUsd(capUsd())) return undefined
+    const scope = day()
+    const check = () => {
+      limitCheck(signal, scope, estimateUsd)
+    }
+    check()
+    let isSettled = false
+    return {
+      estimateUsd,
+      check,
+      settle: async (costUsd) => {
+        if (isSettled) return
+        isSettled = true
+        await spend.add(scope, costUsd === undefined ? undefined : ceilUsd(costUsd))
+      },
+    }
+  }
   return {
     capUsd,
+    admit,
     /**
-     * One request about to be sent: `undefined` when the person set no daily
-     * limit (only the settings file is read); otherwise its claim, refused with
-     * the stop sentence when its estimate would pass what is left of today.
+     * One schedule fire about to be sent: the schedule's own caps admit the
+     * estimate first, then the person's daily limit, as one claim. A fire
+     * past either cap refuses with the cap sentence; nothing is held (D121).
      */
-    admit(estimateUsd: UsdAmount, signal: AbortSignal): SpendClaim | undefined {
+    reserveSchedule: (
+      schedule: ScheduleV2,
+      estimateUsd: UsdAmount,
+      signal: AbortSignal,
+    ): Promise<SpendClaim> => {
       signal.throwIfAborted()
-      if (!isPositiveUsd(capUsd())) return undefined
-      const scope = day()
-      const check = () => {
-        limitCheck(signal, scope, estimateUsd)
-      }
-      check()
-      let isSettled = false
-      return {
-        estimateUsd,
-        check,
-        settle: async (costUsd) => {
-          if (isSettled) return
-          isSettled = true
-          await spend.add(scope, costUsd === undefined ? undefined : ceilUsd(costUsd))
-        },
-      }
+      assertScheduleOwnCap(schedule, estimateUsd)
+      const claim = admit(estimateUsd, signal)
+      if (claim === undefined) throw new Error(UI_TEXT.scheduleV2.messages.capReached)
+      return Promise.resolve(claim)
     },
 
     /**

@@ -519,6 +519,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'paid.js',
     side: 'vscode',
     requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
       { importer: 'src/shared/constants.ts', symbol: 'PAID_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
@@ -858,6 +859,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     requestedBy: [{ importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] }],
   },
   {
+    file: 'scheduleDelivery.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/schedules/runtimeEntry.ts',
+        symbol: 'loadDelivery',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
     file: 'schedules.js',
     side: 'both',
     requestedBy: [
@@ -895,6 +907,18 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
       { importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'serve', side: ['acp'] },
+    ],
+  },
+  {
+    file: 'scheduleSurfaces.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'loadScheduleSurfaces', side: ['vscode'] },
+      {
+        importer: 'src/host/conversation/conversationController.ts',
+        symbol: 'ConversationController.scheduleSurfaces',
+        side: ['vscode'],
+      },
     ],
   },
   {

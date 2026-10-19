@@ -334,6 +334,11 @@ export function createScheduler(deps: SchedulerDeps) {
         delivery.event,
       )
     } catch (error: unknown) {
+      // A bad settlement is a contract failure: its accounting is not discarded
+      // into a free success. The delivery owner provides conservative facts.
+      // Every failed round is journaled before it travels: the authoritative
+      // settlement lands first, then the failure reaches the poll record. Only
+      // a proven settlement resolves quietly; an ambiguous one still reports.
       // A host refusal before anything is sent (the hold was released, the
       // runtime is closing) is a known not-sent fire with its liability
       // released, never an uncertain one with the cap kept. The refusal is

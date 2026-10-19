@@ -135,6 +135,11 @@ const isWatch = args.has('--watch')
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
 const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
+// SCHEDULESURFACES: the conversation's schedule surfaces (delivery target
+// readout, scheduled-question settlement, schedules panel commands), loaded
+// on the first schedule delivery, panel command or scheduled question.
+const SCHEDULE_SURFACES_ENTRY = 'src/host/conversation/scheduleSurfacesEntry.ts'
+const SCHEDULE_SURFACES_OUTFILE = 'dist/scheduleSurfaces.js'
 const CONVERSATION_OUTFILE = 'dist/conversation.js'
 // CONVBUDGET: the conversation's session-transfer flows (export, import and
 // the share-file preview), required on the first of those flows.
@@ -190,6 +195,10 @@ const TEAM_RUNNERS_OUTFILE = 'dist/teamRunners.js'
 // M115 W: v1's Model API schedules re-exported beside the v2 runtime binding.
 const SCHEDULES_ENTRY = 'src/runtime/schedules/schedulesBundle.ts'
 const SCHEDULES_OUTFILE = 'dist/schedules.js'
+// SCHEDULEDELIVERY: the schedules' editor-delivery binding (workspace
+// targets, run dispatch, grant checks), loaded on the first delivery.
+const SCHEDULE_DELIVERY_ENTRY = 'src/host/schedules/scheduleDeliveryEntry.ts'
+const SCHEDULE_DELIVERY_OUTFILE = 'dist/scheduleDelivery.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
 // M91 lane W: the adapters for hooks imported in another agent's format,
@@ -385,6 +394,13 @@ const conversationOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const scheduleSurfacesOptions = {
+  ...conversationOptions,
+  entryPoints: [SCHEDULE_SURFACES_ENTRY],
+  outfile: SCHEDULE_SURFACES_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const sharingRuntimeOptions = {
   ...common,
   plugins: [
@@ -571,6 +587,13 @@ const schedulesOptions = {
   ...modelApiOptions,
   entryPoints: [SCHEDULES_ENTRY],
   outfile: SCHEDULES_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const scheduleDeliveryOptions = {
+  ...schedulesOptions,
+  entryPoints: [SCHEDULE_DELIVERY_ENTRY],
+  outfile: SCHEDULE_DELIVERY_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1601,6 +1624,7 @@ if (isWatch) {
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
     esbuild.context(conversationTransferOptions),
+    esbuild.context(scheduleSurfacesOptions),
     esbuild.context(tabOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
@@ -1617,6 +1641,7 @@ if (isWatch) {
     esbuild.context(sessionBoardOptions),
     esbuild.context(referenceOptions),
     esbuild.context(schedulesOptions),
+    esbuild.context(scheduleDeliveryOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(teamOptions),
     esbuild.context(teamRunnersOptions),
@@ -1764,6 +1789,7 @@ if (isWatch) {
     structuredSchema: recorded('structuredSchema', structuredSchemaOptions),
     extension: recorded('extension', hostOptions),
     conversation: recorded('conversation', conversationOptions),
+    scheduleSurfaces: recorded('scheduleSurfaces', scheduleSurfacesOptions),
     tab: recorded('tab', tabOptions),
     prompts: recorded('prompts', promptsOptions),
     sharingRuntime: recorded('sharingRuntime', sharingRuntimeOptions),
@@ -1786,6 +1812,7 @@ if (isWatch) {
     playbookSchedulesInputs: recorded('playbookSchedulesInputs', playbookSchedulesInputsOptions),
     reference: recorded('reference', referenceOptions),
     schedules: recorded('schedules', schedulesOptions),
+    scheduleDelivery: recorded('scheduleDelivery', scheduleDeliveryOptions),
     reviewer: recorded('reviewer', reviewerOptions),
     team: recorded('team', teamOptions),
     teamRunners: recorded('teamRunners', teamRunnersOptions),

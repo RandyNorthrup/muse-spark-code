@@ -66,6 +66,10 @@ function setup(state: {
   const stored = job()
   const remaining = [...state.ledgers]
   const last = state.ledgers.at(-1)!
+  // The journal pre-check and the host recovery read draw successive run
+  // states in call order: a fresh fire reads absent before dispatch, then
+  // the recovery state the scenario scripts.
+  const nextLedger = () => remaining.shift() ?? last
   const deps: SchedulerDeps = {
     store: {
       create: () => Promise.resolve(),
@@ -111,7 +115,7 @@ function setup(state: {
       now: () => nowMs,
       monotonicNow: () => 0,
       holds: () => true,
-      lookupRun: () => Promise.resolve(remaining.shift() ?? last),
+      lookupRun: () => Promise.resolve(nextLedger()),
       deliver: () => state.deliver() as Promise<ScheduleDeliveryResult>,
     },
     time: {
