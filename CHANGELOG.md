@@ -3526,6 +3526,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Release infrastructure
 
+- A second live check joins the Action's: `.github/workflows/real-use.yml`
+  (receipt RU) packs the product from any input ref and runs the
+  `docs/real-use/` steps file against the real provider on the contributor
+  model under the stated calls and dollar cap. `scripts/real-use-setup.mjs`
+  verifies the tarball and plants the startup traps,
+  `scripts/real-use-run.mjs` holds the key and launches one `exec` child per
+  step, and `scripts/real-use-check.mjs` judges the transcript keylessly and
+  gates its publication.
 - The Hosts, Forks and browser-check relays wait for the capacity push
   before starting their ten-minute run clock, and wait out the platform's
   full 6-hour job ceiling (D122 review). The push is made by build.yml's

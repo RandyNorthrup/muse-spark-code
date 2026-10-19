@@ -482,6 +482,8 @@ declare module '*/action/lib/inputs.mjs' {
 declare module '*/action/lib/result.mjs' {
   export function exitCodeFor(status: string, signal: string | null): number
   export function microUsd(value: unknown): bigint | undefined
+  export function isExecStatus(value: unknown): boolean
+  export const EXEC_TIMEOUT_MAX_SECONDS: number
   export function isExecResult(value: unknown): boolean
   export function isExecEvent(value: unknown): boolean
   export const PROHIBITED_UPDATE: RegExp

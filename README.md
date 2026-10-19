@@ -5456,10 +5456,20 @@ shared report boundary. The schema ships beside the exec schemas in the ACP pack
 compares the committed bytes; both ship in the package's `schemas/`.
 After the production build, `node scripts/package-acp.mjs` packs the ACP
 tarball.
-`.github/workflows/action-live.yml` is the one live check (receipt LA): the
+`.github/workflows/action-live.yml` is the one live Action check (receipt LA): the
 repository owner starts it by hand to run the real Action, on the product
 package from the same commit, against one pull request, with the real key,
 the contributor model and a hard $0.25 budget.
+`.github/workflows/real-use.yml` is the live product check (receipt RU): the
+owner starts it by hand to pack the product from any input ref and run the
+`docs/real-use/` steps file against the real provider on the contributor
+model by its explicit name, under the stated calls and dollar cap.
+`scripts/real-use-setup.mjs` verifies the tarball is the ref's commit and
+plants the startup traps, `scripts/real-use-run.mjs` holds the key (deleted
+from its environment first, memory only, over private stdin solely to one
+`exec --key-stdin` child per step) and writes the transcript, and
+`scripts/real-use-check.mjs` judges it with no key anywhere and gates the
+transcript's publication: a rejected run publishes nothing.
 
 See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
