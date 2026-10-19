@@ -95,6 +95,10 @@ describe.skipIf(process.platform !== 'win32')('Windows pipe relay against the re
     if (!systemRoot) throw new Error('SystemRoot names the Windows system root')
     const workDir = path.join(fixture.root, 'work')
     await mkdir(workDir, { recursive: true })
+    // The helper build prepares its storage dir in place: it must exist,
+    // or the build falls back to the shared temp tree (and leaks the helper
+    // there instead of under this fixture root).
+    await mkdir(path.join(fixture.root, 'helper'), { recursive: true })
     const child = spawn(
       process.execPath,
       [

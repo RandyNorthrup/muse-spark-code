@@ -2,22 +2,55 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { build } from 'esbuild'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import { randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
+import { windowsPipeExecutable } from '../../../src/host/vault/slots/windowsVaultBuild'
 
 const messageSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('stage'), stage: z.string() }),
   z.strictObject({ kind: z.literal('complete') }),
   z.strictObject({ kind: z.literal('refused'), reason: z.string() }),
 ])
-const fixture = { directory: '', file: '' }
+const fixture = { directory: '', file: '', pipeHelper: '' }
+// Windows requires the real owner-only file guard: compile the pipe helper
+// once in the hook (its budget covers the build) and hand every fixture
+// child the built file to serve, never a rebuild.
+async function prebuildWindowsPipeHelper(): Promise<void> {
+  if (process.platform !== 'win32') return
+  const storageDir = path.join(fixture.directory, 'helpers')
+  await mkdir(storageDir, { recursive: true })
+  const systemRoot = process.env['SystemRoot']
+  if (systemRoot === undefined || systemRoot === '') throw new Error('SystemRoot is missing')
+  const helper = await windowsPipeExecutable({
+    storageDir,
+    systemRoot,
+    readSlotSource: () => readFile(path.resolve('native/windows/MuseSparkVault.cs'), 'utf8'),
+    readPipeSource: () => readFile(path.resolve('native/windows/MuseSparkVaultPipe.cs'), 'utf8'),
+  })
+  fixture.pipeHelper = path.join(fixture.directory, 'pipe-helper.json')
+  await writeFile(
+    fixture.pipeHelper,
+    JSON.stringify({
+      file: helper.file,
+      sha256: helper.sha256,
+      powershell: helper.powershell,
+      guardSource: helper.guardSource,
+    }),
+  )
+}
 function child(root: string, action: string, key: Buffer, stage?: string) {
   const process = spawn(
     globalThis.process.execPath,
-    [fixture.file, root, action, ...(stage ? [stage] : [])],
+    [
+      fixture.file,
+      root,
+      action,
+      ...(stage ? [stage] : []),
+      ...(fixture.pipeHelper === '' ? [] : [fixture.pipeHelper]),
+    ],
     // The writer lease identifies each process through its machine identity,
     // which lives under the data directory from the environment: a child
     // without an environment cannot name itself and is refused fail-closed.
@@ -67,6 +100,7 @@ describe('POSIX production writer crash recovery (CM109JOINA)', () => {
       platform: 'node',
       format: 'cjs',
     })
+    await prebuildWindowsPipeHelper()
   })
   afterAll(async () => {
     await rm(fixture.directory, { recursive: true, force: true })

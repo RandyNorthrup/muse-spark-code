@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -28,6 +28,18 @@ describe.skipIf(process.platform !== 'win32')('Windows vault broker end to end',
   beforeAll(async () => {
     fixture.root = await mkdtemp(path.join(tmpdir(), 'vs-wbroker-'))
     const dist = path.join(fixture.root, 'dist')
+    // The client reads the slot and pipe sources beside dist exactly as the
+    // package lays them out, so the fixture stages those real sources.
+    const sources = path.join(fixture.root, 'native', 'windows')
+    await mkdir(sources, { recursive: true })
+    for (const name of [
+      'MuseSparkVault.cs',
+      'MuseSparkVaultCng.cs',
+      'MuseSparkVaultHello.cs',
+      'MuseSparkVaultLock.cs',
+      'MuseSparkVaultPipe.cs',
+    ])
+      await copyFile(path.resolve('native/windows', name), path.join(sources, name))
     const entries: [string, string][] = [
       ['src/runtime/vault/vaultBrokerEntry.ts', 'vaultBroker.js'],
       ['src/core/resources/resourceGovernorEntry.ts', 'resourceGovernor.js'],
