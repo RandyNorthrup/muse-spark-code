@@ -4,7 +4,8 @@ import * as z from 'zod/mini'
 // Named core conversion keeps the shared mini runtime within its own size cap.
 import { toJSONSchema } from 'zod/v4/core'
 import type { CreateResponseBody } from './schemas'
-import { STRUCTURED_OUTPUT_REPAIRS_MAX, UI_TEXT } from '../../../shared/constants'
+import { UI_TEXT } from '../../../shared/constants'
+import { fill, formatNumber } from '../../../shared/l10n/text'
 import { compactionSummarySchema } from '../../../shared/sideCallSchemas'
 
 /** Structural projection of M95's ModelCapabilityRecord.output.formats. */
@@ -100,7 +101,11 @@ function decoded(text: string): unknown {
   }
 }
 
-/** One repair, then a fresh legacy request. Invalid JSON never reaches a consumer. */
+/**
+ * Repairs until the answer validates or the person stops it (D121: no repair
+ * bound of ours). Every round says so in plain words; Stop aborts the signal
+ * and ends it. Invalid JSON never reaches a consumer.
+ */
 export async function structuredSideCall<T>(options: {
   readonly formats: SideCallFormats | undefined
   readonly name: string
@@ -121,25 +126,30 @@ export async function structuredSideCall<T>(options: {
   if (mode !== 'text') {
     try {
       const schema = toJSONSchema(options.schema, { io: 'input' })
-      for (let repair = 0; repair <= STRUCTURED_OUTPUT_REPAIRS_MAX; repair += 1) {
+      for (let attempt = 1; ; attempt += 1) {
         options.signal.throwIfAborted()
+        let text: string
         try {
-          const text = await options.request({
+          text = await options.request({
             mode,
             name: options.name,
             schema,
-            repair: repair > 0,
+            repair: attempt > 1,
           })
-          options.signal.throwIfAborted()
-          const answer = options.schema.safeParse(decoded(text))
-          if (answer.success) return answer.data
         } catch (error: unknown) {
           if (options.signal.aborted || options.isTerminalError?.(error) === true) throw error
+          options.notice?.(fill(UI_TEXT.structuredOutputRetry, { count: formatNumber(attempt) }))
+          continue
         }
-        if (repair < STRUCTURED_OUTPUT_REPAIRS_MAX) options.notice?.(UI_TEXT.structuredOutputRepair)
+        options.signal.throwIfAborted()
+        const answer = options.schema.safeParse(decoded(text))
+        if (answer.success) return answer.data
+        options.notice?.(fill(UI_TEXT.structuredOutputRepair, { count: formatNumber(attempt) }))
       }
     } catch (error: unknown) {
       if (options.signal.aborted || options.isTerminalError?.(error) === true) throw error
+      // The schema itself could not be sent (a conversion failure before any
+      // attempt): the text answer below is the only honest path left.
     }
     options.notice?.(UI_TEXT.structuredOutputFallback)
   }

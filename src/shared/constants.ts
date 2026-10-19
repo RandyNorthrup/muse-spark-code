@@ -2556,7 +2556,9 @@ export const TOOL_ARGUMENT_PREVIEW_MAX_CHARS = 16_000
 export const TOOL_ARGUMENT_PREVIEW_MAX_DEPTH = 32
 // Coalesce each call to ten display snapshots per second, plus final arguments.
 export const TOOL_ARGUMENT_PREVIEW_INTERVAL_MS = 100
-export const STRUCTURED_OUTPUT_REPAIRS_MAX = 1
+// D121 (owner 2026-10-16): no repair bound of ours — a structured side call
+// repairs until the answer validates or the person stops it, saying so every
+// round. No provider documents a repair count, so the product sets none.
 // D121: no search bound of ours — 0 (the default) sends no max and the
 // provider decides; a set value stays within 1–20.
 export const WEB_SEARCH_MAX_PER_REQUEST = 0
