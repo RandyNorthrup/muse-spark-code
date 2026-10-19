@@ -2214,7 +2214,6 @@
   "webFetchContentTypeUnnamed": "Die Seite ist weder HTML noch Text.",
   "webFetchEncoding": "Die Komprimierung der Seite ({encoding}) konnte nicht gelesen werden.",
   "webFetchEncodingUnnamed": "Die Komprimierung der Seite konnte nicht gelesen werden.",
-  "webFetchTimeout": "Die Seite ist nicht innerhalb von {duration} angekommen.",
   "webFetchConversionTimeout": "Die Seite ist angekommen, aber ihr HTML ließ sich nicht in der erlaubten Zeit (höchstens {duration}) umwandeln; es wurde nichts davon gelesen.",
   "webFetchConversionMemory": "Das Umwandeln des HTML der Seite brauchte mehr als {max}; es wurde nichts davon gelesen.",
   "webFetchXhtml": "Die Seite ist XHTML (application/xhtml+xml), das das Abrufen von Seiten nicht liest: als HTML gelesen, würde ihre XML-Syntax falsch gelesen. Es wurde nichts gelesen.",
@@ -3553,7 +3552,8 @@
     "museCodeCommand": "Muse Code {method}",
     "sessionDeletion": "das Löschen der Sitzung",
     "shellCommand": "der Shell-Befehl",
-    "museServeStarting": "muse serve beim Start"
+    "museServeStarting": "muse serve beim Start",
+    "webFetch": "die Webseite"
   },
   "userShellLabel": "Von Ihnen ausgeführt",
   "userShellExitCode": "Exitcode {code}",

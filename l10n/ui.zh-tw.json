@@ -2182,7 +2182,6 @@
   "webFetchContentTypeUnnamed": "網頁不是 HTML 或文字。",
   "webFetchEncoding": "無法讀取網頁的壓縮（{encoding}）。",
   "webFetchEncodingUnnamed": "無法讀取網頁的壓縮。",
-  "webFetchTimeout": "網頁未在 {duration} 內送達。",
   "webFetchConversionTimeout": "頁面已送達，但無法在允許的時間內（最多 {duration}）轉換其 HTML，因此未讀取其中任何內容。",
   "webFetchConversionMemory": "轉換頁面的 HTML 需要超過 {max} 的記憶體，因此未讀取其中任何內容。",
   "webFetchXhtml": "頁面是 XHTML (application/xhtml+xml)，網頁擷取不讀取這種格式：以 HTML 讀取會誤讀其 XML 語法。未讀取任何內容。",
@@ -3485,7 +3484,8 @@
     "museCodeCommand": "Muse Code {method}",
     "sessionDeletion": "工作階段刪除",
     "shellCommand": "shell 指令",
-    "museServeStarting": "muse serve 啟動"
+    "museServeStarting": "muse serve 啟動",
+    "webFetch": "網頁"
   },
   "userShellLabel": "您執行了",
   "userShellExitCode": "結束代碼 {code}",

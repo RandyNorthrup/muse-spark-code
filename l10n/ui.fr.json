@@ -2246,7 +2246,6 @@
   "webFetchContentTypeUnnamed": "La page n’est ni du HTML ni du texte.",
   "webFetchEncoding": "La compression de la page ({encoding}) n’a pas pu être lue.",
   "webFetchEncodingUnnamed": "La compression de la page n’a pas pu être lue.",
-  "webFetchTimeout": "La page n’est pas arrivée en {duration}.",
   "webFetchConversionTimeout": "La page est arrivée, mais son HTML n’a pas pu être converti dans le temps imparti (au plus {duration}). Rien n’en a été lu.",
   "webFetchConversionMemory": "La conversion du HTML de la page a demandé plus de {max}. Rien n’en a été lu.",
   "webFetchXhtml": "La page est en XHTML (application/xhtml+xml), que la récupération de pages ne lit pas : lue comme du HTML, sa syntaxe XML serait mal lue. Rien n’a été lu.",
@@ -3621,7 +3620,8 @@
     "museCodeCommand": "Muse Code {method}",
     "sessionDeletion": "la suppression de la session",
     "shellCommand": "la commande shell",
-    "museServeStarting": "le démarrage de muse serve"
+    "museServeStarting": "le démarrage de muse serve",
+    "webFetch": "la page web"
   },
   "userShellLabel": "Vous avez exécuté",
   "userShellExitCode": "Code de sortie {code}",

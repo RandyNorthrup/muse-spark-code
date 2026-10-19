@@ -128,6 +128,7 @@ export type StillWaitingSubject =
   | { readonly key: 'sessionDeletion' }
   | { readonly key: 'shellCommand' }
   | { readonly key: 'museServeStarting' }
+  | { readonly key: 'webFetch' }
 
 /**
  * A notice's subject in the installed language. The subject itself carries

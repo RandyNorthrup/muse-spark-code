@@ -2182,7 +2182,6 @@
   "webFetchContentTypeUnnamed": "ページは HTML でもテキストでもありません。",
   "webFetchEncoding": "ページの圧縮 ({encoding}) を読み取れませんでした。",
   "webFetchEncodingUnnamed": "ページの圧縮を読み取れませんでした。",
-  "webFetchTimeout": "{duration} 以内にページが届きませんでした。",
   "webFetchConversionTimeout": "ページは届きましたが、その HTML を許容時間 (最大 {duration}) 内に変換できなかったため、何も読み取っていません。",
   "webFetchConversionMemory": "ページの HTML の変換に {max} を超えるメモリが必要だったため、何も読み取っていません。",
   "webFetchXhtml": "ページは XHTML (application/xhtml+xml) で、ページの取得では読み取りません。HTML として読むと XML の構文を誤って読むためです。何も読み取っていません。",
@@ -3485,7 +3484,8 @@
     "museCodeCommand": "Muse Codeの{method}",
     "sessionDeletion": "セッションの削除",
     "shellCommand": "シェルコマンド",
-    "museServeStarting": "muse serveの起動"
+    "museServeStarting": "muse serveの起動",
+    "webFetch": "ウェブページ"
   },
   "userShellLabel": "実行したコマンド",
   "userShellExitCode": "終了コード {code}",

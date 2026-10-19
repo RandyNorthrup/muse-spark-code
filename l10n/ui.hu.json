@@ -2214,7 +2214,6 @@
   "webFetchContentTypeUnnamed": "Az oldal nem HTML és nem szöveg.",
   "webFetchEncoding": "Az oldal tömörítése ({encoding}) nem olvasható.",
   "webFetchEncodingUnnamed": "Az oldal tömörítése nem olvasható.",
-  "webFetchTimeout": "Az oldal nem érkezett meg {duration} alatt.",
   "webFetchConversionTimeout": "Az oldal megérkezett, de a HTML-jét nem sikerült a megengedett időn belül (legfeljebb {duration}) átalakítani, ezért semmit sem olvastunk be belőle.",
   "webFetchConversionMemory": "Az oldal HTML-jének átalakításához több mint {max} kellett, ezért semmit sem olvastunk be belőle.",
   "webFetchXhtml": "Az oldal XHTML (application/xhtml+xml), amelyet az oldalak lekérése nem olvas: HTML-ként olvasva az XML-szintaxisa hibásan olvasódna. Semmit sem olvastunk be.",
@@ -3553,7 +3552,8 @@
     "museCodeCommand": "Muse Code {method}",
     "sessionDeletion": "a munkamenet törlése",
     "shellCommand": "a shell-parancs",
-    "museServeStarting": "a muse serve indítása"
+    "museServeStarting": "a muse serve indítása",
+    "webFetch": "a weboldal"
   },
   "userShellLabel": "Ön futtatta",
   "userShellExitCode": "Kilépési kód: {code}",

@@ -2951,8 +2951,10 @@ export type AddressFamily = (typeof ADDRESS_FAMILIES)[keyof typeof ADDRESS_FAMIL
 export const HTTP_REDIRECT_STATUSES: ReadonlySet<number> = new Set([301, 302, 303, 307, 308])
 export const HTTP_SUCCESS_MIN = 200
 export const HTTP_SUCCESS_MAX = 299
-// The whole fetch, redirects and body included, ends by this deadline.
-export const WEB_FETCH_TIMEOUT_MS = 30_000
+// D121: no deadline of ours on the whole fetch — the page answers, or Stop
+// ends the wait. (NOLIMITSFINAL2: the fetch used to end at 30 s and refuse
+// with `timeout`; the https-only, no-credentials and public-hosts refusals
+// stay: they are safety rules, not time limits.)
 // Redirects on the same host are followed without a count of their own,
 // each hop resolved, checked and pinned again; a redirect to another host
 // is handed back to the model instead. (NOLIMITS A17: the fetch used to
@@ -7009,7 +7011,6 @@ export const WEB_FETCH_MODEL_TEXT = {
     "the response's compression ({encoding}) could not be decoded: it is unsupported or damaged",
   webFetchEncodingUnnamed:
     "the response's compression could not be decoded: it is unsupported or damaged",
-  webFetchTimeout: 'no complete response within {seconds} seconds',
   webFetchConversionTimeout:
     'the page arrived, but its HTML could not be converted in the time allowed (at most {seconds} seconds; for example, a page nested to be slow to parse), so none of it was read',
   webFetchConversionMemory:
