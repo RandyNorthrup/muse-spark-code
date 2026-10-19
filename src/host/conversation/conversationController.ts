@@ -6156,8 +6156,11 @@ export class ConversationController {
    * backend's store loses it for good (Muse Code through `deleteSession`,
    * the Model API through its session store) and the list is read again, so
    * the row is gone. Once the backend confirms the removal the conversation
-   * is deleted, whatever happens next: the cleanup below reports its own
-   * failure instead of the delete's, and a stale turn still drops the row.
+   * is deleted, whatever happens next: an archived-ids failure reports
+   * itself instead of the delete's, and a stale turn still drops the row.
+   * The other two cleanups cannot fail outward — a checkpoint removal it
+   * cannot do warns to the log itself, and the re-list says
+   * `historyUnavailable` with the real cause itself.
    */
   private async deleteSession(sessionId: string): Promise<void> {
     const generation = this.sendInvalidationEpoch
@@ -6192,13 +6195,18 @@ export class ConversationController {
       return
     }
     // The backend removed the conversation: it is deleted. The row goes even
-    // when this turn is stale — the next list would hide it anyway.
+    // when this turn is stale — the next list would hide it anyway. A newer
+    // generation owns the open conversation then, so only the row goes: its
+    // session is not touched.
     this.sessionRecords?.delete(sessionId)
     this.historyQuestionCounts.delete(sessionId)
-    if (generation !== this.sendInvalidationEpoch) {
-      // A newer generation owns the open conversation: its session is not
-      // touched, but the person is still told their delete happened, once.
-      this.notice('info', fill(UI_TEXT.historyDeleted, { name }))
+    const isStale = generation !== this.sendInvalidationEpoch
+    // Said first, once, on every path below: whatever the cleanup does, the
+    // person was told the conversation is deleted. A stale turn returns
+    // here: the session-touching cleanup and the re-list belong to the new
+    // generation's turn.
+    this.notice('info', fill(UI_TEXT.historyDeleted, { name }))
+    if (isStale) {
       return
     }
     try {
@@ -6208,26 +6216,17 @@ export class ConversationController {
       this.cleanupFailed(name, error)
     }
     // A deleted conversation's checkpoints go with it (M72).
-    try {
-      await this.checkpoints.forget(sessionId)
-    } catch (error: unknown) {
-      this.cleanupFailed(name, error)
-    }
+    await this.checkpoints.forget(sessionId)
     if (this.session?.sessionId === sessionId) {
       this.clear()
     }
-    this.notice('info', fill(UI_TEXT.historyDeleted, { name }))
-    try {
-      await this.listSessions()
-    } catch (error: unknown) {
-      this.cleanupFailed(name, error)
-    }
+    await this.listSessions()
   }
 
   /**
-   * Something after a confirmed delete failed (archived ids, checkpoints,
-   * the refreshed list): the conversation is still deleted, so this says
-   * that with the real cause instead of the delete's failure text.
+   * The archived-ids update after a confirmed delete failed: the
+   * conversation is still deleted, so this says that with the real cause
+   * instead of the delete's failure text.
    */
   private cleanupFailed(name: string, error: unknown): void {
     this.notice(

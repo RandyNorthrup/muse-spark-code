@@ -16,9 +16,11 @@ happened, not what was planned; superseded entries are kept.
   dropped, a settling refund or team persist writes nothing and never fails,
   the live session is stopped so its turn cannot keep spending, and the id
   can no longer be resumed or forked. The success notice goes out once the
-  store removal has succeeded; a later cleanup failure (archived ids,
-  checkpoints, the refreshed list) says so instead of reporting a failed
-  delete. The same deletion is offered to editors through ACP
+  store removal has succeeded; an archived-ids failure afterwards says so
+  with its own message instead of reporting a failed delete (a checkpoint
+  removal it cannot do warns to the log, and the re-list says
+  historyUnavailable, each with the cause). The same deletion is offered
+  to editors through ACP
   `session/delete`. On the Muse Code backend no Delete is offered: its CLI
   serves no `session/delete` from 1.4.4 on (verified on 1.4.10), so there is
   nothing that could remove the session.
