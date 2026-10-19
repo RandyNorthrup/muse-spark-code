@@ -102,10 +102,10 @@ class AnthropicCodecError extends Error {
 }
 
 /**
- * The configured client rethrows these instead of its generic unavailable
- * error, so the typed refusal and its localized reason reach the caller.
- * Matched by name so a second copy of this module cannot mask it.
- */
+The configured client rethrows these instead of its generic unavailable
+error, so the typed refusal and its localized reason reach the caller.
+Matched by name so a second copy of this module cannot mask it.
+*/
 export function isAnthropicCodecError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AnthropicCodecError'
 }
@@ -123,36 +123,36 @@ export interface AnthropicEncodeOptions {
   /** The preset's output cap for this model. */
   readonly maxTokens: number
   /**
-   * The canonical effort: `none` disables thinking, `default` takes the
-   * provider default (no thinking or effort field is sent). Any other
-   * level rides to `output_config.effort` where the record affirms it.
-   */
+  The canonical effort: `none` disables thinking, `default` takes the
+  provider default (no thinking or effort field is sent). Any other
+  level rides to `output_config.effort` where the record affirms it.
+  */
   readonly effort: string
   /** Cache TTL for the breakpoint; `5m` unless the preset says `1h`. */
   readonly cacheTtl?: '5m' | '1h'
   /**
-   * Native fields decode saw on each `tool_use` (today `caller`), keyed by
-   * call id, handed back by lane I's replay wrapper so they are replayed as
-   * they came (rule 13) rather than dropped.
-   */
+  Native fields decode saw on each `tool_use` (today `caller`), keyed by
+  call id, handed back by lane I's replay wrapper so they are replayed as
+  they came (rule 13) rather than dropped.
+  */
   readonly toolExtras?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   /**
-   * M101 lane P1 (BYO item 1): the model's image input, read from
-   * `capabilities.vision` (lane P fills it from the model record; lane N
-   * will own the normalized field). `false` sends the image-omitted
-   * placeholder so the turn keeps its shape; unknown keeps today's bytes
-   * and sends the image.
-   */
+  M101 lane P1 (BYO item 1): the model's image input, read from
+  `capabilities.vision` (lane P fills it from the model record; lane N
+  will own the normalized field). `false` sends the image-omitted
+  placeholder so the turn keeps its shape; unknown keeps today's bytes
+  and sends the image.
+  */
   readonly capabilities?: { readonly vision: boolean } | undefined
 }
 
 export interface AnthropicNativeRequest {
   readonly path: typeof ANTHROPIC_PATH
   /**
-   * Format headers only. The transport adds the preset's auth header
-   * (`Authorization: Bearer` for Anthropic, `x-api-key` for compatible
-   * servers) and merges `anthropic-beta` when it must add its own betas.
-   */
+  Format headers only. The transport adds the preset's auth header
+  (`Authorization: Bearer` for Anthropic, `x-api-key` for compatible
+  servers) and merges `anthropic-beta` when it must add its own betas.
+  */
   readonly headers: Readonly<Record<string, string>>
   readonly body: AnthropicRequestBody
 }
@@ -300,9 +300,9 @@ function envelopeOf(item: ReasoningItem): ThinkingEnvelope | undefined {
 }
 
 /**
- * The thinking to replay for `model`, or undefined when the item is not a
- * reasoning item, carries no readable envelope, or belongs to another model.
- */
+The thinking to replay for `model`, or undefined when the item is not a
+reasoning item, carries no readable envelope, or belongs to another model.
+*/
 function replayableEnvelope(item: InputItem, model: string): ThinkingEnvelope | undefined {
   if (item.type !== 'reasoning') {
     return undefined
@@ -314,12 +314,12 @@ function replayableEnvelope(item: InputItem, model: string): ThinkingEnvelope | 
 // --- encode ---
 
 /**
- * Canonical effort to Anthropic's `output_config.effort`; undefined while
- * thinking is off, at the provider default, or for a known tier the API
- * has no level for (lane REASONSHAPESR2: `minimal` is omitted, never
- * remapped to its neighbour; ANTH-MINIMAL settles whether it 400s).
- * Unknown names still refuse.
- */
+Canonical effort to Anthropic's `output_config.effort`; undefined while
+thinking is off, at the provider default, or for a known tier the API
+has no level for (lane REASONSHAPESR2: `minimal` is omitted, never
+remapped to its neighbour; ANTH-MINIMAL settles whether it 400s).
+Unknown names still refuse.
+*/
 function anthropicEffort(effort: string): AnthropicEffort | undefined {
   if (effort === THINKING_OFF_EFFORT || effort === EFFORT_PROVIDER_DEFAULT) {
     return undefined
@@ -358,10 +358,10 @@ type StagedMessagePart =
     }
 
 /**
- * One staged part as its native block. Callers pass text parts with text
- * and image parts with a URL, so a user message built from these never
- * comes out empty (text-only stays a string, capture 03).
- */
+One staged part as its native block. Callers pass text parts with text
+and image parts with a URL, so a user message built from these never
+comes out empty (text-only stays a string, capture 03).
+*/
 function stagedBlock(part: StagedMessagePart, vision: boolean | undefined): AnthropicMessageBlock {
   // Image and document parts never read `text` (their branch wins below).
   const text: AnthropicTextBlock = { type: 'text', text: part.text ?? '' }
@@ -396,10 +396,10 @@ function toolResultContent(
 }
 
 /**
- * M101 lane P1 (BYO item 1): an image, or the image-omitted placeholder
- * when the model takes no image input (`capabilities.vision === false`), so
- * the turn keeps its shape instead of breaking the request.
- */
+M101 lane P1 (BYO item 1): an image, or the image-omitted placeholder
+when the model takes no image input (`capabilities.vision === false`), so
+the turn keeps its shape instead of breaking the request.
+*/
 function imageOrPlaceholder(
   imageUrl: string,
   vision: boolean | undefined,
@@ -452,12 +452,12 @@ function toolUseBlock(
 }
 
 /**
- * Encode one canonical body. Consecutive same-role items merge into one
- * native message (Anthropic carries a whole turn per message); thinking
- * blocks sort first in an assistant message, as the wire requires.
- * `web_search` tools and past `web_search_call` items are Meta-only
- * (acceptance 11): they are left out, never declared.
- */
+Encode one canonical body. Consecutive same-role items merge into one
+native message (Anthropic carries a whole turn per message); thinking
+blocks sort first in an assistant message, as the wire requires.
+`web_search` tools and past `web_search_call` items are Meta-only
+(acceptance 11): they are left out, never declared.
+*/
 export function encodeAnthropicRequest(
   body: CreateResponseBody,
   options: AnthropicEncodeOptions,
@@ -952,10 +952,10 @@ export interface AnthropicDecodeOptions {
   /** The BYO model id this turn ran on; stored in replayed envelopes. */
   readonly model: string
   /**
-   * Receives each `tool_use` block's extra native fields (`caller`, …) as
-   * decode finishes the block, so lane I's replay wrapper can hand them
-   * back to `encodeAnthropicRequest` through `toolExtras` (rule 13).
-   */
+  Receives each `tool_use` block's extra native fields (`caller`, …) as
+  decode finishes the block, so lane I's replay wrapper can hand them
+  back to `encodeAnthropicRequest` through `toolExtras` (rule 13).
+  */
   readonly onToolExtras?: (callId: string, extras: Readonly<Record<string, unknown>>) => void
 }
 
@@ -1101,11 +1101,11 @@ function applyDelta(pending: PendingBlock, itemId: string, raw: DeltaWire): Stre
 }
 
 /**
- * Decode an Anthropic SSE stream (frames as `parseSse` yields them) into
- * canonical events, ending in one terminal response event. Unknown event
- * types are tolerated; a mid-stream `error` event becomes the canonical
- * `error` event and ends the stream.
- */
+Decode an Anthropic SSE stream (frames as `parseSse` yields them) into
+canonical events, ending in one terminal response event. Unknown event
+types are tolerated; a mid-stream `error` event becomes the canonical
+`error` event and ends the stream.
+*/
 export async function* decodeAnthropicStream(
   frames: AsyncIterable<SseEvent> | Iterable<SseEvent>,
   options: AnthropicDecodeOptions,
@@ -1352,28 +1352,28 @@ function emptyResponse(
   id: string,
   model: string,
   output: OutputItem[],
-  usage: Usage | undefined,
+  usage: Usage | null | undefined = null,
 ): ResponseObject {
-  return { id, status: 'in_progress', model, output, usage: usage ?? null }
+  return { id, status: 'in_progress', model, output, usage }
 }
 
 // --- errors: the envelope to `ModelApiError` (lane T retries from this) ---
 
 /**
- * Map a non-2xx Messages answer to `ModelApiError`: the envelope's message,
- * its `error.type` as the kind, and the documented
- * `error.details.error_code` as the code (GAPANTH-G20:
- * https://platform.claude.com/docs/en/api/rate-limits#reaching-your-spend-cap,
- * read 2026-10-13 — a tier spend-cap 429 carries
- * `enforced_spend_limit_reached` there while its `type` stays
- * `rate_limit_error`, and retrying it keeps failing). Where no documented
- * code rides along, a 429 whose prose names that exact code word still
- * carries it as the code (the base parser's rule, research §1.5 [A-rl],
- * restored by RVPROVERR: removing it made such a 429 retryable again).
- * Anything unenveloped carries `parsed: false` with the status and the
- * first bounded line of the body (lane PROVERR): still the provider's
- * refusal, never a product sentence.
- */
+Map a non-2xx Messages answer to `ModelApiError`: the envelope's message,
+its `error.type` as the kind, and the documented
+`error.details.error_code` as the code (GAPANTH-G20:
+https://platform.claude.com/docs/en/api/rate-limits#reaching-your-spend-cap,
+read 2026-10-13 — a tier spend-cap 429 carries
+`enforced_spend_limit_reached` there while its `type` stays
+`rate_limit_error`, and retrying it keeps failing). Where no documented
+code rides along, a 429 whose prose names that exact code word still
+carries it as the code (the base parser's rule, research §1.5 [A-rl],
+restored by RVPROVERR: removing it made such a 429 retryable again).
+Anything unenveloped carries `parsed: false` with the status and the
+first bounded line of the body (lane PROVERR): still the provider's
+refusal, never a product sentence.
+*/
 const SPEND_CAP_REASON = 'enforced_spend_limit_reached'
 export function parseAnthropicError(status: number, body: unknown): ModelApiError {
   const refusal = parseRefusalError(status, body)

@@ -159,16 +159,16 @@ export interface ToolIoDeps {
   /** Where a failed tree kill is reported. */
   readonly log: (message: string) => void
   /**
-   * The files open in an editor with unsaved changes, by the paths VS
-   * Code's documents give (D27).
-   */
+  The files open in an editor with unsaved changes, by the paths VS
+  Code's documents give (D27).
+  */
   readonly unsavedFiles: () => readonly string[]
   /**
-   * The workspace shell commands and hooks run in: interpreter lookups
-   * never resolve a file inside it, and child environments carry the
-   * guarded child PATH for it. Absent falls back to each call's own
-   * working directory.
-   */
+  The workspace shell commands and hooks run in: interpreter lookups
+  never resolve a file inside it, and child environments carry the
+  guarded child PATH for it. Absent falls back to each call's own
+  working directory.
+  */
   readonly workspaceRoot?: string | undefined
   /** Runtime workspace identity, sampled at mutation and command boundaries. */
   readonly assertWorkspaceCurrent?: (() => void) | undefined
@@ -177,20 +177,20 @@ export interface ToolIoDeps {
   /** Off is allowed only for the interactive main conversation. Runtime workers omit it. */
   readonly agentFence?: (() => boolean) | undefined
   /**
-   * Running hook commands at once, 0 for all at once as Muse Code does
-   * (M127): `museSpark.hooksMaxRunningCommands`, read per hook process so
-   * a changed setting applies. Absent keeps the extension-host fallback cap.
-   */
+  Running hook commands at once, 0 for all at once as Muse Code does
+  (M127): `museSpark.hooksMaxRunningCommands`, read per hook process so
+  a changed setting applies. Absent keeps the extension-host fallback cap.
+  */
   readonly hookMaxRunningCommands?: (() => number) | undefined
   /** Per-requester facts supplied by the trusted launcher. */
   readonly vaultFence?: (() => VaultFenceOptions) | undefined
 }
 
 /**
- * Runs the matcher on a worker and terminates it when it overruns the
- * budget. The worker posts each file's hits as it finds them, so a search
- * that runs out of time returns what it found, marked partial (D27).
- */
+Runs the matcher on a worker and terminates it when it overruns the
+budget. The worker posts each file's hits as it finds them, so a search
+that runs out of time returns what it found, marked partial (D27).
+*/
 export function searchOnWorker(
   workerPath: string,
   job: SearchJob,
@@ -307,10 +307,10 @@ function pause(ms: number): Promise<void> {
 }
 
 /**
- * Best-effort release after a failed reservation check: a path that changed
- * after open must not make cleanup delete an outside file, and a release
- * failure never hides the check's own.
- */
+Best-effort release after a failed reservation check: a path that changed
+after open must not make cleanup delete an outside file, and a release
+failure never hides the check's own.
+*/
 async function releaseReservation(release: () => Promise<ReservationStep>): Promise<void> {
   try {
     await release()
@@ -333,16 +333,16 @@ export function terminalPlatform(
 }
 
 /**
- * `base` with the user's `terminal.integrated.env.<platform>` applied as VS
- * Code's terminal applies it (PLAN.md D25; Cline #7793 is the gotcha when a
- * harness does not): a value replaces the variable, `null` removes it, and
- * `${env:NAME}` and `${workspaceFolder}` are substituted.
- */
+`base` with the user's `terminal.integrated.env.<platform>` applied as VS
+Code's terminal applies it (PLAN.md D25; Cline #7793 is the gotcha when a
+harness does not): a value replaces the variable, `null` removes it, and
+`${env:NAME}` and `${workspaceFolder}` are substituted.
+*/
 export function withTerminalOverrides(
   base: NodeJS.ProcessEnv,
   overrides: Readonly<Record<string, string | null>>,
   platform: NodeJS.Platform,
-  workspaceRoot: string | undefined,
+  workspaceRoot: string | undefined = '',
 ): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...base }
   for (const [name, value] of Object.entries(overrides)) {
@@ -355,7 +355,7 @@ export function withTerminalOverrides(
         ENV_REFERENCE,
         (_reference, variable: string) => environmentValue(base, platform, variable) ?? '',
       )
-      .replaceAll(WORKSPACE_FOLDER_REFERENCE, () => workspaceRoot ?? '')
+      .replaceAll(WORKSPACE_FOLDER_REFERENCE, () => workspaceRoot)
     setEnvironmentVariable(env, platform, name, resolved)
   }
   return env
@@ -452,12 +452,12 @@ export function hookEnvironment(
 }
 
 /**
- * The interpreter for the shell tool, by absolute path: Windows PowerShell
- * under `%SystemRoot%` (else the first on the absolute PATH), bash from the
- * absolute PATH elsewhere. With the workspace, entries inside it are never
- * probed, so a planted `bash` there never resolves. Undefined when there is
- * none.
- */
+The interpreter for the shell tool, by absolute path: Windows PowerShell
+under `%SystemRoot%` (else the first on the absolute PATH), bash from the
+absolute PATH elsewhere. With the workspace, entries inside it are never
+probed, so a planted `bash` there never resolves. Undefined when there is
+none.
+*/
 export function shellInterpreter(
   platform: NodeJS.Platform,
   systemRoot: string | undefined,
@@ -483,11 +483,11 @@ export function shellInterpreter(
 }
 
 /**
- * The argument list for one command line through the platform's
- * interpreter. Windows PowerShell 5.1 writes a redirected stdout in the OEM
- * code page, so non-ASCII output arrived garbled; the preamble switches its
- * output (and what it hands native commands) to UTF-8 first (PLAN.md D27).
- */
+The argument list for one command line through the platform's
+interpreter. Windows PowerShell 5.1 writes a redirected stdout in the OEM
+code page, so non-ASCII output arrived garbled; the preamble switches its
+output (and what it hands native commands) to UTF-8 first (PLAN.md D27).
+*/
 /** The interpreter's arguments; on Windows the command first joins `job`, when it has one (M27). */
 export function shellArguments(
   platform: NodeJS.Platform,
@@ -509,11 +509,11 @@ export function shellArguments(
 }
 
 /**
- * The interpreter for hooks, by absolute path: an absolute `SHELL` the
- * person configured, unless it names a file inside the workspace (a
- * planting there is never the interpreter); otherwise `sh` resolved
- * outside the workspace. Undefined when there is none.
- */
+The interpreter for hooks, by absolute path: an absolute `SHELL` the
+person configured, unless it names a file inside the workspace (a
+planting there is never the interpreter); otherwise `sh` resolved
+outside the workspace. Undefined when there is none.
+*/
 export function hookProgramFor(
   deps: ToolIoDeps,
   configuredShell: string | undefined,
@@ -675,12 +675,12 @@ async function readBoundedFile(
 }
 
 /**
- * Picker bytes use the same single-handle cap as tool reads, on the extension
- * host. A PDF may be as large as `pdfMaxBytes` (a document attachment's
- * limit unless the caller holds every file to `maxBytes`, M79). `bytes` is
- * undefined for a file over its limit, or one gone since it was picked
- * (`isMissing`).
- */
+Picker bytes use the same single-handle cap as tool reads, on the extension
+host. A PDF may be as large as `pdfMaxBytes` (a document attachment's
+limit unless the caller holds every file to `maxBytes`, M79). `bytes` is
+undefined for a file over its limit, or one gone since it was picked
+(`isMissing`).
+*/
 export async function readPickedFile(
   absolutePath: string,
   maxBytes: number,
@@ -709,10 +709,10 @@ export async function readPickedFile(
 }
 
 /**
- * Picked bytes as text. Invalid UTF-8 is refused rather than read as
- * replacement characters, in the panel's language (the decoder's own message
- * is English); a byte-order mark is dropped. The refusal carries its cause.
- */
+Picked bytes as text. Invalid UTF-8 is refused rather than read as
+replacement characters, in the panel's language (the decoder's own message
+is English); a byte-order mark is dropped. The refusal carries its cause.
+*/
 export function decodeTransferBytes(bytes: Uint8Array): string {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
@@ -1078,7 +1078,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       limit,
       assertCanRun,
       isInteractive = false,
-      resourceKind,
+      resourceKind = 'toolShell',
     ) {
       if (command.includes('secret://')) return unstartedShell(UI_TEXT.vault.noAccess)
       if (interpreter === undefined) {
@@ -1089,7 +1089,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       let assembly: string | undefined
       try {
         assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
-        resource = await admitResource(resourceKind ?? 'toolShell', signal)
+        resource = await admitResource(resourceKind, signal)
         deps.assertWorkspaceCurrent?.()
       } catch (error: unknown) {
         resource?.complete(true)
@@ -1235,10 +1235,10 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
 }
 
 /**
- * One stream's text within a budget: the head and the tail are kept and the
- * middle dropped with a count, so a flood of output still shows how it
- * ended (the error is usually last).
- */
+One stream's text within a budget: the head and the tail are kept and the
+middle dropped with a count, so a flood of output still shows how it
+ended (the error is usually last).
+*/
 export class BoundedText {
   private head = ''
   private tail = ''
@@ -1281,10 +1281,10 @@ export interface CommandRun {
   readonly cwd: string
   readonly env: NodeJS.ProcessEnv
   /**
-   * The caller's own deadline, or undefined: then the process runs until it
-   * exits or the signal aborts, saying so out loud on the log while it runs
-   * (owner 2026-10-16: no arbitrary limits, no silent hangs).
-   */
+  The caller's own deadline, or undefined: then the process runs until it
+  exits or the signal aborts, saying so out loud on the log while it runs
+  (owner 2026-10-16: no arbitrary limits, no silent hangs).
+  */
   readonly timeoutMs: number | undefined
   readonly signal: AbortSignal | undefined
   /** Lifts the timeout while the command runs (M46: moved to the background). */
@@ -1339,13 +1339,13 @@ function startProcess(run: CommandRun) {
 }
 
 /**
- * Runs one process to its exit (PLAN.md D25). A named timeout or an abort
- * kills the whole process tree, and the result waits for that kill to
- * finish (M27); otherwise it is settled on exit plus a short drain of the
- * output, never on the pipes closing, so a background process the command
- * left running cannot hold the tool call open. A run with no timeout of its
- * own has none: it runs until it exits or is stopped, saying so out loud.
- */
+Runs one process to its exit (PLAN.md D25). A named timeout or an abort
+kills the whole process tree, and the result waits for that kill to
+finish (M27); otherwise it is settled on exit plus a short drain of the
+output, never on the pipes closing, so a background process the command
+left running cannot hold the tool call open. A run with no timeout of its
+own has none: it runs until it exits or is stopped, saying so out loud.
+*/
 export function runCommand(run: CommandRun): Promise<ShellResult> {
   return new Promise<ShellResult>((resolve) => {
     if (run.signal?.aborted === true) {

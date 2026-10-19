@@ -161,8 +161,8 @@ if (isMainThread) {
   // exporting (their entries are named in scripts/build.mjs); each runs
   // jobless here and answers its own refusal over the thread protocol.
   const workerEntries = new Set(['imageResizeWorker.js', 'pageWorker.js', 'searchWorker.js'])
-  const scrubRoot = (value) =>
-    String(value ?? '')
+  const scrubRoot = (value = '') =>
+    String(value)
       .split(path.dirname(workerData.file))
       .join('<dist>')
       .split(process.cwd())

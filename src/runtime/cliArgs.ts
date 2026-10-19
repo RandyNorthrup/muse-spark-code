@@ -257,13 +257,13 @@ const NON_SERVE_OPTIONS = ['provider', ...PROVIDER_AUTH_OPTIONS] as const
 type StrictValues = ReturnType<typeof parseCommandLineStrictly>['values']
 
 /**
- * The non-Meta provider an `auth set` stores a key for, if any (M95,
- * PLAN.md D74). Both spellings count: `auth set --provider <id>` parses
- * without an account, and `--account default` names the same default
- * slot. Anything else (Meta, a named account, no provider at all) is not
- * a provider key set. One rule here, so the parser's two shapes cannot
- * drift from the dispatch again.
- */
+The non-Meta provider an `auth set` stores a key for, if any (M95,
+PLAN.md D74). Both spellings count: `auth set --provider <id>` parses
+without an account, and `--account default` names the same default
+slot. Anything else (Meta, a named account, no provider at all) is not
+a provider key set. One rule here, so the parser's two shapes cannot
+drift from the dispatch again.
+*/
 export function authSetProviderId(
   command: Extract<RuntimeCommand, { command: 'authSet' }>,
 ): string | undefined {
@@ -310,10 +310,10 @@ function refused(reason: string): Extract<RuntimeCommand, { command: 'invalid' }
 }
 
 /**
- * A strict-parser throw as a usage refusal (D119): a wrong option names the
- * option, the topic's accepted options, and the nearest valid option when
- * the name is close. Anything else keeps the parser's reason, still exit 2.
- */
+A strict-parser throw as a usage refusal (D119): a wrong option names the
+option, the topic's accepted options, and the nearest valid option when
+the name is close. Anything else keeps the parser's reason, still exit 2.
+*/
 function invalidStrictOption(
   topic: string,
   valid: readonly string[],
@@ -375,10 +375,10 @@ const HOIST_VALUE_FLAGS: ReadonlySet<string> = new Set(
 )
 
 /**
- * D5: global options ride before or after the command word, so
- * `--verbose exec …` parses like `exec --verbose …`. Only `exec` and
- * `scan-secrets` hoist; anything past `--` stays positional.
- */
+D5: global options ride before or after the command word, so
+`--verbose exec …` parses like `exec --verbose …`. Only `exec` and
+`scan-secrets` hoist; anything past `--` stays positional.
+*/
 function hoistLeadingCommand(argv: readonly string[]): readonly string[] {
   let index = 0
   while (index < argv.length) {
@@ -603,8 +603,8 @@ export function parseCommandLine<T>(
   }
   const { values, positionals } = parsed
   if (values.help === true) {
-    const [first] = positionals
-    const topic = helpTopicNamed(first ?? '')
+    const [first = ''] = positionals
+    const topic = helpTopicNamed(first)
     return topic === undefined ? { command: 'help' } : { command: 'helpTopic', topic: topic.name }
   }
   if (values.version === true) {

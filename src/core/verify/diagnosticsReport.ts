@@ -21,10 +21,10 @@ import { fill } from '../../shared/l10n/text'
 import { type DiagnosticEntry, formatDiagnostics, type WorkspaceDiagnostic } from '../diagnostics'
 
 /**
- * A file an edit tool wrote, as confinement found it at the edit (links and
- * junctions resolved), so nothing done to it later follows a link retargeted
- * since (the Codex review of PR #54).
- */
+A file an edit tool wrote, as confinement found it at the edit (links and
+junctions resolved), so nothing done to it later follows a link retargeted
+since (the Codex review of PR #54).
+*/
 export interface EditedFile {
   /** Workspace-relative, forward slashes, links resolved (the canonical name). */
   readonly relative: string
@@ -108,7 +108,7 @@ export function clipText(text: string, max: number): string {
   return `${kept}${TOOL_OUTPUT_CLIP_MARKER}`
 }
 
-function uncheckedReason(reason: UncheckedReason, codeFile: string | undefined): string {
+function uncheckedReason(reason: UncheckedReason, codeFile: string | undefined = ''): string {
   switch (reason) {
     case 'noReport': {
       return VERIFY_MODEL_TEXT.verifyUncheckedNoReport
@@ -120,7 +120,7 @@ function uncheckedReason(reason: UncheckedReason, codeFile: string | undefined):
       return VERIFY_MODEL_TEXT.verifyUncheckedUnsaved
     }
     case 'codeLoading': {
-      return fill(VERIFY_MODEL_TEXT.verifyUncheckedCodeLoading, { file: codeFile ?? '' })
+      return fill(VERIFY_MODEL_TEXT.verifyUncheckedCodeLoading, { file: codeFile })
     }
     case 'tooMany': {
       return fill(VERIFY_MODEL_TEXT.verifyUncheckedTooMany, {

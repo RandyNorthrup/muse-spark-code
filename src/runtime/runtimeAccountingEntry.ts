@@ -63,13 +63,13 @@ const settingsSchema = z.strictObject({
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
 
 /**
- * EXECPROV round 6: one exact same-body input count for one request. The
- * call carries the request's own body, ends at the short Model API deadline
- * (or sooner when the attempt stops), and validates its answer: a lying or
- * stale count that is not a token count, or a billed cost that is not money,
- * throws and the caller falls back to the byte bound. Absent stays absent:
- * callers only invoke this where the client offers it.
- */
+EXECPROV round 6: one exact same-body input count for one request. The
+call carries the request's own body, ends at the short Model API deadline
+(or sooner when the attempt stops), and validates its answer: a lying or
+stale count that is not a token count, or a billed cost that is not money,
+throws and the caller falls back to the byte bound. Absent stays absent:
+callers only invoke this where the client offers it.
+*/
 async function countExactInput(
   detailed: NonNullable<ModelClient['countInputTokensDetailed']>,
   body: Parameters<NonNullable<ModelClient['countInputTokensDetailed']>>[0],
@@ -99,11 +99,11 @@ function dailyScope(now: number): string {
 }
 
 /**
- * The shared daily paid budget for report Limits sections, without starting
- * a backend (RVCM1132B finding 3): the same ledger the runtime reserves
- * against, read only. A missing ledger reads as zero spend under the
- * configured cap.
- */
+The shared daily paid budget for report Limits sections, without starting
+a backend (RVCM1132B finding 3): the same ledger the runtime reserves
+against, read only. A missing ledger reads as zero spend under the
+configured cap.
+*/
 export function readRuntimeDailyBudget(deps: {
   readonly dataFolder: string
   readonly now: () => number
@@ -116,15 +116,15 @@ export function readRuntimeDailyBudget(deps: {
 }
 
 /**
- * The agent's daily spending limit (PLAN.md D121): `paidDailyBudgetUsd` in
- * its settings file, set by the person; none by default. With no limit the
- * request path reads only that file: no spend record is read and nothing is
- * reserved, locked or written. With one, a request whose
- * estimate would pass what is left of today is not sent, and each request's
- * reported cost joins today's running total after it ends; nothing is held
- * for a request in flight, and a request that reported no usage is counted
- * as cost unknown, never as its estimate.
- */
+The agent's daily spending limit (PLAN.md D121): `paidDailyBudgetUsd` in
+its settings file, set by the person; none by default. With no limit the
+request path reads only that file: no spend record is read and nothing is
+reserved, locked or written. With one, a request whose
+estimate would pass what is left of today is not sent, and each request's
+reported cost joins today's running total after it ends; nothing is held
+for a request in flight, and a request that reported no usage is counted
+as cost unknown, never as its estimate.
+*/
 export function createRuntimeDailyBudget(deps: {
   readonly dataFolder: string
   readonly now: () => number
@@ -171,10 +171,10 @@ export function createRuntimeDailyBudget(deps: {
     return date.getTime()
   }
   /**
-   * One exact cost that would pass what is left of today, in the stop
-   * sentence the request admission says (D121). The standalone runtime
-   * never raises a day, so there is no raise question, only the refusal.
-   */
+  One exact cost that would pass what is left of today, in the stop
+  sentence the request admission says (D121). The standalone runtime
+  never raises a day, so there is no raise question, only the refusal.
+  */
   const overDaily = (costUsd: UsdAmount, limitUsd: UsdAmount, spentUsd: UsdAmount) =>
     new SessionBudgetExceededError(
       fill(UI_TEXT.execPaidDailyStopped, {
@@ -186,10 +186,10 @@ export function createRuntimeDailyBudget(deps: {
       }),
     )
   /**
-   * The send-time limit recheck both admissions share: midnight rolls the
-   * scope, a removed limit stops enforcing, and an amount past what is left
-   * refuses with the stop sentence.
-   */
+  The send-time limit recheck both admissions share: midnight rolls the
+  scope, a removed limit stops enforcing, and an amount past what is left
+  refuses with the stop sentence.
+  */
   const limitCheck = (signal: AbortSignal, scope: string, amountUsd: UsdAmount): void => {
     signal.throwIfAborted()
     if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
@@ -200,10 +200,10 @@ export function createRuntimeDailyBudget(deps: {
       throw overDaily(amountUsd, limitUsd, spentUsd)
   }
   /**
-   * One request about to be sent: `undefined` when the person set no daily
-   * limit (only the settings file is read); otherwise its claim, refused with
-   * the stop sentence when its estimate would pass what is left of today.
-   */
+  One request about to be sent: `undefined` when the person set no daily
+  limit (only the settings file is read); otherwise its claim, refused with
+  the stop sentence when its estimate would pass what is left of today.
+  */
   const admit = (estimateUsd: UsdAmount, signal: AbortSignal): SpendClaim | undefined => {
     signal.throwIfAborted()
     if (!isPositiveUsd(capUsd())) return undefined
@@ -227,10 +227,10 @@ export function createRuntimeDailyBudget(deps: {
     capUsd,
     admit,
     /**
-     * One schedule fire about to be sent: the schedule's own caps admit the
-     * estimate first, then the person's daily limit, as one claim. A fire
-     * past either cap refuses with the cap sentence; nothing is held (D121).
-     */
+    One schedule fire about to be sent: the schedule's own caps admit the
+    estimate first, then the person's daily limit, as one claim. A fire
+    past either cap refuses with the cap sentence; nothing is held (D121).
+    */
     reserveSchedule: (
       schedule: ScheduleV2,
       estimateUsd: UsdAmount,
@@ -244,11 +244,11 @@ export function createRuntimeDailyBudget(deps: {
     },
 
     /**
-     * One exact cost about to be spent (Muse Voice batch transcription):
-     * `undefined` when the person set no daily limit (only the settings
-     * file is read); otherwise its claim, estimate-checked against what is
-     * left of today like a request's and settled from the receipt after.
-     */
+    One exact cost about to be spent (Muse Voice batch transcription):
+    `undefined` when the person set no daily limit (only the settings
+    file is read); otherwise its claim, estimate-checked against what is
+    left of today like a request's and settled from the receipt after.
+    */
     reserve(costUsd: UsdAmount, signal: AbortSignal): Promise<SpendClaim | undefined> {
       try {
         signal.throwIfAborted()
@@ -282,11 +282,11 @@ export function createRuntimeDailyBudget(deps: {
     },
 
     /**
-     * Today's shared budget for report Limits sections: the same row as
-     * VS Code's dailyPaid.readToday, without the editor's stop/raise state
-     * (the standalone runtime never raises a day or records a stop, so both
-     * stay at their defaults).
-     */
+    Today's shared budget for report Limits sections: the same row as
+    VS Code's dailyPaid.readToday, without the editor's stop/raise state
+    (the standalone runtime never raises a day or records a stop, so both
+    stay at their defaults).
+    */
     readToday(): Promise<readonly UsageBudgetRead[]> {
       const scope = day()
       const cap = capUsd()
@@ -329,10 +329,10 @@ export interface RuntimeResponseAccounting {
     result: SettlementResult,
   ) => void
   /**
-   * The runner's model was unknown when this attached (no `--model`): admit
-   * plan requests only, so a resolved Meta model is not admitted twice —
-   * the Meta transport admits its own traffic (Codex on PR #213).
-   */
+  The runner's model was unknown when this attached (no `--model`): admit
+  plan requests only, so a resolved Meta model is not admitted twice —
+  the Meta transport admits its own traffic (Codex on PR #213).
+  */
   readonly admitOnlyPlan?: boolean
 }
 
@@ -845,18 +845,18 @@ export { setUiText } from '../shared/l10n/text'
 export type ReservationMessageScope = 'terminal' | 'shared'
 
 /**
- * One localized arithmetic sentence for daily/provider and headless Meta
- * admission, plus what would make the request fit. The cap remedy is a
- * complete clause on its own: ACP and the editor read the shared scope,
- * which never prints the terminal-only flag half. Every number comes from
- * the same exact-decimal arithmetic as the refusal itself.
- */
+One localized arithmetic sentence for daily/provider and headless Meta
+admission, plus what would make the request fit. The cap remedy is a
+complete clause on its own: ACP and the editor read the shared scope,
+which never prints the terminal-only flag half. Every number comes from
+the same exact-decimal arithmetic as the refusal itself.
+*/
 /**
- * EXECPROV round 6: the remedy numbers inside a budget refusal, computed
- * once by the same arithmetic the sentence uses: the admitting cap, the
- * largest output limit that fits (null when no output limit alone makes it
- * fit), and whether the input alone already costs more than is left.
- */
+EXECPROV round 6: the remedy numbers inside a budget refusal, computed
+once by the same arithmetic the sentence uses: the admitting cap, the
+largest output limit that fits (null when no output limit alone makes it
+fit), and whether the input alone already costs more than is left.
+*/
 export function budgetRefusalDetails(
   input: {
     readonly inputTokens: number
@@ -866,7 +866,7 @@ export function budgetRefusalDetails(
     readonly totals: LedgerTotals
   },
   reserveForOutput?: (outputTokens: number) => UsdAmount | undefined,
-  minimumOutputTokens?: number,
+  minimumOutputTokens = 1,
 ): Pick<
   ExecBudgetRefusal,
   'remainingUsd' | 'admitCapUsd' | 'maxOutputTokens' | 'inputAloneExceeds' | 'inputCostUsd'
@@ -886,7 +886,7 @@ export function budgetRefusalDetails(
     )
   }
   const isInputAloneExceeds = cost.compare(remaining) > 0
-  const floor = Math.max(EXEC_MIN_OUTPUT_TOKENS, minimumOutputTokens ?? 1)
+  const floor = Math.max(EXEC_MIN_OUTPUT_TOKENS, minimumOutputTokens)
   let maxOutputTokens: number | null = null
   if (
     !isInputAloneExceeds &&
