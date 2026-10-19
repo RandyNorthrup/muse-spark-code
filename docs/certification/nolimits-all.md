@@ -86,13 +86,40 @@ recording run through the packed product before these paths are claimed.
 The TS drivers, panel, companion and schema are unit-tested here; no live
 recording was run on any OS in this lane.
 
-## Pre-existing failure (not this lane)
+## Pre-existing failures (not this lane)
 
-`test/unit/filesCancel.test.ts` → `ledger cleanup deletes with the caller
+- `test/unit/filesCancel.test.ts` → `ledger cleanup deletes with the caller
 signal` fails on this rig on the pristine tree too (verified in a clean
-worktree at the setting-4 commit, same single failure): the upload-ledger
-code it covers is untouched by this lane. Left for its owner; everything
-this lane touched is green.
+  worktree at the setting-4 commit, same single failure): the upload-ledger
+  code it covers is untouched by this lane. Left for its owner.
+- Repo lint (`npm run lint`): 3 errors in
+  `test/unit/estimateComposer.test.ts` / `test/unit/estimateSession.test.ts`
+  (`no-unsafe-argument`), byte-identical on the untouched lane-base tree
+  (7734923040). Untouched by this lane.
+- Unit/e2e typecheck: 19 errors (estimate*, modelApiPacing, teamConstants,
+  vendorMediaCodecs, runtimePullRequestProcessBirth), counted identical on
+  the untouched lane-base tree. Host, webview and integration typechecks are
+  green. Untouched by this lane.
+- `npm run check:plan`: stops — PLAN.md is 3,808,659 bytes, over 85% of the
+  plan reader's bound, with zero lines added by this lane. Archiving is
+  another lane's job; not worked around.
+- `npm run build`: stops at the What's New bound — the 0.19.0 notes decode
+  to 326,287 bytes against a 76,800 bound. This lane added 1,426 bytes to
+  CHANGELOG.md; the 4x overage predates it. Not worked around. Bundle-size,
+  bundle-split and later build steps therefore did not run in this lane.
+
+## Final gate states (this lane)
+
+- `npm run format:check`: green (whole repo).
+- Repo eslint on every file this lane touched: zero warnings; `npm run lint`
+  as a whole is red only on the pre-existing errors above.
+- `npm run check:l10n`: 0 problems. `npm run check:reference`: current.
+- Touched suites, repository's own timeout, no `--testTimeout`: 396 tests
+  green across 17 files (noDefaultLimits, questionManifest,
+  questionContracts, museCodeLatest, invariants, modelApiLoopContracts,
+  modelApiCaptures, toolResultBound, execArgs, mediaContracts,
+  mediaSniffMalformed, acpMediaPort, manifest, recordingLatest,
+  workspaceMediaSource, resolveLatestRecording, vendorMediaCodecs).
 
 ## Sweep verdicts (brief step 5)
 
