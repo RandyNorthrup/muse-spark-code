@@ -43,11 +43,9 @@ import {
   HTTP_SUCCESS_MIN,
   UI_TEXT,
   WEB_FETCH_ATTEMPT_DELAY_MS,
-  WEB_FETCH_CONVERT_MAX_CHARS,
   WEB_FETCH_DETAIL_MAX_CHARS,
   WEB_FETCH_HTML_TYPES,
   WEB_FETCH_BUFFER_WINDOW_BYTES,
-  WEB_FETCH_MAX_CONTENT_CHARS,
   WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_NOT_TLS_CODE,
   WEB_FETCH_TEXT_TYPES,
@@ -641,17 +639,19 @@ async function readCapped(
   }
 }
 
-/** The facts line, the notice and the marked content, as the model receives them. */
+/**
+ * The facts line, the notice and the marked content, as the model receives
+ * them. D121: the page reaches the model whole — no char slice of ours.
+ * The truncation notice names only a genuinely truncated page (past the
+ * buffer window, or a conversion the worker stopped); past the model's real
+ * context window the TOOLCAP spill carries the full text instead.
+ */
 function pageText(
   page: WebPage,
   content: string,
   flags: { readonly isHtml: boolean; readonly hasMore: boolean },
   marker: string,
 ): string {
-  const shown =
-    content.length > WEB_FETCH_MAX_CONTENT_CHARS
-      ? content.slice(0, WEB_FETCH_MAX_CONTENT_CHARS)
-      : content
   const facts = [
     fill(WEB_FETCH_MODEL_TEXT.webFetchHeader, {
       url: page.url,
@@ -660,15 +660,15 @@ function pageText(
       bytes: String(page.bytes),
     }),
     flags.isHtml ? WEB_FETCH_MODEL_TEXT.webFetchConverted : WEB_FETCH_MODEL_TEXT.webFetchAsText,
-    ...(flags.hasMore || shown.length < content.length
-      ? [fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, { shown: String(shown.length) })]
+    ...(flags.hasMore
+      ? [fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, { shown: String(content.length) })]
       : []),
   ].join(' ')
   return [
     facts,
     WEB_FETCH_MODEL_TEXT.webFetchUntrusted,
     fill(WEB_FETCH_MODEL_TEXT.webFetchOpen, { marker }),
-    shown,
+    content,
     fill(WEB_FETCH_MODEL_TEXT.webFetchClose, { marker }),
   ].join('\n')
 }
@@ -708,12 +708,13 @@ async function contentOf(
       hasMore: body.truncated,
     }
   }
+  // D121: no char bound — the page converts whole. The worker's own time
+  // and heap limits still stop a hostile page, with that reason.
   const converted = await convertHtml(
     {
       bytes: whole,
       charset: mimeParameter(body.contentType, CHARSET),
       url: urls.final.href,
-      maxChars: WEB_FETCH_CONVERT_MAX_CHARS,
     },
     signal,
   )

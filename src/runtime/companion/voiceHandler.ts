@@ -7,7 +7,7 @@ import {
   type CompanionVoiceOutput,
   type CompanionVoiceEngine,
 } from '../../shared/companionVoice'
-import { MAX_TEXT_ATTACHMENT_BYTES, UI_TEXT } from '../../shared/constants'
+import { VOICE_TEXT_MAX_BYTES, UI_TEXT } from '../../shared/constants'
 import { COMPANION_VOICE_TICKET_MS } from '../../shared/companionVoice'
 import { companionWavSeconds } from '../../shared/companionWav'
 import type { PaidUseAnswer } from '../../core/paid/paidConsent'
@@ -145,10 +145,7 @@ export function companionVoiceHandler(
               ? { text: await deps.transcribeSystem(bytes, active), seconds }
               : await state.paid.transcribe(bytes, active)
           check()
-          if (
-            result.text.trim() === '' ||
-            Buffer.byteLength(result.text) > MAX_TEXT_ATTACHMENT_BYTES
-          )
+          if (result.text.trim() === '' || Buffer.byteLength(result.text) > VOICE_TEXT_MAX_BYTES)
             throw new Error('EVOICE_TEXT')
           state.canSend = true
           state.emit({
@@ -163,7 +160,7 @@ export function companionVoiceHandler(
             state.ticket !== undefined ||
             !state.canSend ||
             input.text.trim() === '' ||
-            Buffer.byteLength(input.text) > MAX_TEXT_ATTACHMENT_BYTES
+            Buffer.byteLength(input.text) > VOICE_TEXT_MAX_BYTES
           )
             throw new Error('EVOICE_TEXT')
           state.canSend = false
