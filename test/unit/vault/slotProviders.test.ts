@@ -26,6 +26,7 @@ import {
 import { invokeMacVault, MacVaultError } from '../../../src/runtime/vault/slots/macVaultProtocol'
 import { invokeWindowsVault } from '../../../src/runtime/vault/slots/windowsVaultProtocol'
 import { UI_TEXT, VAULT_FORMAT_VERSION, VAULT_KEY_BYTES } from '../../../src/shared/constants'
+import { captureFailure } from '../helpers/captureFailure'
 
 function ids() {
   return { vaultId: randomBytes(16).toString('hex'), slotId: randomBytes(16).toString('hex') }
@@ -311,12 +312,9 @@ describe('platform slot providers', () => {
   it('a dead Secure Enclave helper fails with the fixed sentence and its cause', async () => {
     // The helper binary is really absent, so the governed spawn really fails:
     // no native diagnostic reaches the caller, only the fixed sentence.
-    let failure: unknown
-    try {
-      await invokeMacVault(macTransport(), { v: VAULT_FORMAT_VERSION, operation: 'probe' })
-    } catch (error: unknown) {
-      failure = error
-    }
+    const failure = await captureFailure(() =>
+      invokeMacVault(macTransport(), { v: VAULT_FORMAT_VERSION, operation: 'probe' }),
+    )
     expect(failure).toBeInstanceOf(Error)
     expect(failure).not.toBeInstanceOf(MacVaultError)
     expect((failure as Error).message).toBe(UI_TEXT.vault.noAccess)
@@ -326,15 +324,12 @@ describe('platform slot providers', () => {
   it('a dead pipe helper fails with the fixed sentence and its cause', async () => {
     // PowerShell is really absent, so the governed spawn really fails: the
     // fixed sentence crosses with the launch failure as its cause.
-    let failure: unknown
-    try {
-      await invokeWindowsVault(windowsVaultTransport(windowsHelper()), {
+    const failure = await captureFailure(() =>
+      invokeWindowsVault(windowsVaultTransport(windowsHelper()), {
         v: VAULT_FORMAT_VERSION,
         operation: 'probe',
-      })
-    } catch (error: unknown) {
-      failure = error
-    }
+      }),
+    )
     expect(failure).toBeInstanceOf(Error)
     expect((failure as Error).message).toBe(UI_TEXT.vault.noAccess)
     expect((failure as Error).cause).toBeInstanceOf(Error)

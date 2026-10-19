@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { SecretStore } from '../../../../src/host/auth/credentialStore'
 import type { Logger } from '../../../../src/host/logger'
+import { recordLogger } from '../recordLogger'
 
 function baseDir(): string {
   try {
@@ -51,23 +52,7 @@ export async function closeSecrets(dir: string): Promise<void> {
   await rm(dir, { recursive: true, force: true })
 }
 
+/** The shared in-memory logger, recording level-prefixed messages, for assertions. */
 export function capturingLog(): { log: Logger; logged: string[] } {
-  const logged: string[] = []
-  return {
-    logged,
-    log: {
-      trace: (message) => {
-        logged.push(`trace:${message}`)
-      },
-      info: (message) => {
-        logged.push(`info:${message}`)
-      },
-      warn: (message) => {
-        logged.push(`warn:${message}`)
-      },
-      error: (message) => {
-        logged.push(`error:${message}`)
-      },
-    },
-  }
+  return recordLogger()
 }

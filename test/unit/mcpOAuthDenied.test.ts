@@ -6,17 +6,13 @@ import { describe, expect, it } from 'vitest'
 import { oauthDenied } from '../../src/core/mcp/oauth/discovery'
 import { BASE_LOCALE, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import { EN } from '../../src/shared/l10n/en'
+import { captureFailure } from './helpers/captureFailure'
 
 describe('mcp oauth denial', () => {
-  it('denies with the fixed sentence and the failure as its cause', () => {
+  it('denies with the fixed sentence and the failure as its cause', async () => {
     setUiText(EN, BASE_LOCALE)
     const cause = new Error('the token endpoint refused')
-    let failure: unknown
-    try {
-      oauthDenied({ cause })
-    } catch (error: unknown) {
-      failure = error
-    }
+    const failure = await captureFailure(() => oauthDenied({ cause }))
     expect(failure).toBeInstanceOf(Error)
     expect((failure as Error).message).toBe(UI_TEXT.vault.noAccess)
     expect((failure as Error).cause).toBe(cause)

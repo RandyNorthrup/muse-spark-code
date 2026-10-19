@@ -21,6 +21,7 @@ import {
 import { Usd } from '../../src/shared/usd'
 import { canonicalUsd } from '../../src/shared/usdSchema'
 import { scheduleV2Schema } from '../../src/shared/scheduleV2'
+import { onceScheduleRouting } from './helpers/scheduleRouting'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const root = mkdtempSync(path.join(tmpdir(), 'runtime-daily-'))
@@ -245,13 +246,7 @@ describe('runtime daily budget', () => {
         name: 'Test schedule',
         workspaceKey: 'test-workspace',
         action: { kind: 'prompt', prompt: 'Summarize the inbox' },
-        trigger: { kind: 'once', atMs: noon },
-        target: { kind: 'conversation', sessionId: 'test-session', backend: 'modelApi' },
-        delivery: 'whenIdle',
-        whenClosed: 'open',
-        catchUp: 'runOnce',
-        mode: 'manual',
-        grant: { rules: [], destinationIds: [], paidCapUsd: canonicalUsd('1') },
+        ...onceScheduleRouting(noon, canonicalUsd('1')),
         paidConsent: {
           modelId: 'test-model',
           accountId: 'test-account',

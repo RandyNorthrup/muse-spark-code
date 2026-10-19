@@ -13,6 +13,16 @@ import { failureForLog } from '../../src/core/backends/musecode/logText'
 import { WorktreeUntrustedError } from '../../src/core/bestOfN/worktreeConversationHost'
 import { attemptFailureReason } from '../../src/host/bestOfN/bestOfNManager'
 
+/** The real refusal from reading a file that never exists, for the kind/text split. */
+function missingAttemptFileRefusal(): unknown {
+  try {
+    readFileSync(path.join(tmpdir(), `no-attempt-file-${String(process.pid)}`), 'utf8')
+  } catch (error: unknown) {
+    return error
+  }
+  throw new Error('the missing attempt file exists')
+}
+
 it('names the Restricted Mode refusal by its kind, never its text', () => {
   const words = failureForLog(new WorktreeUntrustedError())
   expect(words).toBe('WorktreeUntrustedError')
@@ -20,12 +30,7 @@ it('names the Restricted Mode refusal by its kind, never its text', () => {
 })
 
 it('names the operating system failures by their kind, never their text', () => {
-  let refusal: unknown
-  try {
-    readFileSync(path.join(tmpdir(), `no-attempt-file-${String(process.pid)}`), 'utf8')
-  } catch (error: unknown) {
-    refusal = error
-  }
+  const refusal: unknown = missingAttemptFileRefusal()
   expect(refusal).toBeInstanceOf(Error)
   const words = failureForLog(refusal)
   expect(words).toBe('Error')
@@ -47,12 +52,7 @@ it('names a stop by its kind, never its text', () => {
 })
 
 it('keeps the redacted text for the attempt while the log keeps the kind', () => {
-  let refusal: unknown
-  try {
-    readFileSync(path.join(tmpdir(), `no-attempt-file-${String(process.pid)}`), 'utf8')
-  } catch (error: unknown) {
-    refusal = error
-  }
+  const refusal: unknown = missingAttemptFileRefusal()
   expect(refusal).toBeInstanceOf(Error)
   expect(attemptFailureReason(refusal)).toContain('no such file')
   expect(attemptFailureReason(refusal)).not.toBe('Error')
