@@ -6,7 +6,9 @@ import { vaultPeerExecutable } from '../../../../src/runtime/vault/posixNative'
 
 /**
  * Compile the POSIX peer and bundle broker fixture children: each pair is a
- * helper entry and its dist output, built with the generated admission.
+ * helper entry and its dist output. The broker entry's resource admission
+ * bundles as the real module (its governor loads lazily and the fixtures
+ * never admit); no test double is substituted.
  */
 export async function buildBrokerChildren(
   root: string,
@@ -34,16 +36,6 @@ export async function buildBrokerChildren(
       define: { 'require.main': 'undefined' },
       platform: 'node',
       format: 'cjs',
-      plugins: [
-        {
-          name: 'generated-admission',
-          setup(builder) {
-            builder.onResolve({ filter: /admission(?:\.js)?$/ }, () => ({
-              path: path.resolve('test/unit/helpers/vault/sessionAdmission.ts'),
-            }))
-          },
-        },
-      ],
     })
   }
 }
