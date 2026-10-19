@@ -138,7 +138,7 @@ function recoveredFire(outcome: 'ran', certainty: 'exact' | 'unknown'): Schedule
 /** A settled failed accounting leaves one settlement and one failed fire behind. */
 async function expectFailedSettlement(
   settlements: unknown[],
-  fires: () => Promise<ScheduleFireRecord[]>,
+  fires: () => Promise<readonly ScheduleFireRecord[]>,
 ): Promise<void> {
   expect(settlements).toHaveLength(1)
   const recorded = await fires()
