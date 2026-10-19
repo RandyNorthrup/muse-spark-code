@@ -180,16 +180,23 @@ unresolvable name `probe.invalid` (RFC 2606: no machine resolves it,
 so arriving bytes prove the dial used the checked address): the
 request reaches `127.0.0.1` with the `host: probe.invalid:<port>`
 bytes and its body after exactly one resolution (the client's own
-request fails, as it must with no answer); answers moved to
-`169.254.169.254`, or mixed with it, send nothing (`rebinding`, zero
-connections). Drill (2026-10-19, lane AUDITSEC2FIX2): with the pinned
-`lookup` removed (hostname resolution at connect time, as before the
-fix) the dial-target test fails with zero connections arriving while
-the two refusal tests still pass — they guard unchanged behavior;
-with the fix restored all three pass. The redirect refusal
-(`HTTP_REDIRECT_STATUSES` in `sendPinned`) is enforced in code but has
-no socket test: any such test would need a server speaking HTTP as the
-provider. `test/unit/helpers/loopbackServer.ts` is deleted:
+request fails, as it must with no answer); a wholly forbidden answer,
+or one mixed with the loopback address, sends nothing (`rebinding`,
+zero connections either time). A third test covers the redirect
+refusal (`HTTP_REDIRECT_STATUSES` in `sendPinned`): the same bare
+acceptor speaks framing only — a 302 with no body and no provider
+content, which carries no answer by definition — and the pin refuses it
+with the `redirect: 'error'` parity failure (`TypeError: fetch
+failed`) after the one request, never following the Location answer.
+Drill (2026-10-19, lane AUDITSEC2FIX2): with the pinned `lookup`
+removed (hostname resolution at connect time, as before the fix) the
+dial-target test fails with zero connections arriving, and the redirect
+test fails with the DNS error instead of the refusal, while the refusal
+test still passes — it guards unchanged behavior; with the fix restored
+byte-exact all three pass. Drill (same lane): with the redirect branch
+removed the 302 resolves and the redirect test fails (`expected
+undefined to be an instance of TypeError`) while the other two pass;
+with the fix restored all three pass. `test/unit/helpers/loopbackServer.ts` is deleted:
 `test/unit/providerLoopbackFetch.test.ts` replays no captured wire
 traffic, so its inline server stands back as it was (verified by an
 empty diff against the pre-fix file; 12/12 green).
