@@ -1,6 +1,7 @@
 import {
   configureBrokerResources,
   createVaultBrokerProcess,
+  guardBrokerProcessStreams,
   runVaultBrokerEntry,
 } from '../../../../src/runtime/vault/vaultBrokerEntry'
 import { createVaultBrokerBindings } from '../../../../src/runtime/vault/brokerBindings'
@@ -15,6 +16,11 @@ import { announceBrokerFixture, parseBrokerFixtureContext } from './sessionBroke
 // keyring-less fallback where it does not. Only generated fixture paths and
 // process facts, no credential or model access.
 const lifecycle: { dispose?: () => void } = {}
+// The installed entry installs these in main; this child bypasses main (its
+// bundle defines require.main away), so it installs the entry's own guards
+// itself. Without them a destroyed reader can fail a pending readiness write
+// after runVaultBrokerEntry's guards come off, exiting 1 instead of 0.
+guardBrokerProcessStreams()
 void runVaultBrokerEntry(async () => {
   const context = parseBrokerFixtureContext()
   const gate = path.join(context.installRoot, 'gate')
