@@ -73,10 +73,23 @@ export function UsageApp({
       try {
         host.post(message)
       } catch (error: unknown) {
-        // An unposted message reads failed: only a non-error keeps its kind
+        // An unposted message reads failed. A down bridge refuses with the
+        // platform's own failure (a DOMException, never an Error), thrown
+        // from the host binding's realm, where even `instanceof DOMException`
+        // fails — so read it by shape, as every DOMException carries its
+        // string name and numeric code. Only anything else keeps its kind
         // past the page. The failure also reaches the host's record; when
         // the bridge itself is down that post throws to the boundary instead.
-        if (!(error instanceof Error)) throw error
+        const isRefusal =
+          error instanceof Error ||
+          error instanceof DOMException ||
+          (typeof error === 'object' &&
+            error !== null &&
+            'name' in error &&
+            typeof error.name === 'string' &&
+            'code' in error &&
+            typeof error.code === 'number')
+        if (!isRefusal) throw error
         if ('requestId' in message) pending.current.delete(message.requestId)
         if (message.type === 'usage/query') wanted.current = undefined
         setBusy(false)
