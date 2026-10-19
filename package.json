@@ -1422,24 +1422,33 @@
           "scope": "machine"
         },
         "museSpark.resourceCpuMaxPercent": {
-          "type": "number",
-          "default": 85,
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
           "minimum": 30,
           "maximum": 100,
           "description": "%config.resourceCpuMaxPercent.description%",
           "scope": "machine"
         },
         "museSpark.resourceMemoryMaxPercent": {
-          "type": "number",
-          "default": 90,
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
           "minimum": 40,
           "maximum": 98,
           "description": "%config.resourceMemoryMaxPercent.description%",
           "scope": "machine"
         },
         "museSpark.resourceMemoryMinFreeGiB": {
-          "type": "number",
-          "default": 2,
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
           "minimum": 0.5,
           "maximum": 64,
           "description": "%config.resourceMemoryMinFreeGiB.description%",
