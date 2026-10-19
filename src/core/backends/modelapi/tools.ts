@@ -287,12 +287,16 @@ export interface ToolIo {
     isInteractive?: boolean,
     resourceKind?: ResourceKind,
   ): Promise<ShellResult>
-  /** An explicitly enabled M51 hook, with JSON stdin and a cleared environment. */
+  /**
+   * An explicitly enabled M51 hook, with JSON stdin and a cleared
+   * environment. D121: no default deadline of ours — an absent timeout runs
+   * until it ends or the person stops it.
+   */
   runHook?(
     command: string,
     payload: string,
     cwd: string,
-    timeoutMs: number,
+    timeoutMs: number | undefined,
     signal?: AbortSignal,
     extraEnvNames?: readonly string[],
   ): Promise<ShellResult>

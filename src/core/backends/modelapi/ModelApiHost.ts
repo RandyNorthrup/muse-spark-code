@@ -109,7 +109,6 @@ import {
   HOOK_MODEL_READ_TOOLS,
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_ON_FAILURE_MAX_DEPTH,
-  HOOK_SESSION_END_TIMEOUT_MS,
   NON_BILLABLE_HTTP_REJECTIONS,
   HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
@@ -149,7 +148,6 @@ import {
   REPO_MAP_PROMPT_TRIES,
   WEB_SEARCH_MAX_PER_REQUEST,
   webSearchMaxCallsFor,
-  SHELL_DEFAULT_TIMEOUT_MS,
   SKILL_FILE_NAME,
   STORED_SESSION_VERSION,
   SUBAGENT_DEPTH,
@@ -1460,7 +1458,11 @@ interface VerifyCommand {
   /** What "always allow in this session" is keyed on. */
   readonly ruleCommand: string
   readonly description: string
-  readonly timeoutMs: number
+  /**
+   * D121: no default deadline of ours — absent runs until it ends or the
+   * person stops it. A check always names its own cap; `then_run` names none.
+   */
+  readonly timeoutMs?: number | undefined
   /** A hook demanded a question for the call that carries it. */
   readonly isForced: boolean
   /** then_run's: the file still holds what the edit left. */
@@ -11749,7 +11751,8 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private async runCommand(
     line: string,
-    timeoutMs: number,
+    // D121: absent runs until it ends or the person stops it.
+    timeoutMs: number | undefined,
     signal: AbortSignal,
     assertCanRun?: () => void,
   ): Promise<ShellResult> {
@@ -13215,6 +13218,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     line: string,
     result: ShellResult,
     startedOn: ReadonlyMap<string, RunSnapshot>,
+    elapsedMs: number,
   ): Promise<void> {
     // The loop's functions come from the lazy verify chunk (D6).
     const verify = await this.verifyFunctions()
@@ -13222,12 +13226,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     for (const check of this.checkCommands()) {
       const cap = checkTimeoutMs(check)
       const snapshot = startedOn.get(check.name)
+      // D121: the follow-up runs with no deadline of its own, so a pass
+      // counts only when the run finished within the check's own cap; with
+      // no deadline nothing can time out. A failure counts either way.
       const isSameRun =
         snapshot !== undefined &&
         check.command === line.trim() &&
         check.changedFiles !== true &&
-        (outcome !== 'passed' || cap >= SHELL_DEFAULT_TIMEOUT_MS) &&
-        (outcome !== 'timedOut' || cap <= SHELL_DEFAULT_TIMEOUT_MS)
+        (outcome !== 'passed' || elapsedMs <= cap)
       if (isSameRun) {
         this.verifyState().ledger.record(outcome, snapshot)
       }
@@ -13261,6 +13267,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       ]),
     )
     let ran: CommandOutcome
+    // D121: no default deadline of ours — then_run runs until it ends or the
+    // person stops it, like the shell tool itself.
+    const startedAt = this.deps.now()
     try {
       // then_run is the shell by another name: a narrowed agent without the shell tool has none.
       ran = this.canRunShell()
@@ -13270,7 +13279,6 @@ export class ModelApiSession implements ScheduledAgentSession {
               line: command,
               ruleCommand: command,
               description: THEN_RUN_DESCRIPTION,
-              timeoutMs: SHELL_DEFAULT_TIMEOUT_MS,
               isForced,
               guard: () => this.isAsEdited(target, isAllowed, provisionalSeen),
             },
@@ -13320,10 +13328,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     }
     const { line, result } = ran
-    if (isAllowed()) await this.noteCheckCommandRun(line, result, startedOn)
+    if (isAllowed())
+      await this.noteCheckCommandRun(
+        line,
+        result,
+        startedOn,
+        Math.max(0, this.deps.now() - startedAt),
+      )
     // TOOLCAP: whole like every shell result; the one bound cuts it with a
     // spill and notices where the edit's outcome enters.
-    const finished = shellOutcome(result, SHELL_DEFAULT_TIMEOUT_MS, TOOL_OUTPUT_MAX_CHARS, true)
+    const finished = shellOutcome(result, undefined, TOOL_OUTPUT_MAX_CHARS, true)
     return {
       outcome: {
         ...edit,
@@ -15581,8 +15595,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           (error instanceof SessionBudgetExceededError &&
             !(error instanceof ModelCallLimitError)) ||
           isPaidStop(error) ||
-          (error instanceof ChildTaskRefusedError &&
-            (error.kind === 'requestLimit' || error.kind === 'goalEnded'))
+          (error instanceof ChildTaskRefusedError && error.kind === 'goalEnded')
         ) {
           this.outcomeStopReason = 'budget'
         }
@@ -19810,23 +19823,16 @@ export class ModelApiHost implements AgentHost {
 
   public async close(): Promise<void> {
     this.isClosing = true
-    const ending = new AbortController()
-    const deadline = setTimeout(() => {
-      ending.abort()
-    }, HOOK_SESSION_END_TIMEOUT_MS)
-    try {
-      for (const session of this.sessions.values()) {
-        if (ending.signal.aborted) {
-          break
-        }
-        try {
-          await session.endHooks(ending.signal)
-        } catch (error: unknown) {
-          this.deps.log.warn(`Model API SessionEnd hook failed: ${describe(error)}`)
-        }
+    // D121: no deadline of ours on SessionEnd hooks — closing waits until
+    // they end, saying so in plain words instead of hanging silently.
+    this.deps.log.info('Session-end hooks are still running; closing waits for them.')
+    const ending = AbortSignal.any([])
+    for (const session of this.sessions.values()) {
+      try {
+        await session.endHooks(ending)
+      } catch (error: unknown) {
+        this.deps.log.warn(`Model API SessionEnd hook failed: ${describe(error)}`)
       }
-    } finally {
-      clearTimeout(deadline)
     }
     // A turn the close stops charges what it spent and saves as it ends
     // (M82): wait for the sessions' running work, but never past a deadline.

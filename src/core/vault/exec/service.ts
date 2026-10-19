@@ -1,5 +1,5 @@
 import { type ShellResult } from '../../shellResult'
-import { UI_TEXT, SHELL_DEFAULT_TIMEOUT_MS } from '../../../shared/constants'
+import { UI_TEXT } from '../../../shared/constants'
 import type { ShellTimeLimit } from '../../backends/modelapi/tools'
 import {
   vaultItemMetadataSchema,
@@ -87,11 +87,13 @@ export class VaultExecService {
       approvals.push({ ticket, use })
     }
     check()
+    // D121: no default deadline of ours — the run continues until it ends
+    // or the person stops it; only an explicitly passed timeout still bounds it.
     return await this.port.launch(
       { run, approvals },
       signal,
       check,
-      options ?? { timeoutMs: SHELL_DEFAULT_TIMEOUT_MS },
+      options ?? { timeoutMs: undefined },
     )
   }
 }

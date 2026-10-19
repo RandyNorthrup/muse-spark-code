@@ -39,7 +39,9 @@ function spawnHookResult(
   command: string,
   payload: string,
   cwd: string,
-  timeoutMs: number,
+  // D121: an absent deadline runs until the process ends or the caller stops
+  // it; only an explicitly set timeout still kills it.
+  timeoutMs: number | undefined,
   signal: AbortSignal | undefined,
 ): Promise<ShellResult> {
   return new Promise<ShellResult>((resolve) => {
@@ -52,10 +54,13 @@ function spawnHookResult(
       isDone = true
       resolve(result)
     }
-    const timer = setTimeout(() => {
-      child.kill('SIGKILL')
-      finish({ stdout, stderr, exitCode: null, isTimedOut: true, isCancelled: false })
-    }, timeoutMs)
+    const timer =
+      timeoutMs === undefined
+        ? undefined
+        : setTimeout(() => {
+            child.kill('SIGKILL')
+            finish({ stdout, stderr, exitCode: null, isTimedOut: true, isCancelled: false })
+          }, timeoutMs)
     child.stdout.on('data', (chunk: unknown) => {
       stdout += String(chunk)
     })
@@ -63,11 +68,11 @@ function spawnHookResult(
       stderr += String(chunk)
     })
     child.on('error', () => {
-      clearTimeout(timer)
+      if (timer !== undefined) clearTimeout(timer)
       finish({ stdout, stderr, exitCode: null, isTimedOut: false, isCancelled: false })
     })
     child.on('close', (code) => {
-      clearTimeout(timer)
+      if (timer !== undefined) clearTimeout(timer)
       finish({
         stdout,
         stderr,

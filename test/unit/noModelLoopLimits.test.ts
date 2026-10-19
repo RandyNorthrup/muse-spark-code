@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
+import { dispatchHooks, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import { structuredSideCall } from '../../src/core/backends/modelapi/structuredOutput'
+import type { ShellResult } from '../../src/core/shellResult'
 import { subagentTaskPrice } from '../../src/shared/paid'
 
 const answerSchema = z.object({ answer: z.string() })
@@ -91,5 +93,84 @@ describe('no model-loop limits: subagent task pricing', () => {
 
   it('still names an unverified price as unknown', () => {
     expect(subagentTaskPrice('no-such-model')).toBeTruthy()
+  })
+})
+
+// NOLIMITSRUN (PLAN.md D121): no default deadline of ours. A command or hook
+// runs until it ends or the person stops it; a per-command or per-hook
+// timeout the person or the model sets explicitly still works.
+function hookConfig(hooks: unknown): string {
+  return JSON.stringify({ hooks: { SessionStart: [{ hooks }] } })
+}
+
+describe('no model-loop limits: hook deadlines', () => {
+  it('parses no deadline when none is set, and keeps an explicit one', () => {
+    const unset = parseHookConfig(
+      hookConfig([{ type: 'command', command: 'long' }]),
+      'user',
+      'linux',
+    )
+    expect(unset.warnings).toEqual([])
+    expect(unset.hooks).toHaveLength(1)
+    expect(unset.hooks[0]?.timeoutSeconds).toBeUndefined()
+    const set = parseHookConfig(
+      hookConfig([{ type: 'command', command: 'long', timeout: 30 }]),
+      'user',
+      'linux',
+    )
+    expect(set.warnings).toEqual([])
+    expect(set.hooks[0]?.timeoutSeconds).toBe(30)
+  })
+
+  it('still refuses a timeout past the validating bound', () => {
+    const parsed = parseHookConfig(
+      hookConfig([{ type: 'command', command: 'long', timeout: 601 }]),
+      'user',
+      'linux',
+    )
+    expect(parsed.hooks).toEqual([])
+    expect(parsed.warnings).toEqual([
+      'user hooks: SessionStart: handler timeout exceeds 600 seconds',
+    ])
+  })
+
+  it('dispatches with no deadline value when none is set', async () => {
+    const parsed = parseHookConfig(
+      hookConfig([{ type: 'command', command: 'long' }]),
+      'user',
+      'linux',
+    )
+    expect(parsed.warnings).toEqual([])
+    const seen: unknown[] = []
+    let release: (() => void) | undefined
+    const runHook = (...args: unknown[]): Promise<ShellResult> => {
+      seen.push(args[3])
+      return new Promise<ShellResult>((resolve) => {
+        release = () => {
+          resolve({ stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false })
+        }
+      })
+    }
+    const done = dispatchHooks(
+      parsed.hooks,
+      'SessionStart',
+      { cwd: '/ws' },
+      undefined,
+      // The runner's real IO shape; only the deadline slot is observed here.
+      { runHook },
+      undefined,
+      () => undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { maxRunningCommands: 4 },
+    )
+    for (let round = 0; release === undefined && round < 10; round += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    expect(seen).toEqual([undefined])
+    release?.()
+    await done
   })
 })

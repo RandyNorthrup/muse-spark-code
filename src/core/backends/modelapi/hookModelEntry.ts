@@ -22,7 +22,6 @@ import type { ItemSnapshot } from '../../../shared/agentEvents'
 import {
   HOOK_MODEL_MAX_OUTPUT_TOKENS,
   HOOK_MODEL_ROW_TOOL,
-  HOOK_MODEL_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
   TOOL_OUTPUT_MAX_CHARS,
   TOOL_RESULT_MAX_LINE_CHARS,
@@ -358,11 +357,13 @@ async function requestHookStep(
         },
       },
     )
+    // D121: no default deadline of ours — the hook's own model call runs
+    // until it ends or the person stops it.
     const events = streamRepairAttempt(
       context.deps.client,
       body,
       signal,
-      HOOK_MODEL_TIMEOUT_MS,
+      undefined,
       admission,
       confirmed,
     )
