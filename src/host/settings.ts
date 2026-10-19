@@ -461,7 +461,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     accountSwap: SETTING_DEFAULTS.accountSwap,
     accountParallel: SETTING_DEFAULTS.accountParallel,
     'accounts.severalOnThisDevice': SETTING_DEFAULTS['accounts.severalOnThisDevice'],
-    'vault.enabled': SETTING_DEFAULTS['vault.enabled'],
+    // The live switch (with its legacy precedence) resolves where the vault
+    // runs; activation carries the configured flag for the round trip only.
+    'vault.enabled': readSetting(config, 'vault.enabled', log),
     'vault.protection': SETTING_DEFAULTS['vault.protection'],
     'vault.agentFence': readSetting(config, 'vault.agentFence', log),
     'vault.lockAfterIdleMinutes': SETTING_DEFAULTS['vault.lockAfterIdleMinutes'],
