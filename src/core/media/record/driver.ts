@@ -3,6 +3,7 @@
 import type { MediaInfo } from '../../../shared/media'
 
 export interface ScreenRecordingOptions {
+  /** 0 records until stopped (D121: no stop of ours); otherwise 10–600. */
   readonly maxSeconds: number
   /** Both are false unless the user selects them for this recording. */
   readonly microphone: boolean
@@ -34,7 +35,11 @@ export interface ScreenRecordingDriver {
   readonly available: () => Promise<
     { readonly ok: true } | { readonly ok: false; readonly reason: string }
   >
-  /** Called only by an interactive user entry point, after its options UI. */
+  /**
+   * Called only by an interactive user entry point, after its options UI.
+   * The tick reports seconds remaining while capped, seconds recorded while
+   * uncapped (maxSeconds 0); only the person stops an uncapped recording.
+   */
   readonly start: (
     options: ScreenRecordingOptions,
     onCountdown: (remainingSeconds: number) => void,

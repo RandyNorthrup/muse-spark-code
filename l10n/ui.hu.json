@@ -946,6 +946,7 @@
     "attachRecording": "Képernyőfelvétel csatolása…",
     "attachLatestRecording": "A legutóbbi képernyőfelvétel csatolása",
     "recordingCountdown": "Felvétel: {remaining} van hátra",
+    "recordingElapsed": "Felvétel: eltelt {elapsed}",
     "recordingMicrophone": "Mikrofon",
     "recordingSystemAudio": "Rendszerhang",
     "recordingPreview": "Képernyőfelvétel előnézete",

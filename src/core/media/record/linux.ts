@@ -64,7 +64,9 @@ export interface LinuxRecordingPort {
   ) => Promise<PortalSession>
   readonly createPrivateRecording: () => Promise<PrivateRecording>
   /** Verify trusted path at launch; no shell or credentials. Inherit exactly
-   * these fds, enforce hard output size and lifetime, and kill on parent exit. */
+   * these fds, enforce hard output size and lifetime, and kill on parent exit.
+   * maxSeconds 0 enforces no lifetime: the run ends only at Stop, cancel or
+   * parent exit (D121). */
   readonly launchVerified: (request: {
     readonly command: string
     readonly args: readonly string[]
@@ -302,6 +304,9 @@ function recordingRun(
     .catch(abort)
   const started = performance.now()
   let previous = Date.now()
+  // D121: maxSeconds 0 records until stopped — no automatic stop of ours.
+  // The tick then reports seconds recorded; otherwise seconds remaining.
+  const isUncapped = options.maxSeconds === 0
   const update = () => {
     const now = Date.now()
     if (now < previous || now - previous > 2 * MILLISECONDS_PER_SECOND) {
@@ -309,10 +314,12 @@ function recordingRun(
       return
     }
     previous = now
-    const remaining = Math.max(
-      0,
-      options.maxSeconds - Math.floor((performance.now() - started) / MILLISECONDS_PER_SECOND),
-    )
+    const elapsed = Math.floor((performance.now() - started) / MILLISECONDS_PER_SECOND)
+    if (isUncapped) {
+      onCountdown(elapsed)
+      return
+    }
+    const remaining = Math.max(0, options.maxSeconds - elapsed)
     onCountdown(remaining)
     if (remaining === 0)
       void stop().catch(async () => {
@@ -342,7 +349,7 @@ function recordingRun(
           info.sizeBytes === 0 ||
           info.sizeBytes > MEDIA_MAX_UPLOAD_DEFAULT_MIB * MEDIA_FILE_ID_MIN_BYTES ||
           info.durationSeconds === null ||
-          info.durationSeconds > options.maxSeconds ||
+          (options.maxSeconds > 0 && info.durationSeconds > options.maxSeconds) ||
           info.hasSoundtrack !== (options.microphone || options.systemAudio)
         )
           reason = unavailable('mp4')

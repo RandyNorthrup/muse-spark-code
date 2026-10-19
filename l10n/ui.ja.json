@@ -941,6 +941,7 @@
     "attachRecording": "画面録画を添付…",
     "attachLatestRecording": "最新の画面録画を添付",
     "recordingCountdown": "録画中: 残り {remaining}",
+    "recordingElapsed": "録画中: 経過 {elapsed}",
     "recordingMicrophone": "マイク",
     "recordingSystemAudio": "システム音声",
     "recordingPreview": "画面録画をプレビュー",

@@ -1634,8 +1634,8 @@
         },
         "museSpark.mediaMaxUploadMiB": {
           "type": "integer",
-          "default": 200,
-          "minimum": 1,
+          "default": 0,
+          "minimum": 0,
           "description": "%config.mediaMaxUploadMiB.description%",
           "scope": "machine"
         },
@@ -1649,8 +1649,8 @@
         },
         "museSpark.screenRecordingMaxSeconds": {
           "type": "integer",
-          "default": 120,
-          "minimum": 10,
+          "default": 0,
+          "minimum": 0,
           "maximum": 600,
           "description": "%config.screenRecordingMaxSeconds.description%",
           "scope": "machine"

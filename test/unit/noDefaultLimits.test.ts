@@ -22,6 +22,9 @@ import {
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
   webSearchMaxCallsFor,
 } from '../../src/shared/constants'
+import { checkMediaLimits } from '../../src/core/media/limits'
+import { mediaLimitsFromSettings } from '../../src/host/media/mediaProviders'
+import { screenRecordingOptionsSchema } from '../../src/shared/media'
 
 const properties = manifest.contributes.configuration.properties as Record<
   string,
@@ -167,5 +170,72 @@ describe('no default limits: hosted searches per response', () => {
       WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
     )
     expect(webSearchMaxCallsFor(21)).toBeUndefined()
+  })
+})
+
+describe('no default limits: media upload and screen recording', () => {
+  const bigVideo = {
+    kind: 'video',
+    mediaType: 'video/mp4',
+    sizeBytes: 500 * 1024 * 1024,
+    durationSeconds: 1000,
+    hasSoundtrack: false,
+  } as const
+
+  it('defaults to no media cap of our own', () => {
+    expect(SETTING_DEFAULTS.mediaMaxUploadMiB).toBe(0)
+    expect(SETTING_DEFAULTS.screenRecordingMaxSeconds).toBe(0)
+    expect(properties['museSpark.mediaMaxUploadMiB'].default).toBe(0)
+    expect(properties['museSpark.screenRecordingMaxSeconds'].default).toBe(0)
+  })
+
+  it('admits any size and length with nothing set', () => {
+    const warnings: string[] = []
+    const read = readSettings(
+      settingSource({ mediaMaxUploadMiB: 0, screenRecordingMaxSeconds: 0 }),
+      silentLog(warnings),
+    )
+    expect(read.mediaMaxUploadMiB).toBe(0)
+    expect(read.screenRecordingMaxSeconds).toBe(0)
+    expect(warnings).toHaveLength(0)
+    expect(
+      mediaLimitsFromSettings({
+        mediaMaxUploadMiB: 0,
+        screenRecordingMaxSeconds: 0,
+        mediaAudioAction: 'transcribe',
+      }),
+    ).toEqual({})
+    expect(checkMediaLimits(bigVideo, {})).toEqual({ ok: true })
+    expect(
+      screenRecordingOptionsSchema.parse({ maxSeconds: 0, microphone: false, systemAudio: false }),
+    ).toEqual({ maxSeconds: 0, microphone: false, systemAudio: false })
+  })
+
+  it('still applies a person-set size and length', () => {
+    const warnings: string[] = []
+    const read = readSettings(
+      settingSource({ mediaMaxUploadMiB: 200, screenRecordingMaxSeconds: 120 }),
+      silentLog(warnings),
+    )
+    expect(read.mediaMaxUploadMiB).toBe(200)
+    expect(read.screenRecordingMaxSeconds).toBe(120)
+    expect(warnings).toHaveLength(0)
+    expect(
+      mediaLimitsFromSettings({
+        mediaMaxUploadMiB: 200,
+        screenRecordingMaxSeconds: 120,
+        mediaAudioAction: 'transcribe',
+      }),
+    ).toEqual({ maxUploadBytes: 200 * 1024 * 1024, maxDurationSeconds: 120 })
+    expect(
+      checkMediaLimits(bigVideo, { maxUploadBytes: 200 * 1024 * 1024, maxDurationSeconds: 120 }),
+    ).toEqual({ ok: false, reason: expect.any(String) })
+    expect(
+      screenRecordingOptionsSchema.safeParse({
+        maxSeconds: 5,
+        microphone: false,
+        systemAudio: false,
+      }).success,
+    ).toBe(false)
   })
 })

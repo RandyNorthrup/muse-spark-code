@@ -250,7 +250,20 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
           end(true)
           return
         }
+        // D121: maxSeconds 0 records until stopped — the tick then reports
+        // seconds recorded and nothing ends the run automatically.
+        const isUncapped = options.maxSeconds === 0
+        let elapsed = 0
         countdown = setInterval(() => {
+          if (isUncapped) {
+            elapsed += 1
+            try {
+              onCountdown(elapsed)
+            } catch {
+              end(true)
+            }
+            return
+          }
           remaining = Math.max(0, remaining - 1)
           try {
             onCountdown(remaining)
@@ -288,7 +301,7 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
             info.sizeBytes > deps.maxBytes ||
             info.durationSeconds === null ||
             (options !== undefined &&
-              (info.durationSeconds > options.maxSeconds ||
+              ((options.maxSeconds > 0 && info.durationSeconds > options.maxSeconds) ||
                 info.hasSoundtrack !== (options.microphone || options.systemAudio)))
             ? { ok: false, reason: unavailable() }
             : { ok: true, preview: { path: output, info, dispose } }

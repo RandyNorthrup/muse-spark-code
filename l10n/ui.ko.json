@@ -941,6 +941,7 @@
     "attachRecording": "화면 녹화 첨부…",
     "attachLatestRecording": "최근 화면 녹화 첨부",
     "recordingCountdown": "녹화 중: {remaining} 남음",
+    "recordingElapsed": "녹화 중: {elapsed} 경과",
     "recordingMicrophone": "마이크",
     "recordingSystemAudio": "시스템 오디오",
     "recordingPreview": "화면 녹화 미리보기",

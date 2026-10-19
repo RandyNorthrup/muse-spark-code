@@ -956,6 +956,7 @@
     "attachRecording": "Прикрепить запись экрана…",
     "attachLatestRecording": "Прикрепить последнюю запись экрана",
     "recordingCountdown": "Запись: осталось {remaining}",
+    "recordingElapsed": "Запись: прошло {elapsed}",
     "recordingMicrophone": "Микрофон",
     "recordingSystemAudio": "Системный звук",
     "recordingPreview": "Предпросмотр записи экрана",

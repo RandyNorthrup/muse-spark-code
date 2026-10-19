@@ -956,6 +956,7 @@
     "attachRecording": "Dołącz nagranie ekranu…",
     "attachLatestRecording": "Dołącz ostatnie nagranie ekranu",
     "recordingCountdown": "Nagrywanie: pozostało {remaining}",
+    "recordingElapsed": "Nagrywanie: upłynęło {elapsed}",
     "recordingMicrophone": "Mikrofon",
     "recordingSystemAudio": "Dźwięk systemowy",
     "recordingPreview": "Podgląd nagrania ekranu",

@@ -339,13 +339,17 @@ const settingSchemas = {
     .int()
     .check(z.minimum(USAGE_HISTORY_DAYS_MIN), z.maximum(USAGE_HISTORY_DAYS_MAX)),
   // No ceiling of ours: the person sets any MiB, the provider refuses what it cannot take.
-  mediaMaxUploadMiB: z.int().check(z.gte(1)),
+  // D121: 0 is no cap of ours (the default).
+  mediaMaxUploadMiB: z.int().check(z.gte(0)),
   mediaUploadExpiryDays: z
     .int()
     .check(z.gte(MEDIA_UPLOAD_EXPIRY_MIN_DAYS), z.lte(MEDIA_UPLOAD_EXPIRY_MAX_DAYS)),
-  screenRecordingMaxSeconds: z
-    .int()
-    .check(z.gte(SCREEN_RECORDING_MIN_SECONDS), z.lte(SCREEN_RECORDING_MAX_SECONDS)),
+  // D121: 0 records until stopped (the default); a set value stays 10–600.
+  screenRecordingMaxSeconds: z.int().check(
+    z.gte(0),
+    z.lte(SCREEN_RECORDING_MAX_SECONDS),
+    z.refine((value) => value === 0 || value >= SCREEN_RECORDING_MIN_SECONDS),
+  ),
   mediaAudioAction: z.enum(MEDIA_AUDIO_ACTION_OPTIONS),
   mediaConverterPath: z.string().check(z.maxLength(MEDIA_CONVERTER_PATH_MAX_CHARS)),
   accountSwap: z.boolean(),

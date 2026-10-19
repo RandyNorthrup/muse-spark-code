@@ -951,6 +951,7 @@
     "attachRecording": "Joindre un enregistrement d’écran…",
     "attachLatestRecording": "Joindre le dernier enregistrement d’écran",
     "recordingCountdown": "Enregistrement : {remaining} restantes",
+    "recordingElapsed": "Enregistrement : {elapsed} écoulées",
     "recordingMicrophone": "Utiliser le microphone",
     "recordingSystemAudio": "Audio du système",
     "recordingPreview": "Aperçu de l’enregistrement d’écran",
