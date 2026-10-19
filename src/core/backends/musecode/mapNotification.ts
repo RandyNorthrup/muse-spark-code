@@ -183,13 +183,17 @@ const schemas = {
   }),
   // The session's running totals (D26): `cumulative` counts prompt tokens once
   // under the provider's cache convention; the raw per-completion counters
-  // beside it do not sum across providers, so they are not shown.
+  // beside it do not sum across providers, so they are not shown. The
+  // cumulative cache reads sum on the same basis as the prompt total, so
+  // they are carried where the wire reports them (live 2026-10-08); the
+  // cumulative never carries reasoning, which stays unreported.
   'session/tokenUsage': z.object({
     ...sessionScoped,
     modelId: z.optional(z.nullable(z.string())),
     cumulative: z.object({
       promptTokens: z.int().check(z.gte(0)),
       outputTokens: z.int().check(z.gte(0)),
+      cacheReadTokens: z.optional(z.nullable(z.int().check(z.gte(0)))),
     }),
   }),
   'session/contextUsage': z.object({
@@ -474,6 +478,9 @@ function rawNotification(notification: WireNotification): MapOutcome {
           type: 'tokenUsage',
           inputTokens: cumulative.promptTokens,
           outputTokens: cumulative.outputTokens,
+          ...(typeof cumulative.cacheReadTokens === 'number' && {
+            cachedTokens: cumulative.cacheReadTokens,
+          }),
           ...(typeof modelId === 'string' && { modelId }),
         },
       }
