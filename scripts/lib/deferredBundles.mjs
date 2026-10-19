@@ -200,6 +200,7 @@ export const DEFERRED = [
     output: 'dist/productionMedia.js',
     metafile: 'dist/meta/productionMedia.json',
     files: [
+      'src/host/backend/productionMediaEntry.ts',
       'src/host/backend/sessionUploads.ts',
       'src/core/media/productionMedia.ts',
       'src/core/media/replayMedia.ts',

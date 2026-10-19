@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { LAZY_BUNDLES } from '../../src/shared/lazyBundles.generated'
-import { DEFERRED_OUTFILES } from '../../scripts/lib/deferredBundles.mjs'
+import { DEFERRED, DEFERRED_OUTFILES } from '../../scripts/lib/deferredBundles.mjs'
 import {
   COMPUTED_SOURCE_LOADS,
   computedLoadFailures,
@@ -91,6 +91,17 @@ it('names the five lazily loaded engine bundles the old copy missed', () => {
     expect(row?.requestedBy.length).toBeGreaterThan(0)
   }
   expect(LAZY_BUNDLES.find((entry) => entry.file === 'headless.js')?.requestedBy).toEqual([])
+})
+
+it('keeps the production media entry in its bundle and its outfile row', () => {
+  // REVPAIR C1: the #226 pair-join resolution dropped the media entry from
+  // both the split gate's file closure and the entry-to-bundle map, so the
+  // gate no longer proved the entry stays out of activation. Both rows name
+  // the real entry source, which exists.
+  const entry = 'src/host/backend/productionMediaEntry.ts'
+  expect(DEFERRED_OUTFILES.get(path.resolve(entry))).toBe('dist/productionMedia.js')
+  const media = DEFERRED.find((bundle) => bundle.output === 'dist/productionMedia.js')
+  expect(media?.files).toContain(entry)
 })
 
 it('names the helpers bundle by the method that loads it', () => {
