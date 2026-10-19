@@ -179,12 +179,11 @@ function modelApiRuntime(): SharingRuntime {
 describe('sharing registered secrets', () => {
   it('refuses the share in fixed words with the failed key read as cause', async () => {
     const { log, messages } = logger()
-    const ports = sharingPorts(log, modelApiRuntime(), {
+    const { registeredSecrets } = sharingPorts(log, modelApiRuntime(), {
       createRuntime: () => Promise.reject(new Error('unused in this path')),
       credentialValues: ['cred-a'],
       readModelApiKey: () => readFile(path.join(folder(), 'nowhere', 'key'), 'utf8'),
     })
-    const { registeredSecrets } = ports
     if (registeredSecrets === undefined) throw new Error('expected secrets on this backend')
     try {
       await registeredSecrets()
@@ -199,7 +198,7 @@ describe('sharing registered secrets', () => {
 
   it('returns the taken credentials without a key read off the Model API backend', async () => {
     const { log } = logger()
-    const ports = sharingPorts(
+    const { registeredSecrets } = sharingPorts(
       log,
       {
         backend: {
@@ -216,7 +215,6 @@ describe('sharing registered secrets', () => {
         },
       },
     )
-    const { registeredSecrets } = ports
     if (registeredSecrets === undefined) throw new Error('expected secrets on this backend')
     await expect(registeredSecrets()).resolves.toEqual(['cred-a'])
   })
