@@ -27,7 +27,10 @@ export function readTextFileDisplay(displayText: string): readonly string[] | un
     const parsed: unknown = JSON.parse(suffix.slice(0, -1))
     const result = FILE_NAMES.safeParse(parsed)
     return result.success && result.data.length > 0 ? result.data : []
-  } catch {
-    return []
+  } catch (error) {
+    // A damaged suffix still flags the card as a file so rewind cannot
+    // silently lose its bytes. Anything else keeps its kind.
+    if (error instanceof SyntaxError) return []
+    throw error
   }
 }

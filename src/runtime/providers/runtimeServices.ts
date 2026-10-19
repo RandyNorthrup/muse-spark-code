@@ -254,6 +254,31 @@ function withProvidersFileRefusal(metadata: AccountsMetadataPort): AccountsMetad
   }
 }
 
+/** The terminal `developer` owner's account check against the stored pool. */
+export async function checkDeveloperAccount(
+  metadata: AccountsMetadataPort,
+  store: AccountStore,
+  provider: string,
+  account: string,
+): Promise<void> {
+  const entry = await metadata.read(provider)
+  let rows: Account[]
+  try {
+    rows = entry === undefined ? [] : await store.list(provider)
+  } catch (error: unknown) {
+    // A list the store cannot hand out is not an empty team (an empty team
+    // refuses as invalid below): the check is unavailable, with the cause
+    // kept, as the session read above answers the same failure.
+    if (isInvalidProvidersFileError(error)) throw error
+    throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
+  }
+  if (entry === undefined || rows.every((row) => row.id !== account))
+    throw new Error(UI_TEXT.developer.invalidRequest)
+  const policy = accountPolicyFor(entry.policyProvider, entry.product)
+  if (entry.product === 'muse-code' || policy?.pooling === 'notOffered')
+    throw new Error(UI_TEXT.developer.unavailable)
+}
+
 export function createRuntimeAccountServices(
   input: RuntimeAccountServicesInput,
 ): RuntimeAccountServices {
@@ -295,20 +320,8 @@ export function createRuntimeAccountServices(
     store: (key, value) => fallback.store(key, value),
     delete: (key) => fallback.delete(key),
   })
-  const developerCheckAccount = async (provider: string, account: string): Promise<void> => {
-    const entry = await metadata.read(provider)
-    let rows: Account[]
-    try {
-      rows = entry === undefined ? [] : await store.list(provider)
-    } catch {
-      rows = []
-    }
-    if (entry === undefined || rows.every((row) => row.id !== account))
-      throw new Error(UI_TEXT.developer.invalidRequest)
-    const policy = accountPolicyFor(entry.policyProvider, entry.product)
-    if (entry.product === 'muse-code' || policy?.pooling === 'notOffered')
-      throw new Error(UI_TEXT.developer.unavailable)
-  }
+  const developerCheckAccount = (provider: string, account: string): Promise<void> =>
+    checkDeveloperAccount(metadata, store, provider, account)
   const developerBase = (deps: {
     readLine(prompt: string): Promise<string>
     print(line: string): void

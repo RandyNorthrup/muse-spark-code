@@ -42,6 +42,82 @@ Designed baselines with reasons (accepted, not forgotten):
 - `src/host/auth/authService.ts` sign-in restart, `src/core/developer`
   multi-account start/enable, `src/runtime/chatGptProviderCommands.ts`
   setup: fixed in PR161FIN (named closers, kind words, cause slots).
+- `src/runtime/estimator/command.ts` run catch (CATCHRUN2): the outer CLI
+  floor. Inner layers already classify refusals with their own detail
+  (`isEstimateRefusal` in session and ACP); the floor reports residue in
+  fixed translated words with explicit exit 1. The cause cannot enter the
+  sentence (rule 18) and the port offers no record channel; rethrowing
+  would replace an explicit exit with a crash. Evidence:
+  `test/unit/runtimeCatchHandlers.test.ts` "estimate command floor" (a
+  real contract failure through the runner port exits 1 with fixed words
+  and nothing written) plus the `estimateSession` refusal/foreign-failure
+  tests.
+- `src/runtime/playbook/command.ts` run catch (CATCHRUN2): "Output
+  contains validated data only, never exception text" is the documented
+  contract; `runPlaybookCli` maps `ok:false` onto stderr and exit 1, and
+  a hostile port's malformed data parses to the same fixed refusal.
+  Rethrowing would crash the CLI past its explicit failure exit.
+  Evidence: `test/unit/runtimeCatchHandlers.test.ts` "playbook command
+  floor" (a failing port read answers `ok:false` with
+  `playbookCommandFailed` and no leak).
+- `src/runtime/fonts/nodeInstall.ts` probe catch (CATCHRUN2): every probe
+  failure (absent, unreadable, invalid) maps onto the safe action, a
+  fresh publication; publication owns its failures with causes. Naming
+  the installer's own refusal would need locale-coupled message matching.
+  Evidence: `test/unit/runtimeCatchHandlers.test.ts` "font pack
+  publication" (fresh publish, matching reuse, refused clobber with the
+  old bytes intact).
+- `src/runtime/fonts/nodeInstall.ts` publish catch (CATCHRUN2): mirrors
+  the accepted schedule publish entry above — a matching pack proves a
+  concurrent publication moot; a mismatched one rethrows without touching
+  the file. Evidence: "settles concurrent publishers on one destination"
+  (two real concurrent publishers, one destination) and the
+  refused-clobber case.
+- `src/runtime/providers/accountsCommand.ts` both command catches
+  (CATCHRUN2): the outer CLI boundary prints the reviewed `commandError`
+  vocabulary (fixed sentences per store code; kept-cause messages
+  otherwise, as `test/unit/accountErrorTruth.test.ts` pins, including a
+  real unreadable-file failure) with explicit exit 1. Inlining the
+  vocabulary into the handlers would duplicate it and diverge; rethrowing
+  would crash past the explicit exit. No record channel in deps.
+- `src/runtime/sharing/sharingEntry.ts` exec catch (CATCHRUN2): the outer
+  exec floor. A paused run, an allow-listed known failure and anything
+  else each write fixed words to stderr with an explicit exit code; the
+  allow-list never echoes exception text. Rethrowing would crash past the
+  explicit exit; no record channel in scope. Driving it needs process
+  stdio and signals, so it stands on the contract above, unverified by a
+  test — stated, not hidden.
+- `src/runtime/usage/usageCli.ts` receive catch (CATCHRUN2): one failed
+  message reports its fixed `readFailed` protocol code and the session
+  survives; the cause cannot enter the fixed page schema and the ports
+  offer no record channel. Evidence: `test/unit/runtimeCatchHandlers.test.ts`
+  "usage stdio pump" (a malformed line and a failed message report their
+  codes and the pump returns 0; a failed print rejects with the same
+  error object).
+- `src/runtime/usage/usageServiceEntry.ts` service-handle catch
+  (CATCHRUN2): malformed input stays `invalidMessage`, a failed read
+  reports `readFailed`, and the stdio server survives the blip — a fixed
+  protocol vocabulary with truthful codes, no record channel in ports.
+  Evidence: `test/unit/runtimeCatchHandlers.test.ts` "usage stdio
+  service boundary" (malformed, oversized, failing and malformed-input
+  lines each answer their code).
+- `src/runtime/resources/history.ts` fingerprint/consent/sample/event
+  catches (CATCHRUN2): the certified damage-noter design (TBL-12). The
+  fingerprint degrades any unreadable choice to `unknown` rather than
+  breaking damage identity; unreadable or invalid consent fails closed
+  to `false` and is announced once per distinct damage, never mistaken
+  for a refusal; a failed sample or event is reported once through the
+  designated error port and dropped, never replaced by an invented
+  reading, and sampling survives. Non-Errors rethrow past every one.
+  Restructuring them for the classifier would touch certified money
+  gates; the `onError`/`noteDamaged` record channels are invisible to it.
+- `src/runtime/resources/host.ts` listener/sampler catches (CATCHRUN2):
+  a failing listener or sampler reports the original error through the
+  designated `onError` port; throwing there would break the sampling
+  loop and every other listener. No other channel in scope.
+- `src/runtime/resources/entry.ts` flush catch (CATCHRUN2): disposal
+  never throws; a failed flush reaches the error port with its cause
+  under fixed words.
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 - `src/host` root + `src/host/backend` keeps, 0.19.0 lane (each read in
   full; the failure either reaches the caller as data or is proven moot):

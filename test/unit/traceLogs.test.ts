@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -30,6 +30,37 @@ describe('readTraceLogs', () => {
 
   it('is empty without the directory', async () => {
     expect(await readTraceLogs({ homeDir: path.join(home, 'nowhere') })).toEqual([])
+  })
+
+  // Refused reads and dangling links need POSIX permission semantics.
+  it.runIf(process.platform !== 'win32')('lets a refused listing keep its kind', async () => {
+    const lockedHome = mkdtempSync(path.join(tmpdir(), 'muse-trace-locked-'))
+    try {
+      const lockedDirectory = traceLogDirectory({ homeDir: lockedHome })
+      mkdirSync(lockedDirectory, { recursive: true })
+      chmodSync(lockedDirectory, 0o000)
+      await expect(readTraceLogs({ homeDir: lockedHome })).rejects.toMatchObject({
+        code: 'EACCES',
+      })
+    } finally {
+      chmodSync(traceLogDirectory({ homeDir: lockedHome }), 0o755)
+      await removeFolder(lockedHome)
+    }
+  })
+
+  it.runIf(process.platform !== 'win32')('skips a log that vanished from the listing', async () => {
+    const ghostHome = mkdtempSync(path.join(tmpdir(), 'muse-trace-ghost-'))
+    try {
+      const ghostDirectory = traceLogDirectory({ homeDir: ghostHome })
+      mkdirSync(ghostDirectory, { recursive: true })
+      symlinkSync(
+        path.join(ghostDirectory, 'missing.log'),
+        path.join(ghostDirectory, 'cli-ghost.log'),
+      )
+      await expect(readTraceLogs({ homeDir: ghostHome })).resolves.toEqual([])
+    } finally {
+      await removeFolder(ghostHome)
+    }
   })
 })
 

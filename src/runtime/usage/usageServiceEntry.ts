@@ -290,6 +290,34 @@ export function createUsageFeatures(
   return { ...createUsageService(deps), text: usageText }
 }
 
+/**
+ * One NDJSON line's replies. Malformed lines refuse as invalid; a failing
+ * read reports readFailed so one backend blip never kills the stdio
+ * session. Anything else keeps its kind.
+ */
+async function repliesForUsageLine(
+  service: UsageService,
+  line: string,
+): Promise<UsageServiceToPageMessage[]> {
+  if (Buffer.byteLength(line, 'utf8') >= USAGE_RECORD_MAX_BYTES)
+    return [{ type: 'usage/error', code: 'invalidMessage' }]
+  let input: unknown
+  try {
+    input = JSON.parse(line)
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error
+    return [{ type: 'usage/error', code: 'invalidMessage' }]
+  }
+  try {
+    return await service.handle(input)
+  } catch (error) {
+    // Malformed input stays invalid; a failed read reports itself.
+    const code =
+      error instanceof Error && error.name === '$ZodError' ? 'invalidMessage' : 'readFailed'
+    return [{ type: 'usage/error', code }]
+  }
+}
+
 /** NDJSON transport for native plugins; CLI routing belongs to lane E. */
 export async function serveUsageStdio(
   service: UsageService,
@@ -299,15 +327,7 @@ export async function serveUsageStdio(
   },
 ): Promise<void> {
   for await (const line of ports.requests) {
-    let replies: UsageServiceToPageMessage[]
-    try {
-      if (Buffer.byteLength(line, 'utf8') >= USAGE_RECORD_MAX_BYTES)
-        throw new Error('oversized usage request')
-      const input: unknown = JSON.parse(line)
-      replies = await service.handle(input)
-    } catch {
-      replies = [{ type: 'usage/error', code: 'invalidMessage' }]
-    }
+    const replies = await repliesForUsageLine(service, line)
     for (const reply of replies) {
       await ports.sendLine(`${JSON.stringify(usageServiceToPageMessageSchema.parse(reply))}\n`)
     }
