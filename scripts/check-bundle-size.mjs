@@ -249,6 +249,10 @@ const BUDGETS = [
   // git and pull request features moved out of activation: 127.4 KiB
   // measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/conversationGit.js', budgetKiB: 150 },
+  // AUDITDOCS: the conversation's export/import/share flows moved out of
+  // dist/conversation.js: 23.2 KiB measured; plus 15%, rounded up to
+  // 25 KiB steps is 50 KiB (PLAN.md D6).
+  { path: 'dist/conversationTransfer.js', budgetKiB: 50 },
   // ACTBUD017: the Model API backend's session store (its budget journal,
   // atomic writes and stored-session schemas) moved out of activation,
   // required when that backend's host is first built: 37.1 KiB measured;
