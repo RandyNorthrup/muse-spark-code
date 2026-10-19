@@ -1,5 +1,5 @@
 import { EstimateDiagnosticError } from '../core/estimator/diagnostic'
-import { estimateRefusalDetail, isEstimateRefusal } from '../shared/estimate'
+import { estimateRefusalDetail } from '../shared/estimate'
 import { estimateDiagnostic } from '../shared/estimateDiagnostic'
 import { UI_TEXT } from '../shared/l10n/text'
 import { estimateFailureText as estimateFailureSentence } from '../shared/estimateView'
@@ -53,23 +53,20 @@ export function createAcpEstimate(deps: {
         )
         return renderEstimate(section, parsed.options.format, deps.money)
       } catch (error: unknown) {
-        // Cancellation stays cancellation (an abort throws past Error). The
-        // estimator's own refusal stays its sentence for the agent; anything
-        // else keeps its kind past the boundary (D119).
+        // Cancellation stays cancellation (an abort throws past Error). A
+        // refusal keeps its sentence with identity, special sentences
+        // included; anything else is scrubbed to the unavailable words
+        // (F12) — a path or account never reaches the agent.
         if (signal.aborted) signal.throwIfAborted()
         // The validated property first: a refusal with its own message
         // (a cycle names its lanes) never matches a sentence template.
-        // Then the worded message form. Either way the code is the
-        // diagnostic, special sentences included, as on every surface.
+        // Then the worded message form.
         const validated = estimateDiagnostic(error)
         const refusal =
           validated.estimateDiagnostic === 'estimate-unavailable'
             ? (estimateRefusalDetail(error) ?? 'estimate-unavailable')
             : validated.estimateDiagnostic
-        if (validated.estimateDiagnostic !== 'estimate-unavailable' || isEstimateRefusal(error)) {
-          return estimateFailureSentence({ estimateDiagnostic: refusal })
-        }
-        throw error
+        return estimateFailureSentence({ estimateDiagnostic: refusal })
       }
     },
   }
