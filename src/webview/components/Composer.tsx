@@ -31,6 +31,8 @@ import {
   useState,
 } from 'react'
 import {
+  BASE64_INPUT_BLOCK_BYTES,
+  BASE64_OUTPUT_BLOCK_CHARS,
   COMPOSER_MAX_ROWS,
   type DictationAction,
   GOAL_SLASH_COMMAND,
@@ -38,9 +40,7 @@ import {
   LOOP_SLASH_COMMAND,
   HOOK_RUN_SLASH_COMMAND,
   IME_PROCESS_KEY,
-  MAX_ATTACHMENTS_PER_MESSAGE,
-  MAX_DOCUMENT_BYTES,
-  MAX_IMAGE_BYTES,
+  MAX_ATTACHMENT_BASE64_CHARS,
   PDF_EXTENSION,
   PDF_HEADER_WINDOW_BYTES,
   PDF_MEDIA_TYPE,
@@ -921,15 +921,16 @@ export function Composer(props: ComposerProps) {
 
   const attachFiles = (files: readonly File[]) => {
     const admit = (file: File, name: string, mediaType: string) => {
-      const current = currentAttachments.current
-      const count = current.length + pendingFiles.current.length
-      const isDocument = mediaType === PDF_MEDIA_TYPE
-      if (file.size > (isDocument ? MAX_DOCUMENT_BYTES : MAX_IMAGE_BYTES)) {
-        onRefuseFile(name, isDocument ? UI_TEXT.documentTooLarge : UI_TEXT.attachmentTooLarge)
-        return
-      }
-      if (count >= MAX_ATTACHMENTS_PER_MESSAGE) {
-        onRefuseFile(name, UI_TEXT.attachmentLimit)
+      // D121: no count or size of ours — any number of files is taken. The
+      // one client check left is the postMessage transport itself: the
+      // base64 must fit the host protocol's frame, or the file cannot be
+      // taken (the host answers the same way when its own reads fail). Past
+      // the model's real limits the record and the provider answer at send.
+      if (
+        Math.ceil(file.size / BASE64_INPUT_BLOCK_BYTES) * BASE64_OUTPUT_BLOCK_CHARS >
+        MAX_ATTACHMENT_BASE64_CHARS
+      ) {
+        onRefuseFile(name, UI_TEXT.attachmentUnreadable)
         return
       }
       const requestId = newAttachmentRequestId()
@@ -979,7 +980,8 @@ export function Composer(props: ComposerProps) {
       }
       const admittedEpoch = attachmentEpoch
       // MIME and suffix can both lie. Only the first 1 KiB is read before
-      // deciding whether this is a 32 MB PDF or a 10 MiB image.
+      // deciding whether this is a PDF or an image (kind only — D121 takes
+      // either at any size the transport carries).
       void file
         .slice(0, PDF_HEADER_WINDOW_BYTES)
         .arrayBuffer()

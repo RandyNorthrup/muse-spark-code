@@ -6,11 +6,7 @@
 // and the audio seam converts or transcribes from it. No bytes, path or
 // credential ever reaches the browser, the transcript or the session file.
 import { createHash } from 'node:crypto'
-import {
-  MEDIA_ATTACHED_MAX_ENTRIES,
-  MEDIA_ATTACHED_READ_CHUNK_BYTES,
-  UI_TEXT,
-} from '../../shared/constants'
+import { MEDIA_ATTACHED_READ_CHUNK_BYTES, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { storedMediaPartSchema, type StoredMediaPart } from '../../shared/media'
 import type { MediaFilePart, TurnPart } from '../agent/agentBackend'
@@ -26,8 +22,8 @@ export interface AttachedSource {
 /**
  * A registration's state (RVMEDIAV2, PLAN M105's table): `attached` is a
  * chip only its owner holds; `claimed` is held by an accepted turn still
- * waiting (queued or steered); `inFlight` by a turn that started. Only
- * `attached` is evicted at the bound, discarded or released with its owner.
+ * waiting (queued or steered); `inFlight` by a turn that started. D121: no
+ * bound evicts `attached` — discards and owner releases let them go.
  */
 export type AttachedState = 'attached' | 'claimed' | 'inFlight'
 
@@ -56,16 +52,6 @@ interface Entry {
 function stateOf(entry: Entry): AttachedState {
   if (entry.holders.size === 0) return 'attached'
   return [...entry.holders].some((holder) => holder.isInFlight) ? 'inFlight' : 'claimed'
-}
-
-/** The bound refused a registration: every entry is held by an accepted turn. */
-class MediaAttachRefusedError extends Error {
-  public override readonly name = 'MediaAttachRefusedError'
-}
-
-/** A refusal across bundles (each carries its own class): by name, not identity. */
-export function isMediaAttachRefusal(error: unknown): error is Error {
-  return error instanceof Error && error.name === 'MediaAttachRefusedError'
 }
 
 /**
@@ -97,8 +83,8 @@ async function* verified(
  * read. Every registration has one owner and one set of turn holders, and
  * moves attached -> claimed -> in flight -> released (RVMEDIAV2). Its
  * source is fixed per token: lookups go by token, never by digest, so no
- * session can redirect another's upload. The bound evicts only attached
- * entries and otherwise refuses with the translated reason.
+ * session can redirect another's upload. D121: registrations are metadata
+ * only and unbounded — no eviction, no refusal.
  */
 export class AttachedMedia {
   private readonly entries = new Map<string, Entry>()
@@ -114,9 +100,9 @@ export class AttachedMedia {
   }
 
   /**
-   * Registers a sniffed, hashed file under its one-use token. At the bound,
-   * the oldest attached registration makes room; when every one is claimed
-   * or in flight, the attachment is refused.
+   * Registers a sniffed, hashed file under its one-use token. D121: any
+   * number of registrations — entries hold metadata only, and discards,
+   * owner releases and turn releases still let them go.
    */
   public register(
     token: string,
@@ -128,11 +114,6 @@ export class AttachedMedia {
     if (parsed.info.kind !== 'video' && parsed.info.kind !== 'audio')
       throw new Error('Only video and audio attach by token')
     if (this.entries.has(token)) throw new Error('Duplicate media path token')
-    if (this.entries.size >= MEDIA_ATTACHED_MAX_ENTRIES) {
-      const idle = [...this.entries].find(([, entry]) => stateOf(entry) === 'attached')
-      if (idle === undefined) throw new MediaAttachRefusedError(UI_TEXT.media.attachedLimit)
-      this.entries.delete(idle[0])
-    }
     this.entries.set(token, { media: parsed, source, owner, holders: new Set() })
     return { type: 'media', token, name: parsed.name, info: parsed.info, sha256: parsed.sha256 }
   }
@@ -151,8 +132,8 @@ export class AttachedMedia {
 
   /**
    * An accepted turn (queued, steered or started) takes the media parts it
-   * carries: from here the bound, discard and owner release pass them by.
-   * The last holder's release ends the token (one-use).
+   * carries: from here discards and owner releases pass them by. The last
+   * holder's release ends the token (one-use).
    */
   public claim(parts: readonly TurnPart[]): MediaClaim {
     const holder: Holder = { isInFlight: false }

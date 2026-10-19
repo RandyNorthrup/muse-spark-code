@@ -250,7 +250,7 @@ async function readImportFile(): Promise<string | undefined> {
   }
   const bytes = await vscode.workspace.fs.readFile(target)
   if (bytes.length > PROVIDER_IMPORT_MAX_BYTES) {
-    throw new Error(UI_TEXT.textFileTooLarge)
+    throw new Error(UI_TEXT.providerImportTooLarge)
   }
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
