@@ -23,7 +23,6 @@ import {
   VAULT_LIMITS,
 } from '../../shared/constants'
 import { VaultError } from '../../core/vault/crypto'
-import { spawnResourceProcess } from '../../core/resources/launcher'
 import { handleIdentitySync, lstatIdentitySync, sameFile } from '../../core/fs/fileIdentity'
 import {
   WINDOWS_VAULT_PIPE_FRAME,
@@ -43,8 +42,9 @@ import {
   type WindowsVaultPipeHelper,
 } from '../../core/vault/broker/windowsPipe'
 import type { VaultPrivateFilesPort, VaultFileWriter } from '../../core/vault/broker/files'
+import { privateFileWriter } from '../../core/vault/broker/files'
 import { collectSlotChunk, drainSlotStderr, watchSlotChildErrors } from './slots/slotChild'
-import { windowsVaultGuardScript, type WindowsVaultExecutable } from './slots/windowsVaultTransport'
+import { spawnGuardedVaultHelper, type WindowsVaultExecutable } from './slots/windowsVaultTransport'
 
 /** A new random pipe name per broker start, published only in the owner-only lock file. */
 export function windowsVaultPipeName(): string {
@@ -501,6 +501,25 @@ export async function inspectWindowsProcess(
 }
 
 /**
+ * Reopen a replaced relay file after the relay guard re-verifies it: the
+ * stale descriptor is closed and only a verified owner-only file is
+ * returned. Any failure keeps its meaning with the old file unreplaced.
+ */
+function reopenRelayDescriptor(helperFile: string, path: string, stale: number): number {
+  closeSync(stale)
+  verifyWindowsVaultFileSync(helperFile, path)
+  const replacement = openSync(path, 'a')
+  const resample = fstatSync(replacement)
+  try {
+    if (!resample.isFile()) throw new Error(UI_TEXT.vault.noAccess)
+  } catch (error: unknown) {
+    closeSync(replacement)
+    throw error
+  }
+  return replacement
+}
+
+/**
  * The broker's private files on Windows: Node's filesystem calls with the
  * helper's owner-only DACL commands around them. There is no O_NOFOLLOW on
  * Windows, so every read and write verifies first (the helper refuses
@@ -622,69 +641,22 @@ export class WindowsVaultPrivateFiles implements VaultPrivateFilesPort {
     const current = (): number => {
       if (descriptor === null) throw new Error(UI_TEXT.vault.locked)
       if (!sameFile(handleIdentitySync(descriptor), lstatIdentitySync(path))) {
-        closeSync(descriptor)
-        verifyWindowsVaultFileSync(this.helperFile, path)
-        const replacement = openSync(path, 'a')
-        const resample = fstatSync(replacement)
-        try {
-          if (!resample.isFile()) throw new Error(UI_TEXT.vault.noAccess)
-        } catch (error: unknown) {
-          closeSync(replacement)
-          throw error
-        }
-        descriptor = replacement
+        descriptor = reopenRelayDescriptor(this.helperFile, path, descriptor)
       }
       return descriptor
     }
-    return {
-      append: (bytes) => {
-        const fd = current()
-        let offset = 0
-        while (offset < bytes.byteLength) {
-          const count = writeSync(fd, bytes, offset, bytes.byteLength - offset, null)
-          if (count === 0) throw new Error(UI_TEXT.vault.noAccess)
-          offset += count
-        }
-        fsyncSync(fd)
+    return privateFileWriter(path, {
+      current,
+      adopt: (fd) => {
+        descriptor = fd
       },
-      replace: (bytes) => {
-        current()
-        const temporary = `${path}.${randomBytes(VAULT_LIMITS.idBytes).toString('hex')}.tmp`
-        const fd = openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL)
-        try {
-          let offset = 0
-          while (offset < bytes.byteLength) {
-            const count = writeSync(fd, bytes, offset, bytes.byteLength - offset, null)
-            if (count === 0) throw new Error(UI_TEXT.vault.noAccess)
-            offset += count
-          }
-          fsyncSync(fd)
-          const previous = current()
-          renameSync(temporary, path)
-          closeSync(previous)
-          descriptor = fd
-          const dir = openSync(pathModule.dirname(path), 'r')
-          try {
-            fsyncSync(dir)
-          } finally {
-            closeSync(dir)
-          }
-        } catch (error: unknown) {
-          if (descriptor !== fd) closeSync(fd)
-          try {
-            unlinkSync(temporary)
-          } catch {
-            /* Rename may have consumed this owned file. */
-          }
-          throw error
-        }
-      },
-      close: () => {
+      release: () => {
         if (descriptor === null) return
         closeSync(descriptor)
         descriptor = null
       },
-    }
+      tempFlags: constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL,
+    })
   }
 }
 
@@ -770,31 +742,7 @@ async function spawnPipeRelay(
     !/^[a-f0-9]{64}$/u.test(helper.sha256)
   )
     throw new Error(UI_TEXT.vault.noAccess)
-  // Do not inherit credentials, a shell, or a visible console window.
-  let launched: Awaited<ReturnType<typeof spawnResourceProcess>>
-  try {
-    launched = await spawnResourceProcess(
-      'contained',
-      helper.powershell,
-      [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(windowsVaultGuardScript(helper.file, helper.sha256), 'utf16le').toString(
-          'base64',
-        ),
-      ],
-      {
-        cwd: pathModule.dirname(helper.powershell),
-        env: {},
-        windowsHide: true,
-      },
-    )
-  } catch {
-    throw new Error(UI_TEXT.vault.noAccess)
-  }
-  const { child, stop } = launched
+  const { child, stop } = await spawnGuardedVaultHelper(helper)
   const relay = new PipeRelay(adaptPipeRelayChild(child), () => stop(), mode, pipe)
   watchSlotChildErrors(child, signal, () => {
     relay.fail(new Error(UI_TEXT.vault.noAccess))

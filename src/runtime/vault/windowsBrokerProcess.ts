@@ -100,6 +100,16 @@ async function clearStaleWindowsBroker(
   }
 }
 
+/** The broker starts only on Windows, in absolute folders it can own. */
+function assertWindowsBrokerOptions(options: {
+  readonly runDirectory: string
+  readonly dataDir: string
+}): void {
+  if (process.platform !== 'win32') throw new Error(UI_TEXT.vault.noAccess)
+  if (!path.isAbsolute(options.runDirectory) || !path.isAbsolute(options.dataDir))
+    throw new Error(UI_TEXT.vault.noAccess)
+}
+
 /** One serve helper's live pipe, shared by the starter that owns it. */
 export type WindowsVaultBrokerServe = Awaited<ReturnType<typeof startWindowsPipeServe>>
 
@@ -116,9 +126,7 @@ export async function startWindowsVaultBrokerProcess(
   close(): Promise<void>
   closed: Promise<void>
 }> {
-  if (process.platform !== 'win32') throw new Error(UI_TEXT.vault.noAccess)
-  if (!path.isAbsolute(options.runDirectory) || !path.isAbsolute(options.dataDir))
-    throw new Error(UI_TEXT.vault.noAccess)
+  assertWindowsBrokerOptions(options)
   const pipe = windowsVaultPipeName()
   const serve = await startWindowsPipeServe(options.pipeHelper, pipe)
   try {
@@ -149,9 +157,7 @@ export async function startWindowsVaultBrokerOnServe(
   close(): Promise<void>
   closed: Promise<void>
 }> {
-  if (process.platform !== 'win32') throw new Error(UI_TEXT.vault.noAccess)
-  if (!path.isAbsolute(options.runDirectory) || !path.isAbsolute(options.dataDir))
-    throw new Error(UI_TEXT.vault.noAccess)
+  assertWindowsBrokerOptions(options)
   const pipe = serve.relay.pipe
   if (pipe === null) throw new Error(UI_TEXT.vault.noAccess)
   const relay = serve.relay

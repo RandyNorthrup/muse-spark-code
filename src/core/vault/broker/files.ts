@@ -178,7 +178,44 @@ export interface VaultFileWriter {
   replace(bytes: Uint8Array): void
   close(): void
 }
-const writePrivateBytes = (fd: number, bytes: Uint8Array): void => {
+
+/** The platform's half of an owner-only file writer: identity checks stay platform-owned. */
+export interface PrivateWriterPorts {
+  readonly current: () => number
+  readonly adopt: (fd: number) => void
+  readonly release: () => void
+  /** How the platform opens the exclusive replace temporary; the mode stays owner-only. */
+  readonly tempFlags: number
+  readonly tempMode?: number
+}
+
+/**
+ * One owner-only file writer over the platform's descriptor checks: appends
+ * and atomic replaces are identical everywhere, while opening, revalidation
+ * and release stay in the ports. Both the POSIX files port and the Windows
+ * relay write this way.
+ */
+export function privateFileWriter(path: string, ports: PrivateWriterPorts): VaultFileWriter {
+  return {
+    append: (bytes) => {
+      writePrivateBytes(ports.current(), bytes)
+    },
+    replace: (bytes) => {
+      replacePrivateFile(
+        path,
+        bytes,
+        (temporary) => openSync(temporary, ports.tempFlags, ports.tempMode),
+        ports.current,
+        ports.adopt,
+      )
+    },
+    close: () => {
+      ports.release()
+    },
+  }
+}
+/** Write every byte and flush: a short write is a refused write, never a partial one. */
+export const writePrivateBytes = (fd: number, bytes: Uint8Array): void => {
   let offset = 0
   while (offset < bytes.byteLength) {
     const count = writeSync(fd, bytes, offset, bytes.byteLength - offset)
@@ -186,6 +223,49 @@ const writePrivateBytes = (fd: number, bytes: Uint8Array): void => {
     offset += count
   }
   fsyncSync(fd)
+}
+
+/**
+ * Atomically replace an owner-only file: write the bytes to an exclusive
+ * temporary beside it, flush, rename over the path and flush the directory.
+ * The caller opens the temporary with its own flags and adopts the winning
+ * descriptor; any failure drops the temporary and keeps the old file. Both
+ * the POSIX files port and the Windows relay replace this way.
+ */
+export function replacePrivateFile(
+  path: string,
+  bytes: Uint8Array,
+  openTemporary: (temporary: string) => number,
+  current: () => number,
+  adopt: (fd: number) => void,
+): void {
+  current()
+  const temporary = `${path}.${randomBytes(VAULT_LIMITS.idBytes).toString('hex')}.tmp`
+  const fd = openTemporary(temporary)
+  let isAdopted = false
+  try {
+    writePrivateBytes(fd, bytes)
+    const previous = current()
+    renameSync(temporary, path)
+    closeSync(previous)
+    adopt(fd)
+    isAdopted = true
+    // A read-only directory descriptor is all the flush needs, on every platform.
+    const directory = openSync(pathModule.dirname(path), constants.O_RDONLY)
+    try {
+      fsyncSync(directory)
+    } finally {
+      closeSync(directory)
+    }
+  } catch (error: unknown) {
+    if (!isAdopted) closeSync(fd)
+    try {
+      unlinkSync(temporary)
+    } catch {
+      /* Rename may have consumed this owned file. */
+    }
+    throw error
+  }
 }
 function privateWriter(path: string): VaultFileWriter {
   const flags =
@@ -227,45 +307,12 @@ function privateWriter(path: string): VaultFileWriter {
     return descriptor
   }
 
-  return {
-    append: (bytes) => {
-      writePrivateBytes(current(), bytes)
+  return privateFileWriter(path, {
+    current,
+    adopt: (fd) => {
+      descriptor = fd
     },
-    replace: (bytes) => {
-      current()
-      const temporary = `${path}.${randomBytes(VAULT_LIMITS.idBytes).toString('hex')}.tmp`
-      const fd = openSync(
-        temporary,
-        constants.O_WRONLY |
-          constants.O_APPEND |
-          constants.O_CREAT |
-          constants.O_EXCL |
-          constants.O_NOFOLLOW,
-        ownerFile,
-      )
-      try {
-        writePrivateBytes(fd, bytes)
-        const previous = current()
-        renameSync(temporary, path)
-        closeSync(previous)
-        descriptor = fd
-        const directory = openSync(pathModule.dirname(path), constants.O_RDONLY)
-        try {
-          fsyncSync(directory)
-        } finally {
-          closeSync(directory)
-        }
-      } catch (error: unknown) {
-        if (descriptor !== fd) closeSync(fd)
-        try {
-          unlinkSync(temporary)
-        } catch {
-          /* Rename may have consumed this owned file. */
-        }
-        throw error
-      }
-    },
-    close: () => {
+    release: () => {
       if (descriptor === null) {
         return
       }
@@ -273,7 +320,14 @@ function privateWriter(path: string): VaultFileWriter {
       closeSync(descriptor)
       descriptor = null
     },
-  }
+    tempFlags:
+      constants.O_WRONLY |
+      constants.O_APPEND |
+      constants.O_CREAT |
+      constants.O_EXCL |
+      constants.O_NOFOLLOW,
+    tempMode: ownerFile,
+  })
 }
 
 /** Windows supplies native owner-DACL creation/verification; there is no POSIX-mode fallback. */

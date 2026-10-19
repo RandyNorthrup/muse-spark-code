@@ -262,6 +262,26 @@ export async function buildBrokerChannel(
   })
 }
 
+/** The lock-before-exit cleanup both broker processes run once, from close. */
+function brokerLockHandlers(owned: { broker?: VaultBroker; management?: VaultManagement }): {
+  lock: () => Promise<void>
+  dispose: () => Promise<void>
+} {
+  return {
+    lock: async () => {
+      try {
+        const pending = await owned.management?.snapshot()
+        if (pending?.setupId) await owned.management?.cancelSetup(pending.setupId)
+      } finally {
+        await owned.broker?.lock()
+      }
+    },
+    dispose: async () => {
+      await owned.broker?.dispose()
+    },
+  }
+}
+
 /** Runs inside the broker process. Composes part A's blocks, never a second store/management/anchor. */
 export async function createVaultBrokerProcess(
   input: VaultBrokerContext,
@@ -280,17 +300,7 @@ export async function createVaultBrokerProcess(
     userSession: context.userSession,
     helper,
     ...(bindings.idleMs !== undefined && { idleMs: bindings.idleMs }),
-    lock: async () => {
-      try {
-        const pending = await owned.management?.snapshot()
-        if (pending?.setupId) await owned.management?.cancelSetup(pending.setupId)
-      } finally {
-        await owned.broker?.lock()
-      }
-    },
-    dispose: async () => {
-      await owned.broker?.dispose()
-    },
+    ...brokerLockHandlers(owned),
     channel: async (location, listener) => {
       const privateFiles = bindings.privateFiles ?? new UnixVaultPrivateFiles()
       const files = new NodeVaultFiles(context.dataDir, VAULT_LIMITS.frameBytes)
@@ -346,17 +356,7 @@ async function createWindowsVaultBrokerProcess(
     userSession: context.userSession,
     ...(bindings.idleMs !== undefined && { idleMs: bindings.idleMs }),
     pipeHelper: pipeExecutable,
-    lock: async () => {
-      try {
-        const pending = await owned.management?.snapshot()
-        if (pending?.setupId) await owned.management?.cancelSetup(pending.setupId)
-      } finally {
-        await owned.broker?.lock()
-      }
-    },
-    dispose: async () => {
-      await owned.broker?.dispose()
-    },
+    ...brokerLockHandlers(owned),
     channel: async (
       location: VaultBrokerLocation,
       endpoint: {

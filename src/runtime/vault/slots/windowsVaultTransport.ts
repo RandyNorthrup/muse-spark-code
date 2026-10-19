@@ -49,6 +49,40 @@ try {
 `
 }
 
+/**
+ * Spawn the guarded helper: the packaged guard script through the absolute
+ * system PowerShell, without inheriting credentials, a shell, or a visible
+ * console window. Shared by the slot exchanges and the pipe relay, which
+ * launch the same binary the same way.
+ */
+export async function spawnGuardedVaultHelper(
+  helper: WindowsVaultExecutable,
+): Promise<Awaited<ReturnType<typeof spawnResourceProcess>>> {
+  // Do not inherit credentials, a shell, or a visible console window.
+  try {
+    return await spawnResourceProcess(
+      'contained',
+      helper.powershell,
+      [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-EncodedCommand',
+        Buffer.from(windowsVaultGuardScript(helper.file, helper.sha256), 'utf16le').toString(
+          'base64',
+        ),
+      ],
+      {
+        cwd: path.dirname(helper.powershell),
+        env: {},
+        windowsHide: true,
+      },
+    )
+  } catch {
+    throw new Error(UI_TEXT.vault.noAccess)
+  }
+}
+
 /** One private helper per use; screen-lock waits last until the broker cancels. */
 export function windowsVaultTransport(
   helper: WindowsVaultExecutable,
@@ -79,31 +113,7 @@ export function windowsVaultTransport(
       ) {
         throw new Error(UI_TEXT.vault.noAccess)
       }
-      // Do not inherit credentials, a shell, or a visible console window.
-      let launched: Awaited<ReturnType<typeof spawnResourceProcess>>
-      try {
-        launched = await spawnResourceProcess(
-          'contained',
-          helper.powershell,
-          [
-            '-NoLogo',
-            '-NoProfile',
-            '-NonInteractive',
-            '-EncodedCommand',
-            Buffer.from(windowsVaultGuardScript(helper.file, helper.sha256), 'utf16le').toString(
-              'base64',
-            ),
-          ],
-          {
-            cwd: path.dirname(helper.powershell),
-            env: {},
-            windowsHide: true,
-          },
-        )
-      } catch {
-        throw new Error(UI_TEXT.vault.noAccess)
-      }
-      const { child, stop } = launched
+      const { child, stop } = await spawnGuardedVaultHelper(helper)
       return await new Promise((resolve, reject) => {
         const chunks: Buffer[] = []
         let size = 0
