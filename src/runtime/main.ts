@@ -403,7 +403,6 @@ async function providersDeps(): Promise<ProvidersDeps> {
     ...authDeps(),
     ...(await userProvidersFile()),
     resolveHost: resolveEndpointHost,
-    fetch: globalThis.fetch.bind(globalThis),
   }
 }
 

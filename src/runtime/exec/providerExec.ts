@@ -15,6 +15,10 @@
 // (`docs/certification/m95-research.md` §1); a preset without either has no
 // request path and refuses to run until its capture is recorded (rule 13).
 
+import { Buffer } from 'node:buffer'
+import { request as httpRequest } from 'node:http'
+import { request as httpsRequest, type RequestOptions } from 'node:https'
+import { isIP } from 'node:net'
 import type { CredentialRecord } from '../../core/providers/credentialRecord'
 const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl, originOf, verifyRequestAnswers } = endpointPolicy
@@ -35,7 +39,12 @@ import {
   providersFile,
 } from '../../host/backend/providersEntry'
 import type { SecretStore } from '../../host/auth/credentialStore'
-import { CREDENTIAL_RECORD_VERSION, UI_TEXT } from '../../shared/constants'
+import {
+  ADDRESS_FAMILIES,
+  CREDENTIAL_RECORD_VERSION,
+  HTTP_REDIRECT_STATUSES,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import {
   formatStoredProviderSecret,
@@ -322,14 +331,140 @@ export async function readProviderKey(
     : { ok: false, error: 'origin-mismatch', record: parsed.record }
 }
 
+/** A streamed upload forwarded chunk by chunk; anything else is sent whole. */
+function endPinnedBody(
+  outgoing: {
+    write(chunk: Uint8Array, callback: () => void): void
+    end(body?: Uint8Array | string): void
+  },
+  body: RequestInit['body'],
+  reject: (error: unknown) => void,
+): void {
+  if (body === undefined || body === null) {
+    outgoing.end()
+    return
+  }
+  if (typeof body === 'string' || body instanceof Uint8Array) {
+    outgoing.end(body)
+    return
+  }
+  if (body instanceof ArrayBuffer) {
+    outgoing.end(new Uint8Array(body))
+    return
+  }
+  if (body instanceof ReadableStream) {
+    const reader = body.getReader()
+    const pump = (): void => {
+      void reader
+        .read()
+        .then(({ done, value }) => {
+          if (done) {
+            reader.releaseLock()
+            outgoing.end()
+            return
+          }
+          if (!(value instanceof Uint8Array)) {
+            reader.releaseLock()
+            reject(new TypeError('refused'))
+            return
+          }
+          outgoing.write(value, pump)
+        })
+        .catch((error: unknown) => {
+          reader.releaseLock()
+          reject(error)
+        })
+    }
+    pump()
+    return
+  }
+  reject(new TypeError('refused'))
+}
+
 /**
- * The origin pin in front of `fetch`: only `https:` (or `http:` to the
+ * One request to the checked address: Node's HTTP stack dials it through a
+ * `lookup` that answers that address only, so the address checked is the
+ * address dialled even when DNS changes in between (DNS rebinding). TLS
+ * still sends and verifies the original name (`servername` defaults to it)
+ * and the `Host` header carries it, as web fetch's pinned transport does
+ * (`src/host/web/pinnedRequest.ts`). Answers a fetch `Response`; redirects
+ * are refused like `redirect: 'error'`.
+ */
+function sendPinned(url: URL, init: RequestInit | undefined, address: string): Promise<Response> {
+  const isTls = url.protocol === 'https:'
+  const headers = new Headers(init?.headers ?? {})
+  headers.set('host', url.host)
+  const payload = init?.body
+  if (typeof payload === 'string') headers.set('content-length', String(Buffer.byteLength(payload)))
+  else if (payload instanceof Uint8Array || payload instanceof ArrayBuffer)
+    headers.set('content-length', String(payload.byteLength))
+  const family =
+    isIP(address) === ADDRESS_FAMILIES.ipv6 ? ADDRESS_FAMILIES.ipv6 : ADDRESS_FAMILIES.ipv4
+  const options: RequestOptions = {
+    method: init?.method ?? 'GET',
+    host: url.hostname,
+    port: url.port === '' ? undefined : Number(url.port),
+    path: `${url.pathname}${url.search}`,
+    headers: Object.fromEntries(headers.entries()),
+    family,
+    lookup: (_hostname, _lookupOptions, callback) => {
+      callback(null, address, family)
+    },
+    signal: init?.signal ?? undefined,
+  }
+  return new Promise<Response>((resolve, reject) => {
+    const outgoing = (isTls ? httpsRequest : httpRequest)(options, (incoming) => {
+      if (incoming.statusCode !== undefined && HTTP_REDIRECT_STATUSES.has(incoming.statusCode)) {
+        incoming.destroy()
+        outgoing.destroy()
+        reject(new TypeError('fetch failed'))
+        return
+      }
+      const responseHeaders = new Headers()
+      for (const [name, value] of Object.entries(incoming.headers)) {
+        if (value === undefined) continue
+        const items = Array.isArray(value) ? value : [value]
+        for (const item of items) responseHeaders.append(name, item)
+      }
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          incoming.on('data', (chunk: Buffer) => {
+            controller.enqueue(new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength))
+          })
+          incoming.on('end', () => {
+            controller.close()
+          })
+          incoming.on('error', (error: unknown) => {
+            controller.error(error)
+          })
+        },
+        cancel() {
+          incoming.destroy()
+        },
+      })
+      resolve(
+        new Response(body, {
+          status: incoming.statusCode ?? 0,
+          statusText: incoming.statusMessage ?? '',
+          headers: responseHeaders,
+        }),
+      )
+    })
+    outgoing.on('error', reject)
+    endPinnedBody(outgoing, payload ?? undefined, reject)
+  })
+}
+
+/**
+ * The origin pin in front of the provider: only `https:` (or `http:` to the
  * pinned loopback origin) on the resolved origin, with no userinfo, query
- * (except the codec's own) or fragment, and only an allowlisted path. A
- * refusal throws before anything is sent.
+ * (except the codec's own) or fragment, and only an allowlisted path. The
+ * name is resolved once per request, the answers are checked against the
+ * saved network, and the request dials the checked address itself — never a
+ * name looked up again at connect time. A refusal throws before anything is
+ * sent.
  */
 export function pinProviderFetch(
-  fetch: typeof globalThis.fetch,
   provider: ResolvedProvider,
   rules: readonly ProviderPathRule[],
   resolveHost: (hostname: string) => Promise<readonly string[]>,
@@ -380,9 +515,14 @@ export function pinProviderFetch(
       // (`limit`, `zdr`, `supported_parameters`); nothing else passes.
       throw new Error('refused')
     }
+    // Resolved once here, and dialled as resolved below: the address
+    // checked is the address dialled, so a forbidden answer that arrives
+    // after the check cannot be connected to.
     const answers = await resolveHost(parsed.hostname)
     if (!isEndpointBindingCurrent(provider, answers)) throw new Error('rebinding')
-    return await fetch(url, { ...init, redirect: 'error' })
+    const address = answers[0]
+    if (address === undefined) throw new Error('rebinding')
+    return await sendPinned(parsed, init, address)
   }
 }
 
@@ -418,7 +558,6 @@ export interface ProviderRunInput {
   /** The qualified model ref (`parseExec` qualifies a bare id). */
   readonly model: string | undefined
   readonly keyFromStdin: boolean
-  readonly baseFetch: typeof fetch
 }
 
 export type ProviderAssemblyFailure =
@@ -546,12 +685,7 @@ export async function assembleProviderRun(
       resolveHost: input.resolveHost,
       provider,
       modelRef,
-      fetch: pinProviderFetch(
-        input.baseFetch,
-        provider,
-        allowedProviderPaths(provider),
-        input.resolveHost,
-      ),
+      fetch: pinProviderFetch(provider, allowedProviderPaths(provider), input.resolveHost),
       secrets: memory ?? input.secrets,
       literals: key === undefined ? [] : [key],
       memory,

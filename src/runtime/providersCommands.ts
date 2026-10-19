@@ -92,7 +92,6 @@ export interface ProvidersDeps {
   readonly withUserFileLock?: (operation: () => Promise<number>) => Promise<number>
   readonly secrets: SecretStore
   readonly resolveHost: (hostname: string) => Promise<readonly string[]>
-  readonly fetch: typeof fetch
   /** One line from the user, not echoed when it comes from a terminal. */
   readonly readSecret: (prompt: string) => Promise<string>
   readonly print: (line: string) => void
@@ -349,7 +348,6 @@ function ignoreProbeLog(): void {
  * its cost is asked first.
  */
 export async function probeProvider(
-  fetch: typeof globalThis.fetch,
   provider: ResolvedProvider,
   key: string | undefined,
   resolveHost: ProvidersDeps['resolveHost'],
@@ -370,7 +368,7 @@ export async function probeProvider(
   const auth = await import('../host/backend/configuredProvidersEntry')
   shared.setUiText(UI_TEXT, uiLocale())
   auth.setUiText(UI_TEXT, uiLocale())
-  const pinned = pinProviderFetch(fetch, provider, allowedProviderPaths(provider), resolveHost)
+  const pinned = pinProviderFetch(provider, allowedProviderPaths(provider), resolveHost)
   // Lane PROVERRORS: an answer reads with the provider's own format parser
   // and refusal sentence, a send with no answer with the network codes and
   // its unknown fate — the configured path's one reader, never a bare status.
@@ -458,7 +456,6 @@ export async function probeProvider(
         base === provider.origin
           ? pinned
           : pinProviderFetch(
-              fetch,
               { ...provider, origin: base, network: 'public', request: undefined },
               [{ kind: 'exact', path }],
               resolveHost,
@@ -696,7 +693,7 @@ export async function providersAdd(
         : fill(UI_TEXT.providerEndpointRefused, { reason: UI_TEXT.providerProbeRebinding }),
     )
   }
-  const probe = await probeProvider(deps.fetch, resolved.provider, key, deps.resolveHost)
+  const probe = await probeProvider(resolved.provider, key, deps.resolveHost)
   if (!probe.ok) {
     return failed(
       deps,
@@ -878,7 +875,7 @@ export async function providersTest(deps: ProvidersDeps, providerId: string): Pr
       fill(UI_TEXT.providerEndpointRefused, { reason: UI_TEXT.providerProbeRebinding }),
     )
   }
-  const probe = await probeProvider(deps.fetch, provider, key, deps.resolveHost)
+  const probe = await probeProvider(provider, key, deps.resolveHost)
   if (!probe.ok) {
     return failed(
       deps,
