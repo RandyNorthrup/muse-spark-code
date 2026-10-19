@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { dispatchHooks, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
-import { structuredSideCall } from '../../src/core/backends/modelapi/structuredOutput'
+import {
+  type SideCallAttempt,
+  structuredSideCall,
+} from '../../src/core/backends/modelapi/structuredOutput'
 import {
   boundToolResultText,
   validateToolResultCap,
@@ -13,6 +16,21 @@ const answerSchema = z.object({ answer: z.string() })
 
 const formats = { state: 'yes', value: ['json_schema'] } as const
 
+/** One probe call's shared options; each test brings its own request behaviour. */
+function probeOptions(request: (attempt: SideCallAttempt) => Promise<string>, notices: string[]) {
+  return {
+    formats,
+    name: 'probe',
+    schema: answerSchema,
+    request,
+    signal: new AbortController().signal,
+    fallback: () => ({ answer: 'fallback' }),
+    notice: (text: string) => {
+      notices.push(text)
+    },
+  }
+}
+
 // NOLIMITSRUN (PLAN.md D121): no repair bound of ours. A structured side
 // call repairs until the answer validates or the person stops it, saying so
 // on every round; Stop still ends it.
@@ -21,21 +39,13 @@ describe('no model-loop limits: structured-output repairs', () => {
     const repairs: boolean[] = []
     const notices: string[] = []
     let calls = 0
-    const result = await structuredSideCall({
-      formats,
-      name: 'probe',
-      schema: answerSchema,
-      request: (attempt) => {
+    const result = await structuredSideCall(
+      probeOptions((attempt) => {
         calls += 1
         repairs.push(attempt.repair)
         return Promise.resolve(calls < 3 ? 'not json' : JSON.stringify({ answer: 'done' }))
-      },
-      signal: new AbortController().signal,
-      fallback: () => ({ answer: 'fallback' }),
-      notice: (text) => {
-        notices.push(text)
-      },
-    })
+      }, notices),
+    )
     expect(result).toEqual({ answer: 'done' })
     expect(calls).toBe(3)
     expect(repairs).toEqual([false, true, true])
@@ -46,21 +56,13 @@ describe('no model-loop limits: structured-output repairs', () => {
   it('says so on a failed request round and keeps going', async () => {
     const notices: string[] = []
     let calls = 0
-    const result = await structuredSideCall({
-      formats,
-      name: 'probe',
-      schema: answerSchema,
-      request: () => {
+    const result = await structuredSideCall(
+      probeOptions(() => {
         calls += 1
         if (calls === 1) throw new Error('flaky transport')
         return Promise.resolve(JSON.stringify({ answer: 'done' }))
-      },
-      signal: new AbortController().signal,
-      fallback: () => ({ answer: 'fallback' }),
-      notice: (text) => {
-        notices.push(text)
-      },
-    })
+      }, notices),
+    )
     expect(result).toEqual({ answer: 'done' })
     expect(calls).toBe(2)
     expect(notices).toHaveLength(1)
