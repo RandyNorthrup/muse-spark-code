@@ -1,42 +1,16 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { AttachmentStore } from '../../src/core/attachments'
 import { UI_TEXT } from '../../src/shared/constants'
+import { attachmentStore } from './helpers/attachedRecords'
+import { pngFixture } from './helpers/media/fixtures'
 import { pdfFixture } from './helpers/pdfFixture'
 import { resolveModelCapabilities } from '../../src/core/providers/capabilities'
-
-const dimension = (value: number) => [
-  (value >>> 24) & 0xff,
-  (value >>> 16) & 0xff,
-  (value >>> 8) & 0xff,
-  value & 0xff,
-]
-
-function png(width: number, height: number, padding = 0): Uint8Array {
-  const header = [
-    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52,
-  ]
-  return Uint8Array.from([
-    ...header,
-    ...dimension(width),
-    ...dimension(height),
-    ...Array.from({ length: padding }, () => 0),
-  ])
-}
-
-function store() {
-  let next = 0
-  return new AttachmentStore(() => {
-    next += 1
-    return `att-${String(next)}`
-  })
-}
 
 describe('AttachmentStore', () => {
   it('admits images only within the selected record MIME, bytes and count policy', () => {
     const source = { kind: 'user' as const }
     const identity = { provider: 'custom', nativeModel: 'model', format: 'chat' as const }
-    const image = png(2, 2)
+    const image = pngFixture(2, 2)
     const record = resolveModelCapabilities(identity, [
       {
         source,
@@ -50,27 +24,36 @@ describe('AttachmentStore', () => {
         },
       },
     ])
-    const attachments = store()
+    const attachments = attachmentStore()
     expect(attachments.add('one.png', image, true, false, record).ok).toBe(true)
     expect(attachments.add('two.png', image, true, false, record).ok).toBe(false)
-    expect(store().add('large.png', png(2, 2, 1), true, false, record).ok).toBe(false)
+    expect(attachmentStore().add('large.png', pngFixture(2, 2, 1), true, false, record).ok).toBe(
+      false,
+    )
     const jpegOnly = resolveModelCapabilities(identity, [
       {
         source,
         fields: { modalities: { image: { state: 'yes', value: { mimes: ['image/jpeg'] } } } },
       },
     ])
-    expect(store().add('png.png', image, true, false, jpegOnly).ok).toBe(false)
+    expect(attachmentStore().add('png.png', image, true, false, jpegOnly).ok).toBe(false)
     expect(
-      store().add('unknown.png', image, true, false, resolveModelCapabilities(identity)).ok,
+      attachmentStore().add('unknown.png', image, true, false, resolveModelCapabilities(identity))
+        .ok,
     ).toBe(false)
     expect(
-      store().add('unknown.pdf', pdfFixture(1), true, false, resolveModelCapabilities(identity)).ok,
+      attachmentStore().add(
+        'unknown.pdf',
+        pdfFixture(1),
+        true,
+        false,
+        resolveModelCapabilities(identity),
+      ).ok,
     ).toBe(false)
   })
   it('accepts a supported image and reports its size', () => {
-    const attachments = store()
-    const result = attachments.add('shot.png', png(686, 695))
+    const attachments = attachmentStore()
+    const result = attachments.add('shot.png', pngFixture(686, 695))
     expect(result).toEqual({
       ok: true,
       attachment: {
@@ -87,7 +70,7 @@ describe('AttachmentStore', () => {
   })
 
   it('refuses unsupported bytes, and admits past the removed size and count bounds', () => {
-    const attachments = store()
+    const attachments = attachmentStore()
     expect(attachments.add('doc.pdf', Uint8Array.from([1, 2, 3]))).toMatchObject({
       ok: false,
       reason: UI_TEXT.invalidPdf,
@@ -97,15 +80,17 @@ describe('AttachmentStore', () => {
     // both admit and the provider answers for them at send. (The Model API
     // path: the Muse Code path still answers to its 8 MiB frame budget, so
     // each path gets its own store here.)
-    expect(store().add('huge.png', png(1, 1, 10 * 1024 * 1024), true).ok).toBe(true)
+    expect(attachmentStore().add('huge.png', pngFixture(1, 1, 10 * 1024 * 1024), true).ok).toBe(
+      true,
+    )
     for (let index = 0; index < 21; index += 1) {
-      expect(attachments.add(`${String(index)}.png`, png(1, 1)).ok).toBe(true)
+      expect(attachments.add(`${String(index)}.png`, pngFixture(1, 1)).ok).toBe(true)
     }
   })
 
   it('accepts a PDF on Model API, preserves its name and bytes, and refuses it on Muse Code', () => {
     const bytes = pdfFixture(3)
-    const attachments = store()
+    const attachments = attachmentStore()
     expect(attachments.add('report.pdf', bytes)).toEqual({
       ok: false,
       reason: UI_TEXT.pdfNeedsModelApi,
@@ -137,23 +122,23 @@ describe('AttachmentStore', () => {
     // budget and the 32 MB document bound no longer refuse at attach — the
     // page count is still read (the send path packs against the record),
     // and the provider answers for the set at send.
-    const attachments = store()
+    const attachments = attachmentStore()
     expect(attachments.add('first.pdf', pdfFixture(49), true)).toMatchObject({
       ok: true,
       attachment: { pageCount: 49 },
     })
-    expect(attachments.add('a.png', png(1, 1), true).ok).toBe(true)
-    expect(attachments.add('b.png', png(1, 1), true).ok).toBe(true)
+    expect(attachments.add('a.png', pngFixture(1, 1), true).ok).toBe(true)
+    expect(attachments.add('b.png', pngFixture(1, 1), true).ok).toBe(true)
     const oversized = new Uint8Array(33 * 1024 * 1024)
     oversized.set(new TextEncoder().encode('%PDF-1.4'))
     expect(attachments.add('big.pdf', oversized, true).ok).toBe(true)
     attachments.clear()
     expect(attachments.add('unknown.pdf', new TextEncoder().encode('%PDF-1.4'), true).ok).toBe(true)
-    expect(attachments.add('another.png', png(1, 1), true).ok).toBe(true)
+    expect(attachments.add('another.png', pngFixture(1, 1), true).ok).toBe(true)
   })
 
   it('does not under-reserve image slots from a nested PDF dictionary count', () => {
-    const attachments = store()
+    const attachments = attachmentStore()
     expect(
       attachments.add('nested.pdf', pdfFixture(50, '/Custom << /Count 1 >>'), true),
     ).toMatchObject({
@@ -161,7 +146,7 @@ describe('AttachmentStore', () => {
       attachment: { pageCount: 50 },
     })
     // D121: without a record the old 50-slot budget no longer refuses.
-    expect(attachments.add('extra.png', png(1, 1), true).ok).toBe(true)
+    expect(attachments.add('extra.png', pngFixture(1, 1), true).ok).toBe(true)
   })
 
   it.each([
@@ -169,13 +154,13 @@ describe('AttachmentStore', () => {
     ['indirect-type-decoy.pdf', 'indirect Type'],
     ['plus-indirect-type-decoy.pdf', 'signed indirect Type'],
   ])('weighs an uncountable %s (%s) at the full page budget', (fixture) => {
-    const attachments = store()
+    const attachments = attachmentStore()
     const bytes = readFileSync(new URL(`../fixtures/${fixture}`, import.meta.url))
     expect(attachments.add(fixture, bytes, true).ok).toBe(true)
     expect(attachments.list()[0]?.pageCount).toBeUndefined()
     // D121: without a record the weight no longer refuses at attach — the
     // send path packs the request against the record instead.
-    expect(attachments.add('extra.png', png(1, 1), true).ok).toBe(true)
+    expect(attachments.add('extra.png', pngFixture(1, 1), true).ok).toBe(true)
   })
 
   it('keeps combined encoded media past the old message cap, every attachment retained', () => {
@@ -183,14 +168,14 @@ describe('AttachmentStore', () => {
     const one = Buffer.from(pdfFixture(1))
     const padding = Buffer.from(`%${'0'.repeat(25_000_000)}\n`)
     const big = Uint8Array.from(Buffer.concat([one.subarray(0, 9), padding, one.subarray(9)]))
-    const attachments = store()
+    const attachments = attachmentStore()
     expect(attachments.add('first.pdf', big, true).ok).toBe(true)
     expect(attachments.add('second.pdf', big, true).ok).toBe(true)
     expect(attachments.list()).toHaveLength(2)
   })
 
   it('accepts bounded UTF-8 text as a named part, not as a guessed binary file', () => {
-    const attachments = store()
+    const attachments = attachmentStore()
     const bytes = new TextEncoder().encode('first line\nsecond line')
     expect(attachments.add('notes.md', bytes, false, true)).toMatchObject({
       ok: true,
@@ -221,7 +206,7 @@ describe('AttachmentStore', () => {
   })
 
   it('refuses aggregate Muse text before ten valid files overflow an MSP frame', () => {
-    const attachments = store()
+    const attachments = attachmentStore()
     // Ten 1 MiB files still overflow the 8 MiB MSP frame budget — the
     // transport bound, not a text size of ours.
     const bytes = new Uint8Array(1024 * 1024).fill(0x61)
@@ -234,7 +219,7 @@ describe('AttachmentStore', () => {
   })
 
   it('refuses Model API text combinations that can exceed the context by themselves', () => {
-    const attachments = store()
+    const attachments = attachmentStore()
     // About 900,000 estimated tokens a file: past the window-minus-reserve
     // budget by itself, so every attempt refuses and nothing is retained.
     // One shared buffer: the refusal retains nothing, and twenty separate
@@ -254,12 +239,12 @@ describe('AttachmentStore', () => {
     // removed 1 MiB file ceiling no longer refuses on Muse Code; Muse Code
     // answers for its own ceiling at send.
     const plan = new Uint8Array(2 * 1024 * 1024).fill(0x61)
-    expect(store().add('plan.md', plan, true, true).ok).toBe(true)
-    expect(store().add('plan.md', plan, false, true).ok).toBe(true)
+    expect(attachmentStore().add('plan.md', plan, true, true).ok).toBe(true)
+    expect(attachmentStore().add('plan.md', plan, false, true).ok).toBe(true)
   })
 
   it('budgets dense Model API text together and restores room after removal', () => {
-    const attachments = store()
+    const attachments = attachmentStore()
     const dense = new TextEncoder().encode('"\\\n'.repeat(200 * 1024))
     const first = attachments.add('source.ts', dense, true, true)
     expect(first.ok).toBe(true)
@@ -277,7 +262,7 @@ describe('AttachmentStore', () => {
   })
 
   it('counts JSON escaping and frees the Muse frame budget when an attachment is removed', () => {
-    const attachments = store()
+    const attachments = attachmentStore()
     const escaped = new TextEncoder().encode('"\\\n'.repeat(Math.floor((1024 * 1024) / 3)))
     const first = attachments.add('first.txt', escaped, false, true)
     expect(first.ok).toBe(true)
@@ -294,8 +279,8 @@ describe('AttachmentStore', () => {
   })
 
   it('counts existing image parts when admitting Muse text', () => {
-    const attachments = store()
-    const image = png(1, 1, 5 * 1024 * 1024)
+    const attachments = attachmentStore()
+    const image = pngFixture(1, 1, 5 * 1024 * 1024)
     expect(attachments.add('first.png', image, false, true).ok).toBe(true)
     const text = new Uint8Array(1024 * 1024).fill(0x61)
     expect(attachments.add('first.txt', text, false, true).ok).toBe(true)
@@ -306,10 +291,10 @@ describe('AttachmentStore', () => {
   })
 
   it('builds base64 image parts for the requested ids and drops them once released', () => {
-    const attachments = store()
-    attachments.add('a.png', png(2, 3))
-    attachments.add('b.png', png(4, 5))
-    attachments.add('c.png', png(6, 7))
+    const attachments = attachmentStore()
+    attachments.add('a.png', pngFixture(2, 3))
+    attachments.add('b.png', pngFixture(4, 5))
+    attachments.add('c.png', pngFixture(6, 7))
     const parts = attachments.partsFor(['att-3', 'missing', 'att-1'])
     // Kept until the message is accepted (D26): a refused send tries again with them.
     expect(attachments.size).toBe(3)
@@ -317,14 +302,14 @@ describe('AttachmentStore', () => {
     expect(parts).toEqual([
       {
         type: 'image',
-        base64Data: Buffer.from(png(6, 7)).toString('base64'),
+        base64Data: Buffer.from(pngFixture(6, 7)).toString('base64'),
         mediaType: 'image/png',
         width: 6,
         height: 7,
       },
       {
         type: 'image',
-        base64Data: Buffer.from(png(2, 3)).toString('base64'),
+        base64Data: Buffer.from(pngFixture(2, 3)).toString('base64'),
         mediaType: 'image/png',
         width: 2,
         height: 3,
@@ -334,9 +319,9 @@ describe('AttachmentStore', () => {
   })
 
   it('removes and clears', () => {
-    const attachments = store()
-    attachments.add('a.png', png(1, 1))
-    attachments.add('b.png', png(1, 1))
+    const attachments = attachmentStore()
+    attachments.add('a.png', pngFixture(1, 1))
+    attachments.add('b.png', pngFixture(1, 1))
     expect(attachments.remove('att-1')).toBe(true)
     expect(attachments.remove('att-1')).toBe(false)
     attachments.clear()
@@ -346,7 +331,7 @@ describe('AttachmentStore', () => {
 
 describe('AttachmentStore media registrations (RVMEDIAV 7)', () => {
   it('releases a discarded or cleared media chip, never one whose message was accepted', () => {
-    const media = store()
+    const media = attachmentStore()
     const released: string[] = []
     const info = {
       kind: 'audio' as const,
