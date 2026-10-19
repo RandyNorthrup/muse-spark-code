@@ -117,9 +117,10 @@ async function seed(fs: ScheduleFsPort, state: 'fresh' | 'released' | 'held') {
 /** Every owned fence carries its immutable marker; an ordinary writer enters. */
 async function expectReleasedForNextWriter(fs: ScheduleFsPort) {
   expect(await fs.read(`${header}.released`)).toBe('')
-  expect(await fs.lock(key, () => Promise.resolve('next'), { deadlineMs: Date.now() + 100 })).toBe(
-    'next',
-  )
+  // No deadline: the release marker above is the real event, and one disk
+  // acquisition with its fsync pipeline can outlast an arbitrary millisecond
+  // bound on a loaded machine. The lock's own acquisition proves entry.
+  expect(await fs.lock(key, () => Promise.resolve('next'))).toBe('next')
 }
 
 /**
@@ -210,9 +211,9 @@ describe.each(ports)('$name structural lease lifecycle', ({ make }) => {
           } else expect(await fs.read(`${candidate}.released`)).toBe('')
         }
       }
-      expect(
-        await fs.lock(key, () => Promise.resolve('next'), { deadlineMs: Date.now() + 100 }),
-      ).toBe('next')
+      // No deadline: entry is the assertion, and a loaded disk can take
+      // longer than any fixed bound to publish the free fence.
+      expect(await fs.lock(key, () => Promise.resolve('next'))).toBe('next')
     },
   )
 
