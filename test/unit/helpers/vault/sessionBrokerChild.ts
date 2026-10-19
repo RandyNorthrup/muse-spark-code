@@ -7,20 +7,11 @@ import { memoryKeyring } from '../keyring'
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
-import * as z from 'zod/mini'
-import { createConnection } from 'node:net'
-import { once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
+import { holdBrokerSocket, parseBrokerChildContext } from './brokerChildSetup'
 // Only generated fixture paths and process facts, no credential or model access.
 void runVaultBrokerEntry(async () => {
-  const context = z
-    .strictObject({
-      dataDir: z.string(),
-      runDirectory: z.string(),
-      installRoot: z.string(),
-      userSession: z.string(),
-    })
-    .parse(JSON.parse(process.argv[2] ?? 'null'))
+  const context = parseBrokerChildContext()
   const gate = path.join(context.installRoot, 'gate')
   try {
     await readFile(gate)
@@ -31,14 +22,7 @@ void runVaultBrokerEntry(async () => {
   }
   const bindings = await createVaultBrokerBindings(context, { keyring: memoryKeyring().openEntry })
   const handle = await createVaultBrokerProcess(context, bindings)
-  // Test ownership, including delayed authentication: only the test's signal ends this fixture.
-  const keepAlive = createConnection(handle.location.lock.socket)
-  await once(keepAlive, 'connect')
-  void handle.closed
-    .finally(() => keepAlive.destroy())
-    .catch(() => {
-      process.exitCode = 1
-    })
+  await holdBrokerSocket(handle)
   process.send?.({ ready: true })
   // This intentionally writes through inherited pipes too; closed readers must be harmless.
   process.stderr.write('vault-audit-refused\n')

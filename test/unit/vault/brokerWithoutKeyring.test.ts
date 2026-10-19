@@ -1,13 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
-import { once } from 'node:events'
-import { lstat, mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { spawn, type ChildProcess } from 'node:child_process'
+import { lstat, mkdir, mkdtemp } from 'node:fs/promises'
 import { constants, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { build } from 'esbuild'
 import { createRequire } from 'node:module'
-import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
+import {
+  awaitFixtureMessage,
+  bundleFixtureChild,
+  compileVaultPeer,
+  shutdownFixtureChild,
+  sweepFixtureChildren,
+  trackFixtureChild,
+} from '../helpers/vault/fixtureChildren'
 import {
   VAULT_SOCKET_DIR_HASH_CHARS,
   VAULT_SOCKET_DIR_PREFIX,
@@ -85,46 +90,15 @@ beforeAll(async () => {
       '@napi-rs/keyring',
     ),
   ).toThrow()
-  const helper = vaultPeerExecutable(fixture.root)
-  await mkdir(path.dirname(helper), { recursive: true })
+  await compileVaultPeer(fixture.root)
   await mkdir(path.join(fixture.root, 'dist'))
-  execFileSync('/usr/bin/cc', [
-    '-Os',
-    '-Wall',
-    '-Wextra',
-    '-Werror',
-    'native/posix/vaultPeer.c',
-    '-o',
-    helper,
-  ])
-  await build({
-    entryPoints: ['test/unit/helpers/vault/sessionBrokerNoKeyringChild.ts'],
-    outfile: path.join(fixture.root, 'dist', 'vaultBrokerNoKeyring.js'),
-    bundle: true,
-    external: ['@napi-rs/keyring'],
-    define: { 'require.main': 'undefined' },
-    platform: 'node',
-    format: 'cjs',
-    plugins: [
-      {
-        name: 'generated-admission',
-        setup(builder) {
-          builder.onResolve({ filter: /admission(?:\.js)?$/ }, () => ({
-            path: path.resolve('test/unit/helpers/vault/sessionAdmission.ts'),
-          }))
-        },
-      },
-    ],
-  })
+  await bundleFixtureChild(
+    'test/unit/helpers/vault/sessionBrokerNoKeyringChild.ts',
+    path.join(fixture.root, 'dist', 'vaultBrokerNoKeyring.js'),
+    { external: ['@napi-rs/keyring'], define: { 'require.main': 'undefined' } },
+  )
 })
-afterAll(async () => {
-  for (const child of children) {
-    child.kill('SIGKILL')
-    if (child.exitCode === null && child.signalCode === null) await once(child, 'exit')
-  }
-  if (!fixture.root) return
-  await rm(fixture.root, { recursive: true, force: true })
-})
+afterAll(() => sweepFixtureChildren(children, fixture.root))
 describe.skipIf(!hasSocketFit || process.platform === 'win32')(
   'vault broker without the OS keyring binding',
   () => {
@@ -155,37 +129,17 @@ describe.skipIf(!hasSocketFit || process.platform === 'win32')(
           stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
         },
       )
-      children.add(child)
-      if (child.stdout === null || child.stderr === null)
-        throw new Error('missing fixture diagnostic pipes')
-      child.stdout.resume()
-      const errors: Buffer[] = []
-      child.stderr.on('data', (bytes: Buffer) => {
-        errors.push(bytes)
-      })
+      const errors = trackFixtureChild(children, child)
       // A crashed child must fail fast with its diagnostics, never hang to
       // the test timeout: readiness and early exit race each other.
-      const ready = await Promise.race([
-        (async () => ({ kind: 'ready', message: await once(child, 'message') }) as const)(),
-        (async () => {
-          await once(child, 'exit')
-          return {
-            kind: 'exited',
-            diagnostics: Buffer.concat(errors).toString('utf8'),
-          } as const
-        })(),
-      ])
-      if (ready.kind === 'exited')
+      const ready = await awaitFixtureMessage(child, errors)
+      if ('diagnostics' in ready)
         throw new Error(`broker child exited before ready: ${ready.diagnostics}`)
       expect(ready.message[0]).toEqual({ ready: true })
       // Ready is sent only after the fixture connected to the broker
       // socket and the in-process OS-store refusal held, so a clean
       // shutdown is the remaining assertion.
-      const exited = once(child, 'exit')
-      child.kill('SIGTERM')
-      const [code] = await exited
-      children.delete(child)
-      expect(code).toBe(0)
+      await shutdownFixtureChild(children, child)
     })
   },
 )
