@@ -1191,8 +1191,17 @@ function parseReport(argv: readonly string[], canUseNamed = true): RuntimeComman
         )
       )
         return { command: 'reports', args: argv }
-    } catch {
-      return { command: 'reports', args: argv }
+    } catch (error) {
+      // An M93-option parse failure belongs to the named reports engine,
+      // which parses or refuses with its own words; anything else is not
+      // this parse's answer to give.
+      if (error instanceof Error && 'code' in error) {
+        if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION')
+          return { command: 'reports', args: argv }
+        if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+          return { command: 'reports', args: argv }
+      }
+      throw error
     }
   }
   try {
@@ -1215,8 +1224,16 @@ function parseReport(argv: readonly string[], canUseNamed = true): RuntimeComman
         includeEvents: values['no-events'] !== true,
       },
     }
-  } catch {
-    return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+  } catch (error) {
+    // Only the option parser fails here (unknown option, invalid value);
+    // anything else is not this parse's answer to give.
+    if (error instanceof Error && 'code' in error) {
+      if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION')
+        return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+      if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+        return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+    }
+    throw error
   }
 }
 

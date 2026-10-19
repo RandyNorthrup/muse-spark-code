@@ -306,7 +306,9 @@ export class RuntimeGit implements ConversationGitPort {
   private isStillCurrent(): boolean {
     try {
       this.checkCurrent()
-    } catch {
+    } catch (error: unknown) {
+      // Only a refusal means stale; anything else is not this probe's answer.
+      if (!(error instanceof NativeGitRefusalError)) throw error
       return false
     }
     return !this.operationAbort.signal.aborted && !this.deps.signal.aborted

@@ -160,6 +160,11 @@ function missingMark(error: unknown): string {
   return isMissingPath(error) ? 'absent' : 'unreadable'
 }
 
+/** A link's mark pair when its target cannot be sampled: absent, or unreadable. */
+function unreadableLinkMark(own: string, error: unknown): string {
+  return JSON.stringify([own, missingMark(error)])
+}
+
 /**
  * One file's mark: its own entry, and for a link also the file git reads
  * through it (RVM123G3G: a linked configuration file rewritten behind an
@@ -179,7 +184,7 @@ function markOf(file: string): string {
   try {
     target = sampleOf(statIdentitySync(file))
   } catch (error: unknown) {
-    target = missingMark(error)
+    return unreadableLinkMark(sampleOf(own), error)
   }
   return JSON.stringify([sampleOf(own), target])
 }

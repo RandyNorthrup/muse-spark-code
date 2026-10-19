@@ -993,15 +993,18 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         } catch (error: unknown) {
           // The providers file, a stored ChatGPT grant or the store: each in
           // its own words, never all of them as the store. The file's refusal
-          // carries its own sentence (unparseable or invalid).
+          // carries its own sentence (unparseable or invalid); anything else
+          // is not this account read's answer to give.
           if (isInvalidProvidersFileError(error))
             return { state: 'unavailable', message: error.message }
-          return {
-            state: 'unavailable',
-            message:
-              chatGpt.failureOf(error) ??
-              fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
-          }
+          const grantWords = chatGpt.failureOf(error)
+          if (grantWords !== undefined) return { state: 'unavailable', message: grantWords }
+          if (error instanceof StoreUnavailableError)
+            return {
+              state: 'unavailable',
+              message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
+            }
+          throw error
         }
       }
     }

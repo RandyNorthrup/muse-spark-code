@@ -57,6 +57,7 @@ import {
   formatStoredProviderSecret,
   parseStoredProviderSecret,
   providerSecretAccount,
+  StoreUnavailableError,
 } from './keyStore'
 import {
   isEndpointBindingCurrent,
@@ -182,7 +183,10 @@ export async function commitProviderChange(
     if (account !== undefined) {
       try {
         previous = await deps.secrets.get(account)
-      } catch {
+      } catch (error: unknown) {
+        // Only a store failure fails the save this way; anything else is
+        // not this read's answer to give.
+        if (!(error instanceof StoreUnavailableError)) throw error
         return failed(
           deps,
           fill(UI_TEXT.providerSaveFailed, { reason: UI_TEXT.providerSaveSecretFailed }),
@@ -208,8 +212,11 @@ export async function commitProviderChange(
         if (isRemoving) await deps.secrets.delete(account)
         else if (secret !== undefined) await deps.secrets.store(account, secret)
       }
-    } catch {
+    } catch (error: unknown) {
       // A rejecting store may have changed its entry before reporting failure.
+      // Only a store failure fails the save this way; anything else is not
+      // this write's answer to give.
+      if (!(error instanceof StoreUnavailableError)) throw error
       const wasRestored = await canRestore()
       return failed(
         deps,
@@ -244,7 +251,7 @@ export async function commitProviderChange(
     try {
       await result
     } catch {
-      /* A failed commit must release queued writers. */
+      // A failed commit still releases queued writers: the tail settles either way.
     }
   })()
   providerUpdates.set(deps.readUserFile, tail)
@@ -751,7 +758,9 @@ async function checkAddAddress(
   let url: URL
   try {
     url = new URL(candidate)
-  } catch {
+  } catch (error: unknown) {
+    // Only an invalid address fails here; anything else is not this check's answer.
+    if (!(error instanceof TypeError)) throw error
     return { ok: false, reason: 'bad-address' }
   }
   const answers = await deps.resolveHost(url.hostname)

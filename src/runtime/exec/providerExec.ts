@@ -273,7 +273,9 @@ export async function resolveProvider(
   try {
     const azure = preset.origin.kind === 'azure-resource' ? azureOrigin(address) : undefined
     url = new URL(azure ?? address)
-  } catch {
+  } catch (error) {
+    // Only an invalid address fails here; anything else is not this resolution's answer.
+    if (!(error instanceof TypeError)) throw error
     return { ok: false, error: 'bad-address' }
   }
   const answers = await resolveHost(url.hostname)
@@ -361,7 +363,9 @@ export async function readProviderKey(
   let value: unknown
   try {
     value = JSON.parse(stored)
-  } catch {
+  } catch (error) {
+    // Only malformed text fails here; anything else is not this parse's answer.
+    if (!(error instanceof SyntaxError)) throw error
     return { ok: false, error: 'unparseable' }
   }
   const parsed = parseStoredProviderSecret(value)
@@ -404,7 +408,9 @@ export function pinProviderFetch(
     let parsed: URL
     try {
       parsed = new URL(url)
-    } catch {
+    } catch (error) {
+      // Only an invalid address fails here; anything else is not this pin's answer.
+      if (!(error instanceof TypeError)) throw error
       throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     if (parsed.username !== '' || parsed.password !== '') {
@@ -440,8 +446,8 @@ export function pinProviderFetch(
           init?.signal ?? new AbortController().signal,
         )) ?? []
       if (init?.signal?.aborted === true) init.signal.throwIfAborted()
-    } catch {
-      throw new UserRefusalError(UI_TEXT.providerProbeUnreachable, 'not_sent')
+    } catch (error: unknown) {
+      throw new UserRefusalError(UI_TEXT.providerProbeUnreachable, 'not_sent', error)
     }
     if (!isEndpointBindingCurrent(provider, answers))
       throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
@@ -450,12 +456,14 @@ export function pinProviderFetch(
     try {
       return await fetch(url, { ...init, redirect: 'error' })
     } catch (error: unknown) {
-      const cause = error instanceof Error ? error.cause : undefined
+      // A refused connection reads as unreachable with nothing sent; any
+      // other dispatch failure stays what it is.
       if (
-        typeof cause === 'object' &&
-        cause !== null &&
-        'code' in cause &&
-        cause.code === 'ECONNREFUSED'
+        error instanceof Error &&
+        typeof error.cause === 'object' &&
+        error.cause !== null &&
+        'code' in error.cause &&
+        error.cause.code === 'ECONNREFUSED'
       )
         throw new UserRefusalError(UI_TEXT.providerProbeUnreachable, 'not_sent', error)
       throw error

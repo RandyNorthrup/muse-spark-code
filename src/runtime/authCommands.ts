@@ -140,7 +140,9 @@ export async function authStatusAll(
     let parsed: unknown
     try {
       parsed = JSON.parse(value)
-    } catch {
+    } catch (error) {
+      // Only malformed text fails here; anything else is not this parse's answer.
+      if (!(error instanceof SyntaxError)) throw error
       parsed = undefined
     }
     const record = parsed === undefined ? undefined : parseStoredProviderSecret(parsed)
@@ -299,7 +301,9 @@ export async function authStatusProvider(
   let value: unknown
   try {
     value = JSON.parse(stored)
-  } catch {
+  } catch (error) {
+    // Only malformed text fails here; anything else is not this parse's answer.
+    if (!(error instanceof SyntaxError)) throw error
     value = undefined
   }
   const parsed = value === undefined ? undefined : parseStoredProviderSecret(value)

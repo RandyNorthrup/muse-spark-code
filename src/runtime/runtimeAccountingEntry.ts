@@ -42,7 +42,7 @@ import {
   TOKENS_PER_MILLION,
   UI_TEXT,
 } from '../shared/constants'
-import { storeErrorCode } from '../host/backend/storeErrors'
+import { isStoreErrorCode, storeErrorCode } from '../host/backend/storeErrors'
 import {
   type RunLedger,
   type ResponseInputBound,
@@ -140,7 +140,7 @@ export function createRuntimeDailyBudget(deps: {
     try {
       text = readFileSync(path.join(deps.dataFolder, RUNTIME_SETTINGS_FILE), 'utf8')
     } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT')
+      if (isStoreErrorCode(error, 'ENOENT'))
         return canonicalUsd(SETTING_DEFAULTS.paidDailyBudgetUsd)
       throw new SpendLedgerError(
         'unreadable',
@@ -154,7 +154,14 @@ export function createRuntimeDailyBudget(deps: {
           SETTING_DEFAULTS.paidDailyBudgetUsd,
       )
     } catch (error: unknown) {
-      throw new SpendLedgerError('damaged', { scope: 'daily', file: 'settings' }, error)
+      // Only malformed text or a misshapen record damages the file (the
+      // schema parser fails as $ZodError); anything else is not this
+      // file's answer to give.
+      if (error instanceof SyntaxError)
+        throw new SpendLedgerError('damaged', { scope: 'daily', file: 'settings' }, error)
+      if (error instanceof Error && error.name === '$ZodError')
+        throw new SpendLedgerError('damaged', { scope: 'daily', file: 'settings' }, error)
+      throw error
     }
   }
   const nextMidnight = (): number => {

@@ -121,9 +121,13 @@ async function readRawKeyLine(
   const bytes = await readBytes(input, EXEC_KEY_MAX_BYTES, signal, true)
   if (bytes === undefined) return { ok: false, reason: 'tooLong' }
   try {
+    // Malformed bytes fail before validation: the replacement character is
+    // non-whitespace, so a key-shaped line around it would wrongly validate.
     const line = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
     return { ok: true, line: line.endsWith('\r') ? line.slice(0, -1) : line }
-  } catch {
+  } catch (error: unknown) {
+    // Only malformed bytes fail here; anything else is not this read's answer.
+    if (!(error instanceof TypeError)) throw error
     return { ok: false, reason: 'invalid' }
   } finally {
     bytes.fill(0)

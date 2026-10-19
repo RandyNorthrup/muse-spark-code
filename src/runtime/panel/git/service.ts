@@ -61,6 +61,7 @@ import {
 } from '../../../core/fs/fileIdentity'
 import { withoutCredentials } from '../../../core/credentialEnvironment'
 import { isWorkspacePath } from '../../../core/executables'
+import { isStoreErrorCode } from '../../../host/backend/storeErrors'
 import { canonicalPath, isMissingPath } from '../../../host/canonicalPath'
 import { createGitProcess, quietGitEnvironment, type GitProcess } from '../../../host/git'
 import {
@@ -404,8 +405,11 @@ export type NativeGitRefusal = 'untrusted' | 'changed' | 'refused' | 'closed'
 
 /** A refusal: nothing ran past the check that threw it. */
 export class NativeGitRefusalError extends Error {
-  public constructor(public readonly reason: NativeGitRefusal) {
-    super(reason)
+  public constructor(
+    public readonly reason: NativeGitRefusal,
+    options?: { cause?: unknown },
+  ) {
+    super(reason, options)
     this.name = 'NativeGitRefusalError'
   }
 }
@@ -479,11 +483,28 @@ function slashed(folder: string): string {
   return folder.replaceAll('\\', '/').replace(/\/+$/, '')
 }
 
+/**
+ * A store error that leaves a path unreadable: missing, denied or
+ * unresolvable. Anything else (a bug above the store) is not a probe's
+ * answer to give.
+ */
+export function isUnreadableStoreError(error: unknown): boolean {
+  return (
+    isMissingPath(error) ||
+    isStoreErrorCode(error, 'EACCES') ||
+    isStoreErrorCode(error, 'EPERM') ||
+    isStoreErrorCode(error, 'ELOOP') ||
+    isStoreErrorCode(error, 'EISDIR')
+  )
+}
+
 /** The approved directory's identity now, synchronously; undefined when it cannot be read. */
 function identityAtConstruction(root: string): FileIdentity | undefined {
   try {
     return identityOf(statIdentitySync(root))
-  } catch {
+  } catch (error: unknown) {
+    // Unreadable now: the service is not bound, and every operation refuses.
+    if (!isUnreadableStoreError(error)) throw error
     return undefined
   }
 }
@@ -509,7 +530,9 @@ async function bindRoot(
       sameFile(identityOf(stats), approved)
       ? { path: canonical, identity: approved }
       : undefined
-  } catch {
+  } catch (error: unknown) {
+    // Swept or revoked between construction and the bind: not bound.
+    if (!isUnreadableStoreError(error)) throw error
     return undefined
   }
 }
@@ -538,7 +561,9 @@ function refFile(commonDir: string, ...ref: readonly string[]): string {
 function headBranch(gitDir: string): string | undefined {
   try {
     return SYMBOLIC_HEAD.exec(readFileSync(path.join(gitDir, 'HEAD'), 'utf8').trim())?.[1]
-  } catch {
+  } catch (error: unknown) {
+    // No HEAD to read (a linked worktree keeps it elsewhere): detached.
+    if (!isUnreadableStoreError(error)) throw error
     return undefined
   }
 }
@@ -569,8 +594,10 @@ export interface NativeGitServiceOptions {
 async function identityNow(target: string): Promise<FileIdentity> {
   try {
     return identityOf(await statIdentity(target))
-  } catch {
-    throw new NativeGitRefusalError('changed')
+  } catch (error: unknown) {
+    // Unreadable now: the bound directory changed out from under the call.
+    if (!isUnreadableStoreError(error)) throw error
+    throw new NativeGitRefusalError('changed', { cause: error })
   }
 }
 
@@ -693,7 +720,7 @@ export class NativeGitService {
       }
       if (guard.signal.aborted) {
         // Cancel or the window stopped it: never reported as git's failure.
-        throw new NativeGitRefusalError('closed')
+        throw new NativeGitRefusalError('closed', { cause: error })
       }
       // Fixed words only: git's own text (paths, remotes, accounts) goes to
       // the caller, which redacts it before any cut.
@@ -724,8 +751,10 @@ export class NativeGitService {
     let current: string
     try {
       current = await canonicalPath(this.deps.repositoryRoot)
-    } catch {
-      throw new NativeGitRefusalError('changed')
+    } catch (error: unknown) {
+      // Unresolvable now: the bound directory changed out from under the call.
+      if (!isUnreadableStoreError(error)) throw error
+      throw new NativeGitRefusalError('changed', { cause: error })
     }
     const identity = await identityNow(current)
     guard.check()
@@ -876,9 +905,8 @@ export class NativeGitService {
     try {
       await mkdir(parent)
     } catch (error: unknown) {
-      if (!(error instanceof Error && 'code' in error && error.code === ALREADY_EXISTS)) {
-        throw error
-      }
+      // Made since the last call: the held parent is already there.
+      if (!isStoreErrorCode(error, ALREADY_EXISTS)) throw error
     }
     guard.check()
     const held = await lstatIdentity(parent)
@@ -1038,10 +1066,12 @@ export class NativeGitService {
         start = await readConfinedStart(root, file, room, guard.check)
       } catch (error: unknown) {
         // A swapped ancestor or a lost owner refuses the prompt; an
-        // unreadable file (permissions) only stays out of it.
+        // unreadable file (missing, permissions) only stays out of it, and
+        // any other read failure is not this prompt's answer to give.
         if (refusalOf(error) !== undefined) {
           throw error
         }
+        if (!isUnreadableStoreError(error)) throw error
         start = undefined
       }
       guard.check()

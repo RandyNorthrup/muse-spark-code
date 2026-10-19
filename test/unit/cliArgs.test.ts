@@ -1,0 +1,52 @@
+// The command line's failure rules: an unknown option gets our sentence,
+// auth failures point at the accounts help, and every other parse failure
+// answers invalid with exit code 2, never a prompt.
+import { describe, expect, it } from 'vitest'
+import { parseCommandLine } from '../../src/runtime/cliArgs'
+
+function invalid(
+  command: unknown,
+): asserts command is { command: 'invalid' } & Record<string, unknown> {
+  expect(command).toMatchObject({ command: 'invalid' })
+}
+
+describe('parseCommandLine failure rules', () => {
+  it('names the unknown option in our words, not the library', () => {
+    const command = parseCommandLine(['--nope'])
+    invalid(command)
+    expect(command.reason).toContain('--nope')
+    expect(command.reason).not.toContain('positional')
+  })
+
+  it('points auth parse failures at the accounts help', () => {
+    const command = parseCommandLine(['auth', '--nope'])
+    invalid(command)
+    expect(command.reason).toContain('--nope')
+    expect(command.reason).toContain('auth --help')
+  })
+
+  it('answers usage, resources and report parse failures as invalid with exit 2', () => {
+    for (const argv of [
+      ['usage', '--nope'],
+      ['resources', '--nope'],
+      ['report', 'problem', '--nope'],
+    ]) {
+      const command = parseCommandLine(argv)
+      invalid(command)
+      expect(command.exitCode).toBe(2)
+    }
+  })
+
+  it('hands an M93-option failure to the named reports engine', () => {
+    expect(parseCommandLine(['report', 'history', '--nope'])).toMatchObject({ command: 'reports' })
+  })
+
+  it('fails a reserved command explicitly when its parser throws', () => {
+    const command = parseCommandLine(['share'], () => {
+      throw new Error('share-words')
+    })
+    invalid(command)
+    expect(command.reason).toBe('share-words')
+    expect(command.exitCode).toBe(2)
+  })
+})
