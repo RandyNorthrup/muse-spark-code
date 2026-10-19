@@ -255,6 +255,16 @@ export async function readProvidersFile(
       }
 }
 
+/**
+ * What the person reads for a refused file: the file, and — when the store
+ * was never read — the read failure behind it. A bare path never tells them
+ * whether to fix permissions or the text.
+ */
+export function refusalDetail(read: Extract<ProvidersFileRead, { ok: false }>): string {
+  const cause = read.cause instanceof Error ? read.cause.message : read.cause
+  return typeof cause === 'string' && cause !== '' ? `${read.detail}: ${cause}` : read.detail
+}
+
 export type ProvidersFileWrite =
   | { readonly ok: true }
   | { readonly ok: false; readonly reason: 'invalid'; readonly detail: string }
