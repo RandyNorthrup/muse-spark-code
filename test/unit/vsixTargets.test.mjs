@@ -5,6 +5,7 @@ import {
   targetFromArgs,
   targetOfVsix,
   vsixArtifactName,
+  vsixReleaseAssets,
   isVsixTargetFile,
   vsixFallbackName,
 } from '../../scripts/lib/vsixTargets.mjs'
@@ -72,7 +73,51 @@ describe('per-platform VSIX inventory', () => {
     }
   })
 
-  it('requires only the target’s own built helpers in the stage', () => {
+  it('matches Windows separators like CI does', () => {
+    expect(isVsixTargetFile('win32-x64', String.raw`native\windows\MuseSparkVaultPipe.cs`)).toBe(
+      true,
+    )
+    expect(isVsixTargetFile('linux-x64', String.raw`native\windows\MuseSparkVaultPipe.cs`)).toBe(
+      false,
+    )
+    expect(isVsixTargetFile('darwin-arm64', String.raw`dist\native\darwin\muse-vault`)).toBe(true)
+  })
+
+  it('refuses an unknown target instead of packing the wrong package', () => {
+    expect(() => isVsixTargetFile('linux-riscv64', 'dist/extension.js')).toThrow()
+    expect(() => requiredNativeFiles('web')).toThrow()
+    expect(() => vsixArtifactName('agent', '0.1.0', 'win32')).toThrow()
+  })
+
+  it('reads the target from packager arguments', () => {
+    expect(targetFromArgs(['node', 'package-vsix.mjs'])).toBeUndefined()
+    expect(targetFromArgs(['node', 'package-vsix.mjs', '--target', 'linux-arm64'])).toBe(
+      'linux-arm64',
+    )
+    expect(() => targetFromArgs(['node', 'package-vsix.mjs', '--target'])).toThrow()
+    expect(() => targetFromArgs(['node', 'package-vsix.mjs', '--target', 'haiku'])).toThrow()
+  })
+
+  it('names targeted artifacts the way vsce does', () => {
+    expect(vsixArtifactName('muse-spark-code', '0.19.0', 'win32-x64')).toBe(
+      'muse-spark-code-win32-x64-0.19.0.vsix',
+    )
+    expect(targetOfVsix('out/muse-spark-code-win32-x64-0.19.0.vsix')).toBe('win32-x64')
+    expect(targetOfVsix('out/muse-spark-code-0.19.0.vsix')).toBeUndefined()
+  })
+
+  it('publishes one artifact per target and no universal package', () => {
+    const assets = vsixReleaseAssets('muse-spark-code', '0.19.0')
+    expect(assets).toHaveLength(VSIX_TARGETS.length)
+    for (const target of VSIX_TARGETS) {
+      const asset = `muse-spark-code-${target}-0.19.0.vsix`
+      expect(assets).toContain(asset)
+      expect(targetOfVsix(`release/${asset}`)).toBe(target)
+    }
+    expect(assets).not.toContain('muse-spark-code-0.19.0.vsix')
+  })
+
+  it('requires each stage to hold its own git-kept helpers', () => {
     expect(requiredNativeFiles()).toEqual([
       'native/linux/x64/muse-created',
       'native/linux/arm64/muse-created',

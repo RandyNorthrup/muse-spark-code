@@ -4,7 +4,7 @@
 # groups, manual runs, release.yml) runs every gate on three platforms, unit
 # shards (eight on Ubuntu, sixteen each on Windows and macOS), the
 # integration runs, the macOS helper and one .vsix per supported target
-# (PLAN.md D123).
+# (PLAN.md D123, no universal package ships).
 # With ORG_CI on (D122, CISHARDS2), a same-repository pull request is part
 # `home`: every Windows and macOS leg (static gates, unit shards, Windows
 # integration, the macOS helper) runs in the capacity repository (part
@@ -783,9 +783,7 @@ jobs:
       - run: node scripts/build-linux-helper-pins.mjs native/linux/x64 native/linux/arm64
       - run: node scripts/check-linux-helper-pins.mjs --require-values
       # One production build for every target; each target is packed from
-      # its own filtered stage, and the untargeted universal package is
-      # packed beside them as the fallback for platforms without their own
-      # target (PLAN.md D123).
+      # its own filtered stage (PLAN.md D123, no universal package ships).
       - run: npm run build
       - name: pack one .vsix per supported target
         env:
@@ -866,10 +864,10 @@ jobs:
             fi
             echo "$vsix holds $(wc -l <<< "$listing") entries, its own helpers and TargetPlatform=\"$target\" included"
           done
-          # The universal fallback carries every platform's helpers (both
-          # muse-created binaries, the Windows sources, the darwin
-          # binaries) and declares no TargetPlatform, so VS Code serves it
-          # on platforms without their own package.
+          # The untargeted universal package carries every platform's helpers
+          # (both muse-created binaries, the Windows sources, the darwin
+          # binaries) and declares no TargetPlatform. It is built for local
+          # default installs only and is never published (PLAN.md D123).
           vsix="muse-spark-code-${version}.vsix"
           listing="$(unzip -Z1 "$vsix")"
           # shellcheck disable=SC2086

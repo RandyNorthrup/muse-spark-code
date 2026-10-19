@@ -13,10 +13,8 @@ import {
   verifyVaultSocketBase,
   verifyVaultSocketFile,
 } from '../../core/vault/broker/socketDirectory'
-import {
-  type VaultChannelServer,
-  type VaultSecuredListenerPort,
-} from '../../core/vault/broker/channel'
+import { type VaultChannelServer } from '../../core/vault/broker/channel'
+import { type VaultSecuredListenerPort } from '../../core/vault/broker/ports'
 import { vaultBrokerLockSchema } from '../../shared/vaultProtocol'
 import {
   UI_TEXT,

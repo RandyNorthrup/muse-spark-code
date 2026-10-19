@@ -41,14 +41,10 @@ import {
   type WindowsVaultPipeClient,
   type WindowsVaultPipeHelper,
 } from '../../core/vault/broker/windowsPipe'
-import {
-  monitoredDescriptor,
-  monitoredFileWriter,
-  replaceFileContent,
-} from '../../core/vault/broker/files'
 import type { VaultPrivateFilesPort, VaultFileWriter } from '../../core/vault/broker/files'
+import { privateFileWriter } from '../../core/vault/broker/files'
 import { collectSlotChunk, drainSlotStderr, watchSlotChildErrors } from './slots/slotChild'
-import { spawnGuardedHelper, type WindowsVaultExecutable } from './slots/windowsVaultTransport'
+import { spawnGuardedVaultHelper, type WindowsVaultExecutable } from './slots/windowsVaultTransport'
 
 /** A new random pipe name per broker start, published only in the owner-only lock file. */
 export function windowsVaultPipeName(): string {
@@ -509,6 +505,25 @@ export async function inspectWindowsProcess(
 }
 
 /**
+ * Reopen a replaced relay file after the relay guard re-verifies it: the
+ * stale descriptor is closed and only a verified owner-only file is
+ * returned. Any failure keeps its meaning with the old file unreplaced.
+ */
+function reopenRelayDescriptor(helperFile: string, path: string, stale: number): number {
+  closeSync(stale)
+  verifyWindowsVaultFileSync(helperFile, path)
+  const replacement = openSync(path, 'a')
+  const resample = fstatSync(replacement)
+  try {
+    if (!resample.isFile()) throw new Error(UI_TEXT.vault.noAccess)
+  } catch (error: unknown) {
+    closeSync(replacement)
+    throw error
+  }
+  return replacement
+}
+
+/**
  * The broker's private files on Windows: Node's filesystem calls with the
  * helper's owner-only DACL commands around them. There is no O_NOFOLLOW on
  * Windows, so every read and write verifies first (the helper refuses
@@ -627,41 +642,24 @@ export class WindowsVaultPrivateFiles implements VaultPrivateFilesPort {
       descriptor = null
       throw new Error(UI_TEXT.vault.noAccess)
     }
-    const current = (): number =>
-      monitoredDescriptor(
-        () => descriptor,
-        (fd) => {
-          descriptor = fd
-        },
-        path,
-        (target) => {
-          verifyWindowsVaultFileSync(this.helperFile, target)
-          const replacement = openSync(target, 'a')
-          if (!fstatSync(replacement).isFile()) {
-            closeSync(replacement)
-            throw new Error(UI_TEXT.vault.noAccess)
-          }
-          return replacement
-        },
-      )
-    return monitoredFileWriter({
+    const current = (): number => {
+      if (descriptor === null) throw new Error(UI_TEXT.vault.locked)
+      if (!sameFile(handleIdentitySync(descriptor), lstatIdentitySync(path))) {
+        descriptor = reopenRelayDescriptor(this.helperFile, path, descriptor)
+      }
+      return descriptor
+    }
+    return privateFileWriter(path, {
       current,
-      replace: (bytes) => {
-        replaceFileContent(path, bytes, {
-          current,
-          open: (temporary) =>
-            openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL),
-          syncDirectory: (directory) => openSync(directory, 'r'),
-          adopt: (fd) => {
-            descriptor = fd
-          },
-        })
+      adopt: (fd) => {
+        descriptor = fd
       },
-      close: () => {
+      release: () => {
         if (descriptor === null) return
         closeSync(descriptor)
         descriptor = null
       },
+      tempFlags: constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL,
     })
   }
 }
@@ -741,7 +739,14 @@ async function spawnPipeRelay(
   pipe: string | null,
   signal?: AbortSignal,
 ): Promise<PipeRelay> {
-  const { child, stop } = await spawnGuardedHelper(helper)
+  if (
+    !pathModule.isAbsolute(helper.file) ||
+    !helper.file.toLowerCase().endsWith('.exe') ||
+    !pathModule.isAbsolute(helper.powershell) ||
+    !/^[a-f0-9]{64}$/u.test(helper.sha256)
+  )
+    throw new Error(UI_TEXT.vault.noAccess)
+  const { child, stop } = await spawnGuardedVaultHelper(helper)
   const relay = new PipeRelay(adaptPipeRelayChild(child), () => stop(), mode, pipe)
   watchSlotChildErrors(child, signal, () => {
     relay.fail(new Error(UI_TEXT.vault.noAccess))

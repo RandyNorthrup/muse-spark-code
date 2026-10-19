@@ -5,7 +5,6 @@ import path from 'node:path'
 import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
 import { isVaultFileMissing } from '../../core/vault/broker/files'
-import { vaultBrokerLockSchema } from '../../shared/vaultProtocol'
 import { VaultBrokerDiscovery } from '../../core/vault/broker/discovery'
 import {
   WindowsVaultPeerVerifier,
@@ -16,9 +15,9 @@ import {
   isVaultPipeServerTrusted,
   windowsVaultPipeNameSchema,
 } from '../../core/vault/broker/windowsPipe'
-import { handoffResourceFile } from '../../core/resources/launcher'
 import { UI_TEXT, VAULT_BROKER_NATIVE_TIMEOUT_MS } from '../../shared/constants'
 import type { VaultClientPlatform, VaultClientPlatformContext } from './clientPlatform'
+import { isBrokerLockGone, launchSessionBroker, vaultInstallRoot } from './clientLaunch'
 import {
   windowsPipeExecutable,
   windowsVaultExecutable,
@@ -40,9 +39,7 @@ export async function windowsVaultClientPlatform(
   context: VaultClientPlatformContext,
 ): Promise<VaultClientPlatform> {
   if (process.platform !== 'win32') throw new Error(UI_TEXT.vault.brokerDisabled)
-  if (!path.isAbsolute(context.dataDir) || !path.isAbsolute(context.distDir))
-    throw new Error(UI_TEXT.vault.noAccess)
-  const installRoot = path.dirname(context.distDir)
+  const installRoot = vaultInstallRoot(context)
   const systemRoot = process.env['SystemRoot']
   if (!systemRoot) throw new Error(UI_TEXT.vault.noAccess)
   // Both helpers compile on the person's own machine at first vault use
@@ -118,17 +115,17 @@ export async function windowsVaultClientPlatform(
           return location
         } catch (error: unknown) {
           // Only proven death permits launch. Missing token/pipe during live startup waits.
-          let bytes: Buffer
-          try {
-            bytes = await pipeFiles.privateFiles.read(path.join(this.directory, 'broker.lock'))
-          } catch (recheckError: unknown) {
-            // Orderly shutdown removes token before record, even while its process is still live.
-            if (isVaultFileMissing(recheckError)) return null
-            throw recheckError
-          }
-          const lock = vaultBrokerLockSchema.parse(JSON.parse(bytes.toString()))
-          const live = await windowsProcessIdentity(relay, lock.processId)
-          if (lock.userSession === userSession && live?.process.startedAt !== lock.startedAt)
+          if (
+            await isBrokerLockGone(
+              pipeFiles.privateFiles,
+              this.directory,
+              userSession,
+              async (processId) => {
+                const live = await windowsProcessIdentity(relay, processId)
+                return live?.process.startedAt
+              },
+            )
+          )
             return null
           const isStarting =
             isVaultFileMissing(error) ||
@@ -195,30 +192,19 @@ export async function windowsVaultClientPlatform(
         await pipeFiles.privateFiles.directory(discovery.directory)
         // The claim itself serializes starters: a racing broker loses the
         // claim and exits, and discovery then finds the winner.
-        const ready = (async () => {
-          if (await discovery.discover(identity)) return
-          await handoffResourceFile(
-            process.execPath,
-            [
-              path.join(context.distDir, 'vaultBroker.js'),
-              JSON.stringify({
-                dataDir: path.join(context.dataDir, 'vault'),
-                runDirectory,
-                installRoot,
-                userSession,
-                pipeHelper: plainPipeHelper,
-                windowsHelper: plainSlotHelper,
-              }),
-            ],
-            { env, until: 'spawn' },
-          )
-          const deadline = Date.now() + VAULT_BROKER_NATIVE_TIMEOUT_MS
-          while (Date.now() < deadline) {
-            if (await discovery.discover(identity)) return
-            await delay(VAULT_BROKER_NATIVE_TIMEOUT_MS / 100)
-          }
-          throw new Error(UI_TEXT.vault.brokerBlocked)
-        })()
+        const ready = launchSessionBroker({
+          script: path.join(context.distDir, 'vaultBroker.js'),
+          payload: {
+            dataDir: path.join(context.dataDir, 'vault'),
+            runDirectory,
+            installRoot,
+            userSession,
+            pipeHelper: plainPipeHelper,
+            windowsHelper: plainSlotHelper,
+          },
+          env,
+          isReady: async () => (await discovery.discover(identity)) !== null,
+        })
         // A handed-off session broker belongs to no client and exposes no client stop.
         return { ready }
       },

@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { isVaultFileMissing } from '../../core/vault/broker/files'
 import { VaultStoreUnavailableError } from '../../core/vault/broker/ports'
@@ -20,6 +20,16 @@ export function vaultAnchorFile(dataDir: string): string {
   return path.join(dataDir, 'anchor', 'anchor.v1.json')
 }
 
+/** The anchor directory is a directory, or nothing is there yet. */
+async function isParentVacant(file: string): Promise<boolean> {
+  try {
+    const sample = await stat(path.dirname(file))
+    return sample.isDirectory()
+  } catch (error: unknown) {
+    return isVaultFileMissing(error)
+  }
+}
+
 export class FileVaultAnchor extends KeyringVaultAnchor {
   constructor(
     private readonly file: string,
@@ -38,8 +48,12 @@ export class FileVaultAnchor extends KeyringVaultAnchor {
       raw = await readFile(this.file)
     } catch (error: unknown) {
       // No anchor is "no history", never a failure; anything else keeps its
-      // fixed repair instead of leaking a filesystem sentence.
-      if (isVaultFileMissing(error)) return null
+      // fixed repair instead of leaking a filesystem sentence. Windows
+      // reports a path through a regular file as ENOENT rather than
+      // ENOTDIR, so a missing file alone cannot tell "no history" from an
+      // unusable location: only a directory (or no parent yet) reads as
+      // empty.
+      if (isVaultFileMissing(error) && (await isParentVacant(this.file))) return null
       throw new VaultStoreUnavailableError()
     }
     return raw.toString('utf8')

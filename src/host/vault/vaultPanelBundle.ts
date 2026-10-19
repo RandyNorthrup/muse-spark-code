@@ -86,19 +86,17 @@ export interface VaultBundleLoaderDeps {
   readonly log: Logger
   /** How the bundle is loaded: Node's `require` unless a test hands in the module. */
   readonly loadBundle?: ((file: string) => unknown) | undefined
-  /** Live switch (README's legacy vault flag): refused while it answers false. */
-  readonly on: () => boolean
 }
 
 /**
  * The bundle, required the first time it is asked for and kept from then on.
  * A missing or corrupt bundle throws `vault.brokerBlocked` and is tried again
- * on the next call (the log has the cause, never a credential). A
- * switched-off vault refuses before anything loads, on every call, so
- * re-enabling needs no restart.
+ * on the next call (the log has the cause, never a credential). The bundle's
+ * factories resolve README's legacy vault switch themselves, so a
+ * switched-off vault refuses on every call and re-enabling needs no restart.
  */
 export function vaultBundleLoader(deps: VaultBundleLoaderDeps): () => VaultBundle {
-  const load = lazyBundleLoader({
+  return lazyBundleLoader({
     ...deps,
     log: fixedMessageLog({
       log: deps.log,
@@ -109,8 +107,4 @@ export function vaultBundleLoader(deps: VaultBundleLoaderDeps): () => VaultBundl
     label: 'vault bundle',
     unavailable: () => UI_TEXT.vault.brokerBlocked,
   })
-  return () => {
-    if (!deps.on()) throw new Error(UI_TEXT.vault.switchedOff)
-    return load()
-  }
 }

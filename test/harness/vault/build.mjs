@@ -10,6 +10,7 @@ import {
   sharedResourceAdmission,
   sharedVaultStore,
   sharedVaultPosix,
+  sharedVaultWindows,
 } from '../../../scripts/lib/deferredBundles.mjs'
 
 /** W uses these same entries/options in the joined build; existing entry budgets are unchanged. */
@@ -59,6 +60,7 @@ export async function buildVaultSurfaces(outdir, hasHarness = false) {
       sharedResourceAdmission,
       sharedVaultStore,
       sharedVaultPosix,
+      sharedVaultWindows,
     ],
     logLevel: 'silent',
   })
