@@ -85,22 +85,14 @@ describe.skipIf(process.platform !== 'win32')('Windows pipe relay against the re
   beforeAll(async () => {
     fixture.root = await mkdtemp(path.join(tmpdir(), 'vs-piperelay-'))
     const bundle = path.join(fixture.root, 'pipeRelayChild.cjs')
+    // No admission alias: the child bundles the production admission module,
+    // so the relay proof runs the same admission the installed broker does.
     await build({
       entryPoints: ['test/unit/helpers/vault/windowsPipeRelayChild.ts'],
       outfile: bundle,
       bundle: true,
       platform: 'node',
       format: 'cjs',
-      plugins: [
-        {
-          name: 'generated-admission',
-          setup(builder) {
-            builder.onResolve({ filter: /admission(?:\.js)?$/ }, () => ({
-              path: path.resolve('test/unit/helpers/vault/sessionAdmission.ts'),
-            }))
-          },
-        },
-      ],
     })
     const systemRoot = process.env['SystemRoot']
     if (!systemRoot) throw new Error('SystemRoot names the Windows system root')
