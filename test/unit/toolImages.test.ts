@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_IMAGE_BYTES } from '../../src/shared/constants'
+import { TOOL_IMAGE_PREVIEW_MAX_BYTES } from '../../src/shared/constants'
 import { imageMediaTypeOf, loadToolImage, type ToolImageIo } from '../../src/core/toolImages'
 
 const ROOT = '/work'
@@ -48,8 +48,10 @@ describe('loadToolImage (M43)', () => {
     expect(files.reads).toEqual([])
   })
 
-  it('refuses what is not a picture, a picture too large, and a window with no folder', async () => {
-    const large = new Uint8Array(MAX_IMAGE_BYTES + 1)
+  it('refuses what is not a picture, a picture too large for the panel preview, and a window with no folder', async () => {
+    // D121: the preview keeps its own display bound (the model still reads
+    // the image whole through the read tools).
+    const large = new Uint8Array(TOOL_IMAGE_PREVIEW_MAX_BYTES + 1)
     const files = io({ '/work/big.jpg': large, '/work/notes.md': PNG })
     await expect(loadToolImage('notes.md', ROOT, 'linux', files)).resolves.toEqual({
       ok: false,
@@ -57,7 +59,7 @@ describe('loadToolImage (M43)', () => {
     })
     await expect(loadToolImage('big.jpg', ROOT, 'linux', files)).resolves.toEqual({
       ok: false,
-      reason: `big.jpg is larger than ${String(MAX_IMAGE_BYTES)} bytes`,
+      reason: `big.jpg is larger than ${String(TOOL_IMAGE_PREVIEW_MAX_BYTES)} bytes`,
     })
     await expect(loadToolImage('a.png', undefined, 'linux', files)).resolves.toEqual({
       ok: false,
@@ -91,8 +93,8 @@ describe('loadToolImage (M43)', () => {
     })
   })
 
-  it('refuses a file grown beyond the image limit after stale metadata', async () => {
-    const overLimit = new Uint8Array(MAX_IMAGE_BYTES + 1)
+  it('refuses a file grown beyond the preview bound after stale metadata', async () => {
+    const overLimit = new Uint8Array(TOOL_IMAGE_PREVIEW_MAX_BYTES + 1)
     const files = {
       realPath: (fsPath: string) => Promise.resolve(fsPath),
       fileSize: () => Promise.resolve(4),

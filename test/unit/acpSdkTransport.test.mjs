@@ -12,7 +12,7 @@ import {
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
   MAX_ENCODED_MEDIA_CHARS,
-  MAX_IMAGE_BYTES,
+  META_IMAGE_MAX_BYTES,
 } from '../../src/shared/constants'
 
 const encoder = new TextEncoder()
@@ -98,15 +98,13 @@ describe('ACP SDK transport bounds used by the runtime', () => {
   })
 })
 
-const NEAR_LIMIT_IMAGES = 3
-
 describe('the product ACP stream bound', () => {
-  it('fits three near-limit images inside the media budget the bound is built on', () => {
+  it('fits one documented-size image inside the media budget the bound is built on (D121)', () => {
     const encodedChars =
-      Math.ceil((MAX_IMAGE_BYTES - 1) / BASE64_INPUT_BLOCK_BYTES) * BASE64_OUTPUT_BLOCK_CHARS
+      Math.ceil((META_IMAGE_MAX_BYTES - 1) / BASE64_INPUT_BLOCK_BYTES) * BASE64_OUTPUT_BLOCK_CHARS
     // Above the SDK's default line cap, so an option-free stream would drop it.
-    expect(NEAR_LIMIT_IMAGES * encodedChars).toBeGreaterThan(DEFAULT_MAX_MESSAGE_BYTES)
-    expect(NEAR_LIMIT_IMAGES * encodedChars).toBeLessThanOrEqual(MAX_ENCODED_MEDIA_CHARS)
+    expect(encodedChars).toBeGreaterThan(DEFAULT_MAX_MESSAGE_BYTES)
+    expect(encodedChars).toBeLessThanOrEqual(MAX_ENCODED_MEDIA_CHARS)
     expect(ACP_MAX_MESSAGE_BYTES).toBeGreaterThan(MAX_ENCODED_MEDIA_CHARS)
   })
 
