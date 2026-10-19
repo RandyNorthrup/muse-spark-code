@@ -344,6 +344,6 @@ describe('agent receipts and recovery', () => {
       recoveryRefusal({ status: 'completed', evidence: { stopReason: 'budget' } }, 'continue', 0),
     ).toBeUndefined()
     expect(recoveryRefusal(done(complete), 'continue', 0)).toBeDefined()
-    expect(recoveryRefusal(done(), 'retry', 0)).toContain('no isolated worktree checkpoint')
+    expect(recoveryRefusal(done(), 'retry', 0)).toContain('no isolated checkpoint')
   })
 })
