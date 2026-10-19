@@ -164,6 +164,7 @@
   "config.schedules.description": "Controla /loop en el chat de Muse Code. La entrega de indicaciones programadas requiere certificación.",
   "config.schedules.defaultDelivery.description": "Selecciona la entrega guardada en los nuevos borradores de programación; no habilita la ejecución programada.",
   "config.schedules.agentCreation.description": "Se conserva por compatibilidad; esta preferencia no tiene efecto en esta compilación.",
+  "config.schedulePauseAfterFailures.description": "Cuántos fallos consecutivos pausan una programación. Sin pausa salvo que se indique: 0 (el valor predeterminado) nunca pausa una programación por fallos, y cada fallo sigue quedando registrado en su historial.",
   "command.tabLanguages.title": "Idiomas de Tab",
   "command.openPullRequestInConversation.title": "Abrir una solicitud de incorporación de cambios en una conversación…",
   "config.judge.engine.description": "`auto` (tu propio modelo de conversación; `same` en la fase 1) y `same` solo pueden añadir cautela a una acción arriesgada de Auto que ninguna regla resuelve: una cautela lista convierte una autorización en una pregunta, o en una nota en la tarjeta de aprobación. `off` no ejecuta ningún evaluador. En el backend Model API cada juicio se factura a tu clave y pide confirmación una vez primero; en Muse Code usa tu suscripción.",

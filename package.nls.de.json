@@ -164,6 +164,7 @@
   "config.schedules.description": "Steuert /loop im Muse Code-Chat. Die Zustellung geplanter Prompts erfordert Zertifizierung.",
   "config.schedules.defaultDelivery.description": "Wählt die Zustellungsart für neue Zeitplanentwürfe; aktiviert keine geplante Ausführung.",
   "config.schedules.agentCreation.description": "Zur Kompatibilität gespeichert; diese Einstellung hat in diesem Build keine Wirkung.",
+  "config.schedulePauseAfterFailures.description": "Wie viele aufeinanderfolgende Fehler einen Zeitplan pausieren. Keine Pausierung, solange keine Anzahl gesetzt ist: 0 (die Voreinstellung) pausiert einen Zeitplan bei Fehlern nie, und jeder Fehler steht weiterhin in seinem Ausführungsverlauf.",
   "command.tabLanguages.title": "Tab-Sprachen",
   "command.openPullRequestInConversation.title": "Pull Request in einer Unterhaltung öffnen…",
   "config.judge.engine.description": "`auto` (Ihr eigenes Chatmodell; in Phase 1 `same`) und `same` können einer riskanten Auto-Aktion, die keine Regel klärt, nur zur Vorsicht raten: eine bereite Warnung macht aus einer Freigabe eine Nachfrage oder einen Hinweis auf der Genehmigungskarte. `off` lässt keinen Beurteiler laufen. Auf dem Model-API-Backend stellt jede Beurteilung Ihrem Schlüssel eine Gebühr in Rechnung und fragt einmal vorher; auf Muse Code läuft sie über Ihr Abonnement.",

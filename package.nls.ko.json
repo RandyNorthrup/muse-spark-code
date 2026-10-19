@@ -164,6 +164,7 @@
   "config.schedules.description": "Muse Code 채팅의 /loop를 제어합니다. 예약 프롬프트 전달에는 인증이 필요합니다.",
   "config.schedules.defaultDelivery.description": "새 일정 초안에 기록할 전달 방식을 선택합니다. 예약 실행을 활성화하지 않습니다.",
   "config.schedules.agentCreation.description": "호환성을 위해 저장됩니다. 이 설정은 이 빌드에서 효과가 없습니다.",
+  "config.schedulePauseAfterFailures.description": "일정을 일시 중지시키는 연속 실패 횟수. 설정하지 않으면 일시 중지하지 않습니다. 0(기본값)은 실패 시 일정을 일시 중지하지 않으며, 모든 실패는 실행 기록에 계속 남습니다.",
   "command.tabLanguages.title": "Tab 언어",
   "command.openPullRequestInConversation.title": "대화에서 끌어오기 요청 열기…",
   "config.judge.engine.description": "`auto`(자신의 채팅 모델, 1단계에서는 `same`)와 `same`은 어떤 규칙으로도 결정되지 않은 위험한 Auto 작업에 주의만 추가할 수 있습니다. 준비된 주의는 허용을 질문으로 바꾸거나 승인 카드에 메모합니다. `off`는 판단을 실행하지 않습니다. Model API 백 엔드에서는 각 판단이 키에 청구되며 먼저 한 번 확인합니다. Muse Code에서는 구독으로 실행됩니다.",

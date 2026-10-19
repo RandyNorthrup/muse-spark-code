@@ -35,6 +35,11 @@ export interface SchedulesBridgeDeps {
   readonly log: Logger
   readonly isEnabled: () => boolean
   readonly defaultDelivery: () => (typeof SCHEDULE_DELIVERIES)[number]
+  /**
+   * D121: the person's pause-after-failures count, read live on every
+   * settlement. 0 never pauses a schedule on failures.
+   */
+  readonly pauseAfterFailures: () => number
   readonly isDeliveryReady?: () => boolean
 }
 
@@ -100,6 +105,8 @@ export function createSchedulesBridge(deps: SchedulesBridgeDeps) {
     deps.isDeliveryReady?.() === false ? undefined : deps.delivery,
     undefined,
     deps.isDeliveryReady?.() === false ? undefined : deps.migration,
+    undefined,
+    deps.pauseAfterFailures,
   )
   let loaded: RuntimeSchedulesBinding | undefined
   let isClosed = false

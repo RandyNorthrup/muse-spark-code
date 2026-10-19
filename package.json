@@ -906,6 +906,13 @@
           "scope": "machine",
           "deprecationMessage": "%config.schedules.agentCreation.description%"
         },
+        "museSpark.schedulePauseAfterFailures": {
+          "type": "number",
+          "default": 0,
+          "scope": "machine",
+          "description": "%config.schedulePauseAfterFailures.description%",
+          "minimum": 0
+        },
         "museSpark.modelApiSubagents": {
           "type": "boolean",
           "default": true,

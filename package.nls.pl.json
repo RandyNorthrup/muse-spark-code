@@ -164,6 +164,7 @@
   "config.schedules.description": "Steruje /loop w czacie Muse Code. Dostarczanie zaplanowanych poleceń wymaga certyfikacji.",
   "config.schedules.defaultDelivery.description": "Wybiera sposób dostarczania zapisany w nowych szkicach harmonogramów; nie włącza zaplanowanego wykonywania.",
   "config.schedules.agentCreation.description": "Zachowane dla zgodności; ta preferencja nie ma wpływu na działanie w tej kompilacji.",
+  "config.schedulePauseAfterFailures.description": "Ile kolejnych niepowodzeń wstrzymuje harmonogram. Bez ustawionej liczby brak wstrzymania: 0 (wartość domyślna) nigdy nie wstrzymuje harmonogramu z powodu niepowodzeń, a każde niepowodzenie trafia do historii uruchomień.",
   "command.tabLanguages.title": "Języki Tab",
   "command.openPullRequestInConversation.title": "Otwórz żądanie ściągnięcia w rozmowie…",
   "config.judge.engine.description": "`auto` (Twój własny model rozmowy; w fazie 1 `same`) i `same` mogą jedynie dodać ostrożności ryzykownej akcji Auto, której nie rozstrzyga żadna reguła: gotowe ostrzeżenie zamienia zezwolenie w pytanie albo w notatkę na karcie zatwierdzenia. `off` nie uruchamia oceniającego. Na zapleczu Model API każdy osąd jest rozliczany przez Twój klucz i najpierw pyta raz; na Muse Code korzysta z Twojej subskrypcji.",

@@ -1655,7 +1655,8 @@
       "settings": [
         "museSpark.modelApiScheduledPrompts",
         "museSpark.schedules",
-        "museSpark.scheduleDefaultDelivery"
+        "museSpark.scheduleDefaultDelivery",
+        "museSpark.schedulePauseAfterFailures"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api",
       "backends": ["modelApi"],
@@ -3194,6 +3195,25 @@
         "enum": ["steer", "interrupt", "queue", "whenIdle", "newConversation"],
         "default": "whenIdle"
       }
+    },
+    {
+      "text": {
+        "conditions": [
+          {
+            "when": "scheduleDeliveryCertified=true",
+            "text": { "setting": "schedulePauseAfterFailures" }
+          }
+        ]
+      },
+      "id": "museSpark.schedulePauseAfterFailures",
+      "name": "museSpark.schedulePauseAfterFailures",
+      "description": "How many consecutive failures pause a schedule. No pause unless you set one: 0 (the default) never pauses a schedule on failures, and every failure is still recorded in its run history.",
+      "descriptionKey": "config.schedulePauseAfterFailures.description",
+      "type": "number",
+      "default": 0,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 0, "minimum": 0 }
     },
     {
       "id": "museSpark.modelApiSubagents",
@@ -7232,6 +7252,19 @@
     },
     {
       "route": "scan-secrets",
+      "name": "scan-secrets: --timeout <value>",
+      "description": "Set the run deadline in seconds.",
+      "text": { "cli": "timeout" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "minimum": 1,
+        "maximum": 2147483,
+        "unit": "seconds"
+      }
+    },
+    {
+      "route": "scan-secrets",
       "name": "scan-secrets: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
@@ -7469,7 +7502,7 @@
     },
     {
       "route": "scan-secrets",
-      "name": "scan-secrets <file> [--key-stdin]",
+      "name": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
       "description": "auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.",
       "text": { "ui": "referenceKeyStdin" }
     },

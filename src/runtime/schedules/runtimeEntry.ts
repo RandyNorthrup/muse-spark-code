@@ -24,6 +24,11 @@ export async function createRuntimeSchedules(
   runtimeDelivery?: RuntimeScheduleDeliveryPorts,
   migration?: { source: ScheduleMigrationSource; zone: string },
   scheduleEngine?: RuntimeScheduleEngineModule,
+  /**
+   * D121: the person's pause-after-failures count (0 never pauses), read
+   * live on every settlement when it is a function. Absent never pauses.
+   */
+  pauseAfterFailures?: number | (() => number),
 ): Promise<RuntimeSchedulesBinding> {
   // The engine module lives on the ACP side (main.ts installs it); the
   // schedules bundle never loads it from VS Code, so the VSIX need not
@@ -96,6 +101,7 @@ export async function createRuntimeSchedules(
   }
   const { runtime } = await createScheduleEngine({
     fs: createNodeScheduleFs(root),
+    ...(pauseAfterFailures !== undefined && { pauseAfterFailures }),
     ...(delivery !== undefined && { signal: delivery.signal }),
     queue: createNodeScheduleQueue(root),
     platform,
