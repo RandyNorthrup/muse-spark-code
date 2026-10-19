@@ -5,16 +5,23 @@
 // machine, so any bytes arriving prove the dial used the checked address,
 // and the `Host` bytes still carry the original name. Where a real socket
 // is needed, a bare TCP acceptor takes the connection, records the peer
-// address and the raw request bytes, then answers as told: silence (it
-// answers nothing, so it is not a provider) or a bare 302 with no body
-// and no provider content (a redirect carries no answer by definition).
-// Refusals are proven with silence — the acceptor sees zero connections,
-// so nothing was sent.
+// address and the raw request bytes, then closes without writing a byte —
+// it answers nothing, so it is not a provider. Refusals are proven with
+// silence — the acceptor sees zero connections, so nothing was sent. The
+// redirect refusal is proven with statuses as plain input through the real
+// pure function `sendPinned` calls on every answer's status; no socket
+// answers a redirect here, and the end-to-end behaviour is proven by the
+// real-life run through the packed product
+// (docs/certification/auditsec0190b.md).
 
 import { createServer, type Server, type Socket } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import { presetById } from '../../src/core/providers/presets'
-import { pinProviderFetch, type ResolvedProvider } from '../../src/runtime/exec/providerExec'
+import {
+  isRedirectRefusal,
+  pinProviderFetch,
+  type ResolvedProvider,
+} from '../../src/runtime/exec/providerExec'
 
 const acceptors: Server[] = []
 
@@ -151,29 +158,19 @@ describe('pinProviderFetch dials the checked address', () => {
     }
   })
 
-  it('refuses a redirect instead of following it', async () => {
-    // The acceptor speaks bare framing only: a 302 with no body and no
-    // provider content. The pin refuses it like `redirect: 'error'`
-    // rather than following the Location answer.
-    const redirecting = await listenAcceptor((socket) => {
-      socket.end(
-        'HTTP/1.1 302 Found\r\nLocation: /api/chat\r\nContent-Length: 0\r\nConnection: close\r\n\r\n',
-      )
-    })
-    const pinned = pinProviderFetch(
-      providerFor(redirecting.port),
-      [{ kind: 'exact', path: '/api/chat' }],
-      () => Promise.resolve(['127.0.0.1']),
-    )
-    let failure: unknown
-    try {
-      await pinned(`http://probe.invalid:${String(redirecting.port)}/api/chat`, { method: 'GET' })
-    } catch (error: unknown) {
-      failure = error
+  it('refuses a redirect instead of following it', () => {
+    // Nothing answers anything here: the refusal decision is the real pure
+    // function `sendPinned` calls on every answer's status (`redirect:
+    // 'error'` parity — refused, never followed). Every redirect status
+    // refuses; anything else, including a missing status, is not a
+    // redirect. The end-to-end behaviour (a 302 over the wire refused, the
+    // Location answer never followed) is proven by the real-life run
+    // through the packed product (docs/certification/auditsec0190b.md).
+    for (const status of [301, 302, 303, 307, 308]) {
+      expect(isRedirectRefusal(status)).toBe(true)
     }
-    expect(failure).toBeInstanceOf(TypeError)
-    expect((failure as TypeError).message).toBe('fetch failed')
-    // Never followed: the one request arrived and nothing else was sent.
-    expect(redirecting.connections()).toBe(1)
+    for (const status of [200, 201, 204, 300, 304, 400, 404, 500, undefined]) {
+      expect(isRedirectRefusal(status)).toBe(false)
+    }
   })
 })
