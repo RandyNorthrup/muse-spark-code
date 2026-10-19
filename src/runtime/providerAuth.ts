@@ -5,6 +5,8 @@
 // entry's static bundle is untouched.
 import { openRouterDiscardedKeyNotice } from '../host/backend/providersEntry'
 import { UI_TEXT } from '../shared/constants'
+import { fill } from '../shared/l10n/text'
+import type { recoverCredentialJournal as recoverJournal } from '../core/credentialLeaseEntry'
 import type { ProvidersFileRead } from '../core/providers/providersFile'
 import {
   authClearProvider,
@@ -43,6 +45,12 @@ export interface OpenRouterJournalReport {
   /** The journal held a committed attempt: the primary is the key in use. */
   readonly committed: boolean
   readonly failed: boolean
+  /**
+   * The recovery itself could not read the credential store (an unreachable
+   * store, never a refused cleanup: that composes its notice above). The
+   * caller names it instead of failing silent.
+   */
+  readonly storeError?: unknown
 }
 
 /**
@@ -69,13 +77,19 @@ async function recoverAccountJournal(
     get: (key: string): Promise<string | undefined> => Promise.resolve(secrets.get(key)),
     delete: (key: string): Promise<void> => Promise.resolve(secrets.delete(key)),
   }
+  // The lease's bundle loads on a recovery, never with the command's own bundle.
+  let recoverCredentialJournal: typeof recoverJournal
+  try {
+    ;({ recoverCredentialJournal } = await import('../core/credentialLeaseEntry'))
+  } catch {
+    // A bundle that cannot load is not an unreachable store: no cause to name.
+    return { notices: [], committed: false, failed: true }
+  }
   let recovery
   try {
-    // The lease's bundle loads on a recovery, never with the command's own bundle.
-    const { recoverCredentialJournal } = await import('../core/credentialLeaseEntry')
     recovery = await recoverCredentialJournal(store, account, `${account}.connect`)
-  } catch {
-    return { notices: [], committed: false, failed: true }
+  } catch (error: unknown) {
+    return { notices: [], committed: false, failed: true, storeError: error }
   }
   if (recovery.decision.kind === 'discarded' || recovery.decision.kind === 'legacy') {
     return {
@@ -89,16 +103,35 @@ async function recoverAccountJournal(
     : { notices: [], committed: false, failed: false }
 }
 
-/** Recovers the journal inside the lease and reports it; the caller honors `failed`. */
-async function recoverAndReportJournal(
-  deps: Pick<AuthCommandDeps, 'print' | 'printError' | 'secrets'>,
-): Promise<OpenRouterJournalReport> {
-  const report = await recoverOpenRouterJournalReport(deps.secrets)
+/**
+ * Prints a recovery report: its composed notices, the stored-key note, and —
+ * when the recovery itself could not read the credential store — the cause.
+ * Without the last, the command fails silent with exit 1 and no notices.
+ */
+export function reportJournalRecovery(
+  deps: Pick<AuthCommandDeps, 'print' | 'printError'>,
+  report: OpenRouterJournalReport,
+): void {
   for (const notice of report.notices) deps.printError(notice)
   if (report.committed) {
     // The key in use; say nothing about removing it.
     deps.print(UI_TEXT.providerConnectRecoveredStored)
   }
+  if (report.failed && report.notices.length === 0 && report.storeError !== undefined)
+    deps.printError(fill(UI_TEXT.acpStoreUnavailable, { reason: describe(report.storeError) }))
+}
+
+/** The operating system's own error, as `auth status` names it. */
+function describe(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/** Recovers the journal inside the lease and reports it; the caller honors `failed`. */
+async function recoverAndReportJournal(
+  deps: Pick<AuthCommandDeps, 'print' | 'printError' | 'secrets'>,
+): Promise<OpenRouterJournalReport> {
+  const report = await recoverOpenRouterJournalReport(deps.secrets)
+  reportJournalRecovery(deps, report)
   return report
 }
 

@@ -14,6 +14,15 @@ happened, not what was planned; superseded entries are kept.
   `dist/`. The ACP packager leaves `dist/acp-stage-files.json` naming every
   staged file for the release SBOM, which now reads that receipt instead of
   the stage directory.
+- `providers usage`, `auth status` and their sibling commands print the cause
+  when the crashed-Connect recovery itself cannot read the credential store,
+  instead of exiting 1 silent. The message is the same store-unavailable
+  sentence `auth status` prints, and the exit code stays the documented
+  failure code.
+- A failed headless run prints its envelope reason in human output instead of
+  only `message withheld: the response did not complete`. The attach refusal
+  on Muse Code now names the missing file upload service on the terminal, as
+  the JSON envelope always did.
 
 ## [0.19.0] - 2026-10-17
 
