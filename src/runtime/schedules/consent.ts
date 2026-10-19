@@ -4,6 +4,17 @@ import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { scheduleBackgroundConsentSchema } from '../../shared/scheduleV2'
 import type { BackgroundConsentStore } from './background'
+import { isCliSchedulePaidConsent, type ScheduleCallerContext } from './args'
+import type { ScheduleV2 } from '../../shared/scheduleV2'
+import type { PaidUseAnswer } from '../../core/paid/paidConsent'
+
+/** No terminal confirmation can be inferred from a draft, TTY or a workspace grant. */
+export function cliSchedulePaidAnswer(
+  schedule: ScheduleV2,
+  caller: ScheduleCallerContext,
+): PaidUseAnswer {
+  return isCliSchedulePaidConsent(caller, schedule) ? 'always' : 'deny'
+}
 
 const MISSING_CODE = 'ENOENT'
 const UNREADABLE_PREFIX = 'scheduleStoredUnreadable:'

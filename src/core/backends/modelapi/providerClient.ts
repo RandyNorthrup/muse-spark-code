@@ -25,6 +25,14 @@ import { isRefusalRetryable, isRetryableStreamFailure } from './providerRefusal'
 import { PROVIDER_CONNECTION_LOST_CODE, UI_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { streamEventSchema, usageSchema } from '../../../host/backend/modelApiEntry'
+import {
+  estimatedStreamTokens,
+  modelPricedUsage,
+  requestImageCount,
+  type ModelPricePolicy,
+} from './modelPolicy'
+import type { UnattendedRun } from '../../schedules/unattended'
+import { Usd } from '../../../shared/usd'
 
 // Only usage metadata is extensible here; item guards consume the stripped,
 // parsed canonical representation, never a codec's unvalidated original.
@@ -139,7 +147,11 @@ export class CodecClient implements ProviderClient {
   public readonly currentKeyDigest: () => Promise<string>
   public readonly retryDelayMs: (attempt: number) => number
   public readonly waitBeforeRetry: (ms: number, signal: AbortSignal) => Promise<void>
-  public constructor(private readonly deps: CodecClientDeps) {
+  public constructor(
+    private readonly deps: CodecClientDeps,
+    private readonly scheduledRun?: () => UnattendedRun | undefined,
+    private readonly scheduledPrice?: ModelPricePolicy,
+  ) {
     this.provider = deps.provider
     if (
       new URL(deps.baseUrl).origin !== deps.provider.origin ||
@@ -165,12 +177,12 @@ export class CodecClient implements ProviderClient {
       // else follows the preset's own retry table (OPENAI-G20), defaulting
       // to the Responses table.
       isRetryableFailure: (failure) => isRefusalRetryable(failure, deps.transport.retryTable),
+      ...(scheduledRun !== undefined && { scheduledRun }),
     })
     this.currentKeyDigest = this.transport.currentKeyDigest.bind(this.transport)
     this.retryDelayMs = this.transport.backoffMs.bind(this.transport)
     this.waitBeforeRetry = this.transport.pause.bind(this.transport)
   }
-
   /** This client's effective retry limit (see `ProviderClient.maxRetries`). */
   public maxRetries(): number | undefined {
     return this.transport.maxRetries()
@@ -179,6 +191,12 @@ export class CodecClient implements ProviderClient {
   /** The person's live retry limit, uncapped (see `ProviderClient.personCap`). */
   public personCap(): number | undefined {
     return this.transport.personCap()
+  }
+  public withScheduleAuthority(
+    run: () => UnattendedRun | undefined,
+    price?: ModelPricePolicy,
+  ): CodecClient {
+    return new CodecClient(this.deps, run, price)
   }
   public async listModels(signal?: AbortSignal): Promise<readonly string[]> {
     // No deadline of our own (owner 2026-10-16): the catalogue read ends at
@@ -248,103 +266,137 @@ export class CodecClient implements ProviderClient {
     // HTTP retries inside each request and the stream retries below draw on
     // one budget, as the turn's whole-stream retries do (the review of PR #28).
     const retries = budget ?? { retriesUsed: 0 }
-    for (;;) {
-      const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
-        request.path,
-        {
-          body: request.body,
-          ...(request.headers !== undefined && { headers: request.headers }),
-          accept: this.provider.format === 'ollama' ? 'application/x-ndjson' : 'text/event-stream',
-          // The pacing bucket's key: a configured provider's inference
-          // joins it like Meta's, so learned quotas and 429 pauses
-          // throttle its background fan-out too. Count and list calls
-          // carry no model id and stay observation-only.
-          modelId: body.model,
-          ...(admitAttempt?.pacingClass !== undefined && {
-            pacingClass: admitAttempt.pacingClass,
-          }),
-          estimatedTokens:
-            (admitAttempt?.paidEstimatedInputTokens ??
-              new TextEncoder().encode(JSON.stringify([body.input, body.instructions, body.tools]))
-                .length) + body.max_output_tokens,
-        },
-        signal,
-        onRetry,
-        retries,
-        admitAttempt,
-        confirmed,
-        this.deps.streamIdleMs,
-      )
-      let hasContent = false
-      try {
-        for await (const event of this.deps.codec.decode(response, model)) {
-          const parsed = parseCanonicalEvent(event)
-          // Arguments are executable payloads, not diagnostic text. Retain
-          // their bytes while keeping the codec's ordinary output redaction.
-          const safe: unknown = JSON.parse(JSON.stringify(parsed), (key, value: unknown) => {
-            if (typeof value !== 'string') return value
-            const isExecutable =
-              key === 'arguments' ||
-              (key === 'delta' && parsed.type === 'response.function_call_arguments.delta')
-            return isExecutable ? redactContent(value) : redact(value)
-          })
-          const validated = parseCanonicalEvent(safe)
-          eventParsed(validated)
-          if (validated.type !== 'response.created' && validated.type !== 'response.in_progress')
-            hasContent = true
-          yield validated
-        }
-        return
-      } catch (error: unknown) {
-        const failure = redactModelApiError(error, redact, response.status)
-        // A retryable error the provider ended its stream with before any
-        // content (Anthropic's `overloaded_error`, "which would normally
-        // correspond to an HTTP 529"; OpenRouter's mid-stream 429 or 503)
-        // is sent again under the same policy as that status (lane
-        // PROVERRORS, research anthropic.md AB3, openrouter.md "Mid-stream
-        // 429"); so is a connection lost before any content, as a transient
-        // send failure is. Once content has arrived the turn ends with it.
-        // A per-call-billed (media) request is never sent again here, as the
-        // transport retries it only on a 429.
-        const isResendable =
-          isRetryableStreamFailure(failure, this.deps.transport.retryTable) ||
-          (failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE)
-        // Lane PR225FIX2: a connection lost before any content is an
-        // ambiguous send — the request may have arrived and executed — so
-        // it is sent again only within an explicit bound (the person's
-        // setting or the provider's documented maximum), never on the
-        // unbounded default. A retryable error the provider ended its
-        // stream with stays on the status policy above.
-        const isAmbiguous = failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE
-        const allowed = this.transport.maxRetries()
-        if (
-          !isResendable ||
-          hasContent ||
-          signal.aborted ||
-          admitAttempt?.mediaAccounting !== undefined ||
-          !canRetryWithinBudget(retries, retries.retriesUsed) ||
-          (isAmbiguous && allowed === undefined) ||
-          retries.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
+    const run = this.scheduledRun?.()
+    if (this.scheduledRun !== undefined && (run === undefined || this.scheduledPrice === undefined))
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    const claim = await run?.reservePaidRequest(
+      body,
+      'scheduledPrompts',
+      admitAttempt?.paidEstimatedInputTokens,
+      signal,
+    )
+    const paid = claim === undefined ? undefined : { claim, run, isSent: false }
+    try {
+      for (;;) {
+        const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
+          request.path,
+          {
+            body: request.body,
+            ...(request.headers !== undefined && { headers: request.headers }),
+            accept:
+              this.provider.format === 'ollama' ? 'application/x-ndjson' : 'text/event-stream',
+            // The pacing bucket's key: a configured provider's inference
+            // joins it like Meta's, so learned quotas and 429 pauses
+            // throttle its background fan-out too. Count and list calls
+            // carry no model id and stay observation-only.
+            modelId: body.model,
+            ...(admitAttempt?.pacingClass !== undefined && {
+              pacingClass: admitAttempt.pacingClass,
+            }),
+            estimatedTokens: estimatedStreamTokens(body, admitAttempt),
+            // A scheduled run settles each terminal event at its pinned price.
+            ...(paid !== undefined && { paid }),
+          },
+          signal,
+          onRetry,
+          retries,
+          admitAttempt,
+          confirmed,
+          this.deps.streamIdleMs,
         )
-          await rethrowStreamError(error, redact, response.status)
-        const attempt = retries.retriesUsed
-        retries.retriesUsed = attempt + 1
-        const delayMs = this.retryDelayMs(attempt)
-        onRetry?.({
-          attempt: attempt + 1,
-          maxAttempts: allowed === undefined ? undefined : allowed + 1,
-          delayMs,
-          reason: `${failure.code ?? ''}: ${failure.message}`,
-        })
-        await this.waitBeforeRetry(delayMs, signal)
-        // Lane PR225W1: the person's limit is live — a change mid-wait
-        // refuses the resend the pre-wait check accepted.
-        if (attempt >= (this.transport.maxRetries() ?? UNBOUNDED_RETRIES)) throw failure
-      } finally {
-        if (response.body !== null && !response.body.locked) {
-          void response.body.cancel().catch(ignoreClosingError)
+        let hasContent = false
+        try {
+          for await (const event of this.deps.codec.decode(response, model)) {
+            const parsed = parseCanonicalEvent(event)
+            // Arguments are executable payloads, not diagnostic text. Retain
+            // their bytes while keeping the codec's ordinary output redaction.
+            const safe: unknown = JSON.parse(JSON.stringify(parsed), (key, value: unknown) => {
+              if (typeof value !== 'string') return value
+              const isExecutable =
+                key === 'arguments' ||
+                (key === 'delta' && parsed.type === 'response.function_call_arguments.delta')
+              return isExecutable ? redactContent(value) : redact(value)
+            })
+            const validated = parseCanonicalEvent(safe)
+            eventParsed(validated)
+            if (validated.type !== 'response.created' && validated.type !== 'response.in_progress')
+              hasContent = true
+            // A scheduled run settles each terminal event at its pinned
+            // price, so the run's own cap clamps a stream the transport
+            // may send again mid-stream.
+            if (
+              claim !== undefined &&
+              'response' in validated &&
+              ['response.completed', 'response.failed', 'response.incomplete'].includes(
+                validated.type,
+              ) &&
+              validated.response.usage != null
+            ) {
+              const usage = validated.response.usage
+              const cost = this.scheduledPrice?.settle(
+                { ...modelPricedUsage(usage), images: requestImageCount(body) },
+                { cost: usage.provider_cost_usd },
+              )
+              if (cost !== undefined) await claim.settle(cost)
+            }
+            yield validated
+          }
+          return
+        } catch (error: unknown) {
+          const failure = redactModelApiError(error, redact, response.status)
+          // A retryable error the provider ended its stream with before any
+          // content (Anthropic's `overloaded_error`, "which would normally
+          // correspond to an HTTP 529"; OpenRouter's mid-stream 429 or 503)
+          // is sent again under the same policy as that status (lane
+          // PROVERRORS, research anthropic.md AB3, openrouter.md "Mid-stream
+          // 429"); so is a connection lost before any content, as a transient
+          // send failure is. Once content has arrived the turn ends with it.
+          // A per-call-billed (media) request is never sent again here, as the
+          // transport retries it only on a 429.
+          const isResendable =
+            isRetryableStreamFailure(failure, this.deps.transport.retryTable) ||
+            (failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE)
+          // Lane PR225FIX2: a connection lost before any content is an
+          // ambiguous send — the request may have arrived and executed — so
+          // it is sent again only within an explicit bound (the person's
+          // setting or the provider's documented maximum), never on the
+          // unbounded default. A retryable error the provider ended its
+          // stream with stays on the status policy above.
+          const isAmbiguous = failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE
+          const allowed = this.transport.maxRetries()
+          if (
+            !isResendable ||
+            hasContent ||
+            signal.aborted ||
+            admitAttempt?.mediaAccounting !== undefined ||
+            !canRetryWithinBudget(retries, retries.retriesUsed) ||
+            (isAmbiguous && allowed === undefined) ||
+            retries.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
+          )
+            await rethrowStreamError(error, redact, response.status)
+          const attempt = retries.retriesUsed
+          retries.retriesUsed = attempt + 1
+          const delayMs = this.retryDelayMs(attempt)
+          onRetry?.({
+            attempt: attempt + 1,
+            maxAttempts: allowed === undefined ? undefined : allowed + 1,
+            delayMs,
+            reason: `${failure.code ?? ''}: ${failure.message}`,
+          })
+          await this.waitBeforeRetry(delayMs, signal)
+          // Lane PR225W1: the person's limit is live — a change mid-wait
+          // refuses the resend the pre-wait check accepted.
+          if (attempt >= (this.transport.maxRetries() ?? UNBOUNDED_RETRIES)) throw failure
+        } finally {
+          if (response.body !== null && !response.body.locked) {
+            void response.body.cancel().catch(ignoreClosingError)
+          }
         }
       }
+    } finally {
+      // A stream that sent nothing leaves the held scheduled claim open,
+      // so it settles at zero and the run's own cap is restored.
+      if (paid?.isSent === false) await paid.claim.settle(Usd.from(0).toAmount())
     }
   }
 }

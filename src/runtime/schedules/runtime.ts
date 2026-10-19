@@ -1,6 +1,7 @@
 import { UI_TEXT } from '../../shared/constants'
+import path from 'node:path'
 import { workspaceKey } from '../dataFolder'
-import { acpSchedules, type AcpScheduleContext } from '../../acp/schedules'
+import { acpSchedules, type AcpScheduleContext, type AcpScheduleSession } from '../../acp/schedules'
 import { runScheduleCommand, type ScheduleControlPort } from './command'
 import { settleScheduleCommand, type ScheduleCommandResult } from './settle'
 import type { ScheduleCommandOptions, ScheduleCallerContext } from './args'
@@ -12,6 +13,7 @@ import type { ScheduleReportCliPort } from './reportCli'
 import { scheduleLauncherReason, type ScheduleWakeAuthorization } from './registration'
 
 export interface ScheduleRuntimeDeps {
+  readonly attachSession?: (cwd: string, session: AcpScheduleSession) => () => void
   readonly reportCli?: ScheduleReportCliPort
   /** S supplies a scoped control, with a real close for that invocation. */
   readonly controlFor: (cwd: string, caller: ScheduleCallerContext) => Promise<ScheduleControlPort>
@@ -33,6 +35,7 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
   private readonly leases = new Set<() => Promise<void>>()
   private readonly acp
   private closed = false
+  private closing: Promise<void> | undefined
   private isMacWake = false
   constructor(private readonly deps: ScheduleRuntimeDeps) {
     this.acp = acpSchedules((context) =>
@@ -49,7 +52,8 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
   }
   private async control(cwd: string, caller: ScheduleCallerContext): Promise<ScheduleControlPort> {
     this.assertOpen()
-    const control = await this.deps.controlFor(cwd, caller)
+    const root = path.resolve(cwd)
+    const control = await this.deps.controlFor(root, caller)
     if (this.closed) {
       await control.close()
       this.assertOpen()
@@ -58,7 +62,7 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
       request: (input) =>
         this.deps.surface.request(
           input,
-          workspaceKey(cwd),
+          workspaceKey(root),
           (request, context) => control.request(request, context),
           caller,
         ),
@@ -95,6 +99,7 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
     cwd: string,
     isInteractive = false,
   ): Promise<ScheduleCommandResult> {
+    const root = path.resolve(cwd)
     this.isMacWake =
       options.operation === 'run-due' && (this.deps.platform ?? process.platform) === 'darwin'
     let authorization: ScheduleWakeAuthorization = {
@@ -121,37 +126,49 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
         }
       }
     }
-    const control = await this.control(cwd, {
+    const control = await this.control(root, {
       source: 'cli',
       isInteractive,
       ...authorization,
     })
-    return await settleScheduleCommand(
-      () => runScheduleCommand(options, cwd, control, this.deps.reportCli),
-      () => (options.operation === 'run-due' ? this.close() : Promise.resolve()),
-    )
+    const unhold =
+      options.operation === 'run-now' || options.operation === 'fire'
+        ? this.deps.host.hold(workspaceKey(root))
+        : undefined
+    try {
+      return await settleScheduleCommand(
+        () => runScheduleCommand(options, root, control, this.deps.reportCli),
+        () => (options.operation === 'run-due' ? this.close() : Promise.resolve()),
+      )
+    } finally {
+      unhold?.()
+    }
   }
   async run(text: string, context: AcpScheduleContext): Promise<string> {
     this.assertOpen()
-    return await this.acp.run(text, context)
+    return await this.acp.run(text, { ...context, cwd: path.resolve(context.cwd) })
   }
   async message(input: unknown, cwd: string): Promise<unknown> {
     this.assertOpen()
+    const root = path.resolve(cwd)
     // Warm the workspace control: the surface routes by key afterwards.
-    await this.control(cwd, {
+    await this.control(root, {
       source: 'interactive',
       isInteractive: true,
       scheduledPrompts: false,
     })
-    return await this.deps.surface.message(input, cwd)
+    return await this.deps.surface.message(input, root)
   }
-  async holdWorkspace(cwd: string): Promise<() => Promise<void>> {
+  async holdWorkspace(cwd: string, session?: AcpScheduleSession): Promise<() => Promise<void>> {
     this.assertOpen()
-    const unhold = this.deps.host.hold(workspaceKey(cwd))
+    const root = path.resolve(cwd)
+    const detach = session === undefined ? undefined : this.deps.attachSession?.(root, session)
+    const unhold = this.deps.host.hold(workspaceKey(root))
     let unwatch: () => Promise<void>
     try {
-      unwatch = await this.deps.watchWorkspace(cwd)
+      unwatch = await this.deps.watchWorkspace(root)
     } catch (error: unknown) {
+      detach?.()
       unhold()
       throw error
     }
@@ -160,6 +177,7 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
       if (isReleased) return
       isReleased = true
       this.leases.delete(release)
+      detach?.()
       unhold()
       await unwatch()
     }
@@ -171,18 +189,24 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
     return release
   }
   async close(): Promise<void> {
-    if (this.closed) return
-    this.closed = true
-    try {
-      const results = await Promise.allSettled([...this.leases].map((release) => release()))
-      if (results.some((result) => result.status === 'rejected'))
-        throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
-    } finally {
-      try {
-        await this.deps.close()
-      } finally {
-        if (!this.isMacWake) await this.deps.background.reconcile()
-      }
+    if (this.closing !== undefined) {
+      await this.closing
+      return
     }
+    this.closed = true
+    this.closing = (async () => {
+      try {
+        const results = await Promise.allSettled([...this.leases].map((release) => release()))
+        if (results.some((result) => result.status === 'rejected'))
+          throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+      } finally {
+        try {
+          await this.deps.close()
+        } finally {
+          if (!this.isMacWake) await this.deps.background.reconcile()
+        }
+      }
+    })()
+    await this.closing
   }
 }

@@ -161,7 +161,7 @@
   "command.schedulePrompt.title": "Schedule this prompt…",
   "command.showSchedules.title": "Show schedules",
   "command.showScheduleTimeline.title": "Show schedule timeline",
-  "config.schedules.description": "A korábbi /loop parancs gyors elérését szabályozza a Muse Code csevegésben. Az ütemezések kezelése és az ütemezett kérések végrehajtása nem érhető el.",
+  "config.schedules.description": "A /loop működését vezérli a Muse Code csevegésben. Az ütemezett kérések kézbesítése tanúsítást igényel.",
   "config.schedules.defaultDelivery.description": "Az új ütemezési vázlatokba írt kézbesítési módot választja ki; nem engedélyezi az ütemezett végrehajtást.",
   "config.schedules.agentCreation.description": "Kompatibilitási célból tárolva; ez a beállítás ebben a verzióban nincs hatással a működésre.",
   "command.tabLanguages.title": "Tab nyelvek",

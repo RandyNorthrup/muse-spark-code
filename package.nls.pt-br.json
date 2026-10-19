@@ -161,7 +161,7 @@
   "command.schedulePrompt.title": "Schedule this prompt…",
   "command.showSchedules.title": "Show schedules",
   "command.showScheduleTimeline.title": "Show schedule timeline",
-  "config.schedules.description": "Controla o atalho do comando /loop existente no chat do Muse Code. O gerenciamento de agendamentos e a execução de prompts agendados estão indisponíveis.",
+  "config.schedules.description": "Controla /loop no chat do Muse Code. A entrega de prompts agendados requer certificação.",
   "config.schedules.defaultDelivery.description": "Seleciona a forma de entrega gravada nos novos rascunhos de agendamento; não habilita a execução agendada.",
   "config.schedules.agentCreation.description": "Mantida por compatibilidade; esta preferência não tem efeito nesta compilação.",
   "command.tabLanguages.title": "Idiomas do Tab",

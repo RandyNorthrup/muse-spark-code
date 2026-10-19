@@ -210,6 +210,10 @@ import { backendLabel } from '../../shared/paletteFormatting'
 
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import type { SchedulesBridge } from '../schedules/schedulesBridge'
+import type { ScheduleEditorDeliveryPorts } from '../schedules/deliveryBinding'
+import type { BackendSession } from '../schedules/backgroundTarget'
+import type { UnattendedRun } from '../../core/schedules/unattended'
+import type { ScheduleRunContext, ScheduleV2 } from '../../shared/scheduleV2'
 import { parseScheduleHostMessage } from '../../shared/scheduleProtocol'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
@@ -429,6 +433,7 @@ export interface LastSession {
 
 /** Per-workspace memory behind the History dialog (`workspaceState`, M6). */
 export interface SessionMemory {
+  scheduledTitle?(backend: BackendKind, sessionId: string): string | undefined
   archivedIds(): readonly string[]
   setArchivedIds(ids: readonly string[]): Promise<void>
   /** Sessions whose Muse Code event log failed, newest last (CLI recovery). */
@@ -531,6 +536,9 @@ export interface ConversationDeps {
   readonly readToolImage: (path: string) => Promise<ToolImageResult>
   /** The IDE tool server for `session/start`, when it is listening. */
   readonly ideMcpEndpoint: () => Promise<SessionMcpHttpServer | undefined>
+  readonly ideMcpCaller?: (
+    resolve: () => { readonly isReady: boolean; readonly run?: UnattendedRun },
+  ) => Promise<{ readonly endpoint: SessionMcpHttpServer; dispose(): void }>
   /**
    * M96 lane T: the `team` server for `session/start`, on team conversations
    * only (lanes B/T own the server; extension.ts wires it). Absent: every
@@ -742,8 +750,9 @@ const BYPASS_MODE: PermissionMode = 'bypassPermissions'
 const AUTO_MODE: PermissionMode = 'auto'
 const FALLBACK_MODE: PermissionMode = 'manual'
 /** Auto approval is safe only while one controller holds the shared session. */
-const sessionSurfaces = new WeakMap<AgentSession, Set<ConversationController>>()
-const sessionQuestions = new WeakMap<AgentSession, QuestionRegistry>()
+const sessionSurfaces = new WeakMap<BackendSession, Set<ConversationController>>()
+const sessionQuestions = new WeakMap<BackendSession, QuestionRegistry>()
+const sessionIdeCallers = new WeakMap<BackendSession, Set<{ dispose(): void }>>()
 const APPROVED_DECISION = 'approved'
 const [IDE_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
 const HISTORY_MODE_NONE = 'none'
@@ -1521,6 +1530,11 @@ export class ConversationController {
   private tasksTabFor: { readonly sessionId: string | undefined } | undefined
   /** One v2 channel request from the panel over the workspace control. */
   private schedulesRevision = 0
+  private scheduleSessionStop = new AbortController()
+  private pendingIdeCaller:
+    | { agent?: AgentSession | undefined; readonly endpoint: SessionMcpHttpServer; dispose(): void }
+    | undefined
+  private scheduleWorkspaceRelease: Promise<() => Promise<void>> | undefined
   private mediaAttachments: MediaAttachmentPort | undefined
   private mediaLoading: Promise<MediaAttachmentPort> | undefined
   /** In-progress screen recordings' cancels; clear/dispose cancels them. */
@@ -1604,6 +1618,28 @@ export class ConversationController {
         return port
       },
     })
+    this.scheduleWorkspaceChanged()
+  }
+
+  private releaseScheduleWorkspace(): void {
+    const pending = this.scheduleWorkspaceRelease
+    this.scheduleWorkspaceRelease = undefined
+    if (pending !== undefined)
+      void pending
+        .then((release) => release())
+        .catch(() => {
+          this.deps.log.warn('Scheduled workspace could not be released')
+        })
+  }
+
+  private bindIdeCaller(session: AgentSession): void {
+    const pending = this.pendingIdeCaller
+    if (pending === undefined) return
+    pending.agent = session
+    const callers = sessionIdeCallers.get(session) ?? new Set()
+    callers.add(pending)
+    sessionIdeCallers.set(session, callers)
+    this.pendingIdeCaller = undefined
   }
 
   private post(message: HostToWebviewMessage): void {
@@ -1847,9 +1883,12 @@ export class ConversationController {
         // The Auto reviewer's side session (M90): never a conversation of the user's.
         continue
       }
-      if (!this.deps.surface.isSideChat || this.sideSessionIds.has(record.sessionId)) {
-        sessions.push(toSessionRow(record))
-      }
+      if (this.deps.surface.isSideChat && !this.sideSessionIds.has(record.sessionId)) continue
+      const title = this.deps.sessions.scheduledTitle?.(
+        this.deps.auth.backend ?? 'museCode',
+        record.sessionId,
+      )
+      sessions.push(toSessionRow(title === undefined ? record : { ...record, name: title, title }))
     }
     this.post({
       type: 'sessionList',
@@ -2011,6 +2050,8 @@ export class ConversationController {
       this.playbackStart = undefined
     }
     const { session } = this
+    this.scheduleSessionStop.abort()
+    this.scheduleSessionStop = new AbortController()
     if (isTurnCancelled && session !== undefined && this.activeTurnId !== undefined) {
       void this.cancelQuietly(session)
     }
@@ -2027,6 +2068,9 @@ export class ConversationController {
       const surfaces = sessionSurfaces.get(session)
       surfaces?.delete(this)
       if (surfaces?.size === 0) {
+        const callers = sessionIdeCallers.get(session) ?? []
+        for (const caller of callers) caller.dispose()
+        sessionIdeCallers.delete(session)
         sessionSurfaces.delete(session)
         const questions = sessionQuestions.get(session)
         sessionQuestions.delete(session)
@@ -2792,7 +2836,10 @@ export class ConversationController {
         // A steer the turn ended without waits as a turn of its own (M53),
         // still to be taken back as a queued message under its new turn.
         for (const [localId, message] of this.queuedMessages) {
-          if (message.userMessageId === event.userMessageId) {
+          if (
+            message.userMessageId === event.userMessageId ||
+            message.turnId === event.userMessageId
+          ) {
             this.queuedMessages.set(localId, {
               ...message,
               turnId: event.turnId,
@@ -3219,7 +3266,7 @@ export class ConversationController {
   }
 
   /** One registry per shared session handle, with publication to every attached surface. */
-  private async attachQuestions(session: AgentSession, backend: BackendKind): Promise<void> {
+  private async attachQuestions(session: BackendSession, backend: BackendKind): Promise<void> {
     const binding = this.deps.questions
     if (binding === undefined) return
     let registry = sessionQuestions.get(session)
@@ -3242,9 +3289,9 @@ export class ConversationController {
           const surface = [...(sessionSurfaces.get(session) ?? [])].find(
             (controller) => !controller.isDisposed,
           )
-          return surface === undefined
-            ? 'notTaken'
-            : await surface.deliverQuestion(session, message)
+          return surface?.session === session
+            ? await surface.deliverQuestion(surface.session, message)
+            : 'notTaken'
         },
         changed: (snapshot) => {
           const surfaces = sessionSurfaces.get(session) ?? []
@@ -4117,7 +4164,33 @@ export class ConversationController {
         throw new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: TEAM_MCP_SERVER_NAME }))
       return undefined
     }
-    const ideEndpoint = await this.deps.ideMcpEndpoint()
+    this.pendingIdeCaller?.dispose()
+    this.pendingIdeCaller = undefined
+    const owner: { agent?: AgentSession | undefined } = {}
+    const caller = await this.deps.ideMcpCaller?.(() => {
+      const run = owner.agent?.getScheduledRun?.()
+      return { isReady: owner.agent !== undefined, ...(run !== undefined && { run }) }
+    })
+    if (this.isDisposed) {
+      caller?.dispose()
+      throw new Error(UI_TEXT.surfaceClosed)
+    }
+    if (caller !== undefined) {
+      const binding = {
+        endpoint: caller.endpoint,
+        dispose: () => {
+          caller.dispose()
+        },
+        get agent() {
+          return owner.agent
+        },
+        set agent(agent: AgentSession | undefined) {
+          owner.agent = agent
+        },
+      }
+      this.pendingIdeCaller = binding
+    }
+    const ideEndpoint = caller?.endpoint ?? (await this.deps.ideMcpEndpoint())
     const servers: Record<string, SessionMcpHttpServer> = {}
     if (ideEndpoint !== undefined) {
       servers[IDE_MCP_SERVER_NAME] = ideEndpoint
@@ -4156,6 +4229,7 @@ export class ConversationController {
     this.deps.log.info(
       `Session ${session.sessionId} ${origin} on the ${host.info.kind} backend, model ${session.modelId}`,
     )
+    this.bindIdeCaller(session)
     this.session = session
     this.sessionKind = host.info.kind
     this.attachedHost = host
@@ -11581,6 +11655,89 @@ export class ConversationController {
     }
   }
 
+  public scheduleWorkspaceChanged(): void {
+    if (
+      this.isDisposed ||
+      !this.isAuthAdmitted() ||
+      !this.deps.isWorkspaceTrusted() ||
+      this.deps.workspaceRoot === undefined ||
+      this.deps.schedulesBridge?.isDeliveryEnabled() !== true
+    ) {
+      this.releaseScheduleWorkspace()
+      return
+    }
+    if (this.scheduleWorkspaceRelease !== undefined) return
+    const pending = this.deps.schedulesBridge.holdWorkspace(this.deps.workspaceRoot)
+    this.scheduleWorkspaceRelease = pending
+    void pending.catch(() => {
+      if (this.scheduleWorkspaceRelease === pending) this.scheduleWorkspaceRelease = undefined
+      this.deps.log.warn('Scheduled workspace could not be held')
+    })
+  }
+
+  public scheduleTarget(schedule: ScheduleV2): ReturnType<ScheduleEditorDeliveryPorts['findLive']> {
+    if (
+      this.isDisposed ||
+      !this.isAuthAdmitted() ||
+      !this.deps.isWorkspaceTrusted() ||
+      schedule.target.kind !== 'conversation' ||
+      this.sessionKind !== schedule.target.backend ||
+      this.session?.sessionId !== schedule.target.sessionId
+    )
+      return undefined
+    return {
+      agent: this.session,
+      status: this.activeTurnId === undefined ? 'idle' : 'running',
+      ...(this.activeTurnId !== undefined && { activeTurnId: this.activeTurnId }),
+      signal: this.scheduleSessionStop.signal,
+    }
+  }
+
+  public scheduleModelId(): string {
+    return this.session?.modelId ?? this.modelId
+  }
+
+  public scheduledSubmission(
+    session: BackendSession,
+    context: ScheduleRunContext,
+    text: string,
+    submission: TurnSubmission,
+  ): void {
+    if (this.session !== session || this.isDisposed) return
+    if (!this.acceptedUserCards.has(context.runId))
+      this.post({ type: 'briefSubmitted', localId: context.runId, text, attachments: [] })
+    this.noteQueuedMessage(this.session, context.runId, submission)
+    this.acceptSubmission(context.runId, text, submission)
+  }
+
+  public scheduleNotice(session: BackendSession | undefined, text: string): void {
+    if (!this.isDisposed && (session === undefined || this.session === session))
+      this.say('info', text)
+  }
+
+  public async scheduledQuestion(
+    session: BackendSession,
+    backend: BackendKind,
+    event: Extract<AgentEvent, { type: 'questionRequested' }>,
+    context: ScheduleRunContext,
+  ): Promise<void> {
+    await this.attachQuestions(session, backend)
+    const registry = sessionQuestions.get(session)
+    if (registry === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
+    await registry.register(
+      {
+        userInputId: event.userInputId,
+        itemId: event.itemId,
+        questions: event.questions,
+        turnId: context.runId,
+      },
+      0,
+    )
+    // The backend performs its captured clarification once. The registry keeps
+    // this question open for a later answer without sending a second withdrawal.
+    await registry.settle(event.userInputId, 'deferred')
+  }
+
   public revealBoardSession(sessionId: string, backend: BackendKind): boolean {
     if (
       this.isDisposed ||
@@ -11915,6 +12072,9 @@ export class ConversationController {
   }
 
   public dispose(): void {
+    this.releaseScheduleWorkspace()
+    this.pendingIdeCaller?.dispose()
+    this.pendingIdeCaller = undefined
     this.isDisposed = true
     this.bestOfNManager?.dispose()
     this.historyWatchEpoch += 1

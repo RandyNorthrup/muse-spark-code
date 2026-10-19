@@ -1867,6 +1867,7 @@ class AcpSession {
     canRemember: boolean,
     isOwnerCurrent: () => boolean,
     signal?: AbortSignal,
+    request?: PaidUseRequest,
   ): Promise<PaidUseAnswer> {
     const isCurrent = () => !this.isDisposed && signal?.aborted !== true && isOwnerCurrent()
     if (!isCurrent()) return 'deny'
@@ -1890,16 +1891,22 @@ class AcpSession {
       const params: RequestPermissionRequest = {
         sessionId: this.sessionId,
         toolCall: { toolCallId, title, status: 'pending', content },
-        options: paidUseOptions(canRemember),
+        options: paidUseOptions(
+          canRemember,
+          request?.feature === 'scheduledPrompts' && request.schedule !== undefined,
+        ),
       }
       // The companion's cancellation also cancels the editor's prompt: a
       // locally abandoned wait must not leave the editor's question open.
-      const request = this.client.request(
+      const pendingPermission = this.client.request(
         'session/request_permission',
         params,
         signal === undefined ? undefined : { cancellationSignal: signal },
       )
-      const response = signal === undefined ? await request : await unlessAborted(request, signal)
+      const response =
+        signal === undefined
+          ? await pendingPermission
+          : await unlessAborted(pendingPermission, signal)
       // A session let go while the editor was asked is billed for nothing.
       answer =
         response !== undefined && isCurrent()
@@ -1922,8 +1929,13 @@ class AcpSession {
     const pending = this.pending
     const preparing = this.preparing
     const { title, detail } = await paidUseQuestion(request)
-    return await this.askPaidQuestion(title, detail, canRemember, () =>
-      this.isCurrentPaidPrompt(pending, preparing),
+    return await this.askPaidQuestion(
+      title,
+      detail,
+      canRemember,
+      () => this.isCurrentPaidPrompt(pending, preparing),
+      undefined,
+      request,
     )
   }
 
@@ -2870,7 +2882,22 @@ class AcpSession {
   public async holdSchedules(): Promise<void> {
     if (this.deps.schedules?.isAvailable === false) return
     try {
-      const release = await this.deps.schedules?.holdWorkspace?.(this.cwd)
+      const release = await this.deps.schedules?.holdWorkspace?.(this.cwd, {
+        agent: this.session,
+        backend: this.deps.backend.kind,
+        ...(this.activeTurnId !== undefined && { activeTurnId: this.activeTurnId }),
+        row: (text) => {
+          this.questionNotice(text)
+        },
+        deferQuestions: async (event, context) => {
+          if (this.questionRegistry === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
+          await this.questionRegistry.register(event, {
+            askedAt: Date.now(),
+            turnId: this.activeTurnId ?? context.runId,
+          })
+          await this.questionRegistry.defer(event.userInputId)
+        },
+      })
       if (this.isDisposed) await release?.()
       else this.releaseSchedules = release
     } catch {

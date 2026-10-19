@@ -360,7 +360,6 @@
     "src/core/schedules/events/git.ts",
     "src/core/schedules/grant.ts",
     "src/core/schedules/time/clock.ts",
-    "src/core/schedules/time/loop.ts",
     "src/core/schedules/time/missed.ts",
     "src/host/schedules/backgroundTarget.ts",
     "src/webview/schedules/DeferredReportActionEditor.tsx",

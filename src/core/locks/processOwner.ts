@@ -239,8 +239,10 @@ async function isHighIntegrityHost(systemRoot: string): Promise<boolean> {
       SystemRoot: systemRoot,
     })
     return groups.includes(HIGH_INTEGRITY_SID) || groups.includes(SYSTEM_INTEGRITY_SID)
-  } catch {
-    return false
+  } catch (error: unknown) {
+    // An inconclusive probe answers negatively; anything else is unexpected.
+    if (isSpawnFailure(error)) return false
+    throw error
   }
 }
 
@@ -317,9 +319,11 @@ async function buildWindowsBirthReader(systemRoot: string): Promise<BirthReader>
   if (isHighIntegrity) {
     try {
       await wallAboveLowerIntegrity(file, systemRoot)
-    } catch {
+    } catch (error: unknown) {
       await removeQuietly(file)
-      throw new Error('The birth reader cannot be walled above a lower-integrity writer')
+      throw new Error('The birth reader cannot be walled above a lower-integrity writer', {
+        cause: error,
+      })
     }
   }
   return { file, digest }

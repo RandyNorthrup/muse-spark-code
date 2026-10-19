@@ -97,57 +97,54 @@ function printed(): { readonly print: (line: string) => void; readonly lines: st
   }
 }
 
+/** One secret reader, one key-use question and the two printers every drill wires. */
+function confirmDoubles(values: readonly string[], answers: readonly boolean[]) {
+  return {
+    secrets: readSecretFor(values),
+    confirm: confirmWith(answers),
+    out: printed(),
+    errors: printed(),
+  }
+}
+
+type ConfirmDoubles = ReturnType<typeof confirmDoubles>
+
+/**
+ * Both confirmation drills end the same way: the exit, one use-it-anyway
+ * question, the refusing store's error and no standard output. A declined
+ * key is asked for again first, so it reads two secrets; a confirmed key
+ * reads one and reaches the store.
+ */
+function expectConfirmOutcome(
+  exit: number,
+  doubles: ConfirmDoubles,
+  secretReads: number,
+  expectedErrors: readonly string[],
+): void {
+  expect(exit).toBe(1)
+  expect(doubles.secrets.calls.length).toBe(secretReads)
+  expect(doubles.confirm.calls.length).toBe(1)
+  expect(doubles.confirm.calls[0]).toMatch(/use it anyway\?/i)
+  expect(doubles.errors.lines).toEqual(expectedErrors)
+  expect(doubles.out.lines).toEqual([])
+}
+
 describe('auth set --provider confirmation', () => {
   it('asks for the key again on "no" and never stores the declined value', async () => {
-    const secrets = readSecretFor([URL_KEY, ''])
-    const confirm = confirmWith([false])
-    const out = printed()
-    const errors = printed()
-    const exit = await authSetProvider(
-      {
-        secrets: refusingSecrets('provider-key-confirm test stores no declined key'),
-        storeName: 'test store',
-        readSecret: secrets.readSecret,
-        confirmKeyUse: confirm.confirmKeyUse,
-        print: out.print,
-        printError: errors.print,
-      } satisfies AuthCommandDeps,
-      'groq',
-      () => Promise.resolve<ProvidersFileRead>({ ok: true, file: emptyProvidersFile() }),
+    const doubles = confirmDoubles([URL_KEY, ''], [false])
+    const exit = await runProviderAuthSet(
+      doubles,
+      'provider-key-confirm test stores no declined key',
     )
-    expect(exit).toBe(1)
-    expect(secrets.calls.length).toBe(2)
-    expect(confirm.calls.length).toBe(1)
-    expect(confirm.calls[0]).toMatch(/use it anyway\?/i)
-    expect(errors.lines).toEqual([providerKeyFailureText('empty')])
-    expect(out.lines).toEqual([])
+    expectConfirmOutcome(exit, doubles, 2, [providerKeyFailureText('empty')])
   })
 
   it('continues a confirmed suspicious key to the store for the provider to judge', async () => {
-    const secrets = readSecretFor([URL_KEY])
-    const confirm = confirmWith([true])
-    const out = printed()
-    const errors = printed()
-    const exit = await authSetProvider(
-      {
-        secrets: refusingSecrets('test store refused'),
-        storeName: 'test store',
-        readSecret: secrets.readSecret,
-        confirmKeyUse: confirm.confirmKeyUse,
-        print: out.print,
-        printError: errors.print,
-      } satisfies AuthCommandDeps,
-      'groq',
-      () => Promise.resolve<ProvidersFileRead>({ ok: true, file: emptyProvidersFile() }),
-    )
-    expect(exit).toBe(1)
-    expect(secrets.calls.length).toBe(1)
-    expect(confirm.calls.length).toBe(1)
-    expect(confirm.calls[0]).toMatch(/use it anyway\?/i)
-    expect(errors.lines).toEqual([
+    const doubles = confirmDoubles([URL_KEY], [true])
+    const exit = await runProviderAuthSet(doubles, 'test store refused')
+    expectConfirmOutcome(exit, doubles, 1, [
       fill(UI_TEXT.acpStoreUnavailable, { reason: 'test store refused' }),
     ])
-    expect(out.lines).toEqual([])
   })
 })
 
@@ -184,63 +181,60 @@ async function openaiWorkFolder(): Promise<string> {
   return folder
 }
 
+/** The provider-level drill against the same refusing store and providers file. */
+function runProviderAuthSet(doubles: ConfirmDoubles, secretsReason: string): Promise<number> {
+  return authSetProvider(
+    {
+      secrets: refusingSecrets(secretsReason),
+      storeName: 'test store',
+      readSecret: doubles.secrets.readSecret,
+      confirmKeyUse: doubles.confirm.confirmKeyUse,
+      print: doubles.out.print,
+      printError: doubles.errors.print,
+    } satisfies AuthCommandDeps,
+    'groq',
+    () => Promise.resolve<ProvidersFileRead>({ ok: true, file: emptyProvidersFile() }),
+  )
+}
+
+/** The per-account drill against a staged openai work account. */
+async function runWorkAccountAuthSet(doubles: ConfirmDoubles): Promise<number> {
+  const folder = await openaiWorkFolder()
+  const metadata = fileAccountsMetadata(folder)
+  return await runAccountAuthSet(
+    { provider: 'openai', account: 'work' },
+    {
+      accounts: new AccountStore(metadata, refusingVault()),
+      metadata,
+      readSecret: doubles.secrets.readSecret,
+      confirmKeyUse: doubles.confirm.confirmKeyUse,
+      storeName: 'test store',
+      print: doubles.out.print,
+      printError: doubles.errors.print,
+    },
+  )
+}
+
 describe('per-account auth confirmation', () => {
   it('asks for the key again on "no" and never stores the declined value', async () => {
-    const folder = await openaiWorkFolder()
-    const metadata = fileAccountsMetadata(folder)
-    const secrets = readSecretFor([URL_KEY, ''])
-    const confirm = confirmWith([false])
-    const out = printed()
-    const errors = printed()
-    const exit = await runAccountAuthSet(
-      { provider: 'openai', account: 'work' },
-      {
-        accounts: new AccountStore(metadata, refusingVault()),
-        metadata,
-        readSecret: secrets.readSecret,
-        confirmKeyUse: confirm.confirmKeyUse,
-        storeName: 'test store',
-        print: out.print,
-        printError: errors.print,
-      },
-    )
-    expect(exit).toBe(1)
-    expect(secrets.calls.length).toBe(2)
-    expect(confirm.calls.length).toBe(1)
-    expect(confirm.calls[0]).toMatch(/use it anyway\?/i)
-    expect(errors.lines).toEqual([UI_TEXT.accounts.invalidAccount])
-    expect(out.lines).toEqual([])
+    const doubles = confirmDoubles([URL_KEY, ''], [false])
+    const exit = await runWorkAccountAuthSet(doubles)
+    expectConfirmOutcome(exit, doubles, 2, [UI_TEXT.accounts.invalidAccount])
   })
 
   it('continues a confirmed suspicious per-account key to the store', async () => {
-    const folder = await openaiWorkFolder()
-    const metadata = fileAccountsMetadata(folder)
-    const secrets = readSecretFor([URL_KEY])
-    const confirm = confirmWith([true])
-    const out = printed()
-    const errors = printed()
-    const exit = await runAccountAuthSet(
-      { provider: 'openai', account: 'work' },
-      {
-        accounts: new AccountStore(metadata, refusingVault()),
-        metadata,
-        readSecret: secrets.readSecret,
-        confirmKeyUse: confirm.confirmKeyUse,
-        storeName: 'test store',
-        print: out.print,
-        printError: errors.print,
-      },
-    )
+    const doubles = confirmDoubles([URL_KEY], [true])
+    const exit = await runWorkAccountAuthSet(doubles)
     expect(exit).toBe(1)
-    expect(secrets.calls.length).toBe(1)
-    expect(confirm.calls.length).toBe(1)
+    expect(doubles.secrets.calls.length).toBe(1)
+    expect(doubles.confirm.calls.length).toBe(1)
     // A store refusal names its cause (merged accounts command): the vault
     // the run must not reach says why it refused.
-    expect(errors.lines).toEqual([
+    expect(doubles.errors.lines).toEqual([
       fill(UI_TEXT.accounts.unavailableReason, {
         reason: 'provider-key-confirm test performs no vault call',
       }),
     ])
-    expect(out.lines).toEqual([])
+    expect(doubles.out.lines).toEqual([])
   })
 })

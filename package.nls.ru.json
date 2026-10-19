@@ -161,7 +161,7 @@
   "command.schedulePrompt.title": "Schedule this prompt…",
   "command.showSchedules.title": "Show schedules",
   "command.showScheduleTimeline.title": "Show schedule timeline",
-  "config.schedules.description": "Управляет ярлыком прежней команды /loop в чате Muse Code. Управление расписаниями и выполнение запланированных запросов недоступны.",
+  "config.schedules.description": "Управляет /loop в чате Muse Code. Отправка запланированных запросов требует сертификации.",
   "config.schedules.defaultDelivery.description": "Выбирает способ доставки, записываемый в новые черновики расписаний; не включает запланированное выполнение.",
   "config.schedules.agentCreation.description": "Сохранено для совместимости; эта настройка не действует в данной сборке.",
   "command.tabLanguages.title": "Языки Tab",

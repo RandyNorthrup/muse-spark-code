@@ -371,21 +371,24 @@ export function ScheduleEditor({
           }}
         />
         {draft.action.kind === 'report' ? null : (
-          <label>
-            {UI_TEXT.scheduleV2.labels.paidCap}
-            <input
-              type="number"
-              min={0}
-              step="any"
-              value={draft.paidCapUsd}
-              onChange={(event) => {
-                const parsed = usdInputSchema.safeParse(event.target.value)
-                if (!parsed.success) return
-                const paidCapUsd = parsed.data
-                setDraft({ ...draft, paidCapUsd, grant: { ...draft.grant, paidCapUsd } })
-              }}
-            />
-          </label>
+          <>
+            <label>
+              {UI_TEXT.scheduleV2.labels.paidCap}
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={draft.paidCapUsd}
+                onChange={(event) => {
+                  const parsed = usdInputSchema.safeParse(event.target.value)
+                  if (!parsed.success) return
+                  const paidCapUsd = parsed.data
+                  setDraft({ ...draft, paidCapUsd, grant: { ...draft.grant, paidCapUsd } })
+                }}
+              />
+            </label>
+            <p>{UI_TEXT.scheduleV2.editor.paidCapHelp}</p>
+          </>
         )}
         <label>
           <input

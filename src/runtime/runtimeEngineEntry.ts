@@ -24,3 +24,6 @@ export function installUsageRecording(recording: UsageRecording): () => void {
     MuseCodeBackendManager.usageRecording = manager
   }
 }
+
+// Runtime-only schedule session ownership stays behind this existing engine boundary.
+export { createRuntimeScheduleDelivery } from './schedules/delivery'

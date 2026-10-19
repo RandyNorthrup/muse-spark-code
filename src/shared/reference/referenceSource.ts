@@ -6,7 +6,7 @@ export {
   referenceDescription,
   REFERENCE_IN_PROGRESS_FEATURES,
 } from '../featureCatalog'
-export { COMMAND_IDS } from '../constants'
+export { COMMAND_IDS, SCHEDULE_EDITOR_DELIVERY_CERTIFICATION } from '../constants'
 export { buildPalette } from '../paletteRegistry'
 export { slashCommandsOf } from './slashReference'
 export { cliCommands } from '../cliCommands'
@@ -71,6 +71,7 @@ const companionCapabilities: [string, readonly string[]][] = COMPANION_VOICE_REL
   : []
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ...companionCapabilities,
+  ['runtime-schedules', ['acp:museCode', 'acp:modelApi']],
   ['resources', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi']],
   ...['strict-tools', 'parallel-reads', 'cut-short-tools', 'structured-side-calls'].map(
@@ -170,8 +171,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // accounts, show the current one and its thresholds, and hold per-account
   // keys; the editor's page, swapping and pooling are not bound.
   ['accounts', ['acp:modelApi']],
-  // MSM109: the broker-backed panel and commands on vscode and ACP, both backends.
-  ['vault', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // MSM109: the broker-backed panel and commands stay dormant while M109 is
+  // in progress: no published surface until the lead's complete receipts.
+  ['vault', []],
   // M117: the production plan snapshot port refuses on every surface.
   ['estimator', []],
 

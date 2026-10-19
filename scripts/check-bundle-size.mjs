@@ -146,7 +146,9 @@ const BUDGETS = [
   // M115W: v1's Model API schedules beside the v2 runtime binding (store,
   // scheduler, delivery, time, events, registry, control and engine), loaded
   // on first schedule use: 167.8 KiB measured, plus 15%, rounded up to 25 KiB.
-  { path: 'dist/schedules.js', budgetKiB: 200 },
+  // JOIN0190/66 merges the refusal/close settlement branches: 203.4 KiB
+  // measured, plus 15%, rounded up to 25 KiB.
+  { path: 'dist/schedules.js', budgetKiB: 250 },
   // The review (M70): git's material, the review turn's text, the Plan-mode
   // hold and edit review, loaded the first time one is used: 40.6 KiB when
   // split out, plus room (PLAN.md D6).

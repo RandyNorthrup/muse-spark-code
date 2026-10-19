@@ -17,10 +17,17 @@ the finite daily cap until their billing bounds are verified. Free OS
 dictation remains the default. Explicit false settings stay off.
 
 The local daily extras journal stores dollar reservations, settlements and
-today's override under global extension storage (`paid-daily`). All windows,
-workspaces and keys in this profile share it; it stores no prompts or keys
-and sends nothing. Failed or unreadable storage refuses spending. Tab's
-independent $1/day journal is excluded. ACP and headless policies are unchanged.
+today's override under the machine data folder (`paid-daily` inside the agent
+data folder). All windows, workspaces and keys on this machine share it, and
+the runtime (ACP and headless) uses the same root; it stores no prompts or
+keys and sends nothing. A first run carries the previous global-extension-storage
+ledger forward once (repeat reads count once; old bytes stay untouched).
+Failed or unreadable storage refuses spending. Tab's
+independent $1/day journal is excluded. The shared daily cap both families
+enforce for schedules is the one in the data-folder `settings.json`
+(`paidDailyBudgetUsd`); the VS Code setting of the same name now feeds
+interactive extras only, so the two families can never enforce different
+shared caps on the one ledger.
 
 ## Legal scan (M97 candidate)
 

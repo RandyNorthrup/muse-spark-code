@@ -36,6 +36,22 @@ function toolFor(
     // A refusal, or a bundle that cannot load, rejects, so the server
     // answers with an error result the model reads.
     call: async (args) => await bundle().callCodeIntel(tool, args, intel, UI_TEXT, uiLocale()),
+    callUnattended: async (args, signal, run) => {
+      signal.throwIfAborted()
+      return await bundle().callCodeIntel(
+        tool,
+        args,
+        {
+          ...intel,
+          canReadFile: (file) =>
+            intel.canReadFile?.(file) !== false &&
+            !signal.aborted &&
+            run.canReadFile(file.relative, file.canonical),
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+    },
   }
 }
 

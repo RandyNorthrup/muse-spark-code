@@ -161,7 +161,7 @@
   "command.schedulePrompt.title": "Schedule this prompt…",
   "command.showSchedules.title": "Show schedules",
   "command.showScheduleTimeline.title": "Show schedule timeline",
-  "config.schedules.description": "Muse Code 채팅에서 기존 /loop 바로가기를 제어합니다. 예약 관리와 예약된 프롬프트 실행은 사용할 수 없습니다.",
+  "config.schedules.description": "Muse Code 채팅의 /loop를 제어합니다. 예약 프롬프트 전달에는 인증이 필요합니다.",
   "config.schedules.defaultDelivery.description": "새 일정 초안에 기록할 전달 방식을 선택합니다. 예약 실행을 활성화하지 않습니다.",
   "config.schedules.agentCreation.description": "호환성을 위해 저장됩니다. 이 설정은 이 빌드에서 효과가 없습니다.",
   "command.tabLanguages.title": "Tab 언어",

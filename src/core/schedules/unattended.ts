@@ -24,6 +24,9 @@ import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/s
 export interface ScheduleModelText {
   readonly unattendedNote: string
   readonly approvalRefused: string
+  readonly inactiveRefused: string
+  readonly auditRefused: string
+  readonly pathUnverified: string
   readonly physicalRefused: string
   readonly protectedRefused: string
   readonly requiresAskingRefused: string
@@ -42,6 +45,7 @@ export interface ScheduleRunDeps {
   readonly readGrant: () => Promise<ScheduleGrant | undefined>
   /** Revocation, mode/model/key changes and governor admission remain live. */
   readonly isActive: () => boolean
+  readonly checkDispatch?: () => Promise<() => void>
   readonly audit: (entry: ScheduleGrantAudit) => Promise<void>
   readonly row: (text: string) => void
   readonly deferQuestions: (
@@ -53,7 +57,10 @@ export interface ScheduleRunDeps {
   readonly paid?: {
     readonly modelId: string
     readonly accountId: string
+    readonly providerId?: string | undefined
+    readonly origin?: string | undefined
     allows(feature: PaidFeature): boolean
+    checkDispatch?(): Promise<() => void>
     reserve(
       body: CreateResponseBody | CreateImageBody,
       estimatedInputTokens: number | undefined,
@@ -66,6 +73,7 @@ export interface ScheduleRunDeps {
 /** The run object never crosses a wire, persists a credential or opens a modal. */
 export class UnattendedRun {
   private canonicalRoot: Promise<string> | undefined
+  public dispatchRefusal: string | undefined
   public readonly context: ScheduleRunContext
   public readonly refusedActions: {
     actionClass: ScheduleApprovalAction['class']
@@ -76,6 +84,7 @@ export class UnattendedRun {
   public readonly reservePaidRequest: NonNullable<ModelApiClientDeps['reservePaidRequest']> =
     async (body, feature, tokens, signal = new AbortController().signal, reservationUsd) => {
       try {
+        if (!this.isActive()) throw new Error(this.modelText.inactiveRefused)
         if (
           !this.allowsPaid(feature) ||
           this.paid === undefined ||
@@ -86,6 +95,7 @@ export class UnattendedRun {
           throw new Error(this.modelText.paidRefused)
         return await this.paid.reserve(body, tokens, signal, reservationUsd)
       } catch (error: unknown) {
+        this.dispatchRefusal = error instanceof Error ? error.message : this.modelText.paidRefused
         this.refuse(
           {
             id: this.context.scheduleId,
@@ -95,7 +105,7 @@ export class UnattendedRun {
             requiresAsking: false,
             protectedPath: false,
           },
-          this.modelText.paidRefused,
+          this.dispatchRefusal,
         )
         throw error
       }
@@ -116,7 +126,7 @@ export class UnattendedRun {
       reason = this.modelText.protectedRefused
     else if (action.class === 'requiresAsking' || action.requiresAsking)
       reason = this.modelText.requiresAskingRefused
-    else if (!this.isActive()) reason = this.modelText.approvalRefused
+    else if (!this.isActive()) reason = this.modelText.inactiveRefused
     const canonical: string[] = []
     if (reason === undefined) {
       for (const path of action.paths) {
@@ -125,7 +135,7 @@ export class UnattendedRun {
         try {
           root = await (this.canonicalRoot ??= this.deps.io.realPath(this.deps.workspaceRoot))
         } catch {
-          reason = this.modelText.protectedRefused
+          reason = this.modelText.pathUnverified
           break
         }
         const relative =
@@ -152,7 +162,7 @@ export class UnattendedRun {
           isProtectedPath(confined.relative) ||
           isProtectedPath(confined.canonical)
         ) {
-          reason = this.modelText.protectedRefused
+          reason = confined.ok ? this.modelText.protectedRefused : this.modelText.pathUnverified
           break
         }
         canonical.push(confined.canonical)
@@ -161,12 +171,21 @@ export class UnattendedRun {
     const checked = { ...action, paths: canonical }
     reason ??= this.deps.safety(checked, `schedule:${this.context.scheduleId}`)
     if (reason !== undefined) return { allowed: false, reason: this.refuse(action, reason) }
-    if (!requiresApproval) return { allowed: this.isActive() }
+    if (!requiresApproval)
+      return this.isActive()
+        ? { allowed: true }
+        : { allowed: false, reason: this.refuse(action, this.modelText.inactiveRefused) }
     const grant = await this.deps.readGrant()
     const rule = grant === undefined ? undefined : this.deps.matcher.matches(grant, checked)
     const captured = this.deps.matcher.matches(this.context.grant, checked)
     if (rule === undefined || captured === undefined || !this.isActive()) {
-      return { allowed: false, reason: this.refuse(action, this.modelText.approvalRefused) }
+      return {
+        allowed: false,
+        reason: this.refuse(
+          action,
+          this.isActive() ? this.modelText.approvalRefused : this.modelText.inactiveRefused,
+        ),
+      }
     }
     try {
       await this.deps.audit({
@@ -178,11 +197,17 @@ export class UnattendedRun {
         actionClass: action.class,
       })
     } catch {
-      return { allowed: false, reason: this.refuse(action, this.modelText.approvalRefused) }
+      return {
+        allowed: false,
+        reason: this.refuse(
+          action,
+          this.isActive() ? this.modelText.auditRefused : this.modelText.inactiveRefused,
+        ),
+      }
     }
     return this.isActive()
       ? { allowed: true }
-      : { allowed: false, reason: this.refuse(action, this.modelText.approvalRefused) }
+      : { allowed: false, reason: this.refuse(action, this.modelText.inactiveRefused) }
   }
   public get modelText(): ScheduleModelText {
     return this.deps.modelText
@@ -192,6 +217,71 @@ export class UnattendedRun {
   }
   public isActive(): boolean {
     return this.deps.isActive()
+  }
+  /** CHECK, AWAIT, ACT: no await separates the final guards from the send. */
+  public async dispatch<T>(send: () => Promise<T>): Promise<T> {
+    try {
+      const paid = await this.paid?.checkDispatch?.()
+      const authority = await this.deps.checkDispatch?.()
+      authority?.()
+      paid?.()
+      if (!this.isActive()) throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+    } catch (error: unknown) {
+      this.dispatchRefusal = error instanceof Error ? error.message : this.modelText.approvalRefused
+      this.refuse(
+        {
+          id: this.context.runId,
+          class: 'mcp',
+          tool: 'scheduled_prompt',
+          paths: [],
+          requiresAsking: false,
+          protectedPath: false,
+        },
+        this.dispatchRefusal,
+      )
+      throw error
+    }
+    return await send()
+  }
+  /** Adapters call this on confined relative/canonical files at read and return. */
+  public canReadFile(relative: string, canonical = relative): boolean {
+    const paths = [relative, canonical].map((file) => file.replaceAll('\\', '/'))
+    const isActive = this.isActive()
+    const isAllowed =
+      isActive &&
+      paths.every(
+        (file) =>
+          isBelow(file, nodePath.posix) &&
+          !nodePath.posix.isAbsolute(file) &&
+          !isProtectedPath(file),
+      )
+    if (!isAllowed)
+      this.refuse(
+        {
+          id: this.context.runId,
+          class: 'mcp',
+          tool: 'file',
+          paths,
+          requiresAsking: false,
+          protectedPath: isActive,
+        },
+        isActive ? this.modelText.protectedRefused : this.modelText.inactiveRefused,
+      )
+    return isAllowed
+  }
+  public async checkFile(path: string): Promise<void> {
+    const decision = await this.decideAction(
+      {
+        id: this.context.scheduleId,
+        class: 'mcp',
+        tool: 'file',
+        paths: [path],
+        requiresAsking: false,
+        protectedPath: false,
+      },
+      false,
+    )
+    if (!decision.allowed) throw new Error(decision.reason ?? this.modelText.protectedRefused)
   }
   public parts(parts: readonly TurnPart[]): readonly TurnPart[] {
     return [...parts, { type: 'text', text: this.modelText.unattendedNote }]

@@ -29,6 +29,7 @@ import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
+  OPTIONAL_RUNTIME_AVAILABILITY,
   ESTIMATOR_BUNDLE_FILE,
   PLAN_SNAPSHOT_BUNDLE_FILE,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
@@ -141,6 +142,8 @@ import { playbookSchedulesInputsLoader } from './reporting/playbookSchedulesInpu
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding, type RuntimeSchedulesBinding } from './schedules/binding'
 import { connectorLoader } from './connector/connectorBundle'
+import type { ScheduleWakeAuthorization } from './schedules/registration'
+import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
 import { settleScheduleCommand } from './schedules/settle'
 
 import { lazyRuntimeResources } from './resources/load'
@@ -1038,7 +1041,37 @@ async function serve(
     })
     const isUsageHistoryOn = options.usageHistory ?? true
     const resources = resourcesFor(log, undefined, () => isUsageHistoryOn)
-    const loadSchedules = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+    const scheduleSessions = runtimeScheduleSessionFactory({
+      current: runtime,
+      create: (backend) => runtimeFor({ ...options, backend }, log),
+      distDir,
+      dataDir: agentDataFolder({
+        platform: process.platform,
+        env: process.env,
+        homeDir: homedir(),
+      }),
+      log,
+      allowsContributorModels: options.allowsContributorModels,
+    })
+    // The ACP-side engine module; the schedules bundle never loads it from
+    // VS Code, so the VSIX need not carry the runtime engine for schedules.
+    // Its members are read by name so the bundle-split gate can compare them
+    // with the engine bundle's exports; the module never crosses whole.
+    const engineModule = await import('./runtimeEngineEntry')
+    engineModule.setUiText(UI_TEXT, uiLocale())
+    const scheduleEngine = {
+      createRuntimeScheduleDelivery: engineModule.createRuntimeScheduleDelivery,
+      setUiText: engineModule.setUiText,
+    }
+    const loadSchedules = runtimeSchedulesBinding(
+      path.join(distDir, 'schedules.js'),
+      log,
+      undefined,
+      undefined,
+      scheduleSessions.ports,
+      undefined,
+      scheduleEngine,
+    )
     let loadedSchedules: Awaited<ReturnType<typeof loadSchedules>> | undefined
     const usage = usageFor(log, recording, runtime, isUsageHistoryOn)
     const journal = await reportJournal(log)
@@ -1082,10 +1115,10 @@ async function serve(
     const dictationLifetime = new AbortController()
     const agent = engine.createAcpAgent({
       schedules: {
-        isAvailable: false,
-        async holdWorkspace(cwd) {
+        isAvailable: OPTIONAL_RUNTIME_AVAILABILITY.schedules,
+        async holdWorkspace(cwd, session) {
           loadedSchedules ??= await loadSchedules()
-          return await loadedSchedules.holdWorkspace(cwd)
+          return await loadedSchedules.holdWorkspace(cwd, session)
         },
         async run(text, context) {
           try {
@@ -1244,15 +1277,19 @@ async function serve(
         await loadedSchedules?.close()
       } finally {
         try {
-          await usage.dispose()
+          await scheduleSessions.close()
         } finally {
           try {
-            resources.dispose()
+            await usage.dispose()
           } finally {
             try {
-              await runtime.close()
+              resources.dispose()
             } finally {
-              await journal.shutdown()
+              try {
+                await runtime.close()
+              } finally {
+                await journal.shutdown()
+              }
             }
           }
         }
@@ -1700,7 +1737,54 @@ async function main(): Promise<number> {
       }
     }
     case 'schedule': {
-      const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+      let scheduleAuthorization: ScheduleWakeAuthorization = {
+        scheduledPrompts: command.options.scheduledPrompts === true,
+        ...(command.options.maxBudgetUsd !== undefined && {
+          maxBudgetUsd: command.options.maxBudgetUsd,
+        }),
+      }
+      const scheduleSessions = runtimeScheduleSessionFactory({
+        create: (backend) => {
+          const parsed = parseCommandLine([
+            'serve',
+            '--backend',
+            backend,
+            ...(backend === 'modelApi' && scheduleAuthorization.scheduledPrompts
+              ? [
+                  '--scheduled-prompts',
+                  '--max-budget-usd',
+                  scheduleAuthorization.maxBudgetUsd ?? '0',
+                ]
+              : []),
+          ])
+          if (parsed.command !== 'serve') throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+          return runtimeFor(parsed.options, log)
+        },
+        distDir,
+        dataDir: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        log,
+        allowsContributorModels: false,
+      })
+      // As above: read the engine's members by name for the split gate.
+      const engineModule = await import('./runtimeEngineEntry')
+      engineModule.setUiText(UI_TEXT, uiLocale())
+      const scheduleEngine = {
+        createRuntimeScheduleDelivery: engineModule.createRuntimeScheduleDelivery,
+        setUiText: engineModule.setUiText,
+      }
+      const load = runtimeSchedulesBinding(
+        path.join(distDir, 'schedules.js'),
+        log,
+        undefined,
+        undefined,
+        scheduleSessions.ports,
+        undefined,
+        scheduleEngine,
+      )
       let afterWake: (() => Promise<void>) | undefined
       try {
         if (
@@ -1711,7 +1795,7 @@ async function main(): Promise<number> {
             const { createRuntimeScheduleBackground } = await import('./schedules/backgroundEntry')
             const { verifyScheduleWake, beginScheduleWake, waitForScheduleWake } =
               createRuntimeScheduleBackground(UI_TEXT, uiLocale())
-            await verifyScheduleWake(
+            scheduleAuthorization = await verifyScheduleWake(
               process.execPath,
               __filename,
               undefined,
@@ -1749,7 +1833,11 @@ async function main(): Promise<number> {
             try {
               await binding.close()
             } finally {
-              await afterWake?.()
+              try {
+                await scheduleSessions.close()
+              } finally {
+                await afterWake?.()
+              }
             }
           },
         )
@@ -1763,6 +1851,8 @@ async function main(): Promise<number> {
           command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
         )
         return EXIT_FAILED
+      } finally {
+        await scheduleSessions.close()
       }
     }
     case 'vault': {

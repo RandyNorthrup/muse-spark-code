@@ -3,18 +3,8 @@
 import * as z from 'zod/mini'
 // Named core conversion keeps the shared mini runtime within its own size cap.
 import { toJSONSchema } from 'zod/v4/core'
-import type { CreateResponseBody, StreamEvent } from './schemas'
-import type {
-  ConfirmedModelRequest,
-  ResponseAttemptGuard,
-  RetryBudget,
-  RetryNotice,
-} from './transport'
-import {
-  MODEL_API_MAX_RETRIES,
-  STRUCTURED_OUTPUT_REPAIRS_MAX,
-  UI_TEXT,
-} from '../../../shared/constants'
+import type { CreateResponseBody } from './schemas'
+import { STRUCTURED_OUTPUT_REPAIRS_MAX, UI_TEXT } from '../../../shared/constants'
 import { compactionSummarySchema } from '../../../shared/sideCallSchemas'
 
 /** Structural projection of M95's ModelCapabilityRecord.output.formats. */
@@ -62,46 +52,6 @@ export function sideCallContract<T>(
     schema: mode === 'text' ? {} : toJSONSchema(schema, { io: 'input' }),
     repair: false,
   }
-}
-
-/** The one streaming surface a side call needs from its client. */
-export interface SideCallStreamClient {
-  streamResponse(
-    body: CreateResponseBody,
-    signal: AbortSignal,
-    onRetry?: (notice: RetryNotice) => void,
-    budget?: RetryBudget,
-    admitAttempt?: ResponseAttemptGuard,
-    confirmed?: ConfirmedModelRequest,
-  ): AsyncIterable<StreamEvent>
-}
-
-/**
- * One side call's events: timed by the caller's own limit, never retried by
- * the transport (structured repair has its own admission and settlement),
- * and counted once by the caller's combined admission observer.
- */
-export function sideCallEvents(
-  client: SideCallStreamClient,
-  body: CreateResponseBody,
-  signal: AbortSignal,
-  timeoutMs: number,
-  admission: ResponseAttemptGuard,
-  confirmed: ConfirmedModelRequest,
-): AsyncIterable<StreamEvent> {
-  return client.streamResponse(
-    body,
-    AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
-    undefined,
-    { retriesUsed: MODEL_API_MAX_RETRIES },
-    admission,
-    {
-      ...confirmed,
-      onRequestStarted: () => {
-        // The combined admission observer counts this paid use once.
-      },
-    },
-  )
 }
 
 /** The legacy body is returned by identity. Callers key structured bodies afterwards. */
