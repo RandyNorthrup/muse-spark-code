@@ -3351,6 +3351,7 @@
   "permissionReviewerNotInstalled": "権限モードは適用されましたが、そのレビュー担当をインストールできませんでした ({reason})。モードを再度設定するまで、新しいターンは拒否されます。",
   "permissionReviewerTornReason": "変更が適用中に中断したため",
   "permissionReviewerMissing": "新しいターンは拒否されます: 権限のレビュー担当をインストールできませんでした。続行するには、権限モードを再度設定してください。",
+  "permissionModeChangedWhileQuarantined": "新しいターンが拒否されている間に、権限モードが{mode}に変更されました。モードを再度設定するまで、新しいターンは拒否されます。",
   "permissionReviewerRollbackTorn": "権限モードの変更は適用中に中断されました。前のモード({mode})は復元され、そのレビュー担当は引き続きインストールされていますが、適用を確認できませんでした。モードを再度設定するまで、新しいターンは拒否されます。",
   "permissionModeTornUnconfirmed": "権限モードの変更は適用中に中断されました。ホストは{mode}モードで実行されていますが、適用を確認できませんでした。モードを再度設定するまで、新しいターンは拒否されます。",
   "permissionReviewerUnknown": "権限モードを変更できず、ホストが実行中のモードは不明です。モードが再設定されるまで新しいターンは拒否されます。",

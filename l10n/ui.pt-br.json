@@ -3497,6 +3497,7 @@
   "permissionReviewerNotInstalled": "O modo de permissão foi aplicado, mas seu revisor não pôde ser instalado ({reason}). Novos turnos são recusados até que o modo seja definido novamente.",
   "permissionReviewerTornReason": "a mudança de modo foi interrompida durante a aplicação",
   "permissionReviewerMissing": "Novos turnos são recusados: o revisor de permissões não pôde ser instalado. Defina o modo de permissão novamente para continuar.",
+  "permissionModeChangedWhileQuarantined": "O modo de permissão mudou para {mode} enquanto novos turnos eram recusados. Novos turnos são recusados até que o modo seja definido novamente.",
   "permissionReviewerRollbackTorn": "A mudança do modo de permissão foi interrompida durante a aplicação; o modo anterior ({mode}) está restaurado e seu revisor continua instalado, mas a adoção não pôde ser confirmada. Novas rodadas são recusadas até que o modo seja definido novamente.",
   "permissionModeTornUnconfirmed": "A mudança do modo de permissão foi interrompida durante a aplicação; o host executa {mode}, mas a adoção não pôde ser confirmada. Novos turnos são recusados até que o modo seja definido novamente.",
   "permissionReviewerUnknown": "O modo de permissão não pôde ser alterado e o modo em que o host está sendo executado é desconhecido. Novas rodadas são recusadas até que o modo seja definido novamente.",

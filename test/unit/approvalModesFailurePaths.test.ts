@@ -352,12 +352,17 @@ describe('approval-mode failure paths tell the truth on saved wire (GRV251F)', (
     expect(refused).toBeInstanceOf(Error)
     expect((refused as Error).message).toBe(torn)
     expect((refused as Error).message).not.toBe(UI_TEXT.permissionReviewerMissing)
-    // A genuinely different mode still drops the sentence: the later refusal
-    // falls back to the generic words.
+    // A genuinely different mode replaces the sentence: the later refusal
+    // names that mode and says turns stay refused, never the reviewer words
+    // (GRV251G: Plan installs no reviewer, and the notice installed none).
     wire.release(modeChangedNotify('denyUnmatched'))
     await host.listModels()
-    const generic = await caught(session.sendTurn([{ type: 'text', text: 'ping' }]))
-    expect((generic as Error).message).toBe(UI_TEXT.permissionReviewerMissing)
+    const renamed = await caught(session.sendTurn([{ type: 'text', text: 'ping' }]))
+    expect((renamed as Error).message).toBe(
+      fill(UI_TEXT.permissionModeChangedWhileQuarantined, { mode: 'denyUnmatched' }),
+    )
+    expect((renamed as Error).message).not.toContain('reviewer')
+    expect((renamed as Error).message).not.toContain('tore')
   })
 
   it('a torn forward change says the named mode runs without its reviewer', async () => {

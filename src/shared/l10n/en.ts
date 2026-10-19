@@ -4088,6 +4088,12 @@ export const EN = {
   permissionReviewerTornReason: 'the mode change tore while applying',
   permissionReviewerMissing:
     'New turns are refused: the permission reviewer could not be installed. Set the permission mode again to recover.',
+  // {mode}: the wire mode a later mode notice named while turns were
+  // refused. The notice installs and removes no reviewer (Plan and Bypass
+  // install none), so the sentence names that mode and says turns stay
+  // refused until the mode is set again, with no reviewer or tear words.
+  permissionModeChangedWhileQuarantined:
+    'The permission mode changed to {mode} while new turns were refused. New turns stay refused until the mode is set again.',
   // {mode}: the previous wire mode the torn rollback restored. The profile
   // never changed, so that mode's reviewer is still installed; the adoption
   // itself could not be confirmed, so turns stay refused until a reset.
