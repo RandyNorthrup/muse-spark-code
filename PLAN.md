@@ -14545,7 +14545,13 @@ change says the named mode runs without its reviewer installed; a torn
 rollback says the previous mode is restored with its reviewer still
 installed, with turns refused until the mode is set again; a refused
 schedule restore quarantines too, naming the mode the host still runs; a
-quarantine keeps its sentence, which the next refused turn repeats). An
+quarantine keeps its sentence, which the next refused turn repeats; lane
+PR251FIX5, 2026-10-19, after Grok's fourth re-review GRV251F: the rollback
+notice naming the recorded mode keeps that sentence, and only a genuinely
+different mode falls back to the generic words; tears on Plan and Bypass say
+the acknowledged mode is in effect but unconfirmed, since those modes
+install no reviewer; the proof replays the recorded 1.4.7 frames through
+the real session). An
 unknown running mode says so. So Manual is never left running with the judge
 and the menu
 always agrees with the host; a finished schedule puts its mode and reviewer
