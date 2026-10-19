@@ -2091,8 +2091,10 @@ imported.
     and everything it started.
   - **Linux:** in its own process group, with OpenCode's `bun` held to the
     same memory limit by `prlimit`.
-  - **macOS:** OpenCode plugins are refused, because `bun`'s memory cannot be
-    bounded there.
+  - **macOS:** `bun` runs directly, as OpenCode itself runs it: the same
+    per-call timeout, answer-size and process-tree bounds as everywhere else,
+    but no memory cap, so a plugin that outgrows the machine is ended with
+    its tree on timeout or by the operating system.
   - **The ACP agent:** plugin hooks are refused.
 - **What they can do.** A plugin can refuse a call, narrow its input, add
   context or replace a tool's output, as its own agent allows. It has no
@@ -5845,11 +5847,14 @@ is substituted into a command, a file or the model's text.
 
 Settings (all machine-scoped, so no workspace can change them):
 `museSpark.vault.enabled` (on; an explicitly stored legacy `museSpark.vault`
-boolean remains effective until the new flag is explicitly configured), `museSpark.vault.protection` (`auto`: the
-operating system's credential store, the same one every editor and the ACP
-agent use, plus a one-time recovery code shown at setup),
-`museSpark.vault.agentFence` (on), `museSpark.vault.lockAfterIdleMinutes`
-(240) and `museSpark.vault.lockOnScreenLock` (on). The internal POSIX broker uses Linux Secret Service and the macOS login
+boolean remains effective until the new flag is explicitly configured) and
+`museSpark.vault.agentFence` (on: the credential fence for interactive Model API
+shell commands; verification, schedules, workers and hooks remain fenced).
+`museSpark.vault.protection`, `museSpark.vault.lockAfterIdleMinutes` and
+`museSpark.vault.lockOnScreenLock` are stored for compatibility and have no
+runtime effect: the vault always uses the operating system's credential store,
+the same one every editor and the ACP agent use, plus a one-time recovery code
+shown at setup. The internal POSIX broker uses Linux Secret Service and the macOS login
 Keychain. Linux requires an available Secret Service and an unlocked keyring;
 a signed-in desktop session normally supplies them. macOS needs an unlocked
 login Keychain. Touch ID / Keychain biometry is not
@@ -5885,12 +5890,6 @@ it does not use the Secure Enclave.
 The terminal, ACP and headless commands load `dist/vaultRuntime.js` on the
 first vault need. Its POSIX connection and broker factory ship as lazy installed siblings
 behind the reviewed availability switch, which is on for Linux and macOS.
-No activation read or broker start is added. The VSIX package check follows production build and lazy-loader dependencies and refuses every omitted sibling bundle. On POSIX, the session owns a broker
-started through governed handoff: closing its first window or CLI does not stop
-other clients. Simultaneous starts wait for one broker; the last disconnect
-starts the 30-second idle period, then Lock runs before exit. Signal shutdown
-uses the same cleanup. Client registrations are removed on exit, and a later
-start prunes proven-dead registrations.
 
 The terminal grammar is `muse-spark-code-acp vault` followed by `setup`,
 `recover`, `reset`, `status`,
