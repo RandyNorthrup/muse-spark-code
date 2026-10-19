@@ -3928,7 +3928,9 @@ export class ConversationController {
     }
     if (this.session !== session || this.attachmentGeneration !== generation) return
     this.canEditSessions = host.info.canEditSessions
-    this.canDeleteSessions = host.info.canDeleteSessions
+    // Absent on a Muse Code host (its delete gate stays out of the
+    // activation bundle): History offers no Delete there.
+    this.canDeleteSessions = host.info.canDeleteSessions ?? false
     const eventGeneration = this.sendInvalidationEpoch
     const stopEvents = session.onEvent((event) => {
       if (
@@ -4409,7 +4411,9 @@ export class ConversationController {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
-      this.canDeleteSessions = host.info.canDeleteSessions
+      // Absent on a Muse Code host (its delete gate stays out of the
+      // activation bundle): History offers no Delete there.
+      this.canDeleteSessions = host.info.canDeleteSessions ?? false
       this.watchList(host)
       const records: SessionRecord[] = []
       let cursor: string | undefined

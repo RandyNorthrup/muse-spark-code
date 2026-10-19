@@ -29,11 +29,15 @@ import type { EditReviewActions } from '../../src/host/editor/editReview'
 import type { ReviewTurnFeatures } from '../../src/host/review/reviewBundle'
 import type { ChatSurface } from '../../src/host/views/chatSurface'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
-import type { AgentSession, SessionListEvent } from '../../src/core/agent/agentBackend'
+import type {
+  AgentSession,
+  SessionListEvent,
+  SessionRecord,
+} from '../../src/core/agent/agentBackend'
 import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
-import { canDeleteMuseSession } from '../../src/core/backends/musecode/MuseCodeHost'
+import { canDeleteMuseSession } from '../../src/core/backends/musecode/museDeleteGate'
 import { fileContextIo } from '../../src/host/backend/contextIo'
 import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
 import { createToolIo } from '../../src/host/backend/toolIo'
@@ -534,6 +538,42 @@ async function startNamedSession(
   return { live, sessionId }
 }
 
+// The listed row every History test starts from: the host really lists the
+// saved conversation, or the test fails before it proves anything.
+async function listedRecord(
+  panel: PanelRig,
+  directory: string,
+  sessionId: string,
+): Promise<SessionRecord> {
+  const listed = await panel.host.listSessions({ workspaceRoot: directory, limit: 50 })
+  const record = listed.sessions.find((entry) => entry.sessionId === sessionId)
+  if (record === undefined) {
+    throw new Error(`session ${sessionId} was never listed`)
+  }
+  return record
+}
+
+// The open History dialog really shows the row: the controller lists through
+// the same `handle` entry the webview uses, and the last posted list names it.
+async function expectListed(panel: PanelRig, sessionId: string): Promise<void> {
+  await panel.controller.handle({ type: 'listSessions' })
+  const lists = panelSessionLists(panel.posted)
+  expect(lists.length).toBeGreaterThan(0)
+  expect(lists.at(-1)).toContain(sessionId)
+}
+
+// Deletes through the panel and proves the file is gone.
+async function deleteThroughPanel(panel: PanelRig, sessionId: string): Promise<void> {
+  await panel.controller.handle({ type: 'deleteSession', sessionId })
+  await panel.host.flush()
+  expect(await panel.store.load(sessionId)).toBeUndefined()
+}
+
+// The one success notice a confirmed delete says.
+function deletedNotice(record: SessionRecord): string {
+  return fill(UI_TEXT.historyDeleted, { name: sessionTitle(record) })
+}
+
 describe('ConversationController.deleteSession tells one true story', () => {
   it('says Deleted once and the re-listed History loses the row', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'muse-panel-session-delete-'))
@@ -541,22 +581,12 @@ describe('ConversationController.deleteSession tells one true story', () => {
       const panel = makePanel(directory, 'yes')
       const { sessionId } = await startNamedSession(panel, directory)
       expect(panel.warnings).toEqual([])
-      const listed = await panel.host.listSessions({ workspaceRoot: directory, limit: 50 })
-      const record = listed.sessions.find((entry) => entry.sessionId === sessionId)
-      if (record === undefined) {
-        throw new Error(`session ${sessionId} was never listed`)
-      }
-      await panel.controller.handle({ type: 'listSessions' })
-      const before = panelSessionLists(panel.posted)
-      expect(before.length).toBeGreaterThan(0)
-      expect(before[0]).toContain(sessionId)
+      const record = await listedRecord(panel, directory, sessionId)
+      await expectListed(panel, sessionId)
 
-      await panel.controller.handle({ type: 'deleteSession', sessionId })
-      await panel.host.flush()
+      await deleteThroughPanel(panel, sessionId)
 
-      expect(await panel.store.load(sessionId)).toBeUndefined()
-      const deletedText = fill(UI_TEXT.historyDeleted, { name: sessionTitle(record) })
-      expect(panelNotices(panel.posted)).toEqual([{ level: 'info', text: deletedText }])
+      expect(panelNotices(panel.posted)).toEqual([{ level: 'info', text: deletedNotice(record) }])
       const after = panelSessionLists(panel.posted)
       expect(after.at(-1)).not.toContain(sessionId)
     } finally {
@@ -569,17 +599,10 @@ describe('ConversationController.deleteSession tells one true story', () => {
     try {
       const panel = makePanel(directory, 'yes')
       const { live, sessionId } = await startNamedSession(panel, directory)
-      const listed = await panel.host.listSessions({ workspaceRoot: directory, limit: 50 })
-      const record = listed.sessions.find((entry) => entry.sessionId === sessionId)
-      if (record === undefined) {
-        throw new Error(`session ${sessionId} was never listed`)
-      }
-      await panel.controller.handle({ type: 'listSessions' })
-      expect(panelSessionLists(panel.posted).at(-1)).toContain(sessionId)
+      const record = await listedRecord(panel, directory, sessionId)
+      await expectListed(panel, sessionId)
 
-      await panel.controller.handle({ type: 'deleteSession', sessionId })
-      await panel.host.flush()
-      expect(await panel.store.load(sessionId)).toBeUndefined()
+      await deleteThroughPanel(panel, sessionId)
 
       // A turn settling after the removal touches the stopped handle: its
       // change callback persists nothing and must publish nothing either, or
@@ -601,8 +624,7 @@ describe('ConversationController.deleteSession tells one true story', () => {
 
       expect(heard).toEqual([])
       expect(await panel.store.load(sessionId)).toBeUndefined()
-      const deletedText = fill(UI_TEXT.historyDeleted, { name: sessionTitle(record) })
-      expect(panelNotices(panel.posted)).toEqual([{ level: 'info', text: deletedText }])
+      expect(panelNotices(panel.posted)).toEqual([{ level: 'info', text: deletedNotice(record) }])
       expect(panelSessionLists(panel.posted).at(-1)).not.toContain(sessionId)
     } finally {
       await removeFolder(directory)
@@ -685,13 +707,8 @@ describe('ConversationController.deleteSession tells one true story', () => {
     try {
       const panel = makePanel(directory, 'deferred')
       const { sessionId } = await startNamedSession(panel, directory)
-      const listed = await panel.host.listSessions({ workspaceRoot: directory, limit: 50 })
-      const record = listed.sessions.find((entry) => entry.sessionId === sessionId)
-      if (record === undefined) {
-        throw new Error(`session ${sessionId} was never listed`)
-      }
-      await panel.controller.handle({ type: 'listSessions' })
-      expect(panelSessionLists(panel.posted).at(-1)).toContain(sessionId)
+      const record = await listedRecord(panel, directory, sessionId)
+      await expectListed(panel, sessionId)
 
       // The delete is parked at its confirm dialog. The person starts a new
       // conversation while the removal is still in flight: a real epoch
@@ -709,8 +726,7 @@ describe('ConversationController.deleteSession tells one true story', () => {
       await panel.host.flush()
 
       expect(await panel.store.load(sessionId)).toBeUndefined()
-      const deletedText = fill(UI_TEXT.historyDeleted, { name: sessionTitle(record) })
-      expect(panelNotices(panel.posted)).toEqual([{ level: 'info', text: deletedText }])
+      expect(panelNotices(panel.posted)).toEqual([{ level: 'info', text: deletedNotice(record) }])
       // The newer generation posts no list: the last posted list is the
       // stale delete's own, and it omits the row. Without that post the
       // last list still names it and History keeps showing it.
