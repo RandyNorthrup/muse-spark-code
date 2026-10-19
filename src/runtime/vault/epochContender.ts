@@ -179,20 +179,8 @@ async function retireUnparsableWriter(
   }
   ports.assertRemnant(sample)
   if (sample.mtimeMs > mutexAcquiredAt) return 'wait'
-  let reread: Buffer
-  try {
-    reread = await ports.files.read(writer)
-  } catch (error: unknown) {
-    if (isVaultFileMissing(error)) return 'retry'
-    throw error
-  }
-  try {
-    vaultEpochWriterSchema.parse(JSON.parse(reread.toString('utf8')))
-    // A complete record appeared under the mutex: decide it by rule next round.
-    return 'retry'
-  } catch {
-    /* Still unparsable: the remnant below is retired. */
-  }
+  if ((await rereadEpochWriter(ports.files, writer)) === 'retry') return 'retry'
+  /* Still unparsable: the remnant below is retired. */
   try {
     await ports.retire(writer)
   } catch (error: unknown) {
@@ -215,19 +203,12 @@ export async function settleEpochWriter(
 ): Promise<'retry' | 'wait'> {
   const writer = vaultEpochWriterPath(runDirectory)
   await retireStalePending(ports, writer, mutexAcquiredAt)
-  let raw: Buffer
-  try {
-    raw = await ports.files.read(writer)
-  } catch (error: unknown) {
-    // Released between our claim and this read: reclaim on the next round.
-    if (isVaultFileMissing(error)) return 'retry'
-    throw error
-  }
+  const read = await readEpochWriterOwner(ports.files, writer)
+  if (read.state === 'retry') return 'retry'
   let owner: VaultEpochWriterOwner
-  try {
-    const parsed = vaultEpochWriterSchema.parse(JSON.parse(raw.toString('utf8')))
-    owner = { processId: parsed.processId, startedAt: parsed.startedAt }
-  } catch {
+  if (read.state === 'owner') {
+    owner = read.owner
+  } else {
     return await retireUnparsableWriter(ports, writer, mutexAcquiredAt)
   }
   // Our own record, or a same-process sibling's: both are alive by definition.
@@ -272,10 +253,8 @@ export async function runEpochSettleRounds(
       return await bump()
     } catch (error: unknown) {
       // Only a contended writer is decided by rule; every other failure keeps its meaning.
-      if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
-      if (round + 1 >= EPOCH_WRITER_SETTLE_ROUNDS)
-        throw new Error(UI_TEXT.vault.noAccess, { cause: error })
-      if ((await settle()) === 'wait') await delay(EPOCH_WRITER_SETTLE_WAIT_MS)
+      if (!isEpochContended(error)) throw error
+      await settleBumpRound(round, error, settle)
     }
   }
   throw new Error(UI_TEXT.vault.noAccess)
