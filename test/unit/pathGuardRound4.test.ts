@@ -14,7 +14,8 @@ import {
 } from '../../src/core/executables'
 import { resolvePluginRuntime } from '../../src/core/backends/modelapi/pluginHost'
 import { resolveServerCommand } from '../../src/host/backend/mcpProcess'
-import { hookEnvironment, shellInterpreter } from '../../src/host/backend/toolIo'
+import { hookEnvironment, hookProgramFor, shellInterpreter } from '../../src/host/backend/toolIo'
+import { PlaybookOutcomes } from '../../src/core/orchestration/playbook/outcomes'
 import { locateCaptureHelper } from '../../src/core/voice/helperLocation'
 import { processGitRunner } from '../../src/host/git'
 import { execResourceFile } from '../../src/core/resources/commands'
@@ -46,6 +47,24 @@ describe('round-4 Windows spellings of the workspace', () => {
         realpath: throwingRealpath,
       }),
     ).toBe(String.raw`D:\Tools`)
+  })
+
+  it('drops the space-then-dot spelling but keeps a non-final run of dots', () => {
+    const joined = [
+      String.raw`C:\Users\me\repo .`,
+      String.raw`C:\Users\me\repo .\bin`,
+      String.raw`C:\Users\me\repo. \bin`,
+      String.raw`C:\Users\me\repo...\bin`,
+      String.raw`D:\Tools`,
+    ].join(';')
+    expect(
+      sanitizePathForWorkspace({
+        platform: 'win32',
+        pathVariable: joined,
+        workspaceRoot: String.raw`C:\Users\me\repo`,
+        realpath: throwingRealpath,
+      }),
+    ).toBe(String.raw`C:\Users\me\repo...\bin;D:\Tools`)
   })
 
   it('keeps a sibling a trailing dot would otherwise merge', () => {
@@ -272,4 +291,77 @@ describe('round-4 planted programs (real filesystem)', () => {
       }),
     ).rejects.toThrow('Governed command unavailable')
   })
+
+  it.runIf(PLATFORM !== 'win32')(
+    'an absolute SHELL inside the workspace is ignored for hooks',
+    () => {
+      const realSh = resolveExecutable('sh', {
+        platform: PLATFORM,
+        pathVariable: process.env['PATH'],
+        fileExists: existsSync,
+      })
+      if (realSh === undefined) {
+        throw new Error('the rig has no sh on PATH to compare against')
+      }
+      const realShDir = path.dirname(realSh)
+      const plantedShell = path.join(binDir, 'sh')
+      const deps = (shell: string | undefined) => ({
+        platform: PLATFORM,
+        listFiles: (): Promise<readonly string[]> => Promise.resolve([]),
+        systemRoot: undefined,
+        env: (): NodeJS.ProcessEnv => ({
+          PATH: [binDir, realShDir].join(':'),
+          ...(shell !== undefined && { SHELL: shell }),
+        }),
+        searchWorkerPath: '',
+        log: () => undefined,
+        unsavedFiles: (): readonly string[] => [],
+      })
+      // Without a workspace the configured shell answers, as before.
+      expect(hookProgramFor(deps(plantedShell), plantedShell, undefined)).toBe(plantedShell)
+      // Inside the workspace it is ignored: sh resolves outside instead.
+      expect(
+        hookProgramFor(deps(plantedShell), plantedShell, {
+          workspaceRoot: root,
+          realpath: realpathSync,
+        }),
+      ).toBe(realSh)
+      // A configured shell outside the workspace still answers.
+      expect(
+        hookProgramFor(deps(realSh), realSh, {
+          workspaceRoot: root,
+          realpath: realpathSync,
+        }),
+      ).toBe(realSh)
+    },
+  )
+
+  it.runIf(PLATFORM !== 'win32')(
+    'the playbook hands the admission a git outside the workspace',
+    () => {
+      // The planted git stands first on PATH, inside the workspace: the
+      // admitted command must be the real git beyond it. The admission
+      // refuses, so nothing spawns; the verdict is the lookup itself.
+      const savedPath = process.env['PATH']
+      process.env['PATH'] = [binDir, realGitDir].join(':')
+      try {
+        const seen: string[] = []
+        const outcomes = new PlaybookOutcomes(root, {
+          admit: (effect) => {
+            seen.push(effect.command)
+            return false
+          },
+        })
+        expect(() => outcomes.snapshot()).toThrow()
+        expect(seen.length).toBeGreaterThan(0)
+        for (const command of seen) {
+          expect(path.isAbsolute(command)).toBe(true)
+          expect(command).not.toBe(path.join(binDir, 'git'))
+          expect(command).toBe(path.join(realGitDir, 'git'))
+        }
+      } finally {
+        process.env['PATH'] = savedPath
+      }
+    },
+  )
 })

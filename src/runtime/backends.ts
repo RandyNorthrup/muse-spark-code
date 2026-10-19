@@ -374,6 +374,9 @@ function modelApiManager(
   const io = createToolIo({
     platform,
     listFiles,
+    // The interpreter lookup excludes this workspace, so a planted `bash`
+    // there never becomes the shell that runs.
+    workspaceRoot,
     systemRoot,
     // No credential variable reaches a tool's process (AGENTS.md rule 8).
     env: () => withoutKeyringRoutes(withoutCredentials(deps.env)),

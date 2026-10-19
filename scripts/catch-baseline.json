@@ -13,8 +13,8 @@
     },
     "host": {
       "SWALLOW": 77,
-      "GENERIC": 339,
-      "CLEANUP": 65
+      "GENERIC": 337,
+      "CLEANUP": 64
     },
     "root": {
       "SWALLOW": 4,
@@ -2335,7 +2335,7 @@
     },
     {
       "file": "src/core/orchestration/playbook/outcomes.ts",
-      "identity": "f8903e234caddf1fb79c6395d4de91d21af986f822235a00699d3237d3347e76",
+      "identity": "34cc5e71341fbe7007a18c0ced29b56929354c6f16031373922b914460123289",
       "class": "GENERIC"
     },
     {
@@ -6790,12 +6790,12 @@
     },
     {
       "file": "src/host/team/processLifetime.ts",
-      "identity": "b46e72f249b81ac0174ffeac644d867025dace596402209627a1e2aa7ce2caff",
+      "identity": "aa0ff26f0ae9e5d22c50d020da34ac6c3d3b6058f3e3e71125eb874f2ad05486",
       "class": "GENERIC"
     },
     {
       "file": "src/host/team/processLifetime.ts",
-      "identity": "2240130268b155611710d3c3ab06ae1c8ee1d1736bd9e9ca01ec7b1b0acf5aac",
+      "identity": "f5e2dfa0b52f716c3991042f10683ddd6d23215d55f13f8dd858b9e2f0be0abc",
       "class": "CLEANUP"
     },
     {
@@ -6817,21 +6817,6 @@
       "file": "src/host/team/processLifetime.ts",
       "identity": "63c465d4fd72b98ff895b054d463c1892939db2a2ab2721cffdbd2884559d3fb",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/team/processLifetime.ts",
-      "identity": "8de54680cb975c4ff1764a6a7b02eaf6c3dacb6a111bfb655bd7fa09b02d7596",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/team/processLifetime.ts",
-      "identity": "b5a5bc03ad81636d9ace0726b84c0c2cb0ec22d601edc7a8d3334e9731052109",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/team/processLifetime.ts",
-      "identity": "600b0eb52bebb9a4e7269a0a390a6ccc9cd392a655fcf3ac9bfeb6e7c1b4fbc8",
-      "class": "GENERIC"
     },
     {
       "file": "src/host/team/processLifetime.ts",
