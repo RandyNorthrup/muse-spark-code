@@ -2801,7 +2801,7 @@
   "contextWindowFullExec": "Janela de contexto cheia: execute novamente com --auto-compaction --max-budget-usd <amount> para que a execução se compacte sozinha, ou encurte a tarefa.",
   "toolResultCutPreview": "Resultado da ferramenta cortado: {total} caracteres, mantidos o início e o fim ({head} linhas inteiras no início, {tail} no fim; {omitted} omitidos). O resultado completo está em {spill}. É removido com a sessão.",
   "contextWindowTooLong": "A conversa ({tokens} tokens) é maior que a janela deste modelo ({maximum} tokens) em {over} tokens. /compact a conversa, mude para um modelo com janela maior ou inicie uma nova conversa; nada foi excluído.",
-  "toolResultCapRefused": "O limite {source} de saída da ferramenta de {value} foi recusado ({reason}); usando o padrão de {fallback}.",
+  "toolResultCapRefused": "O limite {source} de saída da ferramenta de {value} foi recusado ({reason}); o resultado entra inteiro a menos que a cota de janela do modelo o corte.",
   "toolResultCapBelowFloor": "abaixo do mínimo legível de {floor} bytes",
   "toolResultCapAboveWindow": "maior que a janela do modelo de cerca de {window} tokens",
   "toolResultSpillFailed": "Não foi possível manter o resultado completo da ferramenta em {spill}; resta apenas o texto cortado.",

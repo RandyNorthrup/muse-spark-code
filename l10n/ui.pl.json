@@ -2857,7 +2857,7 @@
   "contextWindowFullExec": "Okno kontekstu jest pełne: uruchom ponownie z --auto-compaction --max-budget-usd <amount>, aby przebieg skompresował się sam, albo skróć zadanie.",
   "toolResultCutPreview": "Wynik narzędzia przycięty: {total} znaków, zachowano początek i koniec ({head} pełnych wierszy na początku, {tail} na końcu; pominięto {omitted}). Pełny wynik znajduje się w {spill}. Jest usuwany wraz z sesją.",
   "contextWindowTooLong": "Rozmowa ({tokens} tokenów) jest większa od okna tego modelu ({maximum} tokenów) o {over} tokenów. /compact rozmowę, przełącz się na model z większym oknem lub rozpocznij nową rozmowę; nic nie usunięto.",
-  "toolResultCapRefused": "Limit {source} danych wyjściowych narzędzia wynoszący {value} został odrzucony ({reason}); używana jest wartość domyślna {fallback}.",
+  "toolResultCapRefused": "Limit {source} danych wyjściowych narzędzia wynoszący {value} został odrzucony ({reason}); wynik wchodzi w całości, chyba że obetnie go udział okna modelu.",
   "toolResultCapBelowFloor": "poniżej czytelnego minimum {floor} bajtów",
   "toolResultCapAboveWindow": "większy niż okno modelu wynoszące około {window} tokenów",
   "toolResultSpillFailed": "Nie udało się zachować pełnego wyniku narzędzia w {spill}; pozostaje tylko przycięty tekst.",

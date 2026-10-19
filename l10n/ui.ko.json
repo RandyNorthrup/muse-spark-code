@@ -2689,7 +2689,7 @@
   "contextWindowFullExec": "컨텍스트 창이 가득 찼습니다: --auto-compaction --max-budget-usd <amount>와 함께 다시 실행하면 자동으로 압축됩니다. 또는 작업을 줄이세요.",
   "toolResultCutPreview": "도구 결과가 잘렸습니다. 전체 {total}자 중 시작과 끝을 유지했습니다(시작 부분 {head}개, 끝 부분 {tail}개의 완전한 줄, {omitted}자 생략). 전체 결과는 {spill}에 있습니다. 세션과 함께 삭제됩니다.",
   "contextWindowTooLong": "대화({tokens} 토큰)가 이 모델의 창({maximum} 토큰)보다 {over} 토큰 큽니다. /compact로 대화를 압축하거나, 창이 더 큰 모델로 바꾸거나, 새 대화를 시작하세요. 삭제된 것은 없습니다.",
-  "toolResultCapRefused": "{source} 도구 출력 상한 {value}이(가) 거부되었습니다({reason}). 기본값 {fallback}을(를) 사용합니다.",
+  "toolResultCapRefused": "{source} 도구 출력 상한 {value}이(가) 거부되었습니다({reason}). 모델의 윈도우 공유분에 잘리지 않는 한 결과는 전체로 들어갑니다.",
   "toolResultCapBelowFloor": "읽을 수 있는 하한 {floor}바이트 미만",
   "toolResultCapAboveWindow": "모델 창인 약 {window}개 토큰 초과",
   "toolResultSpillFailed": "도구의 전체 결과를 {spill}에 보관하지 못했습니다. 잘린 텍스트만 남습니다.",

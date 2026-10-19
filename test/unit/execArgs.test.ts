@@ -371,7 +371,7 @@ describe('M80 args (A1–A10, F1)', () => {
     const parsed = parseExec({ ...values, 'max-tool-output-bytes': '0' }, ['hi'])
     if (!parsed.ok) throw new Error(parsed.reason)
     expect(parsed.options.maxToolOutputBytes).toBe(0)
-    expect(validateToolResultCap(parsed.options.maxToolOutputBytes, undefined, 64_000)).toEqual({
+    expect(validateToolResultCap(parsed.options.maxToolOutputBytes, undefined)).toEqual({
       bytes: Infinity,
     })
   })

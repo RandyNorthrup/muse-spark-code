@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { dispatchHooks, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import { structuredSideCall } from '../../src/core/backends/modelapi/structuredOutput'
+import {
+  boundToolResultText,
+  validateToolResultCap,
+} from '../../src/core/backends/modelapi/toolResultBound'
 import type { ShellResult } from '../../src/core/shellResult'
 import { subagentTaskPrice } from '../../src/shared/paid'
 
@@ -172,5 +176,33 @@ describe('no model-loop limits: hook deadlines', () => {
     expect(seen).toEqual([undefined])
     release?.()
     await done
+  })
+})
+
+// NOLIMITSRUN (PLAN.md D121): no trimming of ours. A result reaches the model
+// whole; only the model's real window share (the capability record's number)
+// may cut it, with a spill the model can page through, said out loud.
+describe('no model-loop limits: tool-result trim', () => {
+  it('passes a long single-line result whole when the window allows', () => {
+    const text = `${'x'.repeat(200_000)}\nshort\n`
+    const bounded = boundToolResultText(text, { maxBytes: Infinity, windowTokens: 1_000_000 })
+    expect(bounded.cut).toBeUndefined()
+    expect(bounded.text).toBe(text)
+  })
+
+  it('still cuts to the window share when the result cannot fit it', () => {
+    const text = 'y'.repeat(100_000)
+    const bounded = boundToolResultText(text, { maxBytes: Infinity, windowTokens: 1000 })
+    if (bounded.cut === undefined) throw new Error('expected a cut')
+    expect(bounded.cut.keptChars + bounded.cut.omittedChars).toBe(text.length)
+    expect(bounded.cut.keptChars).toBeLessThan(text.length)
+  })
+
+  it('validates a set cap with no fallback of ours', () => {
+    expect(validateToolResultCap(undefined, 1_000_000)).toEqual({ bytes: Infinity })
+    expect(validateToolResultCap(0, 1_000_000)).toEqual({ bytes: Infinity })
+    const refused = validateToolResultCap(512, 1_000_000)
+    expect('refused' in refused && refused.refused.kind).toBe('below-floor')
+    expect(refused).not.toHaveProperty('fallback')
   })
 })

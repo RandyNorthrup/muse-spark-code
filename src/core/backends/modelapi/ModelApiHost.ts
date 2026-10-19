@@ -161,7 +161,6 @@ import {
   type SubagentAction,
   TEAMMATE_MAX_IDLE_KEEPS,
   THEN_RUN_ARGUMENT,
-  TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
   TOOL_RESULT_SPILL_DIR,
   TOOL_ARGUMENT_PREVIEW_INTERVAL_MS,
@@ -527,7 +526,6 @@ import {
 } from './schemas'
 import {
   classifyTool,
-  codePointBoundary,
   type EditFormatter,
   type FormatTarget,
   executeTool,
@@ -815,8 +813,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly observationPacking?: (() => boolean) | undefined
   /**
    * TOOLCAP: `museSpark.modelApiMaxToolOutputBytes`, or the exec run's
-   * `--max-tool-output-bytes`. The per-result byte guard; absent keeps
-   * TOOL_OUTPUT_MAX_CHARS. Read on every bound so one run can raise it.
+   * `--max-tool-output-bytes`. The per-result byte guard a person sets;
+   * absent keeps no guard of ours. Read on every bound so one run can raise it.
    */
   readonly maxToolOutputBytes?: (() => number | undefined) | undefined
   /** M106, fixed for the session. Lane W binds modelApiParallelReads in every host. */
@@ -2533,13 +2531,6 @@ function ideFunctionName(tool: McpTool): string {
   return mcpFunctionName(IDE_MCP_SERVER_NAME, tool.name, new Set())
 }
 
-function clipOutput(text: string): string {
-  // Cut on a code point boundary, so the clip never splits a surrogate pair (M101).
-  return text.length > TOOL_OUTPUT_MAX_CHARS
-    ? `${text.slice(0, codePointBoundary(text, TOOL_OUTPUT_MAX_CHARS))}${TOOL_OUTPUT_CLIP_MARKER}`
-    : text
-}
-
 /** What the MCP servers' state says to the user, each keyed so it is said once per session. */
 function mcpNotices(snapshot: McpPoolSnapshot): readonly { key: string; text: string }[] {
   const { fault } = snapshot
@@ -3433,9 +3424,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     const validated = validateToolResultCap(
       this.deps.maxToolOutputBytes?.(),
       this.modelWindowTokens(),
-      TOOL_OUTPUT_MAX_CHARS,
     )
     if ('refused' in validated) {
+      // D121: no fallback of ours — a refused cap is treated as unset: the
+      // result enters whole unless the model's window share cuts it. The
+      // warning names the refusal in plain words.
       if (!this.capRefusedSaid) {
         this.capRefusedSaid = true
         const reason = capRefusalReason(validated.refused)
@@ -3447,11 +3440,10 @@ export class ModelApiSession implements ScheduledAgentSession {
             source: 'setting',
             value: formatNumber(this.deps.maxToolOutputBytes?.() ?? 0),
             reason,
-            fallback: formatNumber(validated.fallback),
           }),
         })
       }
-      return limitsForByteGuard(validated.fallback, windowTokens)
+      return limitsForByteGuard(Infinity, windowTokens)
     }
     return limitsForByteGuard(validated.bytes, windowTokens)
   }
@@ -9855,7 +9847,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
   ): Promise<ToolOutcome> {
     if (external.kind === 'ide') {
-      const text = clipOutput(await external.tool.call(argumentsOf(call), signal))
+      // D121: no trimming of ours — the IDE tool's answer rides whole; the
+      // host's one bound cuts it with a spill where it enters the turn.
+      const text = await external.tool.call(argumentsOf(call), signal)
       return { output: text, visibleOutput: text }
     }
     const servers = this.deps.mcpServers
@@ -13347,7 +13341,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         thenRun: {
           command: line,
           outcome: verify.outcomeOf(result),
-          output: shellText(result),
+          // D121: no trimming of ours — then_run reads whole like every
+          // shell result; the host's one bound cuts it with a spill.
+          output: shellText(result, TOOL_OUTPUT_MAX_CHARS, true),
           ...(result.exitCode !== null && { exitCode: result.exitCode }),
         },
       },

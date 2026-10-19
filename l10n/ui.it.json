@@ -2801,7 +2801,7 @@
   "contextWindowFullExec": "Finestra di contesto piena: riesegui con --auto-compaction --max-budget-usd <amount> in modo che l'esecuzione si compatti da sola, oppure abbrevia l'attività.",
   "toolResultCutPreview": "Risultato dello strumento tagliato: {total} caratteri, conservati inizio e fine ({head} righe intere all’inizio, {tail} alla fine; {omitted} omessi). Il risultato completo è in {spill}. Viene rimosso con la sessione.",
   "contextWindowTooLong": "La conversazione ({tokens} token) supera la finestra di questo modello ({maximum} token) di {over} token. /compact la conversazione, passa a un modello con una finestra più grande o avvia una nuova conversazione; nulla è stato eliminato.",
-  "toolResultCapRefused": "Il limite {source} di output dello strumento di {value} è rifiutato ({reason}); viene usato il valore predefinito di {fallback}.",
+  "toolResultCapRefused": "Il limite {source} di output dello strumento di {value} è rifiutato ({reason}); il risultato entra intero a meno che la quota di finestra del modello non lo tagli.",
   "toolResultCapBelowFloor": "sotto la soglia leggibile di {floor} byte",
   "toolResultCapAboveWindow": "maggiore della finestra del modello di circa {window} token",
   "toolResultSpillFailed": "Non è stato possibile conservare il risultato completo dello strumento in {spill}; rimane solo il testo tagliato.",

@@ -2801,7 +2801,7 @@
   "contextWindowFullExec": "Ventana de contexto llena: vuelva a ejecutar con --auto-compaction --max-budget-usd <amount> para que la ejecución se compacte sola, o acorte la tarea.",
   "toolResultCutPreview": "Resultado de herramienta recortado: {total} caracteres, se conservaron el principio y el final ({head} líneas completas al principio, {tail} al final; {omitted} omitidos). El resultado completo está en {spill}. Se elimina con la sesión.",
   "contextWindowTooLong": "La conversación ({tokens} tokens) supera la ventana de este modelo ({maximum} tokens) por {over} tokens. /compact la conversación, cambia a un modelo con una ventana mayor o inicia una nueva conversación; no se eliminó nada.",
-  "toolResultCapRefused": "El límite {source} de salida de herramienta de {value} se rechaza ({reason}); se usa el valor predeterminado de {fallback}.",
+  "toolResultCapRefused": "El límite {source} de salida de herramienta de {value} se rechaza ({reason}); el resultado entra completo a menos que la parte de la ventana del modelo lo recorte.",
   "toolResultCapBelowFloor": "por debajo del mínimo legible de {floor} bytes",
   "toolResultCapAboveWindow": "mayor que la ventana del modelo de unos {window} tokens",
   "toolResultSpillFailed": "No se pudo guardar el resultado completo de la herramienta en {spill}; solo queda el texto recortado.",

@@ -1519,8 +1519,10 @@ async function readFile(
   }
   const body = `${header}${shown.join('\n')}${continuation(shown.length)}`
   // A refused read leaves no trace: the host forgets `seen` with the outcome.
+  // D121: no trimming of ours — the page the model asked for rides whole;
+  // the host's one bound cuts with a spill where it enters the conversation.
   return {
-    output: clip(body),
+    output: body,
     visibleOutput: `${fill(UI_TEXT.toolReadText, { path: resolved.relative })}\n${shown.join('\n')}${start + shown.length < lines.length ? `\n[${fill(UI_TEXT.toolReadRange, { start: formatNumber(start + 1), end: formatNumber(start + shown.length), total: formatNumber(lines.length), offset: String(start + shown.length + 1) })}]` : ''}`,
     touched: { ...touched, seen: resolved.absolute },
   }
@@ -1957,7 +1959,9 @@ async function search(
   ]
   const found = results.length === 0 ? 'No matches.' : results.join('\n')
   const body = [found, ...notes].join('\n')
-  return { output: clip(body), visibleOutput: clip(body), touched }
+  // D121: no trimming of ours — the matches ride whole; the row keeps the
+  // display clip, and the host's one bound cuts with a spill downstream.
+  return { output: body, visibleOutput: clip(body), touched }
 }
 
 async function listFiles(
@@ -1977,8 +1981,10 @@ async function listFiles(
     files.length > shown.length ? `\n[${String(files.length - shown.length)} more files]` : ''
   const body = shown.length === 0 ? 'No files.' : `${shown.join('\n')}${tail}`
   // Every file listed, shown or counted.
+  // D121: no trimming of ours — the listing rides whole; the row keeps the
+  // display clip, and the host's one bound cuts with a spill downstream.
   return {
-    output: clip(body),
+    output: body,
     visibleOutput: clip(body),
     touched: { names: files, complete: true },
   }
@@ -2186,7 +2192,9 @@ export async function executeTool(
         if (!args.success) return argumentFailure(args.error)
         try {
           const output = await tool.call(args.data, context.signal ?? new AbortController().signal)
-          return { output: clip(output), visibleOutput: clip(output) }
+          // D121: no trimming of ours — a vault tool's answer rides whole;
+          // the row keeps the display clip.
+          return { output, visibleOutput: clip(output) }
         } catch {
           return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
         }

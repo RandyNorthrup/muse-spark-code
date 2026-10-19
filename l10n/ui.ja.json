@@ -2689,7 +2689,7 @@
   "contextWindowFullExec": "コンテキストウィンドウが一杯です: --auto-compaction --max-budget-usd <amount> を付けて再実行すると自動圧縮されます。またはタスクを短くしてください。",
   "toolResultCutPreview": "ツール結果を切り詰めました:{total} 文字のうち冒頭と末尾を保持(冒頭 {head} 行、末尾 {tail} 行の完全な行、{omitted} 文字省略)。完全な結果は {spill} にあります。セッションとともに削除されます。",
   "contextWindowTooLong": "会話({tokens}トークン)がこのモデルのウィンドウ({maximum}トークン)を{over}トークン上回っています。/compactで会話を圧縮するか、より大きなウィンドウのモデルに切り替えるか、新しい会話を開始してください。何も削除されていません。",
-  "toolResultCapRefused": "{source}のツール出力上限{value}は拒否されました({reason})。デフォルトの{fallback}を使用します。",
+  "toolResultCapRefused": "{source}のツール出力上限{value}は拒否されました({reason})。モデルのウィンドウ共有分で切られる場合を除き、結果は全体で入ります。",
   "toolResultCapBelowFloor": "{floor}バイトの読み取り可能な下限を下回っています",
   "toolResultCapAboveWindow": "モデルのウィンドウである約{window}トークンを上回っています",
   "toolResultSpillFailed": "ツールの完全な結果を {spill} に保存できませんでした。切り詰めたテキストだけが残ります。",
