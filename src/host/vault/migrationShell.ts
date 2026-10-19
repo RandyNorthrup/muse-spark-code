@@ -4,25 +4,38 @@
 // writes mirror into the vault once the migration binds and only while its
 // slot is active. This module carries no vault import, so activation keeps
 // its bundle shape; the lazy migration controller binds later.
+import { AsyncLocalStorage } from 'node:async_hooks'
 import type { SecretStore } from '../auth/credentialStore'
 
 /**
  * The one serialization all migration work shares, across every controller
- * the panel binds: one promise queue, never nested (an op that runs inside
- * it never starts another). A SecretStorage write and a migration engine op
- * can never overlap, so a save that lands mid-migration is seen whole by
- * the engine's next check instead of being overwritten by it. Module-level
- * because controllers come and go with the panel binding while the shell
- * lives with the window.
+ * the panel binds: one promise queue, re-entered but never overlapped. A
+ * save and a sign-out each hold the lane across both of their phases (the
+ * SecretStorage commit and its vault mirror), so whichever arrives second
+ * sees the first's committed result instead of landing between the other's
+ * phases. Module-level because controllers come and go with the panel
+ * binding while the shell lives with the window.
  */
 /**
  * One FIFO lane for migration work. The tail promise always resolves, so a
- * failed op never blocks the lane; an op never starts another (nesting
- * would wait on itself).
+ * failed op never blocks the lane. Work that starts inside the lane runs in
+ * it instead of behind it: the mirror's engine ops re-enter the lane their
+ * save or sign-out already holds, and queueing there would wait on the
+ * holder itself.
  */
 class MigrationLock {
   private tail: Promise<void> = Promise.resolve()
+  /**
+   * The async ancestry of the lane's current holder. Only work descended
+   * from the holder re-enters the lane: the mirror's engine ops run inside
+   * the save or sign-out that already holds it, and queueing there would
+   * wait on the holder itself. An independent op that merely arrives while
+   * the lane is busy has no such ancestry and still queues behind it, so a
+   * save racing a sign-out can never slip between the other's phases.
+   */
+  private readonly holder = new AsyncLocalStorage<true>()
   async run<T>(work: () => Promise<T>): Promise<T> {
+    if (this.holder.getStore() === true) return await work()
     const previous = this.tail
     // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
     let release: (() => void) | undefined
@@ -33,7 +46,7 @@ class MigrationLock {
     this.tail = gate
     await previous
     try {
-      return await work()
+      return await this.holder.run(true, work)
     } finally {
       release?.()
     }
@@ -73,25 +86,36 @@ export function createMigrationShell(secrets: SecretStore): MigrationShell {
     store: {
       get: (key) => secrets.get(key),
       async store(key, value) {
-        // The SecretStorage write holds the shared lock, so it can never
-        // land in the middle of a migration engine op; the mirror runs
-        // after, as its own op, and a mirror the engine refuses (a newer
-        // save already landed) heals on a later pass. Never let either
-        // break the person's save.
-        await withMigrationLock(() => Promise.resolve(secrets.store(key, value)))
-        try {
-          await mirror?.mirrorWrite(key, value)
-        } catch {
-          /* Healed at the next unlock; the save itself succeeded. */
-        }
+        // One lane holding across the SecretStorage commit and its vault
+        // mirror: a sign-out that arrives second sees this save's committed
+        // result and removes both copies, and a save that arrives second
+        // re-seeds after the sign-out instead of landing between its clear
+        // and its engine delete and losing the newer key the old
+        // removeLegacy way. A mirror the engine refuses still never breaks
+        // the save; the next unlock heals it.
+        await withMigrationLock(async () => {
+          await secrets.store(key, value)
+          try {
+            await mirror?.mirrorWrite(key, value)
+          } catch {
+            /* Healed at the next unlock; the save itself succeeded. */
+          }
+        })
       },
       async delete(key) {
-        await withMigrationLock(() => Promise.resolve(secrets.delete(key)))
-        try {
-          await mirror?.mirrorDelete(key)
-        } catch {
-          /* Healed at the next unlock; the removal itself succeeded. */
-        }
+        // The mirror image of store: the SecretStorage clear and the engine
+        // delete are one atomic op, so a save that arrives second re-seeds
+        // after it instead of being wiped by its trailing remove, and no
+        // stale in-flight mirror can recreate the key once this completes.
+        // A refused engine delete still never breaks the removal itself.
+        await withMigrationLock(async () => {
+          await secrets.delete(key)
+          try {
+            await mirror?.mirrorDelete(key)
+          } catch {
+            /* Healed at the next unlock; the removal itself succeeded. */
+          }
+        })
       },
     },
     bind(candidate) {
