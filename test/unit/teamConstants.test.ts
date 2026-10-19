@@ -39,7 +39,6 @@ import {
   TEAM_META_STANDARD_TPM,
   TEAM_MIN_REQUEST_TOKENS,
   TEAM_MODEL_TEXT,
-  TEAM_MUSE_CODE_HOST_CEILING,
   TEAM_ORCHESTRATOR_HEADROOM,
   TEAM_PROCESS_WORKERS_CPU_HEADROOM,
   TEAM_PROCESS_WORKERS_MEM_PER_WORKER_BYTES,
@@ -224,9 +223,12 @@ describe('team caps, intensity and machine values', () => {
     expect(TEAM_ORCHESTRATOR_HEADROOM).toBe(0.8)
     expect(TEAM_META_STANDARD_RPM).toBe(3000)
     expect(TEAM_META_STANDARD_TPM).toBe(4_000_000)
-    expect(TEAM_META_CONTRIBUTOR_RPM).toBe(100)
+    // Corrected 2026-10-17 from Meta's pricing page (see the constant): 150.
+    expect(TEAM_META_CONTRIBUTOR_RPM).toBe(150)
     expect(TEAM_META_CONTRIBUTOR_TPM).toBe(3_000_000)
-    expect(TEAM_MUSE_CODE_HOST_CEILING).toBe(4)
+    // No TEAM_MUSE_CODE_HOST_CEILING: a host ceiling of ours is removed
+    // with the other invented ceilings; only the provider's own limits
+    // are hard-coded.
     expect(TEAM_EXTERNAL_AGENT_CEILING).toBe(4)
     expect(TEAM_EXTERNAL_AGENT_DEFAULT).toBe(2)
   })

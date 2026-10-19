@@ -8,6 +8,7 @@ import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX, UI_TEXT } from '../../src/
 import { fingerprint } from '../../src/core/verify/fingerprint'
 import { fill } from '../../src/shared/l10n/text'
 import { buildRecordProblems, scanLegal } from '../../src/core/legal/scan'
+import { prepareLegalFixes } from '../../src/core/legal/entry'
 import { legalScanResultSchema } from '../../src/shared/legal'
 import {
   BUNDLE_OUTPUT,
@@ -362,6 +363,8 @@ describe('scanLegal', () => {
       expect(new Set(readPaths()).size).toBeLessThanOrEqual(Object.keys(files).length)
       expect(result.incompleteChecks.join(' ')).not.toContain('more not read')
     },
+    // Same twenty-thousand-file genuinely-long scan as the cap case above.
+    LEGAL_CAP_SCAN_TIMEOUT_MS,
   )
 
   it('rejects an unknown header policy instead of guessing', async () => {
@@ -382,5 +385,36 @@ describe('scanLegal', () => {
     const result = await scanLegal(snapshotFrom(project), { headerPolicy: 'required' })
     expect(result.incompleteChecks).not.toContain(UI_TEXT.legalScanner.m112)
     expect(result.findings).toEqual([])
+  })
+
+  // The fixable marking loads the fix chunk (dist/legalFix.js, D6): a
+  // preparable header stays fixable, an unpreparable one does not.
+  it('marks a preparable header fixable through the loaded fix chunk', async () => {
+    const result = await scanLegal(
+      snapshotFrom({
+        LICENSE: 'MIT License\nCopyright (c) 2020 Example Authors\n',
+        'src/a.py': 'print("hello")\n',
+      }),
+      { headerPolicy: 'required' },
+    )
+    const finding = result.findings.find((entry) => entry.file === 'src/a.py')
+    expect(finding?.fixable).toBe(true)
+  })
+
+  it('marks an unpreparable header unfixable instead of offering no patch', async () => {
+    const result = await scanLegal(
+      snapshotFrom({
+        LICENSE: 'MIT License\n',
+        'src/a.py': 'print("hello")\n',
+      }),
+      { headerPolicy: 'required' },
+    )
+    const finding = result.findings.find((entry) => entry.file === 'src/a.py')
+    expect(finding).toBeDefined()
+    expect(finding?.fixable).toBe(false)
+  })
+
+  it('answers an empty fix request without touching the workspace', async () => {
+    await expect(prepareLegalFixes('/nonexistent-fulltest-empty-fix', [])).resolves.toEqual([])
   })
 })

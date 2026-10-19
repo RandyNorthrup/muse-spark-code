@@ -272,8 +272,14 @@ const BUDGETS = [
   // 2026-10-03 at 80.3 and 34.5 KiB. Measured size plus 15%, rounded up to
   // 25 KiB (PLAN.md D6).
   // M97: local legal scanner, 128.8 KiB measured; plus 15%, rounded to 25 KiB.
-  // JOIN0190 features merge: 150.5 KiB measured, +15%, rounded up to 25 KiB.
-  { path: 'dist/legalScan.js', budgetKiB: 175 },
+  // JOIN0190 union: legalScan carries the features merge at the
+  // candidate-measured split-out size; the fixer rides its own chunk.
+  { path: 'dist/legalScan.js', budgetKiB: 150 },
+  // The header-fix planner (the fixer, the code-aware text helpers and the
+  // patch document), loaded on the first scan with a fixable finding or the
+  // first fix request: 64.9 KiB when split out of legalScan.js. Measured
+  // size plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/legalFix.js', budgetKiB: 75 },
   { path: 'dist/codeIntel.js', budgetKiB: 100 },
   { path: 'dist/voice.js', budgetKiB: 50 },
   // Linux's offline voice driver (M9, D140), split out of dist/voice.js on

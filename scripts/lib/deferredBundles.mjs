@@ -115,6 +115,7 @@ export const MODEL_API_TOOLS_ONLY = [
   'modelApiToolsEntry.ts',
   'modelCallHooks.ts',
   'argumentPreview.ts',
+  'observationPacking.ts',
 ]
 // publicAddress.ts stays in dist/modelApi.js: the pinned HTTPS transport
 // reads addressFamily for every request's SNI.
@@ -448,6 +449,11 @@ export const DEFERRED = [
       ...MODEL_API_VERIFY_CORE,
     ],
   },
+  {
+    output: 'dist/legalFix.js',
+    metafile: 'dist/meta/legalFix.json',
+    files: ['src/core/legal/legalFixEntry.ts', 'src/core/legal/headerFix.ts'],
+  },
 ]
 
 // POSTSPAWN: the governed launcher's own modules, required by the admission
@@ -564,7 +570,6 @@ export const ON_FIRST_USE = [
       'src/core/legal/ecosystems/toml.ts',
       'src/core/legal/entry.ts',
       'src/core/legal/files.ts',
-      'src/core/legal/headerFix.ts',
       'src/core/legal/headers.ts',
       'src/core/legal/markdown.ts',
       'src/core/legal/projectLicense.ts',
@@ -1331,6 +1336,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/runtimeMediaEntry.ts'), 'dist/runtimeMedia.js'],
   [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
   [path.resolve('src/core/backends/modelapi/modelApiVerifyEntry.ts'), 'dist/modelApiVerify.js'],
+  [path.resolve('src/core/legal/legalFixEntry.ts'), 'dist/legalFix.js'],
   [path.resolve('src/host/commands/commandsEntry.ts'), 'dist/commands.js'],
   [path.resolve('src/host/auth/authEntry.ts'), 'dist/auth.js'],
   [path.resolve('src/host/paid/paidEntry.ts'), 'dist/paid.js'],
@@ -1380,7 +1386,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|legalFixEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

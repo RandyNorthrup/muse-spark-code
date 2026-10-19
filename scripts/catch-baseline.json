@@ -7,7 +7,7 @@
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 114,
+      "SWALLOW": 113,
       "GENERIC": 314,
       "CLEANUP": 200
     },
@@ -587,11 +587,6 @@
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
       "identity": "af42f56bf4ecc6261f4a455e719098c207381c8c6e22140fa585b1d2e56acba4",
       "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/observationPack.ts",
-      "identity": "ffcee64ccaa63454bb4955b26e29d38a277aacf715ba7ddea1f69099995a35f9",
-      "class": "SWALLOW"
     },
     {
       "file": "src/core/backends/modelapi/pluginHost.ts",

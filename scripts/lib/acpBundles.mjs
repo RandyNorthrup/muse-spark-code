@@ -96,6 +96,7 @@ export const ACP_BUNDLES = [
   'vaultBrokerBindings.js',
   'estimateContracts.js',
   'legalScan.js',
+  'legalFix.js',
   'providers.js',
   'auth.js',
   'subscriptions.js',
