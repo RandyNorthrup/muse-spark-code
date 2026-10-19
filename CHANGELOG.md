@@ -1410,6 +1410,24 @@ happened, not what was planned; superseded entries are kept.
   publishes a round count, so the product sets none: a turn runs until the
   model answers without a tool call, you press Stop, a hook stops it, or a
   budget you set is spent.
+- Unanswered questions never defer on their own: `museSpark.questions.deferAfterSeconds`
+  defaults to `0` (never) instead of 60 seconds; set 10–3600 to defer after your own delay.
+- Stop hooks keep a finished turn going until it ends on its own: `museSpark.hooksMaxStopContinuations`
+  defaults to `0` (no limit) instead of 8; a set value stays within Muse Code's own 1–8.
+- Subagents start at once with no concurrency limit of their own: `museSpark.subagentMaxConcurrent`
+  defaults to `0` instead of 8; a set value stays within 1–64 and later ones queue.
+- Tool results keep no byte guard of ours by default: `museSpark.modelApiMaxToolOutputBytes`
+  defaults to `0` instead of 64000, so results stay whole within the model's window; a set
+  value still cuts past it with head, tail, counts and a spill file.
+- Hosted searches run with no bound of ours by default: `museSpark.webSearchMaxPerRequest`
+  defaults to `0` instead of 5, so no `max_tool_calls` is sent and the provider decides;
+  a set value stays within 1–20.
+- Attachments open at any size by default: `museSpark.mediaMaxUploadMiB` defaults to `0`
+  instead of 200, and the provider refuses what it cannot take; a set MiB still refuses
+  past it before any read.
+- Screen recordings run until stopped by default: `museSpark.screenRecordingMaxSeconds`
+  defaults to `0` instead of 120; a set value stays within 10–600, and the recorder keeps
+  what it captured.
 - JSON headless runs report request starts, token totals and cost on stderr while stdout remains one JSON result.
 - Headless Model API runs accept `--max-output-tokens <n>` as an optional
   lowering limit: absent is the model's policy cap, present never exceeds it
