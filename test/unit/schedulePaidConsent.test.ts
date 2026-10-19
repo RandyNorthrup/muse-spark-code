@@ -17,6 +17,7 @@ import type { ScheduleCallerContext } from '../../src/runtime/schedules/args'
 import { UI_TEXT } from '../../src/shared/constants'
 import { scheduleDraftSchema, type ScheduleDraft } from '../../src/shared/scheduleV2'
 import { canonicalUsd } from '../../src/shared/usdSchema'
+import { onceScheduleRouting } from './helpers/scheduleRouting'
 
 const NOW = 1_790_000_000_000
 const AT = 1_800_000_000_000
@@ -32,13 +33,7 @@ function draftWith(paidCapUsd: string, grantCapUsd: string): ScheduleDraft {
   return scheduleDraftSchema.parse({
     name: 'Test schedule',
     action: { kind: 'prompt', prompt: 'Summarize the inbox' },
-    trigger: { kind: 'once', atMs: AT },
-    target: { kind: 'conversation', sessionId: 'test-session', backend: 'modelApi' },
-    delivery: 'whenIdle',
-    whenClosed: 'open',
-    catchUp: 'runOnce',
-    mode: 'manual',
-    grant: { rules: [], destinationIds: [], paidCapUsd: canonicalUsd(grantCapUsd) },
+    ...onceScheduleRouting(AT, canonicalUsd(grantCapUsd)),
     paidCapUsd: canonicalUsd(paidCapUsd),
     parallel: false,
     zone: 'America/Los_Angeles',

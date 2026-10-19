@@ -325,6 +325,19 @@ function invalidStrictOption(
   return refused(error instanceof Error ? error.message : String(error))
 }
 
+/** An option-parser failure on one topic as its usage refusal (D119): a wrong
+ * option names the option and the nearest valid one; anything else keeps the
+ * parser's reason, still exit 2. */
+function usageRefusal(
+  topic: string,
+  error: unknown,
+): Extract<RuntimeCommand, { command: 'invalid' }> {
+  const found = helpTopicNamed(topic)
+  return found === undefined
+    ? { ...invalid(topic), exitCode: 2 }
+    : invalidStrictOption(found.name, topicShownOptionNames(found), error)
+}
+
 /** The option names behind one help topic, for error messages. */
 function topicValidOptions(topic: string): readonly string[] {
   const found = helpTopicNamed(topic)
@@ -1035,10 +1048,13 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
       },
     }
   } catch (error: unknown) {
-    const found = helpTopicNamed('usage')
-    return found === undefined
-      ? { ...invalid('usage'), exitCode: 2 }
-      : invalidStrictOption(found.name, topicShownOptionNames(found), error)
+    // Only the option parser fails here (unknown option, invalid value);
+    // anything else is not this parse's answer to give.
+    if (error instanceof Error && 'code' in error) {
+      if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') return usageRefusal('usage', error)
+      if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE') return usageRefusal('usage', error)
+    }
+    throw error
   }
 }
 
@@ -1157,10 +1173,14 @@ function parseResources(argv: readonly string[]): RuntimeCommand {
       ? { ...invalid(`resources ${positionals.join(' ')}`), exitCode: 2 }
       : { command: 'resources', action, json: values.json === true }
   } catch (error: unknown) {
-    const found = helpTopicNamed('resources')
-    return found === undefined
-      ? { ...invalid('resources'), exitCode: 2 }
-      : invalidStrictOption(found.name, topicShownOptionNames(found), error)
+    // Only the option parser fails here (unknown option, invalid value);
+    // anything else is not this parse's answer to give.
+    if (error instanceof Error && 'code' in error) {
+      if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') return usageRefusal('resources', error)
+      if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+        return usageRefusal('resources', error)
+    }
+    throw error
   }
 }
 

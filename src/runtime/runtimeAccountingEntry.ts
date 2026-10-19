@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { createDailySpend, paidDailyBudgetRow } from '../host/paid/dailySpend'
-import { assertScheduleOwnCap } from '../core/paid/scheduleBudget'
+import { checkScheduleOwnCap } from '../core/paid/spendClaim'
 import type { ScheduleV2 } from '../shared/scheduleV2'
 import {
   isModelApiError,
@@ -231,16 +231,20 @@ export function createRuntimeDailyBudget(deps: {
      * estimate first, then the person's daily limit, as one claim. A fire
      * past either cap refuses with the cap sentence; nothing is held (D121).
      */
-    reserveSchedule: (
+    reserveSchedule: async (
       schedule: ScheduleV2,
       estimateUsd: UsdAmount,
       signal: AbortSignal,
     ): Promise<SpendClaim> => {
       signal.throwIfAborted()
-      assertScheduleOwnCap(schedule, estimateUsd)
+      // The schedule's own caps against the same day pool live billing reads
+      // (spent plus this fire, not the estimate alone).
+      await checkScheduleOwnCap(schedule, estimateUsd, () =>
+        Promise.resolve(spend.read(day()).spentUsd),
+      )
       const claim = admit(estimateUsd, signal)
       if (claim === undefined) throw new Error(UI_TEXT.scheduleV2.messages.capReached)
-      return Promise.resolve(claim)
+      return claim
     },
 
     /**
@@ -269,12 +273,14 @@ export function createRuntimeDailyBudget(deps: {
           },
         })
       } catch (error: unknown) {
-        // NARROW: the check's own refusal and an aborted turn reject the
+        // NARROW: the check's own stop (a paid stop such as the daily-budget
+        // refusal), its midnight refusal and an aborted turn reject the
         // returned promise, never throw synchronously; anything else
         // rethrows for the caller to see.
         if (
           error instanceof UserRefusalError ||
-          (error instanceof DOMException && error.name === 'AbortError')
+          (error instanceof DOMException && error.name === 'AbortError') ||
+          (error instanceof Error && isPaidStop(error))
         )
           return Promise.reject(error)
         throw error
