@@ -3892,7 +3892,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --permission-mode <value>`: Choose how Muse asks before it acts. `{"type":"string","repeatable":false,"enum":["plan","acceptEdits"],"default":"plan","purpose":"permission-mode"}`
 - `exec: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
 - `exec: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"account"}`
-- `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max","ultra"],"purpose":"effort"}`
+- `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max","ultra","none"],"purpose":"effort"}`
 - `exec: --fast`: --fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance. `{"type":"boolean","repeatable":false,"default":false,"purpose":"fast"}`
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
 - `exec: --max-budget-usd <value>`: Set the spending reservation limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`

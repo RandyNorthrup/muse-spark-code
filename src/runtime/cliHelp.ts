@@ -322,7 +322,6 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'output', shape: '', fact: factFor('output') },
       { name: 'max-budget-usd', shape: '<amount>', fact: factFor('max-budget-usd') },
       { name: 'max-requests', shape: '<count>', fact: factFor('max-requests') },
-      { name: 'max-tool-output-bytes', shape: '<bytes>' },
       { name: 'max-output-tokens', shape: '<tokens>' },
       { name: 'timeout', shape: '<seconds>', fact: factFor('timeout') },
       { name: 'cwd', shape: '<directory>' },
