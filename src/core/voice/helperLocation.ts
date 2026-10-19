@@ -225,6 +225,16 @@ export type CaptureLocation =
 export interface CaptureProbe extends HelperProbe {
   /** PATH, for Linux's recorders (absolute entries only, PLAN.md D24). */
   readonly pathVariable: string | undefined
+  /**
+   * The workspace a recording runs in: `arecord`/`parec` never resolve to
+   * a file inside it. Absent leaves every absolute entry probed, as before.
+   */
+  readonly workspaceRoot?: string | undefined
+  /**
+   * Resolves links for the workspace comparison. Absent means lexical
+   * comparison only.
+   */
+  readonly realpath?: ((filePath: string) => string) | undefined
 }
 
 /**
@@ -247,6 +257,8 @@ export function locateCaptureHelper(probe: CaptureProbe): CaptureLocation {
       platform: probe.platform,
       pathVariable: probe.pathVariable,
       fileExists: probe.fileExists,
+      ...(probe.workspaceRoot !== undefined && { workspaceRoot: probe.workspaceRoot }),
+      ...(probe.realpath !== undefined && { realpath: probe.realpath }),
     })
     if (command !== undefined) {
       return {

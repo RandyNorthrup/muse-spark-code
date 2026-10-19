@@ -76,6 +76,33 @@ export function attentionNotice(sessionId: string, event: AgentEvent): Attention
   }
 }
 
+/**
+ * Which notices already raised, oldest forgotten past the bound. Pure
+ * memory with no ports, so the unit tests prove the once-per-key rule
+ * through this real code instead of scripted notifier closures.
+ */
+export class NoticeMemory {
+  private readonly raised = new Set<string>()
+
+  /**
+   * Remembers the key: true when it is new, false when already raised.
+   * Remembered whether or not it shows: a focused window saw it arrive.
+   */
+  public take(key: string): boolean {
+    if (this.raised.has(key)) {
+      return false
+    }
+    this.raised.add(key)
+    if (this.raised.size > BACKGROUND_NOTICE_KEYS_MAX) {
+      const [oldest] = this.raised
+      if (oldest !== undefined) {
+        this.raised.delete(oldest)
+      }
+    }
+    return true
+  }
+}
+
 export interface BackgroundNotifierDeps {
   /** `museSpark.notifyOnBackgroundTurn`, read per notice. */
   readonly isEnabled: () => boolean
@@ -88,7 +115,7 @@ export interface BackgroundNotifierDeps {
 
 /** The window's attention notices: each key once, and only while the window is unfocused. */
 export class BackgroundNotifier {
-  private readonly raised = new Set<string>()
+  private readonly memory = new NoticeMemory()
 
   public constructor(private readonly deps: BackgroundNotifierDeps) {}
 
@@ -107,18 +134,9 @@ export class BackgroundNotifier {
 
   /** Raises the notice unless it was raised already; `reveal` brings its conversation into view. */
   public notify(notice: AttentionNotice, reveal: () => void): void {
-    if (this.raised.has(notice.key)) {
-      return
-    }
-    // Remembered whether or not it shows: a focused window saw it arrive.
-    this.raised.add(notice.key)
-    if (this.raised.size > BACKGROUND_NOTICE_KEYS_MAX) {
-      const [oldest] = this.raised
-      if (oldest !== undefined) {
-        this.raised.delete(oldest)
-      }
-    }
-    if (!this.deps.isEnabled() || this.deps.isWindowFocused()) {
+    // `take` runs first and always: the key is remembered whether or not
+    // it shows, since a focused window saw it arrive.
+    if (!this.memory.take(notice.key) || !this.deps.isEnabled() || this.deps.isWindowFocused()) {
       return
     }
     void this.raise(notice.message, reveal)

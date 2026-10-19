@@ -19,6 +19,11 @@ import {
   environmentValue,
   windowsPowerShellModulePath,
 } from '../../childEnvironment'
+import {
+  isFullyQualifiedWindowsPath,
+  isWorkspacePath,
+  sanitizePathForWorkspace,
+} from '../../executables'
 import type { MuseCodeAccountHome } from './accountHomes'
 import type { EnvironmentVariable } from '../../../shared/constants'
 import {
@@ -55,6 +60,18 @@ export interface LaunchProbe {
   readonly listDirectory: (directory: string) => readonly string[]
   /** `serve` plus the host-posture flags (`serveArguments`, sandbox.ts). */
   readonly serveArgs: readonly string[]
+  /**
+   * The workspace the child runs in: PATH entries inside it are never
+   * probed, so a planted `muse` on an absolute workspace PATH entry never
+   * resolves. Absent probes every fully qualified entry, as before.
+   */
+  readonly workspaceRoot?: string
+  /**
+   * Resolves links for the workspace comparison; injected so the Windows,
+   * macOS and Linux branches are all unit-tested on any OS. Absent means
+   * lexical comparison only.
+   */
+  readonly realpath?: ((filePath: string) => string) | undefined
 }
 
 export interface MuseLaunch {
@@ -79,9 +96,23 @@ function pathModule(platform: NodeJS.Platform): path.PlatformPath {
 /**
  * The PATH entries worth probing: an empty or relative entry means the
  * current directory, which for `muse serve` is the workspace (PLAN.md D24).
+ * On Windows a rooted `\foo` entry is drive-relative and resolves on the
+ * working directory's drive, so only fully qualified entries are probed.
  */
 function absoluteEntries(probe: LaunchProbe, p: path.PlatformPath): readonly string[] {
-  return probe.pathEntries.filter((entry) => entry !== '' && p.isAbsolute(entry))
+  const workspace =
+    probe.workspaceRoot === undefined
+      ? undefined
+      : { workspaceRoot: probe.workspaceRoot, realpath: probe.realpath }
+  return probe.pathEntries
+    .map((entry) => entry.trim())
+    .filter(
+      (entry) =>
+        entry !== '' &&
+        p.isAbsolute(entry) &&
+        (probe.platform !== 'win32' || isFullyQualifiedWindowsPath(entry)) &&
+        (workspace === undefined || !isWorkspacePath(probe.platform, workspace, entry)),
+    )
 }
 
 function windowsCandidateDirs(probe: LaunchProbe, p: path.PlatformPath): string[] {
@@ -217,6 +248,19 @@ export interface ChildEnvironmentInput {
   readonly programFiles: string | undefined
   /** Supplied only by the capture-gated account owner, never settings or a page. */
   readonly accountHome?: MuseCodeAccountHome
+  /**
+   * The workspace the child runs in. When defined, PATH entries that are
+   * relative, empty, or inside it (resolved through links) are dropped, so
+   * no workspace program runs from PATH when Muse Code starts
+   * (docs/certification/pathguard.md). Undefined leaves PATH untouched.
+   */
+  readonly workspaceRoot?: string
+  /**
+   * Resolves links for the PATH guard; injected so the Windows, macOS and
+   * Linux branches are all unit-tested on any OS. Absent means lexical
+   * comparison only (relative, empty and lexically-inside entries still go).
+   */
+  readonly realpath?: ((filePath: string) => string) | undefined
 }
 
 /**
@@ -230,6 +274,46 @@ export interface ChildEnvironmentInput {
  * subscription's work to the key (PLAN.md D1, M7). A key already in the
  * user's own environment is inherited untouched, as the CLI documents.
  */
+/**
+ * PATH entries that would let a workspace program run are dropped from a
+ * copied environment: relative, empty, or inside `workspaceRoot` (resolved
+ * through links). On Windows every spelling of PATH is guarded, since names
+ * are case-insensitive there. Keys holding no PATH are never added, and a
+ * PATH with nothing left is deleted: an empty PATH makes POSIX `execvp`
+ * search the working directory, while a missing one does not.
+ *
+ * On Windows the child also gets `NoDefaultCurrentDirectoryInExePath`, so
+ * CreateProcess does not try the working directory before PATH (probed on
+ * Windows 11, Node 24.20: docs/certification/m21.md). Sanitizing PATH alone
+ * does not close that lookup.
+ */
+function guardWorkspacePath(env: NodeJS.ProcessEnv, input: ChildEnvironmentInput): void {
+  if (input.workspaceRoot === undefined) {
+    return
+  }
+  const realpath = input.realpath ?? ((filePath: string): string => filePath)
+  const names =
+    input.platform === 'win32'
+      ? Object.keys(env).filter((name) => name.toLowerCase() === 'path')
+      : Object.keys(env).filter((name) => name === 'PATH')
+  for (const name of names) {
+    const sanitized = sanitizePathForWorkspace({
+      platform: input.platform,
+      pathVariable: env[name],
+      workspaceRoot: input.workspaceRoot,
+      realpath,
+    })
+    if (sanitized === '') {
+      Reflect.deleteProperty(env, name)
+    } else {
+      env[name] = sanitized
+    }
+  }
+  if (input.platform === 'win32') {
+    setEnvironmentVariable(env, input.platform, 'NoDefaultCurrentDirectoryInExePath', '1')
+  }
+}
+
 export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...input.baseEnv }
   if (input.platform === 'win32' && input.systemRoot !== undefined) {
@@ -243,6 +327,10 @@ export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.Proc
   for (const variable of input.extraVariables) {
     setEnvironmentVariable(env, input.platform, variable.name, variable.value)
   }
+  // The guard runs after the person's variables, so a PATH from
+  // `museSpark.environmentVariables` is sanitized like the inherited one and
+  // cannot put a workspace entry back.
+  guardWorkspacePath(env, input)
   if (input.accountHome !== undefined) {
     input.accountHome.assertCurrent()
   }

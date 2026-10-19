@@ -968,6 +968,7 @@ async function openUsageBrowser(input: string): Promise<void> {
     // is launched once started, and its lifetime never holds the CLI or the page.
     await handoffResourceFile(executable, args, {
       env: process.env,
+      workspaceRoot: process.cwd(),
       ...(process.platform === 'linux' && { until: 'spawn' as const }),
     })
   } catch (error: unknown) {
@@ -1898,12 +1899,19 @@ async function main(): Promise<number> {
     }
     case 'login': {
       const { museCode } = await runtimeFor(command.options, log)
+      // The login child keeps this directory: the shared manager guards its
+      // environment and lookup for it, and the spawn names it outright.
+      const cwd = process.cwd()
       return await login({
         resolveLaunch: () => museCode.resolveLaunch(),
         environment: () => museCode.childEnvironment(),
-        spawnInTerminal: async (file, args, env) => {
+        cwd,
+        spawnInTerminal: async (file, args, env, spawnCwd) => {
           // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- `muse login` as `muse serve` is started: the CLI resolved from its install layout, PATH or an absolute --muse-binary (D1a, D4), its launcher's fixed prefix and MUSE_LOGIN_ARGS, as an argument array with no shell (PLAN.md §8)
-          const { child } = await spawnResourceProcess('interactive', file, args, { env })
+          const { child } = await spawnResourceProcess('interactive', file, args, {
+            env,
+            cwd: spawnCwd,
+          })
           return child
         },
         printError: (line) => {

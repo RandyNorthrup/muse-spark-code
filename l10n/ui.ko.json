@@ -498,6 +498,7 @@
   "sessionDeleteConnectionClosed": "삭제가 확인되기 전에 연결이 닫혔습니다. 세션은 기록에 남아 있습니다.",
   "sessionDeleteHostExited": "삭제가 확인되기 전에 Muse Code가 종료되었습니다. 세션은 기록에 남아 있습니다.",
   "sessionDeleteHostClosed": "삭제가 확인되기 전에 호스트가 닫혔습니다. 세션은 기록에 남아 있습니다.",
+  "sessionDeleteUnsupported": "Muse Code {version}에서는 대화를 삭제할 수 없습니다.",
   "playbookTitle": "오케스트레이터 지침서",
   "playbookStatus": "상태",
   "playbookRecord": "기록",
@@ -2464,6 +2465,10 @@
   "historyShowArchived": "보관된 항목 표시",
   "historyArchive": "보관",
   "historyUnarchive": "보관 취소",
+  "historyDeleteConfirm": "대화 {name}을(를) 삭제하시겠습니까?",
+  "historyDeleteConfirmDetail": "기록에서 완전히 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+  "historyDeleted": "{name}을(를) 삭제했습니다.",
+  "historyDeleteFailed": "대화를 삭제할 수 없습니다",
   "historyCurrent": "현재",
   "historyForkMark": "포크",
   "historyTurns": {

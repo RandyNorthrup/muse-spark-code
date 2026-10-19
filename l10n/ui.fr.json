@@ -500,6 +500,7 @@
   "sessionDeleteConnectionClosed": "La connexion a été fermée avant la confirmation de la suppression. La session reste dans l’historique.",
   "sessionDeleteHostExited": "Muse Code s’est arrêté avant la confirmation de la suppression. La session reste dans l’historique.",
   "sessionDeleteHostClosed": "L’hôte a été fermé avant la confirmation de la suppression. La session reste dans l’historique.",
+  "sessionDeleteUnsupported": "Muse Code {version} ne peut pas supprimer les conversations.",
   "playbookTitle": "Guide de l’orchestrateur",
   "playbookStatus": "État",
   "playbookRecord": "Journal",
@@ -2564,6 +2565,10 @@
   "historyShowArchived": "Afficher les sessions archivées",
   "historyArchive": "Archiver",
   "historyUnarchive": "Désarchiver",
+  "historyDeleteConfirm": "Supprimer la conversation {name} ?",
+  "historyDeleteConfirmDetail": "Elle quittera l’historique pour de bon. Cette action est irréversible.",
+  "historyDeleted": "{name} supprimée",
+  "historyDeleteFailed": "Impossible de supprimer la conversation",
   "historyCurrent": "Actuelle",
   "historyForkMark": "Copie",
   "historyTurns": {

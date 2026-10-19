@@ -618,6 +618,7 @@ help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Us
     "session/resume",
     "session/list",
     "session/close",
+    "session/delete",
     "session/set_mode",
     "session/set_config_option",
     "session/prompt",

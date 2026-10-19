@@ -34,6 +34,7 @@ import {
   PLUGIN_CHILD_MAX_HEAP_MB,
   PLUGIN_CHILD_MAX_MEMORY_BYTES,
 } from '../../src/shared/constants'
+import { runPluginHook } from '../../src/core/backends/modelapi/pluginHost'
 import { expectEnded, markedPid } from './helpers/processes'
 
 const ROOT = '/ws'
@@ -447,6 +448,23 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
     )
     expect(result.blockedReason).toBeUndefined()
     expect(warnings.join('\n')).toContain('amp-format user hook failed')
+  })
+
+  it('a spawn failure no OS names keeps its kind instead of settling failed', async () => {
+    // Real pieces throughout: the runtime resolves and versions for real,
+    // and the real spawn validates the working directory itself. A NUL byte
+    // in the plugin directory reaches no OS refusal, so the start failure
+    // propagates with its kind rather than settling as a start refusal.
+    const missing = path.join(
+      `${tmpdir()}/nul-dir-${String(process.pid)}`.replace('nul', 'nul\0'),
+      'p.mjs',
+    )
+    await expect(
+      runPluginHook(
+        { system: 'amp', pluginPath: missing, hook: 'tool.call', payload: {}, failClosed: false },
+        { env: process.env, platform: process.platform },
+      ),
+    ).rejects.toMatchObject({ code: 'ERR_INVALID_ARG_VALUE' })
   })
 
   it('Amp tool.result and agent.end get every field their types require (P2 15)', async () => {

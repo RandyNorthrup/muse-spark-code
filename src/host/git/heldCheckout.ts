@@ -15,6 +15,7 @@
 // the checkout, and the half-written worktree is removed.
 
 import { type Buffer } from 'node:buffer'
+import { realpathSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { isCommitSha } from '../../core/git/github'
@@ -148,7 +149,11 @@ async function writeEntries(
   target.check()
   await deps.gitProcess([...UNTRUSTED_CHECKOUT_OPTIONS, ...BATCH_ARGS], {
     cwd: target.cwd,
-    env: quietGitEnvironment(deps.env),
+    env: quietGitEnvironment(deps.env, {
+      workspaceRoot: target.cwd,
+      platform: deps.platform,
+      realpath: realpathSync,
+    }),
     input: blobs.map((entry) => `${entry.oid}\n`).join(''),
     // No deadline of ours (M123): the checkout's size caps bound the work.
     timeoutMs: undefined,

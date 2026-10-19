@@ -500,6 +500,7 @@
   "sessionDeleteConnectionClosed": "La connessione si è chiusa prima della conferma dell’eliminazione. La sessione rimane nella cronologia.",
   "sessionDeleteHostExited": "Muse Code è terminato prima della conferma dell’eliminazione. La sessione rimane nella cronologia.",
   "sessionDeleteHostClosed": "L’host si è chiuso prima della conferma dell’eliminazione. La sessione rimane nella cronologia.",
+  "sessionDeleteUnsupported": "Muse Code {version} non può eliminare le conversazioni.",
   "playbookTitle": "Guida dell’orchestratore",
   "playbookStatus": "Stato",
   "playbookRecord": "Registro",
@@ -2564,6 +2565,10 @@
   "historyShowArchived": "Mostra archiviate",
   "historyArchive": "Archivia",
   "historyUnarchive": "Ripristina dall’archivio",
+  "historyDeleteConfirm": "Eliminare la conversazione {name}?",
+  "historyDeleteConfirmDetail": "Verrà rimossa dalla cronologia per sempre. L’operazione non può essere annullata.",
+  "historyDeleted": "{name} eliminata",
+  "historyDeleteFailed": "Non è stato possibile eliminare la conversazione",
   "historyCurrent": "Corrente",
   "historyForkMark": "Copia",
   "historyTurns": {

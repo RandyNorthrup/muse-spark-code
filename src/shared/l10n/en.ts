@@ -664,6 +664,7 @@ export const EN = {
     'Muse Code exited before deletion was confirmed. The session remains in History.',
   sessionDeleteHostClosed:
     'The host closed before deletion was confirmed. The session remains in History.',
+  sessionDeleteUnsupported: 'Muse Code {version} cannot delete conversations.',
   // M116 / D96: shared panel, Agent map, ACP, CLI and report wording.
   playbookTitle: 'Orchestrator Playbook',
   playbookStatus: 'Status',
@@ -3056,6 +3057,10 @@ export const EN = {
   historyShowArchived: 'Show Archived',
   historyArchive: 'Archive',
   historyUnarchive: 'Unarchive',
+  historyDeleteConfirm: 'Delete the conversation {name}?',
+  historyDeleteConfirmDetail: 'It leaves History for good. This cannot be undone.',
+  historyDeleted: 'Deleted {name}',
+  historyDeleteFailed: 'Could not delete the conversation',
   historyCurrent: 'Current',
   historyForkMark: 'Fork',
   historyTurns: forms({ one: '{count} turn', other: '{count} turns' }),

@@ -253,6 +253,7 @@ import type {
 import { conversationLoader } from './host/conversation/conversationBundle'
 import { restartConversationBackends } from './host/conversation/conversationBackends'
 import { BackgroundNotifier } from './host/conversation/turnNotifications'
+import { vscodeBackgroundNoticeDeps } from './host/conversation/vscodeBackgroundNotices'
 import type { ReportDataSource } from './host/conversation/reportProblemHandler'
 import { canonicalPath } from './host/canonicalPath'
 import { loadToolImage } from './core/toolImages'
@@ -1973,8 +1974,8 @@ async function activateWindow(
           await runProcess(
             invocation,
             timeoutMs,
-            undefined,
-            undefined,
+            workspaceRoot,
+            backend.childEnvironment(),
             nativeStarts.signal,
             backend.workspaceActionGuard(nativeStarts.signal),
           ),
@@ -2228,6 +2229,7 @@ async function activateWindow(
   const toolIo = createToolIo({
     platform: process.platform,
     listFiles: listWorkspaceFiles,
+    ...(workspaceRoot !== undefined && { workspaceRoot }),
     systemRoot: process.env['SystemRoot'],
     // The user's terminal environment settings apply to the shell tool as
     // they do to VS Code's terminal (PLAN.md D25).
@@ -3032,7 +3034,13 @@ async function activateWindow(
       isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
     // Plugin children get the hook environment (M51) and their tree (M91b).
     pluginHooks: {
-      env: () => hookEnvironment(shellEnvironmentOf(), process.platform),
+      env: () =>
+        hookEnvironment(
+          shellEnvironmentOf(),
+          process.platform,
+          [],
+          workspaceRoot === undefined ? undefined : { workspaceRoot, realpath: realpathSync },
+        ),
       containment: pluginJobs.containment,
     },
     // Sessions survive the window (PLAN.md D14) in the workspace storage
@@ -3597,15 +3605,9 @@ async function activateWindow(
   }
 
   // One per window (M82): a notice two surfaces on one session receive is
-  // raised once, and only while the window is unfocused.
-  const backgroundNotifier = new BackgroundNotifier({
-    isEnabled: () => currentSettings().notifyOnBackgroundTurn,
-    isWindowFocused: () => vscode.window.state.focused,
-    show: async (message) =>
-      (await vscode.window.showInformationMessage(message, UI_TEXT.notifyShowConversation)) ===
-      UI_TEXT.notifyShowConversation,
-    log,
-  })
+  // raised once, and only while the window is unfocused. The ports read
+  // the live host (setting, focus, VS Code's own notification).
+  const backgroundNotifier = new BackgroundNotifier(vscodeBackgroundNoticeDeps(log))
 
   // Extension hooks on both backends (M91 lane E, PLAN.md D70): FileChanged,
   // ConfigChange, Setup, Manual and DirectoryAdded fire from the window, so

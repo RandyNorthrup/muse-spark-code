@@ -107,6 +107,7 @@ import type { PaidUseRequest } from '../shared/paid'
 import {
   approvalModeFor,
   availablePermissionModes,
+  mspPermissionProfile,
   permissionModeDetail,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
@@ -3269,7 +3270,16 @@ class AgentState {
         promptCapabilities: { image: true, audio: true, embeddedContext: true },
         // Stdio servers every agent takes; HTTP ones Muse Code runs too (M63c).
         mcpCapabilities: { http: this.deps.backend.kind === 'museCode', sse: false },
-        sessionCapabilities: { list: {}, resume: {}, close: {} },
+        sessionCapabilities: {
+          list: {},
+          resume: {},
+          close: {},
+          // Deletion from `session/list`: the Model API backend removes the
+          // session from its own store. A Muse Code host deletes only where
+          // its CLI still serves `session/delete` (D26); the request then
+          // refuses with the real cause instead.
+          ...(this.deps.backend.kind === 'modelApi' && { delete: {} }),
+        },
       },
       authMethods: [this.deps.signIn, ...(this.deps.providerSignIns ?? [])].map((method) =>
         this.authMethod(method),
@@ -3305,10 +3315,16 @@ class AgentState {
     const mcpServers = this.forwardedMcp(host, requestedMcp)
     // The start carries no account identity: a step that needs a stored key
     // refuses then, in the one store sentence, never at the open.
+    const approvalMode = approvalModeFor(this.deps.options.initialMode, true)
+    // Manual asks the person because the session reviews with `:ask-me`
+    // instead of Muse Code's judge (Muse Code 1.4.7); Auto keeps the judge
+    // its words describe. Omitted profiles keep the host default.
+    const permissionProfile = mspPermissionProfile(approvalMode)
     const session = await host.startSession({
       workspaceRoot: cwd,
       modelId,
-      approvalMode: approvalModeFor(this.deps.options.initialMode, true),
+      approvalMode,
+      ...(permissionProfile !== undefined && { permissionProfile }),
       ...(mcpServers !== undefined && { mcpServers }),
     })
     // The mode and model went with the start; the effort is set here. A
@@ -3449,6 +3465,38 @@ class AgentState {
     }
   }
 
+  /**
+   * The editor deletes a listed session for good: a held copy is released
+   * first, so a running turn settles before the store goes, then the
+   * backend removes it through `AgentHost.deleteSession`. A host that
+   * cannot delete, and any failure, answers with the real cause.
+   */
+  public async deleteSession(sessionId: string): Promise<void> {
+    const held = this.sessions.get(sessionId) ?? this.adopting.get(sessionId)
+    if (held !== undefined) {
+      await this.releaseAll(sessionId)
+      this.choices.delete(sessionId)
+    }
+    let host: AgentHost | undefined = held?.host
+    if (host === undefined) {
+      const opened = await this.openHost(this.deps.defaultCwd)
+      host = opened.host
+    }
+    if (!host.info.canDeleteSessions) {
+      throw RequestError.internalError(
+        undefined,
+        fill(UI_TEXT.sessionDeleteUnsupported, { version: host.info.serverVersion }),
+      )
+    }
+    try {
+      await host.deleteSession(sessionId)
+    } catch (error: unknown) {
+      // A refused delete answers with the failure's kind, never the raw
+      // failure: names stay fixed-vocabulary on the wire.
+      throw RequestError.internalError(undefined, failureForLog(error))
+    }
+  }
+
   /** A paid use asked in the session it is for; one the agent does not hold is denied (M58). */
   public async askPaidUse(
     sessionId: string,
@@ -3520,6 +3568,10 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
     )
     .onRequest('session/close', async (context) => {
       await state.closeSession(context.params.sessionId)
+      return {}
+    })
+    .onRequest('session/delete', async (context) => {
+      await state.deleteSession(context.params.sessionId)
       return {}
     })
     .onRequest('session/set_mode', async (context) => {

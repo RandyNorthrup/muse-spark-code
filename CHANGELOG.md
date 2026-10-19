@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- History can delete a conversation for good on the Model API backend: a
+  Delete action on each row asks for confirmation naming the conversation,
+  then removes it from the session store and the list. The same deletion is
+  offered to editors through ACP `session/delete`. On the Muse Code backend
+  no Delete is offered: its CLI serves no `session/delete` from 1.4.4 on
+  (verified on 1.4.10), so there is nothing that could remove the session.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights
@@ -33,6 +42,133 @@ happened, not what was planned; superseded entries are kept.
   each host start probes whether the bubblewrap sandbox can create a user
   namespace here and says so once on every surface, naming the two ways
   out, without ever switching the sandbox off on its own.
+
+### Security
+
+- Starting Muse Code no longer lets a program planted in the workspace run
+  from PATH. Every child environment built for `muse serve` (the VS Code
+  backend, the ACP agent and the CLI exec path) drops PATH entries that are
+  relative, empty, or inside the workspace (resolved through links), on
+  Windows, macOS and Linux alike; nothing else in PATH changes. A PATH with
+  nothing left is removed rather than emptied, a PATH from
+  `museSpark.environmentVariables` is sanitized the same way, Windows
+  drive-relative entries are resolved on the workspace drive, and guarded
+  Windows children set `NoDefaultCurrentDirectoryInExePath` so the working
+  directory is not tried before PATH. Forward-slash UNC (`//server/share`),
+  verbatim (`\\?\`, `//?/`) and loopback admin-share (`//localhost/C$/…`)
+  spellings of the workspace compare as the workspace itself, and the entry
+  is always resolved as itself, never as a drive-rewritten path. The guard
+  also covers `muse login` and the runtime account host (scoped to the
+  directory the child runs in, which is also set as its working directory),
+  the Windows sandbox check and setup, and the `muse` and `git` lookups
+  themselves: directories inside the workspace are never probed, so a
+  planted program on an absolute workspace PATH entry never resolves.
+  Device (`\\.\`), trailing-dot (`repo.\…`) and dot-dot (`..\…`) spellings
+  of the workspace compare as the workspace itself before comparing, and
+  the same exclusion (resolved through links) now covers every other
+  product lookup: `git` (all runners, the M123 native route and the report
+  source), the plugin runtimes (`node`, `bun`, `prlimit`), MCP server
+  commands, the shell and hook interpreters (`bash`, `sh`, `cmd`), the
+  usage opener (`xdg-open`, `open`, `rundll32.exe`), the Linux voice
+  recorders (`arecord`, `parec`) and the team worker launcher. Every child
+  started with the workspace as its working directory also gets the
+  guarded PATH plus `NoDefaultCurrentDirectoryInExePath` on Windows, so a
+  planted helper (`ssh`, `git-remote-https`) never runs either. A new
+  inventory test enumerates every process start in `src/` from the source
+  itself and fails on any start outside the guarded routes or the short
+  reviewed list (fixed OS paths, the person's own terminal).
+  Real use showed Muse Code 1.4.9 running a planted `<workspace>/bin/bwrap`
+  twice at serve start, before any prompt or approval
+  (`docs/certification/pathguard.md`).
+
+### Fixed
+
+- The empty composer again invites a message with only this machine's
+  focus key (`Ask Muse… (Ctrl+Esc to focus)` on Linux, `Cmd+Esc` on
+  macOS, `Ctrl+Alt+Esc` on Windows) instead of the three-platform
+  shortcut tip; the full tip stays in Getting Started.
+- The PATHGUARD spawn inventory now lists the Linux sandbox probe
+  (`src/core/backends/musecode/sandbox.ts`): it resolves `bwrap` off
+  absolute PATH entries only and refuses a binary inside the workspace
+  before spawning. No behaviour change.
+- Web fetch no longer ships a dead second HTML-to-Markdown entry point:
+  `htmlToMarkdown` had no callers (both backends convert through
+  `convertHtmlJob` on the page worker), so it was removed. No behaviour
+  change.
+- Paid-use consent audit: the four unused consent helpers for scheduled
+  runs and per-account consent stay unwired until their owning milestones
+  land (M115 Lane U's per-schedule consent; M108 lane P's per-account
+  consent). Meanwhile a paid schedule draft from the panel is refused
+  (its caller carries no paid flag or budget) and every reachable paid
+  use still asks the popup; a unit suite now tests that surface refusal
+  through the real surface, separately from the unwired helpers' logic
+  (RVMSM58M69). No behaviour change.
+- On VS Code 1.101 to 1.111 with `http.proxy` set, Muse Voice recorded audio
+  and then failed, because those versions do not route an extension's
+  WebSocket through the proxy. The microphone now stays unavailable with the
+  reason while a proxy is set there, instead of recording audio that cannot
+  be sent.
+- Behind a proxy on VS Code 1.112 or later, a Muse Voice refusal caused by
+  the person's own settings (`http.proxySupport` off, or
+  `http.webSocketAdditionalSupport` off) wrongly blamed the VS Code
+  version. The microphone now names the setting that is off and what to
+  change; the version text stays only for VS Code before 1.112.
+- The production build no longer starts every bundle at once through one
+  esbuild service, which could fail under machine load with an error that
+  named no bundle and then hang. Bundles now run through a bounded pool
+  of 8; a failure names its bundle, in-flight bundles settle, and the
+  process exits with the true error.
+- In Manual (and Edit automatically) on the Muse Code backend, Muse now asks
+  before running each command, as the Modes menu promises. The session
+  reviews with Muse Code's `:ask-me` permission profile (the human reviewer)
+  instead of the default `:auto-review`, whose LLM judge had allowed commands
+  such as `touch`, `sleep 300; curl …; rm` and `sudo ls` with no approval
+  reaching the editor. Auto keeps the judge its description promises.
+  Requires Muse Code 1.4.7 or later; older hosts keep their previous
+  behaviour.
+- On Windows, two requests that reserve session spend at the same moment
+  could end one of them with "The session spend ledger could not be read or
+  saved", although nothing was wrong with the ledger. Windows answers a lock
+  that is just being released differently from one that is held; the product
+  now waits for both the same way, within the same one-second bound.
+
+### Packaging
+
+- The Get Started walkthrough's four screenshots ship as lossless WebP
+  instead of PNG (`open.webp`, `welcome.webp`, `chat.webp`,
+  `sign-in.webp` in `resources/walkthrough/`): pixel-identical, about
+  54 KB smaller on disk. The packaged extension no longer includes
+  `docs/PRIVACY.md`, which no code read; the file stays in the
+  repository and the packaged readme still links the privacy policy by
+  its URL.
+
+### Release infrastructure
+
+- Every fake test is gone (the owner's order: "there can be no more fakes at
+  all"). Deleted: the tests that used stand-ins or invented data (`vi.fn`
+  answers, the hand-written `vscode` module and its alias, the fake Muse Code
+  CLI, the fake Model API, Git, GitHub and MCP helpers, the Action's fake
+  agent), the tests that only checked that some text, key or file exists, the
+  editor host checks that drove the fake CLI (code-server, Eclipse Theia,
+  JupyterLab, Emacs, Neovim), the fake-only Action check and its test package
+  (`scripts/package-acp-test.mjs`), and the Model API live sweep built on
+  fakes. No product code was deleted. What each deleted test covered is in
+  `docs/real-life/unproven.md`, the backlog for proof by real use.
+- Pull requests can borrow the organization `scnetsolutions`'s CI runners
+  (D122). Once the owner has installed the organization's GitHub App and set
+  `ORG_CI` to `on` (CONTRIBUTING.md, "The capacity repository (D122)"), a
+  pull request from a branch of this repository runs its Windows and macOS
+  unit shards in `scnetsolutions/muse-spark-code-ci` while every other job
+  runs here, and the same seven required checks wait for that run's result.
+  Pull requests, merges and releases stay in this repository; forks and
+  Dependabot keep every job here.
+- The capacity wait survives the documented queue (D122 review). The `org`
+  job's bound is GitHub's own 6-hour job ceiling instead of 180 minutes, so
+  a healthy capacity run is never cut off while queued pull requests drain.
+  The capacity shards get 25 minutes instead of 20 because a new capacity
+  branch starts with a cold npm cache, and a weekly seed keeps the capacity
+  repository's default-branch cache warm so later pull requests share it
+  (CONTRIBUTING.md, "The capacity repository (D122)").
 
 ### Pending
 

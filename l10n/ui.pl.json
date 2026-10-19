@@ -501,6 +501,7 @@
   "sessionDeleteConnectionClosed": "Połączenie zamknięto przed potwierdzeniem usunięcia. Sesja pozostaje w historii.",
   "sessionDeleteHostExited": "Muse Code zakończył działanie przed potwierdzeniem usunięcia. Sesja pozostaje w historii.",
   "sessionDeleteHostClosed": "Host zamknięto przed potwierdzeniem usunięcia. Sesja pozostaje w historii.",
+  "sessionDeleteUnsupported": "Muse Code {version} nie może usuwać rozmów.",
   "playbookTitle": "Podręcznik orkiestratora",
   "playbookStatus": "Stan",
   "playbookRecord": "Rejestr",
@@ -2614,6 +2615,10 @@
   "historyShowArchived": "Pokaż zarchiwizowane",
   "historyArchive": "Archiwizuj",
   "historyUnarchive": "Przywróć z archiwum",
+  "historyDeleteConfirm": "Usunąć rozmowę {name}?",
+  "historyDeleteConfirmDetail": "Zniknie z historii na zawsze. Tej czynności nie można cofnąć.",
+  "historyDeleted": "Usunięto {name}",
+  "historyDeleteFailed": "Nie można usunąć rozmowy",
   "historyCurrent": "Bieżąca",
   "historyForkMark": "Rozwidlenie",
   "historyTurns": {

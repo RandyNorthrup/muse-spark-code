@@ -499,6 +499,7 @@
   "sessionDeleteConnectionClosed": "A kapcsolat a törlés megerősítése előtt lezárult. A munkamenet megmarad az előzményekben.",
   "sessionDeleteHostExited": "A Muse Code a törlés megerősítése előtt leállt. A munkamenet megmarad az előzményekben.",
   "sessionDeleteHostClosed": "A gazdagép a törlés megerősítése előtt bezárult. A munkamenet megmarad az előzményekben.",
+  "sessionDeleteUnsupported": "A(z) Muse Code {version} nem tud beszélgetéseket törölni.",
   "playbookTitle": "Az összehangoló kézikönyve",
   "playbookStatus": "Állapot",
   "playbookRecord": "Napló",
@@ -2514,6 +2515,10 @@
   "historyShowArchived": "Archiváltak megjelenítése",
   "historyArchive": "Archiválás",
   "historyUnarchive": "Archiválás visszavonása",
+  "historyDeleteConfirm": "Törli a(z) {name} beszélgetést?",
+  "historyDeleteConfirmDetail": "Végleg kikerül az előzményekből. Ez nem vonható vissza.",
+  "historyDeleted": "{name} törölve",
+  "historyDeleteFailed": "A beszélgetést nem sikerült törölni",
   "historyCurrent": "Aktuális",
   "historyForkMark": "Elágazás",
   "historyTurns": {

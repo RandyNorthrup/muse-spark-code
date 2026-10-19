@@ -25,6 +25,7 @@ export function prepareTeamProcess(
 
 import { randomBytes, randomUUID } from 'node:crypto'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import os from 'node:os'
@@ -38,6 +39,7 @@ import { checkServedFingerprint } from '@muse-code/sdk/dist/src/fingerprint.js'
 import type { TeamJournal } from './teamJournal'
 import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
 import { loadJobAssembly, runProgram, windowsPowerShell } from '../processTree'
+import { workspaceChildEnvironment } from '../../core/executables'
 import { powerShellQuoted } from '../../core/shellQuote'
 import {
   MCP_JOB_HANDSHAKE_MAX_CHARS,
@@ -514,9 +516,19 @@ export async function createNativeTeamProcessDriver(options: {
           command = 'setpriv'
         }
       }
+      // The person's configured command runs with the guarded child PATH
+      // for its working directory: a bare name still resolves, but never to
+      // a program planted in the workspace.
       const child = spawn(command, args, {
         cwd: request.cwd,
-        env: { ...probeEnv, ...request.env, MUSE_SPARK_LAUNCH_ID: launchId },
+        env: {
+          ...workspaceChildEnvironment(
+            process.platform,
+            { ...probeEnv, ...request.env },
+            { workspaceRoot: request.cwd, realpath: realpathSync },
+          ),
+          MUSE_SPARK_LAUNCH_ID: launchId,
+        },
         detached: true,
         stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
       })
@@ -883,7 +895,10 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
       const script = `${loadJobAssembly(assembly)}; exit [MuseSparkJob]::RunTeam(${powerShellQuoted(request.command)}, ${strings(request.args)}, ${powerShellQuoted(request.cwd)}, ${String(process.pid)}, ${strings(environment)}, ${powerShellQuoted(ownerPipe)}, ${powerShellQuoted(nonce)}, ${powerShellQuoted(statusPipe)}, ${powerShellQuoted(group)}, $${request.priority === 'belowNormal' ? 'true' : 'false'})`
       const child = spawn(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], {
         cwd: request.cwd,
-        env: powershell.env,
+        env: workspaceChildEnvironment('win32', powershell.env, {
+          workspaceRoot: request.cwd,
+          realpath: realpathSync,
+        }),
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
       })
