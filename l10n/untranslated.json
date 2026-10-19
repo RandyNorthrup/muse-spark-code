@@ -102,7 +102,18 @@
       "referenceCliOptions.sharing-json",
       "paletteTips.paid:autoCompaction",
       "whatsNewAttachmentsRefused",
-      "goalObjectiveTooLarge"
+      "goalObjectiveTooLarge",
+      "vault.windowsTpm",
+      "vault.secureEnclave",
+      "vault.linuxTpm2",
+      "vault.windowsDpapi",
+      "vault.secretService",
+      "vault.rolesHint",
+      "vault.workspacesHint",
+      "vault.daysHint",
+      "vault.startHourHint",
+      "vault.endHourHint",
+      "vault.ceilingHint"
     ],
     "cs": [
       "groupModel",

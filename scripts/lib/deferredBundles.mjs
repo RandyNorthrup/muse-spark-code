@@ -214,6 +214,7 @@ export const DEFERRED = [
       'src/shared/redact.ts',
       'src/shared/vault.ts',
       'src/shared/vaultProtocol.ts',
+      'src/shared/vaultStatus.ts',
       'src/shared/vaultPanel.ts',
       'src/core/vault/taint.ts',
       'src/core/vault/exec/schema.ts',
@@ -1320,7 +1321,7 @@ export const sharedModelApiBoundaries = {
     build.onResolve(
       {
         filter:
-          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
+          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultStatus|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
@@ -1344,6 +1345,7 @@ export const sharedModelApiBoundaries = {
             'src/shared/redact.ts',
             'src/shared/vault.ts',
             'src/shared/vaultProtocol.ts',
+            'src/shared/vaultStatus.ts',
             'src/shared/vaultPanel.ts',
             'src/core/vault/taint.ts',
             'src/core/vault/exec/schema.ts',
@@ -1370,5 +1372,36 @@ export const nodeReferenceData = {
     build.onResolve({ filter: /\/reference\.generated$/ }, () => ({
       path: path.resolve('src/runtime/reference.node.generated.ts'),
     }))
+  },
+}
+
+/** @type {import('esbuild').Plugin} */
+// Keep the immutable core store in one lazy sibling, including its error identity.
+export const sharedVaultStore = {
+  name: 'shared-vault-store',
+  setup(build) {
+    build.onResolve({ filter: /\/(?:store|crypto|ports)(?:\.[jt]s)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return [
+        'src/core/vault/store.ts',
+        'src/core/vault/crypto.ts',
+        'src/core/vault/broker/ports.ts',
+      ].some((file) => source === path.resolve(file))
+        ? { path: './vaultStore.js', external: true }
+        : undefined
+    })
+  },
+}
+
+/** @type {import('esbuild').Plugin} */
+export const sharedVaultPosix = {
+  name: 'shared-vault-posix',
+  setup(build) {
+    build.onResolve({ filter: /\/posixClientPlatform(?:\.[jt]s)?$/ }, (args) =>
+      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
+      path.resolve('src/runtime/vault/posixClientPlatform.ts')
+        ? { path: './vaultPosix.js', external: true }
+        : undefined,
+    )
   },
 }

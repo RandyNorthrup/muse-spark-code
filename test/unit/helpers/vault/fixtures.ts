@@ -1,10 +1,12 @@
 import {
+  type VaultAuditRecord,
   type VaultBinding,
   type VaultGrant,
   type VaultItemMetadata,
   type VaultRequester,
   type VaultUse,
 } from '../../../../src/shared/vault'
+import { type VaultPanelState } from '../../../../src/shared/modelsPanel'
 
 export function requester(): VaultRequester {
   return {
@@ -67,5 +69,43 @@ export function grant(): VaultGrant {
     ceiling: 'ask',
     createdAt: 0,
     createdBy: 'vaultPanel',
+  }
+}
+export function audit(): VaultAuditRecord {
+  return {
+    v: 1,
+    id: 'f'.repeat(32),
+    generation: 1,
+    time: 0,
+    requester: requester(),
+    handle: metadata().handle,
+    kind: 'environment',
+    target: 'redacted target',
+    digest: 'a'.repeat(64),
+    decision: 'ask',
+    authority: 'user',
+    grantId: null,
+    outcome: 'pending',
+    previousHash: '0'.repeat(64),
+    hash: '1'.repeat(64),
+    mac: '2'.repeat(64),
+  }
+}
+export function panel(): VaultPanelState {
+  return {
+    status: {
+      state: 'unlocked',
+      lockEpoch: 0,
+      tier: 'osStore',
+      provider: 'test-only',
+      silentUnlock: true,
+      itemCount: 1,
+      reason: null,
+    },
+    items: [metadata()],
+    grants: [grant()],
+    audit: [audit()],
+    pending: [],
+    ambientFiles: [],
   }
 }

@@ -33,6 +33,7 @@ describe('feature catalogue details merge', () => {
   it('still merges the reference details in', () => {
     expect(detailKeys('chat')).toContain('referenceThinking')
     expect(detailKeys('permissions')).toContain('referencePermissionLimits')
+    expect(detailKeys('vault')).toContain('referenceVault')
   })
 
   it('certifies argument previews on both the panel and ACP surfaces', () => {

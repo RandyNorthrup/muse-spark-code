@@ -2,20 +2,13 @@
 // Records are parsed from spark-hooks.json as lane I's importer writes them;
 // dispatch runs them under the host-wide cap and the same judge as every
 // imported hook; pluginFormats.ts maps each payload and answer, tool names
-// and arguments included. Amp children run under this node, the system node
-// production resolves; OpenCode children run only under an installed bun.
-// The host side is the production one: hook environment, containment, real
-// paths and tool I/O. No model is called.
+// and arguments included. Real children run under this node (OpenCode's bun
+// stood in for), each in its own process group; no model is called.
 
 import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { realpath } from 'node:fs/promises'
-import { homedir, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { beforeAll, describe, expect, it } from 'vitest'
-import { withoutCredentials } from '../../src/core/credentialEnvironment'
-import { listWorkspaceFiles } from '../../src/core/eval/workspace'
-import { pluginContainment } from '../../src/host/backend/pluginContainment'
-import { createToolIo, hookEnvironment } from '../../src/host/backend/toolIo'
+import { describe, expect, it } from 'vitest'
 import {
   dispatchHooks,
   parseForeignHooks,
@@ -35,9 +28,14 @@ import {
   pluginToolName,
   runtimeArguments,
 } from '../../src/core/backends/modelapi/pluginFormats'
-import { MODEL_API_TOOLS } from '../../src/shared/constants'
+import {
+  MODEL_API_TOOLS,
+  PLUGIN_CHILD_MAX_HEAP_MB,
+  PLUGIN_CHILD_MAX_MEMORY_BYTES,
+} from '../../src/shared/constants'
 import { expectEnded, markedPid } from './helpers/processes'
 
+const ROOT = '/ws'
 const VERSION_MATCH = /^v(\d+)\.(\d+)\./.exec(process.version)
 const HAS_NODE =
   VERSION_MATCH !== null &&
@@ -267,50 +265,46 @@ function writePlugin(source: string, name = 'plugin.mjs'): string {
   return file
 }
 
-/** A real workspace folder, by the path the production real-path reader gives. */
-const workspace = { root: '' }
-beforeAll(async () => {
-  workspace.root = await realpath(mkdtempSync(path.join(tmpdir(), 'm91b-ws-')))
-})
-
-/**
- * The host side as the extension builds it: the production hook environment
- * over this node's folder (and the installed bun's, where a rig has one) and
- * the platform's production containment (a process group off Windows).
- */
+/** The host side for real children: this node, standing in for bun too. */
 function host(warnings: string[] = []): PluginHostDeps {
-  const folders = [
-    path.dirname(process.execPath),
-    ...(BUN === undefined ? [] : [path.dirname(BUN)]),
-  ]
+  const dir = mkdtempSync(path.join(tmpdir(), 'm91b-bin-'))
+  const bun = path.join(dir, 'bun')
+  // Portable fixture: its Bun stand-in is this Node with a real heap bound.
+  // The wrapper checks the exact production prlimit admission args on Linux;
+  // on macOS bun runs directly, so the same stand-in proves the call works
+  // with no kernel memory bound.
+  writeFileSync(
+    bun,
+    `#!/bin/sh\nexec "${process.execPath}" --max-old-space-size=${String(PLUGIN_CHILD_MAX_HEAP_MB)} --input-type=module "$@"\n`,
+    {
+      mode: 0o755,
+    },
+  )
+  writeFileSync(
+    path.join(dir, 'prlimit'),
+    `#!/bin/sh\n[ "$1" = "--data=${String(PLUGIN_CHILD_MAX_MEMORY_BYTES)}" ] && [ "$2" = "--" ] || exit 64\nshift 2\nexec "$@"\n`,
+    { mode: 0o755 },
+  )
   return {
-    env: hookEnvironment({ PATH: [...folders, '/usr/bin', '/bin'].join(':') }, process.platform),
-    containment: pluginContainment({
-      platform: process.platform,
-      // Off Windows the production source never prepares a launcher (this
-      // block runs only off Windows), so there is none to name.
-      newJobExecutable: () => undefined,
-      now: () => Date.now(),
-      log: (message) => {
-        warnings.push(message)
-      },
-    }).containment,
+    env: { PATH: `${path.dirname(process.execPath)}:${dir}:/usr/bin:/bin` },
+    containment: () => Promise.resolve({ kind: 'processGroup' }),
     warn: (message) => {
       warnings.push(message)
     },
-    now: () => Date.now(),
+    now: () => 0,
   }
 }
 
 function adapterWith(
   plugins: PluginHostDeps | undefined,
-  platform: NodeJS.Platform = process.platform,
+  platform: NodeJS.Platform = 'linux',
 ): ForeignHookAdapter {
   return createForeignHookAdapter({
-    workspaceRoot: workspace.root,
+    workspaceRoot: ROOT,
+    // Payload/dispatcher proof over the portable Linux transport fixture.
     platform,
-    io: { realPath: (absolutePath) => realpath(absolutePath) },
-    homeDir: homedir(),
+    io: { realPath: (absolutePath) => Promise.resolve(absolutePath) },
+    homeDir: '/home/u',
     ...(plugins !== undefined && { plugins }),
   })
 }
@@ -337,19 +331,8 @@ function definitions(
   return result.hooks
 }
 
-/** The production tool I/O: its native runner is what dispatch lends command hooks. */
-function toolIo(warnings: string[]) {
-  return createToolIo({
-    platform: process.platform,
-    listFiles: () => listWorkspaceFiles(workspace.root),
-    systemRoot: process.env['SystemRoot'],
-    env: () => withoutCredentials(process.env),
-    searchWorkerPath: path.resolve('dist/searchWorker.js'),
-    log: (message) => {
-      warnings.push(message)
-    },
-    unsavedFiles: () => [],
-  })
+const noRunner = {
+  runHook: () => Promise.reject(new Error('no plugin hook runs natively')),
 }
 
 function toolPayload(
@@ -362,7 +345,7 @@ function toolPayload(
     hook_event_name: event,
     session_id: 's1',
     turn_id: 't1',
-    cwd: workspace.root,
+    cwd: ROOT,
     tool_name: tool,
     tool_input: input,
     tool_use_id: 'u1',
@@ -382,7 +365,7 @@ async function dispatch(
     event,
     payload,
     typeof payload['tool_name'] === 'string' ? payload['tool_name'] : '',
-    toolIo(warnings),
+    noRunner,
     undefined,
     (warning) => {
       warnings.push(warning)
@@ -393,40 +376,8 @@ async function dispatch(
   )
 }
 
-/** Dispatch one bash tool call to an Amp plugin, collecting warnings. */
-async function dispatchAmpToolCall(plugin: string, warnings: string[]) {
-  const hooks = definitions('PreToolUse', 'amp', 'tool.call', plugin)
-  return await dispatch(
-    hooks,
-    'PreToolUse',
-    toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-    adapterWith(host()),
-    warnings,
-  )
-}
-
-/** A one-second-timeout plugin hook, parsed the way the timeout tests read it. */
-function timeoutPluginHooks(format: string, sourceEvent: string, plugin: string) {
-  return parseForeignHooks(
-    JSON.stringify({
-      hooks: {
-        PreToolUse: [
-          {
-            format,
-            sourceEvent,
-            plugin,
-            hooks: [{ type: 'plugin', timeout: 1 }],
-          },
-        ],
-      },
-    }),
-    'user',
-    process.platform,
-  ).hooks
-}
-
-function ampPlugin(body: string, preamble = ''): string {
-  return writePlugin(`${preamble}export default function (amp) {\n${body}\n}\n`, 'guard.mjs')
+function ampPlugin(body: string): string {
+  return writePlugin(`export default function (amp) {\n${body}\n}\n`, 'guard.mjs')
 }
 
 /** One Amp tool.call guard whose handler answers `answer`, dispatched on `bash ls`. */
@@ -440,9 +391,7 @@ async function ampToolCall(answer: string) {
   )
 }
 
-// Amp plugins run under the system node (production resolves `node` on the
-// allowlisted PATH); this is that node, each child in its own process group.
-describe.runIf(IS_REAL)('Amp plugin dispatch with real children', () => {
+describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
   it('an Amp reject-and-continue blocks; the guard sees Bash and its command', async () => {
     const plugin = ampPlugin(
       `amp.on('tool.call', (event) => { const shell = amp.helpers.shellCommandFromToolCall(event); return shell?.command.startsWith('rm') ? { action: 'reject-and-continue', message: 'no rm: ' + event.tool } : { action: 'allow' } })`,
@@ -483,7 +432,14 @@ describe.runIf(IS_REAL)('Amp plugin dispatch with real children', () => {
   it('an Amp handler crash fails open and is said in the log', async () => {
     const warnings: string[] = []
     const plugin = ampPlugin(`amp.on('tool.call', () => { process.exit(3) })`)
-    const result = await dispatchAmpToolCall(plugin, warnings)
+    const hooks = definitions('PreToolUse', 'amp', 'tool.call', plugin)
+    const result = await dispatch(
+      hooks,
+      'PreToolUse',
+      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+      adapterWith(host()),
+      warnings,
+    )
     expect(result.blockedReason).toBeUndefined()
     expect(warnings.join('\n')).toContain('amp-format user hook failed')
   })
@@ -513,36 +469,105 @@ describe.runIf(IS_REAL)('Amp plugin dispatch with real children', () => {
     expect(stop.stopReason).toBeUndefined()
   })
 
-  it('a plugin past its timeout is ended and fails open by the Amp rule', async () => {
-    const warnings: string[] = []
-    const plugin = ampPlugin(
-      `amp.on('tool.call', async () => { await new Promise((resolve) => setTimeout(resolve, 60000)); return { action: 'reject-and-continue', message: 'late' } })`,
+  it('an OpenCode throw blocks; a crash blocks by its fail-closed rule', async () => {
+    const throwing = writePlugin(
+      `export const EnvProtection = async () => ({ 'tool.execute.before': async (input, output) => { if (input.tool === 'read' && output.args.filePath.includes('.env')) throw new Error('Do not read .env files') } })`,
     )
-    const hooks = timeoutPluginHooks('amp', 'tool.call', plugin)
+    const hooks = definitions('PreToolUse', 'opencode', 'tool.execute.before', throwing)
+    const blocked = await dispatch(
+      hooks,
+      'PreToolUse',
+      toolPayload('PreToolUse', MODEL_API_TOOLS.readFile, { path: '.env' }),
+      adapterWith(host()),
+    )
+    expect(blocked.blockedReason).toBe('Do not read .env files')
+    const passed = await dispatch(
+      hooks,
+      'PreToolUse',
+      toolPayload('PreToolUse', MODEL_API_TOOLS.readFile, { path: 'a.ts' }),
+      adapterWith(host()),
+    )
+    expect(passed.blockedReason).toBeUndefined()
+    const crashing = writePlugin(
+      `export const Crash = async () => ({ 'tool.execute.before': async () => { process.exit(9) } })`,
+    )
+    const crashed = await dispatch(
+      definitions('PreToolUse', 'opencode', 'tool.execute.before', crashing),
+      'PreToolUse',
+      toolPayload('PreToolUse', MODEL_API_TOOLS.readFile, { path: 'a.ts' }),
+      adapterWith(host()),
+    )
+    expect(crashed.blockedReason).toContain('opencode')
+  })
+
+  it('an OpenCode in-place args rewrite narrows the call, under our argument names (P2 9)', async () => {
+    const plugin = writePlugin(
+      `export const Shield = async () => ({ 'tool.execute.before': async (input, output) => { if (input.tool === 'read') output.args.filePath = 'safe.txt' } })`,
+    )
+    const result = await dispatch(
+      definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
+      'PreToolUse',
+      toolPayload('PreToolUse', MODEL_API_TOOLS.readFile, { path: '.env' }),
+      adapterWith(host()),
+    )
+    expect(result.updatedInput).toEqual({ path: 'safe.txt' })
+  })
+
+  it('every exported OpenCode plugin function runs, in load order (P2 10)', async () => {
+    const plugin = writePlugin(
+      [
+        `export const First = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = output.args.command + ' --first' } })`,
+        `export const Second = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = output.args.command + ' --second' } })`,
+      ].join('\n'),
+    )
+    const result = await dispatch(
+      definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
+      'PreToolUse',
+      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+      adapterWith(host()),
+    )
+    expect(result.updatedInput).toEqual({ command: 'ls --first --second' })
+  })
+
+  it('a plugin past its timeout is ended and fails by its rule', async () => {
+    const plugin = writePlugin(
+      `export const Slow = async () => ({ 'tool.execute.before': async () => { await new Promise((resolve) => setTimeout(resolve, 60000)) } })`,
+    )
+    const hooks = parseForeignHooks(
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            {
+              format: 'opencode',
+              sourceEvent: 'tool.execute.before',
+              plugin,
+              hooks: [{ type: 'plugin', timeout: 1 }],
+            },
+          ],
+        },
+      }),
+      'user',
+      process.platform,
+    ).hooks
     const started = Date.now()
     const result = await dispatch(
       hooks,
       'PreToolUse',
       toolPayload('PreToolUse', 'bash', { command: 'ls' }),
       adapterWith(host()),
-      warnings,
     )
-    // Ended at its one-second timeout, not after the handler's minute: the
-    // late reject never arrives, and the failure is said in the log.
-    expect(result.blockedReason).toBeUndefined()
-    expect(warnings.join('\n')).toContain('amp-format user hook failed')
+    expect(result.blockedReason).toContain('timed out')
     expect(Date.now() - started).toBeLessThan(15_000)
   })
 
   it('the session’s dispose ends a running plugin child', async () => {
     const marker = path.join(mkdtempSync(path.join(tmpdir(), 'm91b-pid-')), 'pid')
-    const plugin = ampPlugin(
-      `amp.on('tool.call', async () => { writeFileSync(${JSON.stringify(marker)}, String(process.pid)); await new Promise((resolve) => setTimeout(resolve, 60000)); return { action: 'allow' } })`,
-      `import { writeFileSync } from 'node:fs'\n`,
+    const plugin = writePlugin(
+      `import { writeFileSync } from 'node:fs'\nexport const Hang = async () => ({ 'tool.execute.before': async () => { writeFileSync(${JSON.stringify(marker)}, String(process.pid)); await new Promise((resolve) => setTimeout(resolve, 60000)) } })`,
     )
     const adapter = adapterWith(host())
     const pending = dispatch(
-      definitions('PreToolUse', 'amp', 'tool.call', plugin),
+      definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
       'PreToolUse',
       toolPayload('PreToolUse', 'bash', { command: 'ls' }),
       adapter,
@@ -553,90 +578,66 @@ describe.runIf(IS_REAL)('Amp plugin dispatch with real children', () => {
     await expectEnded(pid)
     await pending
   })
+
+  it.runIf(process.platform === 'darwin')(
+    'an OpenCode plugin runs on macOS, where bun has no kernel memory bound',
+    async () => {
+      const plugin = writePlugin(
+        `export const Tag = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = output.args.command + ' --mac' } })`,
+      )
+      const result = await dispatch(
+        definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
+        'PreToolUse',
+        toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+        adapterWith(host(), 'darwin'),
+      )
+      expect(result.blockedReason).toBeUndefined()
+      expect(result.updatedInput).toEqual({ command: 'ls --mac' })
+    },
+  )
+
+  it.runIf(process.platform === 'darwin')(
+    'a macOS plugin child completes past the Linux prlimit bound',
+    async () => {
+      const hungry = writePlugin(
+        `export const Hungry = async () => ({ 'tool.execute.before': async (input, output) => { const block = Buffer.alloc(1300 * 1024 * 1024, 1); output.args.command = 'allocated ' + block.length } })`,
+      )
+      const result = await dispatch(
+        definitions('PreToolUse', 'opencode', 'tool.execute.before', hungry),
+        'PreToolUse',
+        toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+        adapterWith(host(), 'darwin'),
+      )
+      expect(result.blockedReason).toBeUndefined()
+      expect(result.updatedInput).toEqual({ command: `allocated ${String(1300 * 1024 * 1024)}` })
+    },
+  )
 })
 
-// OpenCode is Bun-native: these run only where a rig has the installed bun
-// (Kubuntu's ~/.bun; CI has none), bounded by the system's real prlimit.
+/** The host side for the installed bun: its folder on the allowlisted PATH. */
+function bunHost(): PluginHostDeps {
+  return {
+    env: { PATH: `${path.dirname(BUN ?? '')}:/usr/bin:/bin` },
+    containment: () => Promise.resolve({ kind: 'processGroup' }),
+    warn: () => undefined,
+    now: () => 0,
+  }
+}
+
 describe.runIf(IS_REAL && process.platform === 'linux' && BUN !== undefined)(
   'OpenCode under the installed bun, bounded by prlimit (P2 12)',
   () => {
-    it('a thrown guard blocks; a clean call passes', async () => {
+    it('runs a guard under the real runtime', async () => {
       const guard = writePlugin(
         `export const EnvProtection = async () => ({ 'tool.execute.before': async (input, output) => { if (input.tool === 'read' && output.args.filePath.includes('.env')) throw new Error('Do not read .env files') } })`,
       )
-      const hooks = definitions('PreToolUse', 'opencode', 'tool.execute.before', guard)
       const result = await dispatch(
-        hooks,
+        definitions('PreToolUse', 'opencode', 'tool.execute.before', guard),
         'PreToolUse',
         toolPayload('PreToolUse', MODEL_API_TOOLS.readFile, { path: '.env' }),
-        adapterWith(host()),
+        adapterWith(bunHost()),
       )
       expect(result.blockedReason).toBe('Do not read .env files')
-      const passed = await dispatch(
-        hooks,
-        'PreToolUse',
-        toolPayload('PreToolUse', MODEL_API_TOOLS.readFile, { path: 'a.ts' }),
-        adapterWith(host()),
-      )
-      expect(passed.blockedReason).toBeUndefined()
-    })
-
-    it('a crash blocks by its fail-closed rule', async () => {
-      const crashing = writePlugin(
-        `export const Crash = async () => ({ 'tool.execute.before': async () => { process.exit(9) } })`,
-      )
-      const crashed = await dispatch(
-        definitions('PreToolUse', 'opencode', 'tool.execute.before', crashing),
-        'PreToolUse',
-        toolPayload('PreToolUse', MODEL_API_TOOLS.readFile, { path: 'a.ts' }),
-        adapterWith(host()),
-      )
-      expect(crashed.blockedReason).toContain('opencode')
-    })
-
-    it('an in-place args rewrite narrows the call, under our argument names (P2 9)', async () => {
-      const plugin = writePlugin(
-        `export const Shield = async () => ({ 'tool.execute.before': async (input, output) => { if (input.tool === 'read') output.args.filePath = 'safe.txt' } })`,
-      )
-      const result = await dispatch(
-        definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
-        'PreToolUse',
-        toolPayload('PreToolUse', MODEL_API_TOOLS.readFile, { path: '.env' }),
-        adapterWith(host()),
-      )
-      expect(result.updatedInput).toEqual({ path: 'safe.txt' })
-    })
-
-    it('every exported plugin function runs, in load order (P2 10)', async () => {
-      const plugin = writePlugin(
-        [
-          `export const First = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = output.args.command + ' --first' } })`,
-          `export const Second = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = output.args.command + ' --second' } })`,
-        ].join('\n'),
-      )
-      const result = await dispatch(
-        definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
-        'PreToolUse',
-        toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-        adapterWith(host()),
-      )
-      expect(result.updatedInput).toEqual({ command: 'ls --first --second' })
-    })
-
-    it('a plugin past its timeout is ended and blocks by its fail-closed rule', async () => {
-      const plugin = writePlugin(
-        `export const Slow = async () => ({ 'tool.execute.before': async () => { await new Promise((resolve) => setTimeout(resolve, 60000)) } })`,
-      )
-      const hooks = timeoutPluginHooks('opencode', 'tool.execute.before', plugin)
-      const started = Date.now()
-      const result = await dispatch(
-        hooks,
-        'PreToolUse',
-        toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-        adapterWith(host()),
-      )
-      expect(result.blockedReason).toContain('timed out')
-      expect(Date.now() - started).toBeLessThan(15_000)
     })
 
     it('refuses an allocation past the bound', async () => {
@@ -647,7 +648,7 @@ describe.runIf(IS_REAL && process.platform === 'linux' && BUN !== undefined)(
         definitions('PreToolUse', 'opencode', 'tool.execute.before', hungry),
         'PreToolUse',
         toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-        adapterWith(host()),
+        adapterWith(bunHost()),
       )
       expect(result.updatedInput).toBeUndefined()
       expect(result.blockedReason).toBeDefined()
@@ -685,6 +686,65 @@ describe('plugin dispatch without real children', () => {
     )
     expect(peak).toBe(7)
   })
+
+  it('strips a grant from a plugin answer, as from every imported hook', async () => {
+    const adapter: ForeignHookAdapter = {
+      prepare: () =>
+        Promise.resolve({
+          outcome: 'plugin',
+          run: () =>
+            Promise.resolve({
+              status: 'completed',
+              permissionDecision: 'allow',
+              approvalDecision: 'allow',
+            }),
+        }),
+      answer: () => ({ status: 'failed' }),
+    }
+    const result = await dispatch(
+      definitions('PreToolUse', 'amp', 'tool.call', path.join(pluginRoot, 'p.mjs')),
+      'PreToolUse',
+      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+      adapter,
+    )
+    expect(result.approvalDecision).toBeUndefined()
+    expect(result.forceApproval).toBe(false)
+  })
+
+  it('without containment, a plugin hook fails by its rule and says why in the user’s language', async () => {
+    const plugins: PluginHostDeps = {
+      env: {},
+      containment: () => Promise.resolve({ kind: 'unavailable', notice: 'Translated notice' }),
+      warn: () => undefined,
+      now: () => 0,
+    }
+    const closed = await dispatch(
+      definitions('PreToolUse', 'opencode', 'tool.execute.before', path.join(pluginRoot, 'p.mjs')),
+      'PreToolUse',
+      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+      adapterWith(plugins),
+    )
+    expect(closed.blockedReason).toContain('cannot be contained')
+    expect(closed.messages).toEqual(['Translated notice'])
+    const open = await dispatch(
+      definitions('PreToolUse', 'amp', 'tool.call', path.join(pluginRoot, 'p.mjs')),
+      'PreToolUse',
+      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+      adapterWith(plugins),
+    )
+    expect(open.blockedReason).toBeUndefined()
+    expect(open.messages).toEqual(['Translated notice'])
+  })
+
+  it('without the host side, a plugin hook is refused by its rule and never runs natively', async () => {
+    const result = await dispatch(
+      definitions('PreToolUse', 'opencode', 'tool.execute.before', path.join(pluginRoot, 'p.mjs')),
+      'PreToolUse',
+      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+      adapterWith(undefined),
+    )
+    expect(result.blockedReason).toContain('cannot run here')
+  })
 })
 
 describe.runIf(IS_REAL && process.platform === 'darwin' && BUN !== undefined)(
@@ -704,16 +764,3 @@ describe.runIf(IS_REAL && process.platform === 'darwin' && BUN !== undefined)(
     })
   },
 )
-
-describe('plugin dispatch without the host side', () => {
-  it('refuses a plugin hook by its rule and never runs it natively', async () => {
-    const pluginRoot = process.platform === 'win32' ? 'C:/plugins' : '/plugins'
-    const result = await dispatch(
-      definitions('PreToolUse', 'opencode', 'tool.execute.before', path.join(pluginRoot, 'p.mjs')),
-      'PreToolUse',
-      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-      adapterWith(undefined),
-    )
-    expect(result.blockedReason).toContain('cannot run here')
-  })
-})

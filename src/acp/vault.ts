@@ -57,9 +57,38 @@ export function vaultSlash(text: string): VaultReadCommand | 'invalid' | undefin
 /** W/X connect broker requests here; a missing editor never authorizes anything. */
 export class AcpVault {
   private asker: VaultAsker | undefined
+  private readonly attachListeners = new Set<() => void>()
   constructor(private readonly open: () => Promise<VaultCommandPort>) {}
   attach(asker: VaultAsker): void {
+    const isFirst = this.asker === undefined
     this.asker = asker
+    if (!isFirst) return
+    const listeners = [...this.attachListeners]
+    this.attachListeners.clear()
+    for (const listener of listeners) {
+      try {
+        listener()
+      } catch {
+        // A failed routing start never breaks the editor attach; broker
+        // approvals keep failing closed until answered over `vault watch`.
+      }
+    }
+  }
+  /**
+   * Runs once the first editor attaches, at once when one already has.
+   * Long-lived approval routing starts here so one-shot commands (which
+   * never attach) keep no broker watch and exit when done.
+   */
+  onAttach(listener: () => void): void {
+    if (this.asker !== undefined) {
+      listener()
+      return
+    }
+    this.attachListeners.add(listener)
+  }
+  /** Whether an editor session can currently be asked (serve attached it). */
+  get attached(): boolean {
+    return this.asker !== undefined
   }
   async ask(sessionId: string, raw: VaultApprovalRequest): Promise<VaultApprovalAnswer> {
     const request = vaultApprovalRequestSchema.parse(structuredClone(raw))

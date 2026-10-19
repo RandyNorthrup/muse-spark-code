@@ -1,13 +1,9 @@
+import { finishDiskDelta, type DiskDeltaBaseline } from './diskDelta'
 import { counterReading } from './readings'
-
-interface DiskSnapshot {
-  atMs: number
-  counters: Map<string, number>
-}
 
 /** Busiest whole device, not a sum of disks and their partitions. */
 export class LinuxDiskDelta {
-  private previous: DiskSnapshot | undefined
+  private previous: DiskDeltaBaseline | undefined
 
   reset(): void {
     this.previous = undefined
@@ -45,16 +41,8 @@ export class LinuxDiskDelta {
       if (counters.has(identity)) return null
       counters.set(identity, value)
     }
-    if (counters.size === 0) return null
-    this.previous = { atMs, counters }
-    if (before === undefined || atMs <= before.atMs || before.counters.size !== counters.size)
-      return null
-    let busiest = 0
-    for (const [identity, current] of counters) {
-      const old = before.counters.get(identity)
-      if (old === undefined || current < old) return null
-      busiest = Math.max(busiest, ((current - old) / (atMs - before.atMs)) * 100)
-    }
-    return Math.min(100, busiest)
+    const finished = finishDiskDelta(before, atMs, counters)
+    this.previous = finished.store
+    return finished.busy
   }
 }

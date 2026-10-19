@@ -233,7 +233,7 @@
   "config.github.useGhLogin.description": "Pozwala pull requestom używać istniejącego logowania GitHub CLI (`gh auth token`), próbowanego jako ostatnie, po logowaniu do GitHuba w edytorze i logowaniu Muse Spark. Token jest odczytywany tylko na jedno żądanie i nigdy nie jest zapisywany. Domyślnie wyłączone; tylko w ustawieniach użytkownika, więc repozytorium nie może tego włączyć.",
   "command.vault.title": "Sejf",
   "command.lockVault.title": "Zablokuj sejf teraz",
-  "config.vault.description": "Zachowane dla zgodności; ta preferencja nie ma wpływu na działanie w tej kompilacji.",
+  "config.vault.enabled.description": "Włącza lub wyłącza osobisty magazyn poświadczeń. Zapisana starsza wartość museSpark.vault obowiązuje do czasu skonfigurowania tego ustawienia.",
   "config.vault.protection.description": "Zachowane dla zgodności; ta preferencja nie ma wpływu na działanie w tej kompilacji.",
   "config.vault.agentFence.description": "Steruje izolacją poświadczeń dla interaktywnych poleceń powłoki Model API. Weryfikacja, harmonogramy, procesy robocze i hooki pozostają izolowane.",
   "config.vault.lockAfterIdleMinutes.description": "Zachowane dla zgodności; ta preferencja nie ma wpływu na działanie w tej kompilacji.",
