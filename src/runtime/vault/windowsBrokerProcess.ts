@@ -6,11 +6,7 @@ import type * as z from 'zod/mini'
 import { VaultBrokerDiscovery, type VaultBrokerLocation } from '../../core/vault/broker/discovery'
 import { isVaultFileMissing, type VaultPrivateFilesPort } from '../../core/vault/broker/files'
 import type { VaultSecuredListenerPort } from '../../core/vault/broker/ports'
-import {
-  WindowsVaultPeerVerifier,
-  type VaultPeerVerifier,
-  type VaultProcessIdentity,
-} from '../../core/vault/broker/peer'
+import { WindowsVaultPeerVerifier, type VaultPeerVerifier } from '../../core/vault/broker/peer'
 import {
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
@@ -28,6 +24,7 @@ import {
 import {
   windowsBrokerPlatform,
   windowsProcessIdentity,
+  windowsSelfIdentity,
   type WindowsBrokerPlatform,
 } from './windowsHost'
 
@@ -175,14 +172,7 @@ export async function startWindowsVaultBrokerOnServe(
     })
     await privateFiles.directory(discovery.directory)
     await clearStaleWindowsBroker(discovery, privateFiles, guard, relay, options.userSession)
-    const self = await windowsProcessIdentity(relay, process.pid)
-    if (!self) throw new Error(UI_TEXT.vault.noAccess)
-    const identity: VaultProcessIdentity = {
-      processId: self.process.processId,
-      userId: self.process.userId,
-      startedAt: self.process.startedAt,
-      executable: self.process.executable,
-    }
+    const identity = await windowsSelfIdentity(relay)
     if (identity.userId !== serve.ownerSid) throw new Error(UI_TEXT.vault.noAccess)
     const claim = await discovery.claim(identity, pipe)
     const sockets = new Set<Duplex>()

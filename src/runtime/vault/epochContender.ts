@@ -50,20 +50,40 @@ function assertOwnerOnlyRemnant(sample: Stats): void {
   )
     throw new Error(UI_TEXT.vault.noAccess)
 }
-async function retireStalePending(writer: string, mutexAcquiredAt: number): Promise<void> {
+
+/**
+ * The per-platform file sampling a settle round needs. POSIX samples the
+ * kernel view and unlinks directly under the kernel mutex; Windows samples
+ * synchronously and retires only after the relay guard verifies the file.
+ * Liveness reads the platform's native identity; a throw means unprovable
+ * (fail closed), while undefined means provably gone.
+ */
+export interface EpochRemnantPorts {
+  readonly files: VaultPrivateFilesPort
+  sample(file: string): Promise<Stats> | Stats
+  assertRemnant(sample: Stats): void
+  retire(file: string): Promise<void>
+  liveStartedAt(processId: number): Promise<number | undefined>
+}
+
+async function retireStalePending(
+  ports: EpochRemnantPorts,
+  writer: string,
+  mutexAcquiredAt: number,
+): Promise<void> {
   const pending = `${writer}${VAULT_CLAIM_PENDING_SUFFIX}`
-  let sample
+  let sample: Stats
   try {
-    sample = await lstat(pending)
+    sample = await ports.sample(pending)
   } catch (error: unknown) {
     if (isVaultFileMissing(error)) return
     throw error
   }
   // Never opened by a reader; still, only an owner-only remnant older than
   // the hold is retired. Anything else fails closed below, never deleted.
-  assertOwnerOnlyRemnant(sample)
+  ports.assertRemnant(sample)
   if (sample.mtimeMs > mutexAcquiredAt) throw new Error(UI_TEXT.vault.noAccess)
-  await unlink(pending)
+  await ports.retire(pending)
 }
 
 /**
@@ -73,23 +93,23 @@ async function retireStalePending(writer: string, mutexAcquiredAt: number): Prom
  * for the bounded rounds instead of being removed.
  */
 async function retireUnparsableWriter(
-  files: VaultPrivateFilesPort,
+  ports: EpochRemnantPorts,
   writer: string,
   mutexAcquiredAt: number,
 ): Promise<'retry' | 'wait'> {
-  let sample
+  let sample: Stats
   try {
-    sample = await lstat(writer)
+    sample = await ports.sample(writer)
   } catch (error: unknown) {
     // Released between the read and this check: reclaim on the next round.
     if (isVaultFileMissing(error)) return 'retry'
     throw error
   }
-  assertOwnerOnlyRemnant(sample)
+  ports.assertRemnant(sample)
   if (sample.mtimeMs > mutexAcquiredAt) return 'wait'
   let reread: Buffer
   try {
-    reread = await files.read(writer)
+    reread = await ports.files.read(writer)
   } catch (error: unknown) {
     if (isVaultFileMissing(error)) return 'retry'
     throw error
@@ -102,7 +122,7 @@ async function retireUnparsableWriter(
     /* Still unparsable: the remnant below is retired. */
   }
   try {
-    await unlink(writer)
+    await ports.retire(writer)
   } catch (error: unknown) {
     if (isVaultFileMissing(error)) return 'retry'
     throw error
@@ -110,18 +130,22 @@ async function retireUnparsableWriter(
   return 'retry'
 }
 
-async function settleEpochWriter(
-  files: VaultPrivateFilesPort,
-  helper: string,
+/**
+ * Decide one contended epoch writer by rule; shared by the POSIX kernel
+ * mutex and the Windows claim-file mutex, which differ only in how they
+ * sample and retire files and read native liveness.
+ */
+export async function settleEpochWriter(
+  ports: EpochRemnantPorts,
   runDirectory: string,
   self: VaultEpochWriterOwner,
   mutexAcquiredAt: number,
 ): Promise<'retry' | 'wait'> {
   const writer = vaultEpochWriterPath(runDirectory)
-  await retireStalePending(writer, mutexAcquiredAt)
+  await retireStalePending(ports, writer, mutexAcquiredAt)
   let raw: Buffer
   try {
-    raw = await files.read(writer)
+    raw = await ports.files.read(writer)
   } catch (error: unknown) {
     // Released between our claim and this read: reclaim on the next round.
     if (isVaultFileMissing(error)) return 'retry'
@@ -132,35 +156,57 @@ async function settleEpochWriter(
     const parsed = vaultEpochWriterSchema.parse(JSON.parse(raw.toString('utf8')))
     owner = { processId: parsed.processId, startedAt: parsed.startedAt }
   } catch {
-    return await retireUnparsableWriter(files, writer, mutexAcquiredAt)
+    return await retireUnparsableWriter(ports, writer, mutexAcquiredAt)
   }
   // Our own record, or a same-process sibling's: both are alive by definition.
   if (owner.processId === self.processId && owner.startedAt === self.startedAt) return 'wait'
-  let live: { startedAt: number } | null
+  let liveStartedAt: number | undefined
   try {
-    const identity = await vaultProcessIdentity(helper, owner.processId)
-    live = identity === null ? null : { startedAt: identity.startedAt }
+    liveStartedAt = await ports.liveStartedAt(owner.processId)
   } catch {
     // Unprovable (native failure): fail closed.
     return 'wait'
   }
-  if (live !== null && live.startedAt === owner.startedAt) return 'wait'
+  if (liveStartedAt !== undefined && liveStartedAt === owner.startedAt) return 'wait'
   // Provably gone: replace atomically. Owner-only checks plus a re-read of
   // the exact record precede the unlink; a release in flight surfaces as a
   // missing file and simply reclaims on the next round.
   try {
-    const sample = await lstat(writer)
-    assertOwnerOnlyRemnant(sample)
-    const reread = await files.read(writer)
+    const sample = await ports.sample(writer)
+    ports.assertRemnant(sample)
+    const reread = await ports.files.read(writer)
     const current = vaultEpochWriterSchema.parse(JSON.parse(reread.toString('utf8')))
     if (current.processId !== owner.processId || current.startedAt !== owner.startedAt)
       return 'retry'
-    await unlink(writer)
+    await ports.retire(writer)
     return 'retry'
   } catch (error: unknown) {
     if (isVaultFileMissing(error)) return 'retry'
     throw error
   }
+}
+
+/**
+ * Drive one epoch bump through contended-writer rounds: a dead holder's
+ * record is retired and the bump reclaimed at once, a live holder is
+ * awaited briefly, and only exhausted rounds refuse. Never leaks EEXIST.
+ */
+export async function runEpochSettleRounds(
+  bump: () => Promise<number>,
+  settle: () => Promise<'retry' | 'wait'>,
+): Promise<number> {
+  for (let round = 0; round < EPOCH_WRITER_SETTLE_ROUNDS; round++) {
+    try {
+      return await bump()
+    } catch (error: unknown) {
+      // Only a contended writer is decided by rule; every other failure keeps its meaning.
+      if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
+      if (round + 1 >= EPOCH_WRITER_SETTLE_ROUNDS)
+        throw new Error(UI_TEXT.vault.noAccess, { cause: error })
+      if ((await settle()) === 'wait') await delay(EPOCH_WRITER_SETTLE_WAIT_MS)
+    }
+  }
+  throw new Error(UI_TEXT.vault.noAccess)
 }
 
 // A live holder releases its writer within quanta: guardian loss already
@@ -190,23 +236,25 @@ export async function bumpVaultEpoch(
   held.onLost(() => {
     hasLostLock = true
   })
+  const ports: EpochRemnantPorts = {
+    files,
+    sample: (file) => lstat(file),
+    assertRemnant: assertOwnerOnlyRemnant,
+    retire: (file) => unlink(file),
+    liveStartedAt: async (processId) => {
+      const live = await vaultProcessIdentity(helper, processId)
+      return live?.startedAt
+    },
+  }
   try {
-    for (let round = 0; round < EPOCH_WRITER_SETTLE_ROUNDS; round++) {
-      try {
-        return await epoch.bump(() => {
+    return await runEpochSettleRounds(
+      () =>
+        epoch.bump(() => {
           if (hasLostLock) throw new Error(UI_TEXT.vault.noAccess)
           authorize?.()
-        })
-      } catch (error: unknown) {
-        // Only a contended writer is decided by rule; every other failure keeps its meaning.
-        if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
-        if (round + 1 >= EPOCH_WRITER_SETTLE_ROUNDS)
-          throw new Error(UI_TEXT.vault.noAccess, { cause: error })
-        const settled = await settleEpochWriter(files, helper, runDirectory, owner, mutexAcquiredAt)
-        if (settled === 'wait') await delay(EPOCH_WRITER_SETTLE_WAIT_MS)
-      }
-    }
-    throw new Error(UI_TEXT.vault.noAccess)
+        }),
+      () => settleEpochWriter(ports, runDirectory, owner, mutexAcquiredAt),
+    )
   } finally {
     await held.release()
   }
