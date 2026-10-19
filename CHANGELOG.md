@@ -3193,6 +3193,16 @@ happened, not what was planned; superseded entries are kept.
   download children stay blind exactly as before.
 - The ACP package ships the sessions bundle its backend requires.
 
+- Muse Code now starts when the panel first opens. Opening the panel while
+  the sign-in check was still running left the pill on "Starting Muse Code…"
+  for good: the first-open warm-up stood down for the check and nothing
+  re-ran it once the sign-in landed, so only Restart Muse Code or the first
+  turn started the host. A sign-in now starts the host on every panel that
+  opened cold. The host's own start is foreground work the person waits for,
+  so the resource governor's pause no longer holds it (it waited out the
+  twenty-second foreground bypass with no word); background work still
+  pauses as before.
+
 ### Documentation
 
 - Headless `exec` runs reported every result sentence in English whatever the
