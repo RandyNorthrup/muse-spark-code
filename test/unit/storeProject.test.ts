@@ -1,10 +1,18 @@
 // Workspace project binding for the stores source (M113 lane C-M113-6): the
 // manifest parser, the network binding with and without a project, and the
-// engine path from a workspace package.json to a live npm channel row.
+// engine path from a workspace package.json to an npm channel row.
 //
-// The registry bytes below reuse M97 lane R's verbatim capture shape
-// (`version` read from a version document); only the version string differs,
-// so no wire field is guessed.
+// Wire provenance (AGENTS.md rule 14): the public fetch below serves only
+// committed captures, byte-exact beside their receipts
+// (`test/fixtures/m113/stores/<name>/`, captured 2026-10-11): the npm
+// version document, the marketplace extensionquery answer and the Open VSX
+// extension record, every one carrying version 0.17.0 for
+// RandyNorthrup/muse-spark-code. The npm capture names muse-spark-code-acp;
+// it is served here for the project's own latest document the way
+// reportProductionTransport.test.ts serves it, since the adapter reads only
+// `version`. A 404 body was never captured, so no gallery-404 shape is
+// asserted beyond the reader's http-404 reason (openVsxStore.ts).
+import { readFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
@@ -33,45 +41,76 @@ async function scratch(): Promise<string> {
   return root
 }
 
+// The project the captures were taken for: every captured row below carries
+// its version 0.17.0.
 const project: ReportStoreProject = {
-  name: 'fixture-pkg',
-  publisher: 'fixture',
+  name: 'muse-spark-code',
+  publisher: 'RandyNorthrup',
   engines: { vscode: '^1.99.0' },
   private: false,
-  releaseVersion: '0.14.2',
+  releaseVersion: '0.17.0',
 }
+
+function captureBody(leaf: string): unknown {
+  return JSON.parse(
+    readFileSync(
+      new URL(`../fixtures/m113/stores/${leaf}/response.body.json`, import.meta.url),
+      'utf8',
+    ),
+  )
+}
+
+const NPM_CAPTURED = captureBody('npm-latest')
+const MARKETPLACE_CAPTURED = captureBody('marketplace-extensionquery')
+const OPEN_VSX_CAPTURED = captureBody('openvsx-extension')
+const MARKETPLACE_REQUEST_FILE: { body: string } = JSON.parse(
+  readFileSync(
+    new URL('../fixtures/m113/stores/marketplace-extensionquery/request.json', import.meta.url),
+    'utf8',
+  ),
+)
+const MARKETPLACE_REQUEST_BODY = MARKETPLACE_REQUEST_FILE.body
 
 interface PublicFetchCall {
   readonly url: string
   readonly init: RequestInit | undefined
 }
 
-function stubRegistry(version: string) {
-  // RVCM1136B P1: the production transport now sends the bound gallery
-  // channels down the public fetch too, so the injected public fetch
-  // answers them honestly (404: this fixture was never published there)
-  // beside the npm document.
+// The public fetch answered from the committed captures, keyed by the exact
+// request the production transport must be able to send. The marketplace
+// only answers the captured POST query form: anything else is a request the
+// capture does not evidence, so it fails here. An unlisted host is refused,
+// like the production transport refuses it.
+const CAPTURED_BY_HOST: readonly (readonly [string, unknown])[] = [
+  ['https://open-vsx.org/', OPEN_VSX_CAPTURED],
+  ['https://registry.npmjs.org/', NPM_CAPTURED],
+]
+
+function captureFetch() {
   const seen: string[] = []
   const calls: PublicFetchCall[] = []
-  const fetchPublic: typeof fetch = (input, init) => {
+  const fetchPublic: typeof fetch = (input, init = {}) => {
     let url: string
     if (typeof input === 'string') url = input
     else if (input instanceof URL) url = input.href
     else url = input.url
     seen.push(url)
     calls.push({ url, init })
-    return Promise.resolve(
-      url.startsWith('https://registry.npmjs.org/')
-        ? Response.json({ version, url })
-        : new Response('not published', { status: 404 }),
-    )
+    if (url.startsWith('https://marketplace.visualstudio.com/')) {
+      if (init.method !== 'POST' || init.body !== MARKETPLACE_REQUEST_BODY)
+        throw new Error('marketplace request is not the captured form')
+      return Promise.resolve(Response.json(MARKETPLACE_CAPTURED))
+    }
+    const found = CAPTURED_BY_HOST.find(([host]) => url.startsWith(host))
+    if (found === undefined) throw new Error(`unexpected public fetch ${url}`)
+    return Promise.resolve(Response.json(found[1]))
   }
   return { seen, calls, fetchPublic }
 }
 
 const GALLERY_URLS = [
   'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery?api-version=3.0-preview.1',
-  'https://open-vsx.org/api/fixture/fixture-pkg',
+  'https://open-vsx.org/api/RandyNorthrup/muse-spark-code',
 ]
 
 describe('reportStoreProject', () => {
@@ -85,7 +124,13 @@ describe('reportStoreProject', () => {
         private: false,
         scripts: {},
       }),
-    ).toEqual(project)
+    ).toEqual({
+      name: 'fixture-pkg',
+      publisher: 'fixture',
+      engines: { vscode: '^1.99.0' },
+      private: false,
+      releaseVersion: '0.14.2',
+    })
   })
 
   it('reads a name and version alone as an npm-only project', () => {
@@ -117,9 +162,9 @@ describe('reporting network store binding', () => {
   // `createReportingNetwork`, the factory the engine actually binds — up to
   // an injected public fetch (plus a github-only surface transport), so
   // "bound but unreachable" cannot pass again. No hand-built reader factory.
-  it('reads the npm channel live with a project, honestly missing the rest', async () => {
+  it('reads every captured channel row with a project, through the public fetch', async () => {
     const root = await scratch()
-    const { seen, fetchPublic } = stubRegistry('0.14.1')
+    const { seen, fetchPublic } = captureFetch()
     const bound = bindStoresNetwork({
       root,
       surface: 'editor',
@@ -131,21 +176,20 @@ describe('reporting network store binding', () => {
       project,
     })
     const result = await readBoundChannelRows(bound)
-    // RVCM1136B P1: every bound channel reaches the public fetch now; the
-    // galleries stay unavailable because the injected fetch 404s them, not
-    // because the transport refuses them.
-    expect(result.data?.slice(0, 2).map((row) => row.reason)).toEqual(['http-404', 'http-404'])
-    expect(seen).toEqual([...GALLERY_URLS, 'https://registry.npmjs.org/fixture-pkg/latest'])
+    // RVCM1136B P1: every bound channel reaches the public fetch now,
+    // galleries included — the captured rows prove it, not a refusal.
+    expect(result.data?.slice(0, 2).map((row) => row.reason)).toEqual([null, null])
+    expect(seen).toEqual([...GALLERY_URLS, 'https://registry.npmjs.org/muse-spark-code/latest'])
   })
 
   it('fetches npm on the real CLI composition: no surface transport at all', async () => {
     // The CLI/ACP pass no transport, so the factory used to fall back to the
     // `gh` lane, which refuses the registry origin before `gh` ever runs.
     const root = await scratch()
-    const { seen, calls, fetchPublic } = stubRegistry('0.14.1')
+    const { seen, calls, fetchPublic } = captureFetch()
     const bound = bindStoresNetwork({ root, surface: 'terminal', project, fetchPublic })
     await readBoundChannelRows(bound)
-    expect(seen).toEqual([...GALLERY_URLS, 'https://registry.npmjs.org/fixture-pkg/latest'])
+    expect(seen).toEqual([...GALLERY_URLS, 'https://registry.npmjs.org/muse-spark-code/latest'])
     expect(calls).toHaveLength(3)
   })
 
@@ -153,7 +197,7 @@ describe('reporting network store binding', () => {
     // The review's exact scenario: default network mode, editor surface, no
     // sign-in. npm is public, so the channel still resolves.
     const root = await scratch()
-    const { seen, fetchPublic } = stubRegistry('0.14.2')
+    const { seen, fetchPublic } = captureFetch()
     const bound = bindStoresNetwork({
       root,
       surface: 'editor',
@@ -165,9 +209,9 @@ describe('reporting network store binding', () => {
     const result = await bound.stores.read(networkContext())
     expect(result.data?.find((row) => row.channel === 'npm')).toMatchObject({
       status: 'current',
-      version: '0.14.2',
+      version: '0.17.0',
     })
-    expect(seen).toEqual([...GALLERY_URLS, 'https://registry.npmjs.org/fixture-pkg/latest'])
+    expect(seen).toEqual([...GALLERY_URLS, 'https://registry.npmjs.org/muse-spark-code/latest'])
   })
 
   it('keeps GitHub on the surface lane and refuses any other host', async () => {
@@ -175,7 +219,7 @@ describe('reporting network store binding', () => {
     // store hosts never reach the credential-owning lane; unknown hosts stay
     // refused.
     const github = recordingTransport(() => Promise.resolve(Response.json({ value: 'github' })))
-    const { calls, fetchPublic } = stubRegistry('0.14.1')
+    const { calls, fetchPublic } = captureFetch()
     const routed = routeReportTransport(github.transport, fetchPublic)
     const signal = new AbortController().signal
     const githubResponse = await routed(
@@ -199,7 +243,7 @@ describe('reporting network store binding', () => {
       {
         url: 'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery?api-version=3.0-preview.1',
         method: 'POST',
-        body: '{"filters":[]}',
+        body: MARKETPLACE_REQUEST_BODY,
       },
       null,
       signal,
@@ -207,7 +251,7 @@ describe('reporting network store binding', () => {
     await routed({ url: 'https://open-vsx.org/api/fixture/fixture-pkg' }, null, signal)
     expect(calls).toHaveLength(3)
     expect(github.calls).toHaveLength(1)
-    expect(calls[1]?.init).toMatchObject({ method: 'POST', body: '{"filters":[]}' })
+    expect(calls[1]?.init).toMatchObject({ method: 'POST', body: MARKETPLACE_REQUEST_BODY })
     await expect(
       routed({ url: 'https://example.com/package/latest' }, null, signal),
     ).rejects.toBeInstanceOf(ReportNetworkFailure)
@@ -218,9 +262,9 @@ describe('reporting network store binding', () => {
 
   it('stays unbound without a project, exactly as before', async () => {
     const root = await scratch()
-    const transport = recordingTransport(() =>
-      Promise.resolve(Response.json({ version: '0.14.1', url: '' })),
-    )
+    // The answer is never read (no project means no request); the capture
+    // stands in only so no hand-built document sits in the file.
+    const transport = recordingTransport(() => Promise.resolve(Response.json(NPM_CAPTURED)))
     const bound = bindStoresNetwork({ root, surface: 'editor', transport: transport.transport })
     const result = await bound.stores.read(networkContext())
     expect(result.record.status).toBe('unavailable')
