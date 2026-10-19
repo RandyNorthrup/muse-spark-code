@@ -1065,7 +1065,8 @@ export class MuseSession implements ScheduledAgentSession {
     expectedTurnId?: string,
   ): Promise<TurnSubmission> {
     await this.restoringScheduleMode
-    if (this.owner.quarantined) throw new Error(UI_TEXT.permissionReviewerMissing)
+    if (this.owner.quarantined)
+      throw new Error(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     const token = this.owner.claim(waiter, run, expectedTurnId)
     if (token === undefined) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
     this.heldScheduleEvents = []
@@ -1353,8 +1354,9 @@ export class MuseSession implements ScheduledAgentSession {
    * Run the mode command for an effect. Returns the mode the host runs when
    * the adoption tore (the ack arrived but a turn ended while it was in
    * flight, so the host runs the mode with a reviewer that was never
-   * confirmed): the caller names it so the surface shows it. A refused
-   * command releases the effect but keeps the mode (the host never changed).
+   * confirmed): the deferred caller quarantines with that mode named, so the
+   * surface shows it. A refused command releases the effect but keeps the
+   * mode (the host never changed).
    */
   private async applyModeEffect(effect: SessionEffect): Promise<string | undefined> {
     if (!this.owner.matches(effect.token)) {
@@ -1371,11 +1373,7 @@ export class MuseSession implements ScheduledAgentSession {
           `Muse Code runs approval mode ${wireWordForLog(effective)} instead of the requested ${effect.mode}`,
         )
       }
-      if (!this.owner.modeApplied(effect, true)) {
-        this.owner.quarantine()
-        return effective ?? effect.mode
-      }
-      return undefined
+      return this.owner.modeApplied(effect, true) ? undefined : (effective ?? effect.mode)
     } catch (error: unknown) {
       this.owner.modeApplied(effect, false)
       throw ceilingOr(error)
@@ -1643,7 +1641,8 @@ export class MuseSession implements ScheduledAgentSession {
   ): Promise<TurnSubmission> {
     const token = this.owner.token()
     await this.restoringScheduleMode
-    if (this.owner.quarantined) throw new Error(UI_TEXT.permissionReviewerMissing)
+    if (this.owner.quarantined)
+      throw new Error(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     if (scheduledOwner !== undefined) await scheduledOwner.checkParts(parts)
     if (!this.owner.start(token, scheduledOwner)) throw new Error(UI_TEXT.scheduleBusy)
     let ack: unknown
@@ -1674,7 +1673,8 @@ export class MuseSession implements ScheduledAgentSession {
     parts: readonly TurnPart[],
     scheduledOwner?: UnattendedRun,
   ): Promise<TurnSubmission> {
-    if (this.owner.quarantined) throw new SteerRefusedError(UI_TEXT.permissionReviewerMissing)
+    if (this.owner.quarantined)
+      throw new SteerRefusedError(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     const token = this.owner.token()
     const run = scheduledOwner ?? this.getScheduledRun(expectedTurnId)
     if (run !== undefined) await run.checkParts(parts)

@@ -66,13 +66,33 @@ export async function setSessionProfile(
 }
 
 /**
- * The ack arrived but a turn ended while the mode command was in flight, so
- * the adoption tore: the host runs the applied mode with a reviewer that was
- * never confirmed. The throw site already quarantined; this names the mode
- * the host runs so the surface shows it instead of the mode that tore.
+ * The ack arrived but a turn ended while a forward mode command was in
+ * flight, so the adoption tore: the host runs the named mode with a reviewer
+ * that was never confirmed. The caller quarantines with this sentence, which
+ * says the named mode is running and its reviewer was not installed, so the
+ * surface shows the acknowledgement's mode instead of calling it unconfirmed.
  */
-export function tornReviewerError(appliedMode: string): PermissionReviewerError {
-  return new PermissionReviewerError(UI_TEXT.permissionReviewerTorn, appliedMode)
+export function tornForwardError(appliedMode: string): PermissionReviewerError {
+  return new PermissionReviewerError(
+    fill(UI_TEXT.permissionReviewerNotInstalled, { reason: UI_TEXT.permissionReviewerTornReason }),
+    appliedMode,
+  )
+}
+
+/**
+ * The ack arrived but a turn ended while the rollback was in flight, so the
+ * rollback's adoption tore: the host runs the previous mode again, and the
+ * profile never changed, so that mode's reviewer is still installed. The
+ * adoption itself could not be confirmed, so turns stay refused until the
+ * mode is set again; this sentence says exactly that, and the later refusal
+ * repeats it instead of saying the reviewer is missing.
+ */
+export function tornRollbackError(previousMode: string, cause: unknown): PermissionReviewerError {
+  return new PermissionReviewerError(
+    fill(UI_TEXT.permissionReviewerRollbackTorn, { mode: previousMode }),
+    previousMode,
+    { cause },
+  )
 }
 
 /**
@@ -87,8 +107,10 @@ export function tornReviewerError(appliedMode: string): PermissionReviewerError 
  */
 /**
  * Mint the effect and run the mode command for it: a refused effect mints
- * `scheduleBusy`, a torn adoption throws the running mode's reviewer error,
- * and a refused command propagates for the caller to name the kept mode.
+ * `scheduleBusy`, a torn adoption quarantines with the running mode's
+ * reviewer error (a forward tear names the applied mode; a rollback's tear is
+ * replaced by its caller, which knows the previous mode is restored), and a
+ * refused command propagates for the caller to name the kept mode.
  */
 export async function applyModeChange(
   ops: ModeSyncOps,
@@ -99,7 +121,10 @@ export async function applyModeChange(
   const effect = ops.owner.modeEffect(token, mode, run)
   if (effect === undefined) throw new Error(UI_TEXT.scheduleBusy)
   const torn = await ops.applyEffect(effect)
-  if (torn !== undefined) throw tornReviewerError(torn)
+  if (torn === undefined) return
+  const error = tornForwardError(torn)
+  ops.owner.quarantineWith(error.message, torn)
+  throw error
 }
 
 export async function runSetApprovalMode(
@@ -116,7 +141,7 @@ export async function runSetApprovalMode(
     if (isPermissionReviewerError(error)) throw error
     const kept = ops.owner.currentMode
     if (kept === undefined) {
-      ops.owner.quarantine()
+      ops.owner.quarantineWith(UI_TEXT.permissionReviewerUnknown)
       throw new PermissionReviewerError(UI_TEXT.permissionReviewerUnknown, '', { cause: error })
     }
     throw new ModeKeptError(
@@ -137,28 +162,36 @@ export async function runSetApprovalMode(
         // with the captured token would miss and report success-by-throw.
         await applyModeChange(ops, previous, ops.owner.token())
       } catch (rollbackError: unknown) {
-        // A torn rollback adoption already quarantined with the true host
-        // mode (the previous one): keep it, so the menu agrees with the
-        // host. Any other rollback failure leaves the new mode running.
-        if (isPermissionReviewerError(rollbackError)) throw rollbackError
-        ops.owner.quarantine()
-        ops.log(
-          'warn',
-          `Approval mode ${wireWordForLog(mode)} lost its permission profile (${failureForLog(error)}), and the previous mode is not restored (${failureForLog(rollbackError)}); new turns are refused`,
-        )
-        throw new PermissionReviewerError(
+        // A torn rollback adoption put the previous mode back with the
+        // reviewer that was already installed for it: say the previous mode
+        // is restored and its reviewer is still installed, and keep turns
+        // refused until the mode is set again. Any other rollback failure
+        // leaves the new mode running without its reviewer.
+        if (isPermissionReviewerError(rollbackError)) {
+          const torn = tornRollbackError(previous, rollbackError)
+          ops.owner.quarantineWith(torn.message, previous)
+          throw torn
+        }
+        const failed = new PermissionReviewerError(
           fill(UI_TEXT.permissionReviewerNotInstalled, { reason: refusalReason(error) }),
           mode,
           { cause: rollbackError },
         )
+        ops.owner.quarantineWith(failed.message, mode)
+        ops.log(
+          'warn',
+          `Approval mode ${wireWordForLog(mode)} lost its permission profile (${failureForLog(error)}), and the previous mode is not restored (${failureForLog(rollbackError)}); new turns are refused`,
+        )
+        throw failed
       }
     } else {
-      ops.owner.quarantine()
-      throw new PermissionReviewerError(
+      const failed = new PermissionReviewerError(
         fill(UI_TEXT.permissionReviewerNotInstalled, { reason: refusalReason(error) }),
         mode,
         { cause: error },
       )
+      ops.owner.quarantineWith(failed.message, mode)
+      throw failed
     }
     throw new ModeKeptError(
       fill(UI_TEXT.permissionModeKept, { reason: refusalReason(error) }),
@@ -180,8 +213,33 @@ export async function restoreScheduleEffect(
   ops: ModeSyncOps,
   effect: SessionEffect,
 ): Promise<void> {
-  const torn = await ops.applyEffect(effect)
-  if (torn !== undefined) throw tornReviewerError(torn)
+  try {
+    const torn = await ops.applyEffect(effect)
+    if (torn !== undefined) {
+      const error = tornForwardError(torn)
+      ops.owner.quarantineWith(error.message, torn)
+      throw error
+    }
+  } catch (error: unknown) {
+    // A torn adoption already quarantined with the conversation's mode named.
+    if (isPermissionReviewerError(error)) throw error
+    // A refused restore command changed nothing on the host: it still runs
+    // the admission's mode with the admission's reviewer, while the panel
+    // still shows the conversation's mode. Quarantine, so no turn runs under
+    // the wrong reviewer, with a sentence naming the mode the host runs.
+    const running = ops.owner.currentMode
+    if (running === undefined) {
+      ops.owner.quarantineWith(UI_TEXT.permissionReviewerUnknown)
+      throw new PermissionReviewerError(UI_TEXT.permissionReviewerUnknown, '', { cause: error })
+    }
+    const refused = new PermissionReviewerError(
+      fill(UI_TEXT.permissionRestoreRefused, { reason: refusalReason(error), mode: running }),
+      running,
+      { cause: error },
+    )
+    ops.owner.quarantineWith(refused.message, running)
+    throw refused
+  }
   try {
     await setSessionProfile(ops, mspPermissionProfile(effect.mode), effect.mode)
   } catch (error: unknown) {
