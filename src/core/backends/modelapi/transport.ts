@@ -376,7 +376,8 @@ export function retryAfterMs(header: string | null, now: number): number | undef
  * The wait an answer names, in every form a provider uses: `retry-after-ms`
  * (milliseconds; Azure OpenAI, read before `Retry-After` per research
  * azure-openai.md ZB2), then `Retry-After` (seconds or an HTTP date).
- * Honoured as given: no wait of ours shortens or refuses it.
+ * Read whole here; the retry loop honours it up to its own ceiling, so a
+ * hostile or corrupt header stalls one bounded wait per try at most.
  */
 export function providerWaitMs(headers: Headers, now: number): number | undefined {
   const milliseconds = headers.get(RETRY_AFTER_MS_HEADER)
@@ -909,8 +910,11 @@ export class RequestTransport {
   public backoffMs(attempt: number, suggestedMs?: number): number {
     const jitter = Math.floor(this.deps.random() * MODEL_API_RETRY_JITTER_MS)
     // The provider's own wait is the least it asks for (every provider
-    // documents it so): waited out whole, never shortened to our backoff.
-    if (suggestedMs !== undefined) return suggestedMs + jitter
+    // documents it so): honoured whole up to our retry ceiling. Past the
+    // ceiling the ceiling applies — a hostile or corrupt header must not
+    // stall a turn for longer than one bounded wait per try. Still waited
+    // and still retried, never shortened below what was asked within it.
+    if (suggestedMs !== undefined) return Math.min(suggestedMs + jitter, MODEL_API_RETRY_MAX_MS)
     const exponential = Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS)
     return Math.min(exponential + jitter, MODEL_API_RETRY_MAX_MS)
   }

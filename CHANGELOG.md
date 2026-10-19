@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Security
+
+- A corrupt or hostile provider 429 wait no longer stalls a turn past one
+  bounded pause: the retry sleep and the background pacing pause are honored
+  whole up to the client's own retry ceiling (`MODEL_API_RETRY_MAX_MS`),
+  and past it the ceiling applies per try. Found by the 0.19.0 security
+  audit driving `retry-after-ms` in the trillions against the real parsers
+  (`docs/certification/auditsec0190b.md` F1).
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights

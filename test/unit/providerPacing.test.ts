@@ -15,7 +15,12 @@ import {
   resetDurationMs,
   xaiPacingLimits,
 } from '../../src/core/backends/modelapi/pacing'
-import { isPacingGoverned, providerWaitMs } from '../../src/core/backends/modelapi/transport'
+import {
+  isPacingGoverned,
+  providerWaitMs,
+  RequestTransport,
+} from '../../src/core/backends/modelapi/transport'
+import { MODEL_API_RETRY_MAX_MS } from '../../src/shared/constants'
 
 const CAPTURE_FILES = {
   groq: '02-tool-call-stream.json',
@@ -246,5 +251,49 @@ describe('azureRetryAfterMs', () => {
     expect(providerWaitMs(new Headers({ 'retry-after-ms': '1500' }), now)).toBe(1500)
     expect(providerWaitMs(new Headers({ 'retry-after': '2' }), now)).toBe(2000)
     expect(providerWaitMs(new Headers(), now)).toBeUndefined()
+  })
+})
+
+describe('hostile provider waits stay bounded', () => {
+  it('caps a corrupt 429 wait at one retry-ceiling pause instead of wedging background dispatch', async () => {
+    // A compromised endpoint answering `retry-after-ms` in the trillions
+    // must not pause background work past the retry ceiling; the next 429
+    // re-pauses anyway, and the user's turn never waits on a sibling pause.
+    let now = 1_800_000_000_000
+    const waits: number[] = []
+    const pacing = new ModelApiPacing({
+      now: () => now,
+      wait: (ms) => {
+        waits.push(ms)
+        now += ms
+        return Promise.resolve()
+      },
+    })
+    pacing.observe('rogue', undefined, 99_999_999_999_999)
+    await pacing.acquire('rogue', 'subagent', 0, AbortSignal.timeout(5000))
+    expect(waits).toEqual([MODEL_API_RETRY_MAX_MS])
+    await pacing.acquire('rogue', 'foreground', 0, AbortSignal.timeout(5000))
+    expect(waits).toEqual([MODEL_API_RETRY_MAX_MS])
+  })
+  it('caps the retry sleep a corrupt wait header names at the same ceiling', () => {
+    // The foreground retry loop sleeps what backoffMs returns: a header
+    // naming trillions of milliseconds sleeps one bounded wait per try.
+    const silent = {
+      trace: () => undefined,
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined,
+    }
+    const transport = new RequestTransport({
+      fetch,
+      baseUrl: 'https://example.invalid',
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+      random: () => 0,
+      log: silent,
+    })
+    expect(transport.backoffMs(0, 99_999_999_999_999)).toBe(MODEL_API_RETRY_MAX_MS)
+    expect(transport.backoffMs(0, 1500)).toBe(1500)
+    expect(transport.backoffMs(0, undefined)).toBeLessThanOrEqual(MODEL_API_RETRY_MAX_MS)
   })
 })
