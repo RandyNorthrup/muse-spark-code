@@ -43,8 +43,9 @@ export class VaultWriterError extends VaultError {
     readonly writer: NonNullable<
       Extract<VaultBrokerResponse['response'], { kind: 'refused' }>['writer']
     >,
+    options?: { cause?: unknown },
   ) {
-    super('busy')
+    super('busy', options)
     // The sentence lives in the shared refusals so hosts without the
     // write-only crypto name the same holder.
     this.message = vaultWriterDetail(writer)

@@ -195,12 +195,16 @@ export class VaultFleet {
           try {
             this.retire(access)
           } catch {
+            // The sweep retires every worker whatever one costs it; the
+            // aggregate denial below reaches the broker's audit signal.
             hasFailed = true
           }
           const task = this.endRequesters(ids)
           this.cleanup.add(task)
           void task
             .catch(() => {
+              // A failed requester end is aggregate disposal state; the
+              // broker's audit signal below carries the denial.
               this.cleanupFailed = true
             })
             .finally(() => {
@@ -234,6 +238,22 @@ export class VaultFleet {
     const results = await Promise.allSettled(ids.map((id) => this.ports.broker.endRequester(id)))
     if (results.some((result) => result.status === 'rejected'))
       throw new Error(UI_TEXT.vault.noAccess)
+  }
+  /** Closes a half-registered route and still ends its requester when the close fails. */
+  private async releaseRoute(
+    route: VaultWorkerRoute,
+    access: VaultWorkerAccess | undefined,
+    requesterId: string,
+  ): Promise<void> {
+    try {
+      route.close()
+      if (access) {
+        this.workers.delete(access)
+        this.sockets.delete(socketKey(route.socket))
+      }
+    } finally {
+      await this.ports.broker.endRequester(requesterId)
+    }
   }
   private retire(access: VaultWorkerAccess): void {
     const retired = this.descendants(access)
@@ -337,15 +357,7 @@ export class VaultFleet {
       return access
     } catch (error: unknown) {
       worker.controller.abort()
-      try {
-        route.close()
-        if (access) {
-          this.workers.delete(access)
-          this.sockets.delete(socketKey(route.socket))
-        }
-      } finally {
-        await this.ports.broker.endRequester(requester.id)
-      }
+      await this.releaseRoute(route, access, requester.id)
       throw error
     }
   }
@@ -525,6 +537,8 @@ export class VaultFleet {
     try {
       this.unsubscribe()
     } catch {
+      // Disposal continues past a failing unsubscribe; the aggregate denial
+      // below is the report.
       hasFailed = true
     }
     const ids = Array.from(this.workers.values(), (worker) => worker.requester.id)
@@ -533,6 +547,8 @@ export class VaultFleet {
         try {
           this.retire(access)
         } catch {
+          // Disposal retires every worker whatever one costs it; the
+          // aggregate denial below is the report.
           hasFailed = true
         }
     } finally {

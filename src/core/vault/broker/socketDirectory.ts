@@ -137,6 +137,7 @@ export async function resolveVaultSocket(
     try {
       await verifyVaultSocketBase(base)
     } catch {
+      // A failing candidate loses; the next base is tried.
       continue
     }
     // Length before any side effect: an over-long candidate simply loses.
@@ -144,6 +145,7 @@ export async function resolveVaultSocket(
     try {
       assertVaultSocketLength(location.socket, input.platform)
     } catch {
+      // An over-long candidate loses; the next base is tried.
       continue
     }
     await ensureVaultSocketDirectory(location.directory)
