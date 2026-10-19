@@ -150,9 +150,7 @@ import {
   HANDOFF_OPEN_TODO_STATUSES,
   IDE_MCP_SERVER_NAME,
   IMAGE_EXTENSIONS,
-  MAX_DOCUMENT_BYTES,
-  MAX_IMAGE_BYTES,
-  MAX_TEXT_ATTACHMENT_BYTES,
+  MEDIA_READ_MAX_BYTES,
   PDF_EXTENSION,
   PLAN_BRIEF_LOCAL_ID_PREFIX,
   PLAN_TODO_PENDING_STATUS,
@@ -9465,20 +9463,18 @@ export class ConversationController {
         }
       }
       if (isTextFile || extension === PDF_EXTENSION || Object.hasOwn(IMAGE_EXTENSIONS, extension)) {
-        let maxBytes = MAX_IMAGE_BYTES
-        if (isTextFile) {
-          maxBytes = MAX_TEXT_ATTACHMENT_BYTES
-        } else if (extension === PDF_EXTENSION) {
-          maxBytes = MAX_DOCUMENT_BYTES
-        }
+        // D121: the picked file reads whole, bounded only by host memory —
+        // no per-kind size of ours. The store admits from the record (or
+        // nothing locally without one); the transports' frame validity and
+        // the send path answer for the rest.
         let read: Awaited<ReturnType<FileAccess['readFile']>>
         try {
           if (shouldMentionUnlessPdf) {
             read = await this.deps.files.readFile(pathToRead, 0)
           } else if (isTextFile) {
-            read = await this.deps.files.readFile(pathToRead, maxBytes, pathToRead)
+            read = await this.deps.files.readFile(pathToRead, MEDIA_READ_MAX_BYTES, pathToRead)
           } else {
-            read = await this.deps.files.readFile(pathToRead, maxBytes)
+            read = await this.deps.files.readFile(pathToRead, MEDIA_READ_MAX_BYTES)
           }
         } catch (error: unknown) {
           if (!this.isCurrentAttachmentGeneration(generation)) {
@@ -9499,14 +9495,11 @@ export class ConversationController {
           this.insertMention(file.relativePath ?? file.fsPath.replaceAll('\\', '/'))
           continue
         }
-        const limit = read.isPdf ? MAX_DOCUMENT_BYTES : maxBytes
-        if (read.bytes === undefined || read.bytes.byteLength > limit) {
-          const otherTooLarge = isTextFile ? UI_TEXT.textFileTooLarge : UI_TEXT.attachmentTooLarge
+        if (read.bytes === undefined) {
           this.post({
             type: 'attachmentRejected',
             name: file.name,
-            reason:
-              extension === PDF_EXTENSION || read.isPdf ? UI_TEXT.documentTooLarge : otherTooLarge,
+            reason: UI_TEXT.attachmentUnreadable,
           })
         } else {
           await this.addAttachment(

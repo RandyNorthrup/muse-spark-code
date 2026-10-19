@@ -4,7 +4,7 @@ import path from 'node:path'
 import { realpath } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import type { ContentBlock } from '@agentclientprotocol/sdk'
-import { MAX_ATTACHMENTS_PER_MESSAGE, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import { confineWorkspacePath } from '../../core/workspacePath'
 import type { ExecOptions } from './execArgs'
 
@@ -23,8 +23,8 @@ export function parseAttachArgs(
     )
   )
     return { ok: false, reason: UI_TEXT.attachmentUnreadable }
-  if (value.length > MAX_ATTACHMENTS_PER_MESSAGE)
-    return { ok: false, reason: UI_TEXT.attachmentLimit }
+  // D121: no attach count of ours — every named file is confined and linked;
+  // the transports' frame validity and the send path answer for the rest.
   return {
     ok: true,
     files: value.filter((file: unknown): file is string => typeof file === 'string'),
