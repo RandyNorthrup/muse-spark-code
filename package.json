@@ -1051,7 +1051,7 @@
         },
         "museSpark.modelApiMaxToolOutputBytes": {
           "type": "integer",
-          "default": 64000,
+          "default": 0,
           "description": "%config.modelApiMaxToolOutputBytes.description%",
           "scope": "machine"
         },

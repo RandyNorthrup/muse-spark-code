@@ -740,10 +740,10 @@ export const SETTING_DEFAULTS = {
   // M73 (PLAN.md D49): observation packing on the Model API backend. Its M75
   // run held the capability floors (docs/certification/m73.md); D78 enables it.
   modelApiObservationPacking: true,
-  // TOOLCAP: the per-result byte guard, 64_000 like TOOL_OUTPUT_MAX_CHARS
-  // (a literal: this table loads before that constant). Raise for one run
-  // with the exec flag. Validated where used.
-  modelApiMaxToolOutputBytes: 64_000,
+  // TOOLCAP: the per-result byte guard (D121: 0, no guard of ours, is the
+  // default). A set value raises or lowers it for the session; raise for
+  // one run with the exec flag. Validated where used.
+  modelApiMaxToolOutputBytes: 0,
   modelApiAutoCompaction: true,
   modelApiStrictTools: true,
   modelApiParallelReads: true,

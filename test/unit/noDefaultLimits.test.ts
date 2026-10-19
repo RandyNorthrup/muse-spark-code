@@ -12,6 +12,12 @@ import {
 } from '../../src/shared/constants'
 import { questionDeferSeconds } from '../../src/shared/questionDeadline'
 import { subagentSpawnDescription } from '../../src/core/backends/modelapi/subagentTools'
+import {
+  boundToolResultText,
+  limitsForByteGuard,
+  validateToolResultCap,
+} from '../../src/core/backends/modelapi/toolResultBound'
+import { TOOL_OUTPUT_MAX_CHARS } from '../../src/shared/constants'
 
 const properties = manifest.contributes.configuration.properties as Record<
   string,
@@ -94,5 +100,37 @@ describe('no default limits: hook continuations and subagent concurrency', () =>
     expect(warnings).toHaveLength(2)
     expect(stopContinuationLimitFor(1000)).toBe(HOOK_MAX_STOP_CONTINUATIONS)
     expect(subagentConcurrencyFor(1000)).toBe(SUBAGENT_CONCURRENT_MAX)
+  })
+})
+
+describe('no default limits: tool-output byte guard', () => {
+  const hundredKilobyte = `${'ok line\n'.repeat(12_000)}tail\n`
+
+  it('defaults to no byte guard of our own', () => {
+    expect(SETTING_DEFAULTS.modelApiMaxToolOutputBytes).toBe(0)
+    expect(properties['museSpark.modelApiMaxToolOutputBytes'].default).toBe(0)
+  })
+
+  it('passes a result through whole with nothing set', () => {
+    const validated = validateToolResultCap(0, undefined, TOOL_OUTPUT_MAX_CHARS)
+    expect(validated).toEqual({ bytes: Infinity })
+    const limits = 'bytes' in validated ? limitsForByteGuard(validated.bytes, undefined) : undefined
+    expect(limits).toBeDefined()
+    expect(boundToolResultText(hundredKilobyte, limits!).cut).toBeUndefined()
+    expect(boundToolResultText(hundredKilobyte, limits!).text).toBe(hundredKilobyte)
+  })
+
+  it('still applies a person-set guard', () => {
+    const warnings: string[] = []
+    const read = readSettings(
+      settingSource({ modelApiMaxToolOutputBytes: 64_000 }),
+      silentLog(warnings),
+    )
+    expect(read.modelApiMaxToolOutputBytes).toBe(64_000)
+    expect(warnings).toHaveLength(0)
+    const validated = validateToolResultCap(64_000, undefined, TOOL_OUTPUT_MAX_CHARS)
+    expect(validated).toEqual({ bytes: 64_000 })
+    const limits = 'bytes' in validated ? limitsForByteGuard(validated.bytes, undefined) : undefined
+    expect(boundToolResultText(hundredKilobyte, limits!).cut).toBeDefined()
   })
 })
