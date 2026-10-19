@@ -1003,13 +1003,6 @@ export const MODEL_API_HOOK_PROVIDER = 'meta'
 // 8, M127): `museSpark.hooksMaxStopContinuations` sets one within 1–8 and
 // defaults to 0 (unlimited, D121).
 export const HOOK_MAX_STOP_CONTINUATIONS = 8
-// Independent safety pauses that never follow that setting (PR206FIX T5):
-// refused task writes pause the turn, and an idle teammate stops being
-// kept working, each after this many in a row. Both shared the bound
-// above before the M127 setting; the setting governs only Stop-hook
-// continuations, as its description says.
-export const HOOK_MAX_TASK_REFUSALS = 8
-export const TEAMMATE_MAX_IDLE_KEEPS = 8
 export const HOOK_CONTROL_CODE_LIMIT = 32
 export const HOOK_NEWLINE_CODE = 10
 export const HOOK_DELETE_CODE = 127
@@ -2183,9 +2176,10 @@ export const REVIEW_FINDINGS_MAX = 200
 export const REVIEW_FINDING_TEXT_MAX_CHARS = 4000
 export const REVIEW_FINDING_PATH_MAX_CHARS = 1024
 
-// M116 / D96: lane-0 contracts. Two fix rounds after the original build;
-// a team may lower this ceiling, never raise it. Rule 9 has no setting.
-export const PLAYBOOK_PATCH_ROUNDS_MAX = 2
+// M116 / D96: lane-0 contracts. Fix rounds run until the work converges or
+// the person stops them; the person's own number lives in the team's
+// playbook settings (`patchRoundsMax`, 0 is unlimited, D121). Rule 9 has no
+// setting.
 export const PLAYBOOK_LAUNDER_WINDOW_MS = 3_600_000
 export const PLAYBOOK_RECORD_MAX = 5000
 /** Edited file moves inherit at this percentage of retained line fingerprints. */

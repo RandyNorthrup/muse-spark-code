@@ -105,7 +105,6 @@ import {
   FILE_REFUSAL_MODEL_TEXT,
   GOAL_STATUS,
   type GoalCommandVerb,
-  HOOK_MAX_TASK_REFUSALS,
   HOOK_MODEL_READ_TOOLS,
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_ON_FAILURE_MAX_DEPTH,
@@ -164,7 +163,6 @@ import {
   stopContinuationLimitFor,
   subagentConcurrencyFor,
   type SubagentAction,
-  TEAMMATE_MAX_IDLE_KEEPS,
   THEN_RUN_ARGUMENT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
@@ -2890,13 +2888,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private toolSelection:
     { readonly turnId: string; readonly allowed: readonly string[] } | undefined
-  /**
-   * Consecutive TaskCreated/TaskCompleted refusals (M91 lane E): past their
-   * own pause bound the turn ends; no refused task is admitted.
-   */
-  private taskRefusals = 0
   private readonly observedRules = new Set<string>()
-  private readonly teammateKeeps = new Map<string, number>()
   private hookTokensAdded = 0
   /** Keeps each request within the page and encoded-media budgets (M54, PLAN.md D47). */
   private readonly budget: MediaBudget
@@ -8346,7 +8338,6 @@ export class ModelApiSession implements ScheduledAgentSession {
           return this.taskRefused('completed', item.text, completed.refusedReason)
         }
       }
-      this.taskRefusals = 0
     }
     this.todos = next
     this.autoCompact.noteTodos(this.todos)
@@ -8356,14 +8347,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     return { output: summary, visibleOutput: summary }
   }
 
-  /** A refused task write: the old list stands, and the refusal counts toward the pause. */
+  /**
+   * A refused task write: the old list stands, and the refusal reaches the
+   * model and the person as words. Refusals never end the turn on their own:
+   * the work continues until it converges or the person stops it (D121).
+   */
   private taskRefused(kind: 'created' | 'completed', subject: string, reason: string): ToolOutcome {
-    this.taskRefusals += 1
-    if (this.taskRefusals >= HOOK_MAX_TASK_REFUSALS) {
-      this.deps.log.warn(
-        `Model API extension hooks: task continuation limit after ${String(this.taskRefusals)} refusals`,
-      )
-    }
     const text = fill(
       kind === 'created' ? UI_TEXT.hookRefusedTaskCreated : UI_TEXT.hookRefusedTaskCompleted,
       { subject, reason },
@@ -10110,18 +10099,21 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
   }
 
+  /**
+   * A hook may keep an idle teammate working for as many rounds as the work
+   * needs: no count of ours stops the keeps (D121). Every keep stays visible
+   * as its own notice, and the grant, the hook verdict and Stop still end it.
+   */
   private async keepIdleChild(child: ChildRecord): Promise<boolean> {
     let siblings = 0
     for (const other of this.children.values()) {
       if (other === child || other.state !== 'running') continue
       siblings += 1
     }
-    const keeps = this.teammateKeeps.get(child.id) ?? 0
     const grant = child.session.childTaskGrant
     if (
       siblings === 0 ||
       grant === undefined ||
-      keeps >= TEAMMATE_MAX_IDLE_KEEPS ||
       grant.remainingAttempts <= 0 ||
       !this.canContinueChild(child, grant)
     )
@@ -10140,7 +10132,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       !this.canContinueChild(child, grant)
     )
       return false
-    this.teammateKeeps.set(child.id, keeps + 1)
     const reason = verdict.keepReason ?? MODEL_API_MODEL_TEXT.hookTeammateContinue
     await child.session.submitTurn(
       [{ type: 'text', text: reason }],
@@ -14008,13 +13999,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       )
       prepared.provisionalSeen.clear()
       isCommitted = true
-      if (
-        effectiveCall.name === MODEL_API_TOOLS.todoWrite &&
-        outcome.failureReason !== undefined &&
-        this.taskRefusals >= HOOK_MAX_TASK_REFUSALS
-      ) {
-        throw new HookStoppedError(outcome.failureReason)
-      }
     }
     if (!executed.value.isParallelExecution) await commit()
     if (selectionReason !== undefined) {
@@ -15369,7 +15353,6 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // What a stopped turn left for its round is not checked in this one (M68).
     this.verifyState().ledger.beginTurn()
-    this.taskRefusals = 0
     this.active = turn
     if (!queued.isGoalWake) this.autoCompact.newUserTask()
     // A message of the user's puts them back in the loop: the Auto reviewer
