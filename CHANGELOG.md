@@ -14,7 +14,21 @@ happened, not what was planned; superseded entries are kept.
   whole up to the client's own retry ceiling (`MODEL_API_RETRY_MAX_MS`),
   and past it the ceiling applies per try. Found by the 0.19.0 security
   audit driving `retry-after-ms` in the trillions against the real parsers
-  (`docs/certification/auditsec0190b.md` F1).
+  (`docs/certification/auditsec0190b.md` F1). Superseded below before
+  release: the owner's limits rule allows no ceiling of ours on a value the
+  provider sends, so the cap gave way to an honoured wait with notice.
+- A provider 429 wait is honoured whole instead of capped at the client's
+  retry ceiling: the retry notice names when the wait ends in absolute time
+  and plain words (`modelApiProviderRetryWait`), and the turn's Stop ends
+  the wait at once. Proven with a hostile `retry-after-ms` against the real
+  transport over loopback (`test/unit/providerRetryWait.test.ts`).
+- A provider request now dials the address its DNS check passed instead of
+  the name again at connect time: the pinned fetch resolves once per
+  request, checks the answers against the saved network, and connects
+  through a `lookup` answering the checked address only, with the original
+  Host header and TLS servername. Closes the DNS-rebinding TOCTOU the
+  audit noted in `pinProviderFetch`
+  (`docs/certification/auditsec0190b.md`).
 
 ## [0.19.0] - 2026-10-17
 
