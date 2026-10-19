@@ -156,6 +156,23 @@ export class VaultMigration {
       remaining?.fill(0)
     }
   }
+  /**
+   * Drop the vault copy when it is still there. A crash past the vault
+   * remove leaves nothing to drop, and the remove refuses a missing id, so
+   * the list decides instead of the error shape.
+   */
+  private async removeVaultCopyIfPresent(
+    entry: MigrationCredential,
+    lease: MigrationLease,
+  ): Promise<void> {
+    const listed = await this.deps.vault.list()
+    lease.assertCurrent()
+    if (listed.every((metadata) => metadata.id !== entry.itemId)) return
+    await this.deps.vault.remove(entry.itemId, () => {
+      lease.assertCurrent()
+    })
+    lease.assertCurrent()
+  }
   private async mirror(
     entry: MigrationCredential,
     row: MigrationRecord,
@@ -425,6 +442,57 @@ export class VaultMigration {
       legacy?.fill(0)
     }
   }
+  /**
+   * Finish a sign-out the engine itself started: the journal already says
+   * `deleting`, so a missing legacy copy is evidence of the interrupted
+   * sign-out, never of a user deletion. A live legacy copy is a key saved
+   * after the interruption, and it is never deleted here: only the stale
+   * vault copy goes. An apiKey record is then re-seeded with `store`, while
+   * an opaque one stays in SecretStorage with the row `deleted`, which the
+   * unlock skips like any signed-out opaque slot. A record that no longer
+   * decodes refuses with the codec's own fault and nothing is deleted. With
+   * no legacy copy, the legacy remove runs only against the absent copy it
+   * expects, and the row completes `deleted` without touching SecretStorage.
+   */
+  private async finishInterruptedDelete(
+    entry: MigrationCredential,
+    row: MigrationRecord,
+    lease: MigrationLease,
+  ): Promise<void> {
+    let live: Uint8Array | null = null
+    try {
+      live = await this.deps.legacy.read(entry.key)
+      lease.assertCurrent()
+      if (live === null) {
+        await this.removeVaultCopyIfPresent(entry, lease)
+        await this.removeLegacy(entry.key, lease)
+        const base = { ...row }
+        delete base.previous
+        delete base.retireIntent
+        delete base.retireNote
+        await this.save({ ...base, phase: 'deleted', digest: null }, lease)
+        return
+      }
+      let decoded: VaultItem | undefined
+      try {
+        decoded = entry.decode(live)
+        await this.removeVaultCopyIfPresent(entry, lease)
+        if (decoded.material.kind !== 'apiKey') {
+          const base = { ...row }
+          delete base.previous
+          delete base.retireIntent
+          delete base.retireNote
+          await this.save({ ...base, phase: 'deleted', digest: null }, lease)
+          return
+        }
+        await this.storeInLease(entry, live, lease)
+      } finally {
+        eraseItem(decoded)
+      }
+    } finally {
+      live?.fill(0)
+    }
+  }
   /** The journal's phase for a key, or null before its first copy. */
   async journalPhase(key: string): Promise<MigrationRecord['phase'] | null> {
     const entry = this.credential(key)
@@ -620,7 +688,10 @@ export class VaultMigration {
    * delete, confirmed with `destroyLastCopyConfirmed` (a plain sign-out may
    * pass it). Without the matching confirmation the call refuses with
    * `conflict` and destroys nothing. Rows already being deleted complete
-   * without either: that delete was confirmed when it started.
+   * without either: that delete was confirmed when it started. A resumed
+   * one never deletes a key saved after the interruption — a live legacy
+   * copy is kept, only the stale vault copy goes — and a vault copy
+   * already gone is not removed again.
    */
   async delete(
     key: string,
@@ -631,7 +702,11 @@ export class VaultMigration {
       const row = await this.record(entry, lease)
       if (!row) throw new VaultMigrationFault('invalid')
       if (row.phase === 'deleted') return
-      if (row.phase !== 'deleting' && (await this.legacyAbsent(entry, lease))) {
+      if (row.phase === 'deleting') {
+        await this.finishInterruptedDelete(entry, row, lease)
+        return
+      }
+      if (await this.legacyAbsent(entry, lease)) {
         const isAnswersLegacyDeleted =
           row.phase === 'active' && row.retainLegacy && row.retireIntent !== true
         if (
@@ -657,6 +732,70 @@ export class VaultMigration {
       delete base.retireIntent
       delete base.retireNote
       await this.save({ ...base, phase: 'deleted', digest: null }, lease)
+    })
+  }
+  /**
+   * Drop a copy the engine can never verify: a `copying` or `writing` row
+   * whose vault item the private channel cannot serve, or whose legacy
+   * record no longer decodes to an apiKey row. Saves before the apiKey gate
+   * stranded such rows with a `secret` item the unlock used to skip before
+   * `resume` ever saw them. The stuck item goes when it is still there, and
+   * the journal row goes with it, so the opaque record keeps working in
+   * SecretStorage. Anything else — an apiKey row recovery can still finish,
+   * or a row with no stuck item and no opaque record — reports false and is
+   * left for its own recovery, and a damaged record stays the engine's to
+   * report instead of being rolled back here.
+   */
+  async rollbackCopy(key: string): Promise<boolean> {
+    const entry = this.credential(key)
+    return await this.run(async (lease) => {
+      const row = await this.record(entry, lease)
+      if (!row || (row.phase !== 'copying' && row.phase !== 'writing')) return false
+      const listed = await this.deps.vault.list()
+      lease.assertCurrent()
+      const isPresent = listed.some((metadata) => metadata.id === entry.itemId)
+      let isStuck: boolean
+      if (isPresent) {
+        let isReadable = false
+        let item: VaultItem | undefined
+        try {
+          item = await this.deps.vault.read(entry.itemId)
+          lease.assertCurrent()
+          isReadable = true
+        } catch (error: unknown) {
+          if (!(error instanceof VaultMigrationFault) || error.code !== 'invalid') throw error
+        } finally {
+          eraseItem(item)
+        }
+        isStuck = !isReadable
+      } else {
+        let live: Uint8Array | null = null
+        let decoded: VaultItem | undefined
+        try {
+          live = await this.deps.legacy.read(entry.key)
+          lease.assertCurrent()
+          if (live === null) return false
+          try {
+            decoded = entry.decode(live)
+          } catch {
+            return false
+          }
+          isStuck = decoded.material.kind !== 'apiKey'
+        } finally {
+          eraseItem(decoded)
+          live?.fill(0)
+        }
+      }
+      if (!isStuck) return false
+      if (isPresent) {
+        await this.deps.vault.remove(entry.itemId, () => {
+          lease.assertCurrent()
+        })
+        lease.assertCurrent()
+      }
+      await this.deps.journal.remove(entry.key)
+      lease.assertCurrent()
+      return true
     })
   }
   /** Startup recovery runs before first-party bindings become usable. */

@@ -72,6 +72,8 @@ export interface MigrationJournalPort {
   /** C stores this in the encrypted index/internal records, never plaintext global state. */
   read(key: string): Promise<unknown>
   write(record: MigrationRecord, authorize: () => void): Promise<void>
+  /** Drop the row: only the rollback of a copy the engine can never verify removes one. */
+  remove(key: string): Promise<void>
 }
 export interface MigrationVaultPort extends Pick<VaultStorePort, 'list' | 'read'> {
   /** C calls authorize synchronously immediately before its atomic commit. */

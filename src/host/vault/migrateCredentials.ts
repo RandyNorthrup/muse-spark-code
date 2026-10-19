@@ -209,6 +209,9 @@ export class CredentialMigrationController implements MigrationMirror {
         const isEdit = snapshot.items.some((entry) => entry.id === journalItemId(parsed.key))
         await ports.write(journalItem(parsed.key, parsed, now, label), isEdit, authorize)
       },
+      async remove(key: string): Promise<void> {
+        await ports.remove(journalItemId(key))
+      },
     }
   }
 
@@ -376,6 +379,12 @@ export class CredentialMigrationController implements MigrationMirror {
     const keys = listMigrationKeys(providerIds)
     for (const key of keys) {
       try {
+        const phase = await migration.journalPhase(key)
+        // A save that predates the apiKey gate may have stranded a `copying`
+        // or `writing` row with a `secret` item the skip below used to leave
+        // behind before `resume` ever saw it: roll it back first, so the
+        // opaque record is the only thing left to skip.
+        if (phase === 'copying' || phase === 'writing') await migration.rollbackCopy(key)
         if (!(await this.isApiKeyRecord(key, credentials))) {
           if (!this.skippedOpaque.has(key)) {
             this.skippedOpaque.add(key)
@@ -391,7 +400,7 @@ export class CredentialMigrationController implements MigrationMirror {
         // refuses a `deleted` row and would leave the new key unmigrated
         // forever. An absent value is the signed-out state itself: nothing
         // to do, and nothing worth warning about.
-        if ((await migration.journalPhase(key)) === 'deleted') {
+        if (phase === 'deleted') {
           const value = await this.deps.secrets.get(key)
           if (value === undefined) continue
           const bytes = Buffer.from(value, 'utf8')
@@ -416,8 +425,14 @@ export class CredentialMigrationController implements MigrationMirror {
   }
 
   async mirrorWrite(key: string, value: string): Promise<void> {
-    const { migration, providerIds } = await this.engine()
+    const { migration, credentials, providerIds } = await this.engine()
     if (!listMigrationKeys(providerIds).includes(key)) return
+    // Only apiKey records ever migrate, here as on unlock: an oauth,
+    // subscription or account record stays in SecretStorage, working, and
+    // the next unlock logs why. Without this check a save of one called
+    // `migrate`, which stranded a `copying` row with a `secret` item the
+    // unlock then skipped forever.
+    if (!(await this.isApiKeyRecord(key, credentials))) return
     const bytes = Buffer.from(value, 'utf8')
     try {
       // The journal phase decides, not `resolve`: provider codecs carry no
