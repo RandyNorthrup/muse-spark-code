@@ -279,8 +279,12 @@ export function decodeText(bytes: Uint8Array, absolutePath: string): string {
   }
   try {
     return STRICT_UTF8.decode(bytes)
-  } catch {
-    throw new Error(`${absolutePath} ${MODEL_TEXT.fileNotText}`)
+  } catch (error: unknown) {
+    // Only malformed UTF-8 fails here; anything else is not this decode's.
+    if (error instanceof TypeError) {
+      throw new Error(`${absolutePath} ${MODEL_TEXT.fileNotText}`, { cause: error })
+    }
+    throw error
   }
 }
 
@@ -288,6 +292,19 @@ function pause(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
+}
+
+/**
+ * Best-effort release after a failed reservation check: a path that changed
+ * after open must not make cleanup delete an outside file, and a release
+ * failure never hides the check's own.
+ */
+async function releaseReservation(release: () => Promise<ReservationStep>): Promise<void> {
+  try {
+    await release()
+  } catch {
+    // Do not delete an outside file if the path changed after open.
+  }
 }
 
 const ENV_REFERENCE = /\$\{env:([^}]+)\}/g
@@ -928,11 +945,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       try {
         await checkedOpenedFile(absolutePath, handle, expectedCanonicalPath, deps.platform)
       } catch (error: unknown) {
-        try {
-          await release()
-        } catch {
-          // Do not delete an outside file if the path changed after open.
-        }
+        await releaseReservation(release)
         throw error
       }
       return {
@@ -1231,7 +1244,7 @@ function startProcess(run: CommandRun) {
     if (run.nativeJob === undefined) observeResourceProcess(run.resource, child, run.job)
     return child
   } catch (error: unknown) {
-    return error instanceof Error ? error : new Error(String(error))
+    return error instanceof Error ? error : new Error(String(error), { cause: error })
   }
 }
 

@@ -41,6 +41,7 @@ import {
   RULES_FILE_MAX_BYTES,
 } from '../shared/constants'
 import { canonicalPath, isMissingPath } from './canonicalPath'
+import { isStoreErrorCode } from './backend/storeErrors'
 import { writeFileAtomically } from './fsAtomic'
 import { isGitExitError, processGitProcess } from './git'
 import { withoutCredentials } from '../runtime/credentialVariables'
@@ -107,7 +108,6 @@ async function isImportIgnored(
   }
 }
 
-const EXISTS = 'EEXIST'
 const LINK_REFUSED = 'ELOOP'
 const CHANGED = 'ESTALE'
 const TOO_LARGE = 'EFBIG'
@@ -115,8 +115,12 @@ const EXCLUSIVE_CREATE = 'wx'
 /** Owner, group or other may execute (`chmod +x`). */
 const EXECUTE_BITS = 0o111
 
-function refused(code: string): Error {
-  return Object.assign(new Error('Import path cannot be used safely'), { code })
+function refused(code: string, cause?: unknown): Error {
+  const error =
+    cause === undefined
+      ? new Error('Import path cannot be used safely')
+      : new Error('Import path cannot be used safely', { cause })
+  return Object.assign(error, { code })
 }
 
 /** The canonical form the import confines by: broken links followed to where they lead. */
@@ -141,8 +145,8 @@ async function assertRoot(project: ImportProjectRoot): Promise<void> {
   let now: ImportRootIdentity
   try {
     now = await identifyRoot(project.path)
-  } catch {
-    throw refused(AGENT_IMPORT_ROOT_CHANGED_CODE)
+  } catch (error: unknown) {
+    throw refused(AGENT_IMPORT_ROOT_CHANGED_CODE, error)
   }
   if (
     !isSamePath(now.canonical, project.identity.canonical, process.platform) ||
@@ -353,7 +357,7 @@ async function createImportFile(
     await link(temporary, absolutePath)
     return 'created'
   } catch (error: unknown) {
-    if (typeof error === 'object' && error !== null && 'code' in error && error.code === EXISTS) {
+    if (isStoreErrorCode(error, 'EEXIST')) {
       return 'exists'
     }
     throw error

@@ -43,6 +43,35 @@ Designed baselines with reasons (accepted, not forgotten):
   multi-account start/enable, `src/runtime/chatGptProviderCommands.ts`
   setup: fixed in PR161FIN (named closers, kind words, cause slots).
 - Everything else below: pre-existing, grouped for area-by-area lanes.
+- `src/host` root + `src/host/backend` keeps, 0.19.0 lane (each read in
+  full; the failure either reaches the caller as data or is proven moot):
+  `fsAtomic.ts:649` reports the stage-sweep failure through the caller's
+  `warn` hook with the error, and `jobBuild.ts:200` logs the stale-build
+  removal with its redacted cause and retries on a later start (both use
+  caller-owned channels the classifier does not credit); `fsAtomic.ts:472`,
+  `processTree.ts:345`, `toolIo.ts:298` and `importIo.ts:367` are
+  best-effort cleanups that must never hide the original failure (a moved
+  temp, a vanished process group, a retargeted reservation, an unverified
+  import temp) and say so on the catch line; `git.ts:557` rejects with the
+  tree-stop failure as the operative error and `git.ts:592` fails the
+  take with it; `jobBuild.ts:101` finds the destination already in place,
+  which is the rename's goal; `mcpProcess.ts:437/446` answer existence
+  probes with `false`; `modelApiEntry.ts:252` resolves a plan model from
+  the client's own facts and rethrows anything else; `searchWorker.ts:112`
+  reads a file that vanished since listing as undefined and `:166` posts
+  the worker failure back as its outcome; `shellJob.ts:131` propagates a
+  policy pause and falls back only when the helper is unavailable;
+  `toolIo.ts:104` returns the admission failure as the tool result's
+  stderr, `:997` refuses before any workspace process starts, and `:1273`
+  settles a failed tree stop as a run failure; `helperIntegrity.ts:39`
+  reads an unreadable helper as no digest and `:49` still refuses to run
+  it; `pluginContainment.ts:71` counts the failed preparation and tries
+  the next; `fileScheduleStore.ts:100/:300` keep a crashed receipt's
+  mtime as its permanent admission; `legalFixApplier.ts:39/:67` fail
+  closed with fixed UI words; `networkPosture.ts:165` reports the probe
+  as `ok: false` without repeating untrusted CLI output; and
+  `workspaceIdentity.ts:48` reads an unverifiable identity as not
+  current.
 
 | Folder                 | GENERIC | SWALLOW |
 | ---------------------- | ------- | ------- |
@@ -82,9 +111,9 @@ Designed baselines with reasons (accepted, not forgotten):
 | src/core/vault         | 37      | 36      |
 | src/core/voice         | 3       | 3       |
 | src/core/web           | 8       | 3       |
-| src/host               | 31      | 1       |
+| src/host               | 6       | 1       |
 | src/host/auth          | 8       | 0       |
-| src/host/backend       | 35      | 4       |
+| src/host/backend       | 10      | 3       |
 | src/host/bestOfN       | 1       | 0       |
 | src/host/browser       | 10      | 6       |
 | src/host/checkpoints   | 14      | 6       |

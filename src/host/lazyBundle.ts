@@ -113,9 +113,9 @@ export function lazyBundleLoader<T>(options: LazyBundleLoaderOptions<T>): () => 
     try {
       loaded = loadBundle(bundlePath)
     } catch (error: unknown) {
-      log.error(
-        `The ${label} ${bundlePath} could not be loaded: ${error instanceof Error ? error.message : String(error)}`,
-      )
+      // Fixed words only: the thrown failure keeps the cause, and this
+      // loader also serves bundles outside the backend.
+      log.error(`The ${label} ${bundlePath} could not be loaded`)
       throw new Error(unavailable(), { cause: error })
     }
     if (!isBundle(loaded)) {

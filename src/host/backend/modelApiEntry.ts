@@ -96,6 +96,7 @@ import type { MediaReplaySession } from '../../core/media/replayMedia'
 import { resolveAutoCompactModel } from '../../core/backends/modelapi/autoCompactionAdmission'
 import { requestImageCount } from '../../core/backends/modelapi/modelPolicy'
 import { Usd } from '../../shared/usd'
+import { failureForLog } from '../../core/backends/musecode/logText'
 
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText, uiLocale } from '../../shared/l10n/text'
@@ -128,8 +129,10 @@ async function loadForeignHooks(sources: HookLoadDeps): Promise<readonly HookDef
   let entry
   try {
     entry = await import('../../core/backends/modelapi/foreignHooksEntry.js')
-  } catch {
-    sources.warn('the imported hooks bundle could not be loaded; imported hooks are off')
+  } catch (error: unknown) {
+    sources.warn(
+      `the imported hooks bundle could not be loaded; imported hooks are off (${failureForLog(error)})`,
+    )
     return []
   }
   return await entry.loadForeignHookDefinitions(sources)
@@ -141,8 +144,10 @@ async function loadSparkHooks(sources: HookLoadDeps): Promise<readonly Extension
   let entry
   try {
     entry = await import('../../core/backends/modelapi/hookRuntimeEntry.js')
-  } catch {
-    sources.warn('the hook runtime bundle could not be loaded; spark-hooks.json is off')
+  } catch (error: unknown) {
+    sources.warn(
+      `the hook runtime bundle could not be loaded; spark-hooks.json is off (${failureForLog(error)})`,
+    )
     return []
   }
   return await entry.loadSparkHookDefinitions(sources)

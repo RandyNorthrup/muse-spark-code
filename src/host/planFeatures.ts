@@ -28,6 +28,7 @@ import type * as CommandsBundle from './commands/commandsEntry'
 import type { PickOne } from './commands/pickItem'
 import type { PlanFiles } from './conversation/conversationController'
 import { createFileExclusively, isNameTaken, isOwnedFile } from './fsAtomic'
+import { storeErrorCode, isStoreErrorCode } from './backend/storeErrors'
 import type { Logger } from './logger'
 
 // A save's hidden stage: `.<name>.<uuid><suffix>` (createFileExclusively).
@@ -35,13 +36,6 @@ const STAGE_NAME = new RegExp(
   String.raw`^\..+\.[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}${ATOMIC_TEMPORARY_SUFFIX.replaceAll('.', String.raw`\.`)}$`,
   'u',
 )
-const MISSING = 'ENOENT'
-
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
-}
 
 /**
  * A folder's entries by kind, a link or junction reported as neither file
@@ -52,7 +46,7 @@ async function listPlanEntries(absolutePath: string): Promise<readonly PlanDirec
   try {
     return await entriesByKind(absolutePath)
   } catch (error: unknown) {
-    if (errorCode(error) === MISSING) {
+    if (isStoreErrorCode(error, 'ENOENT')) {
       return []
     }
     throw error
@@ -91,7 +85,7 @@ export function createPlanIo(options: PlanIoOptions): PlanIo {
             warn: (_stage, isPublished, error) => {
               const when = isPublished ? 'after the plan was published' : 'after the save failed'
               log.warn(
-                `A plan's hidden stage could not be removed ${when} (${String(errorCode(error))})`,
+                `A plan's hidden stage could not be removed ${when} (${String(storeErrorCode(error))})`,
               )
             },
             ...(options.publish !== undefined && { publish: options.publish }),
@@ -134,7 +128,7 @@ export function createPlanIo(options: PlanIoOptions): PlanIo {
               removed += 1
             }
           } catch (error: unknown) {
-            log.warn(`A stale plan stage could not be removed (${String(errorCode(error))})`)
+            log.warn(`A stale plan stage could not be removed (${String(storeErrorCode(error))})`)
           }
         }
         if (removed > 0) {

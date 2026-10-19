@@ -266,8 +266,11 @@ export function createFileScheduleMigrationSource(directory: string): ScheduleMi
     let raw: unknown
     try {
       raw = JSON.parse(original)
-    } catch {
-      throw new Error('scheduleStoredJsonInvalid')
+    } catch (error: unknown) {
+      if (error instanceof SyntaxError) {
+        throw new Error('scheduleStoredJsonInvalid', { cause: error })
+      }
+      throw error
     }
     const job = scheduledPromptSchema.parse(raw)
     if (job.id !== id) throw new Error('scheduleMigrationIdentityMismatch')

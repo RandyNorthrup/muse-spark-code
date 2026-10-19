@@ -30,7 +30,7 @@
 //   rename is still replaced.
 
 import { randomUUID } from 'node:crypto'
-import { constants, type BigIntStats } from 'node:fs'
+import { constants, type BigIntStats, readFileSync } from 'node:fs'
 import { access, link, mkdir, open, readFile, realpath, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -50,7 +50,7 @@ import {
   ATOMIC_TEMPORARY_SUFFIX,
   FILE_REFUSAL_MODEL_TEXT,
 } from '../shared/constants'
-import { canonicalPath } from './canonicalPath'
+import { canonicalPath, isMissingPath } from './canonicalPath'
 import type { ConditionalWrite, StagedFile } from '../core/backends/modelapi/tools'
 
 export interface AtomicWriteOptions {
@@ -117,6 +117,18 @@ function errorCode(error: unknown): string | undefined {
     : undefined
 }
 
+/** The file's text; undefined when there is none; throws on any other failure. */
+export function readTextIfPresent(fsPath: string): string | undefined {
+  try {
+    return readFileSync(fsPath, 'utf8')
+  } catch (error: unknown) {
+    if (isMissingPath(error)) {
+      return undefined
+    }
+    throw error
+  }
+}
+
 /** A cleanup may remove only the same regular file, with exact inode IDs and captured metadata. */
 export async function isOwnedFile(
   target: string,
@@ -132,11 +144,17 @@ export async function isOwnedFile(
       (identity.size === undefined || current.size === identity.size)
     )
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isMissingPath(error)) {
       return false
     }
     throw error
   }
+}
+
+/** Whether the file system refused while another program holds the target: try again. */
+function isHeldTarget(error: unknown): boolean {
+  const code = errorCode(error)
+  return code !== undefined && RENAME_RETRY_CODES.has(code)
 }
 
 /** Renames `from` over `to`, again while Windows reports the target busy. */
@@ -155,12 +173,7 @@ export async function renameReplacing(
       await renameFile(from, to)
       return
     } catch (error: unknown) {
-      const code = errorCode(error)
-      if (
-        code === undefined ||
-        !RENAME_RETRY_CODES.has(code) ||
-        attempt >= ATOMIC_RENAME_ATTEMPTS
-      ) {
+      if (!isHeldTarget(error) || attempt >= ATOMIC_RENAME_ATTEMPTS) {
         throw error
       }
       await options.sleep(ATOMIC_RENAME_DELAY_MS * 2 ** (attempt - 1))
@@ -193,7 +206,7 @@ async function destinationOf(target: string, options: AtomicWriteOptions): Promi
   try {
     real = await (options.realPath ?? realpath)(target)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isMissingPath(error)) {
       return { path: target }
     }
     throw error
@@ -239,7 +252,7 @@ async function assertUnchanged(
   try {
     bytes = await readFile(destination)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isMissingPath(error)) {
       throw changedBeforeWrite()
     }
     throw error
@@ -318,7 +331,7 @@ export async function deleteFileIfUnchanged(
   try {
     held = await lstatIdentity(target)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isMissingPath(error)) {
       return 'changed'
     }
     throw error
@@ -435,16 +448,29 @@ async function writeAtomically(
       options.assertCanWrite?.()
     })
   } catch (error: unknown) {
-    // A retargeted directory must not make cleanup delete a different file.
-    try {
-      await assertBoundPath(temporary, temporary, options)
-      if (temporaryIdentity !== undefined && (await isOwnedFile(temporary, temporaryIdentity))) {
-        await rm(temporary, { force: true })
-      }
-    } catch {
-      // Preserve the original write failure; a moved temp may be left behind.
-    }
+    await removeTemporary(temporary, temporaryIdentity, options)
     throw error
+  }
+}
+
+/**
+ * Removes a failed write's temporary file, but only while it is still the
+ * file the write staged: a retargeted directory must not make cleanup
+ * delete a different file. A cleanup failure never hides the write's own;
+ * a moved temp may be left behind.
+ */
+async function removeTemporary(
+  temporary: string,
+  temporaryIdentity: FileIdentity | undefined,
+  options: Pick<AtomicWriteOptions, 'expectedCanonicalPath' | 'platform'>,
+): Promise<void> {
+  try {
+    await assertBoundPath(temporary, temporary, options)
+    if (temporaryIdentity !== undefined && (await isOwnedFile(temporary, temporaryIdentity))) {
+      await rm(temporary, { force: true })
+    }
+  } catch {
+    // Preserve the original write failure; a moved temp may be left behind.
   }
 }
 
@@ -478,6 +504,11 @@ export interface NewFileOptions {
 const NAME_TAKEN_ERROR = 'NameTakenError'
 // What the hard link answers when the name is taken.
 const NAME_TAKEN_CODE = 'EEXIST'
+
+/** Whether the hard link refused because the name is taken. */
+function isNameTakenCode(code: string | undefined): boolean {
+  return code === NAME_TAKEN_CODE
+}
 // What mkdir answers when a part of the folder's path is a file.
 const NOT_A_FOLDER_CODES: ReadonlySet<string> = new Set(['EEXIST', 'ENOTDIR'])
 
@@ -525,12 +556,7 @@ async function removeStage(
       await remove(stage)
       return
     } catch (error: unknown) {
-      const code = errorCode(error)
-      if (
-        code === undefined ||
-        !RENAME_RETRY_CODES.has(code) ||
-        attempt >= ATOMIC_RENAME_ATTEMPTS
-      ) {
+      if (!isHeldTarget(error) || attempt >= ATOMIC_RENAME_ATTEMPTS) {
         throw error
       }
       await sleep(ATOMIC_RENAME_DELAY_MS * 2 ** (attempt - 1))
@@ -607,7 +633,7 @@ export async function createFileExclusively(
       options.assertCanWrite?.()
       await (options.publish ?? link)(stage, absolutePath)
     } catch (error: unknown) {
-      throw errorCode(error) === NAME_TAKEN_CODE ? new NameTakenError(absolutePath, error) : error
+      throw isNameTakenCode(errorCode(error)) ? new NameTakenError(absolutePath, error) : error
     }
     isPublished = true
   } finally {
