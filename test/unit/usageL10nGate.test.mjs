@@ -13,6 +13,8 @@ const fixture = {
   check: undefined,
   sourceGate: undefined,
   locales: [],
+  packagedStage: '',
+  packagedResult: undefined,
 }
 const originalFiles = new Map()
 // Compression speed is irrelevant to the gate's decoded-value validation.
@@ -90,6 +92,10 @@ beforeAll(async () => {
   // test exercises the checker in-process instead of a second cold build.
   fixture.check = await createLocalizationCheck(fixture.root)
   fixture.sourceGate = fixture.check()
+  fixture.packagedStage = stagePackaged(path.join(fixture.root, 'packaged'))
+  // The packaged verdict over the pristine tree is one-time setup, like the
+  // source verdict above: asserting it below must not depend on wall time.
+  fixture.packagedResult = fixture.check(['--packaged', fixture.packagedStage])
 }, L10N_GATE_SETUP_TIMEOUT_MS)
 beforeEach(() => {
   // Every test gets pristine mutable files without recopying the entire source tree.
@@ -185,70 +191,95 @@ describe('both localization families', () => {
     expect(result.output).toContain('T read at module load')
   })
 
-  it.each(['complete', 'missing'])(
-    'checks packaged usage tables byte-for-byte: %s',
-    async (kind) => {
-      const stage = path.join(fixture.root, 'stage')
-      mkdirSync(stage)
-      cpSync(path.join(fixture.root, 'l10n'), path.join(stage, 'l10n'), { recursive: true })
-      for (const name of [
-        'package.json',
-        ...[
-          '',
-          'zh-cn',
-          'zh-tw',
-          'ja',
-          'ko',
-          'de',
-          'fr',
-          'es',
-          'pt-br',
-          'ru',
-          'it',
-          'tr',
-          'pl',
-          'cs',
-          'hu',
-        ].map((locale) => `package.nls${locale === '' ? '' : `.${locale}`}.json`),
-      ])
-        cpSync(path.join(fixture.root, name), path.join(stage, name))
-      const TABLE_LOCALES = fixture.locales
-      const ui = TABLE_LOCALES.map((locale) =>
-        JSON.parse(readFileSync(path.join(stage, 'l10n', `ui.${locale}.json`), 'utf8')),
-      )
-      const keys = Object.keys(ui[0])
-      writeFileSync(
-        path.join(stage, 'l10n/ui.tables.json.br'),
-        brotliCompressSync(
-          JSON.stringify({
-            version: 1,
-            keys,
-            locales: TABLE_LOCALES,
-            values: ui.map((table) => keys.map((key) => table[key])),
-          }),
-          TEST_BROTLI_OPTIONS,
-        ),
-      )
-      const usage = Object.fromEntries(
-        TABLE_LOCALES.map((locale) => [
-          locale,
-          JSON.parse(readFileSync(path.join(stage, 'l10n', `usage.${locale}.json`), 'utf8')),
-        ]),
-      )
-      const file = path.join(stage, 'l10n/usage.tables.json.br')
-      if (kind === 'missing') delete usage.de.title
-      writeFileSync(file, brotliCompressSync(JSON.stringify(usage), TEST_BROTLI_OPTIONS))
-      const result = runGate(['--packaged', stage])
-      if (kind === 'complete')
-        expect(result).toEqual({
-          code: 0,
-          output: expect.stringContaining('0 problems'),
-        })
-      else {
-        expect(result.code).toBe(1)
-        expect(result.output).toContain('packaged l10n/usage.de.json: differs from source')
-        expect(result.output).toContain('packaged l10n/usage.de.json: title: missing')
-      }
-    },
-  )
+  it('checks packaged usage tables byte-for-byte: complete', () => {
+    expect(fixture.packagedResult).toEqual({
+      code: 0,
+      output: expect.stringContaining('0 problems'),
+    })
+  })
+
+  // The missing key needs only the usage archive: every other absent stage
+  // file reports its own problem, while the usage lines below prove the
+  // packaged path surfaces this key. Staging fourteen locales twice inside
+  // the tests missed the deadline on a slow runner.
+  it('checks packaged usage tables byte-for-byte: missing', () => {
+    const dir = path.join(fixture.root, 'stage-missing')
+    rmSync(dir, { recursive: true, force: true })
+    mkdirSync(path.join(dir, 'l10n'), { recursive: true })
+    const usage = Object.fromEntries(
+      fixture.locales.map((locale) => [
+        locale,
+        JSON.parse(readFileSync(path.join(fixture.root, 'l10n', `usage.${locale}.json`), 'utf8')),
+      ]),
+    )
+    delete usage.de.title
+    writeFileSync(
+      path.join(dir, 'l10n/usage.tables.json.br'),
+      brotliCompressSync(JSON.stringify(usage), TEST_BROTLI_OPTIONS),
+    )
+    const result = runGate(['--packaged', dir])
+    expect(result.code).toBe(1)
+    expect(result.output).toContain('packaged l10n/usage.de.json: differs from source')
+    expect(result.output).toContain('packaged l10n/usage.de.json: title: missing')
+  })
 })
+
+// Staging the packaged tree (copies, parses, two brotli compressions)
+// is one-time setup: both byte-for-byte cases stage the same files and
+// differ only in the missing key, which the second case applies to its
+// own copy. The gate runs themselves stay inside the tests.
+function stagePackaged(root) {
+  const stage = path.join(root, 'stage')
+  rmSync(stage, { recursive: true, force: true })
+  mkdirSync(stage, { recursive: true })
+  cpSync(path.join(fixture.root, 'l10n'), path.join(stage, 'l10n'), { recursive: true })
+  for (const name of [
+    'package.json',
+    ...[
+      '',
+      'zh-cn',
+      'zh-tw',
+      'ja',
+      'ko',
+      'de',
+      'fr',
+      'es',
+      'pt-br',
+      'ru',
+      'it',
+      'tr',
+      'pl',
+      'cs',
+      'hu',
+    ].map((locale) => `package.nls${locale === '' ? '' : `.${locale}`}.json`),
+  ])
+    cpSync(path.join(fixture.root, name), path.join(stage, name))
+  const TABLE_LOCALES = fixture.locales
+  const ui = TABLE_LOCALES.map((locale) =>
+    JSON.parse(readFileSync(path.join(stage, 'l10n', `ui.${locale}.json`), 'utf8')),
+  )
+  const keys = Object.keys(ui[0])
+  writeFileSync(
+    path.join(stage, 'l10n/ui.tables.json.br'),
+    brotliCompressSync(
+      JSON.stringify({
+        version: 1,
+        keys,
+        locales: TABLE_LOCALES,
+        values: ui.map((table) => keys.map((key) => table[key])),
+      }),
+      TEST_BROTLI_OPTIONS,
+    ),
+  )
+  const usage = Object.fromEntries(
+    TABLE_LOCALES.map((locale) => [
+      locale,
+      JSON.parse(readFileSync(path.join(stage, 'l10n', `usage.${locale}.json`), 'utf8')),
+    ]),
+  )
+  writeFileSync(
+    path.join(stage, 'l10n/usage.tables.json.br'),
+    brotliCompressSync(JSON.stringify(usage), TEST_BROTLI_OPTIONS),
+  )
+  return stage
+}
