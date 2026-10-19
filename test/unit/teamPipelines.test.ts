@@ -77,6 +77,15 @@ function drive(
   return { run, statuses, decisions }
 }
 
+/** A clean Change run through to the orchestrator's merge hand-off. */
+function cleanHandoff(def: PipelineDefinition) {
+  return drive(def, [
+    work('implement', 'agents/engineering/t1'),
+    review('review', 'agents/engineering/t1', []),
+    check('verify', 'agents/engineering/t1', true),
+  ])
+}
+
 function memoryFs(files: Readonly<Record<string, string>>): PipelineFileSystem {
   return {
     listFiles: (dir) =>
@@ -129,12 +138,7 @@ describe('built-in pipelines', () => {
 
 describe('rounds without a bound', () => {
   it('a clean change run hands the reviewed branch to the orchestrator merge', () => {
-    const def = changePipeline()
-    const { run, statuses } = drive(def, [
-      work('implement', 'agents/engineering/t1'),
-      review('review', 'agents/engineering/t1', []),
-      check('verify', 'agents/engineering/t1', true),
-    ])
+    const { run, statuses } = cleanHandoff(changePipeline())
     expect(statuses).toEqual(['next', 'next', 'handoff'])
     expect(run.status).toBe('handoff')
   })
@@ -282,10 +286,8 @@ describe('rounds without a bound', () => {
 
   it('recording on a handed-off run throws instead of starting another round', () => {
     const def = changePipeline()
-    let run = startPipelineRun(def, 'seeded bug')
-    run = recordStepResult(def, run, work('implement', 'agents/engineering/t1')).run
-    run = recordStepResult(def, run, review('review', 'agents/engineering/t1', [])).run
-    run = recordStepResult(def, run, check('verify', 'agents/engineering/t1', true)).run
+    const { run, statuses } = cleanHandoff(def)
+    expect(statuses).toEqual(['next', 'next', 'handoff'])
     expect(run.status).toBe('handoff')
     expect(() => recordStepResult(def, run, work('implement', 'agents/engineering/t1'))).toThrow(
       PipelineTerminalError,

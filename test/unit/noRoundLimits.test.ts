@@ -8,34 +8,14 @@ import { redesignBlock } from '../../src/core/orchestration/playbook/review'
 import type { ModuleState } from '../../src/core/orchestration/playbook/modules'
 import {
   changePipeline,
-  loadPipelines,
+  PipelineTerminalError,
   recordStepResult,
   startPipelineRun,
   type PipelineDefinition,
-  type PipelineFileSystem,
 } from '../../src/core/team/pipelines'
 import { parsePlaybookCommand } from '../../src/runtime/playbook/command'
 import { defaultPlaybookSettings, playbookSettingsSchema } from '../../src/shared/playbook'
 import { teamBoardTaskSchema } from '../../src/shared/team'
-
-function memoryFs(files: Readonly<Record<string, string>>): PipelineFileSystem {
-  return {
-    listFiles: (dir) =>
-      Object.keys(files)
-        .filter((path) => path.startsWith(`${dir}/`))
-        .map((path) => path.slice(dir.length + 1)),
-    readFile: (path) => files[path],
-  }
-}
-
-function loadFiles(files: Readonly<Record<string, string>>, isTrusted = true) {
-  return loadPipelines({
-    personalDir: 'personal',
-    projectDir: 'project',
-    trusted: isTrusted,
-    fs: memoryFs(files),
-  })
-}
 
 function failingReview(stepId: string, branch: string, round: number) {
   return {
@@ -98,43 +78,6 @@ describe('no round limits: pipelines run until the change passes', () => {
     expect(run.status).toBe('running')
     expect(run.round).toBe(7)
   })
-
-  it('a definition without a round bound loads and runs', () => {
-    const def = {
-      id: 'docs-flow',
-      steps: [{ id: 'draft', role: 'docs', kind: 'work' }],
-      reviewSeverity: 'medium',
-    }
-    const { pipelines, refused } = loadFiles({
-      'personal/docs.json': JSON.stringify(def),
-    })
-    expect(refused).toEqual([])
-    expect(pipelines.some((candidate) => candidate.id === 'docs-flow')).toBe(true)
-  })
-
-  it('a file that still names a round bound is refused, naming the key', () => {
-    const { pipelines, refused } = loadFiles({
-      'personal/wide.json': JSON.stringify({
-        id: 'wide',
-        steps: [{ id: 'only', role: 'research', kind: 'work' }],
-        maxRounds: 2,
-        reviewSeverity: 'high',
-      }),
-    })
-    expect(pipelines.some((candidate) => candidate.id === 'wide')).toBe(false)
-    expect(refused).toEqual([
-      { file: 'personal/wide.json', reason: 'unknownKey', detail: 'maxRounds' },
-    ])
-  })
-
-  it('a project file that still names a round bound is refused whole', () => {
-    const { refused } = loadFiles({
-      'project/narrow.json': JSON.stringify({ id: 'change', maxRounds: 1 }),
-    })
-    expect(refused).toEqual([
-      { file: 'project/narrow.json', reason: 'unknownKey', detail: 'maxRounds' },
-    ])
-  })
 })
 
 describe('no round limits: the board counts reassignments and review rounds without a ceiling', () => {
@@ -174,8 +117,7 @@ describe('no round limits: fix rounds run until the work converges unless the pe
 })
 
 describe('no round limits: terminal runs still end', () => {
-  it('recording on a handed-off run still throws instead of starting another round', async () => {
-    const { PipelineTerminalError } = await import('../../src/core/team/pipelines')
+  it('recording on a handed-off run still throws instead of starting another round', () => {
     const def: PipelineDefinition = changePipeline()
     const branch = 'agents/engineering/t1'
     let run = startPipelineRun(def, 'seeded bug')
