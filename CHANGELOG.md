@@ -1428,6 +1428,24 @@ happened, not what was planned; superseded entries are kept.
 - Screen recordings run until stopped by default: `museSpark.screenRecordingMaxSeconds`
   defaults to `0` instead of 120; a set value stays within 10–600, and the recorder keeps
   what it captured.
+- Team review rounds run until the change is clean: `TEAM_REVIEW_ROUNDS_MAX` (3) is
+  removed, so a failing review loops back for another round instead of diverting to
+  redesign; the round count stays on the record.
+- Team pipelines run until the change passes: `PIPELINE_MAX_ROUNDS` (3) is removed,
+  so a failing round repeats with its round, findings and recurring findings instead of
+  stopping at redesign; files that still name `maxRounds` are refused naming the key.
+- Stalled team tasks reassign until the work converges: `TEAM_MAX_REASSIGNMENTS` (2)
+  is removed, so stall recovery keeps reassigning unless the stall policy says ask or
+  stop; the reassignment count stays on the task for the panel.
+- Team fix rounds run until the work converges: `PLAYBOOK_PATCH_ROUNDS_MAX` (2) is
+  removed, so `patchRoundsMax` defaults to `0` (unlimited) and takes any non-negative
+  number; a set number still requires a design decision and a redesign lane past it.
+- Refused task writes never pause the turn on their own: `HOOK_MAX_TASK_REFUSALS` (8)
+  is removed, so a refusal still answers with its error words and the work continues
+  until it converges or you stop it.
+- Idle teammates keep working as long as the hooks ask: `TEAMMATE_MAX_IDLE_KEEPS` (8)
+  is removed, so every keep still emits its notice and only the grant, the hook verdict
+  or Stop ends the keeps.
 - JSON headless runs report request starts, token totals and cost on stderr while stdout remains one JSON result.
 - Headless Model API runs accept `--max-output-tokens <n>` as an optional
   lowering limit: absent is the model's policy cap, present never exceeds it

@@ -260,3 +260,204 @@ No other default of the same kind was found: every remaining Max/Limit/Cap/
 Timeout/Deadline/Seconds/Budget either comes from a provider's published
 limit, is set by the person (or null/unset by default), validates a person's
 own value, or guards protocol/memory/loop liveness as listed above.
+
+---
+
+# Lane NOLIMITSTEAM — team, playbook, pipeline and hook round limits
+
+Branch `fix/0190-nolimitsteam`. The lead's brief decides the six limits below
+go, plus any other `TEAM_*` / `RUNNER_*` / `PLAYBOOK_*` constant that stops or
+trims work a person asked for. Design, here as in NOLIMITSALL: a number no
+provider publishes is ours and goes; rounds continue until the work converges
+or the person stops it; removing a stop never leaves a silent hang — every
+continued round names its round and why it runs, and Stop still ends it.
+Journal and state paging that never stops work stays, named below with why.
+No PLAN.md lines are added by this lane, per the D121 record rule quoted at
+the top of that decision's list.
+
+## The six removals (what replaced each)
+
+- `TEAM_REVIEW_ROUNDS_MAX` (3) — removed from `src/shared/constants.ts`. The
+  scheduler review flow (`src/core/team/scheduler/reviewFlow.ts`) repeats a
+  failing review until it is clean instead of diverting to `redesign` at the
+  third round; the round count stays on the task's `reviewRounds` (the schema
+  bound in `src/shared/team.ts` goes with it) so the panel keeps showing the
+  round. The `redesign` outcome and the orchestrator's `redesign`
+  implementation stay as the person-dispatched redesign seam — only the
+  count trigger goes. The model text (`TEAM_MODEL_TEXT.integration`) now says
+  rounds continue until the change passes or the person stops the work, with
+  each failing round reporting its findings and the ones that came back.
+- `PIPELINE_MAX_ROUNDS` (3) — removed from `src/core/team/pipelines.ts`
+  (where it lived as a local bound). `recordStepResult` repeats a failing
+  round with its round, its findings and its recurring findings instead of
+  stopping at `redesign`; the run stays `running` until `handoff`. The
+  `maxRounds` key is gone from definitions, the narrowing schema and both key
+  sets: files that still name it are refused with `unknownKey` naming
+  `maxRounds`, never silently accepted. The removed total ceiling
+  (`pipelineCeiling`) goes with it; per-step approval data stays.
+- `TEAM_MAX_REASSIGNMENTS` (2) — removed from `src/shared/constants.ts`.
+  Stall recovery (`src/core/team/scheduler/stalls.ts`) reassigns until the
+  work converges unless the stall policy says `ask` or `stop`; the board
+  (`src/core/team/scheduler/board.ts`) opens the next attempt the same way.
+  The `thirdStall` block reason goes with the bound; `reassignments` keeps
+  counting on the task for the panel. `diverging` still blocks on detection
+  (runaway protection, visible with its reason).
+- `PLAYBOOK_PATCH_ROUNDS_MAX` (2) — removed from `src/shared/constants.ts`.
+  `patchRoundsMax` stays as the person's own setting with a new default of
+  `0` (unlimited) and no ceiling of ours (`z.gte(0)` in both
+  `src/shared/playbook.ts` and `src/runtime/playbook/command.ts`). A set
+  number still forces the design decision and the redesign lane past it
+  (`isPatchRoundsExceeded`, read by the policy's three strike sites). The
+  panel takes the number directly and reports a bad value in words (the
+  previously unread `playbookPatchRoundsInvalid` now reads on a failed
+  parse); the CLI/ACP grammar takes `0`; the `orchestrator-playbook` skill
+  teaches the new rule; English plus all fourteen locales updated.
+- `HOOK_MAX_TASK_REFUSALS` (8) — removed from `src/shared/constants.ts`. A
+  refused task write in `ModelApiHost` still answers with its error words to
+  the model and the person; the warn line naming the removed limit and the
+  commit-time `HookStoppedError` go with the bound, so refusals never end the
+  turn on their own.
+- `TEAMMATE_MAX_IDLE_KEEPS` (8) — removed from `src/shared/constants.ts`. A
+  hook may keep an idle teammate working for as many rounds as the work
+  needs; every keep still emits its `hookTeammateKept` notice, and the grant,
+  the hook verdict, the remaining attempts and Stop still end the keeps. The
+  keep counter goes with the bound.
+
+## Proof
+
+`test/unit/noRoundLimits.test.ts` (new) drives the real code with plain data:
+pipelines repeat past the old stop with round, findings and recurring
+findings; the board schema parses past the old ceilings; fresh playbook
+settings default to unlimited and take `0` and `50`; `redesignBlock` with no
+number set leaves a fifth strike alone while a set `2` still forces the
+redesign path; the CLI/ACP grammar takes `0`; a handed-off run still refuses
+further records. Break-once drill: 9 of the 11 failed on the unmodified code
+(the person-set and terminal-run cases passed throughout, as kept behavior
+should). Three file-loading cases then moved to `teamPipelines.test.ts`,
+where the same behavior is covered durably, leaving 8 focused cases here —
+all green after, with the repository's own timeout and no `--testTimeout`. The two host removals have no unit test: driving
+`ModelApiHost` needs stand-ins for the host, hook and model seams, which the
+no-fakes rule forbids — the proof there is the removal at the cause (above),
+the related suites below, and real use of the packed product. The obsolete
+`museCodeLatest` bound echo and the `teamSchedulerSchemas` / `teamPipelines`
+ceiling assertions were updated to the new contract, with the reason in each
+commit.
+
+## Round-and-why display (orchestrator, panel, terminal)
+
+- Orchestrator data: pipeline `repeat` decisions carry `round`, `findings`
+  and `recurring`; review rounds are recorded per round through the review
+  dependencies; stall handoffs carry the reason and the shortened history;
+  playbook allow/refuse notes carry the round.
+- Panel: the strike badge counts review rounds, the traffic details keep the
+  `Review Rounds After the First` and `Reassignments` metrics, and the
+  playbook settings page states the `0` = unlimited rule with its reason.
+- Terminal: `playbook status|record|settings` renders rounds, notes and
+  settings; every hook keep and every refused task write prints its own
+  words; pipeline narrowing/definition refusals name `maxRounds`.
+
+## Other TEAM_* / RUNNER_* / PLAYBOOK_* triage (this lane)
+
+Removed above: the six. Everything else stays, for these reasons:
+
+- Journal paging that protects evidence: `PLAYBOOK_RECORD_MAX` (5000) —
+  `retainRecords` evicts oldest informational notes first and stops only when
+  mandatory safety evidence alone fills the bound, instead of silently
+  resetting it.
+- State shape and persisted-schema bounds: `TEAM_SCHED_HISTORY_MAX` (256
+  attempts/events/leases), `TEAM_BOARD_MAX` (64 live tasks, visible
+  `boardFull` refusal), `TEAM_WRITE_SET_MAX` (256), `task_ids`/`depends_on`
+  lengths, `TEAM_SCHED_ID/TEXT_MAX_CHARS`, `TEAM_ROLE_*` shape bounds,
+  `RUNNER_CONFIG_MAX`/`RUNNER_LABELS_MAX` (32), `RUNNER_MAX_JOBS` (64, runner
+  health shape), `TEAM_ROLE_DELEGATES_MAX` (8), `PLAYBOOK_DRIFT_NAMES_MAX`
+  (5, display trim), `TEAM_MERGE_DETAILS_SHOWN` (10, display),
+  `*_MAX_CHARS`/`*_MAX_BYTES` wire and memory shapes.
+- Context packing that never refuses work: `TEAM_HANDOFF_TOOL_CALLS` (20,
+  last calls), `TEAM_SCHED_TEXT_MAX_CHARS` (8000, handoff slices),
+  `TEAM_MERGE_BATCH_MAX` (4, merge batching).
+- Loop and retry protection where the failure stays visible:
+  `TEAM_DIVERGE_REPEATS` (3, identical-rewrite detection;
+  `TEAM_DIVERGE_SIZE_FACTOR` classifies, the block names `diverging`),
+  `TEAM_MERGE_FLAKE_RETRIES` (1, then failures return for rework),
+  `CHECK_FIX_MAX_ROUNDS` (out of this lane's name scope; verify-loop bound
+  with its own notice).
+- Detection timing, not caps: `TEAM_STALL_MS`, `TEAM_STALL_RATE_LIMIT_MS`,
+  `TEAM_AGING/STARVATION/SCHED_TICK/RETIRE_WAIT/START_STAGGER/DIFF_POLL_MS`,
+  `TEAM_HEAVY_COMMAND_SECONDS` (routing threshold),
+  `RUNNER_CONNECT/HEALTH/SELFTEST_TIMEOUT_MS`, `RUNNER_WINDOWS_COMMAND_MAX_CHARS`
+  and `RUNNER_PORT_MAX` (OS facts), `TEAM_TREE_TYPEAHEAD_MS`,
+  `TEAM_UNMERGED_NOTICE_DAYS`.
+- Estimates, weights and capability floors, not caps: `TEAM_PRIORITY_WEIGHTS`,
+  `TEAM_SIZE_MINUTES`/`TEAM_SIZE_TOKEN_FACTORS`, `TEAM_BLAST_WEIGHTS`,
+  `TEAM_ROLE_MIN/RECOMMENDED_CONTEXT_TOKENS`, `TEAM_MODEL_TEXT` guidance.
+- Safety windows and vocab: `PLAYBOOK_LAUNDER_WINDOW_MS` (one hour),
+  `PLAYBOOK_*` similarity/fingerprint/hash constants, hook names, finding
+  classes, rule ids, resolutions, record folder, bundle file.
+
+## Pre-existing failures (not this lane, measured same as NOLIMITSALL)
+
+- Unit typecheck: 19 errors, file-for-file the set NOLIMITSALL recorded on
+  the untouched tree (estimate*, modelApiPacing, teamConstants,
+  vendorMediaCodecs, runtimePullRequestProcessBirth); host, webview and
+  integration typechecks green; e2e shows the same shared-helper error.
+  None in a file this lane touched.
+- `teamConstants` runtime: `TEAM_META_CONTRIBUTOR_RPM` is 150 in the source
+  but the test expects 100 — proven present at the lane base (`git show
+341a9424d3` on both files), so provider drift with a stale test, not this
+  lane. The file's typecheck error (`TEAM_MUSE_CODE_HOST_CEILING`) is the
+  same pre-existing drift. Left for the lead; 37 of the file's 38 tests pass.
+- `npm run check:catches`: fails on media/record and CompanionMedia
+  SWALLOW/GENERIC sites last touched by NOLIMITSALL's own media commit
+  (`868acba8cd`, in this lane's base); none of this lane's commits touches
+  those files. Left for its owner — regenerating the baseline here would
+  mask another lane's drift.
+- `npm run check:plan`: stops — PLAN.md is over 85% of the plan reader's
+  bound with zero lines added by this lane. Not worked around.
+- `npm run build` (and `build:dev`): stops at the What's New bound (328199
+  bytes over a 76800 bound; the six CHANGELOG lines add ~1.6 KB to a file
+  already 4x over); bundle-size, bundle-split and later build steps
+  therefore did not run in this lane. Not worked around.
+- `npm run duplication` (jscpd, threshold 0): red on the untouched base (13
+  clones, vault and helper files) and red with the byte-identical clone
+  list on this lane — this lane adds none (two added clones were removed
+  before finishing). Measured by archiving the base tree and diffing the
+  clone reports.
+
+## Final gate states (this lane)
+
+- `npm run format:check`: green. Repo eslint on every file this lane
+  touched: zero warnings (`--max-warnings=0`).
+- `npm run check:l10n`: 0 problems. `npm run check:reference`: current.
+  `npm run check:host-api`: 0 problems. `npm run cycles`: no cycles.
+  `npm run deadcode` (knip): exit 0.
+- Touched suites, repository's own timeout, no `--testTimeout`, at most 3
+  files per run: noRoundLimits, teamPipelines, teamSchedulerSchemas (58);
+  museCodeLatest, teamConstants, trafficMetrics (88, 1 pre-existing RPM
+  failure above); teamProtocolLoading, teamReviewGate, reviewFindings (34);
+  playbookSurface, collect.playbook, reportPlaybookSchedules (34);
+  playbookSchedulesInputs, playbookReportSource, runtimeCatchHandlers (74);
+  modelApiLoopContracts, modelApiCaptures, invariants (52);
+  toolRoundsWrapUpGuard, questionManifest, manifest (46). 386 run, 385
+  green; the single failure is the pre-existing drift above.
+- SAST (`security:sast` in the sandbox): 0 findings. `security:audit`:
+  exit 0 (2 advisories covered by `.github/audit-exceptions.json`).
+- Real use: the repo packager is stopped by the pre-existing What's New
+  bound above, so no `dist/` bundle exists to run. Instead the real
+  journal-backed playbook surface (the same factories the `playbook` CLI
+  calls: `parsePlaybookCommand` → `runPlaybookCli` → file journal → text
+  renderer, bundled with the repo's own esbuild) was driven in a scratch
+  workspace with an isolated `XDG_DATA_HOME` — no backend, no model, no
+  spend. Person's steps and what they see:
+  - `playbook status` in a fresh workspace: `Fix Rounds Before Redesign: 0`
+    under the renamed `Redesign After Fix Rounds (threeStrikes): On`, exit 0.
+  - `playbook settings patchRoundsMax 5`: saved, settings show `5`, exit 0.
+  - `playbook settings patchRoundsMax 9`: saved, settings show `9`, exit 0 —
+    the old code refused anything over 2.
+  - `playbook settings patchRoundsMax 0`: saved, settings show `0`, exit 0.
+  - `playbook settings patchRoundsMax -1`: usage text on stderr, exit 2.
+  - `playbook record`: renders the journaled settings changes with the new
+    words, exit 0.
+  - The panel's number input and the staged pipeline/review/stall/host
+    paths have no runner in this sandbox (no `dist/`, no browser, and the
+    host paths need a model): proven by the unit tests above, panel review
+    by the lead. The scratch bundle and data were removed afterwards.
