@@ -14539,9 +14539,15 @@ running mode instead. A refused command releases its effect without
 forgetting the mode, so later turns and mode changes are judged on their
 own. The Modes menu (panel composer) and the editor (ACP) show the running
 mode (`composerModeForApprovalMode`) with the error's own sentence; when no
-menu mode selects it, the panel refuses the send in flight instead. A torn
-change says the previous mode is back but unconfirmed; an unknown running
-mode says so. So Manual is never left running with the judge and the menu
+menu mode selects it, the panel refuses the send in flight instead (lane
+PR251FIX4, 2026-10-20, after Grok's third re-review GRV251E: a torn forward
+change says the named mode runs without its reviewer installed; a torn
+rollback says the previous mode is restored with its reviewer still
+installed, with turns refused until the mode is set again; a refused
+schedule restore quarantines too, naming the mode the host still runs; a
+quarantine keeps its sentence, which the next refused turn repeats). An
+unknown running mode says so. So Manual is never left running with the judge
+and the menu
 always agrees with the host; a finished schedule puts its mode and reviewer
 back as one unit, and when the reviewer cannot be put back the session
 refuses new turns while the restore gate resolves. The mode-sync
