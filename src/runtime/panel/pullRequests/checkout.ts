@@ -402,14 +402,7 @@ function runGitListing(
   args: readonly string[],
   cwd: string,
 ): Promise<string[]> {
-  gate()
-  const child = git.processes.start(git.gitPath, args, {
-    cwd,
-    env: checkoutChildEnvironment(git.platform, git.quietEnv, cwd),
-    signal: git.signal,
-    timeout: GIT_WORKTREE_TIMEOUT_MS,
-    detached: git.platform !== 'win32',
-  })
+  const child = startGitBatch(git, gate, args, cwd)
   return new Promise<string[]>((resolve, reject) => {
     const listing = new ListingRecords()
     const records: string[] = []

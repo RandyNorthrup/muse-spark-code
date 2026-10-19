@@ -29,6 +29,7 @@ import { MuseCodeHost, type MuseSession } from '../../src/core/backends/musecode
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { stderrLogger } from '../../src/runtime/stderrLog'
+import { captureFrameRow } from './helpers/wireCapture'
 
 const captureSchema = z.object({
   provenance: z.object({
@@ -39,25 +40,7 @@ const captureSchema = z.object({
     requestAttempts: z.number(),
     captureCommand: z.string(),
   }),
-  frames: z.array(
-    z.object({
-      direction: z.enum(['sent', 'received']),
-      frame: z.object({
-        jsonrpc: z.literal('2.0'),
-        id: z.number().optional(),
-        method: z.string().optional(),
-        params: z.record(z.string(), z.unknown()).optional(),
-        result: z.record(z.string(), z.unknown()).optional(),
-        error: z
-          .object({
-            code: z.number(),
-            message: z.string(),
-            data: z.record(z.string(), z.unknown()),
-          })
-          .optional(),
-      }),
-    }),
-  ),
+  frames: z.array(captureFrameRow),
 })
 type Capture = z.infer<typeof captureSchema>
 type WireFrame = Capture['frames'][number]['frame']

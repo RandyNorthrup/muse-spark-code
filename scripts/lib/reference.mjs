@@ -1,6 +1,6 @@
 import { brotliCompressSync } from 'node:zlib'
 // HELPREF: code/manifest-derived reference and freshness gate. No model calls.
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import LZString from 'lz-string'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
@@ -219,6 +219,13 @@ const platformProbe = (platform, remoteName) => ({
   linuxModelPath: '/reference/model.bin',
   pathVariable: '/reference/bin',
   fileExists: () => true,
+  // Unresolvable probe paths compare lexically (the guard's own fallback),
+  // as the probe did before the workspace comparison needed a resolver.
+  realpath: realpathSync,
+  // A workspace the probe's own PATH never sits inside, so the lookup
+  // excludes nothing: the availability answer stays what it was before
+  // the workspace comparison existed.
+  workspaceRoot: '/reference/workspace',
 })
 
 export function referenceFacts(source) {
