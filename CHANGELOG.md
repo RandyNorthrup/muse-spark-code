@@ -1372,8 +1372,9 @@ happened, not what was planned; superseded entries are kept.
   budget is not known yet while Tab state has not arrived instead of showing
   `$1.00`.
 - Headless `exec` has no default request limit: without `--max-requests` a
-  Model API run is not stopped after 30 requests. A set value caps the run
-  at 1–500 requests.
+  Model API run is not stopped after 30 requests. A set value is any
+  positive safe integer — no provider publishes a request-count maximum,
+  so the product sets none; 0 and negatives are refused as not a count.
 
 - A Model API turn no longer stops itself after 50 tool rounds. No provider
   publishes a round count, so the product sets none: a turn runs until the
@@ -3166,13 +3167,17 @@ happened, not what was planned; superseded entries are kept.
 
 - The GitHub Action no longer caps a run at 30 requests unless the person
   asks: with no `max-requests` input the Action sets no request limit, and a
-  set value still allows 1–500 billable HTTP attempts, retries included.
+  set value allows any positive number of billable HTTP attempts, retries
+  included.
 
 - Headless `--max-budget-usd` no longer stops at 20 USD: a person's amount is
   honored as given (validated only as a positive number), in `exec`, `serve`,
   the run ledger, the protocol schemas, the generated reference and the
   Action's input and result validation. The 20 USD ceiling was ours, not a
   provider's.
+- The published headless v2 event/result schemas state no request-count
+  maximum for a set `maxRequests`: any positive safe integer is accepted, 0
+  and negatives refused. The 500 maximum was ours, not a provider's.
 - A team task waiting for a busy exclusive resource (for example browser
   control) could wait forever instead of being told the resource is busy:
   its wait timer could fire a moment before the deadline and was never

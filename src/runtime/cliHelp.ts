@@ -15,7 +15,6 @@ import {
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
   EXEC_DEFAULT_TIMEOUT_SECONDS,
-  EXEC_MAX_REQUESTS,
   EXEC_MAX_TIMEOUT_SECONDS,
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MODES,
@@ -118,11 +117,12 @@ function factFor(name: string): CliOptionFact | undefined {
       return { kind: 'enum', values: [...EFFORT_LEVELS, THINKING_OFF_EFFORT] }
     }
     case 'max-requests': {
-      // No default of ours: unset, a run has no request limit.
+      // No default of ours: unset, a run has no request limit. No maximum
+      // of ours either: a set value is any positive safe integer.
       return {
         kind: 'range',
         min: 1,
-        max: EXEC_MAX_REQUESTS,
+        max: Number.MAX_SAFE_INTEGER,
       }
     }
     case 'timeout': {

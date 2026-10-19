@@ -22,7 +22,6 @@ const SHA256_HEX = /^[0-9a-f]{64}$/
 const MODEL = /^[A-Za-z0-9._-]{1,100}$/
 const EFFORTS = new Set(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
 const USD_UNITS = 1_000_000n
-const MAX_REQUESTS = 500
 const MAX_TIMEOUT_MINUTES = 360
 const DEFAULT_TIMEOUT_MINUTES = 20
 const TRIGGER_MAX_CHARS = 100
@@ -236,6 +235,18 @@ function boundedInteger(env, name, fallback, min, max) {
   return parsed
 }
 
+/** A person's request count: any positive safe integer; no provider publishes a maximum. */
+function positiveCount(env, name, fallback) {
+  const value = env[name] ?? ''
+  if (value === '') return fallback
+  if (!INTEGER.test(value)) throw new InputError(`${name} must be an integer`)
+  const parsed = Number(value)
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    throw new InputError(`${name} must be a positive integer`)
+  }
+  return parsed
+}
+
 /** The budget's exact decimal string: [0-9]+(.[0-9]{1,6})?, more than 0 (lead ruling F1). */
 export function budgetString(value) {
   if (typeof value !== 'string' || !DECIMAL_BUDGET.test(value)) {
@@ -298,8 +309,8 @@ export function parseActionInputs(env) {
     maxBudgetUsd: budgetString(env.MUSE_INPUT_MAX_BUDGET_USD),
     imageGeneration: exactBoolean(env, 'MUSE_INPUT_IMAGE_GENERATION', false),
     // No default: an empty max-requests input sets no request limit (null).
-    // A set value stays within 1–MAX_REQUESTS, like the CLI's --max-requests.
-    maxRequests: boundedInteger(env, 'MUSE_INPUT_MAX_REQUESTS', null, 1, MAX_REQUESTS),
+    // A set value is any positive safe integer, like the CLI's --max-requests.
+    maxRequests: positiveCount(env, 'MUSE_INPUT_MAX_REQUESTS', null),
     timeoutMinutes: boundedInteger(
       env,
       'MUSE_INPUT_TIMEOUT_MINUTES',

@@ -12,7 +12,6 @@ import {
   EXEC_PROTOCOL_VERSION,
   EXEC_RAW_TOOL_FIELDS,
   EXEC_USD_DECIMALS,
-  EXEC_MAX_REQUESTS,
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MAX_TIMEOUT_SECONDS,
   RESOURCE_EXEC_EVENT_VERSION,
@@ -333,7 +332,7 @@ const lastResponseSchema = z
   )
 const limitsSchema = z.strictObject({
   budgetUsd: z.nullable(capAmount),
-  maxRequests: z.nullable(counter.check(z.gte(1), z.lte(EXEC_MAX_REQUESTS))),
+  maxRequests: z.nullable(counter.check(z.gte(1))),
   timeoutSeconds: counter.check(z.gte(EXEC_MIN_TIMEOUT_SECONDS), z.lte(EXEC_MAX_TIMEOUT_SECONDS)),
 })
 const ledgerSchema = z.strictObject({

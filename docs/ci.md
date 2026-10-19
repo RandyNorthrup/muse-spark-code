@@ -49,7 +49,7 @@ muse-spark-code-acp scan-secrets fix.patch
 | --allow-contributor-models          | off                    | Explicit permission to select a contributor model; docs name training eligibility (`apidocs/pricing-rate-limits.md:21–29`).                                                |
 | --output text\|json\|jsonl          | text                   | Exact enum.                                                                                                                                                                |
 | --max-budget-usd <usd>              | required for Model API | Finite positive USD decimal (grammar below, no upper bound); must cover the model minimum below before billable dispatch. Refuse on Muse Code.                             |
-| --max-requests <n>                  | none (no limit)        | Integer 1–500 when set; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code.                                                |
+| --max-requests <n>                  | none (no limit)        | Any positive safe integer when set; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code.                                    |
 | --timeout <seconds>                 | 1800                   | Integer 10–21,600; deadline counts from process start.                                                                                                                     |
 | --image-generation                  | off                    | Model API plus acceptEdits plus budget.                                                                                                                                    |
 | --auto-compaction                   | off                    | Model API plus budget; the summary request is admitted against the run cap like any request and shown in its usage. Without the flag the context-full stop names the flag. |
@@ -59,6 +59,7 @@ muse-spark-code-acp scan-secrets fix.patch
 | --key-stdin                         | off                    | Model API only; non-TTY stdin.                                                                                                                                             |
 | --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                                                                            |
 | --account <id>                      | default                | Pin one run to one account; refused with --key-stdin in CI.                                                                                                                |
+| --verbose                           | off                    | Trace on redacted stderr.                                                                                                                                                  |
 
 Budget grammar is unsigned ASCII decimal `[0-9]+(?:\.[0-9]{1,6})?`,
 1 micro-USD or more, with no ceiling of ours (D121). Signs, exponents, whitespace, non-ASCII digits
@@ -326,7 +327,7 @@ Main Action is `action/`; apply sub-action is `action/apply/`. Frozen contract:
 | max-budget-usd                          | required            | Same CLI budget grammar above (positive, no upper bound); includes text and images.                                |
 | mode                                    | review              | review→plan, fix→acceptEdits.                                                                                      |
 | image-generation                        | false               | Exact boolean; true only in fix.                                                                                   |
-| max-requests                            | empty (no limit)    | Empty sets no request limit; a set value follows the CLI request-count bounds above (1–500).                       |
+| max-requests                            | empty (no limit)    | Empty sets no request limit; a set value follows the CLI request-count rule above (any positive safe integer).     |
 | timeout-minutes                         | 20                  | Integer; converted into allowed exec seconds.                                                                      |
 | model, effort, allow-contributor-models | empty, empty, false | Selected model validation; contributor explicitly opted in.                                                        |
 | max-diff-bytes                          | 262144              | Integer 1–1,048,576; truncation reported.                                                                          |
