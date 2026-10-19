@@ -3962,8 +3962,8 @@ What asks, and when:
   are read from their checked canonical workspace targets, even if a link
   changes after the check. An image written to a protected path (D24) asks
   even when images are allowed always.
-- **Muse Voice**: once before the first recording in a window. **Allow once**
-  covers that window; **Always** covers the workspace until revoked through
+- **Muse Voice**: before each recording. **Allow once** covers one
+  recording; **Always** covers the workspace until revoked through
   Account & usage. The popup names the hourly price and shared daily budget.
 - **Subagents**: before every new child task, with its objective, model,
   published rates and four-request ceiling; Plan refuses it. Retries count;
