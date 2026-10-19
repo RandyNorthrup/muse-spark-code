@@ -4481,8 +4481,9 @@ characters, or any result past a quarter of the model's remaining window, so
 one oversized result can never fill the window and end the conversation. A
 cut keeps the full text under `.muse-spark/tool-results/` (git-ignored) for
 paging and says what was cut and how to read more, to the model and on the
-row. The byte guard is `museSpark.modelApiMaxToolOutputBytes` (64,000 by
-default, machine-scoped; values below 1,024 bytes or past the model's window
+row. The byte guard is `museSpark.modelApiMaxToolOutputBytes` (no limit
+unless you set one — 0, the default, keeps results whole within the model's
+window; machine-scoped; values below 1,024 bytes or past the model's window
 are refused with the reason); `exec --max-tool-output-bytes` raises it for
 one headless run.
 
