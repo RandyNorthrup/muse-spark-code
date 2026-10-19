@@ -101,3 +101,16 @@ the queue and controller changes: 13 files, 155 passed, 0 failed.
 ## Verdict
 
 First-open startup PASS, quiet and loaded. Zero model calls.
+
+## Carried onto the joined release tree (linuxlt, 2026-10-18)
+
+The fix was cherry-picked onto the joined release (`8fb477883f`) as
+`d93d6d4c3c` (conflicts in CHANGELOG.md and `src/extension.ts` resolved by
+keeping this tree's code: the warm-up now hooks this tree's `loadAuth`
+broadcast and the entry sits in this tree's `[0.19.0]` section) with this
+record as `4b79d8ca29`. Re-ran here with the repository's own timeout:
+`test/unit/museServeAdmission.test.ts` 2/2 (shown failing first with the
+queue hunk reverted: `expected 'waited' to be 'permit'`), and `vitest
+related` over the queue and controller changes: 357 passed, 8 failed —
+the same 8 fail on the untouched base (measured in a base worktree), so
+unrelated to this fix.
