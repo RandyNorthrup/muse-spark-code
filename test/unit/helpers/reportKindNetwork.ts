@@ -51,11 +51,9 @@ export interface TransportCall {
   readonly etag: string | null
 }
 
-/**
- * A transport over plain closures: every call is logged, and the case
- * replaces the implementation by assignment. The reader, cache and sources
- * under test stay the real modules; only the seam inputs come from here.
- */
+// A transport over plain closures: every call is logged, and the case
+// replaces the implementation by assignment. The reader, cache and sources
+// under test stay the real modules; only the seam inputs come from here.
 export interface TransportRecorder {
   readonly transport: ReportNetworkTransport
   readonly calls: readonly TransportCall[]
@@ -169,12 +167,10 @@ export function githubEmptyReads(request: { readonly url: string }): Promise<Res
     : undefined
 }
 
-/**
- * A GitHub capture transport: empty pulls/checks, the given bodies for
- * tags, releases and release-workflow runs, then the caller's fallback.
- * Cases differ only in which bodies they serve and what an unexpected
- * request means, so those stay parameters instead of repeated branches.
- */
+// A GitHub capture transport: empty pulls/checks, the given bodies for
+// tags, releases and release-workflow runs, then the caller's fallback.
+// Cases differ only in which bodies they serve and what an unexpected
+// request means, so those stay parameters instead of repeated branches.
 export function githubCaptureTransport(input: {
   readonly tags?: unknown
   readonly releases?: unknown
@@ -196,11 +192,9 @@ export function githubCaptureTransport(input: {
   return recordingTransport((request) => githubEmptyReads(request) ?? routes(request))
 }
 
-/**
- * One workflow/release case: the captured bodies, the repo coordinates and
- * the source options. Cases differ only in the release tag they pin, so that
- * stays a parameter instead of a repeated options literal.
- */
+// One workflow/release case: the captured bodies, the repo coordinates and
+// the source options. Cases differ only in the release tag they pin, so that
+// stays a parameter instead of a repeated options literal.
 export function githubReleaseCase(releaseTag?: string) {
   const captures = githubReleaseCaptures()
   return {
@@ -218,11 +212,9 @@ export function githubReleaseCase(releaseTag?: string) {
   }
 }
 
-/**
- * One GitHub releases read through a rig: the networkRig plus
- * source.read call every workflow/release case repeats. Cases differ only
- * in the transport they drive and the page bound they prove.
- */
+// One GitHub releases read through a rig: the networkRig plus
+// source.read call every workflow/release case repeats. Cases differ only
+// in the transport they drive and the page bound they prove.
 export function readGithubReleases(input: {
   readonly transport: ReportNetworkDeps['transport']
   readonly options: Omit<ReportGitHubOptions, 'reader' | 'additional'>
@@ -240,20 +232,20 @@ export function readGithubReleases(input: {
   }).read(networkContext())
 }
 
-/**
- * The three gallery/npm channel rows every bound-surface case reads,
- * through the production binding. Cases differ only in the surface and
- * public-fetch answers they drive, which stay at the call site.
- */
+// The three gallery/npm channel rows every bound-surface case reads,
+// through the production binding. Cases differ only in the surface and
+// public-fetch answers they drive, which stay at the call site. The answers
+// are the committed 0.17.0 captures for RandyNorthrup/muse-spark-code, so
+// every channel parses current.
 export async function readBoundChannelRows(
   bound: Pick<ReturnType<typeof bindStoresNetwork>, 'stores'>,
 ) {
   const result = await bound.stores.read(networkContext())
-  expect(result.record.status).toBe('partial')
+  expect(result.record.status).toBe('ok')
   expect(result.data?.map((row) => [row.channel, row.status, row.version])).toEqual([
-    ['Marketplace', 'unavailable', null],
-    ['Open VSX', 'unavailable', null],
-    ['npm', 'lagging', '0.14.1'],
+    ['Marketplace', 'current', '0.17.0'],
+    ['Open VSX', 'current', '0.17.0'],
+    ['npm', 'current', '0.17.0'],
   ])
   return result
 }
