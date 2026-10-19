@@ -8,7 +8,7 @@
 
 import * as z from 'zod/mini'
 import { VAULT_LIMITS } from '../../../shared/constants'
-import { type VaultSecuredListenerPort } from './channel'
+import { type VaultSecuredListenerPort } from './ports'
 import { type WindowsVaultPipePort } from './peer'
 import { type VaultFileSecurityPort } from '../store'
 import { type VaultPrivateFilesPort } from './files'

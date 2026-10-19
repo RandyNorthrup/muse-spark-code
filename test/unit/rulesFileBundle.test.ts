@@ -8,8 +8,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { isRulesFileBundle, loadRulesFileBundle } from '../../src/host/commands/rulesFileBundle'
 import * as entry from '../../src/host/commands/rulesFileEntry'
 import type { CreateRulesFileDeps } from '../../src/host/commands/createRulesFile'
+import { recordingLogger } from './helpers/recordingLogger'
 import { EN } from '../../src/shared/l10n/en'
-import { recordLogger } from './helpers/recordLogger'
 
 const folders: string[] = []
 afterEach(() => {
@@ -33,7 +33,7 @@ function deps(
 } {
   const shown: string[] = []
   const opened: string[] = []
-  const { log, logged } = recordLogger()
+  const { log, logged } = recordingLogger()
   return {
     logged,
     deps: {

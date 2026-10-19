@@ -6,7 +6,7 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import { UI_TEXT, VAULT_LIMITS, VAULT_TRANSPORT_TIMEOUT_MS } from '../../../shared/constants'
 import { vaultPrivateDirectory } from '../broker/files'
-import { type VaultSecuredListenerPort } from '../broker/channel'
+import { type VaultSecuredListenerPort } from '../broker/ports'
 
 const requestSchema = z
   .strictObject({

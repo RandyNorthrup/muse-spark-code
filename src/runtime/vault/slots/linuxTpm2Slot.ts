@@ -15,8 +15,8 @@ import {
   type VaultSlotRecord,
 } from '../../../shared/vault'
 import { spawnResourceProcess } from '../../../core/resources/launcher'
-import { slotContextSchema, type SlotContext } from './slotIdentity'
 import { wrapSlotKey } from './slotWrap'
+import { slotContextSchema, type SlotContext } from './slotEntries'
 
 // A TPM2 sealed object through `systemd-creds --user` (systemd 256 or later),
 // only where the user can open /dev/tpmrm0 (D89.2, research §2.3). The 32-byte

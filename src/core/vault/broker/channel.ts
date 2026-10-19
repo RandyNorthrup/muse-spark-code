@@ -35,6 +35,7 @@ import {
   VaultStoreUnavailableError,
   type VaultManagementPort,
   type VaultManagementRefusal,
+  type VaultSecuredListenerPort,
   type VaultUseLifetime,
   type VaultConnectionIdentity,
 } from './ports'
@@ -48,10 +49,6 @@ import {
   type VaultChannelResponse,
 } from './frames'
 export type { VaultConnectionIdentity } from './ports'
-export interface VaultSecuredListenerPort {
-  /** P creates an owner-only, remote-refusing pipe before handing over any accepted socket. */
-  listen(path: string, accepted: (socket: Duplex) => void): Promise<() => Promise<void>>
-}
 export interface VaultChannelDeps {
   listener?: VaultSecuredListenerPort
   /** T's trusted provenance, including Muse Code's sticky session taint; frame claims cannot clear it. */
