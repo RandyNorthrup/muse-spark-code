@@ -142,6 +142,24 @@ export function approvalModeFor(mode: PermissionMode, hasApprovalUi: boolean): A
   return !hasApprovalUi && PROMPTING_MODES.has(mapped) ? 'denyUnmatched' : mapped
 }
 
+/**
+ * The composer mode showing a wire approval mode the host runs (a refused
+ * mode change names it on its error's `actualMode`): the preferred UI mode
+ * when it selects that wire mode, else the first menu mode that does
+ * (`manual` before `acceptEdits`, the asking-safe one). `undefined` when no
+ * menu mode selects it (an unknown wire mode): the surface must refuse the
+ * send in flight instead of showing a mode the host is not running.
+ */
+export function composerModeForApprovalMode(
+  actualMode: string,
+  preferred: PermissionMode,
+  hasApprovalUi: boolean,
+): PermissionMode | undefined {
+  return approvalModeFor(preferred, hasApprovalUi) === actualMode
+    ? preferred
+    : PERMISSION_MODES.find((mode) => approvalModeFor(mode, hasApprovalUi) === actualMode)
+}
+
 /** The modes the Modes menu lists, in the Claude Code order. */
 export function availablePermissionModes(
   canBypass: boolean,

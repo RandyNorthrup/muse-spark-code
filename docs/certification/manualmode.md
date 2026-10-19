@@ -309,3 +309,147 @@ quarantine gates on `sendTurn`/`steer`/`admitScheduled`),
 (`permissionReviewerNotInstalled`, `permissionReviewerMissing`),
 `test/unit/sessionOwner.test.ts`, `test/unit/sessionRecords.test.ts`,
 `CHANGELOG.md`, PLAN.md D123.
+
+## 2026-10-19 — Grok's second re-review corrections (lane PR251FIX3B)
+
+GRV251D found three failure-path defects in the section above, each fixed
+at its cause below. The section above stands except where this one
+corrects it: item 1's throw is now `ModeKeptError` (not the raw profile
+refusal); item 2's "panel keeps the chosen mode" and "ACP publishes the
+requested mode" hold only when the host runs the chosen mode — a torn
+rollback shows the previous mode on both surfaces; item 4's torn sentence
+is no longer the reviewer-not-installed sentence with `scheduleBusy`
+(which was false there: the turn had ended and the restored reviewer was
+still installed).
+
+Wire facts established live in this run (pinned 1.4.7 and 1.4.4,
+`serve --provider echo`, zero model calls, 2026-10-19):
+
+- `session/setApprovalMode` with an unknown mode is refused `invalidParams`
+  (`Invalid params: session/setApprovalMode params`, 1.4.7).
+- `session/setPermissionProfile` without `experimentalApi` is refused
+  `experimentalRequired`
+  (`session/setPermissionProfile requires experimentalApi capability`, 1.4.7
+  and 1.4.4 alike) while `session/setApprovalMode` succeeds: the
+  deterministic stand-in for the refusal class, as in the previous run.
+- 1.4.4 WITH `experimentalApi` refuses the profile switch with
+  kind=`internal`
+  (`permission command submit failed: session permission transition
+execution is unavailable`); `methodNotFound` stays the answer only on
+  hosts predating the method (SDK `ErrorKind` vocabulary, tolerated by an
+  identical moved check).
+- `session/resume` serves `approvalMode` on 1.4.7 (the drill asserts
+  `record.approvalMode.mode === 'onRequest'`).
+
+1. Resume, adopt and the menu show the running mode (GRV251D-1). Every
+   `setApprovalMode` failure names the wire mode the host runs, including a
+   rollback that succeeded: a refused mode command, or a profile step the
+   rollback undoes, throws `ModeKeptError` with the running mode and turns
+   stay live. `resumeAfterRestart` and `adopt` move the composer onto that
+   mode (`composerModeForApprovalMode`) with the error's own sentence; when
+   no menu mode selects it, the send already in flight is refused (the
+   invalidation epoch is bumped) instead of showing a mode the host is not
+   running. Drill D2 (start `onRequest`, resume, switch to
+   `promptUnmatched` with the profile refused): failed before the fix (the
+   raw refusal named nothing); after, it throws `ModeKeptError` with
+   `actualMode === 'onRequest'` and the turn sends on the restored mode.
+2. Both surfaces show `actualMode` (GRV251D-2). The Modes menu and ACP
+   `setMode` (plus ACP `matchAdvertised`/`restoreChoice`, which had no
+   failure mapping) publish the mapped running mode, not the requested one:
+   a torn rollback shows the previous mode. The torn sentence is its own
+   (`permissionReviewerTorn`: the running mode is unconfirmed, new turns
+   refused until the mode is set again) — the old reviewer-not-installed
+   sentence with `scheduleBusy` was false on that path. The drill's D1/D3
+   assertions on `actualMode` cover the propagation; a bounded turn-cancel
+   race probe hit a forward tear once (attempt 2 of 40: `actualMode`
+   `onRequest`, the torn sentence, the next send refused with the
+   reviewer-missing sentence), proving the path end to end.
+3. Quarantine only on known disagreement (GRV251D-3). A thrown
+   `session/setApprovalMode` that did not change the host releases its
+   effect but keeps the seeded mode (`modeApplied(effect, false)` no longer
+   forgets or quarantines) and never uses the reviewer sentence. Drill D1
+   (bogus mode on a seeded session): failed before the fix (forgotten mode,
+   quarantined, turn refused with the reviewer sentence); after, it throws
+   `ModeKeptError` with `actualMode === 'onRequest'` and the turn sends.
+   Drill D3 (1.4.4, profile step fails with kind=`internal`): throws
+   `ModeKeptError` with `actualMode === 'onRequest'`, turns live.
+
+Activation (owner's budget, never raised): the mode-sync orchestration
+(`runSetApprovalMode`, profile sync, schedule restore, torn builder) moved
+from `MuseCodeHost`'s static methods into the deferred bundle
+`dist/approvalModes.js`
+(`src/core/backends/musecode/approvalModesEntry.ts`, loaded on the first
+mode change, schedule admission or restore; registered in
+`scripts/build.mjs`, `scripts/lib/deferredBundles.mjs`,
+`scripts/lib/acpBundles.mjs`, `scripts/check-bundle-size.mjs` (27 KiB,
+measured 22.88 + 15% per D6), `scripts/third-party-notices.mjs`,
+`scripts/cycles.json`, `src/shared/constants.ts`
+(`REPORT_PACKAGE_FRAME_PATHS`), `.vscodeignore`,
+`test/unit/noticesInput.test.mjs`, plus the regenerated
+`src/shared/lazyBundles.generated.ts`). Activation stays identical in
+behaviour; the suites driving the moved code are the drill below and
+`sessionOwner`/`permissionModes`/`sessionRecords`.
+
+Activation numbers (`test/unit/modelsActivationBudget.test.ts`, repo
+timeout, `npx vitest run`, rig `linuxlt`):
+`main` (`main-now` 81dacaf5a7): baseline=561352 current=564253 growth=2901
+(pass). Branch before: baseline=561352 current=566559 growth=5207 (fail,
+`expected 5207 to be less than or equal to 3072`). Branch after:
+baseline=561352 current=565147 growth=3795 — still over the 3 KiB budget
+by 723 bytes. Per-module esbuild metafile attribution (same harness, both
+trees; main replicates at 564253): `MuseCodeHost.ts` +652, `sessionOwner.ts`
++148, `sessionRecords.ts` +53 (unmodified file, shaking ripple),
+`constants.ts` +22 (the `dist/approvalModes.js` frame path),
+`museCodeBackendManager.ts` +19 (unmodified file, ripple); every other
+module, including the panel, the ACP agent, `agentBackend`,
+`permissionModes` and the deferred entry itself, contributes nothing.
+Swapping main's `MuseCodeHost.ts` back in (re-verified 2026-10-19)
+measures current=564473 growth=3121 — still 49 over with the host change
+gone entirely. The required non-host behavior alone (the owner's
+release-keep contract, the packaged frame path) needs 220 of the 171 bytes
+main leaves, so even a perfect zero-byte host shell cannot pass: the
+budget is structurally short for these mandated fixes. No further honest
+cut exists without moving every-turn hot paths behind the deferred import
+or re-baselining the pre-K fixture — the lead's call; nothing was raised
+or weakened to get here.
+
+Committed tests (real code only, no stand-ins):
+`test/e2e/sessionModes.live.e2e.test.ts` (env-gated `MUSE_LIVE_SESSION_MODES=1`,
+never CI): three drills driving the real `MuseCodeHost`/`MuseSession`
+against the pinned binaries with real refusals — D1 (GRV251D-3), D2
+(GRV251D-1), D3 (kept contract on 1.4.4). D1/D2 failed on the unfixed tree
+(no `ModeKeptError`, forgotten mode, quarantined turns) and pass after.
+`test/unit/sessionOwner.test.ts` — a refused command releases without
+forgetting or quarantining (fails on main's owner). `test/unit/permissionModes.test.ts`
+— `composerModeForApprovalMode` (fails on main, which lacks it).
+`test/unit/sessionRecords.test.ts` — unchanged, still green. Suites:
+`sessionOwner` (2), `permissionModes` (17), `sessionRecords` (12) — 31
+passed with the repository's own timeout.
+
+UNVERIFIED until real use (lead drills, VS Code, Manual, Muse Code ≥
+1.4.7): the Modes menu agreeing with the host on each failure path
+(switch Manual→Auto with the profile step forced to fail, e.g. a managed
+profile exclusion; the menu must show the running mode — the previous one
+after a clean rollback, the chosen one when it quarantines — with the
+error's own sentence, and setting the mode again must recover), the ACP
+editor showing the mapped running mode on a torn rollback, and the
+standing model-driven drill above. A quarantined session's refused turn
+must arrive as the quarantine sentence in the panel, not `scheduleBusy`.
+
+Files: `src/core/backends/musecode/approvalModesEntry.ts` (new),
+`src/core/backends/musecode/MuseCodeHost.ts` (thin shells, torn return,
+`modeOps`),
+`src/core/schedules/sessionOwner.ts` (`modeApplied(false)` releases and
+keeps),
+`src/core/agent/agentBackend.ts` (`ModeKeptError`, `isModeKeptError`,
+`SessionRecord.approvalMode`, `setApprovalMode` contract),
+`src/shared/permissionModes.ts` (`composerModeForApprovalMode`),
+`src/host/conversation/conversationController.ts` (`showRunningMode`,
+three catch sites),
+`src/acp/agent.ts` (`showRunningMode`, `syncRememberedMode`, `setMode`),
+`src/shared/l10n/en.ts` + all 14 `l10n/ui.*.json`
+(`permissionReviewerTorn`, `permissionReviewerUnknown`,
+`permissionModeKept`),
+`test/e2e/sessionModes.live.e2e.test.ts` (new),
+`test/unit/sessionOwner.test.ts`, `test/unit/permissionModes.test.ts`,
+`CHANGELOG.md`, PLAN.md D123.
