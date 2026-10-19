@@ -2572,6 +2572,7 @@
   "historyDeleteConfirmDetail": "Desaparecerá del historial para siempre. Esto no se puede deshacer.",
   "historyDeleted": "Se eliminó {name}",
   "historyDeleteFailed": "No se pudo eliminar la conversación",
+  "historyDeleteCleanupFailed": "Se eliminó {name}, pero la limpieza final falló: {reason}",
   "historyCurrent": "Actual",
   "historyForkMark": "Bifurcación",
   "historyTurns": {

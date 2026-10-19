@@ -2622,6 +2622,7 @@
   "historyDeleteConfirmDetail": "Navždy zmizí z historie. Tuto akci nelze vzít zpět.",
   "historyDeleted": "Odstraněno: {name}",
   "historyDeleteFailed": "Konverzaci se nepodařilo odstranit",
+  "historyDeleteCleanupFailed": "Odstraněno: {name}, ale dokončení úklidu selhalo: {reason}",
   "historyCurrent": "Aktuální",
   "historyForkMark": "Rozvětvení",
   "historyTurns": {

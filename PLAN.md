@@ -2717,6 +2717,16 @@ source and the upstream issue (`docs/certification/sdk144.md` has the table).
   production, so nothing user-visible breaks; it must not be wired for
   1.4.4 hosts.
 
+**Amendment 2026-10-19 (PR250FIX2, lane K activation budget).** The Muse
+Code delete offer (`canDeleteMuseSession`: CLI version plus the injected
+lifecycle reader) must stay out of the activation graph: `HostInfo`
+carries `canDeleteSessions?`, a Muse Code host omits it, and the gate lives
+in `src/core/backends/musecode/museDeleteGate.ts`, which no module the
+activation bundle includes may import. A sync constructor cannot serve a
+dynamic import, so the offer moved instead of the code; the reader
+injection wires the offer when it lands. History offers Delete on Muse Code
+nowhere until then, and nothing the CLI cannot answer is ever sent.
+
 The workarounds recorded elsewhere, re-checked the same day:
 
 ### D27 — The audit: editing correctness (2026-09-23)

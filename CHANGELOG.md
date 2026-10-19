@@ -32,9 +32,17 @@ happened, not what was planned; superseded entries are kept.
 
 - History can delete a conversation for good on the Model API backend: a
   Delete action on each row asks for confirmation naming the conversation,
-  then removes it from the session store and the list. The same deletion is
-  offered to editors through ACP `session/delete`. On the Muse Code backend
-  no Delete is offered: its CLI serves no `session/delete` from 1.4.4 on
+  then removes it from the session store and the list. Deleting drains the
+  saves already queued, then removes the file; every save queued later is
+  dropped, a settling refund or team persist writes nothing and never fails,
+  the live session is stopped so its turn cannot keep spending, and the id
+  can no longer be resumed or forked. The success notice goes out once the
+  store removal has succeeded; an archived-ids failure afterwards says so
+  with its own message instead of reporting a failed delete (a checkpoint
+  removal it cannot do warns to the log, and the re-list says
+  historyUnavailable, each with the cause). The same deletion is offered
+  to editors through ACP `session/delete`. On the Muse Code backend no
+  Delete is offered: its CLI serves no `session/delete` from 1.4.4 on
   (verified on 1.4.10), so there is nothing that could remove the session.
 - Connect the credential vault end to end on Linux and macOS: the Models & Agents panel mounts its vault section, the `Vault` command opens it, `Lock vault now` (Ctrl+Alt+Shift+L) ends every use, and SSH keys can be generated or imported when adding an item. The vault Help reference is published. Windows still waits on lane C-M109-1c's pipe helper. The extension's own keys migrate to the vault client on the first unlock (the Model API key and apiKey-shaped provider records are copied, decrypted back and compared, then retained and mirrored in SecretStorage; a half-migrated store recovers on the next unlock), while oauth/subscription-shaped records keep working in SecretStorage until their copy/verify binding lands in the broker, and the companion page has no vault surface yet (RVMSM109, VAULTOPEN).
 - Harden the extension key-store migration so it never loses or reverts a key: a save during unlock never replaces a newer key with an older one; a key saved after sign-out migrates on save; a changed provider key reaches the vault at once; migrated rows are no longer listed as editable duplicates, and a removed vault copy is rebuilt from SecretStorage on the next unlock (VAULTMIGFIX).
