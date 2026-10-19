@@ -1,7 +1,7 @@
 # A version tag (v1.2.3) reuses verified exact-tree CI artifacts or runs the
-# shared build, then publishes its per-target
-# VSIX packages (PLAN.md D123), ACP tarball, CycloneDX inventories and
-# SHA256SUMS on GitHub with
+# shared build, then publishes its six platform
+# VSIX packages (PLAN.md D123, no universal package), ACP tarball, CycloneDX
+# inventories and SHA256SUMS on GitHub with
 # CHANGELOG notes and package attestations. The identical packages go to
 # Marketplace/Open VSX when the tag-only `marketplace` environment has
 # VSCE_PAT/OVSX_PAT, and to npm by trusted publishing (OIDC, no token).
@@ -121,7 +121,7 @@ jobs:
           run-id: ${{ steps.lookup.outputs.run-id }}
           github-token: ${{ github.token }}
           path: reused
-      - name: download the CI per-target VSIX packages
+      - name: download the CI platform VSIX packages
         id: vsix
         if: steps.lookup.outputs.run-id != ''
         continue-on-error: true

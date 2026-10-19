@@ -43,8 +43,9 @@ export class VaultWriterError extends VaultError {
     readonly writer: NonNullable<
       Extract<VaultBrokerResponse['response'], { kind: 'refused' }>['writer']
     >,
+    options?: { cause?: unknown },
   ) {
-    super('busy')
+    super('busy', options)
     // The sentence lives in the shared refusals so hosts without the
     // write-only crypto name the same holder.
     this.message = vaultWriterDetail(writer)
@@ -55,6 +56,11 @@ export function ownedBytes(source: Uint8Array): Buffer<ArrayBuffer> {
   const copy = Buffer.alloc(source.byteLength)
   copy.set(source)
   return copy
+}
+
+/** Erase every owned scratch buffer. */
+export function wipeBuffers(buffers: readonly Uint8Array[]): void {
+  for (const buffer of buffers) buffer.fill(0)
 }
 
 export function encodeVaultJson(value: object): Buffer {
@@ -194,10 +200,8 @@ export function aesGcmOpen(
     plaintext.set(tail, chunk.length)
     return plaintext
   } catch (error: unknown) {
-    // Authentication covers a wrong key and corrupt data alike: the cipher
-    // cannot tell them apart. Anything else keeps its kind, and the cause
-    // stays on the error either way (D119).
-    if (!(error instanceof Error)) throw error
+    // A failed open is authentication failure whatever the cipher threw; the
+    // failure rides along as the cause while the person keeps fixed words.
     throw new VaultError('authentication', { cause: error })
   } finally {
     chunk?.fill(0)

@@ -228,7 +228,9 @@ export function importSshKey(bytes: Buffer, passphrase?: Buffer): SoftwareSshKey
     return ownedKey(
       createPrivateKey({ key: bytes, format: 'pem', ...(passphrase && { passphrase }) }),
     )
-  } catch {
-    throw sshFailure()
+  } catch (error: unknown) {
+    // An unreadable key file denies with fixed words; the parse failure
+    // rides along as the cause.
+    throw sshFailure(error)
   }
 }

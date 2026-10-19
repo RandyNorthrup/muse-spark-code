@@ -1,7 +1,7 @@
 import type { Logger } from '../../../src/host/logger'
 
-/** An in-memory logger recording level-prefixed messages, for assertions. */
-export function recordLogger(): { log: Logger; logged: string[] } {
+/** A log sink that records every line with its level, for driving real code through the Logger seam. */
+export function recordingLogger(): { log: Logger; logged: string[] } {
   const logged: string[] = []
   const log: Logger = {
     trace: (message) => {

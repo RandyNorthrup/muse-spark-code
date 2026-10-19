@@ -4,7 +4,6 @@ import os, { homedir } from 'node:os'
 import { createConnection } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
 import { UnixVaultPrivateFiles, isVaultFileMissing } from '../../core/vault/broker/files'
-import { vaultBrokerLockSchema } from '../../shared/vaultProtocol'
 import {
   expectedVaultSocketLocations,
   isExpectedVaultSocket,
@@ -12,9 +11,9 @@ import {
 } from '../../core/vault/broker/socketDirectory'
 import { VaultBrokerDiscovery } from '../../core/vault/broker/discovery'
 import { UnixVaultPeerVerifier } from '../../core/vault/broker/peer'
-import { handoffResourceFile } from '../../core/resources/launcher'
 import { UI_TEXT, VAULT_BROKER_NATIVE_TIMEOUT_MS } from '../../shared/constants'
 import type { VaultClientPlatform, VaultClientPlatformContext } from './clientPlatform'
+import { isBrokerLockGone, launchSessionBroker, vaultInstallRoot } from './clientLaunch'
 import { vaultPeerExecutable, vaultProcessIdentity, vaultSocketDescriptors } from './posixNative'
 import { registerPosixVaultHost } from './posixHost'
 import { holdVaultStartupLock } from './posixNative'
@@ -27,9 +26,7 @@ export async function posixVaultClientPlatform(
   // here, not the generic peer-refusal sentence a person cannot act on.
   if (process.platform !== 'linux' && process.platform !== 'darwin')
     throw new Error(UI_TEXT.vault.brokerDisabled)
-  if (!path.isAbsolute(context.dataDir) || !path.isAbsolute(context.distDir))
-    throw new Error(UI_TEXT.vault.noAccess)
-  const installRoot = path.dirname(context.distDir)
+  const installRoot = vaultInstallRoot(context)
   const helper = vaultPeerExecutable(installRoot)
   const runDirectory = path.join(context.dataDir, 'vault', 'run')
   const userSession = `${String(process.getuid?.())}:${process.env['XDG_SESSION_ID'] ?? 'login'}`
@@ -69,17 +66,18 @@ export async function posixVaultClientPlatform(
           return location
         } catch (error: unknown) {
           // Only proven death permits launch. Missing token/socket during live startup waits.
-          let bytes: Buffer
-          try {
-            bytes = await new UnixVaultPrivateFiles().read(path.join(this.directory, 'broker.lock'))
-          } catch (recheckError: unknown) {
-            // Orderly shutdown removes token before record, even while its process is still live.
-            if (isVaultFileMissing(recheckError)) return null
-            throw recheckError
-          }
-          const lock = vaultBrokerLockSchema.parse(JSON.parse(bytes.toString()))
-          const live = await vaultProcessIdentity(helper, lock.processId)
-          if (lock.userSession === userSession && live?.startedAt !== lock.startedAt) return null
+          if (
+            await isBrokerLockGone(
+              new UnixVaultPrivateFiles(),
+              this.directory,
+              userSession,
+              async (processId) => {
+                const live = await vaultProcessIdentity(helper, processId)
+                return live?.startedAt
+              },
+            )
+          )
+            return null
           const isStarting =
             isVaultFileMissing(error) ||
             (error !== null &&
@@ -134,26 +132,17 @@ export async function posixVaultClientPlatform(
         )
         const ready = (async () => {
           try {
-            if (await discovery.discover(identity)) return
-            await handoffResourceFile(
-              process.execPath,
-              [
-                path.join(context.distDir, 'vaultBroker.js'),
-                JSON.stringify({
-                  dataDir: path.join(context.dataDir, 'vault'),
-                  runDirectory,
-                  installRoot,
-                  userSession,
-                }),
-              ],
-              { env, until: 'spawn' },
-            )
-            const deadline = Date.now() + VAULT_BROKER_NATIVE_TIMEOUT_MS
-            while (Date.now() < deadline) {
-              if (await discovery.discover(identity)) return
-              await delay(VAULT_BROKER_NATIVE_TIMEOUT_MS / 100)
-            }
-            throw new Error(UI_TEXT.vault.brokerBlocked)
+            await launchSessionBroker({
+              script: path.join(context.distDir, 'vaultBroker.js'),
+              payload: {
+                dataDir: path.join(context.dataDir, 'vault'),
+                runDirectory,
+                installRoot,
+                userSession,
+              },
+              env,
+              isReady: async () => (await discovery.discover(identity)) !== null,
+            })
           } finally {
             await held.release()
           }

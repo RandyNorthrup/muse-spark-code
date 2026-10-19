@@ -160,19 +160,22 @@ export async function vaultExclusiveFile(
       if (sameFile(identity, await lstatIdentity(path))) await unlink(path)
     }
   } catch (error: unknown) {
-    try {
-      await file.close()
-    } catch {
-      /* The publication path above already closed it. */
-    }
-    try {
-      await unlink(temporary)
-    } catch {
-      /* Never published: nothing a reader can see remains under our name. */
-    }
+    // The publication path above already closed it.
+    await teardownBestEffort(() => file.close())
+    // Never published: nothing a reader can see remains under our name.
+    await teardownBestEffort(() => unlink(temporary))
     throw error
   }
 }
+/** Best effort: the original failure below rules, so teardown keeps no cause. */
+async function teardownBestEffort(work: () => Promise<void>): Promise<void> {
+  try {
+    await work()
+  } catch {
+    // Best effort: the original failure below rules, so teardown keeps no cause.
+  }
+}
+
 export function isVaultFileMissing(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT'
 }
@@ -183,38 +186,84 @@ export interface VaultFileWriter {
   replace(bytes: Uint8Array): void
   close(): void
 }
+
+/** The platform's half of an owner-only file writer: identity checks stay platform-owned. */
+export interface PrivateWriterPorts {
+  readonly current: () => number
+  readonly adopt: (fd: number) => void
+  readonly release: () => void
+  /** How the platform opens the exclusive replace temporary; the mode stays owner-only. */
+  readonly tempFlags: number
+  readonly tempMode?: number
+}
+
 /**
- * Publish `bytes` under `path` through a temporary file: write, rename over
- * the record, adopt the new descriptor and sync the directory. The platform
- * supplies its temporary-file open, directory open and descriptor adoption;
- * a failure before adoption closes the unpublished file.
+ * One owner-only file writer over the platform's descriptor checks: appends
+ * and atomic replaces are identical everywhere, while opening, revalidation
+ * and release stay in the ports. Both the POSIX files port and the Windows
+ * relay write this way.
  */
-export function replaceFileContent(
+export function privateFileWriter(path: string, ports: PrivateWriterPorts): VaultFileWriter {
+  return {
+    append: (bytes) => {
+      writePrivateBytes(ports.current(), bytes)
+    },
+    replace: (bytes) => {
+      replacePrivateFile(
+        path,
+        bytes,
+        (temporary) => openSync(temporary, ports.tempFlags, ports.tempMode),
+        ports.current,
+        ports.adopt,
+      )
+    },
+    close: () => {
+      ports.release()
+    },
+  }
+}
+/** Write every byte and flush: a short write is a refused write, never a partial one. */
+export const writePrivateBytes = (fd: number, bytes: Uint8Array): void => {
+  let offset = 0
+  while (offset < bytes.byteLength) {
+    const count = writeSync(fd, bytes, offset, bytes.byteLength - offset)
+    if (count === 0) throw new Error(UI_TEXT.vault.noAccess)
+    offset += count
+  }
+  fsyncSync(fd)
+}
+
+/**
+ * Atomically replace an owner-only file: write the bytes to an exclusive
+ * temporary beside it, flush, rename over the path and flush the directory.
+ * The caller opens the temporary with its own flags and adopts the winning
+ * descriptor; any failure drops the temporary and keeps the old file. Both
+ * the POSIX files port and the Windows relay replace this way.
+ */
+export function replacePrivateFile(
   path: string,
   bytes: Uint8Array,
-  parts: {
-    readonly current: () => number
-    readonly open: (temporary: string) => number
-    readonly syncDirectory: (directory: string) => number
-    readonly adopt: (fd: number) => void
-  },
+  openTemporary: (temporary: string) => number,
+  current: () => number,
+  adopt: (fd: number) => void,
 ): void {
-  parts.current()
+  current()
   const temporary = `${path}.${randomBytes(VAULT_LIMITS.idBytes).toString('hex')}.tmp`
-  const fd = parts.open(temporary)
+  const fd = openTemporary(temporary)
   let isAdopted = false
   try {
     writePrivateBytes(fd, bytes)
-    const previous = parts.current()
+    const previous = current()
     renameSync(temporary, path)
     closeSync(previous)
-    parts.adopt(fd)
+    adopt(fd)
     isAdopted = true
-    const dir = parts.syncDirectory(pathModule.dirname(path))
+    // A read-only directory descriptor is all the flush needs, on every platform.
+    const directory = openSync(pathModule.dirname(path), constants.O_RDONLY)
     try {
-      fsyncSync(dir)
+      fsyncSync(directory)
     } finally {
-      closeSync(dir)
+      closeSync(directory)
     }
   } catch (error: unknown) {
     if (!isAdopted) closeSync(fd)
@@ -225,59 +274,6 @@ export function replaceFileContent(
     }
     throw error
   }
-}
-
-/**
- * The monitored descriptor, reopened where the path now names another file.
- * A null descriptor is locked; anything else proves itself first.
- */
-export function monitoredDescriptor(
-  get: () => number | null,
-  set: (fd: number | null) => void,
-  path: string,
-  reopen: (path: string) => number,
-): number {
-  const descriptor = get()
-  if (descriptor === null) throw new Error(UI_TEXT.vault.locked)
-  const held = handleIdentitySync(descriptor),
-    named = lstatIdentitySync(path)
-  if (!sameFile(held, named)) {
-    closeSync(descriptor)
-    set(null)
-    const replacement = reopen(path)
-    set(replacement)
-    return replacement
-  }
-  return descriptor
-}
-
-/**
- * A monitored-descriptor writer shell: appends write fully through the
- * current descriptor; the platform supplies replace and close.
- */
-export function monitoredFileWriter(parts: {
-  readonly current: () => number
-  readonly replace: (bytes: Uint8Array) => void
-  readonly close: () => void
-}): VaultFileWriter {
-  return {
-    append: (bytes) => {
-      writePrivateBytes(parts.current(), bytes)
-    },
-    replace: parts.replace,
-    close: parts.close,
-  }
-}
-
-/** A full blocking write; a short write that stalls refuses. */
-export const writePrivateBytes = (fd: number, bytes: Uint8Array): void => {
-  let offset = 0
-  while (offset < bytes.byteLength) {
-    const count = writeSync(fd, bytes, offset, bytes.byteLength - offset)
-    if (count === 0) throw new Error(UI_TEXT.vault.noAccess)
-    offset += count
-  }
-  fsyncSync(fd)
 }
 function privateWriter(path: string): VaultFileWriter {
   const flags =
@@ -298,49 +294,33 @@ function privateWriter(path: string): VaultFileWriter {
     closeSync(descriptor)
     throw error
   }
-  const current = (): number =>
-    monitoredDescriptor(
-      () => descriptor,
-      (fd) => {
-        descriptor = fd
-      },
-      path,
-      (target) => {
-        const replacement = openSync(target, flags, ownerFile),
-          sample = fstatSync(replacement)
-        try {
-          if (!sample.isFile() || sample.nlink !== 1) throw new Error(UI_TEXT.vault.noAccess)
-          checkOwner(sample.mode, sample.uid)
-        } catch (error: unknown) {
-          closeSync(replacement)
-          throw error
-        }
-        return replacement
-      },
-    )
+  const current = (): number => {
+    if (descriptor === null) throw new Error(UI_TEXT.vault.locked)
+    const held = handleIdentitySync(descriptor),
+      named = lstatIdentitySync(path)
+    if (!sameFile(held, named)) {
+      closeSync(descriptor)
+      descriptor = null
+      const replacement = openSync(path, flags, ownerFile),
+        sample = fstatSync(replacement)
+      try {
+        if (!sample.isFile() || sample.nlink !== 1) throw new Error(UI_TEXT.vault.noAccess)
+        checkOwner(sample.mode, sample.uid)
+      } catch (error: unknown) {
+        closeSync(replacement)
+        throw error
+      }
+      descriptor = replacement
+    }
+    return descriptor
+  }
 
-  return monitoredFileWriter({
+  return privateFileWriter(path, {
     current,
-    replace: (bytes) => {
-      replaceFileContent(path, bytes, {
-        current,
-        open: (temporary) =>
-          openSync(
-            temporary,
-            constants.O_WRONLY |
-              constants.O_APPEND |
-              constants.O_CREAT |
-              constants.O_EXCL |
-              constants.O_NOFOLLOW,
-            ownerFile,
-          ),
-        syncDirectory: (directory) => openSync(directory, constants.O_RDONLY),
-        adopt: (fd) => {
-          descriptor = fd
-        },
-      })
+    adopt: (fd) => {
+      descriptor = fd
     },
-    close: () => {
+    release: () => {
       if (descriptor === null) {
         return
       }
@@ -348,6 +328,13 @@ function privateWriter(path: string): VaultFileWriter {
       closeSync(descriptor)
       descriptor = null
     },
+    tempFlags:
+      constants.O_WRONLY |
+      constants.O_APPEND |
+      constants.O_CREAT |
+      constants.O_EXCL |
+      constants.O_NOFOLLOW,
+    tempMode: ownerFile,
   })
 }
 

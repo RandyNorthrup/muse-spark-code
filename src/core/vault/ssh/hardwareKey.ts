@@ -29,8 +29,8 @@ export async function generateHardwareSshKey(
       publicKey: `ecdsa-sha2-nistp256 ${result.publicBlob.toString('base64')}`,
       fingerprint: sshFingerprint(result.publicBlob),
     }
-  } catch {
+  } catch (error: unknown) {
     await port.destroy(result.keyReference)
-    throw sshFailure()
+    throw sshFailure(error)
   }
 }

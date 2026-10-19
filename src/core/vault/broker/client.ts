@@ -26,8 +26,11 @@ import { windowsVaultPipeNameSchema } from './windowsPipe'
  * to `unreachable` (the operation failed, Retry offered).
  */
 export class VaultChannelError extends Error {
-  constructor(readonly code: 'closed' | 'writeFailed' | 'invalidResponse') {
-    super(UI_TEXT.vault.operationFailed)
+  constructor(
+    readonly code: 'closed' | 'writeFailed' | 'invalidResponse',
+    options?: { cause?: unknown },
+  ) {
+    super(UI_TEXT.vault.operationFailed, options)
     this.name = 'VaultChannelError'
   }
 }
@@ -160,9 +163,9 @@ export class VaultBrokerClient {
         this.buffer = rest
         pending.resolve(response.response)
       } catch {
-        this.close(
-          'invalidResponse',
-        ) /* No unvalidated bytes or remote error text escape this boundary. */
+        // No unvalidated bytes or remote error text escape this boundary:
+        // the connection closes and the pending call fails.
+        this.close('invalidResponse')
       }
     })
   }
@@ -175,6 +178,7 @@ export class VaultBrokerClient {
       try {
         event = vaultBrokerEventFrameSchema.parse(JSON.parse(line.toString('utf8'))).event
       } catch {
+        // A bad frame closes the stream; the pending call fails on the close.
         this.close('invalidResponse')
         return
       }
@@ -230,12 +234,15 @@ export class VaultBrokerClient {
             }
           })
         } catch (error: unknown) {
-          try {
-            this.close('writeFailed')
-          } finally {
-            bytes.fill(0)
-          }
-          reject(error instanceof VaultChannelError ? error : new VaultChannelError('writeFailed'))
+          // The request bytes wipe before the close, whatever the close
+          // costs. The close must not settle the call first: pending is
+          // detached so the failure below rejects it with the write failure.
+          bytes.fill(0)
+          // Pending is set above with no await between, so it is still ours.
+          this.pending = null
+          this.close('writeFailed')
+          if (error instanceof VaultChannelError) throw error
+          throw new VaultChannelError('writeFailed', { cause: error })
         }
       })
     })()

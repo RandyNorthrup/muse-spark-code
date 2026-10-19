@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import { wipeBuffers } from './crypto'
 import {
   REDACTED_MARK,
   UI_TEXT,
@@ -56,10 +57,6 @@ interface Node {
 }
 
 /** Every known encoding, including the fixed interior of all base64 alignments. */
-/** Wipe secret-derived patterns before a failure leaves the scrubber. */
-function wipePatterns(patterns: readonly Buffer[]): void {
-  for (const pattern of patterns) pattern.fill(0)
-}
 function forms(value: Uint8Array): Buffer[] {
   const raw = Buffer.alloc(value.length)
   const patterns: Buffer[] = []
@@ -121,7 +118,9 @@ function forms(value: Uint8Array): Buffer[] {
     }
     return patterns
   } catch (error: unknown) {
-    wipePatterns(patterns)
+    // The partial build is wiped, then the original failure below still
+    // reaches the caller instead of a generic build error.
+    wipeBuffers(patterns)
     throw error
   } finally {
     raw.fill(0)

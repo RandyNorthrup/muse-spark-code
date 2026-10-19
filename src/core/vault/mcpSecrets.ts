@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
-import { MCP_TRANSPORTS, VAULT_LIMITS } from '../../shared/constants'
+import { MCP_TRANSPORTS, UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
 import { vaultCommandSchema, vaultUseSchema, type VaultUse } from '../../shared/vault'
 import type { McpStdioLaunch } from '../backends/modelapi/mcp/servers'
 import type { McpChildProcess } from '../backends/modelapi/mcp/stdio'
@@ -68,8 +68,10 @@ export function mcpVaultRoutes(ports: McpVaultRoutePorts): McpVaultPoolPort {
       let child: McpChildProcess
       try {
         child = await ports.start({ server, launch, use, secrets, isCancelled })
-      } catch {
-        mcpSecretDenied()
+      } catch (error: unknown) {
+        // A failed start denies the use whatever broke it; the failure rides
+        // along as the cause while the person keeps fixed words.
+        throw new Error(UI_TEXT.vault.noAccess, { cause: error })
       }
       if (isCancelled()) {
         await child.kill()
@@ -121,8 +123,10 @@ export function mcpVaultRoutes(ports: McpVaultRoutePorts): McpVaultPoolPort {
             init: { ...init, headers: safe },
             uses,
           })
-        } catch {
-          mcpSecretDenied()
+        } catch (error: unknown) {
+          // A failed remote use denies it whatever broke it; the failure rides
+          // along as the cause while the person keeps fixed words.
+          throw new Error(UI_TEXT.vault.noAccess, { cause: error })
         }
       }
     },
@@ -154,8 +158,11 @@ export async function moveMcpSecretToVault(
   let parsed: unknown
   try {
     parsed = JSON.parse(source)
-  } catch {
-    mcpSecretDenied()
+  } catch (error: unknown) {
+    // JSON.parse fails only as SyntaxError: a malformed config denies the
+    // move, never imports half a file.
+    if (!(error instanceof SyntaxError)) throw error
+    throw new Error(UI_TEXT.vault.noAccess, { cause: error })
   }
   const root = object.parse(parsed)
   if (root['mcpServers'] !== undefined && root['mcp_servers'] !== undefined) mcpSecretDenied()
@@ -201,8 +208,10 @@ export async function moveMcpSecretToVault(
     bytes.write(value)
     try {
       await port.importSecret(selection.name, bytes, use)
-    } catch {
-      mcpSecretDenied()
+    } catch (error: unknown) {
+      // A failed import denies the move whatever broke it; the failure rides
+      // along as the cause while the person keeps fixed words.
+      throw new Error(UI_TEXT.vault.noAccess, { cause: error })
     }
   } finally {
     bytes.fill(0)

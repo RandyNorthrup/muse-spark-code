@@ -71,6 +71,7 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
       let size = 0
       const timer = setTimeout(() => {
         void stop().catch(() => {
+          // The verify already rejects below; a failing stop keeps no cause.
           reject(new Error(UI_TEXT.vault.noAccess))
         })
         reject(new Error(UI_TEXT.vault.noAccess))
@@ -79,6 +80,7 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
         size += bytes.byteLength
         if (size > VAULT_LIMITS.text) {
           void stop().catch(() => {
+            // The verify already rejects below; a failing stop keeps no cause.
             reject(new Error(UI_TEXT.vault.noAccess))
           })
           reject(new Error(UI_TEXT.vault.noAccess))
@@ -90,24 +92,31 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
       })
       let code: number | null | undefined
       let hasEnded = false
-      const finish = (): void => {
-        if (code === undefined || !hasEnded) return
+      const finish = (): Error | undefined => {
+        if (code === undefined || !hasEnded) return undefined
         clearTimeout(timer)
         try {
           if (code !== 0) throw new Error(UI_TEXT.vault.noAccess)
           resolve(nativePeerSchema.parse(JSON.parse(Buffer.concat(chunks).toString('utf8'))))
+          return undefined
         } catch (error: unknown) {
-          reject(error instanceof Error ? error : new Error(UI_TEXT.vault.noAccess))
+          // The verify fails with the fixed denial for a foreign value; a
+          // peer failure keeps itself for the rejection below.
+          return error instanceof Error
+            ? error
+            : new Error(UI_TEXT.vault.noAccess, { cause: error })
         }
       }
       // close also waits for the inherited live socket: wait for exit + stdout end instead.
       child.once('exit', (result) => {
         code = result
-        finish()
+        const failure = finish()
+        if (failure !== undefined) reject(failure)
       })
       child.stdout.once('end', () => {
         hasEnded = true
-        finish()
+        const failure = finish()
+        if (failure !== undefined) reject(failure)
       })
     })
     if (result.uid !== globalThis.process.getuid?.()) throw new Error(UI_TEXT.vault.noAccess)
