@@ -1,92 +1,33 @@
-// Close-time background reconciliation against the real native OS entry:
-// the coordinator, the consent store on the real disk filesystem, and the
-// production entry (NativeScheduleBackground over real temp home/data
-// directories with the real process runner) are all the real modules. Only
-// observation is added: a decorator that forwards every call and records
-// it, so the test sees routing without changing behaviour.
+// Close-time background reconciliation routing against the real native OS
+// entry: the real coordinator, the real consent store and the production
+// entry (test/unit/helpers/schedules/realBackgroundEntry.ts) are all the
+// real modules; the recorder forwards every call and only observes it.
 //
 // A bare unit process never binds the resource governor, so the entry's
-// process runner really refuses here ("Schedules are unavailable in this
-// host"); these tests prove the routing — which entry call reconcile
-// makes, with which arguments — on the real entry, and pin that refusal
-// rather than scripting around it. The real outcomes (an entry actually
-// retired, a due wake really refused by the launcher check) are proved in
+// real runner refuses here ("Schedules are unavailable in this host"); these
+// tests prove the routing — which entry call reconcile makes, with which
+// arguments — on the real entry, and pin that refusal rather than scripting
+// around it. The real outcomes (an entry actually retired, a due wake really
+// refused by the launcher check) are proved in
 // test/integration/scheduleBackground.test.ts, where the extension host
 // binds the real governor.
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, it, onTestFinished } from 'vitest'
-import { ScheduleBackgroundCoordinator } from '../../src/runtime/schedules/background'
-import type { BackgroundConsentStore } from '../../src/runtime/schedules/background'
-import { NativeScheduleBackground } from '../../src/runtime/schedules/nativeBackground'
-import {
-  backgroundProcessRunner,
-  nodeBackgroundFiles,
-} from '../../src/runtime/schedules/nodeBackgroundIo'
-import { createBackgroundConsentStore } from '../../src/runtime/schedules/consent'
-import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import { UI_TEXT } from '../../src/shared/constants'
-import type { ScheduleBackgroundPort } from '../../src/shared/scheduleV2'
-
-type Consent = Parameters<ScheduleBackgroundPort['register']>[1]
+import {
+  realBackgroundHarness,
+  saveBackgroundConsent,
+} from './helpers/schedules/realBackgroundEntry'
 
 const NOW = 1_700_000_000_000
 const WAKE = 1_700_000_100_000
 
-/** Forwards every call to the real entry and records it: observation only. */
-class RecordingEntry implements ScheduleBackgroundPort {
-  removed = 0
-  registered: { nextWakeAtMs: number }[] = []
-  public constructor(private readonly inner: ScheduleBackgroundPort) {}
-  status() {
-    return this.inner.status()
-  }
-  async register(nextWakeAtMs: number, consent: Consent): Promise<void> {
-    this.registered.push({ nextWakeAtMs })
-    await this.inner.register(nextWakeAtMs, consent)
-  }
-  async remove(): Promise<void> {
-    this.removed += 1
-    await this.inner.remove()
-  }
-}
-
 async function coordinator(nextWake: number | undefined) {
   const folder = await mkdtemp(path.join(tmpdir(), 'schedule-background-reconcile-'))
   onTestFinished(() => rm(folder, { recursive: true, force: true }))
-  const entry = new RecordingEntry(
-    new NativeScheduleBackground({
-      platform: process.platform,
-      homeDir: path.join(folder, 'home'),
-      dataDir: path.join(folder, 'data'),
-      executable: process.execPath,
-      agentFile: process.execPath,
-      uid: process.getuid === undefined ? 0 : process.getuid(),
-      now: () => Date.now(),
-      isWakeProcess: false,
-      authorization: () => Promise.resolve({ scheduledPrompts: false }),
-      files: nodeBackgroundFiles(),
-      run: backgroundProcessRunner(process.env),
-    }),
-  )
-  const consent = createBackgroundConsentStore(
-    createNodeScheduleFs(path.join(folder, 'store')),
-    'runtime/background-consent.json',
-  )
-  const background = new ScheduleBackgroundCoordinator({
-    entry,
-    consent,
-    now: () => NOW,
-    nextWakeAtMs: () => Promise.resolve(nextWake),
-  })
-  return { background, consent, entry }
-}
-
-async function saveConsent(consent: BackgroundConsentStore, value: Consent): Promise<void> {
-  await consent.exclusive(async (_current, save) => {
-    await save(value)
-  })
+  return realBackgroundHarness(folder, nextWake)
 }
 
 it('leaves the OS entry alone when no consent was ever recorded', async () => {
@@ -100,7 +41,7 @@ it('routes a stale entry to entry.remove while consent says yes and nothing is d
   const { background, consent, entry } = await coordinator(undefined)
   // Consent is stored first through the real store; the entry below is only
   // ever contacted by reconcile, never by this setup.
-  await saveConsent(consent, { choice: 'yes', decidedAtMs: NOW })
+  await saveBackgroundConsent(consent, { choice: 'yes', decidedAtMs: NOW })
   entry.removed = 0
   entry.registered = []
   // No bound governor here, so the real runner refuses after the call
@@ -130,6 +71,17 @@ it('routes the due wake to entry.register with the stored consent', async () => 
   await expect(background.reconcile()).rejects.toThrow(UI_TEXT.scheduleV2.runtime.unavailable)
   expect(entry.registered).toEqual([{ nextWakeAtMs: WAKE }])
   expect(entry.removed).toBe(0)
+})
+
+it('routes an explicit never-consent to entry.remove on reconcile', async () => {
+  // A stored 'never' still owns an entry from before: reconcile must retire
+  // it. No bound governor here, so the real runner refuses after the call
+  // reached the entry; the routing below holds governed or not.
+  const { background, consent, entry } = await coordinator(undefined)
+  await saveBackgroundConsent(consent, { choice: 'never', decidedAtMs: NOW })
+  await expect(background.reconcile()).rejects.toThrow(UI_TEXT.scheduleV2.runtime.unavailable)
+  expect(entry.removed).toBe(1)
+  expect(entry.registered).toEqual([])
 })
 
 it('an explicit removal still reaches the entry with no consent record', async () => {
