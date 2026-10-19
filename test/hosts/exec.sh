@@ -45,6 +45,7 @@ refuses() {
 refuses 'frobnicate' frobnicate
 refuses 'providers accounts' providers accounts bogus
 refuses '--provider' login --provider foo
+refuses 'standard input' auth --backend bogus set
 refuses '--effort none' exec --effort none hi
 refuses '--timeout' exec --timeout abc hi
 refuses '--range' usage --range bogus

@@ -41,6 +41,17 @@ happened, not what was planned; superseded entries are kept.
   `timeoutSeconds`: any positive safe integer is accepted, and
   `timeoutSeconds` is null without `--timeout`. The 500-request and
   21,600-second maxima were ours, not a provider's.
+- Every terminal misuse exits 2 and names its flag or argument instead of
+  exiting 1 with a bare usage line: unknown commands, refused
+  serve/login/auth/provider flags, bad `exec`/`usage`/`resources` values
+  and `developer` misuse (which prints the usage before any store is
+  touched). `auth` texts keep the credential guidance and never echo the
+  argv. Two refused `auth` values (`--backend`, `--shell-sandbox`) missed
+  the exit-2 change and exited 1; they exit 2 now.
+- The published v1 event/result output schemas accept a null
+  `timeoutSeconds` (no `--timeout` means no deadline of ours) and a set
+  deadline from 1 second, matching the parser: the bounds removal left the
+  schemas' 10-second floor and non-null shape behind.
 
 ## [0.19.0] - 2026-10-17
 

@@ -60,7 +60,8 @@ muse-spark-code-acp scan-secrets fix.patch
 | --verbose                           | off                    | Trace on redacted stderr.                                                                                                                      |
 
 Budget grammar is unsigned ASCII decimal `[0-9]+(?:\.[0-9]{1,6})?`,
-range 1–20,000,000 micro-USD. Signs, exponents, whitespace, non-ASCII digits
+any positive integer number of micro-USD with no upper bound. Signs,
+exponents, whitespace, non-ASCII digits
 and more than six fractional digits are usage errors. The raw string is parsed
 directly into integer micro-USD; `Number` never parses that budget string.
 Exactly one nonempty UTF-8 prompt is required (262,144-byte maximum).
@@ -136,7 +137,8 @@ Required fields and numeric/status invariants are validated by the runtime;
 cannot express. `npm run schema:exec -- --check` checks deterministic bytes.
 In v2 every USD field is a canonical decimal string, exactly representable in
 micro-USD. Numeric v1 output is historical and the current Action refuses it.
-Budgets still require explicit flags and obey the same hard bounds.
+Budgets still require explicit flags and obey the same grammar: positive, at
+most six decimals, no upper bound.
 The runtime zod schemas (`src/runtime/exec/execProtocol.ts`) are normative.
 The shipped event schema also enforces the update egress rule itself:
 `$defs.execSafeUpdateValue` refuses chunk/tool `sessionUpdate` values and

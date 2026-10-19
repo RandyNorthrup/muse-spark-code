@@ -31,6 +31,9 @@ const misuse: readonly (readonly [argv: string[], token: string])[] = [
   [['auth', 'set', '--preset', 'foo'], '--preset'],
   [['auth', 'set', 'extra'], 'standard input'],
   [['auth', 'clear', '--bogus'], 'standard input'],
+  // A refused global value on auth still exits 2 without echoing the argv.
+  [['auth', '--backend', 'bogus', 'set'], 'standard input'],
+  [['auth', '--shell-sandbox', 'bogus', 'set'], 'standard input'],
   [['login', '--provider', 'foo'], '--provider'],
   [['login', 'extra'], 'login extra'],
   [['exec', '--effort', 'none', 'hi'], '--effort none'],
