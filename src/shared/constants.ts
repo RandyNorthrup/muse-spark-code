@@ -2770,8 +2770,12 @@ export const MODEL_API_EFFORT_OFF = 'minimal'
 // Context pressure thresholds (fraction of the window) for the indicator.
 export const CONTEXT_PRESSURE_MEDIUM = 0.7
 export const CONTEXT_PRESSURE_HIGH = 0.9
-// Default per-turn model-call allowance; an existing caller allowance replaces it.
-export const MODEL_API_MAX_TOOL_ROUNDS = 200
+// D121 (owner 2026-10-16): no round count of ours — a turn runs until the
+// model answers without a tool call, the person stops it, a hook stops it,
+// the provider refuses, or a limit the person set is spent. Only a caller's
+// own allowance (exec --max-requests, a best-of-N attempt ceiling) still
+// bounds its run. No provider publishes a round count, so the product sets
+// none.
 // Tool parameter schemas convert to a constrained-decoding grammar on
 // servers that take one (llama.cpp, SoL-Pi #59/#65; M101 item 24): nested
 // past this, a schema trips the check. Past the current toolset's nesting

@@ -4440,14 +4440,17 @@ failed with "Context window full: /compact or /handoff" instead, and anything
 the turn was holding (a goal wake, steered input) is re-queued for its own
 turn. ACP returns
 `max_turn_requests`; headless exec reports `request_cap` (exit 5) with the answer.
-The default is 200 model calls per turn. Existing caller request allowances
-replace that default with what remains: `exec --max-requests` (default 30,
-range 1–500) and best-of-N attempts (production ACP binds none). The turn's first
+No round count of ours ends a turn: with no caller allowance it runs until
+the model answers without a tool call, you press Stop, a hook stops it, the
+provider refuses it, or a limit you set is spent. A caller's own allowance
+still bounds its run: `exec --max-requests` (no default; a set value is any
+positive safe integer) and best-of-N attempt ceilings (production ACP binds
+none). The turn's first
 model call always runs with tools, even when it is also the last one allowed: an
 answer completes the turn (exec exit 0), while a tool request ends it at the
 request cap, said plainly. Stop hooks still run on a wrap-up turn; a hook
 asking for more work cannot be honoured past the limit, and the notice says so.
-A caller allowance above 200 remains usable. Paid child-task grants are the
+A caller allowance of any size remains usable. Paid child-task grants are the
 exception: all 4 attempts stay tool calls and exhaustion stays the child's
 typed request-limit stop. Retries spend calls; money caps
 and compaction's own admission and accounting still apply.

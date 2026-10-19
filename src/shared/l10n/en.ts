@@ -4750,7 +4750,7 @@ export const EN = {
     other: 'At most {count} input files are allowed.',
   }),
   referenceTurnLimit:
-    'Model API turns default to 200 model calls. Existing caller request limits win. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.',
+    'No round count of ours ends a Model API turn: it runs until the model answers without a tool call, you press Stop, a hook stops it, the provider refuses it, or a limit you set is spent. A caller allowance still bounds its run: exec --max-requests, or a best-of-N attempt ceiling. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a capped turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.',
   modelApiWrapUpReserved:
     'The remaining request is reserved for the final answer. The image was not generated.',
   modelApiTurnLimit: forms({

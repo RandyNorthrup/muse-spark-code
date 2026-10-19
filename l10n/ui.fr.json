@@ -3905,7 +3905,7 @@
     "other": "Au plus {count} fichiers d’entrée sont autorisés.",
     "many": "Au plus {count} fichiers d’entrée sont autorisés."
   },
-  "referenceTurnLimit": "Les tours de l’API Model comptent 200 appels au modèle par défaut. Les limites d’appels existantes des appelants priment. Le premier appel s’exécute toujours avec les outils : une réponse termine le tour normalement, une demande d’outil le termine au plafond de requêtes. Le dernier appel d’un tour qui a exécuté des outils produit un résumé sans outils ; envoyez un message pour continuer.",
+  "referenceTurnLimit": "Aucun de nos comptes de tours ne termine un tour de l’API Model : il continue jusqu’à ce que le modèle réponde sans appeler d’outil, que vous appuyiez sur Arrêter, qu’un hook l’arrête, que le fournisseur le refuse ou qu’une limite que vous avez fixée soit épuisée. La réserve propre de l’appelant le borne toujours : exec --max-requests ou un plafond d’essais best-of-N. Le premier appel utilise toujours les outils : une réponse termine le tour, une demande d’outil le termine à la limite de demandes. Le dernier appel d’un tour plafonné avec outils répond sans outils et se termine par max_turn_requests (headless exec signale request_cap, sortie 5) ; envoyez un message pour continuer.",
   "modelApiWrapUpReserved": "La requête restante est réservée à la réponse finale. L’image n’a pas été générée.",
   "modelApiTurnLimit": {
     "one": "Le tour s’est arrêté après {count} appel au modèle. Envoyez un message pour continuer.",
