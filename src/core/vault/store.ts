@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { constants } from 'node:fs'
 import { renameSync, unlinkSync } from 'node:fs'
-import { copyFile, link, lstat, mkdir, open, readdir, realpath } from 'node:fs/promises'
+import { copyFile, link, lstat, mkdir, open, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
@@ -211,12 +211,11 @@ export class NodeVaultFiles implements VaultFilePort {
     const created = await mkdir(this.root, { recursive: true, mode })
     for (let folder = path.resolve(this.root); ; folder = path.dirname(folder)) {
       const named = await lstatIdentity(folder)
-      if (
-        named.isSymbolicLink() ||
-        !named.isDirectory() ||
-        !sameFile(named, await lstatIdentity(await realpath(folder)))
-      )
-        throw new VaultError('io')
+      // A symlinked ancestor fails on its own entry: lstat never follows the
+      // final component. Re-resolving the canonical path would only repeat
+      // that verdict through a fresh race window (and costs a readlink storm
+      // per ancestor on some platforms).
+      if (named.isSymbolicLink() || !named.isDirectory()) throw new VaultError('io')
       if (path.dirname(folder) === folder) break
     }
     if (created !== undefined) await this.security?.protect(this.root, 'directory')
