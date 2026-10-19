@@ -174,6 +174,9 @@ happened, not what was planned; superseded entries are kept.
   Line Tools, or switch to the installed tools) instead of a raw exit code.
   The production build ships the report inputs bundles again.
 
+- Muse Voice consent wording now matches what the product asks: every paid
+  recording asks, and Allow once covers one recording.
+
 ### Security
 
 - Media converter and macOS recording helper child processes no longer inherit
@@ -869,19 +872,11 @@ happened, not what was planned; superseded entries are kept.
 ### Added
 
 - The Muse Code backend tracks the latest CLI and SDK (1.4.10): new
-  session-protocol notifications (model retries, Auto-review holds, plugin
-  changes, declined retracts, branch and view-health moves, foreground
-  completions) now reach the conversation. Per-model output limits, skill
-  titles and each host's sandbox posture are read from Muse Code onto the
-  backend's summaries (no surface displays them yet), a launch
-  permission-profile pick is forwarded when one is supplied, and
-  background-task, hook and plugin inventories, foreign skill import,
-  workflow resume, session recaps and the computer-use setup check are
-  wrapped on the Muse Code backend (their panels are owner design work,
-  still to come). Three machine settings replace fixed numbers with Muse
-  Code's own defaults: `museSpark.hooksMaxStopContinuations` (8),
-  `museSpark.hooksMaxRunningCommands` (0, starts them all at once, as Muse
-  Code does), and `museSpark.subagentMaxConcurrent` (8, within 1–64).
+  session-protocol notifications reach the conversation, and three machine
+  settings replace fixed numbers with Muse Code's own defaults:
+  `museSpark.hooksMaxStopContinuations` (8),
+  `museSpark.hooksMaxRunningCommands` (0) and `museSpark.subagentMaxConcurrent`
+  (8, within 1–64).
 - The Muse Code backend now loads on its first start instead of at
   activation (its own `dist/museCode.js`), so opening a window no longer
   carries the backend, its notification mapping or the Muse Code SDK;
@@ -900,47 +895,23 @@ happened, not what was planned; superseded entries are kept.
   Choosing one keeps the existing contributor confirmation, and someone not
   entitled hears the provider's own refusal. Nothing of ours defaults it on.
 
+- Uploaded files expire from the provider after `museSpark.mediaUploadExpiryDays`
+  (7 days by default, 1–30), and Delete Uploaded Files removes them early in the
+  VS Code command, the usage dialog and ACP `/uploads`. A file an active request
+  carries is never deleted.
 
-- **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
-  first governed launch, a **Resources** chip sits beside the heartbeat, or
-  above the composer between turns. Its popover shows CPU, memory in use and
-  available memory against your limits, what is waiting, any override, and
-  that relocation is not available on this build. Its buttons are **Resume
-  now**, **Open settings** and **Show resources** (the Usage & cost page). A
-  status bar item shows while the governor throttles or pauses. At pause, one
-  notice per conversation names the reading and its limit, with the same
-  actions. New commands: **Muse Spark: Show Resources** opens the popover in
-  the chat in view, and **Muse Spark: Resume Work Now** holds this window's
-  governor at normal for fifteen minutes. A governor you switched off stays
-  off. The governor, its status item and the chip still load on first use,
-  never at activation, and chat's first paint stays within its budget.
-  A status the chip cannot trust (unreadable, with unknown fields, or too
-  large) shows as **Resources: Unknown** with a short explanation, never as
-  an older reading. While the chip loads it says so in place, and if it
-  cannot load it offers **Try again** without disturbing the conversation.
-  JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
-  chip and status adapter once their M104 bridges bind them; none does yet.
-  ACP and terminals keep `/resources` and `resources status|resume`.
+- **Resource chip in the VS Code chat** (M107 U–C1/W): after the first governed
+  launch a **Resources** chip shows CPU and memory against your limits, with
+  **Resume now**, **Open settings** and **Show resources** actions, and
+  **Muse Spark: Resume Work Now** holds the governor at normal for fifteen
+  minutes. An untrustworthy status shows as **Resources: Unknown**, never as an
+  older reading. ACP and terminals keep `/resources` and `resources status|resume`.
 
 - **Headless runs on GitLab CI, Azure Pipelines, Jenkins and Bitbucket
-  Pipelines** (CM80CI, CM80CI-R2). One thin template per system under
-  `ci-templates/` runs the GitHub Action's own launcher, which the
-  `muse-spark-code-acp` package now carries as `ci/` (`action/lib/ci-run.mjs`
-  with a per-system adapter, `ci-adapters.mjs`). The template checks the
-  pinned tarball's SHA-256 before anything of it runs; the launcher installs
-  it with lifecycle scripts off and checks its identity, makes its own
-  checkout from the system's clone, sends the generated diff (cut to
-  `max-diff-bytes`) and a prompt file, validates the result against the
-  Action's schema, forwards cancellation to the agent and drains every
-  pipe. The key comes from the system's secret store into the one
-  credential step that each system's own mechanism keeps untrusted runs
-  away from, leaves the environment under every name it travels by, and
-  reaches the agent over stdin only. Nothing comments or pushes. The
-  launcher's pure logic and the shipped bootstrap are tested through the
-  real modules and shells; no vendor run is simulated, no live run and no
-  release carrying `ci/` yet, so not certified (see
-  `docs/ci-other-systems.md`). `yaml` 2.9.1, already in the lock, is now a
-  declared development dependency for the template tests.
+  Pipelines** (CM80CI, CM80CI-R2): one thin template per system runs the GitHub
+  Action's own launcher from the pinned tarball, with the key from the system's
+  secret store to the agent over stdin only. Not certified yet
+  (`docs/ci-other-systems.md`).
 
 
 - Local models accept a validated manual context window in the provider
@@ -1987,19 +1958,6 @@ happened, not what was planned; superseded entries are kept.
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
 
-- The two-account Muse Code backend test waits for the usage event that
-  follows a turn instead of assuming both arrive together, and the estimator
-  browser harness pays the browser's first-navigation work once before its
-  matrix, keeping every case's two-second bound.
-
-- The estimator browser harness uses the same packed English fallback as
-  independent production pages, avoiding cold Windows navigation timeouts
-  while keeping its two-second bound and complete accessibility/keyboard matrix.
-
-- macOS UI regressions give each target-size scene its own test and await
-  the palette view's actual lazy-import rejection before checking its failure
-  row, retaining every assertion at the existing deadlines (CIR4MAC).
-
 - macOS runtimes with libuv older than 1.52 report unknown memory headroom
   instead of counting only free pages, preventing false resource pauses and
   ACP multi-workspace session timeouts on Node 22 (ACPM118).
@@ -2011,22 +1969,6 @@ happened, not what was planned; superseded entries are kept.
   before acknowledging the request, avoiding Windows cleanup races.
   A failed inspection close returns a refusal with private diagnostics withheld.
 
-- Windows resource-history tests wait for durable disposal output before
-  checking or corrupting journal files.
-
-- Windows native probes avoid unnecessary PowerShell module startup;
-  packaging tests share one production build while retaining private outputs.
-
-- Visual capture waits for restored question rows to finish loading before
-  measuring the context-menu passage, preventing a timing-dependent 14 px
-  menu displacement in narrow captures. Pixel allowances are unchanged.
-
-- Schedule runtime tests cover Linux, Windows and macOS rearm ownership
-  explicitly; macOS wake shutdown retains its independent after-exit helper.
-
-- Reporting journal, history-engine and response-cache tests retain real OS
-  process-birth probes on macOS and Windows without requiring unrelated
-  resource-governor installation in their storage fixtures.
 - Windows: the ACP agent (`muse-spark-code-acp`) could not start a Muse
   Code session. Its governed `muse serve` launch was missing the Windows job
   helper the extension's launch already had, so every new session failed
@@ -2082,10 +2024,6 @@ happened, not what was planned; superseded entries are kept.
   store keeps one journal per workspace, so its validated snapshot and deltas
   are reused between calls, and a read copies the folded state once instead
   of every journal entry. Every read still rereads and checks the bytes.
-
-- Model API turns no longer reinstall the whole display-language table for
-  every recorded context read (about 4 ms each); the schedules bundle
-  installs it once per language.
 
 - ACP: an answer queued with `/answer` is sent with the next prompt once,
   even when the backend finishes that turn before it confirms the start.
@@ -2179,41 +2117,15 @@ happened, not what was planned; superseded entries are kept.
   into the run ledger;
   stopped reads cannot publish a new proof.
 
-- The 0.17.0 integration's daily-budget and durable schedule tests now assert
-  exact decimal money, including entered limits below nano precision, while
-  account consent fixtures persist quote ceilings and retain account refusal.
-  Account-bound paid consent carries exact decimal budgets through its popup.
+- Account-bound paid consent persists the approved quote and generation per account,
+  asks again for a higher tariff or a different model, holds "Always" across
+  restarts for the same workspace, provider, account and price, and binds grant
+  authority to a durable revocation epoch. Paid approval stays per workspace
+  until M108 lane P wires it, and Help says so.
 
-- Account-bound paid consent holds "Always" across instances and restarts for
-  the same workspace, provider, account and price through the binding-kept
-  grant when no host quote store is configured; it still asks again when any
-  of them changes, when the quote generation changes, or when only a
-  differently-keyed legacy grant exists.
-
-- Account-bound paid consent no longer fabricates quote approval from the
-  binding's feature grant: it requires an account-scoped quote store and
-  generation, persists the approved quote and generation per account, asks
-  again for a higher tariff or a different model on the same or a new
-  instance, and revoke() clears that account's quote grants too. No
-  production host constructs account-bound consent yet — paid approval stays
-  per workspace until M108 lane P wires it — and Help now says so.
-
-- Account-bound paid consent binds grant authority to a durable revocation
-  epoch persisted per account binding: revoke() advances the epoch before
-  clearing, so leftover grants from a failed clear stay stale on every
-  instance after a restart, and a failed advance rejects with the grants
-  still working. Every grant records its approval epoch; concurrent asks on
-  another instance cannot resurrect a revoked grant. Help says paid consent
-  stays per workspace in all fourteen translated tables.
-
-- Resource history now includes Windows contained and probe commands: the
-  helper's final CPU and memory use is recorded once in this window's
-  history (at most 512 waiting results between reads). The governed process
-  launcher and the start of vault-backed MCP servers now load on first use
-  in bundles of their own (`dist/resourceProcess.js`, new 50 KiB budget;
-  `dist/mcpVault.js`, new 25 KiB budget), so the resource governor is back
-  within its unchanged 125 KiB budget and activation no longer carries the
-  vault MCP start.
+- Resource history now includes Windows contained and probe commands, and the
+  governed process launcher and vault-backed MCP server start load on first use
+  in bundles of their own, so the resource governor is back within budget.
 
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
@@ -2246,20 +2158,10 @@ happened, not what was planned; superseded entries are kept.
   window fails parsing like a saved row. The headless preflight keeps its
   100 KiB budget.
 
-- Provider records, rate limits, media and Azure work per provider (PROVM95).
-  The provider catalogue is the live models.dev list of 2026-10-17, not the
-  2026-10-05 snapshot, and Fireworks `supports_tools`/`supports_image_input`
-  plus DeepSeek `max_output_tokens`/`effort.supported_levels` from the
-  providers' own captured lists now land in records. Rate-limit headers read
-  with their real meaning: OpenAI/Groq `x-ratelimit-*` whose duration resets
-  derive each bucket's window (Groq requests per day), xAI limits without
-  resets, Anthropic `anthropic-ratelimit-*` request and token buckets, and
-  Azure `retry-after-ms` wherever `retry-after` is honored.
-  Fresh attachments on a listed provider model no longer meet Meta's 50-slot
-  budget before send. Azure entries persist the deployment, send
-  `model: <deployment>` to `{resource}.openai.azure.com/openai/v1/responses`
-  with the list below the same root, and resolve records by the model
-  family; dispatch still refuses until Azure's own capture lands.
+- Provider records, rate limits, media and Azure work per provider (PROVM95): the
+  catalogue is the live models.dev list of 2026-10-17, rate-limit headers read with
+  their real meaning per provider, and Azure entries persist the deployment and
+  resolve records by model family; dispatch still refuses until Azure's capture lands.
 
 
 - OpenRouter panel actions reuse credential-bound usage; only open, Save and
@@ -2270,68 +2172,27 @@ happened, not what was planned; superseded entries are kept.
 - All six OpenRouter usage amounts retain exact wire decimals through terminal
   output. Unrelated loopback callbacks no longer end Connect. Localization key
   order is checked recursively, matching packaged plural handling.
-- Terminal provider-credential writes (Connect, its recovery and rollback,
-  `auth set/clear/status --provider`, `providers usage`) run inside one shared
-  cross-process lock, and a Connect stages a journal (phase, previous record,
-  new record) before the primary is touched. A crashed Connect is recovered —
-  compared with the primary and reported with its label and removal page — by
-  the next provider command, `auth status`, or start. A refused rollback keeps
-  the journal and says the new key is stored. Unreadable key identity hides
-  every budget, and negative usage amounts are refused on all six fields.
+- Terminal provider-credential writes run inside one shared cross-process lock with
+  a staged journal, so a crashed Connect is recovered by the next provider command;
+  a refused rollback keeps the journal and says the new key is stored.
 
 
-- Local-server scan and panel honesty (M95 C-M95-4 R2, review RVCM954).
-  Scan this computer settles every probe answer exactly once: a 204, 205
-  or 304 answer (no body allowed) resolves with its status instead of
-  throwing past settlement and timing out as unanswered, and bracketed
-  `http://[::1]/...` probes pass the loopback allowlist. A scanned
-  llama.cpp model now evidences its live `meta.n_ctx` window (4096 in the
-  capture) instead of staying windowless while manual compact assumed
-  Meta's window, and a llama.cpp list without it fails the scan closed.
-  Presets without a wire capture stay out of the Models panel and refuse
-  to send (vLLM, Ollama), keyless or not. Thinking is still displayed
-  from every reasoning field but never replays to an unversioned local
-  server, whose list carries no version; each captured local preset
-  stamps the build its quirks were proven against (llama.cpp b11541, LM
-  Studio llmster 0.0.25-1).
+- Local-server scan and panel honesty (M95 C-M95-4 R2): probes settle exactly once,
+  a scanned llama.cpp model evidences its live window, and presets without a wire
+  capture stay out of the Models panel and refuse to send.
 
-- Local-model context windows end to end (M95 C-M95-4 R3, review
-  RVCM954B). A scanned local model now carries its server's reported
-  window in `providers.json` `modelLimits`: the quick pick, the Models
-  panel wizard save and the panel tick all write it (output bounded by
-  the window, which is the only cap the server reports), so the
-  composer's context limit is set from the save instead of staying
-  empty. A local model from a captured preset with no known window
-  refuses the request with a plain reason before anything is sent. The
-  configured registry exposes its last listing's window to the host's
-  context seam, so manual compact sizes the summary to the live window
-  and automatic compact sees it (the legacy Meta window still applies
-  where it did). The closed-scan and save refusal reasons moved into
-  the translated UI table. Note: the LM Studio list reports no window,
-  so a saved LM Studio model refuses until a window is known; enter one by
-  hand in the provider wizard, the quick pick, the Models table, or
-  `providers add --context-window` (M95 C-M95-4 R4).
+- Local-model context windows end to end (M95 C-M95-4 R3): a scanned model's
+  server-reported window lands in `providers.json` `modelLimits` and sizes both
+  compactions; a model with no known window refuses with a plain reason before
+  anything is sent. LM Studio lists report no window, so enter one by hand.
 
-- Keep translated UI keys in canonical English order and reject source key
-  order drift before ACP or headless packaging.
 - OpenRouter cancellation now interrupts token exchanges and usage reads,
-  releases the panel queue, and discards late credentials. Provider adds
-  preserve concurrent key rotation/removal and never rewrite a reused key.
-- Key usage clears on missing, unreadable, changed or failed observations;
-  new total and weekly amounts use the existing exact-dollar boundary.
-- Terminal Connect is one locked transaction: rollback never runs after the
-  lock is released, so it cannot overwrite an independent rotation or bring
-  back a removed key; a crashed Connect is reported and cleaned on the next
-  start, and a refusing credential store still yields both the connection
-  result and the created-key removal notice.
-- Usage budgets follow the stored credential: rotated or removed keys'
-  numbers disappear from the usage page and CLI, and no wire object or string
-  can forge an exact usage amount. Malformed loopback requests are refused
-  without endangering the listener.
+  releases the panel queue, and discards late credentials.
+- Key usage clears on missing, unreadable, changed or failed observations, and
+  usage budgets follow the stored credential: rotated or removed keys' numbers
+  disappear from the usage page and CLI.
 - The Models panel lists the Custom server again alongside the captured
-  presets (M95 D205): it is the user's own server, admitted without a
-  capture, while presets without one (vLLM, Ollama) stay out until their
-  captures land.
+  presets (M95 D205), while presets without a capture stay out until theirs land.
 
 ### Fixed
 
@@ -2600,16 +2461,6 @@ happened, not what was planned; superseded entries are kept.
   keep their digits beyond Intl's precision limit. The money guard resolves
   union/intersection members, apparent types and inherited interfaces.
 
-- Exact money keeps every promise on every Node version (M121A fix round).
-  Version 1 journals and schedules read dollars through a small JSON parse
-  that keeps each number's written digits, so a literal a double cannot
-  carry is refused on Node 20 exactly as on newer runtimes instead of being
-  rounded into the record. Usage charts label the original amount in every
-  status line, data table and previous-period figure; only the plotted
-  geometry stays approximate, so a single xAI tick no longer reads as ten
-  times its charge. The exact-money type guard now also sees through
-  finite-key records and mapped types.
-
 - Tests only: the exact-money guard cites PLAN.md by heading and quoted
   phrase instead of by line number. A line number named a different sentence
   after every edit above it, and the old check only asked that the numbered
@@ -2706,31 +2557,18 @@ happened, not what was planned; superseded entries are kept.
   description (lane TOOLCAP).
 
 
-- RVPORTM105: cancellation after a Files receipt permits bounded provider
-  cleanup, with durable retry intent when deletion fails. Audio-action changes
-  during preparation refuse before transcription. Exec attachment tests use a
-  Files-capable provider fixture. Media refusal logs retain reason codes while
-  detailed attachment names stay in the user-facing error only.
+- Cancelling after a Files upload cleans up the provider copy with durable
+  retry; audio-action changes during preparation refuse before transcription.
 
-- Muse Voice transcription of an attached file (RVMEDIAV):
-  - It sends only the bytes that were attached. They are read through the
-    attachment's digest check (and checked again around a conversion), and a
-    file replaced since it was attached refuses before anything is sent;
-    previously the replacement could be sent under the original's smaller
-    reservation.
-  - The last paid check (Muse Voice on, the daily and session budgets, the
-    selected model) now runs immediately before the request goes out, after
-    the key and endpoint checks. Turning Muse Voice off, or a budget closing,
-    while the key was read no longer lets the request through; turning it off
-    during the price question stops the preparation.
-  - A request that never left the machine (no key stored, another account's
-    key, the endpoint check) refunds its reservation and adds nothing to the
-    usage tally; previously it was kept as an unknown charge.
-  - Changing the model while the price question is open no longer pays for a
-    transcription the turn then discards.
+- Transcription sends only the bytes that were attached: a file replaced
+  since it was attached refuses before anything is sent, and a request that
+  never left the machine refunds its reservation and adds nothing to the
+  usage tally (RVMEDIAV).
 
 - A file attached again after its earlier copy was discarded and deleted now
   uploads from the new copy, not the deleted one (RVMEDIAV).
+- Uploaded-file cleanup no longer blocks saving when the provider refuses a
+  deletion: the failure is recorded with backoff and retried by a later sweep.
 
 - Embedded ACP media no longer stays in memory for the agent's lifetime;
   see "One-use attachments" above (RVMEDIAV).
@@ -2738,51 +2576,17 @@ happened, not what was planned; superseded entries are kept.
 - On Linux and macOS a converter whose final output check stalls after a
   clean exit now ends with Stop or its deadline, as on Windows (RVMEDIAV).
 
-- Attached video and audio, redesigned ownership (RVMEDIAV2):
-  - A converted MP3 or video soundtrack is encoded from the attachment's
-    digest-checked bytes, copied into the conversion's private folder, never
-    from your file's path; a file swapped and restored during conversion is
-    no longer what gets transcribed.
-  - Each attachment uploads only from its own file. Another session
-    attaching a byte-identical copy can no longer point your upload at its
-    (possibly deleted) file.
-  - A message waiting in the queue, or steered into a running reply, now
-    holds its attachments from the moment it is accepted: attaching many
-    more files elsewhere no longer drops them. Taking the message back, Stop
-    or the reply ending lets them go.
-  - When 64 attachments are all in use, VS Code now says so ("Too many video
-    and audio attachments are in use. Wait for a reply to finish, then
-    attach again.") instead of "The file could not be read."
+- Attached media ownership (RVMEDIAV2–V4): a queued or steered message holds
+  its attachments from acceptance; a byte-identical copy in another session
+  can no longer redirect your upload; and when all 64 attachments are in use
+  VS Code says so. A conversion copy that cannot be made whole stops with
+  "Conversion failed: private copy", and copies a crash left behind are
+  removed by the next conversion.
 
-- Attached video and audio, fix round (RVMEDIAV3):
-  - The private copy a conversion encodes is now the whole verified file.
-    A write that lands only part of a chunk (a nearly full disk, a quota)
-    continues from where it stopped, and the copy is read back and compared
-    with the verified bytes before anything encodes it. Before, a short
-    write could cut the copy, and a shorter recording was transcribed with
-    no error. Now a copy that cannot be made whole stops with "Conversion
-    failed: private copy".
-  - Closing a conversation while a message steered into its reply is still
-    waiting no longer uploads that message's video. The steer goes with the
-    conversation and its attachment is let go at once. A closed
-    conversation's media service reads and uploads nothing.
-  - Copies that a crash or a kill left in the private media folder are now
-    removed when the next window or agent process converts something. A
-    window that is still running keeps its own copies.
-
-- Attached video and audio, fix round (RVMEDIAV4): a window whose lock on the
-  private media folder failed can no longer have its conversion's copy
-  removed by another window while it converts. Its copies are kept until
-  removed by hand.
-
-- On Windows, a stdio MCP server, a plugin hook's runtime or a team run is now
-  created inside its kill-on-close job. Previously it was added to the job
-  just after creation. A launcher ended in between (cancelled, timed out)
-  could leave the new process suspended outside the job; now none survives
-  (RVMEDIAVB).
-
-- The Windows owner-only ACL helper finds PowerShell under `SystemRoot`, then
-  `windir`, and refuses when neither is set instead of assuming `C:\Windows`.
+- On Windows, a stdio MCP server, plugin hook runtime or team run is created
+  inside its kill-on-close job, so no cancelled launch leaves a suspended
+  process behind. The owner-only ACL helper finds PowerShell under
+  `SystemRoot`, then `windir`, and refuses when neither is set.
 
 - An image an MCP tool returns is priced at the calibrated image bound on the
   Muse Spark contributor models, like every other image, so a capped turn no
@@ -2792,41 +2596,17 @@ happened, not what was planned; superseded entries are kept.
 - The Model API factory drops a caller-supplied audio preparation callback;
   the only audio path is the one the bundle binds itself (RVMEDIAW2).
 
-- An RSS sample of a converter that already exited no longer fails a
-  conversion that finished cleanly: after close only the output decides
-  (M105 lane V).
+- A converter that already exited cleanly no longer fails on a stale resource
+  sample. Storage is not billed, so that warning is gone from every refusal;
+  the privacy notice and README say what a contributor-model video
+  `read_file` does: bytes go to the provider's Files API, the upload expires
+  after seven days, and session deletion or the retention purge deletes it.
 
-- "Storage billing has not been verified" is gone from every refusal: U6c
-  recorded that storage is not billed. A session without a file upload
-  service now says so (M105 lane V).
-
-- The privacy notice and the README now say what a contributor-model
-  `read_file` of a video already does: the bytes go to Meta's Files API, the
-  upload expires after seven days, and session deletion or the retention purge
-  deletes it (RVMEDIAW2).
-
-- The media accounting core claims its calibrated upper bound
-  against both schedule and shared daily caps, including replayed file IDs,
-  settles the admitted media tariff once, and retains uncertain liabilities.
-  Above-reserve bills refuse settlement; daily claim transfers secure their
-  replacement before releasing held budget.
-  What production media users can do now is under Changed above. A scheduled
-  run without the production media service (no storage or key) explains the
-  limitation in every editor.
-  Media read-file references through a bound adapter carry their checked source
-  into the run ledger;
-  stopped reads cannot publish a new proof.
-
-- Video reaching any non-Meta request now refuses with the model's own
-  reason ("{model} is not known to take video."), read from the installed
-  language table, before anything is sent (M105 lane V R2). The chat and
-  Gemini codecs already refused at the codec stage, but as a plain Error
-  the production client replaced the reason with the generic unavailable
-  message; the refusal is now the typed error the client passes through.
-  Responses requests forwarded Meta's file id uncaptured while Anthropic
-  and Ollama requests dropped the part and sent the rest; every encoder
-  now refuses instead. No vendor outside Meta has a captured media wire
-  yet.
+- Media accounting claims its calibrated upper bound against schedule and
+  daily caps, settles the admitted tariff once, and retains uncertain
+  liabilities; a scheduled run without the media service explains the
+  limitation. Video to a non-Meta model refuses up front with that model's
+  reason ("{model} is not known to take video.").
 
 - The same typed video refusal now reaches the user as its own sentence on
   every remaining route (M105 lane V R3, RVCM1054B): the ChatGPT

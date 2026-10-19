@@ -4102,8 +4102,8 @@ writing concurrently. A crash leaves resumable bytes and a dead-owner lock
 that the next attempt recovers. Refusing or stopping preparation captures no
 audio and makes no new request; another microphone press can retry.
 
-Offline or air-gapped install: download the release's ten `linux-*` helper
-assets and the pinned model file, and place them in the folder the download
+Offline or air-gapped install: download the release's twelve `linux-*` helper
+assets for your architecture and the pinned model file, and place them in the folder the download
 card names (the `dictation-linux` folder inside the extension's global
 storage). The next microphone press checks their sizes and SHA-256 digests
 exactly as it would a download, and refuses loudly on any mismatch.
@@ -4216,8 +4216,8 @@ What asks, and when:
   are read from their checked canonical workspace targets, even if a link
   changes after the check. An image written to a protected path (D24) asks
   even when images are allowed always.
-- **Muse Voice**: once before the first recording in a window. **Allow once**
-  covers that window; **Always** covers the workspace until revoked through
+- **Muse Voice**: before each recording. **Allow once** covers one
+  recording; **Always** covers the workspace until revoked through
   Account & usage. The popup names the hourly price and shared daily budget.
 - **Subagents**: before every new child task, with its objective, model,
   published rates and four-request ceiling; Plan refuses it. Retries count;

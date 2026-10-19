@@ -287,8 +287,6 @@ uses the same window for context pressure and compaction in every ACP editor.
 LM Studio's committed capture reports no window; no uncaptured native endpoint
 is queried. Missing windows refuse inference with instructions to enter one.
 
-> > > > > > > cand/MSM95/4
-
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
 unlocked Secret Service the Model API backend is unavailable; there is no
