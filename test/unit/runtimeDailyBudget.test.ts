@@ -16,8 +16,11 @@ import {
   DAILY_SPEND_FOLDER,
   PAID_DAILY_BUDGET,
   RUNTIME_SETTINGS_FILE,
+  UI_TEXT,
 } from '../../src/shared/constants'
 import { Usd } from '../../src/shared/usd'
+import { canonicalUsd } from '../../src/shared/usdSchema'
+import { scheduleV2Schema } from '../../src/shared/scheduleV2'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const root = mkdtempSync(path.join(tmpdir(), 'runtime-daily-'))
@@ -226,6 +229,62 @@ describe('runtime daily budget', () => {
     const root = await cappedFolder(1)
     try {
       expect(budget(root).capUsd()).toBe('1')
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('reserveSchedule counts what was spent against the schedule own cap', async () => {
+    const root = await cappedFolder(10)
+    try {
+      const daily = budget(root)
+      const schedule = scheduleV2Schema.parse({
+        version: 2,
+        revision: 0,
+        id: 'test-schedule',
+        name: 'Test schedule',
+        workspaceKey: 'test-workspace',
+        action: { kind: 'prompt', prompt: 'Summarize the inbox' },
+        trigger: { kind: 'once', atMs: noon },
+        target: { kind: 'conversation', sessionId: 'test-session', backend: 'modelApi' },
+        delivery: 'whenIdle',
+        whenClosed: 'open',
+        catchUp: 'runOnce',
+        mode: 'manual',
+        grant: { rules: [], destinationIds: [], paidCapUsd: canonicalUsd('1') },
+        paidConsent: {
+          modelId: 'test-model',
+          accountId: 'test-account',
+          priceTier: 'test-tier',
+          grantedAtMs: noon,
+          dailyCapUsd: canonicalUsd('1'),
+          sharedDailyBudgetUsd: canonicalUsd('10'),
+          extras: [],
+        },
+        paidCapUsd: canonicalUsd('1'),
+        parallel: false,
+        creator: { kind: 'user' },
+        depth: 0,
+        allowAgentReschedule: false,
+        pinned: false,
+        zone: 'America/Los_Angeles',
+        createdAtMs: noon,
+        updatedAtMs: noon,
+        fireCount: 0,
+        consecutiveFailures: 0,
+        paused: false,
+      })
+      const signal = new AbortController().signal
+      const claim = await daily.reserve(Usd.from('0.6').toAmount(), signal)
+      await claim?.settle(Usd.from('0.6').toAmount())
+      // The estimate alone fits the schedule's own cap, but with what was
+      // spent today it no longer does: the fire is refused, like live billing.
+      await expect(
+        daily.reserveSchedule(schedule, Usd.from('0.5').toAmount(), signal),
+      ).rejects.toThrow(UI_TEXT.scheduleV2.messages.capReached)
+      // What still fits is admitted.
+      const fits = await daily.reserveSchedule(schedule, Usd.from('0.4').toAmount(), signal)
+      expect(fits.estimateUsd).toBe('0.4')
     } finally {
       await rm(root, { recursive: true, force: true })
     }
