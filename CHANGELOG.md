@@ -25,6 +25,20 @@ happened, not what was planned; superseded entries are kept.
 - Give Windows a working vault client and broker: the client platform builds the pipe and slot helpers at first use, launches the broker with both, and dials its pipe (the files-mode helper checks the pipe owner, then the hello binds the broker); the broker entry serves its pipe before the bindings exist and starts on that same serve instead of serving twice; DPAPI/CNG storage and Windows Hello presence answer where present, and setup wraps a capability-probed hardware slot beside the OS-store one (D89 protection:auto). macOS wires the Secure Enclave slot with a real presence check beside Login Keychain, and Linux adds the TPM2/systemd-creds sealed slot where the machine has one. Windows proof is the lead's run and Windows CI.
 - Keep the vault working where the OS keyring binding is not installed: the broker starts its channel and anchors rollback state to its owner-only file record (same record, same rules), while the OS-store tier reports its fixed repair per use; the OS store stays preferred wherever its binding loads. Setup seals a hardware slot where the machine can, with or without the OS store, and the repair now says the build may not include the binding.
 - Package one `.vsix` per VS Code target platform (`node scripts/package-vsix.mjs --target <platform>`): each package carries only its own platform's native pieces within the unchanged size budget, and CI packs and checks all six. The keyring binaries stay out of every package (the target's own binary alone exceeds the remaining headroom), so packed packages never load the OS store: they set up on hardware where the machine seals, and the OS store loads in builds where its binding is installed.
+### Packaging
+
+- One package per platform target (PLAN.md D123, mechanism ported from #246;
+  the join owns the decision record). `npm run package` and
+  `npm run package:acp` take `--target <platform>-<arch>` (the six desktop
+  targets); a targeted package stages only its own platform's native pieces
+  and names its target in its filename, so a platform's package packs on
+  that platform without helpers only another OS builds. The universal
+  packages keep every platform's helpers. Proved on macOS (Intel):
+  `muse-spark-code-darwin-x64-0.19.0.vsix` and
+  `muse-spark-code-acp-0.19.0-darwin-x64.tgz` with zero foreign native
+  pieces. The darwin-x64 .vsix measures 3,852,534 bytes against the
+  unchanged 3,788,800-byte budget (its required darwin binaries were never
+  in the measured universal); the budget decision stays with the lead.
 
 ## [0.19.0] - 2026-10-17
 
@@ -731,6 +745,12 @@ happened, not what was planned; superseded entries are kept.
   activation (its own `dist/museCode.js`), so opening a window no longer
   carries the backend, its notification mapping or the Muse Code SDK;
   the backend behaves as before once started.
+- Contributor-tier models can be named on the Muse Code backend even though
+  the CLI's 1.4.10 catalogue omits them (four models, even in contributor
+  mode), which refused `--model muse-spark-1.3-contributor` as unknown
+  despite the person's opt-in. With `--allow-contributor-models` a
+  contributor-tier id is now attempted and the CLI's answer stands; anything
+  else is still refused before anything is sent.
 
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
@@ -2083,6 +2103,17 @@ happened, not what was planned; superseded entries are kept.
 - Packaged translation tables round-trip byte-exact again: every language
   table lists its keys in English's order, including the resource history
   and Windows path strings merged for 0.17.0.
+
+- The features group's merges dropped three build lines in conflict
+  resolution, and the build carries them again: PR #226's
+  `productionMediaEntry → dist/productionMedia.js` externalization (without
+  it every dynamic import of the production media bundle was compiled
+  inline, pushing `dist/modelApi.js` and `dist/productionAudio.js` over
+  their budgets and failing the split gate), PR #243's `reportInputs` and
+  `playbookSchedulesInputs` production builds (the size gate listed both as
+  not built), and PR #206's picked-text template reader list now names the
+  runtime's ACP/exec media port, which attaches picked files through
+  `src/acp/media.ts`.
 
 - The dependency-cycle gate now covers every build entry, lazy import target,
   entry-named module and knip entry, with a guard against root-list drift.

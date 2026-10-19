@@ -188,7 +188,11 @@ export interface AcpBackend {
 export interface AcpAgentOptions {
   /** Bypass permissions is offered (`--allow-dangerously-skip-permissions`). */
   readonly canBypass: boolean
-  /** Contributor-tier models are listed (`--allow-contributor-models`). */
+  /**
+   * Contributor-tier models are listed, and a named contributor-tier id is
+   * attempted even when the CLI's catalogue omits it
+   * (`--allow-contributor-models`).
+   */
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
   readonly initialModelId?: string
