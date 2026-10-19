@@ -37,6 +37,17 @@ describe('parseCommandLine failure rules', () => {
     }
   })
 
+  it('answers an invalid option value on usage and resources as invalid with exit 2', () => {
+    for (const argv of [
+      ['usage', '--json=foo'],
+      ['resources', '--json=foo'],
+    ]) {
+      const command = parseCommandLine(argv)
+      invalid(command)
+      expect(command.exitCode).toBe(2)
+    }
+  })
+
   it('hands an M93-option failure to the named reports engine', () => {
     expect(parseCommandLine(['report', 'history', '--nope'])).toMatchObject({ command: 'reports' })
   })

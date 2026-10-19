@@ -380,8 +380,14 @@ function microUsd(value: UsdAmount): bigint | undefined {
     // exact BigInt. Negative input stays unrepresentable here.
     const units = Usd.from(value).units(EXEC_USD_DECIMALS)
     return units >= USD_DECIMAL_ZERO ? units : undefined
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // A schema-valid amount meets only these two refusals here; anything
+    // else is not this boundary's answer to give.
+    if (error instanceof Error) {
+      if (error.message === 'USD amount is not representable') return undefined
+      if (error.message === 'USD amount must be a finite decimal') return undefined
+    }
+    throw error
   }
 }
 function isSumEqual(total: UsdAmount, values: readonly UsdAmount[]): boolean {
