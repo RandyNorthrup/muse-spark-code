@@ -125,6 +125,14 @@ async function scratch(): Promise<{ dir: string; dayFile: string; gatedFile: str
   return { dir, dayFile: path.join(dayDir, 'a.jsonl'), gatedFile: path.join(dayDir, GATED) }
 }
 
+/** A scratched day holding the swapped file's old bytes beside the gated file's bytes. */
+async function seededScratch(): Promise<{ dir: string; dayFile: string; gatedFile: string }> {
+  const seeded = await scratch()
+  await writeFile(seeded.dayFile, `${lines('a').join('\n')}\n`, 'utf8')
+  await writeFile(seeded.gatedFile, `${lines('c').join('\n')}\n`, 'utf8')
+  return seeded
+}
+
 function storeIn(fs: UsageFs): UsageJournalStore {
   return new UsageJournalStore(fs, {
     writerId: 'test-writer',
@@ -148,10 +156,8 @@ async function takeOver(dir: string): Promise<void> {
 
 describe('usage journal lock races', () => {
   it('retries a raced lock and returns the fresh snapshot, never mixed bytes', async () => {
-    const { dir, dayFile, gatedFile } = await scratch()
+    const { dir, dayFile } = await seededScratch()
     try {
-      await writeFile(dayFile, `${lines('a').join('\n')}\n`, 'utf8')
-      await writeFile(gatedFile, `${lines('c').join('\n')}\n`, 'utf8')
       // A whole-millisecond mtime round-trips exactly, so the swap below
       // keeps the stat identical and only cold caches read the new bytes.
       const tick = Math.floor(Date.now() / 1000)
@@ -183,10 +189,8 @@ describe('usage journal lock races', () => {
   })
 
   it('reads usageLockLost after a second race', async () => {
-    const { dir, dayFile, gatedFile } = await scratch()
+    const { dir } = await seededScratch()
     try {
-      await writeFile(dayFile, `${lines('a').join('\n')}\n`, 'utf8')
-      await writeFile(gatedFile, `${lines('c').join('\n')}\n`, 'utf8')
       const gating = new GatingFs(new NodeUsageFs(dir))
       gating.arm(2)
       const store = storeIn(gating)

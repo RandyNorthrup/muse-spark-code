@@ -135,6 +135,17 @@ function recoveredFire(outcome: 'ran', certainty: 'exact' | 'unknown'): Schedule
   })
 }
 
+/** A settled failed accounting leaves one settlement and one failed fire behind. */
+async function expectFailedSettlement(
+  settlements: unknown[],
+  fires: () => Promise<ScheduleFireRecord[]>,
+): Promise<void> {
+  expect(settlements).toHaveLength(1)
+  const recorded = await fires()
+  expect(recorded).toHaveLength(1)
+  expect(recorded[0]?.outcome).toBe('failed')
+}
+
 describe('schedule delivery failures', () => {
   it('rejects an absent run with the delivery error and records nothing', async () => {
     const deliveryError = new Error('sendDown')
@@ -208,10 +219,7 @@ describe('schedule delivery failures', () => {
     })
     try {
       await expect(fire()).rejects.toThrow('scheduleSettlementIdentityMismatch')
-      expect(settlements).toHaveLength(1)
-      const recorded = await fires()
-      expect(recorded).toHaveLength(1)
-      expect(recorded[0]?.outcome).toBe('failed')
+      await expectFailedSettlement(settlements, fires)
     } finally {
       await cleanup()
     }
@@ -224,10 +232,7 @@ describe('schedule delivery failures', () => {
     })
     try {
       await expect(fire()).rejects.toThrow()
-      expect(settlements).toHaveLength(1)
-      const recorded = await fires()
-      expect(recorded).toHaveLength(1)
-      expect(recorded[0]?.outcome).toBe('failed')
+      await expectFailedSettlement(settlements, fires)
     } finally {
       await cleanup()
     }
