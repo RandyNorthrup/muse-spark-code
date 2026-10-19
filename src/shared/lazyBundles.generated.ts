@@ -186,6 +186,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'conversationTransfer.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/host/conversation/conversationController.ts',
+        symbol: 'ConversationController.transferBundle',
+        side: ['vscode'],
+      },
+    ],
+  },
+  {
     file: 'credentialLease.js',
     side: 'both',
     requestedBy: [

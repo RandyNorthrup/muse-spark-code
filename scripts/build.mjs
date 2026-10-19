@@ -136,6 +136,10 @@ const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
 const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
 const CONVERSATION_OUTFILE = 'dist/conversation.js'
+// CONVBUDGET: the conversation's session-transfer flows (export, import and
+// the share-file preview), required on the first of those flows.
+const CONVERSATION_TRANSFER_ENTRY = 'src/host/conversation/conversationTransferEntry.ts'
+const CONVERSATION_TRANSFER_OUTFILE = 'dist/conversationTransfer.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
 const SHARING_RUNTIME_ENTRY = 'src/runtime/sharing/sharingEntry.ts'
@@ -1068,6 +1072,16 @@ const modelApiSessionsOptions = {
   outfile: MODEL_API_SESSIONS_OUTFILE,
 }
 
+// CONVBUDGET: the conversation's session-transfer flows, required on the
+// first export, import or share-file preview. They read no `vscode`: the
+// dialogs stay injected by the controller.
+/** @type {import('esbuild').BuildOptions} */
+const conversationTransferOptions = {
+  ...conversationGitOptions,
+  entryPoints: [CONVERSATION_TRANSFER_ENTRY],
+  outfile: CONVERSATION_TRANSFER_OUTFILE,
+}
+
 // The Create AGENTS.md command (D15), required when that command runs: the
 // command, the rules template and their redaction.
 /** @type {import('esbuild').BuildOptions} */
@@ -1586,6 +1600,7 @@ if (isWatch) {
     esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
+    esbuild.context(conversationTransferOptions),
     esbuild.context(tabOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
@@ -1811,6 +1826,7 @@ if (isWatch) {
     screenRecord: recorded('screenRecord', screenRecordOptions),
     agentImport: recorded('agentImport', agentImportOptions),
     conversationGit: recorded('conversationGit', conversationGitOptions),
+    conversationTransfer: recorded('conversationTransfer', conversationTransferOptions),
     modelApiSessions: recorded('modelApiSessions', modelApiSessionsOptions),
     rulesFile: recorded('rulesFile', rulesFileOptions),
     nativeGit: recorded('nativeGit', nativeGitOptions),
@@ -1981,6 +1997,7 @@ if (isWatch) {
   reportSize(PLAYBOOK_OUTFILE)
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
+  reportSize(CONVERSATION_TRANSFER_OUTFILE)
   reportSize(TAB_OUTFILE)
   reportSize(PROMPTS_OUTFILE)
   reportSize(SHARING_RUNTIME_OUTFILE)

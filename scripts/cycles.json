@@ -18,6 +18,7 @@
     "src/shared/modelApiBoundariesEntry.ts",
     "src/extension.ts",
     "src/host/conversation/conversationEntry.ts",
+    "src/host/conversation/conversationTransferEntry.ts",
     "src/host/judge/judgeEntry.ts",
     "src/host/tab/tabEntry.ts",
     "src/host/backend/modelApiEntry.ts",

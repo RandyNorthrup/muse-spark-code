@@ -72,6 +72,11 @@ const BUDGETS = [
   // JOIN0190 features merge: 258.2 KiB measured (estimate diagnostics,
   // conversation controller), +15%, rounded up to 25 KiB.
   { path: 'dist/conversation.js', budgetKiB: 300 },
+  // CONVBUDGET: the conversation's session-transfer flows (export, import
+  // and the share-file preview), required on the first of those flows.
+  // 23,804 B when split out (23.2 KiB); plus 15%, rounded up to 25 KiB
+  // (PLAN.md D6).
+  { path: 'dist/conversationTransfer.js', budgetKiB: 50 },
   // M94: provider, engine and ledger on first Tab use (PLAN.md D6).
   { path: 'dist/tab.js', budgetKiB: 75 },
   // M118: portable stores, native/panel adapters and chat renderer: 163.4 KiB + 15%, rounded to 25 KiB.

@@ -1549,6 +1549,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Resource controls/history                | ≤ 25 KiB entries; ≤ 50 KiB closures |
 | `docs/schemas/exec-event-v2.schema.json` | ≤ 50 KiB                            |
 | `dist/conversation.js`                   | ≤ 250 KiB                           |
+| `dist/conversationTransfer.js`           | ≤ 50 KiB                            |
 | `dist/tab.js`                            | ≤ 75 KiB                            |
 | `dist/extension.js`                      | ≤ 600 KiB                           |
 | `dist/modelApi.js`                       | ≤ 475 KiB                           |
@@ -1604,6 +1605,8 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/paid.js`                           | ≤ 75 KiB                            |
 
 **`dist/conversation.js` budget rationale.** (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)
+
+**`dist/conversationTransfer.js` budget rationale.** (CONVBUDGET: the conversation's session-transfer flows, required on the first export, import or share-file preview; 23,804 B measured when split out of `dist/conversation.js` on 2026-10-18, plus 15%, rounded up to 25 KiB)
 
 **`dist/tab.js` budget rationale.** (M94: first request/menu; status/provider registration stays eager)
 
