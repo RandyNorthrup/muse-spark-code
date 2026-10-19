@@ -33,7 +33,7 @@ import {
   CredentialMigrationController,
   type CredentialMigrationPorts,
 } from '../../../src/host/vault/migrateCredentials'
-import { createMigrationShell } from '../../../src/host/vault/migrationShell'
+import { createMigrationShell, type MigrationMirror } from '../../../src/host/vault/migrationShell'
 
 const now = () => 1_700_000_000_000
 const MODEL_API_KEY = SECRET_KEYS.modelApiKey
@@ -655,6 +655,58 @@ describe('key-store migration against a real store', () => {
     expect(remaining.some((item) => item.name.startsWith('migration-'))).toBe(false)
     expect(await store.get(PROVIDER_KEY)).toBe(oauth)
     expect(logged.some((line) => line.includes(PROVIDER_KEY) && line.includes('opaque'))).toBe(true)
+  })
+
+  it('a save that lands during a sign-out survives it, in both copies', async () => {
+    const first = modelApiKey()
+    const newer = modelApiKey()
+    const inner = await persistedSecrets({ [MODEL_API_KEY]: first })
+    const active = controller(inner, [], noFail())
+    // Hold the sign-out's engine delete open after its SecretStorage clear
+    // but before it touches the vault: the save below lands in that window,
+    // the way a save racing a fresh sign-out does. Every byte still goes
+    // through the real controller and the real store; the gate only decides
+    // when, like the persisted-write gate above.
+    const gateHit: (() => void)[] = []
+    const gateOpen: (() => void)[] = []
+    const removalReached = new Promise<void>((resolve) => {
+      gateHit.push(resolve)
+    })
+    const removalHold = new Promise<void>((resolve) => {
+      gateOpen.push(resolve)
+    })
+    const shell = createMigrationShell(inner)
+    const gated: MigrationMirror = {
+      mirrorWrite: (key, value) => active.mirrorWrite(key, value),
+      mirrorDelete: async (key) => {
+        for (const notify of gateHit.splice(0)) notify()
+        await removalHold
+        await active.mirrorDelete(key)
+      },
+    }
+    shell.bind(gated)
+    await active.ensureMigrated()
+    expect(await readMigratedSecret()).toBe(first)
+    // The sign-out clears SecretStorage, then stalls before its engine
+    // delete; the lane queues by arrival, so the save below is ordered
+    // second even though it starts before the release.
+    const signOut = shell.store.delete(MODEL_API_KEY)
+    await removalReached
+    expect(await inner.get(MODEL_API_KEY)).toBe(undefined)
+    const save = shell.store.store(MODEL_API_KEY, newer)
+    for (const release of gateOpen.splice(0)) release()
+    await signOut
+    await save
+    // The save came second, so it wins in both copies: the sign-out is over
+    // and the newer key stands migrated. Before each save and each sign-out
+    // held the shared lane as one atomic op, the sign-out's trailing engine
+    // delete wiped the newer key the old removeLegacy way and it never came
+    // back. A later unlock keeps it, never resurrecting the signed-out one.
+    expect(await inner.get(MODEL_API_KEY)).toBe(newer)
+    expect(await readMigratedSecret()).toBe(newer)
+    await controller(inner, [], noFail()).ensureMigrated()
+    expect(await inner.get(MODEL_API_KEY)).toBe(newer)
+    expect(await readMigratedSecret()).toBe(newer)
   })
 
   it('keeps a save made while the vault is locked, and mirrors it on unlock', async () => {
