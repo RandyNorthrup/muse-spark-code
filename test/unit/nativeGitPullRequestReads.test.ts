@@ -91,7 +91,7 @@ describe('the pull request draft reads, against real repositories', () => {
     }
     return first
   }
-  const gitPath = processGitPath()
+  const gitPath = processGitPath(root)
 
   beforeAll(() => {
     built.push(createFixtureRepositories(root))

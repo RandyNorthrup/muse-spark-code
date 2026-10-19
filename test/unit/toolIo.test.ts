@@ -6,6 +6,7 @@ import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
+import { workspaceChildEnvironment } from '../../src/core/execGuard'
 import { MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import {
   createToolIo,
@@ -66,7 +67,10 @@ describe('runCommand', () => {
       file: '/muse-spark-test-no-such-binary',
       args: [],
       cwd: base,
-      env: process.env,
+      env: workspaceChildEnvironment(process.platform, process.env, {
+        workspaceRoot: base,
+        realpath: realpathSync,
+      }),
       timeoutMs: 5000,
       signal: undefined,
       tree: {

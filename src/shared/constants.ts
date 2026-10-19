@@ -6609,6 +6609,7 @@ export const REPORT_ERROR_CODES: ReadonlySet<string> = new Set([
 export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/extension.js',
   'dist/questionNotes.js',
+  'dist/approvalModes.js',
   'dist/prompts.js',
   'dist/uiText.js',
   'dist/modelApi.js',

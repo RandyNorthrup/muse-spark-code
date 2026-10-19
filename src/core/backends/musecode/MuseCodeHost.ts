@@ -11,7 +11,7 @@ import { editAutomaticallyChoice } from '../../agent/approvalRules'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import { SessionOwner, type SessionToken, type SessionEffect } from '../../schedules/sessionOwner'
 import type { ScheduleApprovalAction } from '../../../shared/scheduleV2'
-import { mspApprovalMode, mspPermissionProfile } from '../../../shared/permissionModes'
+import { mspApprovalMode } from '../../../shared/permissionModes'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
@@ -35,6 +35,7 @@ import type {
   SpawnMspConnectionOptions,
 } from '@muse-code/sdk/dist/src/connection/spawn.js'
 import type { MuseCodeAccountHome } from './accountHomes'
+import type { ModeSyncOps } from './approvalModesEntry'
 import * as z from 'zod/mini'
 import {
   type AgentEvent,
@@ -69,6 +70,7 @@ import {
   MSP_USER_SHELL_CAPABILITY,
   MUSE_APPROVAL_LEDGER_FAULT,
   MUSE_APPROVAL_REPLAY_FAULT,
+  MUSE_AUTO_REVIEW_PROFILE,
   MUSE_EVENT_LOG_FAULT,
   MUSE_EXIT_PERSISTENT_CODES,
   type EffortLevel,
@@ -1337,8 +1339,7 @@ export class MuseSession implements ScheduledAgentSession {
     }
   >()
   private drainingSchedules = false
-  /** Set on the first `methodNotFound` from `session/setPermissionProfile`: the host predates it. */
-  private profileSyncUnsupported = false
+  private modeOpsCache: ModeSyncOps | undefined
   private readonly leaseGeneration: number
 
   public constructor(
@@ -1433,11 +1434,23 @@ export class MuseSession implements ScheduledAgentSession {
     send: (token: SessionToken) => Promise<TurnSubmission>,
     expectedTurnId?: string,
   ): Promise<TurnSubmission> {
+    await this.restoringScheduleMode
+    if (this.owner.quarantined)
+      throw new Error(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     const token = this.owner.claim(waiter, run, expectedTurnId)
     if (token === undefined) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
     this.heldScheduleEvents = []
     try {
-      await this.changeApprovalMode(mspApprovalMode(run.context.mode), token, run)
+      const admittedMode = mspApprovalMode(run.context.mode)
+      const modes = await import('./approvalModesEntry')
+      await modes.applyModeChange(this.modeOps(), admittedMode, token, run)
+      // While the unattended run is in charge the session reviews with the
+      // host default `:auto-review`: the run answers what the grant allows
+      // and refuses the rest itself, so the human reviewer must not be
+      // installed here — on a Manual conversation `:ask-me` would turn every
+      // unmatched command into a refusal instead of letting the judge allow
+      // it, as it did before profiles existed.
+      await modes.setSessionProfile(this.modeOps(), MUSE_AUTO_REVIEW_PROFILE, admittedMode)
       if (!run.isActive())
         throw expectedTurnId === undefined
           ? new Error(UI_TEXT.scheduleBusy)
@@ -1470,12 +1483,35 @@ export class MuseSession implements ScheduledAgentSession {
     }
   }
 
+  /**
+   * What the deferred mode sync needs from this session (built once, never at
+   * activation): the owner, the effect runners, the profile command and the log.
+   */
+  private modeOps(): ModeSyncOps {
+    return (this.modeOpsCache ??= {
+      owner: this.owner,
+      applyEffect: (effect) => this.applyModeEffect(effect),
+      sendProfile: (profileId) => this.command('session/setPermissionProfile', { profileId }),
+      log: (level, message) => {
+        this.log[level](message)
+      },
+    })
+  }
+
   private restoreScheduleMode(effect: SessionEffect | undefined): void {
     if (effect === undefined) return
-    this.restoringScheduleMode = this.applyModeEffect(effect)
-    void this.restoringScheduleMode.catch(() => {
-      this.log.warn('Scheduled mode could not be restored; new turns are refused')
-    })
+    // The gate resolves once the outcome is recorded: a failed restore must
+    // not reject every later turn and mode change on the handle.
+    this.restoringScheduleMode = (async () => {
+      try {
+        const modes = await import('./approvalModesEntry')
+        await modes.restoreScheduleEffect(this.modeOps(), effect)
+      } catch (error: unknown) {
+        this.log.warn(
+          `Scheduled mode or reviewer could not be restored (${failureForLog(error)}); new turns are refused until the permission mode is set again`,
+        )
+      }
+    })()
   }
 
   private stopScheduledRun(run: UnattendedRun): void {
@@ -1758,7 +1794,15 @@ export class MuseSession implements ScheduledAgentSession {
     return error
   }
 
-  private async applyModeEffect(effect: SessionEffect): Promise<void> {
+  /**
+   * Run the mode command for an effect. Returns the mode the host runs when
+   * the adoption tore (the ack arrived but a turn ended while it was in
+   * flight, so the host runs the mode with a reviewer that was never
+   * confirmed): the deferred caller quarantines with that mode named, so the
+   * surface shows it. A refused command releases the effect but keeps the
+   * mode (the host never changed).
+   */
+  private async applyModeEffect(effect: SessionEffect): Promise<string | undefined> {
     if (!this.owner.matches(effect.token)) {
       this.owner.modeApplied(effect, false)
       throw new Error(UI_TEXT.scheduleBusy)
@@ -1773,50 +1817,10 @@ export class MuseSession implements ScheduledAgentSession {
           `Muse Code runs approval mode ${wireWordForLog(effective)} instead of the requested ${effect.mode}`,
         )
       }
-      if (!this.owner.modeApplied(effect, true)) throw new Error(UI_TEXT.scheduleBusy)
+      return this.owner.modeApplied(effect, true) ? undefined : (effective ?? effect.mode)
     } catch (error: unknown) {
       this.owner.modeApplied(effect, false)
       throw ceilingOr(error)
-    }
-  }
-
-  private async changeApprovalMode(
-    mode: string,
-    token: SessionToken,
-    run?: UnattendedRun,
-  ): Promise<void> {
-    const effect = this.owner.modeEffect(token, mode, run)
-    if (effect === undefined) throw new Error(UI_TEXT.scheduleBusy)
-    await this.applyModeEffect(effect)
-  }
-
-  /**
-   * Keep the session's native permission profile on the mode's reviewer
-   * (Muse Code 1.4.7, amendment 42624): a switch into an asking mode must
-   * take the human reviewer, or the judge keeps allowing; a switch back to
-   * Auto restores the AI reviewer its words describe. Modes without a
-   * reviewer leave the profile alone. Only the interactive surfaces call
-   * this (panel, ACP agent, Plan-hold restore); headless sessions never
-   * switch modes, so they keep the host default and cannot stall. A host
-   * without `session/setPermissionProfile` answers `methodNotFound` and the
-   * mode change stands without the profile; any other refusal surfaces, so
-   * a managed profile exclusion fails loudly instead of silently judging.
-   */
-  private async syncPermissionProfile(mode: string): Promise<void> {
-    if (this.profileSyncUnsupported) return
-    const profileId = mspPermissionProfile(mode)
-    if (profileId === undefined) return
-    try {
-      await this.command('session/setPermissionProfile', { profileId })
-    } catch (error: unknown) {
-      if (error instanceof MspError && error.kind === 'methodNotFound') {
-        this.profileSyncUnsupported = true
-        this.log.info(
-          `Muse Code runs approval mode ${wireWordForLog(mode)} without a permission profile on this host; Manual asks only on Muse Code 1.4.7 and later`,
-        )
-        return
-      }
-      throw error
     }
   }
 
@@ -2094,6 +2098,8 @@ export class MuseSession implements ScheduledAgentSession {
   ): Promise<TurnSubmission> {
     const token = this.owner.token()
     await this.restoringScheduleMode
+    if (this.owner.quarantined)
+      throw new Error(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     if (scheduledOwner !== undefined) await scheduledOwner.checkParts(parts)
     if (!this.owner.start(token, scheduledOwner)) throw new Error(UI_TEXT.scheduleBusy)
     let ack: unknown
@@ -2136,6 +2142,8 @@ export class MuseSession implements ScheduledAgentSession {
     parts: readonly TurnPart[],
     scheduledOwner?: UnattendedRun,
   ): Promise<TurnSubmission> {
+    if (this.owner.quarantined)
+      throw new SteerRefusedError(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     const token = this.owner.token()
     const run = scheduledOwner ?? this.getScheduledRun(expectedTurnId)
     if (run !== undefined) await run.checkParts(parts)
@@ -2221,12 +2229,21 @@ export class MuseSession implements ScheduledAgentSession {
     await this.command('session/setReasoningEffort', { reasoningEffort })
   }
 
-  /** Select one of the host's preconfigured approval modes. */
+  /**
+   * Select one of the host's preconfigured approval modes and keep the
+   * session's reviewer on the mode's. The orchestration (profile sync, put
+   * the previous mode back when it fails, quarantine with the running mode
+   * named when it cannot) lives in the deferred mode sync
+   * (`approvalModesEntry`, loaded on the first mode change), so activation
+   * carries only this shell. Every failure names the wire mode the host runs
+   * (`ModeKeptError` when the host kept running it, `PermissionReviewerError`
+   * with quarantine when it runs a mode whose reviewer is unconfirmed).
+   */
   public async setApprovalMode(mode: string): Promise<void> {
     const token = this.owner.token()
     await this.restoringScheduleMode
-    await this.changeApprovalMode(mode, token)
-    await this.syncPermissionProfile(mode)
+    const modes = await import('./approvalModesEntry')
+    await modes.runSetApprovalMode(this.modeOps(), token, mode)
   }
 
   /** Summarise older context; `status` is `noop` with a reason when nothing to do. */
@@ -2945,7 +2962,9 @@ export class MuseCodeHost implements AgentHost {
 
   private loaded(envelope: SessionEnvelope, modelId: string): LoadedSession {
     return {
-      session: this.track(envelope.session, modelId),
+      // The envelope serves the mode the host runs: the handle starts
+      // knowing it, so the first mode change rolls back like a live one.
+      session: this.track(envelope.session, modelId, false, envelope.session.approvalMode?.mode),
       record: envelope.session,
       history: historyOutcome(envelope),
       activeTurnId: envelope.session.activeTurnId ?? undefined,

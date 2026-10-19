@@ -5,7 +5,7 @@
 // and arguments included. Real children run under this node (OpenCode's bun
 // stood in for), each in its own process group; no model is called.
 
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -462,7 +462,12 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
     await expect(
       runPluginHook(
         { system: 'amp', pluginPath: missing, hook: 'tool.call', payload: {}, failClosed: false },
-        { env: process.env, platform: process.platform },
+        {
+          env: process.env,
+          platform: process.platform,
+          workspaceRoot: ROOT,
+          realpath: realpathSync,
+        },
       ),
     ).rejects.toMatchObject({ code: 'ERR_INVALID_ARG_VALUE' })
   })

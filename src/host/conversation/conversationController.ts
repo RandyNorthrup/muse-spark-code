@@ -54,7 +54,9 @@ import {
   type HostExit,
   isDecisionNotAppliedError,
   isGoalRefusedError,
+  isModeKeptError,
   isMuseCodeFaultError,
+  isPermissionReviewerError,
   isPromptSettledError,
   isSessionNotLoadedError,
   isSteerRefusedError,
@@ -218,6 +220,7 @@ import type { ScheduleRunContext } from '../../shared/scheduleV2'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import {
   approvalModeFor,
+  composerModeForApprovalMode,
   mspPermissionProfile,
   untrustedStartMode,
 } from '../../shared/permissionModes'
@@ -4597,9 +4600,15 @@ export class ConversationController {
       )
     } catch (error: unknown) {
       this.deps.log.warn(`The permission mode was not applied: ${failureForLog(error)}`)
+      // A refused change names the running mode: the composer moves onto it
+      // with the error's own sentence. Any other throw means the mode did
+      // not change.
+      const shown = this.showRunningMode(error, this.permissionMode)
       this.notice(
         'warning',
-        `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
+        shown === undefined
+          ? `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`
+          : describe(error),
         undefined,
         error,
       )
@@ -5260,9 +5269,15 @@ export class ConversationController {
     } catch (error: unknown) {
       this.deps.log.warn(`The permission mode was not applied: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
+        // A refused change names the running mode: the composer moves onto it
+        // with the error's own sentence. Any other throw means the mode did
+        // not change.
+        const shown = this.showRunningMode(error, this.permissionMode)
         this.notice(
           'warning',
-          `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
+          shown === undefined
+            ? `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`
+            : describe(error),
           undefined,
           error,
         )
@@ -8976,6 +8991,29 @@ export class ConversationController {
   }
 
   /** Keep mode writes ordered, including Bypass revoked during an ordinary choice. */
+  /**
+   * Show the wire mode a refused mode change names (GRV251D): the composer
+   * moves onto the mode the host runs, with the error's own sentence said at
+   * the call site. Returns the shown mode, `null` when no menu mode selects
+   * the running mode (the send already in flight is refused instead of
+   * showing a mode the host is not running), or `undefined` when the throw
+   * is not a mode error at all.
+   */
+  private showRunningMode(
+    error: unknown,
+    preferred: PermissionMode,
+  ): PermissionMode | null | undefined {
+    if (!isPermissionReviewerError(error) && !isModeKeptError(error)) return undefined
+    const shown = composerModeForApprovalMode(error.actualMode, preferred, this.deps.hasApprovalUi)
+    if (shown === undefined) {
+      this.sendInvalidationEpoch += 1
+      return null
+    }
+    this.permissionMode = shown
+    this.postComposerState()
+    return shown
+  }
+
   private async setSessionPermissionMode(session: AgentSession, mode: string): Promise<void> {
     const changing = session.setApprovalMode(mode)
     this.reviewModeSettling = changing
@@ -9079,14 +9117,24 @@ export class ConversationController {
           this.retireBypassSession()
           return
         }
-        this.permissionMode = previous
-        this.restorePlanTurns(leftPlanTurns)
-        this.notice(
-          'error',
-          `${UI_TEXT.permissionModeChangeFailed}: ${describe(error)}`,
-          undefined,
-          error,
-        )
+        // A refused change names the running mode: the menu shows it with the
+        // error's own sentence, so the two agree. Any other throw means the
+        // mode did not change: the choice is taken back. Turns the panel kept
+        // running in Plan mode stay Plan-mode turns when it shows Plan again.
+        const shown = this.showRunningMode(error, previous)
+        if (shown === undefined) {
+          this.permissionMode = previous
+          this.restorePlanTurns(leftPlanTurns)
+          this.notice(
+            'error',
+            `${UI_TEXT.permissionModeChangeFailed}: ${describe(error)}`,
+            undefined,
+            error,
+          )
+        } else {
+          if (shown === PLAN_MODE) this.restorePlanTurns(leftPlanTurns)
+          this.notice('error', describe(error), undefined, error)
+        }
       }
     }
     if (isCurrent()) {

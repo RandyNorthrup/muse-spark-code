@@ -221,7 +221,7 @@ describe('macos driver start', () => {
         },
       ),
     )
-    const spawning = (command: string, args: readonly string[], env: NodeJS.ProcessEnv) => {
+    const spawning: MacosScreenRecordingDeps['spawn'] = (command, args, env) => {
       if (args.includes('--record-screen') && args.includes('--output')) {
         throw new Error('recorder refused to start')
       }
