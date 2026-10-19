@@ -2,10 +2,9 @@
 // entry, inside the real Extension Development Host: the extension is
 // activated (which binds the real resource governor, so the entry's real
 // process runner can speak to the OS), and the coordinator, the consent
-// store on the real disk filesystem, and the production entry
-// (NativeScheduleBackground over real temp home/data directories) are all
-// the real modules. Only observation is added: a decorator that forwards
-// every call and records it.
+// store and the production entry
+// (test/unit/helpers/schedules/realBackgroundEntry.ts) are all the real
+// modules; the recorder forwards every call and only observes it.
 //
 // These tests need a machine user bus (launchd on macOS, systemd --user on
 // Linux, the Task Scheduler on Windows): entry.remove() really asks the OS
@@ -20,74 +19,17 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import { EXTENSION_QUALIFIED_ID } from '../../src/shared/constants'
-import { ScheduleBackgroundCoordinator } from '../../src/runtime/schedules/background'
-import type { BackgroundConsentStore } from '../../src/runtime/schedules/background'
-import { NativeScheduleBackground } from '../../src/runtime/schedules/nativeBackground'
 import {
-  backgroundProcessRunner,
-  nodeBackgroundFiles,
-} from '../../src/runtime/schedules/nodeBackgroundIo'
-import { createBackgroundConsentStore } from '../../src/runtime/schedules/consent'
-import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
-import type { ScheduleBackgroundPort } from '../../src/shared/scheduleV2'
-
-type Consent = Parameters<ScheduleBackgroundPort['register']>[1]
+  realBackgroundHarness,
+  saveBackgroundConsent,
+} from '../unit/helpers/schedules/realBackgroundEntry'
 
 const NOW = 1_700_000_000_000
 const WAKE = 1_700_000_100_000
 
-/** Forwards every call to the real entry and records it: observation only. */
-class RecordingEntry implements ScheduleBackgroundPort {
-  removed = 0
-  registered: { nextWakeAtMs: number }[] = []
-  public constructor(private readonly inner: ScheduleBackgroundPort) {}
-  status() {
-    return this.inner.status()
-  }
-  async register(nextWakeAtMs: number, consent: Consent): Promise<void> {
-    this.registered.push({ nextWakeAtMs })
-    await this.inner.register(nextWakeAtMs, consent)
-  }
-  async remove(): Promise<void> {
-    this.removed += 1
-    await this.inner.remove()
-  }
-}
-
 async function coordinator(nextWake: number | undefined) {
   const folder = await mkdtemp(path.join(tmpdir(), 'schedule-background-host-'))
-  const entry = new RecordingEntry(
-    new NativeScheduleBackground({
-      platform: process.platform,
-      homeDir: path.join(folder, 'home'),
-      dataDir: path.join(folder, 'data'),
-      executable: process.execPath,
-      agentFile: process.execPath,
-      uid: process.getuid === undefined ? 0 : process.getuid(),
-      now: () => Date.now(),
-      isWakeProcess: false,
-      authorization: () => Promise.resolve({ scheduledPrompts: false }),
-      files: nodeBackgroundFiles(),
-      run: backgroundProcessRunner(process.env),
-    }),
-  )
-  const consent = createBackgroundConsentStore(
-    createNodeScheduleFs(path.join(folder, 'store')),
-    'runtime/background-consent.json',
-  )
-  const background = new ScheduleBackgroundCoordinator({
-    entry,
-    consent,
-    now: () => NOW,
-    nextWakeAtMs: () => Promise.resolve(nextWake),
-  })
-  return { background, consent, entry, folder }
-}
-
-async function saveConsent(consent: BackgroundConsentStore, value: Consent): Promise<void> {
-  await consent.exclusive(async (_current, save) => {
-    await save(value)
-  })
+  return { ...realBackgroundHarness(folder, nextWake), folder }
 }
 
 suite('schedule background entry in the real host', () => {
@@ -100,7 +42,7 @@ suite('schedule background entry in the real host', () => {
   test('reconcile retires a stale entry while consent says yes and nothing is due', async () => {
     const { background, consent, entry, folder } = await coordinator(undefined)
     try {
-      await saveConsent(consent, { choice: 'yes', decidedAtMs: NOW })
+      await saveBackgroundConsent(consent, { choice: 'yes', decidedAtMs: NOW })
       await background.reconcile()
       assert.equal(entry.removed, 1)
       assert.deepEqual(entry.registered, [])
@@ -116,7 +58,7 @@ suite('schedule background entry in the real host', () => {
     async () => {
       const { background, consent, entry, folder } = await coordinator(WAKE)
       try {
-        await saveConsent(consent, { choice: 'yes', decidedAtMs: NOW })
+        await saveBackgroundConsent(consent, { choice: 'yes', decidedAtMs: NOW })
         let failure: unknown
         try {
           await background.reconcile()
