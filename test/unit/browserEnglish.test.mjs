@@ -33,7 +33,10 @@ it('keeps account, developer and help values out of startup and loads them exact
   // developer English does; browserUiText mounts the accounts and vault
   // surfaces and pins their on-demand loading.
   expect(() => built.bundle.UI_TEXT.accounts).toThrow('English surface is not loaded')
-  expect(Object.hasOwn(built.bundle.EN, 'vault')).toBe(false)
+  // The vault section mount put the vault surface in-graph, so the vault
+  // group travels deferred like accounts and developer (a guarded accessor
+  // with no startup values) instead of staying out of the table outright.
+  expect(() => built.bundle.UI_TEXT.vault).toThrow('English surface is not loaded')
   expect(() => built.bundle.UI_TEXT.developer).toThrow('English surface is not loaded')
   // STARTUP017: a restored settlement row's words paint with startup; the
   // rest of the schedule English loads only with the schedule surfaces.
@@ -66,10 +69,11 @@ it('keeps account, developer and help values out of startup and loads them exact
   expect(built.bundle.installEmbeddedTable(embedded(german))).toBeUndefined()
   await Promise.all([built.bundle.loadDeferredEnglish(), built.bundle.loadDeferredEnglish()])
   expect(built.bundle.UI_TEXT).toEqual(german)
-  // The vault group's English loads with the vault surface alone (CAPS017);
-  // with no vault surface installed, its installer adds no key to this table.
+  // The vault group's English loads with the vault surface alone (CAPS017):
+  // its installer supplies English through the deferred channel while the
+  // installed table keeps winning.
   built.bundle.installVaultEnglish()
-  expect(Object.hasOwn(built.bundle.EN, 'vault')).toBe(false)
+  expect(built.bundle.UI_TEXT.vault).toEqual(german.vault)
   // M107 U-C1: English read only by the resource chip and pages loads with
   // those surfaces (their modules import it), never with the other deferred groups.
   const resourceOnly = Object.keys(built.bundle.EN).filter((key) => {

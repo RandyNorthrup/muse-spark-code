@@ -161,8 +161,8 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // accounts, show the current one and its thresholds, and hold per-account
   // keys; the editor's page, swapping and pooling are not bound.
   ['accounts', ['acp:modelApi']],
-  // M109: production vault service is unbound on every surface.
-  ['vault', []],
+  // MSM109: the broker-backed panel and commands on vscode and ACP, both backends.
+  ['vault', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   // M117: the production plan snapshot port refuses on every surface.
   ['estimator', []],
 

@@ -233,7 +233,7 @@
   "config.github.useGhLogin.description": "Lets pull requests use your existing GitHub CLI sign-in (`gh auth token`), tried last, after the editor's own GitHub sign-in and Muse Spark's. The token is read for one request at a time and never stored. Off by default; user settings only, so a repository cannot turn it on.",
   "command.vault.title": "Vault",
   "command.lockVault.title": "Lock Vault Now",
-  "config.vault.description": "Stored for compatibility; no runtime effect.",
+  "config.vault.enabled.description": "Turn the per-user credential vault on or off. A stored legacy museSpark.vault value takes precedence while this setting has no stored value.",
   "config.vault.protection.description": "Stored for compatibility; no runtime effect.",
   "config.vault.agentFence.description": "Controls the credential fence for interactive Model API shell commands. Verification, schedules, workers and hooks remain fenced.",
   "config.vault.lockAfterIdleMinutes.description": "Stored for compatibility; no runtime effect.",

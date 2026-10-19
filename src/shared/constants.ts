@@ -11,6 +11,8 @@ import type { BrowserRuntimeMode } from './browserCheckConstants'
 export const RESOURCE_SAMPLE_MS = 5000
 // libuv 1.52 adds inactive/purgeable pages to Darwin's available-memory reading.
 export const RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR = 52
+// IOKit's storage busy counters tick in nanoseconds; samples tick in milliseconds.
+export const RESOURCE_NS_PER_MS = 1_000_000
 // D87.14: free-space policy and owned-tree retention.
 export const RESOURCE_DISK_SAMPLE_MS = 30_000
 export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000
@@ -1898,9 +1900,19 @@ export const WORKTREE_RECORD_LOCK_UNREADABLE_MS = 2000
 // macOS) agree within this; a live process id whose birth is further off
 // belongs to another process. Linux births (ticks since boot) compare exactly.
 export const PROCESS_START_TOLERANCE_MS = 1000
-// Reading another process's birth (Windows PowerShell, macOS `ps`) gives
-// up after this.
+// Reading another process's birth (macOS `ps`; on Windows the native
+// reader's one-time build and each of its runs) gives up after this.
 export const PROCESS_START_QUERY_TIMEOUT_MS = 10_000
+/** Failed owner evidence is retried after a short bound, never on every operation. */
+export const PROCESS_OWNER_FAILURE_CACHE_MS = 2000
+export const WINDOWS_FILETIME_TICKS_PER_MS = 10_000n
+export const WINDOWS_FILETIME_EPOCH_MS = 11_644_473_600_000n
+// Windows' process birth reader is compiled once per user into this folder
+// of the user's data folder (`%LOCALAPPDATA%\Muse Spark Code`).
+export const WINDOWS_BIRTH_READER_FOLDER = 'native'
+export const FILE_LEASE_RELEASE_ATTEMPTS = 3
+/** A lease release pauses this long between attempts: a scanner holding the file defeats back-to-back retries alike (RVAPP-LEASE2 P3-4). */
+export const FILE_LEASE_RELEASE_RETRY_MS = 100
 // A pending checkout whose folder never appeared is someone's crash after
 // this long, even while its process id looks alive (a reused id whose
 // start time cannot be read): every step before the folder exists is
@@ -1910,6 +1922,10 @@ export const PENDING_CHECKOUT_RECOVERY_MS = 60 * 60 * 1000
 // fileLease.ts); older ones are removed by the next acquisition. Only the
 // highest is ever compared.
 export const FILE_LEASE_FENCES_KEPT = 8
+// M109: writer transactions renew their owner-bound lease until settlement.
+export const VAULT_WRITER_LEASE_MS = 30_000
+export const VAULT_WRITER_RENEW_MS = 10_000
+export const VAULT_WRITER_UNREADABLE_MS = 2000
 // The newest record generations kept; older ones, and stage or retired-lock
 // files older than the sweep age (a crash's leftovers), are removed.
 export const WORKTREE_RECORD_GENERATIONS_KEPT = 8
@@ -4148,6 +4164,12 @@ export const AUTH_BUNDLE_FILE = 'auth.js'
 // The paid features (CIFIX161B, PLAN.md D6): the gate, consent, usage and
 // quote authority, loaded on the first paid consent, gate or usage read.
 export const PAID_BUNDLE_FILE = 'paid.js'
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code (the native Add/Edit
+// editor, write-only crypto, the Reset/Setup/Import dialogs), loaded on the
+// first action that needs it.
+export const VAULT_ACTIONS_BUNDLE_FILE = 'vaultActions.js'
+// C-M109-1: the CLI, ACP and headless vault (no `vscode`), lead decision 5.
+export const VAULT_RUNTIME_BUNDLE_FILE = 'vaultRuntime.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.
@@ -4222,14 +4244,18 @@ export const LIST_FILES_DEFAULT_LIMIT = 500
 // itself no longer defaults or clamps (owner 2026-10-16).
 export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
 // D107 §9.4: internal B1 boundary; F1b installs it only after certification.
+// The walk's bounds are deterministic counts, never wall-clock time, so a
+// slow machine cannot turn a walk into a refusal: entries cap the walk's
+// work and the emitted rules' size, depth caps its recursion.
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_WALK_MAX_ENTRIES = 20_000
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
-export const JUDGE_FAST_B1_WALK_MAX_MS = 100
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_WALK_MAX_DEPTH = 128
 export const JUDGE_FAST_B1_MAX_ABI = 8
 export const JUDGE_FAST_B1_MIN_ABI = 3
+// The Seatbelt confinement has no Landlock ABI: it reports its own generation,
+// below the Landlock range so the two can never be confused.
+export const JUDGE_FAST_B1_DARWIN_ABI = 1
 export const JUDGE_FAST_B1_REFUSED_EXIT = 125
 export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
@@ -6298,6 +6324,12 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/webview/reportingPage.js',
   'dist/webview/reportingDestinations.js',
   'dist/vault.js',
+  'dist/vaultBroker.js',
+  'dist/vaultStore.js',
+  'dist/vaultPosix.js',
+  'dist/vaultRuntime.js',
+  'dist/vaultBrokerBindings.js',
+  'dist/vaultActions.js',
   'dist/vaultBoundaries.js',
   'dist/estimator.js',
   'dist/estimateContracts.js',
@@ -8473,7 +8505,16 @@ export const DEVELOPER_MACHINE_ID_TMP_SUFFIX_BYTES = 8
 export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'
 // M109 lane 0: vault format, limits and budgets (D89).
 export const VAULT_FORMAT_VERSION = 1
-export const VAULT_PROTOCOL_VERSION = 1
+// Lead decisions 2026-10-10 (C-M109-1): protocol v2 adds the management kinds,
+// private write frames and pushed events; the store document v2 carries grants
+// in its encrypted index. No v1 vault or broker exists in the field.
+// MSM109: enabled after the joined broker/panel reviews (RVCM109JB/JC) with
+// the session-owned POSIX broker proven in brokerSession.test.ts and the
+// crash-recovery suite green. Public editor hosts now bind the platform;
+// every broker use still refuses while the broker itself is unavailable.
+export const VAULT_AVAILABILITY = { isBrokerAvailable: true }
+export const VAULT_PROTOCOL_VERSION = 2
+export const VAULT_STORE_FORMAT_VERSION = 2
 // Transport and peer hygiene only (NOLIMITS2 A33): unauthenticated
 // sockets, helper calls and native peer handshakes end at it. It never
 // bounds an approval: approvals wait for the person or Stop.
@@ -8483,8 +8524,28 @@ export const VAULT_TRANSPORT_TIMEOUT_MS = 120_000
 // ends an approval at it any more (NOLIMITS2 A33). Delete it when that
 // work lands on the no-expiry rule.
 export const VAULT_APPROVAL_TTL_MS = 120_000
+export const VAULT_BROKER_NATIVE_TIMEOUT_MS = 5000
+export const VAULT_BROKER_EMPTY_IDLE_MS = 30_000
+export const VAULT_BROKER_MAX_CONNECTIONS = 64
+export const VAULT_FILE_SINGLE_LINK = 1n
+// RVCM109JE P2-3: the broker socket lives in a bounded owner-only directory,
+// never under the data folder. Usable sun_path bytes before the terminator:
+// Darwin declares sun_path[104], Linux sun_path[108].
+export const VAULT_SOCKET_PATH_LIMIT_BYTES = { darwin: 103, other: 107 } as const
+export const VAULT_SOCKET_DIR_PREFIX = 'muse-spark-vault-'
+export const VAULT_SOCKET_DIR_HASH_CHARS = 12
+export const VAULT_SOCKET_FILE = 'broker.sock'
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000
+// C-M109-1: pace of re-opening a `watch` stream the broker closed.
+export const VAULT_WATCH_RETRY_MS = 1000
+// RVCM1091A F7: the panel's watch backoff doubles up to this while the broker is down.
+export const VAULT_WATCH_RETRY_MAX_MS = 30_000
+// RVCM1091F REDESIGN: a transient snapshot failure (busy, rollback, timeout,
+// watch lost) keeps the last good view and retries this many times before the
+// section goes unavailable and offers the person's own Retry.
+export const VAULT_VIEW_RETRY_BUDGET = 2
+export const VAULT_VIEW_RETRY_MS = 250
 export const VAULT_ASKPASS_USES = 3
 export const VAULT_ASKPASS_TTL_MS = 600_000
 export const VAULT_SESSION_MAX_DAYS = 30
@@ -8499,10 +8560,19 @@ export const VAULT_FEEDER_START_MS = 200
 export const VAULT_SCRUB_MIN_MBPS = 50
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const VAULT_IDLE_MINUTES = 240
+export const VAULT_BYTE_MAX = 255
 export const VAULT_KEY_BYTES = 32
+// D89.2: systemd-creds seals to the TPM (--user -T) only on systemd 256 or later.
+// Largest sealed blob the Linux TPM2 slot accepts from its helper command.
+export const VAULT_SYSTEMD_SEAL_VERSION = 256
+export const VAULT_SEALED_BLOB_MAX = 64 * 1024
 export const VAULT_NONCE_BYTES = 12
 export const VAULT_TAG_BYTES = 16
 export const VAULT_RECOVERY_BYTES = 20
+// Reset Vault's fixed confirmation word, typed exactly (lead decision 2026-10-10).
+export const VAULT_RESET_WORD = 'RESET'
+// Random bytes in an imported item's name, so a second import never collides.
+export const VAULT_IMPORT_NAME_BYTES = 3
 export const VAULT_KDF = {
   argon2: { memoryKiB: 65_536, iterations: 3, parallelism: 4 },
   scrypt: { N: 131_072, r: 8, p: 1 },
@@ -8547,6 +8617,10 @@ export const MCP_OAUTH_LIMITS = {
 // U's independent lazy surfaces; W registers these new caps without changing existing caps.
 export const VAULT_PANEL_BUDGET_KIB = 75
 export const VAULT_HOST_BUDGET_KIB = 50
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action bundle, loaded on the
+// first action that needs it; a new cap, no existing cap moves.
+export const VAULT_ACTIONS_BUDGET_KIB = 25
+export const VAULT_UI_TICK_MS = 1000
 export const VAULT_ID_BYTES = 16
 export const VAULT_TOTP_PERIOD_SECONDS = 30
 

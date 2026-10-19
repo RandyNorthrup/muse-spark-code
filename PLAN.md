@@ -695,6 +695,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 **`smol-toml`** — Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.
 
 **`@types/jsdom`** — PR #227 lane (2026-10-18): the approval-page double-decision suite drives the real shipped page script in a real jsdom DOM; the pinned jsdom 30.1.1 ships no types, so the suite imports untyped without it. MIT; no peers; a dev dependency, never bundled.
+**`@napi-rs/keyring`** — The vault's OS store (D61, D89): Secret Service on Linux and login Keychain on macOS, loaded at runtime by the broker child, the ACP agent and headless runs alike. MIT; no peer dependencies (its per-OS/arch binaries are same-version optional dependencies); `npm audit` clean. Moved from devDependencies to dependencies (PR216FIX T1): a runtime load declared dev-only hid the VSIX gap. Staging its platform binaries in the universal VSIX stays a lead follow-up: the six VS Code platforms measure 4,716,310 bytes compressed (`npm pack` tarballs, 2026-10-17) against ~0.9 MB of size-budget headroom, so shipping them needs per-platform packaging or a re-set cap, never a raised one here.
 
 DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
 Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
@@ -847,6 +848,13 @@ component tests, and the real-editor integration run.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**C-M109-1b (2026-10-10, Kubuntu).** The POSIX broker's new lazy child is
+103,730 bytes; its first cap is 119,290 bytes (ceiling of measured × 1.15),
+with gate-fire and source-hash receipts in `docs/certification/cm109-1b.md`.
+Activation is 563,348 bytes and Model API is 528,186 bytes, inside their
+unchanged caps. The Models body is 77,652 bytes against its unchanged
+76,800-byte cap, exactly the same as the starting `96ded9299` scratch build;
+that pre-existing budget failure is recorded in §7 for the lead.
 **PANELBUDGET (2026-10-14, wslpc).** The Models & Agents panel bundle had
 1,645 B of headroom (126,355 B against the 128,000 B cap) with the money and
 key-text lanes plus two mode switches landing in it. The subscriptions half
@@ -12513,6 +12521,18 @@ model.
   `npm run schema:exec -- --check` (M80).
 - **PLAN.md drifts, and a reader must say so.** At `4c7b064b5`, `## 7.
 
+**CM109JOINB scoped qualification (2026-10-11, Kubuntu).** The rig/common
+brief explicitly reserves aggregate `npm run quality` for the lead; this lane
+runs the requested scoped gates and the complete vault file list in batches
+of at most three at repository deadlines. No gate, cap or timeout is weakened.
+Real Linux sockets, native peer credentials, an isolated generated-only Secret
+Service and the copied installed POSIX bundles are exercised. The executable
+Reset/Restore SIGKILL suite alone remains skipped by the brief, naming
+CM109JOINA's pending shared writer lease. macOS/Windows replay, cross-platform
+factory dispatch, panel mount, transport ownership and joined quality remain
+lead-owned before availability changes. Evidence:
+`docs/certification/cm109-join-posix.md`.
+
 M113 W first-paint repair: the optional palette registry loads with the first
 palette or slash menu, within the existing 25 KiB Palette closure. Its filtered
 slash list uses accessible loading and failure/retry text until data arrives;
@@ -14725,20 +14745,29 @@ and thats it." A thousand-test suite kept shipping broken code as
 
 ### D122 — CI capacity from a second account; the project stays here (owner, 2026-10-16; redesigned 2026-10-17)
 
-**D122 — The capacity repository runs the Windows and macOS unit shards; the
-project, its pull requests and main stay on the owner's account.** While
+**D122 — The capacity repository runs every Windows and macOS job (static
+gates, unit shards, Windows integration, the macOS dictation helper, the
+Hosts/Forks checks and the Windows/macOS browser captures); the project, its
+pull requests and main stay on the owner's account.** While
 `ORG_CI` is `on` and the organization GitHub App's key
 (`ORG_CI_APP_PRIVATE_KEY`, which GitHub never gives a fork's or Dependabot's
 run) reaches a same-repository pull request's full-tier run, that run is part
 `home`: build.yml's `org` job pushes the merge commit to
 `scnetsolutions/muse-spark-code-ci` as `ci/pr-<number>` with a one-hour token
-for that repository alone (contents and workflows write), the same `ci.yml`
-runs the sixteen Windows and macOS unit shards there (part `org`), and `org`
-succeeds only if that run did. The seven required names fold in its result, so
+for that repository alone (contents and workflows write), the same workflows
+run every Windows and macOS leg there (part `org`), and `org`
+succeeds only if that run did; the macOS helper artifacts come back through
+`org` for the `packages` job. The seven required names fold in its result, so
 the ruleset is unchanged; every other run keeps every job here (part `all`).
-The capacity repository stays public and holds no secret. Owner setup:
+The Windows static gates and the Windows browser capture take the
+larger runner there while that repository's `LARGE_RUNNERS` variable is
+`on` (owner, 2026-10-18, $40 monthly budget backstop); macOS stays standard
+(the GitHub-owned macOS larger labels need a Team or Enterprise plan and
+the capacity organization is free). Test shards stay on
+free standard runners. The capacity repository stays public and holds no
+secret. Owner setup:
 CONTRIBUTING.md, "The capacity repository (D122)"; proofs:
-`docs/certification/ciflow.md` (D122). Full record:
+`docs/certification/ciflow.md` (D122, CISHARDS2). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D121 — Limits only on models: set by the model platform or by the person in the model role settings (owner 2026-10-16)
@@ -14965,6 +14994,29 @@ admission bound and its benchmark.
   meter and account thresholds. Record, the $120.00 origin and every removal:
   `docs/certification/spend-simple.md`.
 
+### D123 — One .vsix per platform, each within the unchanged budget (lane VSIXPLATFORM, 2026-10-18)
+
+The universal .vsix carries every platform's native helpers and is near
+its 3,788,800-byte budget (D6) with 131 KB of open pull requests and
+4.7 MB of vault keyring binaries still to come. The budget is never
+raised and no feature is cut, so the release ships one package per
+supported target instead: win32-x64, win32-arm64, darwin-x64,
+darwin-arm64, linux-x64 and linux-arm64 (`vsce package --target`, locked
+vsce 4.0.0; engines.vscode `^1.99.0` clears the ≥1.61 platform-extension
+floor). Each target carries only its own platform's native pieces plus
+the platform-neutral bundles; `native/runner/*` ships everywhere because
+the SSH runner copies the helper to the remote side. Windows targets
+carry the same arch-independent sources (the .ps1 run directly, the .cs
+compiled on the person's machine), so win32-arm64 is supported today.
+The darwin binaries ship universal (both slices) in both darwin
+targets: splitting per-arch saves little against the megabytes the other
+platforms' pieces free, and keeps build.sh's single lipo output unchanged. No universal
+fallback ships: all six desktop targets VS Code runs on are covered, and
+linux-armhf, alpine and web never had native helpers. Every target is
+checked against the same D6 budget; CI builds and checks all six, and
+the release publishes all six to the Marketplace and Open VSX.
+Evidence: `docs/certification/vsix-platform.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-m124"></a>
@@ -15014,6 +15066,51 @@ to offer, which model, whose money) is a product decision. Until the owner
 answers, a refused or paused turn ends with its true sentence and its tool
 calls answered, never continued. Record: `docs/certification/proverrr2.md`.
 
+**CM109JOINB native resource receipt resolved (2026-10-11, Kubuntu).**
+An exploratory copy identified `Resource root membership not proven` only for
+already-ended native helper groups proven gone by the kernel. Installed
+acceptance now observes the exact concurrent sampler work, names only this
+`finished-native-helper-membership-race`, and keeps live/unclassified warnings
+fatal. Both native receipts and final helper-tree/temp-file retirement checks
+exit 0; the installed product bundles are not patched by acceptance. This
+replaces the round-2 sampler deferral; no production resource guard changes.
+**CM109JOINA joined-build placement (2026-10-11).** The production build's
+existing usagePanel cap is exceeded by 27 bytes; its deferred surface-English
+closure also exceeds the existing 25 KiB cap. Vault, vaultRuntime, activation,
+Model API and checkpoint caps pass. Further placement changes concern the
+train's usage/optional-surface owners, beyond this Windows writer join.
+Prefer moving those readers into their existing lazy owners; alternatively,
+a new independently measured English chunk needs its loading and failure
+contract. No cap is raised and no new split is guessed here. Exact bytes,
+complete-file receipts and remaining checks are in m109 certification.
+
+**CM1091CR2 round-3 native reset blocker (resolved by CM1091CR3, 2026-10-11).** A real
+lost-vault reset with a retained damaged document fails at
+`NodeVaultFiles.quarantine`: the shared port creates a hard link, while the
+mandatory Windows path guard correctly refuses files with more than one
+link. Reset has already written `reset.v1` before that refusal; the document,
+slot file and anchor remain. The existing native store suite's Windows
+pass-through security port hides this composition defect. A generated,
+isolated reproduction and its source hash are in the round-3 M109 receipt;
+no credential or personal vault is touched. Part (a)'s shared core files are
+retained in the round-3 commit, and no guard is weakened. Round 4 reproduces
+the failure and repairs `NodeVaultFiles.quarantine`: Windows stages an
+exclusive independent copy, verifies and flushes it, binds both identities
+on the same volume, checks authority again, then publishes the quarantine
+while the original remains. Interruptions leave the original openable;
+next-open recovery never relies on an incomplete stage. Native missing and
+damaged reset, encrypted receipts and exact anchor retirement are qualified
+in M109's round-4 record. Installed binding remains the lead's separate step.
+
+**C-M109-1b integration receipt (2026-10-10).** Part (a) must provide the
+installed `vaultRuntime.js` broker-binding factory (audit, identity/launch
+registry, execution, taint and scrub, importer and resource admission). The
+VSIX also needs the pinned keyring native module; it currently excludes
+`node_modules` and treats keyring as an ACP dependency only. Until those
+bindings and native packaging are certified, the editor surfaces stay closed.
+Mac mini's native OS-store receipt is blocked by SSH host-key verification;
+no trust settings were changed. These are reported to the lead for integration,
+not replaced with fake production ports.
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
 explicitly approves the 116 Title Case scenes, `models-errors` with the
 provider-picker repair, and the three What's New scenes as class (b'):
@@ -16125,6 +16222,22 @@ integration and cross-platform certification after these three pieces pass.
 2026-10-17 by D121:** the versioned ledger, its atomic admission and its
 journal files are removed; spending is checked only against a limit the
 person set. The original scope follows. Replace directory-per-claim budgeting with one versioned spend ledger and atomic admission for session, editor daily and terminal daily scopes; retain every sent attempt at its full liability, recover only from process identity evidence, and certify real-process races, crashes, migration and packed-product refusals. Design and ruling R9 compatibility limits: `docs/certification/spend-ledger.md`. Shared daily input reserves the byte/context bound even when terminal admission uses a provider estimate. One flushed transaction inode supplies atomic snapshot and audit/history aliases; process owner notes are cached per scope. Portable ledger errors stay in each caller's language state. Runtime settlement uses typed HTTP observations, never retry-message text, and only refunds initial rejections before response frames. Removing inherited stand-in suites also removes their unused production-only exports (unbound account-home factory, account admission wrapper and schedule paid-scope factories); their live interfaces remain. Provider endpoint/path utilities move to a leaf module to break the measured configured-bundle command cycle. Keyless configured runs bind an empty in-memory secret store and skip Meta readiness lookup; a real ECONNREFUSED before connection releases the hold. No provider calls, cap changes, merges or pushes.
+
+### BCSTART — The browser check's start on Windows (2026-10-18)
+
+**Status 2026-10-18: built.** Status evidence: `docs/certification/bcstart.md`.
+
+- **Rule.** The browser check's contract read (M81) waits for the browser to
+  start its network service, asking again every 50 ms, before it reads the
+  service's id, and reads the startup targets after that wait. The wait has
+  no cap of its own (AGENTS.md, "Limits"): the check's lifetime (its life,
+  the person's Stop, admission) ends it, so a service that never starts ends
+  the check `timedOut` or `cancelled`. The contract is unchanged: an
+  out-of-process service, its id the restart tripwire, read before any
+  request, and exactly one `about:blank` page.
+- **Why.** The service starts after the browser already answers on the
+  pipe; one early read ended Windows checks `unrecognized` at random (8 of
+  200 checks measured; hosted run 39083561745).
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
@@ -29949,7 +30062,343 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**CM109LEASER2 (2026-10-11, RVCM109LEASE redesign).**
+Record the installation machine id, boot id, Linux PID namespace, PID and
+birth; hostnames are display only. Death requires comparable machine/boot/
+namespace evidence, except a different boot on the same machine proves death.
+Publish complete flushed notes exclusively; never renew a death-only note in
+place. Retry release boundedly and adopt this process's abandoned hold.
+Reset/Restore can explicitly replace an unreadable or foreign hold after the
+existing confirmation warns about another writer losing changes. Use base
+system ps/sysctl on macOS and one Windows query; cache failed probes briefly.
+Resolve fixture temp paths and permanently suspend/terminate real writers on
+all three OSes. Fix findings 1–5 and 7 here; finding 6 (Git transaction timed
+takeover) is lead-owned outside this lane. Preserve caps, dependencies and
+repository deadlines; certification in docs/certification/m109.md.
+
+**CM109LEASE (2026-10-11, lead design; supersedes timed vault takeover).**
+The vault writer permits takeover only after proven death on this machine,
+using exact OS birth evidence; a live, suspended, foreign-machine or unknown
+owner stays exclusive regardless of lease age. Acquisition refuses when its
+own exact birth cannot be established after bounded retries. Every local
+vault mutation is serialized and awaited before releasing ownership. Preserve
+protected-anchor regression detection and authenticated journal recovery;
+admit directory spellings by native identity while rejecting links. Other
+shared lease callers keep timed takeover. Qualify controlled late-dispatch
+schedules, real suspension beyond three lease periods, all eight kill cases,
+birth/foreign-machine/path tests and guard-removal drills in m109 certification.
+Scoped rig checks and all dependent suites are required; aggregate quality
+and Linux/macOS replay remain lead-owned. No gate or size cap changes.
+
+**CM109JOINA writer lease (2026-10-11, lead design).** Replace the bare
+writer.lock with the shared file lease: host, PID and OS birth identity,
+renewal while a transaction runs, and a synchronous fence before file
+removal, quarantine publication, write-ahead/slot/document publication and
+protected-anchor write/delete dispatch. Only a proven-dead holder or an
+unchanged expired lease permits takeover; unknown live identity is not death
+proof. Request-time Lock authority remains separate and required. The new
+writer first rolls back incomplete quarantine stages while the original
+exists; otherwise it retains them and refuses. Authenticated pending intents
+keep their existing completion rules under the acquired writer. Real child
+processes are terminated inside production Reset/Restore at four boundaries;
+new processes retry/recover, a live holder excludes another process, and a
+lost fence refuses publication and destructive/anchor steps. Every added
+guard has a removal drill and byte-exact restoration in m109 certification.
+No vault binding is enabled; Linux joins broker/slots, panel and migration
+codecs from this head next. Scoped rig gates replace aggregate quality under
+the brief. check:plan awaits the lead-authorized closed-record archive; no
+cap, gate, deadline or dependency changes.
+
+The joined independent host initially measures 51,260 bytes against its
+unchanged 51,200-byte cap. Group the existing refusal cases whose names
+already equal their localized keys; resolve that narrowed key at call time.
+This removes repeated switch returns without a new layer, changed message,
+weakened validation or availability change. Replay the complete budget and
+refusal owners after this small integration repair.
+
+Writer cleanup also belongs to its own callback: after an old lease moves
+its lock aside, a new transaction may acquire the same file port before
+the old release settles. That old cleanup must not clear the new writer's
+fence callback. Pause the actual shared lease's retired-file cleanup,
+admit its successor, then lose the successor's fence and prove its file
+publication still refuses. Clear the settled operation's callback before
+awaiting lease release. Admission on one file port refuses while another
+operation's callback remains active, even if its lease file was displaced:
+an expired operation never adopts a successor's authority. Both placement
+and admission have deliberate failing regressions.
+
+**Status 2026-10-09: released.** Shipped in 0.17.0 (merged via INT0180).
 **Status 2026-10-10 (corrects 2026-10-09: the broker-backed panel service is still unbound, so both vault commands refuse closed): building.** Vault slots, the broker process, MCP routes and scrub ports merged and certified; the C/B/P/M adapter over the broker channel remains an open handoff (`docs/certification/m109.md`). Not usable in a release yet.
+**Status 2026-10-17 (MSM109): complete.** Merged `main-now`, purged every stand-in-based vault test per the 10-17 testing rules (the overhaul deletions stay deleted; crash recovery and broker sessions stay proven through real child processes), bound the Models & Agents vault section and the window commands to the lazy vault bundle, enabled the reviewed availability switch, composed SSH key add in the action dialogs, published vault Help, and passed all gates. The Windows pipe helper (lane C-M109-1c), the key-store migration, the companion vault surface and the macOS replay still wait and are not claimed here; see `docs/certification/msm109.md`.
+
+**C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
+vault use is refused. The binding layer was never built: the broker process,
+its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are
+all missing. These decisions settle what PLAN left open. Part (a) is
+the host lane; (b) and (c) are separate rig lanes started from (a)'s
+interface commit.
+
+1. **Broker protocol v2** (`VAULT_PROTOCOL_VERSION` 2).
+   - New manage-only request kinds: `snapshot`, `editMetadata`, `remove`,
+     `import`, `publicKey`, `watch`, `setup`, `confirmSetup` and
+     `cancelSetup`.
+   - Item values travel only in private frames (`add`, `edit`, `recover`);
+     the recovery code leaves only as the private `recoveryCode` response.
+   - `watch` turns the connection into a stream of pushed events: lock,
+     revoke, approval and changed.
+   - No v1 vault or broker exists in the field, so there is no
+     compatibility shim.
+2. **Grants live in the encrypted vault document.** The index carries
+   `grants`, and use counts are spent under the cross-process writer lock.
+   The store format is now `VAULT_STORE_FORMAT_VERSION` 2; block, slot,
+   audit and backup formats keep `VAULT_FORMAT_VERSION` 1.
+3. **The rollback anchor** (`VaultGenerationPort`) is a protected record in
+   the OS store through `@napi-rs/keyring`. D89.15 already accepts the
+   same-user rewrite residual; its wording is unchanged.
+4. **Windows.** A C# named-pipe server helper refuses remote clients and
+   relays to the broker, and also carries protect/verify file commands from
+   `MuseSparkVault.cs`'s guard. The contract is
+   `docs/design/vault-windows-pipe-helper.md`; lane (c) on the Win11 rig
+   builds it.
+5. **`dist/vaultRuntime.js`** exports `createRuntimeVault`, has no `vscode`
+   import, ships in the ACP package, and is what `runtimeVaultLoader` loads.
+   `dist/vault.js` stays the VS Code panel bundle.
+6. **The SecretStorage slot is dropped.** Every host uses the OS-store slot
+   through `@napi-rs/keyring`, the store SecretStorage itself rests on. The
+   broker is a separate process with no editor API. This amends D89.2's
+   table and acceptance 1's `basic_text` sentence.
+7. **Linux in this step: the Secret Service OS-store slot only.**
+   systemd-creds, the TPM2 PIN and the screen-lock signal stay in C-M109-2.
+8. **Setup flow.**
+   - Where: Settings > Vault > **Set Up Vault**, or a prompt the first time
+     anything asks to store a secret, in the panel and the CLI
+     (`vault setup`).
+   - `auto` means an OS-store slot plus a one-time recovery code.
+   - The panel shows the code once, in a dialog with **Copy** and an
+     **I Saved It** confirmation, before the vault becomes usable. Nothing
+     is written until that confirmation.
+   - The CLI prints the code once with the same confirmation prompt;
+     headless mode refuses setup without a TTY.
+   - Labels are Title Case, messages sentence case, and every string is in
+     all 14 tables.
+9. **Unix peer checks.** CI builds `peer.c` the way `muse-created` is built
+   (linux x64/arm64; macOS through `build.sh`). The socket descriptor comes
+   from Node's internal handle, with a §8 row landing beside that code in
+   lane (b).
+10. **Named exception: Touch ID / Keychain biometry unlock (lead decision,
+    2026-10-10).**
+    - **Reason:** no Apple Developer ID. It expired, and the owner cannot
+      renew it, so the data-protection keychain's biometry entitlement is
+      unavailable.
+    - **Equivalent:** on macOS, the login Keychain slot, plus the Secure
+      Enclave slot without biometry where `SecureEnclave.isAvailable`.
+    - **Upstream:** none.
+    - Nothing blocks or waits on it. C-M109-11 states it as not offered.
+
+The split:
+
+- **(a)**, the host lane: the protocol, grants, anchor, setup flow,
+  `dist/vaultRuntime.js`, and the VS Code, CLI, ACP and headless bindings
+  against interfaces.
+- **(b)**, Codex on kubuntu: the broker process, POSIX peer checks and the
+  Linux slot.
+- **(c)**, Codex on the Win11 VM: the Windows natives.
+
+**CM109JOINB round 3 repair (2026-10-11, Kubuntu; RVCM109JC).** Treat
+orderly broker disappearance at discovery, readiness, authentication and the
+post-launch recheck as absence or one bounded successor retry across editor,
+CLI, ACP and headless connections. Native identity exit 1 gets one fresh
+probe, requiring validated identity or code-2 absence; a real broker closes
+between the native reads in its regression. Enumerate each filesystem/native/socket
+transition and close real brokers between steps in regressions. Make the
+real-process fixture follow explicit test ownership, retaining the production
+30-second idle policy with an injected-clock test. Reproduce and resolve the
+epoch collision and classify installed sampler warnings by exact cause with
+leak checks; rerun generated-only installed acceptance. Each guard gets a
+byte-exact red drill in `docs/certification/cm109-join-posix.md`. Availability
+stays off; store/shared lock helpers, dependencies, gates and caps stay unchanged.
+
+**CM109JOINB review repair (2026-10-11, Kubuntu; RVCM109JB).** The
+session owns the POSIX broker: governed spawn handoff, detached session/group,
+null standard streams, socket readiness, last-client idle Lock and orderly
+signal shutdown. An owner-only kernel launch lock serializes clients before
+rechecking discovery; the broker's separate startup lock still protects stale
+recovery for its lifetime. Recover or remove crash remnants and the protected
+audit checkpoint interruption; the portable broker audit writer gets an
+optional POSIX-bound prepare hook so protected intent precedes physical append,
+with key/authorization rechecks after the await and recovery that distinguishes
+prepared from physically committed records; add real-process launcher-death/start-race
+receipts and red drills for every reviewed guard. Remove ended host
+registrations, prune proven-dead registrations, derive packaged sibling
+coverage, and distinguish disabled availability from failed installation in
+all tables and the reference. The 17 writer crash cases stay skipped pending
+CM109LEASE and the join; no core store/lock change, availability flip or cap
+change belongs here. Aggregate quality and macOS replay remain lead-owned.
+
+**CM109JOINB join preparation (2026-10-11, Kubuntu).** Merge core round 5
+`52a37ad49` without a fast-forward and keep its core vault files byte-identical.
+Move POSIX identity/startup-lock commands beside the native helper, reusing
+core's peer check, and synchronize the cold epoch through the existing port.
+Adopt anchored loss checks, headless Reset wording, failed-Delete receipt reload
+and typed refusals. Bind the installed POSIX client and broker factory for every
+VS Code/CLI/ACP caller behind an off availability switch. Its child-only
+factory ships in `vaultBrokerBindings.js` with its own measured 32 KiB budget;
+existing bundle caps stay unchanged. The immutable core store and crypto/error
+identity share `vaultStore.js` (new measured 50 KiB cap) rather than expanding
+any existing broker or runtime cap. POSIX discovery/launch ships only on
+first use in `vaultPosix.js` (new 25 KiB cap). Agent execution/provenance transport owners
+must bind their ports before enabling agent use; management and first-party
+private reads are operational, and missing transports refuse explicitly. Certify real socket,
+native peer and generated-only isolated Secret Service paths; drive setup,
+unlock, encrypted storage, granted use, Lock, Keep/Delete and Reset end to end.
+Add executable SIGKILL transaction cases for Reset/Restore and live-owner refusal;
+leave only those cases skipped pending CM109JOINA's shared writer lease.
+Do not implement that lease here. Preserve gates/caps/default timeouts, run
+scoped gates (aggregate quality stays lead-owned), commit with installed hooks,
+and stop all owned processes. Receipts: `docs/certification/cm109-join-posix.md`.
+
+**C-M109-1b execution (2026-10-10, Kubuntu).** Part (b) composes part
+(a)'s repository, management and OS-store anchor in the portable broker
+process, ships the POSIX peer/identity/singleton helper and supplies Secret
+Service and login Keychain slots through the pinned `@napi-rs/keyring`.
+The OS-store slot is certified separately before merging part (a)'s blocks.
+No editor surface is enabled here. Installed VS Code/CLI/ACP/headless
+receipts belong to part (a); JetBrains, Visual Studio, Eclipse, Zed, Xcode,
+Neovim, Emacs and Sublime receipts belong to C-M109-10. Linux hardware and
+screen-lock receipts remain C-M109-2; macOS biometry is not offered under
+decision 10. Acceptance 3's per-user-session/protocol singleton takes
+precedence over the brief's abbreviated "one per user".
+The process exports `createVaultBrokerProcess(context, bindings)` and its
+internal executable loads only installed `dist/vaultRuntime.js`'s
+`createVaultBrokerBindings(context)` export. Part (a)'s merged building-block
+commit does not yet provide that export: installed editor use stays closed.
+The Linux/macOS native helper uses OS peer credentials, process birth/image
+identity and an EOF-held kernel startup lock; no caller supplies a descriptor.
+A broker with no connected clients locks and exits after 30 seconds; at most
+64 clients are accepted at once. Native identity execution and startup-lock readiness have five-second response bounds.
+A cold broker synchronizes the shared lock epoch under its startup lock before
+accepting a connection; a rejected contender constructs no broker and cannot
+bump that epoch or lock an already live broker.
+Certification: `docs/certification/cm109-1b.md`.
+
+**C-M109-1 (a) status (2026-10-10, branch `c/m109-1`).** Built on fakes and
+certified in `docs/certification/m109.md` ("C-M109-1 part (a)"):
+
+- protocol v2 in the channel and the client (watch included);
+- store v2 grants;
+- `KeyringVaultAnchor`;
+- `VaultStoreRepository`, `VaultSlotUnlock` and `VaultManagement` (the setup
+  flow);
+- `VaultManageSession`;
+- `dist/vaultRuntime.js` (CLI `vault setup` / `vault recover`, ACP `/vault`,
+  headless `--vault`);
+- the VS Code bundle's broker-backed `VaultPanelService` and its native
+  recovery-code dialog;
+- **Set Up Vault** in the shared vault section;
+- strings in all 14 tables.
+
+The vault still refuses every use with `vault.brokerBlocked`, as 0.17.0
+does. Three things are open, and the vault goes live when all three land:
+
+1. `vaultClientPlatform` (`src/runtime/vault/clientPlatform.ts`) is bound by
+   lanes (b) and (c).
+2. The broker process composes these pieces.
+3. The Models & Agents panel mounts the vault section (C-M109-1 P1, lane
+   CM1091D, 2026-10-10: mounted behind the broker gate — `vaultOffered`
+   stays false and the navigation stays hidden until 1 and 2 land — and
+   tested with the gate forced on; `docs/certification/m109.md` "C-M109-1
+   P1" records it). Settings > Vault > Set Up Vault arrives with M126's
+   settings page.
+
+No checklist item above is ticked by this step.
+
+**C-M109-1b merge (2026-10-10).** Part (a) at `6319cdcd5` is merged into
+`c/m109-1b`; part (b) adopts part (a)'s fixed core contracts (typed
+OS-store errors, `onLocked` key erasure, the panel subscribe/answer/confirm
+callbacks). Certification: `docs/certification/cm109-1b.md`.
+**CM1091A3 qualification (2026-10-10, linuxlt).** Apply the host agent's
+prepared round, remove both test clones through the existing management
+fixture, then run the complete vault file list in batches of at most three
+at repository deadlines. Reproduce the foreign-user peer failure on
+82d50d5e4. Run scoped static/build gates, review every changed class and
+certify any repair with a failing regression and byte-exact restoration.
+Commit with installed hooks and the prepared message; no merge, push,
+rebase, subagents or paid/live call. Aggregate quality and Windows replay
+remain lead-owned under the explicit rig/common brief.
+
+Review found and repaired missing commit-time Lock checks in first
+creation and the reset audit write, plus an import label that bypassed
+locale number formatting. Both physical commits now check authority; the
+label's numeric slot goes through `fill`. Failing-before regressions and
+six named removal drills certify the repairs, typed Lock refusal, accessible
+lost-vault Reset action and feature catalog detail. Final vault replay:
+1,499 passed, 34 existing skips, only the identical-base peer failure.
+All eleven scoped gates pass; reference owners pass all 135 tests.
+Certification records the exact results without ticking the installed
+broker or panel checklist.
+
+**C-M109-1 (a) additions (2026-10-10, lead decisions).**
+
+**CM1091A5 review repair (2026-10-11, win11).** Close both RVCM1091A4
+P2 findings and RVCM1091B4's part-A P3 by class. Before opening secret
+material, validate pending-intent authentication framing and history,
+document/block generations and encodings, and slot identities, high-water
+marks and wrapping/KDF framing, including the public protected anchor state;
+published candidates must match it and intents must match their prior or next
+state. Keep the existing setup-pending projection through first unlock so a
+watched refresh cannot compete with that reader's writer lock. Impossible states must offer Reset under
+the same writer recheck. Reconcile every non-retired import completion,
+including report, Keep and Delete failures, while retaining its refusal.
+Give headless Reset its own accurate terminal sentence in all fourteen
+languages and assert the printed text. Generated-only regressions and
+byte-exact red drills belong in `docs/certification/m109.md`. Keep the
+quarantine implementation untouched for CM1091CR2. Scoped rig gates replace
+aggregate quality under the explicit brief; no merge, push, dependency,
+subagent or paid/live call.
+
+**CM1091A4 review repair (2026-10-10, win11).** Close all nine
+RVCM1091A3 findings by class: capture Lock authority at request admission;
+bind imported paths and every parent to held, verified identities within the
+home; classify missing/damaged documents and pending intents consistently;
+refuse Reset while unlocked; authorize every destructive reset boundary and
+retire the exact anchor state inside the writer transaction; cancel sent panel
+imports on retirement while preserving receipt authority across ordinary
+change notifications; retain private imported target identity in encrypted
+material. Generated-only regressions and byte-exact removal drills are recorded
+in `docs/certification/m109.md`. Scoped rig gates replace aggregate quality
+under the explicit common/rig brief. No merge, push, dependency or live call.
+The independent host build first exceeds its unchanged 50 KiB cap at 52,042
+bytes. Reuse the panel's retirement, locked-state publication and fixed-error
+paths, and return service promises directly; retain every cancellation and
+authorization check. The repaired build is 51,174 bytes and both budget owners
+pass alongside the complete panel-host and notification regressions.
+
+- **Reset Vault.** It is offered only when this user's anchor names a vault
+  that no slot or code can open, because its files are missing or damaged.
+  - Two steps: the plain statement of loss, then the typed word `RESET`.
+  - The store re-checks under the writer lock that no complete openable vault
+    or recoverable intent exists before anything changes; Reset refuses an
+    unlocked broker.
+  - It appends a value-free audit line to `reset.v1` and keeps the
+    displaced document aside.
+  - It clears the anchor by compare-and-delete. Rollback protection restarts
+    with the next setup's new anchor.
+  - Surfaces: the panel, the CLI `vault reset` and the ACP agent's
+    terminal.
+- **Import.** `VaultStore.writeBatch` publishes every item with its
+  encrypted receipt in one transaction, after decrypt-and-verify of the staged
+  items, with authority checked at the commit.
+  - `VaultManagement.importFile` imports only files discovered in the home
+    folder. Items are hidden until the user reviews them.
+  - The report carries names and kinds only, and Keep/Delete follows.
+  - A cancelled requester commits nothing.
+  - A refusal at the commit never locks the vault.
+- **RVCM1091A2 (Grok).**
+  - Every Lock raises a lock generation. Setup, confirm, recover, reset and
+    import re-check it at each await, so nothing a Lock overtook ends
+    unlocked or commits.
+  - A headless open closes its connection on abort and re-checks the signal
+    after registration.
 
 **FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
 P1/P2 in `_ctx/codex/M109-findings.md` against integration `a1d2b73e7`,
@@ -34898,6 +35347,124 @@ the 810 bytes. Re-baselined by the documented rule: 26,410 x 1.15 =
 30,371.5 bytes = 29.66 KiB, so 30 KiB (`scripts/lib/webviewBundles.mjs`).
 Disposition: closed; `npm run build` is green on the re-baselined tree.
 
+**CM109JOINB review scoped/native qualification (2026-10-11, Kubuntu).** The
+rig brief delegates aggregate quality and hub integration to the lead. All five
+type projects and scoped lint/format, plain knip, zero duplication, l10n,
+reference, host API, plan, roadmap and production budgets pass unchanged.
+Round 2's installed warning deferral is resolved by RVCM109JC qualification:
+the exact finished-native-helper registration race is named only after its
+process group is proven gone; live/unclassified sampling failures still fail
+acceptance. Both native receipts and retirement checks exit 0. The shared
+epoch writer's legitimate cross-session contention is serialized by the
+POSIX kernel lock, with guardian-loss and contention regressions. Full
+launch measurements are observations under two CPU workers, not a total
+launch guarantee. No production resource accounting guard is changed.
+Availability stays off. The 17 writer
+crash cases remain skipped for CM109LEASE/join; the store/shared lock helpers
+are unchanged. No hook, assertion, budget or timeout is weakened.
+
+**CM109LEASER2 qualification (2026-10-11, Win11).** The six in-scope
+RVCM109LEASE findings are implemented. Shared-core ownership, atomic
+publication, immutable notes, self-adoption and confirmed Reset/Restore are
+covered by the owning suites and the complete non-hub dependent selection.
+The rig/common brief delegates aggregate quality and cross-platform replay
+to the lead. The two pre-existing duplication pairs in modelApiHost and
+modelApiLoopGuarantees remain outside this lane; both files and the gate
+configuration are unchanged from 18dbcb0e8. Production size still refuses the
+existing usagePanel and surface-English overages. No limit is moved.
+Credential Manager and foreign-user PowerShell startup refuse four native
+cases here; no OS-policy change or workaround is attempted. The lead must
+qualify those paths interactively and replay Linux/macOS. Git transaction
+lock timed takeover remains explicitly lead-owned (review finding 6).
+The requested lane timebox was exceeded. Receipts, exact failures, bytes
+and byte-exact mutation restoration are in docs/certification/m109.md and
+m109-lease-r2-verification.json; no complete aggregate-green claim.
+
+The complete vault run also records sshImport's unchanged fixture setup
+failure: Windows ssh-keygen exits 255 without stdout/stderr under its
+restricted environment, leaving two tests unexecuted. The four previously
+documented native logon failures remain unqualified. Full production build
+stops at the usagePanel/surface-English caps named in §3; later split,
+globals and notice checks run separately. Duplication reports two test
+clones in modelApiHost/modelApiLoopGuarantees; both files match snap/train's
+Git blobs exactly. Their test restructuring is deferred to the train owner,
+with no ignore or threshold change. Knip's two unused type declarations
+are removed, preserving their schemas and runtime behavior.
+
+**CM1091CR2 round-3 qualification scope (2026-10-10, Win11).** The rig
+brief requires the `bdda4382f` core merge, completed as `501682b3b`, and
+direct Windows owning-suite/static/build checks; aggregate quality remains
+lead-owned. Core files are retained. A complete native-channel fixture's
+first preparation faults because it probes before installing an accept
+handler; the first repair exposes a wrong server-check call signature, and
+the second exposes invalid hello ids. Stop that new fixture path under the
+shared two-failed-fixes rule, remove it, and retain the attempt receipts.
+The existing native transport harness independently proves unchanged v2
+request/response bytes, and core management tests exercise the operations.
+`test/unit/vault/channel.test.ts` requires its Unix peer fixture and is not
+claimed as a Windows manage-only replay; full native channel composition
+remains with the lead after the stopped fixture path.
+Native Credential Manager qualification uses the existing interactive
+desktop runner; the network-logon failure is retained, not skipped or fixed
+by changing policy. The damaged-document quarantine/reset conflict in §3
+remains an installed-binding blocker. No gate, timeout, assertion, native
+hard-link refusal or production security port is weakened.
+
+**C-M109-1c scoped qualification (2026-10-10).** The lane/common brief
+reserves aggregate `npm run quality` and release qualification for the lead.
+Run complete owning files directly on Win11 at repository deadlines,
+changed-file lint/format, all five typechecks, localization, reference,
+roadmap, host API, dead code, duplication and the capped production build.
+Retain the logon-session failures and unstable timing receipt (§3) explicitly,
+without a skip, deadline change, fake substitution or security-policy edit.
+The new Windows paths cannot be activated until those receipts, the timing
+budget and the
+binding lane's private-file/launcher composition pass.
+CM1091CR2 qualifies generated OS-store keys and both identity directions in
+the existing interactive desktop session. It records the array validation,
+ownership/erasure, retired-frame admission and native-probe guard drills,
+with byte-exact restoration, without changing deadlines or the five-ms bound.
+
+The initial production build's Models panel body failed its existing 75 KiB cap.
+An isolated rebuild using the exact interface-base English table (only
+this lane's two new keys removed; Models sources/imports unchanged) still
+measures 77,652 bytes against 76,800. The English file is restored with
+matching SHA-256 values. This is an inherited budget failure, assigned to
+the lead's joined-tree gate; this Windows-native lane changes no Models
+code, cap or ignore. Record the final delta and the independent split,
+host-global and notice checks in the certification receipt. No release
+qualification or aggregate quality pass is claimed.
+After CM1091CR2's required `6319cdcd5` core merge, the complete production
+build passes unchanged caps, including the Models body at 72.9 KiB / 75 KiB.
+The earlier 77,652-byte receipt remains historical; no budget is raised.
+
+**C-M109-1b scoped qualification (2026-10-10, Kubuntu).** The lane brief
+reserves full quality for the lead. Targeted types, lint, formatting, dead code,
+duplication, localization, host API, reference, roadmap and production checks
+run without changing any existing gate. A clean scratch build of starting
+revision `96ded9299` already fails the Models body cap (75.8 KiB against
+75 KiB); record the exact baseline and current bytes in the certification
+receipt and defer that pre-existing browser-budget repair to the lead. The
+broker gets only its own measured-plus-15% cap. No editor surface is enabled
+until part (a)'s installed bindings and the native host receipts pass.
+**CM1091A3 scoped rig qualification (2026-10-10, linuxlt).** The explicit
+rig/common brief prohibits aggregate `quality` and delegates it and the
+Windows replay to the lead. Run the complete vault file list at repository
+deadlines, with at most three files per invocation, plus the owning reference
+suite, scoped lint/format, all five type projects, plain knip, duplication,
+localization, reference, host API, plan, roadmap and unchanged bundle budgets.
+The foreign-user peer probe fails identically on base `82d50d5e4` and this
+lane: `sudo-rs` cannot find the generated client under the rig's private
+`TMPDIR`; no assertion, deadline, permission or test is weakened.
+Reviewed repairs and six byte-exact restoration drills are recorded in the
+M109 certification. All eleven scoped gates exit 0. The full visual gate
+starts, but the unchanged 9,792-capture baseline plus candidate render
+exceeds the explicit 120-minute time box at the observed pace; stop its
+owned process group after 288 baseline captures (exit 143), clean only its
+owned directories, and defer full visual approval to the lead with aggregate
+quality. No baseline or tolerance changes. Native Windows replay remains a
+separate lead step.
+
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
 modal focus owner" (`test/unit/m114Panel.test.mjs:241`) exceeded Vitest's
@@ -37039,9 +37606,29 @@ for the same sixty-request OS operation. All ordinary tests retain the repositor
 default; final runs use no `--testTimeout` flag. The default 200-call proof uses
 memory fixtures, and real ACP delivery uses a three-call caller allowance.
 
-| Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
-| --------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M95 provider panel: `panelSeam.ts`, `wizardSave.ts` | RVPROVWIZ7C P2-1/P2-2; PROVSTORE-LOCKLIB after M123 | Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main. |
+| Location                                            | Residual / follow-up                                    | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
+| --------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M95 provider panel: `panelSeam.ts`, `wizardSave.ts` | RVPROVWIZ7C P2-1/P2-2; PROVSTORE-LOCKLIB after M123     | Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main. |
+| CM109JOINB location                                 | Escape hatch                                            | Reason                                                                                                                                                                                                                                                | Removal                           |
+| ----------------------------------------            | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                                          | --------------------------------- |
+| `src/runtime/vault/vaultRuntimeEntry.ts`            | Installed sibling cast to `typeof BrokerBindingsModule` | Only the same-build `vaultBrokerBindings.js` is loaded; its factory is checked before calling. The sibling keeps child-only dependencies out of the existing runtime budget.                                                                          | A typed generated sibling loader. |
+
+| CM109LEASE location                             | Escape hatch                            | Reason                                                                                                                                                                                                                                               |
+| ----------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/core/vault/store.ts`, `withWriter`         | `unicorn/prefer-promise-with-resolvers` | The installed Node 20 host lacks `Promise.withResolvers`. The Promise executor assigns the release callback synchronously; finally releases the native-identity queue. Compiler targets and the lint rule remain unchanged.                          |
+| `src/core/vault/store.ts`, `sharedWriterQueues` | `as unknown as` on `globalThis`         | The process-wide writer queue lives on `globalThis` under a lane-owned key so two bundle copies share it; `globalThis` has no such property, so the shape assertion is the only access and is inline-reasoned. No `any`, no disable, no rule change. |
+
+| C-M109-1c location                                          | Escape hatch                                                               | Reason                                                                                                                                                                                                                          |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `native/windows/MuseSparkVaultPipe.cs`                      | Native `TOKEN_USER` unboxing, generic mask conversion and byte-array clone | P/Invoke layouts and native access-mask bit patterns cannot be proved by the managed compiler. Each cast has an inline layout or ownership reason; SID, process identity and the protected DACL are checked before publication. |
+| `native/windows/MuseSparkVault.cs`, `AssertOwnerDescriptor` | `unchecked((uint)ace.AccessMask)`                                          | `CommonAce` stores an unsigned native access-mask bit pattern in a signed integer; generic rights are mapped before comparing the complete owner-only permission mask.                                                          |
+
+| C-M109-1b location                                  | Escape hatch                                                 | Reason                                                                                                                                                                                                                                                | Removal                                                    |
+| --------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `src/runtime/vault/posixNative.ts`                  | `Reflect.get(socket, '_handle')`, then zod validates `fd`    | M109 lead decision 9 explicitly approves Node's internal descriptor for this exact live `Socket`; the native helper checks its kernel credentials, and no wire field supplies it.                                                                     | A supported public Node socket descriptor API.             |
+| `src/runtime/vault/vaultBrokerEntry.ts`             | Installed sibling loader result cast to its factory contract | Only the installed `vaultRuntime.js` can supply the broker bindings; the factory export is checked before calling. No workspace module or missing-export fallback is loaded.                                                                          | Static typed bundle import once the sibling factory lands. |
+| Location                                            | Residual / follow-up                                         | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
+| --------------------------------------------------- | ---------------------------------------------------          | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 
 | M123P9 location                                                    | Escape hatch                                                                                                                                     | Reason                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -37053,15 +37640,15 @@ memory fixtures, and real ACP delivery uses a three-call caller allowance.
 | ---------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | `src/shared/constants.ts` (`GITHUB_OAUTH_CLIENT_ID`) | `// gitleaks:allow` on that one line | gitleaks' `generic-api-key` rule matches the OAuth App's client id. The id is public by design (D104, Q-M123: a device-flow client id is sent in the clear and has no secret). `.gitleaksignore` takes only a commit fingerprint, which a pre-commit scan of a new commit cannot name. The marker covers that line only; every other line of the file is still scanned. | None while the id is a constant; reviewed with Q-M123. |
 
-| PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/unit/helpers/malformedUsd.ts`: `input as unknown as UsdAmount`                      | Existing negative, NaN, infinity and overflow probes deliberately violate the typed port so their runtime refusals still execute.                                                                                               |
-| `test/unit/transcribeBatch.test.ts`: `'NaN' as UsdAmount`                                 | Intentional malformed canonical port; constructors refuse it, so the existing runtime refusal probe bypasses the brand without a credential or paid call.                                                                       |
+| PORTS017 escape | Reason |
+| `test/unit/helpers/malformedUsd.ts`: `input as unknown as UsdAmount` | Existing negative, NaN, infinity and overflow probes deliberately violate the typed port so their runtime refusals still execute. |
+| `test/unit/transcribeBatch.test.ts`: `'NaN' as UsdAmount` | Intentional malformed canonical port; constructors refuse it, so the existing runtime refusal probe bypasses the brand without a credential or paid call. |
 | `test/unit/paidMoneyStructure.test.ts` `trackedDebt` allow-list (41 numeric money fields) | Numeric current money the 0.17 ports did not convert; each entry names milestone M121, which converts it to `UsdAmount` and empties the category. The guard fails on any unlisted money leaf, so the list cannot grow silently. |
 
-| Location                                              | Escape hatch         | Reason                                                                                                                                                                                                                                                                                                                                 |
-| ----------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`) | `'NaN' as UsdAmount` | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained. |
+| Location                                                     | Escape hatch                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`)        | `'NaN' as UsdAmount`                         | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained.                                                  |
+| `test/unit/vault/vaultPanelBinding.test.ts` (`pressedTitle`) | `value as never` for a dialog's pressed item | The vscode mock keeps the overloaded dialog type (its last overload resolves `MessageItem`), while `VaultPanelHost` compares the pressed title as a plain string. The cast carries only the literal titles the test itself passes (`Keep File`, `Delete the File`, `Continue`); the host still compares them against `UI_TEXT` before acting, so no foreign value can cross. Test-only. |
 
 | SPAWN017B location          | Escape hatch                               | Reason                                                                                                                                                                   | Removal                                                                            |
 | --------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
@@ -37383,8 +37970,9 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 | `src/acp/agent.ts` (FIXM116I4)                                                      | `let pending!: PendingPrompt`                                      | The Promise executor assigns the local prompt synchronously before its first use, retaining Node 20-compatible construction without a cast or extracting a resolver. The inline comment states the invariant; lifecycle tests cover start, refusal and early completion.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | 2026-10-07 |
 
-| File | Construct | Reason | Added |
-| ---- | --------- | ------ | ----- |
+| File                                             | Construct                                                             | Reason                                                                                                                                                                                                                                                                                                                                                                    | Added      |
+| ------------------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/vault/vaultViewMachine.ts` (RVCM1091F) | `(event as VaultViewEvent).kind` in the transition's `default` branch | The exhaustive switch over the closed event union leaves `never`; the cast only reads the kind for the throw when a union member lost its row. Unreachable in product: the table test enumerates every state crossed with every event from `VAULT_VIEW_STATES`/`VAULT_VIEW_EVENTS`, so a new member without a row fails there first. Inline comment names that invariant. | 2026-10-12 |
 
 | File                            | Construct                                                       | Reason                                                                                                                                                                                 | Added      |
 | ------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -37404,9 +37992,10 @@ CM1012R7 removes both CM1012R3 dependency-key test assertions through
 the unverified `ts.NoSubstitutionTemplateLiteral` cast (RVCM1012F finding 5).
 No new escape hatch is introduced.
 
+| CM109POSIX4 file                                                                    | Construct                                                                                             | Reason                                                                                                                                                                                                                                                   | Added      |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | TRAINDIET location                                                                  | Escape hatch                                                                                          | Reason                                                                                                                                                                                                                                                   | Date       |
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/shared/constants.ts` (5 lines), `src/shared/browserCheckConstants.ts` (1 line) | `eslint-disable-next-line unicorn/prefer-string-raw` on plain-string Windows paths and one git regexp | `String.raw` is a call and pins the whole initialiser into every bundle importing the module; the plain strings are byte-identical (verified with node) and drop when unused. `test/unit/bundleDiet.test.ts` fails on any new non-droppable initialiser. | 2026-10-11 |
 
 | CLIFLOWS2 location                      | Escape hatch                               | Reason                                                                                                                                                                                                                                                                                               | Added      |
 | --------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -37432,6 +38021,18 @@ No new escape hatch is introduced.
 | real threads. No escape hatch remains from that lane.)                                         |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **CM109JOINB installed POSIX binding handoffs (2026-10-11).** Native host
+  registration binds PID/UID/birth/image to owner-only files; it does not
+  attest against arbitrary hostile same-user code rewriting those files
+  (D89.15's residual). Management/private reads are bound; installed agent
+  T/X/S/O execution, lifetime and trusted provenance owners remain absent and
+  explicitly refused. Audit checkpoint updates commit the authenticated store
+  before the protected checkpoint; interruption between those writes refuses
+  reopening rather than guessing an anchor. Joined recovery must certify that
+  failure path before availability is enabled. CM109JOINA supplies the writer
+  lease; panel/settings mount, keyring VSIX packaging and cross-platform/editor
+  acceptance stay lead-owned. No public vault support is claimed by this lane.
 
 - **M107-D100-native-birth-enforcement (FIXM107W; qualification blocker).**
   G13 now stops only the offending registered job after more than 128 observed
@@ -40829,8 +41430,35 @@ PR #238 (`fix/acp-error-truth`) merged: ACP failures say their real cause
 refusal, a loaded playbook's command failure is not unavailability), its
 CHANGELOG entries under `[0.19.0]` Fixed. PR #242 (`fix/panel-retry-truth`)
 merged: the panel's Agent-map retry pre-flight says gone/stale in its own
-words, its CHANGELOG entry under `[0.19.0]` Fixed. The `0.19.0 released (…)`
-line is written by the lead after the tag's release run.
+words, its CHANGELOG entry under `[0.19.0]` Fixed. PR #246 (`build/vsix-per-platform`, D123: six platform packages from
+filtered stages, each with its own helpers and TargetPlatform) and PR #216
+(`ms/msm109`: the credential vault end to end on Linux and macOS) merged
+next, in that order, each with its CHANGELOG entries under `[0.19.0]` and
+the roadmap regenerated. PR #247 (`ms/msm109-parity`: the Windows broker
+channel over the guarded pipe helper, per-platform slot providers with real
+presence checks, and the file-backed rollback anchor where the OS keyring
+binding is missing) merged third; its parallel per-platform `.vsix` work
+kept the merged PR #246 shape, plus the pipe helper as a required win32
+native file, with its CHANGELOG entries under `[0.19.0]`. PR #236
+(`fix/attach-recording-parity`: Attach Latest Screen Recording on Windows
+and macOS) merged fourth; its release entry stays withheld until
+packed-product runs on both target OSs are recorded, per the branch's own
+rule. PR #244 (`fix/macos-parity`: macOS parity — protected names listed
+with contents denied, real GPU/disk/headroom readings, Darwin disk
+counters keyed by registry entry id, walk budget in entries visited)
+merged fifth, with its CHANGELOG entries under `[0.19.0]`. PR #220
+(`fix/windows-process-birth`: the Windows birth reader each process
+builds with the C# compiler and seals, replacing PowerShell for the
+timed birth read; the vault's exact evidence path is unchanged) merged
+sixth, with its CHANGELOG entry under `[0.19.0]`. PR #222
+(`fix/browser-check-route`: the browser check waits for the network
+service before the contract read, within the check's own time and Stop)
+merged seventh, with its CHANGELOG entry under `[0.19.0]`. PR #218
+(`ci/more-shards2`: sixteen Windows and macOS unit shards, every
+Windows/macOS leg relayed to the capacity repository on `home` runs,
+larger Windows runners, cumulative-PR path gating) merged eighth, with
+its CHANGELOG entries under `[0.19.0]`. The `0.19.0 released (…)` line is written by the lead after the tag's
+release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from

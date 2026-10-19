@@ -41,6 +41,7 @@ import {
   BROWSER_CHECK_LOAD_TIMEOUT_MS,
   BROWSER_CHECK_TEARDOWN_MS,
   BROWSER_CHECK_TIMEOUT_MS,
+  BROWSER_NETWORK_SERVICE_POLL_MS,
   BROWSER_NETWORK_SERVICE_TYPE,
   BROWSER_PRODUCT_PREFIX,
   BROWSER_PROXY_BYPASS,
@@ -448,6 +449,24 @@ async function networkServiceId(page: PageCheck): Promise<number | undefined> {
   return processInfo.find((entry) => entry.type === BROWSER_NETWORK_SERVICE_TYPE)?.id
 }
 
+/**
+ * The network service's process id once the browser has started it, read
+ * before any request. The browser launches the service after its own
+ * process already answers on the pipe, so it is asked again until it is
+ * listed. The wait has no bound of its own: the check's lifetime (its
+ * deadline, the person's Stop, admission) closes the pipe when it ends,
+ * which wakes the wait at once and fails the next ask.
+ */
+async function startedNetworkServiceId(page: PageCheck): Promise<number> {
+  for (;;) {
+    const serviceId = await networkServiceId(page)
+    if (serviceId !== undefined) {
+      return serviceId
+    }
+    await page.waitUntil(() => false, BROWSER_NETWORK_SERVICE_POLL_MS)
+  }
+}
+
 interface CheckContext {
   readonly page: PageCheck
   readonly fixture: ProbeFixture
@@ -584,15 +603,11 @@ async function holdToContract(
   options.warn(
     `Browser check: command line held, ${String(verdict.unknownSwitches)} other switches`,
   )
+  const serviceId = await startedNetworkServiceId(page)
+  // Read after the wait: a target that appeared during it is seen and refused.
   const { targetInfos } = await page.call('Target.getTargets', targetsSchema)
   const [first] = targetInfos
-  const serviceId = await networkServiceId(page)
-  if (
-    serviceId === undefined ||
-    targetInfos.length !== 1 ||
-    first?.type !== 'page' ||
-    first.url !== 'about:blank'
-  ) {
+  if (targetInfos.length !== 1 || first?.type !== 'page' || first.url !== 'about:blank') {
     fail('unrecognized')
   }
   return serviceId

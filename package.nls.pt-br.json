@@ -233,7 +233,7 @@
   "config.github.useGhLogin.description": "Permite que pull requests usem seu login existente do GitHub CLI (`gh auth token`), tentado por último, depois do login do GitHub do editor e do login do Muse Spark. O token é lido para uma solicitação por vez e nunca é armazenado. Desativado por padrão; somente nas configurações do usuário, para que um repositório não possa ativá-lo.",
   "command.vault.title": "Cofre",
   "command.lockVault.title": "Bloquear o cofre agora",
-  "config.vault.description": "Mantida por compatibilidade; esta preferência não tem efeito nesta compilação.",
+  "config.vault.enabled.description": "Ativa ou desativa o cofre de credenciais por usuário. Um valor legado armazenado de museSpark.vault vale até que esta configuração seja definida.",
   "config.vault.protection.description": "Mantida por compatibilidade; esta preferência não tem efeito nesta compilação.",
   "config.vault.agentFence.description": "Controla o isolamento de credenciais para comandos de shell interativos da Model API. Verificação, agendamentos, workers e hooks continuam isolados.",
   "config.vault.lockAfterIdleMinutes.description": "Mantida por compatibilidade; esta preferência não tem efeito nesta compilação.",

@@ -6,6 +6,7 @@ import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
 import * as z from 'zod/mini'
 import type { ResourcePipedProcess, ResourceProcessOptions } from '../../resources/launch'
 import {
+  JUDGE_FAST_B1_DARWIN_ABI,
   JUDGE_FAST_B1_MAX_ABI,
   JUDGE_FAST_B1_MIN_ABI,
   JUDGE_FAST_B1_PROTOCOL_MAX_BYTES,
@@ -19,9 +20,18 @@ import { parseInspectCommand } from './inspectGrammar'
 const abiSchema = z
   .number()
   .check(z.int(), z.minimum(JUDGE_FAST_B1_MIN_ABI), z.maximum(JUDGE_FAST_B1_MAX_ABI))
+// The Seatbelt helper reports its own generation, below the Landlock range so
+// a Linux helper can never pass a macOS check and vice versa.
+const darwinAbiSchema = z.literal(JUDGE_FAST_B1_DARWIN_ABI)
 const probeSchema = z.strictObject({ abi: abiSchema, confined: z.literal(true) })
+const darwinProbeSchema = z.strictObject({ abi: darwinAbiSchema, confined: z.literal(true) })
 const runSchema = z.strictObject({
   abi: abiSchema,
+  confined: z.literal(true),
+  excluded: z.number().check(z.int(), z.minimum(0)),
+})
+const darwinRunSchema = z.strictObject({
+  abi: darwinAbiSchema,
   confined: z.literal(true),
   excluded: z.number().check(z.int(), z.minimum(0)),
 })
@@ -29,7 +39,6 @@ const nativeRefusalSchema = z.strictObject({
   refused: z.enum([
     'file',
     'landlock',
-    'clock',
     'walkBudget',
     'operand',
     'walk',
@@ -253,7 +262,8 @@ export class InspectRunner {
       const native = nativeRefusalSchema.safeParse(json(result.stderr.trim()))
       return refused(native.success ? native.data.refused : 'confinement')
     }
-    const metadata = runSchema.safeParse(json(result.stderr.slice(0, newline)))
+    const runSchemaForHost = process.platform === 'darwin' ? darwinRunSchema : runSchema
+    const metadata = runSchemaForHost.safeParse(json(result.stderr.slice(0, newline)))
     if (!metadata.success) return refused('confinement')
     const stderr = result.stderr.slice(newline + 1)
     if (countSecretMatches(result.stdout, []) > 0 || countSecretMatches(stderr, []) > 0)
@@ -272,18 +282,17 @@ export class InspectRunner {
     try {
       await mkdir(this.options.storage, { recursive: true, mode: 0o700 })
       root = await mkdtemp(path.join(this.options.storage, 'b1-test-'))
-      const workspace = path.join(root, 'workspace'),
-        home = path.join(root, 'home')
+      const workspace = path.join(root, 'workspace')
       await mkdir(workspace, { mode: 0o700 })
-      await mkdir(home, { mode: 0o700 })
       const identity = fileIdentityKey(await statIdentity(workspace))
       if (identity === undefined) return false
       const binding = { root: workspace, identity }
       const probe = await this.process(['probe'], root, this.lifetime.signal)
+      const probeSchemaForHost = process.platform === 'darwin' ? darwinProbeSchema : probeSchema
       if (
         probe.refusal !== undefined ||
         probe.exitCode !== 0 ||
-        !probeSchema.safeParse(json(probe.stdout.trim())).success
+        !probeSchemaForHost.safeParse(json(probe.stdout.trim())).success
       ) {
         const native = nativeRefusalSchema.safeParse(json(probe.stderr.trim()))
         if (native.success) this.offReason = native.data.refused
@@ -299,20 +308,37 @@ export class InspectRunner {
       await mkdir(path.join(workspace, '.git'))
       await writeFile(path.join(workspace, '.git', 'config'), forbidden)
       await writeFile(path.join(workspace, '.env'), forbidden)
-      const cat = await this.execute('cat allowed.txt', binding, home, this.lifetime.signal)
-      if (cat.kind !== 'output' || cat.stdout !== allowed || cat.exitCode !== 0) return false
+      // The macOS helper consumes its home dir on every run (it writes
+      // profile.sb there with O_EXCL and demands it empty), while the Linux
+      // helper never writes there — so a shared self-test home always fails
+      // the second check on a Mac. Each probe gets a fresh home, the same
+      // fresh-home-per-run contract every session run already follows.
+      const catHome = await mkdtemp(path.join(root, 'b1-self-home-'))
+      const cat = await this.execute('cat allowed.txt', binding, catHome, this.lifetime.signal)
+      if (cat.kind !== 'output' || cat.stdout !== allowed || cat.exitCode !== 0) {
+        // The latched refusal names the failing probe's own reason. Probes
+        // run in probe, cat, grep order and the first failure sticks, so the
+        // reason plus that order identifies which probe failed and why.
+        if (cat.kind === 'refused') this.offReason = cat.reason
+        return false
+      }
+      const grepHome = await mkdtemp(path.join(root, 'b1-self-home-'))
       const grep = await this.execute(
         "grep -r -e 'B1_.*_CANARY' .",
         binding,
-        home,
+        grepHome,
         this.lifetime.signal,
       )
-      return (
-        grep.kind === 'output' &&
-        grep.stdout.includes(allowed) &&
-        !grep.stdout.includes(forbidden) &&
-        grep.excluded >= 2
-      )
+      if (
+        grep.kind !== 'output' ||
+        !grep.stdout.includes(allowed) ||
+        grep.stdout.includes(forbidden) ||
+        grep.excluded < 2
+      ) {
+        if (grep.kind === 'refused') this.offReason = grep.reason
+        return false
+      }
+      return true
     } catch {
       return false
     } finally {
@@ -325,7 +351,9 @@ export class InspectRunner {
     workspace: InspectWorkspace,
     signal?: AbortSignal,
   ): Promise<InspectResult> {
-    if (process.platform !== 'linux') return refused('platform')
+    // Linux confines with Landlock/seccomp, macOS with a Seatbelt profile via
+    // sandbox-exec. Windows has neither facility wired and stays refused.
+    if (process.platform !== 'linux' && process.platform !== 'darwin') return refused('platform')
     if (process.getuid?.() === 0 || process.geteuid?.() === 0) return refused('root')
     if (parseInspectCommand(command) === undefined) return refused('grammar')
     const combined = AbortSignal.any([

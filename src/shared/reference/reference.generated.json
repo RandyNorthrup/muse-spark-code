@@ -1971,6 +1971,27 @@
       "details": [{ "ui": "referenceAcp" }],
       "facts": {},
       "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "vault",
+      "name": { "command": "museSpark.vault" },
+      "summary": { "ui": "referenceVaultPanel" },
+      "description": { "ui": "referenceVaultPanel" },
+      "commands": ["museSpark.vault", "museSpark.lockVault"],
+      "settings": [
+        "museSpark.vault.enabled",
+        "museSpark.vault.protection",
+        "museSpark.vault.agentFence",
+        "museSpark.vault.lockAfterIdleMinutes",
+        "museSpark.vault.lockOnScreenLock"
+      ],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-vault",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [{ "ui": "referenceVault" }],
+      "facts": {},
+      "editors": ["vscode", "acp"]
     }
   ],
   "commands": [
@@ -2648,6 +2669,26 @@
       "text": { "ui": "referenceUploadedFiles" },
       "enablement": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible",
       "canRun": false
+    },
+    {
+      "id": "museSpark.vault",
+      "name": "Vault",
+      "nameKey": "command.vault.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Open the per-user credential vault in the Models & Agents panel: set it up or unlock it, manage items and grants, and lock it. Not yet available on Windows.",
+      "text": { "ui": "referenceVaultPanel" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.lockVault",
+      "name": "Lock Vault Now",
+      "nameKey": "command.lockVault.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Lock the per-user credential vault now, ending every use in every window.",
+      "text": { "ui": "referenceVaultLock" },
+      "canRun": true
     }
   ],
   "settings": [
@@ -4264,6 +4305,48 @@
       "schema": { "type": "boolean", "default": false }
     },
     {
+      "id": "museSpark.vault.enabled",
+      "name": "museSpark.vault.enabled",
+      "description": "Turn the per-user credential vault on or off. A stored legacy museSpark.vault value takes precedence while this setting has no stored value.",
+      "descriptionKey": "config.vault.enabled.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.vault.protection",
+      "name": "museSpark.vault.protection",
+      "description": "Stored for compatibility; no runtime effect.",
+      "descriptionKey": "config.vault.protection.description",
+      "type": "string",
+      "default": "auto",
+      "enum": ["auto", "osStore", "hardware", "passphrase"],
+      "enumDescriptions": [
+        "Stored for compatibility; no runtime effect.",
+        "Stored for compatibility; no runtime effect.",
+        "Stored for compatibility; no runtime effect.",
+        "Stored for compatibility; no runtime effect."
+      ],
+      "enumDescriptionKeys": [
+        "config.vault.protection.enumDescriptions.auto",
+        "config.vault.protection.enumDescriptions.osStore",
+        "config.vault.protection.enumDescriptions.hardware",
+        "config.vault.protection.enumDescriptions.passphrase"
+      ],
+      "enumTexts": {},
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "string",
+        "enum": ["auto", "osStore", "hardware", "passphrase"],
+        "default": "auto",
+        "deprecationMessage": "Stored for compatibility; no runtime effect.",
+        "deprecationMessageKey": "config.vault.protection.description"
+      }
+    },
+    {
       "text": {
         "conditions": [
           {
@@ -4281,6 +4364,42 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.vault.lockAfterIdleMinutes",
+      "name": "museSpark.vault.lockAfterIdleMinutes",
+      "description": "Stored for compatibility; no runtime effect.",
+      "descriptionKey": "config.vault.lockAfterIdleMinutes.description",
+      "type": "integer",
+      "default": 240,
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "integer",
+        "minimum": 0,
+        "default": 240,
+        "deprecationMessage": "Stored for compatibility; no runtime effect.",
+        "deprecationMessageKey": "config.vault.lockAfterIdleMinutes.description"
+      }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "screenLock", "text": { "setting": "vault.lockOnScreenLock" } }]
+      },
+      "id": "museSpark.vault.lockOnScreenLock",
+      "name": "museSpark.vault.lockOnScreenLock",
+      "description": "Stored for compatibility; no runtime effect.",
+      "descriptionKey": "config.vault.lockOnScreenLock.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "boolean",
+        "default": true,
+        "deprecationMessage": "Stored for compatibility; no runtime effect.",
+        "deprecationMessageKey": "config.vault.lockOnScreenLock.description"
+      }
     }
   ],
   "slash": [
@@ -7268,6 +7387,7 @@
       "mac": "cmd+alt+shift+j",
       "when": "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
     },
+    { "command": "museSpark.lockVault", "key": "ctrl+alt+shift+l", "mac": "cmd+alt+shift+l" },
     {
       "command": "models.table",
       "key": "ArrowDown / ArrowUp / Home / End / Enter / Escape",

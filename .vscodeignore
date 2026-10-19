@@ -98,6 +98,9 @@
 !native/windows/MuseSparkMcpLauncher.cs
 !native/linux/x64/muse-created
 !native/linux/arm64/muse-created
+!native/linux/x64/muse-vault-peer
+!native/linux/arm64/muse-vault-peer
+!native/darwin/muse-vault-peer
 !native/windows/MuseSparkScreenRecord.cs
 !native/darwin/muse-dictate
 !native/darwin/muse-dictate-screen.app/**
@@ -132,7 +135,13 @@
 !dist/webview/reportingDestinations.css
 !dist/reportingNetwork.js
 !dist/vault.js
+!dist/vaultBroker.js
+!dist/vaultStore.js
+!dist/vaultPosix.js
+!dist/vaultRuntime.js
+!dist/vaultBrokerBindings.js
 !dist/vaultBoundaries.js
+!dist/vaultActions.js
 !dist/estimator.js
 !dist/estimateContracts.js
 !dist/native/darwin/muse-vault
@@ -140,6 +149,7 @@
 !native/windows/MuseSparkVaultCng.cs
 !native/windows/MuseSparkVaultHello.cs
 !native/windows/MuseSparkVaultLock.cs
+!native/windows/MuseSparkVaultPipe.cs
 
 # M114 F: optional WOFF2 pack and runtime installer belong to standalone installs.
 design/fonts/**

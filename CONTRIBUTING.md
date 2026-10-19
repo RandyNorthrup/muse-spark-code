@@ -260,17 +260,21 @@ PRs keep the full tier. Settings and evidence:
 
 ### The capacity repository (D122)
 
-GitHub runs at most five macOS jobs at a time per account, and a full run
-has twelve. The organization `scnetsolutions` lends its own five: while the
+GitHub caps concurrent jobs per account, and a full run holds forty unit
+shards (eight on Ubuntu, sixteen each on Windows and macOS) besides the
+gates. The organization `scnetsolutions` lends its runners: while the
 repository variable `ORG_CI` is `on` and the capacity app's key reaches the
 run, a pull request from a branch of this repository runs part `home`.
-Every job runs here except the Windows and macOS unit shards; in their place
+Only the Ubuntu legs run here; in place of every Windows and macOS leg
+(static gates, unit shards, Windows integration, the macOS dictation
+helper, the Hosts/Forks checks and the Windows/macOS browser captures)
 the `org` job pushes the pull request's merge commit to
 [`scnetsolutions/muse-spark-code-ci`](https://github.com/scnetsolutions/muse-spark-code-ci)
-as `ci/pr-<number>`, where the same `ci.yml` runs those sixteen shards on
+as `ci/pr-<number>`, where the same workflows run those legs on
 the organization's runners (part `org`), and waits for that run. Its
 result feeds every required name, so a pull request merges only when those
-shards passed there; its summary lists each shard with a link. Both
+legs passed there; its summary lists each shard with a link, and the macOS
+helper artifacts come back through it for the `packages` job. Both
 accounts' runners work on one pull request at once. A newer push replaces the
 branch, and the capacity repository cancels the older run. Forks, Dependabot,
 merge groups, manual runs and every pull request while `ORG_CI` is not `on`
@@ -278,6 +282,10 @@ keep every job here (part `all`): GitHub passes them no key. Nothing waits
 on anyone's computer: `gh variable delete ORG_CI` sends the next run back to
 part `all`. The project, its pull requests, releases and `main` stay here;
 the capacity repository's `main` holds only a README, and it holds no secret.
+The `org` job mints the App token but never installs or runs the pull
+request's code: its steps are the token action, a clone, `git push`, `gh`
+API reads and the artifact relay (proof: `docs/certification/ciflow.md`,
+CISHARDS2).
 
 The owner's one-time setup (no step pushes code or changes this repository's
 ruleset):
@@ -306,7 +314,7 @@ ruleset):
 5. Keep `scnetsolutions/muse-spark-code-ci` public with Actions on: public
    repositories use standard runners free (a private one would draw on the
    free organization's 2,000 included minutes a month, and one of its runs
-   is sixteen shard jobs of up to 25 minutes), and the `org` job reads the
+   is forty shard jobs of up to 25 minutes), and the `org` job reads the
    run there with its own read-only token. The first hosted split run is the
    proof that read works with the job's token
    (`docs/certification/ciflow.md`, D122).
@@ -357,6 +365,23 @@ ruleset):
              cache: npm
          - run: npm ci --ignore-scripts --no-audit --no-fund
    ```
+
+7. Switch the capacity run's unsplittable Windows jobs to the larger
+   runner. On the capacity repository (not here), before pushing the pull
+   request, set the repository variable `LARGE_RUNNERS` to `on`:
+   `gh variable set LARGE_RUNNERS --body on --repo scnetsolutions/muse-spark-code-ci`.
+   The Windows static gates and the Windows browser capture then take
+   `msc-windows-8core` in that repository's push runs; macOS stays
+   standard (the GitHub-owned macOS larger labels need a Team or Enterprise
+   plan and the capacity organization is free). Anything else there keeps
+   free standard runners, and every run here is unaffected (a fork's
+   `pull_request` run can never take the larger label). The variable is read
+   when each job starts, so a run pushed before it is set keeps standard
+   labels on its early jobs. Costs about $0.49 per pull request run at the
+   record's estimated minutes ($0.62 with browser-path files); an enterprise
+   $40 monthly budget stops paid usage at the limit, so switch back to free
+   runners first (`--body off`).
+   Proof: `docs/certification/ciflow.md`, CISHARDS2.
 
 ## The public roadmap (M122)
 

@@ -27,7 +27,6 @@ const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
   referenceScreenRecording: 'nativeRecorder=absent',
-  referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
@@ -247,8 +246,10 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: false },
   showSchedules: { description: { tip: 'schedule' }, canRun: false },
   showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: false },
-  vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
-  lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
+  // Import completions reconcile changes on failure too; Lock cancels sent imports.
+  // Reset detects impossible public framing/anchor state, needs a terminal, and retires the exact anchor.
+  vault: { description: { ui: 'referenceVaultPanel' }, canRun: true },
+  lockVault: { description: { ui: 'referenceVaultLock' }, canRun: true },
 }
 
 function feature(
@@ -283,11 +284,7 @@ function feature(
 // Accounts left the list with CM108ACC: the terminal and ACP serve them.
 // Argument previews left it with C-M106-2: the panel and ACP render them on
 // a model whose record verifies streamed arguments.
-export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
-  'team-workers',
-  'vault',
-  'estimator',
-]
+export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = ['team-workers', 'estimator']
 
 export function featureCatalog(): readonly Feature[] {
   return [
@@ -1156,6 +1153,8 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    // MSM109 connects the broker-backed panel and commands on the reviewed
+    // availability switch; the Windows pipe helper still waits on lane C-M109-1c.
     feature(
       'vault',
       { command: COMMAND_IDS.vault },
@@ -1230,6 +1229,8 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
+  // Reset also recovers unknown writer ownership through its confirmed path.
+  vault: ['referenceVault'],
   providers: [
     'providerOpenRouterServices',
     'pricePerMillion',
