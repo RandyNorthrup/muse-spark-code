@@ -165,3 +165,142 @@ only reuses it unmodified).
 
 Nothing blocked: real `/bin/ps`, real spawns and kills of owned
 children, and real Unix-socket binds (named locks) all worked here.
+
+---
+
+# Stand-ins 0190, lane D: the two files that fell short
+
+Worktree `/home/randy/lanes/STANDINS3D`, branch `fix/0190-standins3d`.
+Base `51b8359f02` (lane C's record). All suites below ran with the
+repository's own timeout, `--maxWorkers=3`, on Linux.
+
+## credentialLease.test.ts — commit 12ff9dcd51
+
+- Stand-in: `memoryKeyring()` (`test/unit/helpers/keyring.ts`), a Map
+  behind the native keyring entry factory, under the real
+  `keyringSecretStore`.
+- Real code now: the product's own native entry (`AsyncEntry` from
+  `@napi-rs/keyring`) on a throwaway service
+  (`<KEYRING_SERVICE>.test.<uuid>`) with a per-test lock scope, swept
+  afterwards — the `keyringParts.test.ts` pattern. Every assertion keeps
+  its meaning: write-inside-lease round trip with no lock residue;
+  busy-lease refusal carrying the retry sentence with the store
+  untouched; release then success.
+- Real OS keyring is the only store outside VS Code, and CI's Ubuntu
+  legs have none: no Secret Service is set up there (only `hosts.yml`
+  starts one, for the ACP host check), and the repo's real-keyring
+  suites are Windows-only for the same reason ("native qualification",
+  `keyringParts.test.ts`, `keystoreOwner.test.ts`). So the guard block
+  is `runIf(win32)` like those suites. Nothing moves to
+  `test/integration`: the guard is store-agnostic and the panel passes
+  SecretStorage, which no integration test can obtain (no
+  ExtensionContext). The two guard cases prove on Windows CI (full
+  tier); on Linux they skip. Lead: run
+  `npx vitest run test/unit/credentialLease.test.ts` on Windows and
+  confirm 9/9 (7 lease + 2 guard), plus the guard break below.
+- Vault fixture: `sessionBrokerChild.ts` drops its `memoryKeyring`
+  override and calls `createVaultBrokerBindings(context)` — the
+  product's own resolution (real OS store where the binding resolves,
+  the keyring-less fallback where it does not), per the area-B
+  NOSTANDINKEY rewrite. `test/unit/helpers/keyring.ts` deleted with
+  zero remaining references repo-wide.
+- Break (lease group, shown on Linux): `isProcessAlive(observed.pid)`
+  negated in `acquireCredentialLock`
+  (`src/core/credentialLease.ts`). Result: 3 failed, 4 passed,
+  2 skipped — `× reclaims a crashed owner instead of wedging`,
+  `× lets exactly one of two contenders take a crashed lock, keeping
+the winner`, `× reclaims a crashed CLI lock instead of wedging every
+later command`. Reverted; suite 7 passed / 2 skipped.
+- Prescribed guard-group break for Windows (not runnable on this rig):
+  rethrow the raw `CredentialLockBusyError` instead of mapping it in
+  `src/host/models/credentialLeaseSecrets.ts`; expect `× refuses a
+panel write while a Connect transaction holds the lease` with
+  `Received: "credential lock busy: ..."` (lane C showed this mapping
+  fire on the old store).
+- Suite neighbours: `brokerSession.test.ts` fails 4/4 here with test
+  timeouts, IDENTICAL on the untouched base (files swapped back in
+  place, no stash: same 4 timeouts at readiness). Environmental, not
+  this lane: the fixture brokers never announce here. Probable common
+  cause is the rig's mapped-root `/` (uid 65534), which already breaks
+  the private-root owner check below; the vault enforces the same
+  ancestor ownership.
+- Gates: prettier clean, eslint zero warnings on touched files,
+  `typecheck:unit` has no error in touched files (27 pre-existing
+  errors elsewhere, unchanged — the same count lane C recorded).
+
+## privateRootLease.test.ts — commit 8b7b63feac
+
+- Stand-in residue: the rewrite dropped the earlier-boot,
+  other-machine and other-namespace cases and the three
+  unreadable-scope cases with the fake `/proc`.
+- Correction to the lane notes (brief and lane-C record say "kept"):
+  an earlier boot is RECLAIMED, not kept. The product code
+  (`boot !== scope[1]` → gone: that boot is over, its PIDs cannot be
+  alive) and the dropped case agreed (`earlierBoot: false`, removed).
+  Other-machine and other-namespace leases are kept (cannot be judged
+  here). This lane restores exactly that.
+- Real code now: the owner decision is the pure product export
+  `isLinuxLeaseOwnerGone(owner, scope, pidStart)` over the parsed
+  `LinuxLeaseOwner` (`parseLinuxLease`), and the async probe calls it
+  with the same truth table and the same `/proc` read short-circuit
+  (no read for another machine or namespace; none needed for an
+  earlier boot). Behaviour unchanged: the pre-existing real-`/proc`
+  rules test passes unmodified against the refactored product.
+- Coverage restored, no stand-in anywhere:
+  - literal identities on every platform (7 tests): earlier boot
+    reclaimed, other machine and namespace kept, exited and reused
+    PIDs reclaimed, live owner kept, well-formed line parsed and
+    trailing-garbage line naming no owner;
+  - end to end on Linux through the real sweep with literal lease
+    lines on the real scope (live PID and start throughout, so only
+    the identity decides): another machine's and namespace's folders
+    kept, an earlier boot's reclaimed;
+  - unreadable scope for each of the three files through the real
+    refusal: a `LinuxProcess` that forwards to the true filesystem
+    except the scope path, which hits a real chmod-0 file (reads) or
+    an empty chmod-0 directory (namespace link). The kernel's own
+    refusal — no lease taken, nothing removed, reclaimable folder
+    stays. (The product takes a reader, not paths, so this is the
+    "otherwise through the same pure function" branch made
+    end-to-end: the only answered reads are the real fs ones.)
+- Break, owner-decision group: `pidStart !== owner.start` flipped to
+  `===` in `isLinuxLeaseOwnerGone`. Result: 7 failed, 9 passed, e.g.
+  `FAIL ... reclaims an exited PID — AssertionError: expected false
+to be true // Object.is equality`. The flip also blinds the
+  self-probe, so the sweep never runs and the keeps/reclaim end-to-end
+  fails too. Reverted.
+- Break, scope-refusal group: the outer catch in `leasePrivateRoot`
+  rethrows instead of refusing (`} catch (error) { throw error }`).
+  Result: exactly the 3 unreadable-scope tests fail, everything else
+  passes, e.g. `FAIL ... when /etc/machine-id cannot be read —
+Error: EACCES: permission denied, open '.../denied/scope' ❯
+linuxScope src/runtime/privateRootLease.ts:155` — the real kernel
+  refusal surfacing. Reverted.
+- Suite: 14 passed; the same 2 fail as on base (`/` owned by uid
+  65534, lane C's record): `removes a gone owner's folder…`, `keeps
+a live window's copy…`. The lead runs those two where `/` is uid 0.
+- Gates: prettier clean, eslint zero warnings on touched files,
+  `typecheck:unit` has no error in touched files (same 27
+  pre-existing elsewhere).
+
+## Helpers deleted
+
+- `test/unit/helpers/keyring.ts` (`memoryKeyring`): deleted; zero
+  references repo-wide after the two rewrites above (verified by
+  grep). Vault-area files that needed more than the override drop
+  (native helper builds, governor wiring) stay area B's join work;
+  the broker fixture child change here is only the override removal,
+  which is behaviour-neutral for the session tests (they perform no
+  secret-store operations).
+
+## Sandbox / rig notes
+
+- `/var/tmp/l-STANDINS3D` is read-only on this machine (only
+  `node-compile-cache` inside); temp clones could not go there. Base
+  comparison for `brokerSession.test.ts` was done by swapping the two
+  original files back in place from `HEAD` and restoring afterwards —
+  no stash, no second worktree.
+- No sub-agents used. No credentials printed, stored, or probed: the
+  OS keyring was never touched from a shell (the repo's own
+  Windows-only gates are the evidence CI's Ubuntu legs have no usable
+  Secret Service).
