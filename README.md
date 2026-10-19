@@ -6596,7 +6596,7 @@ retain liability.
 
 Argument previews use a separate lazy chunk and are available only with
 recorded streaming-argument support. Structured side calls prefer a captured
-schema format, allow one repair and retain the text fallback. Git commit and
+schema format, repair until the answer validates (saying so each round) and retain the text fallback. Git commit and
 pull-request drafts apply this contract to the user's own turn, with repairs
 under the session's hooks and budget. Judge uses the selected model's captured
 format. Compaction applies its own summary contract even when a headless final

@@ -136,7 +136,9 @@ export const EN = {
   modelApiContinuationLimit: 'The output limit was reached again. Send a message to continue.',
   modelApiToolStuck:
     'The turn stopped because the same tool call kept returning an unchanged result. Send a message to try another approach.',
-  structuredOutputRepair: 'The structured answer was invalid. Retrying once…',
+  structuredOutputRepair:
+    'The structured answer was not valid. Repairing it again (repair {count})…',
+  structuredOutputRetry: 'The structured request failed. Trying again (attempt {count})…',
   structuredOutputFallback:
     'The structured answer could not be validated. Using the text fallback.',
   outputSchemaInvalid: 'The output schema is outside the supported strict subset: {detail}',
