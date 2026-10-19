@@ -1,4 +1,3 @@
-import { resourceEnvironment, type ResourceLease } from '../../resources/launch'
 // M91 lane X: the plugin host. Amp and OpenCode plugins run OUT OF PROCESS
 // in a short-lived child under the user's own runtime (pluginChild.ts is the
 // entry; the host writes one JSON request line on stdin and reads one JSON
@@ -24,13 +23,8 @@ import { resourceEnvironment, type ResourceLease } from '../../resources/launch'
 // - the answer completes on its response line, then the tree is ended [11];
 // - bounds: PLUGIN_HOOK_TIMEOUT_MS per call, PLUGIN_CHILD_MAX_HEAP_MB heap
 //   for node, PLUGIN_RESPONSE_MAX_BYTES UTF-8 bytes per answer frame [14].
-import { Buffer } from 'node:buffer'
-import { admitResource, stopResourceTree } from '../../resources/admission'
 
 import type { ChildProcess } from 'node:child_process'
-import { spawnGuarded } from '../../guardedChildProcess'
-import { withoutCredentials } from '../../credentialEnvironment'
-import { statSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
@@ -41,13 +35,16 @@ import {
   PLUGIN_RESPONSE_MAX_BYTES,
   PLUGIN_RUNTIME_PROBE_TIMEOUT_MS,
 } from '../../../shared/constants'
-import {
-  resolveExecutable,
-  workspaceChildEnvironment,
-  type GuardedChildEnv,
-} from '../../executables'
-import { environmentValue } from '../musecode/launch'
 import type { ForeignHookAnswer } from './hookFormats/contract'
+import { type GuardedChildEnv } from '../../executables'
+import { resolveExecutable, workspaceChildEnvironment } from '../../execGuard'
+import { environmentValue } from '../../execGuard'
+import { resourceEnvironment, type ResourceLease } from '../../resources/launch'
+import { Buffer } from 'node:buffer'
+import { admitResource, stopResourceTree } from '../../resources/admission'
+import { spawnGuarded } from '../../guardedChildProcess'
+import { withoutCredentials } from '../../credentialEnvironment'
+import { statSync } from 'node:fs'
 import { pluginChildSource } from './pluginChild'
 
 export type PluginSystem = 'amp' | 'opencode'

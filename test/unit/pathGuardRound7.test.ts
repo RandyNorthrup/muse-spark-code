@@ -4,12 +4,12 @@
 // spawn) stayed green while `CreateProcessW` received the raw block. These
 // tests drive the real payload builder: a workspace planting on its PATH
 // never reaches the block, and only a guarded environment serializes.
-import { describe, expect, it } from 'vitest'
-import { guardedEnvironmentBlock, workspaceChildEnvironment } from '../../src/core/executables'
 import {
   resolveWindowsTeamCommand,
   windowsTeamPayloadEnvironment,
 } from '../../src/host/team/processLifetime'
+import { guardedEnvironmentBlock, workspaceChildEnvironment } from '../../src/core/execGuard'
+import { describe, expect, it } from 'vitest'
 
 const WORKSPACE = String.raw`C:\work\repo`
 const SYSTEM_DIR = String.raw`C:\Windows\System32`

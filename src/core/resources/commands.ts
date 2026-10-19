@@ -1,20 +1,16 @@
 import type { ExecFileOptionsWithStringEncoding } from 'node:child_process'
-import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
-import {
-  isWorkspacePath,
-  resolveExecutable,
-  workspaceChildEnvironment,
-  type GuardedChildEnv,
-} from '../executables'
-import { environmentValue } from '../backends/musecode/launch'
-import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
-import { spawnResourceProcess } from './process'
 import {
   ResourceCapRefusedError,
   ResourceMemoryLimitError,
   type ResourceHandoffUntil,
 } from './launch'
+import { type GuardedChildEnv } from '../executables'
+import { isWorkspacePath, resolveExecutable, workspaceChildEnvironment } from '../execGuard'
+import { environmentValue } from '../execGuard'
+import { existsSync, realpathSync } from 'node:fs'
+import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
+import { spawnResourceProcess } from './process'
 
 /**
  * The workspace a governed child runs in: product lookups (`xdg-open`,

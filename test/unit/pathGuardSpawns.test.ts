@@ -559,8 +559,10 @@ describe('PATHGUARD spawn inventory', () => {
     expect(executables).toContain('GuardedChildEnv')
     expect(readSrc('src/host/processTree.ts')).toContain('GuardedChildEnv')
     expect(readSrc('src/core/backends/modelapi/pluginHost.ts')).toContain('GuardedChildEnv')
-    // The only producers of the branded environment.
-    expect(executables.match(/export function (workspace|noWorkspace)ChildEnvironment/g)).toEqual([
+    // The only producers of the branded environment (the guarded layer ships
+    // beside activation; the scope brand stays with the types above).
+    const guard = readSrc('src/core/execGuard.ts')
+    expect(guard.match(/export function (workspace|noWorkspace)ChildEnvironment/g)).toEqual([
       'export function workspaceChildEnvironment',
       'export function noWorkspaceChildEnvironment',
     ])
@@ -578,18 +580,21 @@ describe('PATHGUARD spawn inventory', () => {
     expect(wrapper).toContain('export function spawnGuarded')
     expect(wrapper).toContain('export function execFileGuarded')
     // Every process entry takes the brand: the governed launch, the job
-    // payload, the serve spawn, the git runner and the checkout port.
+    // payload, the serve spawn and the checkout port take it directly; the
+    // git runner builds its own through the guarded layer's
+    // `childGitEnvironment`, and the layer itself carries the brand.
     for (const file of [
       'src/core/resources/launch.ts',
       'src/host/backend/mcpJobLaunch.ts',
       'src/core/backends/musecode/MuseCodeHost.ts',
-      'src/host/git.ts',
+      'src/core/execGuard.ts',
       'src/runtime/panel/pullRequests/checkout.ts',
     ]) {
       expect(readSrc(file), `${file} takes the branded child env`).toContain('GuardedChildEnv')
     }
+    expect(readSrc('src/host/git.ts')).toContain('childGitEnvironment')
     // Helper payloads serialize only from the brand.
-    expect(readSrc('src/core/executables.ts')).toContain(
+    expect(readSrc('src/core/execGuard.ts')).toContain(
       'export function guardedEnvironmentBlock(env: GuardedChildEnv)',
     )
     expect(readSrc('src/host/team/processLifetime.ts')).toContain('guardedEnvironmentBlock(')
@@ -600,7 +605,7 @@ describe('PATHGUARD spawn inventory', () => {
     for (const file of sources) {
       const relative = path.relative(root, file).replaceAll('\\', '/')
       const casts = readFileSync(file, 'utf8').match(/as GuardedChildEnv/g) ?? []
-      if (relative === 'src/core/executables.ts') {
+      if (relative === 'src/core/execGuard.ts') {
         if (casts.length !== 1) unbranded.push(`${relative}: producer lost its single cast`)
       } else if (casts.length > 0) {
         unbranded.push(`${relative}: ${String(casts.length)} casts`)

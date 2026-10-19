@@ -1,9 +1,6 @@
 // M105 R1: portable macOS driver. The caller owns the interactive entry point,
 // preview and upload; M1 supplies inspect and the editor/runtime supplies spawn.
-import { Buffer } from 'node:buffer'
-import { chmod, lstat, mkdtemp, rm } from 'node:fs/promises'
 import path from 'node:path'
-import { StringDecoder } from 'node:string_decoder'
 import * as z from 'zod/mini'
 import {
   DICTATION_QUIT_GRACE_MS,
@@ -13,7 +10,6 @@ import {
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../../shared/constants'
-import { fill } from '../../../shared/l10n/text'
 import {
   mediaInfoSchema,
   screenRecordingOptionsSchema,
@@ -21,8 +17,13 @@ import {
 } from '../../../shared/media'
 import type { HelperChild } from '../../voice/dictation'
 import type { ScreenRecordingDriver, ScreenRecordingResult } from './driver'
+import { type GuardedChildEnv } from '../../executables'
+import { noWorkspaceChildEnvironment } from '../../execGuard'
+import { Buffer } from 'node:buffer'
+import { chmod, lstat, mkdtemp, rm } from 'node:fs/promises'
+import { StringDecoder } from 'node:string_decoder'
+import { fill } from '../../../shared/l10n/text'
 import { realpathSync } from 'node:fs'
-import { noWorkspaceChildEnvironment, type GuardedChildEnv } from '../../executables'
 
 const PRIVATE_DIRECTORY_MODE = 0o700
 const PRIVATE_FILE_MODE = 0o600

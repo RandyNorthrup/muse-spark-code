@@ -1,16 +1,16 @@
 import type { LaunchConfirmation, TeamLaunchRecord } from './processLifetime'
-import { realpathSync } from 'node:fs'
-import { readFile, readdir, readlink } from 'node:fs/promises'
 import process from 'node:process'
 import * as z from 'zod/mini'
-import { noWorkspaceChildEnvironment } from '../../core/executables'
-import { runProgram } from '../processTree'
 import {
   createProcessOwnership,
   isProcessOwned,
   didSignalLinuxProcess,
   type OwnershipDriver,
 } from './processOwnership'
+import { noWorkspaceChildEnvironment } from '../../core/execGuard'
+import { runProgram } from '../processTree'
+import { realpathSync } from 'node:fs'
+import { readFile, readdir, readlink } from 'node:fs/promises'
 
 const LAUNCH_MARKER = /(?:^|[\s\0])MUSE_SPARK_LAUNCH_ID=([a-f0-9-]{36})(?=$|[\s\0])/
 const PROC_START_FIELD = 19

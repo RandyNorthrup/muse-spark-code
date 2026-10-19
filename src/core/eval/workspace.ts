@@ -5,11 +5,7 @@
 // environment (the Model API key above all), so nothing from it reaches the
 // code the model wrote; the guard's own safety variables still apply.
 
-import { realpathSync } from 'node:fs'
-import { mkdir, mkdtemp, readdir, realpath, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import {
   EVAL_REMOVE_RETRIES,
   EVAL_REMOVE_RETRY_DELAY_MS,
@@ -21,9 +17,13 @@ import {
   EVAL_VERIFY_TIMEOUT_MS,
   EVAL_WORKSPACE_DIR,
 } from '../../shared/constants'
+import { noWorkspaceChildEnvironment } from '../execGuard'
+import { realpathSync } from 'node:fs'
+import { mkdir, mkdtemp, readdir, realpath, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { pathToFileURL } from 'node:url'
 import { EVAL_VERIFY_PRELUDE, isEvalPath, type EvalTask } from './tasks'
 import { wireWordForLog } from '../logging'
-import { noWorkspaceChildEnvironment } from '../executables'
 import { execFileGuarded } from '../guardedChildProcess'
 
 export interface EvalFolders {

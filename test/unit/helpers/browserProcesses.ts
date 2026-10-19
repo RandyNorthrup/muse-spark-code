@@ -1,12 +1,12 @@
+import { windowsPowerShell } from '../../../src/core/execGuard'
+import { execFile } from 'node:child_process'
+import { readdir, readFile } from 'node:fs/promises'
+import { promisify } from 'node:util'
 // What a real browser check leaves running or listening (M81): every
 // process whose command line names the check's profile folder (Chrome hands
 // `--user-data-dir` to its helper processes too), and the TCP listeners
 // those processes own. Linux reads /proc and asks `ss`, macOS asks `ps` and
 // `lsof`, Windows asks Windows PowerShell.
-import { execFile } from 'node:child_process'
-import { readdir, readFile } from 'node:fs/promises'
-import { promisify } from 'node:util'
-import { windowsPowerShell } from '../../../src/host/processTree'
 
 const run = promisify(execFile)
 const DIGITS = /^\d+$/

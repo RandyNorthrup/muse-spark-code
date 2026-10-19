@@ -190,6 +190,10 @@ const BUDGETS = [
   // and their redaction) moved out of activation, required when that command
   // runs: 6.6 KiB measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/rulesFile.js', budgetKiB: 25 },
+  // The guarded process-start layer (PLAN.md D24) beside activation, required
+  // by every Node bundle that starts a program or builds a child
+  // environment: 16.0 KiB measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/execGuard.js', budgetKiB: 25 },
   // M89: the bundled skills installer for Muse Code (the copy, the links and
   // zod's parser for the vendor record and the mark), loaded on first use:
   // 22.6 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.

@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest'
 import {
-  NO_WORKSPACE,
   absolutePathEntries,
   isFullyQualifiedWindowsPath,
   resolveExecutable,
-} from '../../src/core/executables'
+} from '../../src/core/execGuard'
+import { NO_WORKSPACE } from '../../src/core/executables'
+import { describe, expect, it } from 'vitest'
 
 const POSIX_INSTALLED: ReadonlySet<string> = new Set(['/usr/local/bin/git', '/usr/bin/git'])
 // A git.exe planted in the workspace, a batch-file git, and the real one.

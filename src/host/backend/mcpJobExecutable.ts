@@ -2,18 +2,18 @@
 // starts this executable directly; its compiler is started directly too.
 // M27's shell-job DLL remains separate for shell commands.
 
-import { realpathSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
 import path from 'node:path'
-import { noWorkspaceChildEnvironment } from '../../core/executables'
 import {
   MCP_JOB_SELF_TEST_ARGUMENT,
   MCP_JOB_SELF_TEST_TOKEN,
   SHELL_JOB_FOLDER,
 } from '../../shared/constants'
-import { runProgram } from '../processTree'
-import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import type { ShellJobDeps } from './shellJob'
+import { noWorkspaceChildEnvironment } from '../../core/execGuard'
+import { runProgram } from '../processTree'
+import { realpathSync } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import { isResourceHelperChanged, sealHelper, wasHelperChanged } from './helperIntegrity'
 
 /** A self-tested helper and its per-use check (SPAWN017C): never run once changed. */

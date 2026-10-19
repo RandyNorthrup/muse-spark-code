@@ -1,12 +1,13 @@
+import path from 'node:path'
+import * as z from 'zod/mini'
+import { runProgram } from '../host/processTree'
+import { windowsPowerShell } from '../core/execGuard'
+import { noWorkspaceChildEnvironment } from '../core/execGuard'
 import { Buffer } from 'node:buffer'
 import { randomBytes } from 'node:crypto'
 import { constants, realpathSync, rmSync, rmdirSync } from 'node:fs'
 import { chmod, lstat, mkdtemp, open, realpath, rm, rmdir } from 'node:fs/promises'
-import path from 'node:path'
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
-import { runProgram, windowsPowerShell } from '../host/processTree'
-import { noWorkspaceChildEnvironment } from '../core/executables'
-import * as z from 'zod/mini'
 import { IDE_MCP_TOKEN_BYTES, UI_TEXT } from '../shared/constants'
 
 const FILE_MODE = constants.S_IRUSR | constants.S_IWUSR

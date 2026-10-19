@@ -14,15 +14,7 @@
 // or junction on the way, or a name the volume reads as another, refuses
 // the checkout, and the half-written worktree is removed.
 
-import { type Buffer } from 'node:buffer'
-import { realpathSync } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
-import { isCommitSha } from '../../core/git/github'
-import { BlobAnswers, heldDestination } from '../../core/git/heldCheckoutCore'
-import { heldTree, type HeldEntry, unsafePathReason } from '../../core/git/heldTree'
-import { isSamePath } from '../../core/paths'
-import { worktreeAddHeldArgs } from '../../core/worktrees'
 import {
   GIT_WORKTREE_TIMEOUT_MS,
   HELD_CHECKOUT_MAX_BYTES,
@@ -31,12 +23,21 @@ import {
   HELD_FILE_MODE,
   UI_TEXT,
 } from '../../shared/constants'
+import type { Logger } from '../logger'
+import { type GitProcess } from '../git'
+import { quietGitEnvironment } from '../../core/execGuard'
+import { type Buffer } from 'node:buffer'
+import { realpathSync } from 'node:fs'
+import { mkdir } from 'node:fs/promises'
+import { isCommitSha } from '../../core/git/github'
+import { BlobAnswers, heldDestination } from '../../core/git/heldCheckoutCore'
+import { heldTree, type HeldEntry, unsafePathReason } from '../../core/git/heldTree'
+import { isSamePath } from '../../core/paths'
+import { worktreeAddHeldArgs } from '../../core/worktrees'
 import { fill, formatBytes } from '../../shared/l10n/text'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { canonicalPath } from '../canonicalPath'
 import { createFileExclusively } from '../fsAtomic'
-import { type GitProcess, quietGitEnvironment } from '../git'
-import type { Logger } from '../logger'
 import { GitUnavailableError } from './gitExtension'
 import { UNTRUSTED_CHECKOUT_OPTIONS } from './untrustedGit'
 

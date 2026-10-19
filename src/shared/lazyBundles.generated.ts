@@ -160,6 +160,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'acp',
     requestedBy: [{ importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] }],
   },
+  { file: 'execGuard.js', side: 'both', requestedBy: [] },
   { file: 'extension.js', side: 'vscode', requestedBy: [] },
   {
     file: 'extensionHooks.js',

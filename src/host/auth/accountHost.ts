@@ -6,13 +6,7 @@
 // extension never sends its Model API key to it, and never keeps, logs or
 // shows the account's `label` (an e-mail address) or `avatarUrl`.
 
-import { type Connection } from '@muse-code/sdk'
 import * as z from 'zod/mini'
-import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
-import { environmentValue } from '../../core/backends/musecode/launch'
-import { spawnResourceMuseConnection } from '../resources/museResourceLaunch'
-import { wireWordForLog } from '../../core/logging'
-import { unlessAborted, withDeadline } from '../../core/timeouts'
 import {
   MSP_CLIENT_NAME,
   MSP_HANDSHAKE_TIMEOUT_MS,
@@ -22,6 +16,12 @@ import {
 } from '../../shared/constants'
 import type { MuseCodeBackendManager } from '../backend/museCodeBackendManager'
 import type { Logger } from '../logger'
+import { environmentValue } from '../../core/execGuard'
+import { type Connection } from '@muse-code/sdk'
+import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
+import { spawnResourceMuseConnection } from '../resources/museResourceLaunch'
+import { wireWordForLog } from '../../core/logging'
+import { unlessAborted, withDeadline } from '../../core/timeouts'
 
 // `AccountState` as captured (1.3.0 and 1.4.0): `label` and `avatarUrl` are
 // not in the schema, so parsing drops them.

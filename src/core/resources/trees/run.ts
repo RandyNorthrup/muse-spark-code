@@ -1,6 +1,7 @@
+import { type GuardedChildEnv } from '../../executables'
+import { noWorkspaceChildEnvironment } from '../../execGuard'
 import { realpathSync } from 'node:fs'
 import { PROCESS_TABLE_TIMEOUT_MS } from '../../../shared/constants'
-import { noWorkspaceChildEnvironment, type GuardedChildEnv } from '../../executables'
 import { execFileGuarded } from '../../guardedChildProcess'
 
 export type ResourceTreeRun = (

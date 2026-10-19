@@ -17,24 +17,20 @@
 // creation time just before it is killed, so a process that took a dead
 // one's id is never hit.
 
-import { parseProcessTable, type ProcessRow } from '../core/resources/trees/processTable'
-
 import {
   execFile,
   spawnSync,
   type SpawnSyncOptions,
   type SpawnSyncReturns,
 } from 'node:child_process'
-import { stopResourceTree } from '../core/resources/admission'
 import type { ResourceLease } from '../core/resources/launch'
-import { withoutCredentials } from '../core/credentialEnvironment'
-import { noWorkspaceChildEnvironment, type GuardedChildEnv } from '../core/executables'
-import { realpathSync } from 'node:fs'
 import path from 'node:path'
-import {
-  setEnvironmentVariable,
-  windowsPowerShellModulePath,
-} from '../core/backends/musecode/launch'
+import { type GuardedChildEnv } from '../core/executables'
+import { noWorkspaceChildEnvironment, windowsPowerShell } from '../core/execGuard'
+import { parseProcessTable, type ProcessRow } from '../core/resources/trees/processTable'
+import { stopResourceTree } from '../core/resources/admission'
+import { withoutCredentials } from '../core/credentialEnvironment'
+import { realpathSync } from 'node:fs'
 import { powerShellQuoted } from '../core/shellQuote'
 import {
   GIT_OUTPUT_MAX_BYTES,
@@ -45,12 +41,10 @@ import {
   SHELL_JOB_TYPE_NAME,
   TREE_EXIT_WAIT_MS,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_TASKKILL_RELATIVE_PATH,
 } from '../shared/constants'
 
 const SIGKILL = 'SIGKILL'
-const PS_MODULE_PATH = 'PSModulePath'
 const TERMINATED = 'terminated'
 const ABSENT = 'absent'
 // A killed process's exit code, as `taskkill /F` gives it.
@@ -116,32 +110,6 @@ export const runProgram: RunProgram = (file, args, env, timeoutMs = PROCESS_TABL
       },
     )
   })
-
-/**
- * Windows PowerShell with its own modules (`Get-CimInstance`, `Add-Type`),
- * whatever shell VS Code came from: every spelling of `PSModulePath` is
- * replaced, since Windows hands a child the first one it sorts.
- */
-export function windowsPowerShell(
-  systemRoot: string,
-  base: NodeJS.ProcessEnv = process.env,
-): {
-  readonly file: string
-  readonly env: GuardedChildEnv
-} {
-  const env = withoutCredentials(base)
-  setEnvironmentVariable(
-    env,
-    'win32',
-    PS_MODULE_PATH,
-    windowsPowerShellModulePath(systemRoot, base['ProgramFiles']),
-  )
-  // System PowerShell runs no workspace program: absolute entries only, links followed.
-  return {
-    file: path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
-    env: noWorkspaceChildEnvironment('win32', env, realpathSync),
-  }
-}
 
 function hasExited(root: TreeRoot): boolean {
   return root.exitCode !== null || root.signalCode !== null

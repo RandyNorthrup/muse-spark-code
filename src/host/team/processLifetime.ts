@@ -1,6 +1,30 @@
 import type { ResourceLease } from '../../core/resources/launch'
 import type { ResourcePermit } from '../../core/resources/queue'
 import type { GovernedTeamSlot } from '../../core/team/scheduler/slots'
+import { loadJobAssembly, runProgram } from '../processTree'
+import { windowsPowerShell } from '../../core/execGuard'
+import {
+  guardedEnvironmentBlock,
+  isWorkspacePath,
+  noWorkspaceChildEnvironment,
+  resolveExecutable,
+  workspaceChildEnvironment,
+} from '../../core/execGuard'
+import { isExistingFile } from '../backend/mcpProcess'
+import { resolveServerCommand, spawnLine } from '../../core/execGuard'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { spawnGuarded } from '../../core/guardedChildProcess'
+import { existsSync, realpathSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { createServer } from 'node:net'
+import { setTimeout as delay } from 'node:timers/promises'
+import { Connection, checkServedFingerprint } from '@muse-code/sdk'
+import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
+import { powerShellQuoted } from '../../core/shellQuote'
+import { createNativeOrphanDriver, createOrphanRecovery } from './orphanRecovery'
+import { createProcessOwnership } from './processOwnership'
+import { MuseCodeHost } from '../../core/backends/musecode/MuseCodeHost'
+import { withDeadline } from '../../core/timeouts'
 
 /** C1/T attach the reserved permit to their registry; no second admission or sampler. */
 export interface TeamProcessRegistryPort {
@@ -23,29 +47,11 @@ export function prepareTeamProcess(
   }
 }
 
-import { randomBytes, randomUUID } from 'node:crypto'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
-import { spawnGuarded } from '../../core/guardedChildProcess'
-import { existsSync, realpathSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
-import { createServer } from 'node:net'
 import os from 'node:os'
-import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
-import { Connection, checkServedFingerprint } from '@muse-code/sdk'
 
 import type { TeamJournal } from './teamJournal'
-import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
-import { loadJobAssembly, runProgram, windowsPowerShell } from '../processTree'
-import {
-  guardedEnvironmentBlock,
-  isWorkspacePath,
-  noWorkspaceChildEnvironment,
-  resolveExecutable,
-  workspaceChildEnvironment,
-} from '../../core/executables'
-import { isExistingFile, resolveServerCommand, spawnLine } from '../backend/mcpProcess'
-import { powerShellQuoted } from '../../core/shellQuote'
 import {
   MCP_JOB_HANDSHAKE_MAX_CHARS,
   TEAM_PROCESS_STATUS_MAX_CHARS,
@@ -55,11 +61,7 @@ import {
   MSP_HANDSHAKE_TIMEOUT_MS,
   MSP_REQUESTED_CAPABILITIES,
 } from '../../shared/constants'
-import { createNativeOrphanDriver, createOrphanRecovery } from './orphanRecovery'
-import { createProcessOwnership } from './processOwnership'
-import { MuseCodeHost } from '../../core/backends/musecode/MuseCodeHost'
 import type { CoreLogger } from '../../core/logging'
-import { withDeadline } from '../../core/timeouts'
 
 const NATIVE_POLL_MS = 10
 const NATIVE_CONFIRM_MS = 5000

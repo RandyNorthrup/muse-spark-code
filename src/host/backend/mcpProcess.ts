@@ -17,27 +17,27 @@
 //   the entire process tree; the Windows helper exits on Stop or owner death.
 
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import type { Readable, Writable } from 'node:stream'
+import type { McpStdioLaunch } from '../../core/backends/modelapi/mcp/servers'
+import type { McpChildProcess } from '../../core/backends/modelapi/mcp/stdio'
+import type { vaultCommandSchema } from '../../shared/vault'
+import { killTree, sweepExitedTree, type TreeRoot, treeSpawnOptions } from '../processTree'
+import {
+  environmentValue,
+  setEnvironmentVariable,
+  resolveServerCommand,
+  spawnLine,
+  workspaceChildEnvironment,
+} from '../../core/execGuard'
 import { spawnGuarded } from '../../core/guardedChildProcess'
 import { realpathSync, statSync } from 'node:fs'
 import { stopResourceTree } from '../../core/resources/admission'
-import path from 'node:path'
-import type { Readable, Writable } from 'node:stream'
-import { environmentValue, setEnvironmentVariable } from '../../core/backends/musecode/launch'
-import type { McpStdioLaunch } from '../../core/backends/modelapi/mcp/servers'
-import type { McpChildProcess } from '../../core/backends/modelapi/mcp/stdio'
 import { mcpSecretReferences } from '../../core/vault/mcpReferences'
-import {
-  absolutePathEntries,
-  workspaceChildEnvironment,
-  type ExecutableScope,
-} from '../../core/executables'
 import { redactSecrets } from '../../core/redact'
 import { MCP_STDIO_ENV_ALLOWLIST, TREE_EXIT_WAIT_MS, UI_TEXT } from '../../shared/constants'
-import { killTree, sweepExitedTree, type TreeRoot, treeSpawnOptions } from '../processTree'
 import { spawnMcpJob } from './mcpJobLaunch'
 import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 import { observeResourceProcess } from '../resources/resourceAdmission'
-import type { vaultCommandSchema } from '../../shared/vault'
 
 export interface McpSpawnDeps {
   readonly platform: NodeJS.Platform
@@ -51,18 +51,6 @@ export interface McpSpawnDeps {
   readonly log: (message: string) => void
 }
 
-const PATH_VARIABLE = 'PATH'
-const PATHEXT_VARIABLE = 'PATHEXT'
-// The extensions `CreateProcess` starts, in Windows' default PATHEXT order.
-const WINDOWS_LAUNCHABLE = ['.com', '.exe', '.bat', '.cmd'] as const
-const WINDOWS_BATCH: ReadonlySet<string> = new Set(['.bat', '.cmd'])
-const CMD_RELATIVE_PATH = String.raw`System32\cmd.exe`
-// `/d` skips AutoRun; `/v:off` prevents inherited delayed expansion of `!`;
-// `/s` keeps the quoted line as it is; `/c` runs it and ends.
-const CMD_ARGUMENTS = ['/d', '/v:off', '/s', '/c'] as const
-const CMD_UNQUOTABLE = /["%\r\n]/
-const NUL = String.fromCodePoint(0)
-const TRAILING_BACKSLASHES = /(\\+)$/
 // A window can hold many MCP servers. Their exit sweeps must not launch a
 // burst of PowerShell process-table helpers at shutdown.
 const exitedSweepQueue: { current: Promise<void> } = { current: Promise.resolve() }
@@ -114,67 +102,6 @@ export function mcpServerEnvironment(
   return env
 }
 
-/** The extensions to try for a bare Windows name: PATHEXT's launchable ones, in its order. */
-function windowsExtensions(env: NodeJS.ProcessEnv): readonly string[] {
-  const listed = (environmentValue(env, 'win32', PATHEXT_VARIABLE) ?? '')
-    .split(';')
-    .map((extension) => extension.trim().toLowerCase())
-  const known: readonly string[] = WINDOWS_LAUNCHABLE
-  const ordered = listed.filter((extension) => known.includes(extension))
-  return ordered.length === 0 ? WINDOWS_LAUNCHABLE : ordered
-}
-
-function candidatesFor(
-  name: string,
-  platform: NodeJS.Platform,
-  env: NodeJS.ProcessEnv,
-): readonly string[] {
-  if (platform !== 'win32') {
-    return [name]
-  }
-  const extension = path.win32.extname(name).toLowerCase()
-  const known: readonly string[] = WINDOWS_LAUNCHABLE
-  return known.includes(extension)
-    ? [name]
-    : windowsExtensions(env).map((candidate) => `${name}${candidate}`)
-}
-
-/**
- * The file the command names, absolute; throws with the reason when there
- * is none. A bare name is resolved on the absolute PATH entries outside the
- * server's working directory (resolved through links), so a planted `node`
- * there never wins; a command with a directory is the file the person's
- * config names, resolved against that directory.
- */
-export function resolveServerCommand(
-  command: string,
-  cwd: string,
-  env: NodeJS.ProcessEnv,
-  deps: Pick<McpSpawnDeps, 'platform' | 'isExistingFile'>,
-  scope: ExecutableScope,
-): string {
-  const p = deps.platform === 'win32' ? path.win32 : path.posix
-  const name = p.basename(command)
-  const hasDirectory =
-    command.includes('/') || (deps.platform === 'win32' && command.includes('\\'))
-  const directories = hasDirectory
-    ? [p.dirname(p.resolve(cwd, command))]
-    : absolutePathEntries(deps.platform, environmentValue(env, deps.platform, PATH_VARIABLE), scope)
-  for (const directory of directories) {
-    for (const candidate of candidatesFor(name, deps.platform, env)) {
-      const full = p.join(directory, candidate)
-      if (deps.isExistingFile(full)) {
-        return full
-      }
-    }
-  }
-  throw new Error(
-    hasDirectory
-      ? `its command ${name} does not exist`
-      : `its command ${name} was not found on the absolute entries of PATH`,
-  )
-}
-
 /** O's trusted resolution port: canonical paths before the broker hashes the stdio use. */
 export function resolveMcpVaultCommand(
   launch: McpStdioLaunch,
@@ -188,38 +115,6 @@ export function resolveMcpVaultCommand(
     realpath: realpathSync,
   })
   return { executable: realpathSync(file), argv: [...launch.args], cwd: realpathSync(cwd) }
-}
-
-/** One part of a cmd.exe line: quoted, with the backslashes before the closing quote doubled. */
-export function cmdQuoted(part: string): string {
-  if (CMD_UNQUOTABLE.test(part) || part.includes(NUL)) {
-    throw new Error(
-      'a batch-file server cannot be given a double quote, a percent sign or a line break; start its program directly',
-    )
-  }
-  return `"${part.replace(TRAILING_BACKSLASHES, '$1$1')}"`
-}
-
-/** What `spawn` is given: the file itself, or cmd.exe running a batch file. */
-export function spawnLine(
-  file: string,
-  args: readonly string[],
-  deps: Pick<McpSpawnDeps, 'platform' | 'systemRoot'>,
-): { readonly file: string; readonly args: readonly string[]; readonly isVerbatim: boolean } {
-  const isBatch =
-    deps.platform === 'win32' && WINDOWS_BATCH.has(path.win32.extname(file).toLowerCase())
-  if (!isBatch) {
-    return { file, args, isVerbatim: false }
-  }
-  if (deps.systemRoot === undefined) {
-    throw new Error('a batch-file server needs cmd.exe, and SystemRoot is not set')
-  }
-  const line = [file, ...args].map((part) => cmdQuoted(part)).join(' ')
-  return {
-    file: path.win32.join(deps.systemRoot, CMD_RELATIVE_PATH),
-    args: [...CMD_ARGUMENTS, `"${line}"`],
-    isVerbatim: true,
-  }
 }
 
 function exitDescription(code: number | null, signal: NodeJS.Signals | null): string {

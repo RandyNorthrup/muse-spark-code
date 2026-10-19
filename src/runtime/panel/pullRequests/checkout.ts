@@ -27,13 +27,7 @@
 // still exactly this checkout's reservation (its fence).
 
 import type { ChildProcess, ChildProcessWithoutNullStreams } from 'node:child_process'
-import { realpathSync } from 'node:fs'
-import { execFileGuarded, spawnGuarded } from '../../../core/guardedChildProcess'
-import { workspaceChildEnvironment, type GuardedChildEnv } from '../../../core/executables'
-import { Buffer } from 'node:buffer'
-import { randomUUID } from 'node:crypto'
 import type { BigIntStats } from 'node:fs'
-import { mkdir, rename, rm, rmdir } from 'node:fs/promises'
 import path from 'node:path'
 import {
   GIT_BATCH_KILL_GRACE_MS,
@@ -51,24 +45,17 @@ import {
   UNTRUSTED_CHECKOUT_MIN_GIT_MINOR,
   WORKTREE_RECORD_SAVE_ATTEMPTS,
 } from '../../../shared/constants'
-import { fill, formatBytes } from '../../../shared/l10n/text'
-import { GitHubClient, isCommitSha, type PullRequest } from '../../../core/git/github'
-import { repositoryLabel } from '../../../core/git/githubRemote'
 import {
   BlobAnswers,
   heldDestination,
   namedHookOverrides,
   pullRequestCheckoutConfirmation,
 } from '../../../core/git/heldCheckoutCore'
-import { heldTree, type HeldEntry, unsafePathReason } from '../../../core/git/heldTree'
 import {
   pullRequestRefFrom,
   remoteForPullRequest,
   type GitHubRemote,
 } from '../../../core/git/pullRequestRef'
-import { isPlainRefName } from '../../../core/git/pushPlan'
-import { isSamePath } from '../../../core/paths'
-import { withoutCredentials } from '../../../core/credentialEnvironment'
 import {
   fileIdentityKey,
   identityOf,
@@ -77,25 +64,18 @@ import {
   statIdentity,
   type FileIdentity,
 } from '../../../core/fs/fileIdentity'
-import { currentProcessOwner, isProcessOwnerGone } from '../../../core/locks/processOwner'
-import { heldWorktreeFolder, type WorktreeRecord } from '../../../core/worktreeConversations'
 import {
   worktreeAddDetachedArgs,
   worktreeAddHeldArgs,
   worktreeFolder,
   worktreeRemoveArgs,
 } from '../../../core/worktrees'
-import { canonicalPath } from '../../../host/canonicalPath'
-import { hasGitProgramControls } from '../../../host/git'
-import { createFileExclusively } from '../../../host/fsAtomic'
 import type { CoreLogger } from '../../../core/logging'
-import { redactSecrets } from '../../../core/redact'
 import {
   didDropRejectedCredential,
   resolveGitHubCredential,
   type GitHubCredential,
 } from '../../../core/git/tokenSource'
-import { PullRequestServiceError, type RuntimePullRequestDeps } from './pullRequests'
 import {
   holdForRoots,
   isReservationOf,
@@ -107,6 +87,27 @@ import {
   type TrustTicket,
   type WorktreeRecordStore,
 } from './records'
+import { type GuardedChildEnv } from '../../../core/executables'
+import { workspaceChildEnvironment } from '../../../core/execGuard'
+import { hasGitProgramControls } from '../../../host/git'
+import { realpathSync } from 'node:fs'
+import { execFileGuarded, spawnGuarded } from '../../../core/guardedChildProcess'
+import { Buffer } from 'node:buffer'
+import { randomUUID } from 'node:crypto'
+import { mkdir, rename, rm, rmdir } from 'node:fs/promises'
+import { fill, formatBytes } from '../../../shared/l10n/text'
+import { GitHubClient, isCommitSha, type PullRequest } from '../../../core/git/github'
+import { repositoryLabel } from '../../../core/git/githubRemote'
+import { heldTree, type HeldEntry, unsafePathReason } from '../../../core/git/heldTree'
+import { isPlainRefName } from '../../../core/git/pushPlan'
+import { isSamePath } from '../../../core/paths'
+import { withoutCredentials } from '../../../core/credentialEnvironment'
+import { currentProcessOwner, isProcessOwnerGone } from '../../../core/locks/processOwner'
+import { heldWorktreeFolder, type WorktreeRecord } from '../../../core/worktreeConversations'
+import { canonicalPath } from '../../../host/canonicalPath'
+import { createFileExclusively } from '../../../host/fsAtomic'
+import { redactSecrets } from '../../../core/redact'
+import { PullRequestServiceError, type RuntimePullRequestDeps } from './pullRequests'
 
 const COMMIT_PEEL = '^{commit}'
 // A folder made under a private name beside its place, and one moved

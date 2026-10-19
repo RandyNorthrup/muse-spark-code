@@ -61,6 +61,7 @@ export const ACP_BUNDLES = [
   'questionNotes.js',
   'mcpPool.js',
   'exec.js',
+  'execGuard.js',
   'modelApiCodeIntel.js',
   'structuredSchema.js',
   'fontsInstall.js',

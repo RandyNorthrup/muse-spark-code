@@ -5,21 +5,13 @@
 // this extension process; when either it or the server exits, the job closes.
 
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
-import { spawnGuarded } from '../../core/guardedChildProcess'
 import type { GuardedChildEnv } from '../../core/executables'
-import { Buffer } from 'node:buffer'
-import { randomBytes, randomUUID } from 'node:crypto'
-import { once } from 'node:events'
-import { createServer, type Socket } from 'node:net'
 import * as z from 'zod/mini'
-import { environmentValue, setEnvironmentVariable } from '../../core/backends/musecode/launch'
-import { redactSecrets } from '../../core/redact'
 import {
   resourceEnvironment,
   type ResourceLease,
   type ResourcePipedProcess,
 } from '../../core/resources/launch'
-import { stopResourceTree } from '../../core/resources/admission'
 import {
   MCP_JOB_CONFIG_VARIABLE,
   MCP_JOB_HANDSHAKE_MAX_CHARS,
@@ -30,6 +22,14 @@ import {
   RESOURCE_JOB_RECORD_WAIT_MS,
   RESOURCE_JOB_UINT32_MAX,
 } from '../../shared/constants'
+import { environmentValue, setEnvironmentVariable } from '../../core/execGuard'
+import { spawnGuarded } from '../../core/guardedChildProcess'
+import { Buffer } from 'node:buffer'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { once } from 'node:events'
+import { createServer, type Socket } from 'node:net'
+import { redactSecrets } from '../../core/redact'
+import { stopResourceTree } from '../../core/resources/admission'
 import { resourceProcessIdentitySchema, type ResourceProcessIdentity } from '../../shared/resources'
 
 /** SPAWN017C: the limits an attested job enforces itself, in process. */
