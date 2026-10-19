@@ -459,6 +459,18 @@ export class VaultMigration {
    * no legacy copy, the legacy remove runs only against the absent copy it
    * expects, and the row completes `deleted` without touching SecretStorage.
    */
+  /**
+   * Record the finished sign-out both copies are already gone for: the
+   * terminal row drops every transition-only field, so it stays
+   * schema-valid whichever interrupted path lands here.
+   */
+  private async completeDelete(row: MigrationRecord, lease: MigrationLease): Promise<void> {
+    const base = { ...row }
+    delete base.previous
+    delete base.retireIntent
+    delete base.retireNote
+    await this.save({ ...base, phase: 'deleted', digest: null }, lease)
+  }
   private async finishInterruptedDelete(
     entry: MigrationCredential,
     row: MigrationRecord,
@@ -471,11 +483,7 @@ export class VaultMigration {
       if (live === null) {
         await this.removeVaultCopyIfPresent(entry, lease)
         await this.removeLegacy(entry.key, lease)
-        const base = { ...row }
-        delete base.previous
-        delete base.retireIntent
-        delete base.retireNote
-        await this.save({ ...base, phase: 'deleted', digest: null }, lease)
+        await this.completeDelete(row, lease)
         return
       }
       let decoded: VaultItem | undefined
@@ -483,20 +491,12 @@ export class VaultMigration {
         decoded = entry.decode(live)
         await this.removeVaultCopyIfPresent(entry, lease)
         if (decoded.material.kind !== 'apiKey') {
-          const base = { ...row }
-          delete base.previous
-          delete base.retireIntent
-          delete base.retireNote
-          await this.save({ ...base, phase: 'deleted', digest: null }, lease)
+          await this.completeDelete(row, lease)
           return
         }
         if (row.digest !== null && itemDigest(decoded) === row.digest) {
           await this.removeLegacy(entry.key, lease)
-          const base = { ...row }
-          delete base.previous
-          delete base.retireIntent
-          delete base.retireNote
-          await this.save({ ...base, phase: 'deleted', digest: null }, lease)
+          await this.completeDelete(row, lease)
           return
         }
         await this.storeInLease(entry, live, lease)
