@@ -314,6 +314,15 @@ happened, not what was planned; superseded entries are kept.
   behaviour change; a missing bundle refuses the run and the next run tries
   again.
 
+- Activation budget: the MCP-servers and hooks pickers, the skills,
+  worktree, memory and Plans flows load from a file of their own
+  (`dist/commands.js`) the first time one of those commands runs instead of
+  at activation, and the Diagnostics report builder loads with the report
+  dialog's file (`dist/report.js`) on the Diagnostics command's first run.
+  Report a Problem loads that file the same way. No behaviour change; a
+  missing bundle refuses the run and the next run tries again. Record:
+  `docs/certification/activation-room.md`.
+
 - The chat no longer takes the keyboard from a file you just opened: a chat
   panel that finishes loading never pulls the focus in, a focus request for
   a panel that is no longer active is dropped instead of landing on a much
