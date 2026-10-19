@@ -184,3 +184,128 @@ Files: `src/shared/permissionModes.ts` (`mspStartPermissionProfile`),
 (`setPermissionProfile` split, `setApprovalMode` rollback, admission and
 restore reviewer), `test/unit/permissionModes.test.ts`, `CHANGELOG.md`,
 PLAN.md D123.
+
+## 2026-10-19 — three failure-path corrections (lane PR251FIX2)
+
+Grok's re-review found three failure paths the round above left open, and
+the probes below found a fourth on the same code. Each is fixed at its
+cause and proven against the pinned 1.4.7 binary through the REAL
+`MuseCodeHost`/`MuseSession`/`UnattendedRun` code (esbuild bundles of the
+sources, worktree `temp/probeA-fix2.ts` and `temp/probeB-fix2.ts`, `serve
+--provider echo`, zero model calls). The probes ran on the unfixed tree
+first (every check below failed there as described) and again after the
+fix commit `4e2db43148` (all pass). All production handshakes in this tree
+carry `experimentalApi`, so the probes' handshake WITHOUT it is the
+deterministic stand-in for the refusal class the brief names (a managed
+exclusion, `permission_profile_unavailable`, a dropped connection, a
+deadline): every `session/setPermissionProfile` is refused
+`experimentalRequired` while every `session/setApprovalMode` succeeds.
+
+Wire facts established live in this run (pinned 1.4.7, 2026-10-18/19):
+
+- `session/resume`, `session/read` and `session/start` serve
+  `session.approvalMode` (`{ mode, source, lastCommandId }`) on every
+  handshake; `session/list` rows carry no mode.
+- `session.permissionState` (`{ profileId, reviewerAttached,
+reviewerAuthority }`) is served only WITH `experimentalApi`; without it
+  the block is omitted. The reviewer is therefore observable in the failure
+  probes only by composition: the observed mode plus the omitted-profile
+  default, which phase 0 of the probe re-establishes live (`:auto-review`).
+- `session/setApprovalMode` still writes no profile fact (read-after-mode
+  keeps the old profile), which is the desync mechanism in findings 1–2.
+
+1. Resume, fork and load run the live rollback. `sessionRecordSchema`
+   keeps `approvalMode.mode`, and `loaded()` seeds the new handle from it,
+   so the first `setApprovalMode` after a resume or fork rolls back like a
+   live one. Probe A part 1a (start `onRequest`, resume, switch to
+   `promptUnmatched` with the profile refused): unfixed, `session/read`
+   said `promptUnmatched` — Manual on with the phase-0 judge default, turns
+   running. Fixed, it says `onRequest` and the turn sends on the restored
+   mode. When the envelope serves no mode (a 1.3.0 record, a list row) the
+   handle starts unseeded and the next item applies: the profile step fails,
+   the session quarantines, and the throw is `PermissionReviewerError` —
+   "The permission mode was applied, but its reviewer could not be
+   installed (…). New turns are refused until the mode is set again." —
+   never `permissionModeNotApplied`, which would be false there. Probe A
+   part 1b (an unseeded handle, the pre-fix resume shape): unfixed, the
+   follow-up `sendTurn` SENT on `promptUnmatched`; fixed, it is refused
+   with "New turns are refused: the permission reviewer could not be
+   installed. Set the permission mode again to recover."
+2. A failed rollback is never swallowed. The rollback mints a fresh token
+   (a foreground turn that ends during the profile call retires the
+   captured one), and when the rollback itself fails the session
+   quarantines with the `PermissionReviewerError` naming the wire mode the
+   host runs. Probe B races a turn cancel against the mode change until a
+   terminal lands between the forward apply and the rollback (1 hit in 30
+   attempts on the unfixed tree: the change threw the profile error while
+   the host ran `promptUnmatched` and the later turn SENT). After the fix,
+   208 further attempts across seven runs rolled back to `onRequest`. The
+   panel keeps the chosen mode on
+   `PermissionReviewerError` (it is the mode the host runs) and shows its
+   sentence; any other throw still reverts to the previous mode. ACP
+   `setMode` publishes the requested mode before rethrowing, so the editor
+   agrees with the host; load paths (`matchAdvertised`, `restoreChoice`)
+   keep failing the load, with true words either way.
+3. A failed schedule restore never bricks the session. The restore applies
+   the conversation's mode and reviewer as one unit; when the reviewer
+   cannot be put back the session quarantines, and the restore gate
+   resolves once that outcome is recorded instead of rejecting every later
+   call. Probe A part 3 (a real `UnattendedRun` admitted on a Manual
+   conversation, profile refused): unfixed, the settled wire mode was back
+   on `promptUnmatched` but every later `sendTurn` and `setApprovalMode`
+   rethrew the stale restore refusal
+   (`session/setPermissionProfile requires experimentalApi capability`);
+   fixed, the mode settles on `promptUnmatched`, the log carries one true
+   sentence, and later calls hear the quarantine words. What actually
+   delivers schedules in this tree: no production path sends through
+   `sendScheduledTurn`/`steerScheduledTurn` — the only production delivery
+   composition (the runtime engine, `src/runtime/schedules/engine.ts`)
+   refuses every target, and `ScheduleAgentSession`
+   (`src/host/schedules/backgroundTarget.ts`) is never constructed — so
+   the admission and restore paths are proven by driving the real session
+   class directly, as above.
+4. Found by probe B while proving item 2: a turn that ends while the mode
+   command itself is in flight tears its adoption (the ack arrived, so the
+   host runs the new mode, but the owner cannot adopt it). Unfixed and
+   still after items 1–3, that threw `scheduleBusy` with the host on the
+   new mode, the owner on the old, and turns live — the original desync in
+   a new guise. Now `applyModeEffect` quarantines on a torn adoption and
+   throws `PermissionReviewerError` with the effective mode the ack
+   served, on the forward change, the rollback and the restore alike; a
+   torn rollback keeps the error that already names the true (previous)
+   host mode. One post-fix run hit this path once (`quarantined=1`, turns
+   refused, menu mode agreeing with the host).
+
+Committed tests (real code only, no stand-ins): `test/unit/sessionOwner.test.ts`
+— quarantine refuses starts and steers while a later applied mode recovers;
+`test/unit/sessionRecords.test.ts` — the recorded 1.4.7 resume envelope
+keeps `approvalMode.mode` (capture date and command above) and a 1.3.0
+record parses with none. The pre-fix failures they pin were observed live
+first: probe A `1a-rolled-back`, `1b-turns-refused` and `3-gate-resolves`
+on the unfixed tree. Suites: `sessionOwner` (1), `sessionRecords` (12),
+`permissionModes` (13) — 26 passed with the repository's own timeout.
+
+UNVERIFIED until real use (lead drills, linuxlt, VS Code, Manual, Muse
+Code ≥ 1.4.7): the Modes menu agreeing with the host on each failure path
+(switch Manual→Auto with the profile step forced to fail, e.g. a managed
+profile exclusion; the menu must keep showing the host's mode with the
+quarantine sentence, and setting the mode again must recover), and the
+standing drill above (a model-driven command raising `approval/request` in
+Manual after each recovery). A quarantined session's refused turn must
+arrive as the quarantine sentence in the panel, not `scheduleBusy`.
+
+Files: `src/core/backends/musecode/sessionRecords.ts` (`approvalMode`),
+`src/core/backends/musecode/MuseCodeHost.ts` (envelope seeding, fresh-token
+rollback, `PermissionReviewerError` quarantine on unknown previous mode,
+failed rollback and torn adoption, unit restore with a resolving gate,
+quarantine gates on `sendTurn`/`steer`/`admitScheduled`),
+`src/core/schedules/sessionOwner.ts` (`quarantine`, `quarantined`,
+`canSteer` refuses), `src/core/agent/agentBackend.ts`
+(`PermissionReviewerError`, `isPermissionReviewerError`,
+`setApprovalMode` contract), `src/host/conversation/conversationController.ts`
+(three catch sites keep the host's mode and show its sentence),
+`src/acp/agent.ts` (`setMode` publishes before rethrowing),
+`src/shared/l10n/en.ts` + all 14 `l10n/ui.*.json`
+(`permissionReviewerNotInstalled`, `permissionReviewerMissing`),
+`test/unit/sessionOwner.test.ts`, `test/unit/sessionRecords.test.ts`,
+`CHANGELOG.md`, PLAN.md D123.
