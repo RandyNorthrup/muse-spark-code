@@ -69,8 +69,11 @@ export function prepareImportItems(
           },
         },
       ]
-    } catch {
-      throw new VaultMigrationFault('invalid')
+    } catch (error: unknown) {
+      // A torn-down key parse reads invalid whatever broke it; the failure
+      // rides along as the cause while the person keeps fixed words.
+      if (error instanceof VaultMigrationFault) throw error
+      throw new VaultMigrationFault('invalid', { cause: error })
     } finally {
       copy.fill(0)
     }

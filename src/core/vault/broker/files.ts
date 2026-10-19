@@ -160,19 +160,31 @@ export async function vaultExclusiveFile(
       if (sameFile(identity, await lstatIdentity(path))) await unlink(path)
     }
   } catch (error: unknown) {
-    try {
-      await file.close()
-    } catch {
-      /* The publication path above already closed it. */
-    }
-    try {
-      await unlink(temporary)
-    } catch {
-      /* Never published: nothing a reader can see remains under our name. */
-    }
+    // The publication path above already closed it.
+    await teardownBestEffort(() => file.close())
+    // Never published: nothing a reader can see remains under our name.
+    await teardownBestEffort(() => unlink(temporary))
     throw error
   }
 }
+/** Best effort: the rename may already have consumed this owned file. */
+function unlinkConsumedFile(path: string): void {
+  try {
+    unlinkSync(path)
+  } catch {
+    // Rename may have consumed this owned file.
+  }
+}
+
+/** Best effort: the original failure below rules, so teardown keeps no cause. */
+async function teardownBestEffort(work: () => Promise<void>): Promise<void> {
+  try {
+    await work()
+  } catch {
+    // Best effort: the original failure below rules, so teardown keeps no cause.
+  }
+}
+
 export function isVaultFileMissing(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT'
 }
@@ -218,11 +230,7 @@ export function replaceFileContent(
     }
   } catch (error: unknown) {
     if (!isAdopted) closeSync(fd)
-    try {
-      unlinkSync(temporary)
-    } catch {
-      /* Rename may have consumed this owned file. */
-    }
+    unlinkConsumedFile(temporary)
     throw error
   }
 }

@@ -5,9 +5,15 @@ import { vaultItemSchema, type VaultItem } from '../../../shared/vault'
 import type { AccountCredential } from '../../providers/accountCredentialRecord'
 import { VaultMigrationFault, type MigrationCredential } from './ports'
 
+/** Erase every owned field of parsed import drafts. */
+export function wipeImportMaterial(entries: readonly { material: VaultItem['material'] }[]): void {
+  for (const entry of entries)
+    for (const field of Object.values(entry.material))
+      if (field instanceof Uint8Array) field.fill(0)
+}
+
 export function eraseItem(item: VaultItem | undefined): void {
-  if (item)
-    for (const field of Object.values(item.material)) if (field instanceof Uint8Array) field.fill(0)
+  if (item) wipeImportMaterial([item])
 }
 
 /** All material and security metadata. Usage dates/display labels can change without rotating a value. */
@@ -158,8 +164,11 @@ export interface LegacyRecordShape<T> {
 function utf8(value: Uint8Array): string {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(value)
-  } catch {
-    throw new VaultMigrationFault('invalid')
+  } catch (error: unknown) {
+    // A fatal decode fails only as TypeError: undecodable bytes are invalid,
+    // never adopted, with the decoding failure as its cause.
+    if (!(error instanceof TypeError)) throw error
+    throw new VaultMigrationFault('invalid', { cause: error })
   }
 }
 
