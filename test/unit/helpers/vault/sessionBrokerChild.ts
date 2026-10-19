@@ -3,13 +3,15 @@ import {
   runVaultBrokerEntry,
 } from '../../../../src/runtime/vault/vaultBrokerEntry'
 import { createVaultBrokerBindings } from '../../../../src/runtime/vault/brokerBindings'
-import { memoryKeyring } from '../keyring'
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
 import { announceBrokerFixture, parseBrokerFixtureContext } from './sessionBrokerHarness'
-// Only generated fixture paths and process facts, no credential or model access.
+// Session broker fixture with the product's own keyring resolution and no
+// override: the real OS store where the binding resolves, the product's
+// keyring-less fallback where it does not. Only generated fixture paths
+// and process facts, no credential or model access.
 void runVaultBrokerEntry(async () => {
   const context = parseBrokerFixtureContext()
   const gate = path.join(context.installRoot, 'gate')
@@ -20,7 +22,7 @@ void runVaultBrokerEntry(async () => {
   } catch {
     /* This fixture does not gate ordinary startup. */
   }
-  const bindings = await createVaultBrokerBindings(context, { keyring: memoryKeyring().openEntry })
+  const bindings = await createVaultBrokerBindings(context)
   const handle = await createVaultBrokerProcess(context, bindings)
   await announceBrokerFixture(handle)
   return handle
