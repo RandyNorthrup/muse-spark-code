@@ -4,8 +4,7 @@ import * as z from 'zod/mini'
 import {
   IMAGE_RESIZE_TIMEOUT_MS,
   IMAGE_RESIZE_MAX_MEMORY_MIB,
-  MAX_IMAGE_BYTES,
-  MAX_ATTACHMENTS_PER_MESSAGE,
+  IMAGE_RESIZE_MAX_QUEUED,
 } from '../shared/constants'
 import { readImageInfo } from './imageDimensions'
 
@@ -39,16 +38,14 @@ export async function resizeImage(
   signal.throwIfAborted()
   const bounds = imageLimitsSchema.parse(limits)
   const info = readImageInfo(bytes)
-  if (
-    info === undefined ||
-    bytes.byteLength > MAX_IMAGE_BYTES ||
-    info.width < 1 ||
-    info.height < 1
-  ) {
+  // D121: no input byte bound of ours — any size decodes; the worker's own
+  // memory cap and timeout contain a hostile input, and the provider answers
+  // for what it cannot take. Only a non-image or a degenerate size refuses.
+  if (info === undefined || info.width < 1 || info.height < 1) {
     throw new Error('image_resize_invalid_input')
   }
   if (info.width <= bounds.maxWidth && info.height <= bounds.maxHeight) return bytes
-  if (slots.queued >= MAX_ATTACHMENTS_PER_MESSAGE) throw new Error('image_resize_queue_full')
+  if (slots.queued >= IMAGE_RESIZE_MAX_QUEUED) throw new Error('image_resize_queue_full')
   slots.queued += 1
   const before = slots.previous
   const result = (async () => {
@@ -97,18 +94,18 @@ export async function resizeImage(
           const parsed = z.safeParse(answerSchema, message)
           const output = parsed.success && parsed.data.ok ? parsed.data.bytes : undefined
           const resized = output === undefined ? undefined : readImageInfo(output)
-          if (
-            output === undefined ||
-            resized === undefined ||
-            output.byteLength > MAX_IMAGE_BYTES ||
-            resized.mediaType !== info.mediaType ||
-            resized.width > bounds.maxWidth ||
-            resized.height > bounds.maxHeight ||
-            resized.width > info.width ||
-            resized.height > info.height ||
-            resized.width < 1 ||
-            resized.height < 1
-          ) {
+          // D121: no output byte bound of ours — the dimensions the model
+          // named decide; the provider answers for an output it cannot take.
+          const isValid =
+            output !== undefined &&
+            resized?.mediaType === info.mediaType &&
+            resized.width <= bounds.maxWidth &&
+            resized.height <= bounds.maxHeight &&
+            resized.width <= info.width &&
+            resized.height <= info.height &&
+            resized.width >= 1 &&
+            resized.height >= 1
+          if (!isValid) {
             fail()
             return
           }

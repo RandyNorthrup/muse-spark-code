@@ -10,7 +10,7 @@ import {
 import {
   DICTATION_QUIT_GRACE_MS,
   MEMORY_STAGE_FILE_MODE,
-  MAX_TEXT_ATTACHMENT_BYTES,
+  VOICE_TEXT_MAX_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
 import { COMPANION_VOICE_REQUEST_MS } from '../../shared/companionVoice'
@@ -86,7 +86,7 @@ export async function transcribeCompanionSystem(
       let receivedBytes = 0
       helper.stdout.on('data', (chunk) => {
         receivedBytes += Buffer.byteLength(chunk)
-        if (receivedBytes > MAX_TEXT_ATTACHMENT_BYTES) {
+        if (receivedBytes > VOICE_TEXT_MAX_BYTES) {
           fail()
           return
         }
@@ -99,7 +99,7 @@ export async function transcribeCompanionSystem(
           if (message.type === 'ready') helper.send('start')
           else if (message.type === 'text') {
             text += `${text === '' ? '' : ' '}${message.text}`
-            if (Buffer.byteLength(text) > MAX_TEXT_ATTACHMENT_BYTES) {
+            if (Buffer.byteLength(text) > VOICE_TEXT_MAX_BYTES) {
               fail()
               return
             }

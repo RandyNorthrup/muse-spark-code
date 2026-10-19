@@ -37,7 +37,7 @@ import {
   HOOK_MAX_RUNNING_COMMANDS,
   HOOK_OUTPUT_MAX_BYTES,
   HOOK_STDIN_MAX_BYTES,
-  MAX_DOCUMENT_BYTES,
+  MEDIA_READ_MAX_BYTES,
   UI_TEXT,
   MODEL_TEXT,
   PDF_HEADER_WINDOW_BYTES,
@@ -567,7 +567,9 @@ export async function readPickedFile(
   absolutePath: string,
   maxBytes: number,
   expectedCanonicalPath?: string,
-  pdfMaxBytes: number = MAX_DOCUMENT_BYTES,
+  // D121: PDFs read whole like anything else — bounded only by the caller's
+  // cap (host memory for media), never by a document size of ours.
+  pdfMaxBytes: number = MEDIA_READ_MAX_BYTES,
 ): Promise<{
   readonly bytes: Uint8Array | undefined
   readonly isPdf: boolean

@@ -2,7 +2,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { execAttachmentBlocks, parseAttachArgs } from '../../src/runtime/exec/attachArgs'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
-import { MAX_ATTACHMENTS_PER_MESSAGE, UI_TEXT } from '../../src/shared/constants'
+import { UI_TEXT } from '../../src/shared/constants'
 
 const signal = new AbortController().signal
 describe('exec --attach', () => {
@@ -16,15 +16,13 @@ describe('exec --attach', () => {
     expect(plain.command === 'exec' && 'attachFiles' in plain.options).toBe(false)
   })
 
-  it('refuses blank, malformed, excess or missing attachment arguments and headless recording', () => {
-    for (const value of [
-      '',
-      [''],
-      [1],
-      ['file\0name'],
-      Array.from({ length: MAX_ATTACHMENTS_PER_MESSAGE + 1 }, () => 'clip.mp4'),
-    ])
+  it('refuses blank, malformed or missing attachment arguments and headless recording', () => {
+    for (const value of ['', [''], [1], ['file\0name']])
       expect(parseAttachArgs(value).ok).toBe(false)
+    // D121: no attach count of ours — twenty-one named files parse.
+    expect(parseAttachArgs(Array.from({ length: 21 }, () => 'clip.mp4'))).toMatchObject({
+      ok: true,
+    })
     expect(parseCommandLine(['exec', '--attach'])).toMatchObject({
       command: 'invalid',
       exitCode: 2,

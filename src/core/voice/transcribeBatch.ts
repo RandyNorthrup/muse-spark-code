@@ -3,7 +3,7 @@ import { UserRefusalError } from '../refusal'
 // M1's confined converter and M2's media encoder are injected at integration.
 import * as z from 'zod/mini'
 import {
-  MAX_TEXT_ATTACHMENT_BYTES,
+  VOICE_TEXT_MAX_BYTES,
   PAID_PRICES_USD,
   SECONDS_PER_HOUR,
   TEXT_ATTACHMENT_MEDIA_TYPE,
@@ -352,7 +352,7 @@ export async function prepareAudioAttachment(
       throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
     if (
       result.text.trim() === '' ||
-      new TextEncoder().encode(result.text).length > MAX_TEXT_ATTACHMENT_BYTES
+      new TextEncoder().encode(result.text).length > VOICE_TEXT_MAX_BYTES
     )
       throw new Error(UI_TEXT.museVoiceRefused)
     check(deps, signal)

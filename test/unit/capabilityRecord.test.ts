@@ -509,10 +509,18 @@ describe('normalized capability record', () => {
       'high',
       'xhigh',
     ])
+    // D121 (lane NOLIMITSINPUT): the record carries Meta's documented
+    // numbers (dev.meta.ai/docs, read 2026-10-19) — 50 MB inline images and
+    // documents, 50 images per request, 1–10 edit items — never product
+    // limits. The old 10 MiB / 32 MB constants refused what Meta takes.
     expect(meta.modalities.image).toMatchObject({
-      value: { maxBytes: 10 * 1024 * 1024, maxCount: 50 },
+      value: { maxBytes: 50_000_000, maxCount: 50, maxEditSources: 10 },
+      source: { ref: 'https://dev.meta.ai/docs/image-understanding' },
     })
-    expect(meta.modalities.pdf).toMatchObject({ value: { maxBytes: 32_000_000, maxPages: 50 } })
+    expect(meta.modalities.pdf).toMatchObject({
+      value: { maxBytes: 50_000_000, maxPages: 50, maxCount: 50 },
+      source: { ref: 'https://dev.meta.ai/docs/file-handling' },
+    })
     // Lane REASONSHAPES: `ultra` is Muse Code's client-side top tier,
     // mapped to the highest served tier at send time.
     expect(capabilityEffortLevels(meta)).toEqual([

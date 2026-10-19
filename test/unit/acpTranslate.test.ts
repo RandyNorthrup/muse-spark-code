@@ -635,11 +635,32 @@ describe('promptParts', () => {
     })
   })
 
-  it('refuses a prompt with an image too large, a file that is not one, audio, or a link it cannot map', async () => {
+  it('admits an image past the removed bound, and refuses what is not one, audio, or a link it cannot map', async () => {
+    // D121: the 10 MiB ACP blob bound is gone — a valid 10 MB image decodes
+    // (bounded only by host memory) and the provider answers for it at send.
+    // Ten megabytes of non-image bytes still refuse, as a non-image.
     const huge = Buffer.alloc(10 * 1024 * 1024 + 1).toString('base64')
     expect(await promptParts([{ type: 'image', data: huge, mimeType: 'image/png' }], CWD)).toEqual({
       ok: false,
-      reason: UI_TEXT.attachmentTooLarge,
+      reason: UI_TEXT.attachmentUnsupported,
+    })
+    const padded = Buffer.concat([
+      Buffer.from(PNG, 'base64'),
+      Buffer.alloc(10 * 1024 * 1024),
+    ]).toString('base64')
+    expect(
+      await promptParts([{ type: 'image', data: padded, mimeType: 'image/png' }], CWD),
+    ).toMatchObject({
+      ok: true,
+      parts: [
+        {
+          type: 'image',
+          base64Data: padded,
+          mediaType: 'image/png',
+          width: 1,
+          height: 1,
+        },
+      ],
     })
     expect(
       await promptParts(

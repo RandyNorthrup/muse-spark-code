@@ -26,9 +26,8 @@ import {
   EDIT_MATCH_YIELD_LINES,
   IMAGE_EXTENSIONS,
   LIST_FILES_DEFAULT_LIMIT,
-  MAX_DOCUMENT_BYTES,
-  MAX_IMAGE_BYTES,
   BYTES_PER_MIB,
+  MEDIA_READ_MAX_BYTES,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
@@ -1350,8 +1349,10 @@ function imageOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
 }
 
 /**
- * A PDF or an image read whole (M54, PLAN.md D47), within what an attachment
- * of its kind may be; the file itself reaches the model after the round.
+ * A PDF or an image read whole (M54, PLAN.md D47): no size of ours — the
+ * read is bounded only by host memory (MEDIA_READ_MAX_BYTES), and the
+ * file itself reaches the model after the round, admitted through the
+ * session's one media path (the record's, then the provider's own).
  */
 async function readVisual(
   file: { readonly relative: string; readonly checkedAbsolute: string },
@@ -1362,7 +1363,7 @@ async function readVisual(
   try {
     bytes = await context.io.readBytes(
       file.checkedAbsolute,
-      kind === 'pdf' ? MAX_DOCUMENT_BYTES : MAX_IMAGE_BYTES,
+      MEDIA_READ_MAX_BYTES,
       file.checkedAbsolute,
       context.signal,
     )

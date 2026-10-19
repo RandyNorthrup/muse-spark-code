@@ -1,5 +1,5 @@
 import * as z from 'zod/mini'
-import { MAX_TEXT_ATTACHMENT_BYTES, MUSE_VOICE_BYTES_PER_SECOND } from './constants'
+import { VOICE_TEXT_MAX_BYTES, MUSE_VOICE_BYTES_PER_SECOND } from './constants'
 
 // CMICCOMP: held off until Windows/macOS companion and helper receipts pass.
 // These live beside the companion's protocol (not in constants.ts) so the
@@ -45,7 +45,7 @@ export const companionVoiceInputSchema = z.discriminatedUnion('type', [
   }),
   z.strictObject({
     type: z.literal('send'),
-    text: z.string().check(z.minLength(1), z.maxLength(MAX_TEXT_ATTACHMENT_BYTES)),
+    text: z.string().check(z.minLength(1), z.maxLength(VOICE_TEXT_MAX_BYTES)),
   }),
 ])
 export const companionVoiceOutputSchema = z.discriminatedUnion('type', [

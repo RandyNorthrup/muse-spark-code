@@ -7,8 +7,9 @@
 // that can be checked is checked before that question (`prepareImageCall`),
 // so nothing is asked or billed for an image that could not be made or
 // saved: the arguments, the output path (confined like any write, a `.png`,
-// not taken), and each source (inside the workspace, an image, not too
-// large). The reply is checked to be a PNG before it is written.
+// not taken), and each source (inside the workspace, an image Meta takes,
+// within the record's edit count). The reply is checked to be a PNG before
+// it is written.
 //
 // The Model API backend runs them as its own tools; the Muse Code backend
 // reaches them through the extension's `ide` session server (M44), billed
@@ -18,20 +19,21 @@ import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
 import {
   IMAGE_ASPECT_SIZES,
-  IMAGE_EDIT_SOURCE_MAX,
   IMAGE_EDIT_SOURCE_MIN,
   IMAGE_EDIT_SOURCE_TYPES,
   IMAGE_EXTENSIONS,
   IMAGE_FILE_EXTENSION,
   IMAGE_OUTPUT_FORMAT,
   type ImageAspect,
-  MAX_IMAGE_BYTES,
+  MEDIA_READ_MAX_BYTES,
   MODEL_API_IMAGE_MODEL,
   MODEL_TEXT,
   PNG_SIGNATURE,
 } from '../../../shared/constants'
+import { fill } from '../../../shared/l10n/text'
 import type { PaidUseRequest } from '../../../shared/paid'
 import { pathModule } from '../../workspaceRoot'
+import { metaCapabilityRecord, type ModelCapabilityRecord } from '../../providers/capabilityRecord'
 import type { ProviderClient, ResponseAttemptGuard } from './client'
 import { IMAGE_ASPECTS } from './imageToolDefinitions'
 import type { ImagesResponse } from './schemas'
@@ -45,10 +47,11 @@ const BYTES_PER_KIB = 1024
 // was invented (Meta documents no prompt length at
 // dev.meta.ai/docs/image-generation: an over-long prompt is rejected with
 // 400, no length stated). The edit-item range is Meta's own
-// (dev.meta.ai/docs/api-reference/images/edit-image, read 2026-09-25: an
-// edit needs 1–10 items), so the schema enforces it here, before any source
-// is read or the paid-use question is asked. Only a blank prompt refuses
-// besides, as Meta rejects that too.
+// (dev.meta.ai/docs/image-generation, read 2026-10-19: "an edit needs 1–10
+// items"), so the record enforces it in `prepareImageCall`, before any
+// source is read or the paid-use question is asked. The schema keeps only
+// what is malformed whatever the provider says: a blank prompt, and an edit
+// with no sources, as Meta rejects those too.
 const promptSchema = z.string().check(z.minLength(1))
 
 export const generateImageArgs = z.object({
@@ -59,12 +62,21 @@ export const generateImageArgs = z.object({
 
 export const editImageArgs = z.object({
   prompt: promptSchema,
-  images: z
-    .array(z.string())
-    .check(z.minLength(IMAGE_EDIT_SOURCE_MIN), z.maxLength(IMAGE_EDIT_SOURCE_MAX)),
+  images: z.array(z.string()).check(z.minLength(IMAGE_EDIT_SOURCE_MIN)),
   path: z.string(),
   aspect: z.optional(z.enum(IMAGE_ASPECTS)),
 })
+
+/**
+ * D121: the provider's documented edit-item cap for this call, from the
+ * record that reached it (Meta's record carries Meta's documented 1–10).
+ * Undefined states no cap: without a record Meta's own refusal reaches the
+ * caller in words.
+ */
+export function editImageLimit(record: ModelCapabilityRecord | undefined): number | undefined {
+  const policy = record?.modalities.image
+  return policy?.state === 'yes' ? policy.value.maxEditSources : undefined
+}
 
 /** Why a path cannot take a generated image, before anything is asked or billed. */
 export function imagePathProblem(relativePath: string): string | undefined {
@@ -167,11 +179,13 @@ async function sourceOf(
   if (mediaType === undefined || !IMAGE_EDIT_SOURCE_TYPES.has(mediaType)) {
     return { reason: `${given} is not a PNG, JPEG or WebP image` }
   }
+  // D121: a source reads whole, bounded only by host memory — no size of
+  // ours. Meta's documented inline maxima ride the capability record.
   let bytes: Uint8Array | undefined
   try {
     bytes = await workspace.io.readBytes(
       resolved.checkedAbsolute,
-      MAX_IMAGE_BYTES,
+      MEDIA_READ_MAX_BYTES,
       resolved.checkedAbsolute,
     )
   } catch (error: unknown) {
@@ -190,12 +204,23 @@ export async function prepareImageCall(
   kind: ImagePlan['kind'],
   rawArgs: unknown,
   workspace: ImageWorkspace,
+  record?: ModelCapabilityRecord,
 ): Promise<ImagePlanResult> {
   const parsed = parseImageArgs(kind, rawArgs)
   if ('reason' in parsed) {
     return refused(parsed.reason)
   }
   const { args } = parsed
+  if (kind === 'edit') {
+    // D121: Meta's documented 1–10-item range, from the record — before any
+    // source is read or the paid-use question is asked. Both callers serve
+    // Meta's image model, so an absent record means Meta's own record;
+    // without any record Meta's own refusal reaches the caller in words.
+    const maxEditSources = editImageLimit(record ?? metaCapabilityRecord(MODEL_API_IMAGE_MODEL))
+    if (maxEditSources !== undefined && args.images.length > maxEditSources) {
+      return refused(fill(MODEL_TEXT.imageEditTooManySources, { max: String(maxEditSources) }))
+    }
+  }
   const target = await targetOf(args.path, workspace)
   if ('reason' in target) {
     return refused(target.reason)

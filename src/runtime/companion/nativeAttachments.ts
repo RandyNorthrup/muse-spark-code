@@ -1,12 +1,7 @@
 // E3's validated MHP attachment-method projection. M104 lane 0 supplies the
 // outer RPC envelope and native bridges; no browser reads a native file here.
 import * as z from 'zod/mini'
-import {
-  MAX_ATTACHMENTS_PER_MESSAGE,
-  MEDIA_ID_MAX_CHARS,
-  MEDIA_PATH_TOKEN_MAX_CHARS,
-  UI_TEXT,
-} from '../../shared/constants'
+import { MEDIA_ID_MAX_CHARS, MEDIA_PATH_TOKEN_MAX_CHARS, UI_TEXT } from '../../shared/constants'
 import { companionMediaUploadSchema, screenRecordingOptionsSchema } from '../../shared/media'
 import type { ScreenRecordingOptions } from '../../core/media/record/driver'
 
@@ -22,7 +17,8 @@ const requestSchema = z.discriminatedUnion('method', [
   z.strictObject({ method: z.literal('attachments/record'), params: screenRecordingOptionsSchema }),
 ])
 const resultSchema = z.strictObject({
-  attachments: z.array(companionMediaUploadSchema).check(z.maxLength(MAX_ATTACHMENTS_PER_MESSAGE)),
+  // D121: no attach count of ours — the native side lists any number.
+  attachments: z.array(companionMediaUploadSchema),
 })
 
 export interface NativeAttachmentPort {

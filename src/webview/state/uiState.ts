@@ -30,11 +30,11 @@ import {
   type EffortLevel,
   FOCUS_REQUEST_WINDOW_MS,
   HIDDEN_ITEM_KINDS,
-  MAX_ATTACHMENTS_PER_MESSAGE,
   MILLISECONDS_PER_SECOND,
   PARTIAL_EDIT_TOOLS,
   PENDING_APPROVAL_RESOLUTIONS_MAX,
   type PermissionMode,
+  SETTLED_ATTACHMENT_REQUEST_IDS_KEPT,
   type TaskRequest,
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
@@ -808,15 +808,11 @@ const SUBAGENT_KIND = 'subagent'
 // keeps the generic file-type guidance. Read at runtime for the installed language.
 function isStatedRefusal(reason: string): boolean {
   return [
-    UI_TEXT.attachmentTooLarge,
     UI_TEXT.attachmentUnsupported,
-    UI_TEXT.attachmentLimit,
     UI_TEXT.attachmentUnreadable,
-    UI_TEXT.documentTooLarge,
     UI_TEXT.documentsOverBudget,
     UI_TEXT.pdfNeedsModelApi,
     UI_TEXT.invalidPdf,
-    UI_TEXT.textFileTooLarge,
     UI_TEXT.textFilesOverBudget,
     UI_TEXT.textFilesOverModelApiBudget,
     UI_TEXT.textFileInvalid,
@@ -835,7 +831,10 @@ function settledAttachmentRequest(
   ids: readonly string[],
   requestId: string | undefined,
 ): readonly string[] {
-  return requestId === undefined ? ids : [...ids, requestId].slice(-MAX_ATTACHMENTS_PER_MESSAGE * 2)
+  // D121: settled request ids are UI state shape, not an attachment count.
+  return requestId === undefined
+    ? ids
+    : [...ids, requestId].slice(-SETTLED_ATTACHMENT_REQUEST_IDS_KEPT)
 }
 
 /** The record without `key`. */
