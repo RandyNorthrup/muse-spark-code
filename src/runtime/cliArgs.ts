@@ -1035,10 +1035,20 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
       },
     }
   } catch (error: unknown) {
-    const found = helpTopicNamed('usage')
-    return found === undefined
-      ? { ...invalid('usage'), exitCode: 2 }
-      : invalidStrictOption(found.name, topicShownOptionNames(found), error)
+    // Only the option parser fails here (unknown option, invalid value);
+    // anything else is not this parse's answer to give.
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION' ||
+        error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+    ) {
+      const found = helpTopicNamed('usage')
+      return found === undefined
+        ? { ...invalid('usage'), exitCode: 2 }
+        : invalidStrictOption(found.name, topicShownOptionNames(found), error)
+    }
+    throw error
   }
 }
 
@@ -1157,10 +1167,20 @@ function parseResources(argv: readonly string[]): RuntimeCommand {
       ? { ...invalid(`resources ${positionals.join(' ')}`), exitCode: 2 }
       : { command: 'resources', action, json: values.json === true }
   } catch (error: unknown) {
-    const found = helpTopicNamed('resources')
-    return found === undefined
-      ? { ...invalid('resources'), exitCode: 2 }
-      : invalidStrictOption(found.name, topicShownOptionNames(found), error)
+    // Only the option parser fails here (unknown option, invalid value);
+    // anything else is not this parse's answer to give.
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION' ||
+        error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+    ) {
+      const found = helpTopicNamed('resources')
+      return found === undefined
+        ? { ...invalid('resources'), exitCode: 2 }
+        : invalidStrictOption(found.name, topicShownOptionNames(found), error)
+    }
+    throw error
   }
 }
 
