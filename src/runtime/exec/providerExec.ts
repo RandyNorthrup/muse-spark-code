@@ -382,6 +382,18 @@ function endPinnedBody(
 }
 
 /**
+ * Whether an answer's status refuses the request instead of being
+ * followed: redirects are refused like `redirect: 'error'`, never
+ * followed. Pure — `sendPinned` calls this on every answer's status — so
+ * the refusal is provable with statuses as plain input and nothing
+ * answering; the end-to-end behaviour is proven by the real-life run
+ * through the packed product (docs/certification/auditsec0190b.md).
+ */
+export function isRedirectRefusal(statusCode: number | undefined): boolean {
+  return statusCode !== undefined && HTTP_REDIRECT_STATUSES.has(statusCode)
+}
+
+/**
  * One request to the checked address: Node's HTTP stack dials it through a
  * `lookup` that answers that address only, so the address checked is the
  * address dialled even when DNS changes in between (DNS rebinding). TLS
@@ -414,7 +426,7 @@ function sendPinned(url: URL, init: RequestInit | undefined, address: string): P
   }
   return new Promise<Response>((resolve, reject) => {
     const outgoing = (isTls ? httpsRequest : httpRequest)(options, (incoming) => {
-      if (incoming.statusCode !== undefined && HTTP_REDIRECT_STATUSES.has(incoming.statusCode)) {
+      if (isRedirectRefusal(incoming.statusCode)) {
         incoming.destroy()
         outgoing.destroy()
         reject(new TypeError('fetch failed'))
