@@ -31,6 +31,12 @@ export interface AuthCommandDeps {
   readonly storeName: string
   /** One line from the user, not echoed when it comes from a terminal. */
   readonly readSecret: (prompt: string) => Promise<string>
+  /**
+   * Whether to use a key that looks like the wrong thing (a URL, a path,
+   * placeholder text, inner whitespace). A pipe cannot answer, so it names
+   * the value and proceeds; a terminal asks and waits for the answer.
+   */
+  readonly confirmKeyUse: (message: string) => Promise<boolean>
   readonly print: (line: string) => void
   readonly printError: (line: string) => void
 }
@@ -203,30 +209,40 @@ export async function authSetProvider(
     deps.printError(fill(UI_TEXT.providerNotConfigured, { provider: providerId }))
     return EXIT_FAILED
   }
-  let typed: string
-  try {
-    typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: providerId }))
-  } catch (error: unknown) {
-    if (isNonTextStdin(error)) {
-      deps.printError(providerKeyFailureText('invalid'))
-      return EXIT_FAILED
-    }
-    throw error
-  }
-  const candidate = typed.trim()
-  if (candidate === '') {
-    deps.printError(providerKeyFailureText('empty'))
-    return EXIT_FAILED
-  }
   const { presets, setUiText } = await import('../host/backend/providersEntry')
   // Any non-blank key is stored for the provider to judge; a value that
-  // looks like the wrong thing is named, and stdin cannot answer, so the
-  // run continues. The notice is formatted in the providers bundle, which
-  // keeps its own installed language: install this command's table first.
+  // looks like the wrong thing is named first. A pipe cannot answer, so
+  // the run continues; a "no" on a terminal asks for the key again, like
+  // the panel's password box. The notice is formatted in the providers
+  // bundle, which keeps its own installed language: install this
+  // command's table before reading it.
   setUiText(UI_TEXT, uiLocale())
-  const inspection = presets.inspectProviderKey(candidate)
-  if (inspection !== 'ok' && inspection !== 'empty') {
-    deps.printError(presets.providerKeyNoticeText(inspection))
+  let candidate: string
+  for (;;) {
+    let typed: string
+    try {
+      typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: providerId }))
+    } catch (error: unknown) {
+      if (isNonTextStdin(error)) {
+        deps.printError(providerKeyFailureText('invalid'))
+        return EXIT_FAILED
+      }
+      throw error
+    }
+    const key = typed.trim()
+    if (key === '') {
+      deps.printError(providerKeyFailureText('empty'))
+      return EXIT_FAILED
+    }
+    const inspection = presets.inspectProviderKey(key)
+    if (
+      inspection === 'ok' ||
+      inspection === 'empty' ||
+      (await deps.confirmKeyUse(presets.providerKeyNoticeText(inspection)))
+    ) {
+      candidate = key
+      break
+    }
   }
   const account = providerAccount(deps, providerId)
   if (account === undefined) return EXIT_FAILED
