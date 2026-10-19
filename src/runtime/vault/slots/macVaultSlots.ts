@@ -12,9 +12,8 @@ import {
   openOsStoreSlot,
   presenceGate,
   slotEntryFromRecord,
+  type OpenOsStoreEntry,
 } from './slotEntries'
-
-type OpenEntry = ConstructorParameters<typeof OsStoreVaultSlot>[2]
 
 /**
  * macOS slots: the login Keychain for the OS store (as D61 and VS Code use
@@ -38,7 +37,7 @@ export class MacVaultSlots implements VaultSlotProvider {
   constructor(
     private readonly transport: MacVaultTransport,
     private readonly deps: {
-      readonly open?: OpenEntry
+      readonly open?: OpenOsStoreEntry
       readonly presenceRecords?: PresenceRecords
       readonly platform?: NodeJS.Platform
     } = {},
