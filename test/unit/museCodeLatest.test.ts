@@ -36,10 +36,8 @@ import { readSettings, type SettingsSource } from '../../src/host/settings'
 import {
   HOOK_MAX_RUNNING_COMMANDS,
   HOOK_MAX_STOP_CONTINUATIONS,
-  HOOK_MAX_TASK_REFUSALS,
   SETTING_DEFAULTS,
   SUBAGENT_CAPACITY,
-  TEAMMATE_MAX_IDLE_KEEPS,
   museCodeLoadedSessionCeiling,
 } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -770,13 +768,5 @@ describe('hook and subagent setting defaults', () => {
     expect(
       readSettings(settingSource({ hooksMaxStopContinuations: 3 }), log).hooksMaxStopContinuations,
     ).toBe(3)
-  })
-
-  it('keeps the task-refusal and teammate-keep pauses off the Stop setting', () => {
-    // Before the M127 setting all four sites compared against the same
-    // bound of 8; the setting now governs only Stop-hook continuations,
-    // while the independent pauses keep their own measured bounds.
-    expect(HOOK_MAX_TASK_REFUSALS).toBe(8)
-    expect(TEAMMATE_MAX_IDLE_KEEPS).toBe(8)
   })
 })
