@@ -3,6 +3,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { loadL10n } from '../../scripts/lib/l10nSource.mjs'
 import { browserTextKeys, compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -26,6 +27,18 @@ const fixture = {
   resourceKeys: undefined,
 }
 const byText = (left, right) => left.localeCompare(right)
+
+// One damaged table per case below: a missing key, an extra key, a bad
+// slot, a missing nested group, a bad plural form and a wrong value type.
+const brokenTables = [
+  (EN) => ({ ...EN, execBudgetRequired: undefined }),
+  (EN) => ({ ...EN, extra: 'unexpected' }),
+  (EN) => ({ ...EN, execBudgetRequired: '{unknown}' }),
+  (EN) => ({ ...EN, toolLabels: { ...EN.toolLabels, shell: undefined } }),
+  (EN) => ({ ...EN, todoProgress: '{unknown}' }),
+  (EN) => ({ ...EN, stepSummary: { ...EN.stepSummary, other: undefined } }),
+  (EN) => ({ ...EN, composerLabel: 1 }),
+]
 
 beforeAll(async () => {
   mkdirSync(path.resolve('temp'), { recursive: true })
@@ -174,50 +187,48 @@ describe('the production browser English and full-table contract', () => {
     expect(UI_TEXT.referenceCliOptions).toEqual(canonical.referenceCliOptions)
   })
 
-  // Fourteen full locale tables validated twice over: genuinely long on a
-  // busy rig (measured 5-7 s against the 5 s default).
-  it(
-    'checks every installed language against the same complete canonical shape and slots',
-    { timeout: 60_000 },
-    () => {
-      const { EN, TABLE_LOCALES, tableFileName, tableProblems } = fixture.canonical
+  // One case per installed language (and per damaged table below), so a
+  // failure names the table a person would see broken. Each case validates
+  // a single full table (measured 0.1-0.3 s), far inside the default timeout.
+  it.each(TABLE_LOCALES)(
+    'checks %s against the same complete canonical shape and slots',
+    (locale) => {
+      const { EN, tableFileName, tableProblems } = fixture.canonical
       const { EN_SHAPE, installEmbeddedTable } = fixture.browser
-      const options = { locale: 'en', isStrict: false }
-      const broken = [
-        { ...EN, execBudgetRequired: undefined },
-        { ...EN, extra: 'unexpected' },
-        { ...EN, execBudgetRequired: '{unknown}' },
-        { ...EN, toolLabels: { ...EN.toolLabels, shell: undefined } },
-        { ...EN, todoProgress: '{unknown}' },
-        { ...EN, stepSummary: { ...EN.stepSummary, other: undefined } },
-        { ...EN, composerLabel: 1 },
-      ]
-      for (const table of broken) {
-        const expected = tableProblems(EN, table, options)
-        expect(expected.length).toBeGreaterThan(0)
-        expect(tableProblems(EN_SHAPE, table, options)).toEqual(expected)
-      }
-      for (const locale of TABLE_LOCALES) {
-        const table = JSON.parse(readFileSync(path.join('l10n', tableFileName(locale)), 'utf8'))
-        expect(tableProblems(EN_SHAPE, table, { locale, isStrict: false }), locale).toEqual(
-          tableProblems(EN, table, { locale, isStrict: false }),
-        )
-        expect(
-          installEmbeddedTable({
-            querySelector: () => ({ textContent: JSON.stringify({ locale, table }) }),
-          }),
-          locale,
-        ).toBeUndefined()
-      }
+      const table = JSON.parse(readFileSync(path.join('l10n', tableFileName(locale)), 'utf8'))
+      expect(tableProblems(EN_SHAPE, table, { locale, isStrict: false }), locale).toEqual(
+        tableProblems(EN, table, { locale, isStrict: false }),
+      )
       expect(
         installEmbeddedTable({
-          querySelector: () => ({
-            textContent: JSON.stringify({ locale: 'en', table: broken[0] }),
-          }),
-        })?.message,
-      ).toContain('execBudgetRequired: missing')
+          querySelector: () => ({ textContent: JSON.stringify({ locale, table }) }),
+        }),
+        locale,
+      ).toBeUndefined()
     },
   )
+
+  it.each(brokenTables)('rejects damaged table %# exactly as the canonical shape does', (build) => {
+    const { EN, tableProblems } = fixture.canonical
+    const { EN_SHAPE } = fixture.browser
+    const options = { locale: 'en', isStrict: false }
+    const table = build(EN)
+    const expected = tableProblems(EN, table, options)
+    expect(expected.length).toBeGreaterThan(0)
+    expect(tableProblems(EN_SHAPE, table, options)).toEqual(expected)
+  })
+
+  it('refuses an embedded table with a missing key', () => {
+    const { EN } = fixture.canonical
+    const { installEmbeddedTable } = fixture.browser
+    expect(
+      installEmbeddedTable({
+        querySelector: () => ({
+          textContent: JSON.stringify({ locale: 'en', table: brokenTables[0](EN) }),
+        }),
+      })?.message,
+    ).toContain('execBudgetRequired: missing')
+  })
 
   it('does not eagerly load an English group for a technical command word', () => {
     const source = path.join(fixture.folder, 'technical-group.ts')
