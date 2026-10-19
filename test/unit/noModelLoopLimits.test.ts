@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { structuredSideCall } from '../../src/core/backends/modelapi/structuredOutput'
+import { subagentTaskPrice } from '../../src/shared/paid'
 
 const answerSchema = z.object({ answer: z.string() })
 
@@ -74,5 +75,21 @@ describe('no model-loop limits: structured-output repairs', () => {
         fallback: () => ({ answer: 'fallback' }),
       }),
     ).rejects.toThrow()
+  })
+})
+
+// NOLIMITSRUN (PLAN.md D121): no request bound of ours on a child task. A
+// subagent runs until done or stopped; the paid-consent card prices from the
+// published rates with no cap, and every request is tallied as it goes.
+describe('no model-loop limits: subagent task pricing', () => {
+  it('prices the task from the rates with no request cap of ours', () => {
+    const price = subagentTaskPrice('muse-spark-1.3')
+    expect(price).toContain('muse-spark-1.3')
+    expect(price).toContain('billed per request')
+    expect(price).not.toContain('up to')
+  })
+
+  it('still names an unverified price as unknown', () => {
+    expect(subagentTaskPrice('no-such-model')).toBeTruthy()
   })
 })

@@ -2483,7 +2483,10 @@ export const MODEL_API_PRICED_MODELS = {
   contributor: ['muse-spark-1.2-contributor', 'muse-spark-1.3-contributor'],
 } as const
 /** A consent grant covers actual child HTTP attempts, including all retries. */
-export const SUBAGENT_TASK_MAX_REQUESTS = 4
+// D121 (owner 2026-10-16): no request bound of ours on a child task — a
+// subagent runs until done or stopped. The paid-consent card prices from the
+// published rates with no cap, and every request is tallied as it goes.
+// No provider documents a per-task request count, so the product sets none.
 // Best-of-N parallel attempts (M77, PLAN.md D49, D121): the same prompt runs
 // in this many worktrees, each attempt stopping after this many model
 // requests. Both numbers are the person's own per-run choice: no provider
@@ -2498,7 +2501,7 @@ export const BEST_OF_N_BRANCH_PREFIX = 'best-of-n'
 export const BEST_OF_N_DIFF_MAX_CHARS = 32_000
 export const BEST_OF_N_MIN_GIT_MINOR = 36
 /** Bump when the accepted rates or child-task limit changes. */
-export const SUBAGENT_PRICE_ACCEPTANCE_VERSION = '2026-09-26:requests-4:v1'
+export const SUBAGENT_PRICE_ACCEPTANCE_VERSION = '2026-10-19:unbounded:v1'
 export const TOKENS_PER_MILLION = 1_000_000
 // dev.meta.ai/docs/models: every Muse Spark model has this window; the
 // output cap is well under the documented 131,072 maximum.
@@ -7485,8 +7488,6 @@ export const MODEL_API_MODEL_TEXT = {
   subagentNoReply: 'The subagent ended without a final reply.',
   subagentPaidOff: 'Paid subagents are off. The user must enable them and accept the price first.',
   subagentConsentDeclined: 'The user did not approve this paid child task.',
-  subagentRequestLimit:
-    'The child task reached its approved limit of {limit} requests, including retries.',
   subagentKeyChanged:
     'The Model API key changed after approval. New child-task consent is required.',
   subagentModelChanged: 'The model changed after approval. New child-task consent is required.',

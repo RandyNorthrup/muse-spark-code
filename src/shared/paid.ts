@@ -35,7 +35,6 @@ import {
   type SETTING_DEFAULTS,
   PAID_PRICES_USD,
   type PaidFeature,
-  SUBAGENT_TASK_MAX_REQUESTS,
   UI_TEXT,
 } from './constants'
 import { fill, formatNumber } from './l10n/text'
@@ -135,7 +134,6 @@ export interface SubagentTaskConfirmation {
   readonly role: string
   readonly objective: string
   readonly modelId: string
-  readonly attemptLimit: number
 }
 
 export interface SubagentUsage {
@@ -230,8 +228,12 @@ export function paidWindowOnceFeatures(): ReadonlySet<PaidFeature> {
   return new Set(PAID_FEATURES.filter((feature) => PAID_USE_REGISTRY[feature].once === 'window'))
 }
 
-/** Exact published rates and the task's HTTP attempt cap, in the installed locale. */
-export function subagentTaskPrice(modelId: string, attemptLimit: number): string {
+/**
+ * Exact published rates, in the installed locale. D121: no request cap of
+ * ours — the card prices the task from the rates, and every request is
+ * tallied as it goes until the task ends or is stopped.
+ */
+export function subagentTaskPrice(modelId: string): string {
   const tier = modelApiPaidTier(modelId)
   if (tier === undefined) {
     return UI_TEXT.subagentTariffUnknown
@@ -242,7 +244,6 @@ export function subagentTaskPrice(modelId: string, attemptLimit: number): string
     input: formatUsd(rates.input, MODEL_API_PRICE_DECIMALS),
     cached: formatUsd(rates.cachedInput, MODEL_API_PRICE_DECIMALS),
     output: formatUsd(rates.output, MODEL_API_PRICE_DECIMALS),
-    limit: formatNumber(attemptLimit),
   })
 }
 
@@ -449,11 +450,8 @@ export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: UsdAmoun
     }
     case 'subagents': {
       return [
-        subagentTaskPrice(DEFAULT_MODEL_ID, SUBAGENT_TASK_MAX_REQUESTS),
-        subagentTaskPrice(
-          `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`,
-          SUBAGENT_TASK_MAX_REQUESTS,
-        ),
+        subagentTaskPrice(DEFAULT_MODEL_ID),
+        subagentTaskPrice(`${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`),
       ].join('\n')
     }
     case 'bestOfN': {
