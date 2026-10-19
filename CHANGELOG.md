@@ -81,6 +81,20 @@ happened, not what was planned; superseded entries are kept.
   governed command boundary and its aliases, and pins the branded
   signatures so loosening one fails the gate.
 
+- Every process start takes the branded child environment (round 7):
+  direct `child_process` starts move behind one guarded wrapper
+  (`spawnGuarded`/`execFileGuarded` take only the brand), and a native
+  helper payload serializes only from the brand, so the Windows team
+  payload hole — a `string[]` the compiler could not see — is closed
+  with its class: the `RunTeam` block is built from the same guarded
+  environment the POSIX launch uses for its cwd. The serve/login
+  builder returns the brand through the same producers, and the
+  producers guard every `PATH` spelling and drop a preset
+  `NoDefaultCurrentDirectoryInExePath` on Windows. The inventory fails
+  on any direct starter outside the two sanctioned modules or any
+  second cast to the brand. (`test/unit/pathGuardRound7.test.ts`,
+  `test/unit/pathGuardSpawns.test.ts`)
+
 ### Fixed
 
 - On Windows, two requests that reserve session spend at the same moment
