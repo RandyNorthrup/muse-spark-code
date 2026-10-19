@@ -2,7 +2,12 @@ import * as vscode from 'vscode'
 import { randomBytes } from 'node:crypto'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import { UI_TEXT, VAULT_ACTIONS_BUNDLE_FILE, VAULT_LIMITS } from '../../shared/constants'
+import {
+  SETTINGS_SECTION,
+  UI_TEXT,
+  VAULT_ACTIONS_BUNDLE_FILE,
+  VAULT_LIMITS,
+} from '../../shared/constants'
 import { vaultRefusalSentences } from '../../shared/vaultRefusals'
 import { type VaultHostMessage } from '../../shared/hostApi/vaultMessages'
 import { type UiText } from '../../shared/l10n/en'
@@ -17,6 +22,25 @@ import { VaultPanelHost, type VaultPanelHostDeps, type VaultPanelService } from 
 import { vaultPanelService } from './vaultPanelService'
 import { type VaultActionsBundle, vaultActionsLoader } from './vaultActionsBundle'
 import { VAULT_COMMANDS, type VaultWindowControls } from './vaultPanelBundle'
+import { isVaultEnabled } from './vaultSwitch'
+
+/**
+ * README's legacy vault switch, resolved live where the vault runs. A
+ * switched-off vault refuses before any service is built, on the
+ * broker-backed path alone; a test's injected service bypasses it.
+ */
+function throwWhenSwitchedOff(
+  service: VaultPanelService | undefined,
+  log: Logger,
+  table: UiText,
+): void {
+  if (
+    service === undefined &&
+    !isVaultEnabled(vscode.workspace.getConfiguration(SETTINGS_SECTION), log)
+  ) {
+    throw new Error(table.vault.switchedOff)
+  }
+}
 
 /** The broker-backed service over the platform's connection, and a probe that proves it is up. */
 function brokerService(
@@ -182,17 +206,36 @@ function serviceAndStatus(deps: {
  * (surfaced as the host's operation failure); the panel hides the section
  * because it is given no factory.
  */
+/**
+ * What both factories open with: the installed table, the live vault switch
+ * and the lazily required actions bundle. One preamble, so the two factories
+ * cannot drift apart on the refusal order.
+ */
+function switchedOnActions(
+  deps: {
+    readonly distDir: string
+    readonly service?: VaultPanelService | undefined
+    readonly log: Logger
+    readonly loadActionsBundle?: ((file: string) => unknown) | undefined
+  },
+  table: UiText,
+  locale: string,
+): () => VaultActionsBundle {
+  setUiText(table, locale)
+  throwWhenSwitchedOff(deps.service, deps.log, table)
+  return vaultActionsLoader({
+    bundlePath: path.join(deps.distDir, VAULT_ACTIONS_BUNDLE_FILE),
+    log: deps.log,
+    loadBundle: deps.loadActionsBundle,
+  })
+}
+
 export function createModelsVaultBinding(
   deps: ModelsVaultBindingDeps,
   table: UiText,
   locale: string,
 ): ModelsVaultBinding {
-  setUiText(table, locale)
-  const actions = vaultActionsLoader({
-    bundlePath: path.join(deps.distDir, VAULT_ACTIONS_BUNDLE_FILE),
-    log: deps.log,
-    loadBundle: deps.loadActionsBundle,
-  })
+  const actions = switchedOnActions(deps, table, locale)
   const { service, statusItem, status, disposeBroker } = serviceAndStatus({ ...deps, actions })
   const host = new VaultPanelHost({
     ...nativeHostDeps({ now: deps.now, actions }),
@@ -236,12 +279,7 @@ export function createWindowVaultControls(
   table: UiText,
   locale: string,
 ): VaultWindowControls {
-  setUiText(table, locale)
-  const actions = vaultActionsLoader({
-    bundlePath: path.join(deps.distDir, VAULT_ACTIONS_BUNDLE_FILE),
-    log: deps.log,
-    loadBundle: deps.loadActionsBundle,
-  })
+  const actions = switchedOnActions(deps, table, locale)
   const broker = deps.service === undefined ? brokerService(deps.distDir, actions) : undefined
   const service = deps.service ?? broker?.service
   if (service === undefined) throw new Error(UI_TEXT.vault.brokerBlocked)
