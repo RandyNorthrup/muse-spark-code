@@ -11,7 +11,7 @@
 import type { Connection } from '@muse-code/sdk/dist/src/connection/connection.js'
 import * as z from 'zod/mini'
 import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
-import { environmentValue } from '../../core/childEnvironment'
+import { environmentValue } from '../../core/execGuard'
 import { spawnResourceConnection } from '../resources/museResourceLaunch'
 import { wireWordForLog } from '../../core/logging'
 import { unlessAborted, withDeadline } from '../../core/timeouts'

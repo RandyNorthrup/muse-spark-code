@@ -1,6 +1,6 @@
 import * as z from 'zod/mini'
 import { resourceProcessIdentitySchema, resourceTreeUsageSchema } from '../../../shared/resources'
-import type { ResourceTreeRun } from './run'
+import { probeChildEnvironment, type ResourceTreeRun } from './run'
 
 const DECIMAL = /^\d+$/
 
@@ -90,7 +90,11 @@ export async function readMacProcess(
   pid: number,
   run: ResourceTreeRun,
 ): Promise<{ readonly row: Omit<ProcessSample, 'startTime'>; readonly started: string } | null> {
-  const text = await run(MAC_PS, ['-o', `${MAC_PROCESS_COLUMNS},lstart=`, '-p', String(pid)])
+  const text = await run(
+    MAC_PS,
+    ['-o', `${MAC_PROCESS_COLUMNS},lstart=`, '-p', String(pid)],
+    probeChildEnvironment({ LC_ALL: 'C' }),
+  )
   const lines = text.trim().split(/\r?\n/)
   const match = lines.length === 1 ? MAC_PROCESS_WITH_START.exec(lines[0] ?? '') : null
   const [, columns = '', started = ''] = match ?? []

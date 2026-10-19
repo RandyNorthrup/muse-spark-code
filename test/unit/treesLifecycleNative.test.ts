@@ -10,7 +10,11 @@ import { LinuxResourceTreeReader } from '../../src/core/resources/trees/linux'
 import { MacResourceTreeReader } from '../../src/core/resources/trees/mac'
 import { ResourceTreeRegistry } from '../../src/core/resources/trees/registry'
 import { signalVerifiedPosix } from '../../src/core/resources/trees/actions'
-import { runTreeProgram, type ResourceTreeRun } from '../../src/core/resources/trees/run'
+import {
+  probeChildEnvironment,
+  runTreeProgram,
+  type ResourceTreeRun,
+} from '../../src/core/resources/trees/run'
 import type { ResourceProcessIdentity, ResourceTicket } from '../../src/shared/resources'
 import { removeFolder } from './helpers/temporaryFolders'
 import { darwinProcessHelper } from './helpers/darwinProcessHelper'
@@ -47,7 +51,7 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
         await runTreeProgram(
           '/usr/bin/cc',
           [path.resolve('test/unit/helpers/resourceLifecycle.c'), '-o', file],
-          { PATH: '/usr/bin:/bin' },
+          probeChildEnvironment({ PATH: '/usr/bin:/bin' }),
         )
         const parent = spawn(file, ['hold-zombie'], {
           detached: true,
@@ -81,9 +85,13 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
             if ((await reader.identity(pid)) === null) break
             await setTimeout(1)
           }
-          expect(await runTreeProgram('/bin/ps', ['-p', String(pid), '-o', 'state='])).toMatch(
-            /^Z/m,
-          )
+          expect(
+            await runTreeProgram(
+              '/bin/ps',
+              ['-p', String(pid), '-o', 'state='],
+              probeChildEnvironment({ LC_ALL: 'C' }),
+            ),
+          ).toMatch(/^Z/m)
           expect(await registry.signal(ticket, root!, 'SIGTERM')).toBe('gone')
           let stopped = await registry.kill(ticket)
           // OS-wide numerical scans can be unknown during concurrent process churn.
@@ -121,7 +129,7 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
         await runTreeProgram(
           '/usr/bin/cc',
           [path.resolve('test/unit/helpers/resourceLifecycle.c'), '-o', file],
-          { PATH: '/usr/bin:/bin' },
+          probeChildEnvironment({ PATH: '/usr/bin:/bin' }),
         )
         for (let attempt = 0; attempt < 32; attempt++) {
           const child = spawn(file, ['short'], {
@@ -219,7 +227,7 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
         await runTreeProgram(
           '/usr/bin/cc',
           [path.resolve('test/unit/helpers/resourceLifecycle.c'), '-o', file],
-          { PATH: '/usr/bin:/bin' },
+          probeChildEnvironment({ PATH: '/usr/bin:/bin' }),
         )
         const rootProcess = spawn(file, ['descendants'], {
           detached: true,

@@ -1,9 +1,6 @@
 // M105 R1: portable macOS driver. The caller owns the interactive entry point,
 // preview and upload; M1 supplies inspect and the editor/runtime supplies spawn.
-import { Buffer } from 'node:buffer'
-import { chmod, lstat, mkdtemp, rm } from 'node:fs/promises'
 import path from 'node:path'
-import { StringDecoder } from 'node:string_decoder'
 import * as z from 'zod/mini'
 import { isCredentialVariable } from '../../../shared/credentialEnvironment'
 import {
@@ -13,7 +10,6 @@ import {
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../../shared/constants'
-import { fill } from '../../../shared/l10n/text'
 import {
   mediaInfoSchema,
   screenRecordingOptionsSchema,
@@ -21,6 +17,13 @@ import {
 } from '../../../shared/media'
 import type { HelperChild } from '../../voice/dictation'
 import type { ScreenRecordingDriver, ScreenRecordingResult } from './driver'
+import { type GuardedChildEnv } from '../../executables'
+import { noWorkspaceChildEnvironment } from '../../execGuard'
+import { Buffer } from 'node:buffer'
+import { chmod, lstat, mkdtemp, rm } from 'node:fs/promises'
+import { StringDecoder } from 'node:string_decoder'
+import { fill } from '../../../shared/l10n/text'
+import { realpathSync } from 'node:fs'
 
 const PRIVATE_DIRECTORY_MODE = 0o700
 const PRIVATE_FILE_MODE = 0o600
@@ -58,8 +61,12 @@ export interface MacosScreenRecordingDeps {
   >
   /** Host power-suspend subscription. Unsubscribe when the run settles. */
   readonly onSuspend?: (listener: () => void) => () => void
-  /** Spawn directly with this exact argument array and environment; no shell. */
-  readonly spawn: (command: string, args: readonly string[], env: NodeJS.ProcessEnv) => HelperChild
+  /**
+   * Spawn directly with this exact argument array and environment; no shell.
+   * The driver hands it only the guarded recorder environment below, so a
+   * raw environment does not type-check here.
+   */
+  readonly spawn: (command: string, args: readonly string[], env: GuardedChildEnv) => HelperChild
   /** M1's bounded sniffer, injected until its lane is integrated. */
   readonly inspect: (file: string) => Promise<MediaInfo>
   /** Lane W binds these to SCREEN_RECORDING_* tunables in shared/constants. */
@@ -112,13 +119,19 @@ function unavailable(reason: string): ScreenRecordingResult & { readonly ok: fal
   return { ok: false, reason: fill(UI_TEXT.media.recordingUnavailable, { reason }) }
 }
 
-/** No credential of any shape, or inherited disclaim marker, reaches the helper/converters. */
-function childEnvironment(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return Object.fromEntries(
+/**
+ * No credential of any shape, or inherited disclaim marker, reaches the
+ * helper/converters — and the recorder helpers run fixed absolute commands
+ * with the host working directory, never a workspace: absolute PATH entries
+ * only, links followed.
+ */
+function childEnvironment(base: NodeJS.ProcessEnv): GuardedChildEnv {
+  const filtered = Object.fromEntries(
     Object.entries(base).filter(
       ([name]) => !isCredentialVariable(name) && name.toUpperCase() !== 'MUSE_DICTATE_DISCLAIMED',
     ),
   )
+  return noWorkspaceChildEnvironment(process.platform, filtered, realpathSync)
 }
 
 export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): ScreenRecordingDriver {

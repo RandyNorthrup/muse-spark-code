@@ -15,6 +15,7 @@ import {
   type VaultSlotRecord,
 } from '../../../shared/vault'
 import { spawnResourceProcess } from '../../../core/resources/launcher'
+import { probeChildEnvironment } from '../../../core/resources/trees/run'
 import { slotContextSchema, type SlotContext } from './slotIdentity'
 import { wrapSlotKey } from './slotWrap'
 
@@ -47,7 +48,9 @@ async function defaultRun(
   }
   let launched: Awaited<ReturnType<typeof spawnResourceProcess>>
   try {
-    launched = await spawnResourceProcess('contained', tool, args, { env: {} })
+    launched = await spawnResourceProcess('contained', tool, args, {
+      env: probeChildEnvironment({}),
+    })
   } catch {
     owned.fill(0)
     throw new VaultStoreUnavailableError()

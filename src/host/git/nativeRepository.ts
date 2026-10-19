@@ -20,8 +20,10 @@ import { withoutCredentials } from '../../core/credentialEnvironment'
 import { isPlainRefName } from '../../core/git/pushPlan'
 import { readNativeStatus, toPushHead } from '../../core/git/status'
 import { GIT_PUSH_CREDENTIAL_VARIABLES, UI_TEXT } from '../../shared/constants'
-import { quietGitEnvironment, type GitProcess } from '../git'
+import { quietGitEnvironment } from '../../core/execGuard'
+import { type GitProcess } from '../git'
 import { GitUnavailableError, type CheckoutRepository } from './gitExtension'
+import { realpathSync } from 'node:fs'
 
 export interface NativeRepositoryDeps {
   /** git with binary stdout, through the governed runner (git.ts `createGitProcess`). */
@@ -43,7 +45,15 @@ export function nativeCheckoutRepository(
   const run: GitProcess = (args, options) =>
     deps.gitProcess(args, { ...options, timeoutMs: undefined, signal: deps.signal })
   return async (root) => {
-    const quiet = { cwd: root, env: quietGitEnvironment(deps.env), signal: deps.signal }
+    const quiet = {
+      cwd: root,
+      env: quietGitEnvironment(deps.env, {
+        workspaceRoot: root,
+        platform: process.platform,
+        realpath: realpathSync,
+      }),
+      signal: deps.signal,
+    }
     let toplevel: string
     try {
       const shown = await run(['rev-parse', '--show-toplevel'], { ...quiet, timeoutMs: undefined })

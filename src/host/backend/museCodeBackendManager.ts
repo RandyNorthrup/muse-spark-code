@@ -1,4 +1,3 @@
-import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 // Owns the single `muse serve` process for this extension host: locates the
 // CLI, shapes its environment, spawns it through the SDK, and hands out the
 // MuseCodeHost wrapper. Everything platform-specific is delegated to the pure
@@ -13,8 +12,6 @@ import { resourceEnvironment, type ResourceLease } from '../../core/resources/la
 // location is resolved once per set of inputs instead of probing PATH on
 // every message.
 
-import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
-import { homedir } from 'node:os'
 import path from 'node:path'
 // The SDK's fingerprint advisory, type-only through its own module: any
 // import of the package root keeps the SDK's side effects in the activation
@@ -29,15 +26,6 @@ import type {
   spawnAccountMspConnection,
   MspHost,
 } from '../../core/backends/musecode/MuseCodeHost'
-import { environmentValue } from '../../core/childEnvironment'
-import {
-  buildChildEnvironment,
-  credentialFilePath,
-  type LaunchResolution,
-  type MuseLaunch,
-  resolveMuseLaunch,
-  withLoopbackBypass,
-} from '../../core/backends/musecode/launch'
 import {
   isLinuxSandboxBlocked,
   isSandboxNetworkApplied,
@@ -48,13 +36,9 @@ import {
   serveArguments,
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
-import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
 import { isMissingPath } from '../canonicalPath'
 import { describeStoreError } from './storeErrors'
-import { clipForLog } from '../../core/logging'
-import { isSamePath } from '../../core/paths'
 import { stillWaitingText, waitForAnswer } from '../../core/timeouts'
-import { resolveWorkspacePath } from '../../core/workspacePath'
 import {
   MSP_CLIENT_NAME,
   MSP_KNOWN_SCHEMA_FINGERPRINTS,
@@ -70,7 +54,6 @@ import {
   type ShellSandboxMode,
   UI_TEXT,
 } from '../../shared/constants'
-import { readCredentialFile } from '../auth/cliAccount'
 import { isContributorModeEnabled } from './museSettings'
 import type { UsageRecording } from '../../core/usage/recording'
 import type { Logger } from '../logger'
@@ -79,6 +62,23 @@ import { isUsageNotesBundle, museCodeBundleLoader, type MuseCodeBundle } from '.
 import { systemPath } from './memoryIo'
 import { admitResource } from '../../core/resources/admission'
 import { spawnResourceConnection } from '../resources/museResourceLaunch'
+import {
+  credentialFilePath,
+  type LaunchResolution,
+  type MuseLaunch,
+  resolveMuseLaunch,
+  withLoopbackBypass,
+} from '../../core/backends/musecode/launch'
+import { buildChildEnvironment, environmentValue } from '../../core/execGuard'
+import { type GuardedChildEnv, NO_WORKSPACE } from '../../core/executables'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
+import { clipForLog } from '../../core/logging'
+import { isSamePath } from '../../core/paths'
+import { resolveWorkspacePath } from '../../core/workspacePath'
+import { readCredentialFile } from '../auth/cliAccount'
 import { vaultFenceEnvironment, type VaultFenceOptions } from '../../core/vault/exec/fence'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */
@@ -264,6 +264,13 @@ export class MuseCodeBackendManager {
       extraVariables: this.deps.getEnvironmentVariables(),
       systemRoot: process.env['SystemRoot'],
       programFiles: process.env['ProgramFiles'],
+      scope:
+        this.deps.workspaceRoot === undefined
+          ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+          : {
+              workspaceRoot: this.deps.workspaceRoot,
+              realpath: realpathSync,
+            },
     })
     return names.some((name) => (environmentValue(own, process.platform, name) ?? '') !== '')
   }
@@ -322,7 +329,7 @@ export class MuseCodeBackendManager {
       options,
       resource,
       () => this.deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
-      environmentValue(options.env ?? {}, process.platform, 'SystemRoot'),
+      environmentValue(options.env, process.platform, 'SystemRoot'),
       async () => {
         await assertCanRun()
         accountHome.assertCurrent()
@@ -592,7 +599,7 @@ export class MuseCodeBackendManager {
     return this.loadBackend()
   }
 
-  public childEnvironment(): NodeJS.ProcessEnv {
+  public childEnvironment(): GuardedChildEnv {
     const env = withLoopbackBypass(
       buildChildEnvironment({
         platform: process.platform,
@@ -601,10 +608,13 @@ export class MuseCodeBackendManager {
         systemRoot: process.env['SystemRoot'],
         programFiles: process.env['ProgramFiles'],
         ...(this.deps.accountHome !== undefined && { accountHome: this.deps.accountHome }),
-        ...(this.deps.workspaceRoot !== undefined && {
-          workspaceRoot: this.deps.workspaceRoot,
-          realpath: realpathSync,
-        }),
+        scope:
+          this.deps.workspaceRoot === undefined
+            ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+            : {
+                workspaceRoot: this.deps.workspaceRoot,
+                realpath: realpathSync,
+              },
       }),
       process.platform,
     )
@@ -728,10 +738,13 @@ export class MuseCodeBackendManager {
       readTextFile: (filePath) => readTextFileOrUndefined(this.deps.log, filePath),
       listDirectory: (directory) => listDirectoryOrEmpty(this.deps.log, directory),
       serveArgs,
-      ...(this.deps.workspaceRoot !== undefined && {
-        workspaceRoot: this.deps.workspaceRoot,
-        realpath: realpathSync,
-      }),
+      scope:
+        this.deps.workspaceRoot === undefined
+          ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+          : {
+              workspaceRoot: this.deps.workspaceRoot,
+              realpath: realpathSync,
+            },
     })
     this.launchCache = { key, resolution }
     return resolution

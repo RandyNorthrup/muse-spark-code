@@ -51,14 +51,17 @@ async function localProgram(
   file: string,
   args: readonly string[],
   signal: AbortSignal,
+  workspaceRoot: string,
   text?: string,
 ): Promise<void> {
   // Fixed platform clipboard/browser binaries and switches; a confined file is one
   // argument, scrubbed text is stdin, no shell or credential environment (M118).
+  // Bare adapter names never resolve inside the shared workspace.
   try {
     await handoffResourceFile(file, args, {
       env: withoutCredentials(process.env),
       signal,
+      workspaceRoot,
       ...(text !== undefined && { input: text }),
     })
   } catch (error: unknown) {
@@ -122,7 +125,7 @@ function commandsFor(ports: RuntimeSharingPorts): SharingCommands {
           program = 'powershell.exe'
           args = ['-NoProfile', '-Command', 'Set-Clipboard -Value ([Console]::In.ReadToEnd())']
         }
-        await localProgram(program, args, signal, preview.content)
+        await localProgram(program, args, signal, root, preview.content)
         return
       }
       const destinationFile =
@@ -153,7 +156,7 @@ function commandsFor(ports: RuntimeSharingPorts): SharingCommands {
       let program = 'xdg-open'
       if (process.platform === 'darwin') program = 'open'
       else if (process.platform === 'win32') program = 'explorer.exe'
-      await localProgram(program, [checked.checkedAbsolute], signal)
+      await localProgram(program, [checked.checkedAbsolute], signal, root)
     },
   })
 }

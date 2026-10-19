@@ -5,6 +5,7 @@ import process from 'node:process'
 import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
 import * as z from 'zod/mini'
 import type { ResourcePipedProcess, ResourceProcessOptions } from '../../resources/launch'
+import { probeChildEnvironment } from '../../resources/trees/run'
 import {
   JUDGE_FAST_B1_DARWIN_ABI,
   JUDGE_FAST_B1_MAX_ABI,
@@ -164,9 +165,11 @@ export class InspectRunner {
     try {
       if (isAborted(combined))
         return { stdout: '', stderr: '', exitCode: null, refusal: 'cancelled' }
+      // The trusted inspect helper with a fixed PATH: absolute entries
+      // only, links followed.
       process = await this.options.start(this.options.helper, args, {
         cwd,
-        env: { PATH: '/usr/bin:/bin', LC_ALL: 'C', TZ: 'UTC0' },
+        env: probeChildEnvironment({ PATH: '/usr/bin:/bin', LC_ALL: 'C', TZ: 'UTC0' }),
         signal: combined,
       })
       const launched = process

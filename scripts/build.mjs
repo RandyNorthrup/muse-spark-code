@@ -90,6 +90,7 @@ import {
   sharedResourceAdmission,
   sharedStructuredSchema,
   sharedModelApiBoundaries,
+  sharedExecGuard,
   englishZodLocales,
   sharedRedaction,
   sharedVaultStore,
@@ -230,6 +231,10 @@ const RULES_FILE_ENTRY = 'src/host/commands/rulesFileEntry.ts'
 const RULES_FILE_OUTFILE = 'dist/rulesFile.js'
 const NATIVE_GIT_ENTRY = 'src/runtime/panel/git/nativeGitEntry.ts'
 const NATIVE_GIT_OUTFILE = 'dist/nativeGit.js'
+// The guarded process-start layer (PLAN.md D24), required beside activation
+// by every Node bundle that starts a program or builds a child environment.
+const EXEC_GUARD_ENTRY = 'src/core/execGuardEntry.ts'
+const EXEC_GUARD_OUTFILE = 'dist/execGuard.js'
 const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
@@ -409,6 +414,7 @@ const sharingRuntimeOptions = {
     sharedWire,
     sharedResourceAdmission,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [SHARING_RUNTIME_ENTRY],
   outfile: SHARING_RUNTIME_OUTFILE,
@@ -437,6 +443,7 @@ const modelApiOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
     deferredTeamView,
     compressedModelText(isProduction),
   ],
@@ -659,6 +666,7 @@ const reviewOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
@@ -681,6 +689,7 @@ const reportOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [REPORT_ENTRY],
   outfile: REPORT_OUTFILE,
@@ -730,6 +739,7 @@ const recorderOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [RECORDER_ENTRY],
   outfile: RECORDER_OUTFILE,
@@ -771,6 +781,7 @@ const planMarkdownOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [PLAN_MARKDOWN_ENTRY],
   outfile: PLAN_MARKDOWN_OUTFILE,
@@ -853,6 +864,7 @@ const whatsNewOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [WHATS_NEW_ENTRY],
   outfile: WHATS_NEW_OUTFILE,
@@ -962,6 +974,7 @@ const agentImportOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
@@ -1039,6 +1052,7 @@ const bundledSkillsOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [BUNDLED_SKILLS_ENTRY],
   outfile: BUNDLED_SKILLS_OUTFILE,
@@ -1077,6 +1091,7 @@ const conversationGitOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [CONVERSATION_GIT_ENTRY],
   outfile: CONVERSATION_GIT_OUTFILE,
@@ -1113,7 +1128,6 @@ const rulesFileOptions = {
   entryPoints: [RULES_FILE_ENTRY],
   outfile: RULES_FILE_OUTFILE,
 }
-
 // M123's native Git route (D104), required by the conversation Git bundle the
 // first time a conversation opens in a host without `vscode.git`: the
 // runtime Git adapter, its service, the repository lease and the runtime's
@@ -1147,6 +1161,16 @@ const commandsOptions = {
   target: HOST_NODE_TARGET,
 }
 
+// The guarded process-start layer (PLAN.md D24), required beside activation
+// by every Node bundle that starts a program or builds a child environment:
+// its own build carries it (the shared plugin stands down for this outfile).
+/** @type {import('esbuild').BuildOptions} */
+const execGuardOptions = {
+  ...conversationGitOptions,
+  entryPoints: [EXEC_GUARD_ENTRY],
+  outfile: EXEC_GUARD_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
@@ -1158,6 +1182,7 @@ const checkpointStoreOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
@@ -1212,6 +1237,7 @@ const browserCheckOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [BROWSER_CHECK_ENTRY],
   outfile: BROWSER_CHECK_OUTFILE,
@@ -1231,6 +1257,7 @@ const browserRuntimeOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [BROWSER_RUNTIME_ENTRY],
   outfile: BROWSER_RUNTIME_OUTFILE,
@@ -1253,6 +1280,7 @@ const acpOptions = {
     sharedStructuredSchema,
     deferredTeamView,
     sharedModelApiBoundaries,
+    sharedExecGuard,
     englishZodLocales,
   ],
   entryPoints: [ACP_ENTRY],
@@ -1702,6 +1730,7 @@ if (isWatch) {
     esbuild.context(modelApiSessionsOptions),
     esbuild.context(rulesFileOptions),
     esbuild.context(nativeGitOptions),
+    esbuild.context(execGuardOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(legalScanOptions),
     esbuild.context(codeIntelOptions),
@@ -1857,6 +1886,7 @@ if (isWatch) {
     modelApiSessions: recorded('modelApiSessions', modelApiSessionsOptions),
     rulesFile: recorded('rulesFile', rulesFileOptions),
     nativeGit: recorded('nativeGit', nativeGitOptions),
+    execGuard: recorded('execGuard', execGuardOptions),
     bundledSkills: recorded('bundledSkills', bundledSkillsOptions),
     legalScan: recorded('legalScan', legalScanOptions),
     codeIntel: recorded('codeIntel', codeIntelOptions),
@@ -2054,6 +2084,7 @@ if (isWatch) {
   reportSize(MODEL_API_SESSIONS_OUTFILE)
   reportSize(RULES_FILE_OUTFILE)
   reportSize(NATIVE_GIT_OUTFILE)
+  reportSize(EXEC_GUARD_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)

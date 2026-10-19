@@ -13,6 +13,7 @@
 !dist/museCode.js
 !dist/modelApiSessions.js
 !dist/rulesFile.js
+!dist/execGuard.js
 !dist/modelApiCodeIntel.js
 !dist/mcpPool.js
 !dist/structuredSchema.js

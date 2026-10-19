@@ -1,9 +1,10 @@
-import { constants } from 'node:fs'
+import { constants, realpathSync } from 'node:fs'
 import { open, realpath, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { userInfo } from 'node:os'
 import * as z from 'zod/mini'
+import { noWorkspaceChildEnvironment } from '../core/execGuard'
 import { runProgram } from '../host/processTree'
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { handleIdentity, lstatIdentity, sameFile } from '../core/fs/fileIdentity'
@@ -14,7 +15,13 @@ import type { TrustedPathVerifier } from './trustedPathPort'
 async function isUserPrivateGroup(gid: bigint, packageRoot: string): Promise<boolean> {
   const current = userInfo()
   if (gid !== BigInt(current.gid) || process.getgid?.() !== current.gid) return false
-  const env = withoutKeyringRoutes(withoutCredentials(process.env))
+  // Fixed system binaries only (the group's own tools never run): absolute
+  // entries only, links followed.
+  const env = noWorkspaceChildEnvironment(
+    process.platform,
+    withoutKeyringRoutes(withoutCredentials(process.env)),
+    realpathSync,
+  )
   try {
     if (process.platform === 'darwin') {
       const output = await runProgram(

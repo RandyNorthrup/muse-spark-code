@@ -1,7 +1,6 @@
 // Timed callers retain their legacy host/birth comparison. Vaults require
 // installation, boot and PID-namespace evidence before comparing a PID.
 // Hostnames are display labels, never vault death evidence.
-import { execFile } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, readlink, rm, writeFile } from 'node:fs/promises'
 import { homedir, hostname } from 'node:os'
@@ -20,6 +19,10 @@ import {
 } from '../../shared/constants'
 import { loadDeveloperMachineId } from '../developer/machineId'
 import { agentDataFolder } from '../../runtime/dataFolder'
+import { type GuardedChildEnv } from '../executables'
+import { noWorkspaceChildEnvironment } from '../execGuard'
+import { realpathSync } from 'node:fs'
+import { execFileGuarded } from '../guardedChildProcess'
 
 const NO_SUCH_PROCESS = 'ESRCH'
 const NO_SUCH_FILE = 'ENOENT'
@@ -120,15 +123,15 @@ function errorCode(error: unknown): string | undefined {
     : undefined
 }
 
-function run(file: string, args: readonly string[], env?: NodeJS.ProcessEnv): Promise<string> {
+function run(file: string, args: readonly string[], env: GuardedChildEnv): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(
+    execFileGuarded(
       file,
       [...args],
       {
         timeout: PROCESS_START_QUERY_TIMEOUT_MS,
         windowsHide: true,
-        ...(env !== undefined && { env }),
+        env,
       },
       (error, stdout) => {
         if (error === null) {
@@ -154,11 +157,16 @@ async function linuxStartTicks(pid: number): Promise<number | undefined> {
 
 async function darwinStartTime(pid: number): Promise<number | undefined> {
   // `lstart` in the C locale and UTC: "Thu Oct  9 08:05:19 2026".
-  const output = await run('/bin/ps', ['-o', 'lstart=', '-p', String(pid)], {
-    ...process.env,
-    LC_ALL: 'C',
-    TZ: 'UTC0',
-  })
+  // Fixed `/bin/ps`: absolute entries only, links followed.
+  const output = await run(
+    '/bin/ps',
+    ['-o', 'lstart=', '-p', String(pid)],
+    noWorkspaceChildEnvironment(
+      process.platform,
+      { ...process.env, LC_ALL: 'C', TZ: 'UTC0' },
+      realpathSync,
+    ),
+  )
   const started = Date.parse(`${output.trim()} GMT`)
   return Number.isFinite(started) ? started : undefined
 }
@@ -235,9 +243,11 @@ async function removeEndedBirthReaders(folder: string): Promise<void> {
  */
 async function isHighIntegrityHost(systemRoot: string): Promise<boolean> {
   try {
-    const groups = await run(path.win32.join(systemRoot, 'System32', 'whoami.exe'), ['/groups'], {
-      SystemRoot: systemRoot,
-    })
+    const groups = await run(
+      path.win32.join(systemRoot, 'System32', 'whoami.exe'),
+      ['/groups'],
+      noWorkspaceChildEnvironment(process.platform, { SystemRoot: systemRoot }, realpathSync),
+    )
     return groups.includes(HIGH_INTEGRITY_SID) || groups.includes(SYSTEM_INTEGRITY_SID)
   } catch (error: unknown) {
     // An inconclusive probe answers negatively; anything else is unexpected.
@@ -260,9 +270,7 @@ async function wallAboveLowerIntegrity(file: string, systemRoot: string): Promis
   await run(
     path.win32.join(systemRoot, 'System32', 'icacls.exe'),
     [file, '/setintegritylevel', 'H'],
-    {
-      SystemRoot: systemRoot,
-    },
+    noWorkspaceChildEnvironment(process.platform, { SystemRoot: systemRoot }, realpathSync),
   )
 }
 
@@ -303,7 +311,7 @@ async function buildWindowsBirthReader(systemRoot: string): Promise<BirthReader>
     await run(
       path.win32.join(systemRoot, WINDOWS_FRAMEWORK_RELATIVE_PATH, 'csc.exe'),
       ['/nologo', '/noconfig', '/target:exe', `/out:${file}`, `${stem}.cs`],
-      { SystemRoot: systemRoot },
+      noWorkspaceChildEnvironment(process.platform, { SystemRoot: systemRoot }, realpathSync),
     )
   } catch (error: unknown) {
     await removeQuietly(file)
@@ -366,7 +374,11 @@ async function windowsStartTime(pid: number): Promise<number | undefined> {
   }
   let output: string
   try {
-    output = await run(reader.file, [String(pid)], { SystemRoot: systemRoot })
+    output = await run(
+      reader.file,
+      [String(pid)],
+      noWorkspaceChildEnvironment(process.platform, { SystemRoot: systemRoot }, realpathSync),
+    )
   } catch (error: unknown) {
     // A reader that is gone or damaged is built again on the next read; one
     // the machine's policy refuses to start stays, since building the same
@@ -509,7 +521,12 @@ async function readExactEvidence(pid: number): Promise<ExactEvidence | undefined
       case 'darwin': {
         // Both tools ship in base macOS: no Xcode shim or developer tool.
         const output =
-          darwinBoot.value ?? (await run('/usr/sbin/sysctl', ['-n', 'kern.bootsessionuuid']))
+          darwinBoot.value ??
+          (await run(
+            '/usr/sbin/sysctl',
+            ['-n', 'kern.bootsessionuuid'],
+            noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
+          ))
         const boot = output.trim()
         if (boot) darwinBoot.value = boot
         const started = await darwinStartTime(pid)
@@ -533,6 +550,7 @@ async function readExactEvidence(pid: number): Promise<ExactEvidence | undefined
               String(pid) +
               ').StartTime.ToFileTimeUtc(); Add-Type -TypeDefinition \'using System; using System.Runtime.InteropServices; public static class MuseLeaseBoot { [StructLayout(LayoutKind.Sequential)] public struct Info { public Guid Id; public uint Firmware; public ulong Flags; } [DllImport("ntdll.dll")] static extern int NtQuerySystemInformation(int kind, out Info value, int size, out int returned); public static string Read() { Info value; int returned; if (NtQuerySystemInformation(90, out value, Marshal.SizeOf(typeof(Info)), out returned) != 0 || value.Id == Guid.Empty) throw new InvalidOperationException(); return value.Id.ToString(); } }\'; Write-Output ($birth.ToString()+":"+[MuseLeaseBoot]::Read())',
           ],
+          noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
         )
         const [birth, boot] = output.trim().split(':', 2)
         if (birth && boot && DECIMAL.test(birth) && /^[a-f0-9-]{36}$/iu.test(boot))

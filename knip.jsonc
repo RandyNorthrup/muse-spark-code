@@ -137,6 +137,8 @@
     // ACTIVATIONROOM: the CLI-backed and workspace command flows, required by
     // path on the first of those commands.
     "src/host/commands/commandsEntry.ts",
+    // The guarded process-start layer (D24), required by path beside activation.
+    "src/core/execGuardEntry.ts",
     // The bundled skills installer's own bundle (M89), required by path on first use.
     "src/host/skills/bundledSkillsEntry.ts",
     // Code intelligence's `ide` answers and voice's drivers, each required by

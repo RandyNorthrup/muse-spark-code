@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-import { execFile } from 'node:child_process'
 import {
   copyFile,
   mkdir,
@@ -11,11 +9,8 @@ import {
   utimes,
   writeFile,
 } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { screenRecordExecutable } from '../../src/host/backend/jobBuild'
-import { runProgram, windowsPowerShell } from '../../src/host/processTree'
+import { windowsPowerShell } from '../../src/core/execGuard'
 import { windowsTrustedPathVerifier } from '../../src/runtime/windowsTrustedPath'
 import {
   MEDIA_FILE_ID_MIN_BYTES,
@@ -25,6 +20,14 @@ import {
   SCREEN_RECORDING_RECENT_MAX_AGE_MS,
   PROCESS_TABLE_TIMEOUT_MS,
 } from '../../src/shared/constants'
+import { noWorkspaceChildEnvironment } from '../../src/core/execGuard'
+import { runProgram } from '../../src/host/processTree'
+import { createHash } from 'node:crypto'
+import { realpathSync } from 'node:fs'
+import { execFileGuarded } from '../../src/core/guardedChildProcess'
+import { tmpdir } from 'node:os'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { screenRecordExecutable } from '../../src/host/backend/jobBuild'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const paths = { root: '', executable: '', source: '' }
@@ -35,7 +38,11 @@ const SOURCE = path.resolve('native/windows/MuseSparkScreenRecord.cs')
 const CHECKS = path.resolve('test/unit/helpers/windowsScreenRecorderChecks.cs')
 
 const check = async (...args: string[]) => {
-  const result = await runProgram(paths.executable, args, env)
+  const result = await runProgram(
+    paths.executable,
+    args,
+    noWorkspaceChildEnvironment('win32', env, realpathSync),
+  )
   return result.trim()
 }
 const destination = () => path.join(paths.root, `muse-spark-screen-${crypto.randomUUID()}`)
@@ -197,12 +204,15 @@ describe.skipIf(process.platform !== 'win32')(
         const target = destination()
         const owner =
           control === 'owner'
-            ? execFile(paths.executable, ['owner'], { env, windowsHide: true })
+            ? execFileGuarded(paths.executable, ['owner'], {
+                env: noWorkspaceChildEnvironment('win32', env, realpathSync),
+                windowsHide: true,
+              })
             : undefined
         try {
           const ownerPid = owner?.pid ?? process.pid
           const output = await new Promise<string>((resolve, reject) => {
-            const child = execFile(
+            const child = execFileGuarded(
               paths.executable,
               [
                 'controlledLatest',
@@ -212,7 +222,11 @@ describe.skipIf(process.platform !== 'win32')(
                 String(ownerPid),
                 String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
               ],
-              { env, windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS },
+              {
+                env: noWorkspaceChildEnvironment('win32', env, realpathSync),
+                windowsHide: true,
+                timeout: PROCESS_TABLE_TIMEOUT_MS,
+              },
               (error, stdout) => {
                 if (error === null) resolve(stdout)
                 else reject(new Error(error.message, { cause: error }))
@@ -274,10 +288,14 @@ describe.skipIf(process.platform !== 'win32')(
     it('exits on owner death even when native work never cooperates', async () => {
       const result = await new Promise<{ code: string | number | undefined; stdout: string }>(
         (resolve) => {
-          execFile(
+          execFileGuarded(
             paths.executable,
             ['ownerDeath'],
-            { env, windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS },
+            {
+              env: noWorkspaceChildEnvironment('win32', env, realpathSync),
+              windowsHide: true,
+              timeout: PROCESS_TABLE_TIMEOUT_MS,
+            },
             (error, stdout) => {
               resolve({ code: error?.code ?? 0, stdout })
             },

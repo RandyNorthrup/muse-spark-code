@@ -2,22 +2,24 @@
 // the workspace is dropped, and every product lookup refuses a program
 // planted in the workspace. Drives the real resolvers with a real temporary
 // workspace and real planted programs.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { chmodSync, existsSync, realpathSync } from 'node:fs'
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import {
   resolveExecutable,
   sanitizePathForWorkspace,
   workspaceChildEnvironment,
-} from '../../src/core/executables'
+} from '../../src/core/execGuard'
+import { NO_WORKSPACE } from '../../src/core/executables'
+import { resolveServerCommand } from '../../src/core/execGuard'
+import { hookProgramFor, shellInterpreter } from '../../src/host/backend/toolIo'
+import { hookEnvironment } from '../../src/core/execGuard'
+import { processGitRunner } from '../../src/host/git'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { tmpdir } from 'node:os'
+import { chmodSync, existsSync, realpathSync } from 'node:fs'
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { resolvePluginRuntime } from '../../src/core/backends/modelapi/pluginHost'
-import { resolveServerCommand } from '../../src/host/backend/mcpProcess'
-import { hookEnvironment, hookProgramFor, shellInterpreter } from '../../src/host/backend/toolIo'
 import { PlaybookOutcomes } from '../../src/core/orchestration/playbook/outcomes'
 import { locateCaptureHelper } from '../../src/core/voice/helperLocation'
-import { processGitRunner } from '../../src/host/git'
 import { execResourceFile } from '../../src/core/resources/commands'
 import { reportGitIo } from '../../src/runtime/reporting/sources'
 import { fixedGitLocator } from '../../src/runtime/panel/git/service'
@@ -97,8 +99,10 @@ describe('round-4 Windows spellings of the workspace', () => {
         platform: 'win32',
         pathVariable: String.raw`\\.\C:\Users\me\repo\bin;D:\Tools`,
         fileExists: isPlantedGit,
-        workspaceRoot: String.raw`C:\Users\me\repo`,
-        realpath: throwingRealpath,
+        scope: {
+          workspaceRoot: String.raw`C:\Users\me\repo`,
+          realpath: throwingRealpath,
+        },
       }),
     ).toBeUndefined()
   })
@@ -132,11 +136,15 @@ describe('fixedGitLocator workspace refusal', () => {
     expect(
       fixedGitLocator('linux', '/home/person/work/bin/git', {
         workspaceRoot: '/home/person/work',
+        realpath: throwingRealpath,
       })(),
     ).toBeUndefined()
-    expect(fixedGitLocator('linux', '/usr/bin/git', { workspaceRoot: '/home/person/work' })()).toBe(
-      '/usr/bin/git',
-    )
+    expect(
+      fixedGitLocator('linux', '/usr/bin/git', {
+        workspaceRoot: '/home/person/work',
+        realpath: throwingRealpath,
+      })(),
+    ).toBe('/usr/bin/git')
   })
 })
 
@@ -162,6 +170,7 @@ describe('round-4 planted programs (real filesystem)', () => {
       platform: PLATFORM,
       pathVariable: process.env['PATH'],
       fileExists: existsSync,
+      scope: { noWorkspace: NO_WORKSPACE, realpath: realpathSync },
     })
     if (realGit === undefined) {
       throw new Error('the rig has no git on PATH to compare against')
@@ -183,6 +192,7 @@ describe('round-4 planted programs (real filesystem)', () => {
           platform: PLATFORM,
           pathVariable: pathValue,
           fileExists: existsSync,
+          scope: { noWorkspace: NO_WORKSPACE, realpath: realpathSync },
         }),
       ).toBe(path.join(linkDir, 'git'))
       // With it, the link resolves inside and the real git answers.
@@ -191,8 +201,7 @@ describe('round-4 planted programs (real filesystem)', () => {
           platform: PLATFORM,
           pathVariable: pathValue,
           fileExists: existsSync,
-          workspaceRoot: root,
-          realpath: realpathSync,
+          scope: { workspaceRoot: root, realpath: realpathSync },
         }),
       ).toBe(path.join(realGitDir, 'git'))
     },
@@ -236,6 +245,7 @@ describe('round-4 planted programs (real filesystem)', () => {
           platform: PLATFORM,
           isExistingFile: existsSync,
         },
+        { workspaceRoot: root, realpath: realpathSync },
       ),
     ).toThrow(/absolute entries of PATH/u)
     expect(
@@ -244,6 +254,7 @@ describe('round-4 planted programs (real filesystem)', () => {
         root,
         { PATH: [binDir, path.dirname(process.execPath)].join(':') },
         { platform: PLATFORM, isExistingFile: existsSync },
+        { workspaceRoot: root, realpath: realpathSync },
       ),
     ).toBe(path.join(path.dirname(process.execPath), 'node'))
   })
@@ -299,6 +310,7 @@ describe('round-4 planted programs (real filesystem)', () => {
         platform: PLATFORM,
         pathVariable: process.env['PATH'],
         fileExists: existsSync,
+        scope: { workspaceRoot: root, realpath: realpathSync },
       })
       if (realSh === undefined) {
         throw new Error('the rig has no sh on PATH to compare against')
@@ -318,7 +330,12 @@ describe('round-4 planted programs (real filesystem)', () => {
         unsavedFiles: (): readonly string[] => [],
       })
       // Without a workspace the configured shell answers, as before.
-      expect(hookProgramFor(deps(plantedShell), plantedShell, undefined)).toBe(plantedShell)
+      expect(
+        hookProgramFor(deps(plantedShell), plantedShell, {
+          noWorkspace: NO_WORKSPACE,
+          realpath: realpathSync,
+        }),
+      ).toBe(plantedShell)
       // Inside the workspace it is ignored: sh resolves outside instead.
       expect(
         hookProgramFor(deps(plantedShell), plantedShell, {

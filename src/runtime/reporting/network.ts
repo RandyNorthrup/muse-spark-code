@@ -1,6 +1,6 @@
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import * as z from 'zod/mini'
 import {
   REPORT_NETWORK_MAX_BYTES,
@@ -170,10 +170,12 @@ export function createReportingNetwork(
         ghReportTransport({
           environment: process.env,
           maxBytes: REPORT_NETWORK_MAX_BYTES,
+          workspaceRoot: context.workspaceRoot,
           probe: {
             platform: process.platform,
             pathVariable: process.env['PATH'] ?? process.env['Path'],
             fileExists: existsSync,
+            scope: { workspaceRoot: context.workspaceRoot, realpath: realpathSync },
           },
         }),
       context.fetchPublic,

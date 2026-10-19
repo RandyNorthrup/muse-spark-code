@@ -4,6 +4,7 @@
 // exit code. Nothing here prints the key or any part of it.
 
 import type { LaunchResolution } from '../core/backends/musecode/launch'
+import type { GuardedChildEnv } from '../core/executables'
 import { isValidModelApiKey, type SecretStore } from '../host/auth/credentialStore'
 import type { ProvidersFileRead } from '../core/providers/providersFile'
 import {
@@ -345,7 +346,11 @@ export interface ExitingProcess {
 
 export interface LoginDeps {
   readonly resolveLaunch: () => LaunchResolution
-  readonly environment: () => NodeJS.ProcessEnv
+  /**
+   * The guarded serve environment for `cwd` below: only a guarded child
+   * environment flows into the login spawn.
+   */
+  readonly environment: () => GuardedChildEnv
   /**
    * The directory the login child runs in: the same directory the
    * environment is guarded for, so no workspace program resolves from PATH.
@@ -355,7 +360,7 @@ export interface LoginDeps {
   readonly spawnInTerminal: (
     command: string,
     args: readonly string[],
-    env: NodeJS.ProcessEnv,
+    env: GuardedChildEnv,
     cwd: string,
   ) => ExitingProcess | Promise<ExitingProcess>
   readonly printError: (line: string) => void

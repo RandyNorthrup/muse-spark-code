@@ -3,13 +3,14 @@
 // exporter. Nothing here reads auth files or accepts a Model API credential.
 import path from 'node:path'
 import * as z from 'zod/mini'
+import type { AccountLimitsReader, AccountLimitsSnapshot } from '../../accounts/thresholds'
+import type { PaidAccountBinding } from '../../paid/paidConsent'
+import { type MuseLaunch } from './launch'
+import { buildChildEnvironment, type ChildEnvironmentInput } from '../../execGuard'
 import { accountIdSchema } from '../../../shared/accounts'
 import { ACCOUNT_DEFAULT_ID, UI_TEXT } from '../../../shared/constants'
 import { subscriptionUsageSchema, type SubscriptionUsage } from '../../../shared/usage'
-import type { AccountLimitsReader, AccountLimitsSnapshot } from '../../accounts/thresholds'
-import type { PaidAccountBinding } from '../../paid/paidConsent'
 import { accountPolicyFor, type AccountPolicy } from '../../providers/accountPolicy'
-import { buildChildEnvironment, type ChildEnvironmentInput, type MuseLaunch } from './launch'
 
 const configurationSchema = z.enum(['settings', 'hooks', 'skills', 'mcpServers', 'memory'])
 type Configuration = z.infer<typeof configurationSchema>

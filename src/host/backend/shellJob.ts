@@ -13,8 +13,6 @@
 // fails, the log says so, and commands run as before, their kill falling
 // back to taskkill and the orphan sweep (`processTree.ts`).
 
-import { randomUUID } from 'node:crypto'
-import { access } from 'node:fs/promises'
 import path from 'node:path'
 import {
   SHELL_JOB_FOLDER,
@@ -22,17 +20,14 @@ import {
   SHELL_JOB_TYPE_NAME,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
-import { powerShellQuoted } from '../../core/shellQuote'
-import {
-  loadJobAssembly,
-  type RunProgram,
-  runProgram,
-  type ShellJob,
-  windowsPowerShell,
-} from '../processTree'
-import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import type { JobHelper } from './jobSource'
 import { describeStoreError, isStoreErrorCode } from './storeErrors'
+import { loadJobAssembly, type RunProgram, runProgram, type ShellJob } from '../processTree'
+import { windowsPowerShell } from '../../core/execGuard'
+import { randomUUID } from 'node:crypto'
+import { access } from 'node:fs/promises'
+import { powerShellQuoted } from '../../core/shellQuote'
+import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import { isResourcePaused } from '../../core/resources/launch'
 
 // The C# (C# 5, which Windows PowerShell 5.1's `Add-Type` compiles) is the

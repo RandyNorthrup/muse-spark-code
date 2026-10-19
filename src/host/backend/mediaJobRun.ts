@@ -20,11 +20,12 @@ import {
   MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS,
 } from '../../shared/constants'
 import { spawnMcpJob, type McpJobLaunch } from './mcpJobLaunch'
+import type { GuardedChildEnv } from '../../core/executables'
 
 /** What every encoder launch enforces (structurally `convert.ts`'s `LimitedRunOptions`). */
 export interface JobEncoderRunOptions {
   readonly cwd: string
-  readonly env: NodeJS.ProcessEnv
+  readonly env: GuardedChildEnv
   readonly timeoutMs: number
   readonly signal?: AbortSignal
   readonly outputPath: string

@@ -1,16 +1,18 @@
-import { runBootstrap } from '../../../core/bootstrapCommand'
-import { createHash, randomUUID } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { UI_TEXT } from '../../../shared/constants'
-import { compileJob, jobFileName, type JobBuild } from '../../backend/jobBuild'
 import type { RunProgram } from '../../processTree'
-import { isResourcePaused } from '../../../core/resources/launch'
 import {
   windowsVaultGuardScript,
   type WindowsVaultExecutable,
 } from '../../../runtime/vault/slots/windowsVaultTransport'
+import { noWorkspaceChildEnvironment } from '../../../core/execGuard'
+import { runBootstrap } from '../../../core/bootstrapCommand'
+import { createHash, randomUUID } from 'node:crypto'
+import { realpathSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { UI_TEXT } from '../../../shared/constants'
+import { compileJob, jobFileName, type JobBuild } from '../../backend/jobBuild'
+import { isResourcePaused } from '../../../core/resources/launch'
 
 const build: JobBuild = {
   stem: 'MuseSparkVault-',
@@ -103,7 +105,12 @@ export async function windowsVaultExecutable(deps: {
       }
       const file = path.join(directory, name)
       await compileJob(build, file, source, deps.systemRoot, (compiler, args) =>
-        (deps.run ?? runCompiler)(compiler, args, {}),
+        (deps.run ?? runCompiler)(
+          compiler,
+          args,
+          // The framework compiler builds a helper of its own: absolute entries only.
+          noWorkspaceChildEnvironment('win32', {}, realpathSync),
+        ),
       )
       const sha256 = createHash('sha256')
         .update(await readFile(file))

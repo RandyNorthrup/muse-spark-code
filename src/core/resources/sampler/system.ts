@@ -1,6 +1,7 @@
 import type { ResourceDiskSampler } from '../disk'
-import { execFile } from 'node:child_process'
 import { access, open, readdir } from 'node:fs/promises'
+import { probeChildEnvironment } from '../trees/run'
+import { execFileGuarded } from '../../guardedChildProcess'
 import * as os from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -96,7 +97,7 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
       env['windir'] = systemRoot
     }
     return new Promise((resolve) => {
-      execFile(
+      execFileGuarded(
         file,
         [...args],
         {
@@ -104,7 +105,7 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
           windowsHide: true,
           shell: false,
           cwd: os.tmpdir(),
-          env,
+          env: probeChildEnvironment(env),
           timeout: checked.timeoutMs,
           maxBuffer: checked.maxOutputBytes,
         },
