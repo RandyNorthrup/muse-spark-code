@@ -926,10 +926,10 @@
         },
         "museSpark.hooksMaxStopContinuations": {
           "type": "number",
-          "default": 8,
+          "default": 0,
           "scope": "machine",
           "description": "%config.hooksMaxStopContinuations.description%",
-          "minimum": 1,
+          "minimum": 0,
           "maximum": 8
         },
         "museSpark.hooksMaxRunningCommands": {
@@ -941,10 +941,10 @@
         },
         "museSpark.subagentMaxConcurrent": {
           "type": "number",
-          "default": 8,
+          "default": 0,
           "scope": "machine",
           "description": "%config.subagentMaxConcurrent.description%",
-          "minimum": 1,
+          "minimum": 0,
           "maximum": 64
         },
         "museSpark.modelApiShellKeepsDirectory": {
