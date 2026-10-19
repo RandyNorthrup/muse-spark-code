@@ -456,7 +456,7 @@
   "referencePaidContexts": "대화형 Model API 추가 기능은 지출 전에 묻고 일일 예산을 공유합니다. Muse Code 이미지는 저장된 Model API 키와 명시적 활성화가 필요하며 지출은 이 일일 원장에 포함되지 않습니다. Muse Voice는 두 백엔드에서 공통 일일 예산을 예약합니다. ACP 유료 기능은 기본으로 꺼져 있고 Model API 플래그와 편집기 권한이 필요합니다. ACP와 헤드리스 Model API 요청은 런타임 일일 예산을 예약하며 헤드리스에는 실행별 엄격한 예산도 필요합니다. 헤드리스 이미지에는 acceptEdits와 이미지 플래그가 필요합니다. 계정 및 사용량에서 작업 공간의 유료 사용 동의를 잊을 수 있습니다.",
   "referenceAcp": "설치된 스킬은 동적 슬래시 명령을 추가하며 이 정적 참고 자료에는 목록이 없습니다. ACP는 로컬 /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew, /agents와 설치된 스킬만 처리합니다. 링크의 패널 명령, 설정 및 대화 상자는 확장 기능의 작업입니다.",
   "referenceCiOtherTitle": "기타 CI 시스템",
-  "referenceCiOther": "패키지 해시를 고정한 GitLab, Azure, Jenkins, Bitbucket용 헤드리스 검토/수정 템플릿입니다. Node가 키를 읽고 체크아웃 외부에 결과를 게시하며 Azure/Jenkins가 해당 파일을 업로드합니다. GitLab/Bitbucket의 아티팩트 전송과 Bitbucket의 프로세스 격리는 아직 검증되지 않았습니다. 추가 키 변수 이름은 MUSE_CI_KEY_ALIASES에 선언하세요. 모의 테스트만 수행했습니다. docs/ci-other-systems.md를 참조하세요.",
+  "referenceCiOther": "패키지 해시를 고정한 GitLab, Azure, Jenkins, Bitbucket용 헤드리스 검토/수정 템플릿입니다. Node가 키를 읽고 체크아웃 외부에 결과를 게시하며 모든 템플릿이 해당 파일을 업로드합니다. GitLab/Bitbucket의 외부 임시 복사본과 Bitbucket의 프로세스 격리는 아직 검증되지 않았습니다. 추가 키 변수 이름은 MUSE_CI_KEY_ALIASES에 선언하세요. 모의 테스트만 수행했습니다. docs/ci-other-systems.md를 참조하세요.",
   "referenceWebFetchTitle": "웹 가져오기",
   "referenceWebFetchDetail": "권한과 네트워크를 확인하여 공개 웹 페이지를 읽기 쉬운 텍스트로 가져옵니다.",
   "referenceCodeIntelTitle": "코드 인텔리전스",

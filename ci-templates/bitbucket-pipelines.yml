@@ -12,8 +12,12 @@
 # muse-spark deployment environment (narrower than repository/workspace).
 # Restrict that deployment to trusted refs/users. This does NOT prove the
 # environment of vendor-managed clone/setup/upload; process isolation is
-# unqualified without a hosted receipt. No automatic artifact paths are
-# configured: Bitbucket uploads relative to the clone, not external temp.
+# unqualified without a hosted receipt. Bitbucket uploads relative to the
+# clone, not external temp, so after-script copies the five fixed publisher
+# filenames into a fresh muse-spark-out/ directory in the clone (a planted
+# directory or symlink of that name is removed first, never uploaded) and
+# declares them as artifacts. Only those filenames are ever copied or
+# uploaded, never a directory glob.
 # Pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256 to a release
 # carrying ci/ (first after 0.17.0); no such release is claimed here.
 
@@ -46,6 +50,10 @@ definitions:
         script:
           - export MUSE_INPUT_MAX_BUDGET_USD="${MUSE_INPUT_MAX_BUDGET_USD-2.00}"
           - export MUSE_CI_JOB_TIMEOUT_MINUTES=35
+          # The launcher publishes the five fixed result files under this
+          # job-temp root, outside the clone; after-script carries them into
+          # the clone for the artifact uploader.
+          - export MUSE_CI_OUTPUT_ROOT="/tmp/muse-spark-$BITBUCKET_BUILD_NUMBER"
           - |
             # BEGIN MUSE BOOTSTRAP (generated from ci-templates/bootstrap.sh - do not edit)
             # Muse Spark Code (Unofficial): shared POSIX bootstrap, generated into the
@@ -54,6 +62,11 @@ definitions:
             set +x
             set -efu
             umask 077
+            # timeout(1) bounds temp removal where it runs. Probe once, before any trap
+            # is armed: a missing timeout selects plain rm up front, and a removal that
+            # itself exceeds the bound is never retried without one. The holder uses the
+            # reserved internal namespace so declared aliases cannot overwrite it.
+            if command -v timeout >/dev/null 2>&1; then muse_ci_internal_rm='timeout -s KILL 5 rm -rf'; else muse_ci_internal_rm='rm -rf'; fi
             # Parent holders own paths, never credentials. Reserve their namespace before
             # assigning the bootstrap result, so declared bindings cannot be overwritten.
             for muse_ci_internal_alias in ${MUSE_CI_KEY_ALIASES:-}; do
@@ -69,12 +82,24 @@ definitions:
               unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file muse_setup muse_dir muse_start_ms muse_sum muse_alias
               for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done
               if [ -z "${MUSE_AGENT_VERSION:-}" ] || [ -z "${MUSE_INPUT_AGENT_PACKAGE_SHA256:-}" ]; then echo 'muse-spark: pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+              # The download runs before Node maps the inputs into its child
+              # environment, so the bootstrap maps the network inputs itself: the proxy
+              # inputs become the standard variables curl reads, and the CA input is
+              # refused here when it is not a readable file. Vendor-standard proxy
+              # variables set on the job already reach curl unchanged.
+              if [ -n "${MUSE_INPUT_HTTPS_PROXY:-}" ]; then https_proxy="$MUSE_INPUT_HTTPS_PROXY"; HTTPS_PROXY="$MUSE_INPUT_HTTPS_PROXY"; export https_proxy HTTPS_PROXY; fi
+              if [ -n "${MUSE_INPUT_NO_PROXY:-}" ]; then no_proxy="$MUSE_INPUT_NO_PROXY"; NO_PROXY="$MUSE_INPUT_NO_PROXY"; export no_proxy NO_PROXY; fi
+              if [ -n "${MUSE_INPUT_EXTRA_CA_CERTS:-}" ] && [ ! -r "$MUSE_INPUT_EXTRA_CA_CERTS" ]; then echo 'muse-spark: MUSE_INPUT_EXTRA_CA_CERTS is not readable' >&2; exit 1; fi
               muse_start_ms=$(($(date +%s) * 1000))
               muse_dir="$(mktemp -d)"
-              # timeout(1) bounds the removal where it runs; a missing or broken
-              # timeout must not change the exit status, so plain rm is the fallback.
-              trap 'timeout -s KILL 5 rm -rf "$muse_dir" 2>/dev/null || rm -rf "$muse_dir"' EXIT HUP INT TERM
-              curl --fail --silent --show-error --location --max-time 120 --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
+              # One bounded removal (muse_ci_internal_rm, probed above): a removal that
+              # exceeds its bound is reported, never retried without one.
+              trap '$muse_ci_internal_rm "$muse_dir" 2>/dev/null' EXIT HUP INT TERM
+              if [ -n "${MUSE_INPUT_EXTRA_CA_CERTS:-}" ]; then
+                curl --fail --silent --show-error --location --max-time 120 --cacert "$MUSE_INPUT_EXTRA_CA_CERTS" --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
+              else
+                curl --fail --silent --show-error --location --max-time 120 --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
+              fi
               muse_sum="$(sha256sum "$muse_dir/agent.tgz")"
               if [ "${muse_sum%% *}" != "$MUSE_INPUT_AGENT_PACKAGE_SHA256" ]; then echo 'muse-spark: the agent package does not match MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
               mkdir "$muse_dir/launcher"
@@ -88,9 +113,22 @@ definitions:
             # keeps every shell's exit status, because macOS sh (bash 3.2) reports a
             # failed bare exec as success once an EXIT trap runs. The reserved holders
             # survive both generated and alias unsets.
-            trap '(muse_ci_internal_rm_dir="$muse_ci_internal_dir"; unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file muse_setup muse_dir muse_start_ms muse_sum muse_alias; for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done; timeout -s KILL 5 rm -rf "$muse_ci_internal_rm_dir" 2>/dev/null || rm -rf "$muse_ci_internal_rm_dir")' EXIT HUP INT TERM
+            trap '(muse_ci_internal_rm_dir="$muse_ci_internal_dir"; unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file muse_setup muse_dir muse_start_ms muse_sum muse_alias; for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done; $muse_ci_internal_rm "$muse_ci_internal_rm_dir" 2>/dev/null)' EXIT HUP INT TERM
             MUSE_CI_TEMP="$muse_ci_internal_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_ci_internal_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_ci_internal_dir/agent.tgz" node "$muse_ci_internal_dir/launcher/package/ci/lib/ci-entry.mjs" bitbucket
             # END MUSE BOOTSTRAP
+        after-script:
+          # Carry the published result files into the clone for upload, even
+          # when the run failed: only the five fixed publisher filenames,
+          # never a glob. A planted directory or symlink of the destination
+          # name is removed first and never uploaded.
+          - export MUSE_CI_OUTPUT_ROOT="/tmp/muse-spark-$BITBUCKET_BUILD_NUMBER"
+          - rm -rf "$BITBUCKET_CLONE_DIR/muse-spark-out" && mkdir -p "$BITBUCKET_CLONE_DIR/muse-spark-out" && for muse_result_file in outputs.json result.json events.jsonl fix.patch manifest.json; do if [ -f "$MUSE_CI_OUTPUT_ROOT/muse-spark-out/$muse_result_file" ]; then cp -f "$MUSE_CI_OUTPUT_ROOT/muse-spark-out/$muse_result_file" "$BITBUCKET_CLONE_DIR/muse-spark-out/"; fi; done
+        artifacts:
+          - muse-spark-out/outputs.json
+          - muse-spark-out/result.json
+          - muse-spark-out/events.jsonl
+          - muse-spark-out/fix.patch
+          - muse-spark-out/manifest.json
 
 pipelines:
   branches:

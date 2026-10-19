@@ -285,6 +285,7 @@ declare module '*/action/lib/ci-run.mjs' {
     nowMs?: number,
   ): void
   export const CI_BOOTSTRAP_UNSET: readonly string[]
+  export const CI_PUBLISHED_FILES: readonly string[]
   export function privateTemp(
     value: string | undefined,
     workspace: string,
@@ -515,6 +516,10 @@ declare module '*/action/lib/run-exec.mjs' {
     owner: LauncherOwner,
     paths: ActionPaths,
   ): Record<string, string>
+  export function summaryFor(
+    report: Pick<ActionRunReport, 'execCode' | 'wrapperFailed' | 'patchWithheld'>,
+    outputs: Record<string, string>,
+  ): string
 }
 
 declare module '*/action/lib/post.mjs' {

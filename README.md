@@ -5467,27 +5467,12 @@ results and what is still open.
 
 ### Other CI systems
 
-GitLab, Azure, Jenkins and Bitbucket templates under
-[`ci-templates/`](ci-templates/gitlab-ci.yml) share the GitHub Action's
-budgeted review/fix engine. The shell downloads and verifies the pinned
-package without reading or copying the key; Node reads the vendor source,
-strips key names and value copies before children, and sends the key only
-through trusted private stdin. Declare extra secret binding names in
-`MUSE_CI_KEY_ALIASES`; `muse_ci_internal_`, `MUSE_CI_`, `MUSE_INPUT_` and
-`MUSE_AGENT_` are reserved prefixes and refuse.
-Azure uses measured bootstrap time with a 10-minute worst-case setup reserve
-and a 45-minute job; runner qualification must prove setup fits that reserve.
-Output is created outside the checkout under job temp;
-Azure/Jenkins upload those publisher files. GitLab/Bitbucket built-in
-artifact paths cannot upload external temp, so their templates omit that
-transport. Bitbucket's automatic-process secret isolation remains
-unqualified; deployment variables are narrower than repository variables.
-Nothing comments or pushes. **Fake-tested, not certified or supported**;
-no hosted/live run or release carrying the launcher is claimed. [The CI
-systems guide](docs/ci-other-systems.md) covers setup, inputs and limits.
-
-Regenerate the shared bootstrap after editing its source with
-`node scripts/sync-ci-bootstrap.mjs`.
+Templates for GitLab, Azure, Jenkins and Bitbucket live under
+[`ci-templates/`](ci-templates/gitlab-ci.yml); setup is documented in [the
+CI systems guide](docs/ci-other-systems.md). They are not certified or
+supported: no hosted run or release carrying the launcher has been
+demonstrated, so no credential, execution or publication behavior is claimed
+here. (The heading stays because the help reference links this anchor.)
 
 ## Keeping your machine responsive
 
