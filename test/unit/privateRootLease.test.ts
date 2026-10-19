@@ -19,7 +19,14 @@ import {
   openPrivateRoot,
   type PrivateRoot,
 } from '../../src/runtime/privateDirectory'
-import type { LeasedRoot, LeaseOptions } from '../../src/runtime/privateRootLease'
+import {
+  isLinuxLeaseOwnerGone,
+  parseLinuxLease,
+  type LeasedRoot,
+  type LeaseOptions,
+  type LinuxLeaseOwner,
+  type LinuxProcess,
+} from '../../src/runtime/privateRootLease'
 import { secureOwnerOnly } from '../../src/runtime/tokenFile'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -279,6 +286,25 @@ function startOf(line: string): string {
   return line.slice(line.lastIndexOf(' ') + 1)
 }
 
+const scopeReads = ['/etc/machine-id', '/proc/sys/kernel/random/boot_id']
+const scopeLink = '/proc/self/ns/pid'
+
+/**
+ * The product's Linux reader with one scope path aimed at a real file the
+ * kernel itself refuses: every other path reads the true filesystem, so
+ * the failure is the operating system's, never a scripted refusal.
+ */
+function refusingLinux(
+  failing: string,
+  unreadableFile: string,
+  unreadableDir: string,
+): LinuxProcess {
+  return {
+    read: (file) => fs.readFile(file === failing ? unreadableFile : file, 'utf8'),
+    link: (file) => fs.readlink(file === failing ? path.join(unreadableDir, 'ns') : file),
+  }
+}
+
 describe.runIf(process.platform === 'linux')('the lease rules on Linux, on the real /proc', () => {
   it('reclaims only owners proven gone and writes its own identity', async () => {
     const root = await testRoot()
@@ -325,6 +351,36 @@ describe.runIf(process.platform === 'linux')('the lease rules on Linux, on the r
       await linuxLine(process.pid),
     )
   })
+
+  it('keeps another machine’s and namespace’s folders, and reclaims an earlier boot’s', async () => {
+    const root = await testRoot()
+    const self = await linuxLine(process.pid)
+    const [machine, boot, namespace] = scopeOf(self)
+    const start = startOf(self)
+    // Literal lease lines on the real scope: a live PID and start throughout,
+    // so only the identity decides. An earlier boot of this machine is over
+    // (reclaimed); another machine's or namespace's PIDs cannot be judged
+    // here (kept).
+    const lines = {
+      earlierBoot: `${machine} 99999999-2222-3333-4444-555555555555 ${namespace} ${String(process.pid)} ${start}`,
+      otherMachine: `${'e'.repeat(32)} ${boot} ${namespace} ${String(process.pid)} ${start}`,
+      otherNamespace: `${machine} ${boot} pid:[4242424242] ${String(process.pid)} ${start}`,
+    }
+    const folders: Record<string, string> = {}
+    for (const [index, [name, value]] of Object.entries(lines).entries()) {
+      const owner = token(String(4 + index))
+      folders[name] = await crashLeft(root.path, owner)
+      await fs.writeFile(path.join(root.path, `${PREFIX}${owner}.lease`), value)
+    }
+    const { leasePrivateRoot } = await import('../../src/runtime/privateRootLease')
+    held(await leasePrivateRoot(root))
+    const kept = Object.fromEntries(
+      await Promise.all(
+        Object.entries(folders).map(async ([name, folder]) => [name, await isPresent(folder)]),
+      ),
+    )
+    expect(kept).toEqual({ earlierBoot: false, otherMachine: true, otherNamespace: true })
+  })
 })
 
 describe('the lease rules where no process table names the owner', () => {
@@ -350,5 +406,90 @@ describe('the lease rules where no process table names the owner', () => {
     expect(leased.lease).toBeUndefined()
     expect(await isPresent(folder)).toBe(true)
     expect(await fs.readdir(root.path)).toHaveLength(2)
+  })
+})
+
+describe.runIf(process.platform === 'linux')(
+  'the Linux scope refusal, through real unreadable files',
+  () => {
+    it.each([...scopeReads, scopeLink])(
+      'takes no lease and removes nothing when %s cannot be read',
+      async (failing) => {
+        const root = await testRoot()
+        const owner = token('f')
+        const folder = await crashLeft(root.path, owner)
+        // A gone owner the sweep would reclaim: it stays, proving the sweep
+        // never ran.
+        await goneLease(root.path, owner)
+        const denied = path.join(await area(), 'denied')
+        const unreadableFile = path.join(denied, 'scope')
+        const unreadableDir = path.join(denied, 'ns-dir')
+        await fs.mkdir(denied)
+        await fs.writeFile(unreadableFile, 'scope')
+        await fs.mkdir(unreadableDir)
+        await fs.chmod(unreadableFile, 0)
+        await fs.chmod(unreadableDir, 0)
+        // Premise: the kernel really refuses them (under root this fails loudly).
+        if (failing === scopeLink)
+          await expect(fs.readlink(path.join(unreadableDir, 'ns'))).rejects.toThrow()
+        else await expect(fs.readFile(unreadableFile, 'utf8')).rejects.toThrow()
+        const leased = await lease(root, {
+          platform: 'linux',
+          linux: refusingLinux(failing, unreadableFile, unreadableDir),
+        })
+        expect(leased.lease).toBeUndefined()
+        expect(await isPresent(folder)).toBe(true)
+        expect(await fs.readdir(root.path)).toHaveLength(2)
+      },
+    )
+  },
+)
+
+describe('the Linux owner decision, on literal identities', () => {
+  const machine = 'f'.repeat(32)
+  const boot = '11111111-2222-3333-4444-555555555555'
+  const namespace = 'pid:[4026531836]'
+  const scope = [machine, boot, namespace]
+  const named = (overrides: Partial<LinuxLeaseOwner> = {}): LinuxLeaseOwner => ({
+    machine,
+    boot,
+    namespace,
+    pid: '42',
+    start: '900',
+    ...overrides,
+  })
+
+  it('reclaims an earlier boot of this machine', () => {
+    // That boot is over: its PIDs cannot be alive now, whatever they read.
+    expect(
+      isLinuxLeaseOwnerGone(named({ boot: '99999999-2222-3333-4444-555555555555' }), scope, '900'),
+    ).toBe(true)
+  })
+
+  it('keeps another machine’s lease', () => {
+    expect(isLinuxLeaseOwnerGone(named({ machine: 'e'.repeat(32) }), scope, '900')).toBe(false)
+  })
+
+  it('keeps another namespace’s lease', () => {
+    expect(isLinuxLeaseOwnerGone(named({ namespace: 'pid:[4026532000]' }), scope, '900')).toBe(
+      false,
+    )
+  })
+
+  it('reclaims an exited PID', () => {
+    expect(isLinuxLeaseOwnerGone(named(), scope, undefined)).toBe(true)
+  })
+
+  it('reclaims a reused PID whose start differs', () => {
+    expect(isLinuxLeaseOwnerGone(named(), scope, '901')).toBe(true)
+  })
+
+  it('keeps the live owner', () => {
+    expect(isLinuxLeaseOwnerGone(named(), scope, '900')).toBe(false)
+  })
+
+  it('parses a well-formed line and names no owner in trailing garbage', () => {
+    expect(parseLinuxLease(`${machine} ${boot} ${namespace} 42 900`)).toEqual(named())
+    expect(parseLinuxLease(`${machine} ${boot} ${namespace} 42 900 trailing`)).toBeUndefined()
   })
 })
