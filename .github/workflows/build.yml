@@ -216,6 +216,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The vault broker fixtures compile muse-created through the product's
+      # own build script, which links -lcrypto: the same package the native
+      # job installs below.
+      - name: Linux OpenSSL headers for the fixture helper build
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev
+      # The broker fixtures stage the product's own muse-dictate for created
+      # paths and a unit checkout holds no built binary, so build it the way
+      # the native job does.
+      - name: macOS dictation helper for the fixture created paths
+        if: runner.os == 'macOS'
+        run: bash native/darwin/build.sh
       - name: unit tests
         shell: bash
         env:

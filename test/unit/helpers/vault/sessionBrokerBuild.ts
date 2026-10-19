@@ -1,10 +1,32 @@
 import { execFileSync } from 'node:child_process'
-import { mkdir } from 'node:fs/promises'
+import { chmod, copyFile, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { vaultPeerExecutable } from '../../../../src/runtime/vault/posixNative'
 import { buildVaultPeer } from '../../../../scripts/build-vault-peer.mjs'
 import { buildLinuxHelper } from '../../../../scripts/build-linux-helper.mjs'
+
+/**
+ * Stage the product's own created-directories helper beside the bundled
+ * governor, where resourceGovernorEntry resolves it on macOS
+ * (installRoot/native/darwin/muse-dictate). The binary is the one
+ * native/darwin/build.sh produces for the native job; a source checkout
+ * cannot build it, so its absence fails here naming the build instead of
+ * deep in a governed launch.
+ */
+async function stageDarwinCreatedHelper(root: string): Promise<void> {
+  const staged = path.join(root, 'native', 'darwin', 'muse-dictate')
+  try {
+    await copyFile(path.resolve('native/darwin/muse-dictate'), staged)
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    throw new Error(
+      'the broker fixture needs native/darwin/muse-dictate: run bash native/darwin/build.sh first',
+      { cause: error },
+    )
+  }
+  await chmod(staged, 0o755)
+}
 
 /**
  * Compile the POSIX peer and bundle broker fixture children: each pair is a
@@ -37,6 +59,7 @@ export async function buildBrokerChildren(
       '-o',
       helper,
     ])
+    if (process.platform === 'darwin') await stageDarwinCreatedHelper(root)
   }
   for (const [entry, output] of pairs) {
     if (!entry || !output) throw new Error('missing generated build pair')
