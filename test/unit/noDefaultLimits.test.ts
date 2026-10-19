@@ -31,6 +31,12 @@ const properties = manifest.contributes.configuration.properties as Record<
   { default: unknown }
 >
 
+function manifestDefault(key: string): unknown {
+  const entry = properties[key]
+  if (entry === undefined) throw new Error(`missing manifest setting ${key}`)
+  return entry.default
+}
+
 function settingSource(values: Record<string, unknown>): SettingsSource {
   return {
     get: (key: string) => values[key],
@@ -54,10 +60,7 @@ function silentLog(warnings: string[]): Logger {
 describe('no default limits: questions deferral', () => {
   it('defaults to never deferring until the person sets a delay', () => {
     expect(QUESTION_DEFER_DEFAULT_SECONDS).toBe(0)
-    expect(
-      manifest.contributes.configuration.properties['museSpark.questions.deferAfterSeconds']
-        .default,
-    ).toBe(0)
+    expect(manifestDefault('museSpark.questions.deferAfterSeconds')).toBe(0)
   })
 
   it('waits indefinitely with nothing set and still applies a person-set delay', () => {
@@ -72,8 +75,8 @@ describe('no default limits: hook continuations and subagent concurrency', () =>
   it('defaults to no limit of our own', () => {
     expect(SETTING_DEFAULTS.hooksMaxStopContinuations).toBe(0)
     expect(SETTING_DEFAULTS.subagentMaxConcurrent).toBe(0)
-    expect(properties['museSpark.hooksMaxStopContinuations'].default).toBe(0)
-    expect(properties['museSpark.subagentMaxConcurrent'].default).toBe(0)
+    expect(manifestDefault('museSpark.hooksMaxStopContinuations')).toBe(0)
+    expect(manifestDefault('museSpark.subagentMaxConcurrent')).toBe(0)
   })
 
   it('runs Stop hooks and subagents without a count of ours with nothing set', () => {
@@ -115,7 +118,7 @@ describe('no default limits: tool-output byte guard', () => {
 
   it('defaults to no byte guard of our own', () => {
     expect(SETTING_DEFAULTS.modelApiMaxToolOutputBytes).toBe(0)
-    expect(properties['museSpark.modelApiMaxToolOutputBytes'].default).toBe(0)
+    expect(manifestDefault('museSpark.modelApiMaxToolOutputBytes')).toBe(0)
   })
 
   it('passes a result through whole with nothing set', () => {
@@ -145,7 +148,7 @@ describe('no default limits: tool-output byte guard', () => {
 describe('no default limits: hosted searches per response', () => {
   it('defaults to no search bound of our own', () => {
     expect(SETTING_DEFAULTS.webSearchMaxPerRequest).toBe(0)
-    expect(properties['museSpark.webSearchMaxPerRequest'].default).toBe(0)
+    expect(manifestDefault('museSpark.webSearchMaxPerRequest')).toBe(0)
   })
 
   it('sends no max of ours with nothing set', () => {
@@ -185,8 +188,8 @@ describe('no default limits: media upload and screen recording', () => {
   it('defaults to no media cap of our own', () => {
     expect(SETTING_DEFAULTS.mediaMaxUploadMiB).toBe(0)
     expect(SETTING_DEFAULTS.screenRecordingMaxSeconds).toBe(0)
-    expect(properties['museSpark.mediaMaxUploadMiB'].default).toBe(0)
-    expect(properties['museSpark.screenRecordingMaxSeconds'].default).toBe(0)
+    expect(manifestDefault('museSpark.mediaMaxUploadMiB')).toBe(0)
+    expect(manifestDefault('museSpark.screenRecordingMaxSeconds')).toBe(0)
   })
 
   it('admits any size and length with nothing set', () => {
