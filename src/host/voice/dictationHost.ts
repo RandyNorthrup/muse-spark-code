@@ -13,7 +13,7 @@ import type { MuseVoiceDeps } from '../../core/voice/museVoice'
 // arrives as a parameter (the M93 precedent), and the deferred-bundle build
 // refuses a `vscode` import by design.
 
-import { existsSync, realpathSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { CoreLogger } from '../../core/logging'
 import type { DictationSetup } from '../../core/voice/dictation'
@@ -221,8 +221,11 @@ function reasonForRefusal(refusal: VoiceNetworkRefusal): string {
 export function createMuseVoiceSetup(
   probe: Omit<
     CaptureProbe,
-    'fileExists' | 'programFiles' | 'remoteName' | 'appName' | 'pathVariable'
-  >,
+    'fileExists' | 'programFiles' | 'remoteName' | 'appName' | 'pathVariable' | 'realpath'
+  > & {
+    /** Link resolver for the workspace comparison. REQUIRED. */
+    readonly realpath: (filePath: string) => string
+  },
   deps: MuseVoiceSetupDeps,
   names: DictationHostNames,
   network: VoiceNetworkPosture,
@@ -244,7 +247,7 @@ export function createMuseVoiceSetup(
           remoteName: names.remoteName,
           appName: names.appName,
           pathVariable: process.env['PATH'],
-          realpath: probe.realpath ?? realpathSync,
+          realpath: probe.realpath,
         })
       : {
           isAvailable: false as const,

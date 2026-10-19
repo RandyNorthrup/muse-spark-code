@@ -4,15 +4,17 @@
 // earlier sources removed. M27's shell job assembly and M50's MCP launcher
 // take the same steps with their own names and compiler options.
 
+import path from 'node:path'
+import type { RunProgram } from '../processTree'
+import { noWorkspaceChildEnvironment } from '../../core/execGuard'
 import { runBootstrap } from '../../core/bootstrapCommand'
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import { createHash, randomUUID } from 'node:crypto'
+import { realpathSync } from 'node:fs'
 import { mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
-import path from 'node:path'
 import { sameFile, statIdentity } from '../../core/fs/fileIdentity'
 import { describeStoreError, isStoreErrorCode } from './storeErrors'
 import { WINDOWS_FRAMEWORK_RELATIVE_PATH } from '../../shared/constants'
-import type { RunProgram } from '../processTree'
 
 const SOURCE_EXTENSION = '.cs'
 const DIGEST_LENGTH = 16
@@ -94,7 +96,12 @@ export async function compileJob(
         `/out:${output}`,
         source,
       ],
-      build.compilerEnvironment ?? withoutCredentials(process.env),
+      // The framework compiler builds a helper of its own: absolute entries only, links followed.
+      noWorkspaceChildEnvironment(
+        'win32',
+        build.compilerEnvironment ?? withoutCredentials(process.env),
+        realpathSync,
+      ),
     )
     try {
       await rename(output, destination)
@@ -168,9 +175,12 @@ export function screenRecordExecutable(deps: {
         // This identity check does not request a screen or open a microphone.
         // Recording availability is probed separately: latest-file import still
         // works on machines whose capture service is unavailable.
-        const answer = await (deps.run ?? runCompiler)(target, ['--self-test'], {
-          SystemRoot: deps.systemRoot,
-        })
+        const answer = await (deps.run ?? runCompiler)(
+          target,
+          ['--self-test'],
+          // The self-test answers for its own binary: absolute entries only, links followed.
+          noWorkspaceChildEnvironment('win32', { SystemRoot: deps.systemRoot }, realpathSync),
+        )
         return answer.trim() === 'muse-spark-screen-record-ready' ? target : undefined
       } catch {
         return

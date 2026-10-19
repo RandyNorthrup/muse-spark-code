@@ -11,9 +11,10 @@
 // every host measures the sandbox the same way.
 
 import { execFile } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
-import { resolveExecutable } from '../../executables'
+import { NO_WORKSPACE } from '../../executables'
+import { resolveExecutable } from '../../execGuard'
 import {
   LINUX_SANDBOX_NAMESPACE_MARKER,
   LINUX_SANDBOX_PROBE_ARGS,
@@ -213,6 +214,7 @@ export function probeLinuxSandboxShell(workspaceRoot?: string): Promise<LinuxSan
     platform: process.platform,
     pathVariable: process.env['PATH'],
     fileExists: existsSync,
+    scope: { noWorkspace: NO_WORKSPACE, realpath: realpathSync },
   })
   if (
     command === undefined ||

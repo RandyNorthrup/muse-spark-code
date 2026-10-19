@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-import { type SpawnSyncOptions, type SpawnSyncReturns } from 'node:child_process'
 import {
   existsSync,
   lstatSync,
@@ -10,25 +8,27 @@ import {
   writeFileSync,
   rmSync,
 } from 'node:fs'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { processGitPath } from '../../../host/git'
-import { workspaceChildEnvironment } from '../../../core/executables'
 import {
   GIT_OUTPUT_MAX_BYTES,
   GIT_TIMEOUT_MS,
   PLAYBOOK_HOOK_NAMES,
 } from '../../../shared/constants'
-import { UI_TEXT } from '../../../shared/l10n/text'
 import {
   playbookConfigSnapshotSchema,
   type PlaybookConfigSnapshot,
   type PlaybookRecord,
   type PlaybookPushRange,
 } from '../../../shared/playbook'
+import { processGitPath } from '../../../host/git'
+import { workspaceChildEnvironment } from '../../execGuard'
+import { runTreeSync } from '../../../host/processTree'
+import { createHash } from 'node:crypto'
+import { type SpawnSyncOptions, type SpawnSyncReturns } from 'node:child_process'
+import { tmpdir } from 'node:os'
+import { UI_TEXT } from '../../../shared/l10n/text'
 import { redactSecrets } from '../../../shared/redact'
 import { withoutCredentials } from '../../credentialEnvironment'
-import { runTreeSync } from '../../../host/processTree'
 
 /** Tagged effects go through the harness's ordinary tool policy. Hooks receive
  * their real arguments/stdin, never an altered script or a substitute command. */
@@ -106,19 +106,24 @@ export class PlaybookOutcomes {
 
   private bytes(effect: PlaybookHookEffect, isMissingAllowed = false): Buffer {
     if (!this.admission.admit(effect)) throw new Error(UI_TEXT.playbookUnavailable)
+    const scrubbed = Object.fromEntries(
+      Object.entries(withoutCredentials(process.env)).filter(
+        ([name]) => !/^(?:GIT_.*|HUSKY|HUSKY_SKIP_HOOKS)$/iu.test(name),
+      ),
+    )
     const options = {
       cwd: effect.cwd,
-      // The child runs with the workspace as its working directory (or an
-      // isolated worktree of it): the guarded child PATH, so git's own
-      // bare-name helpers (`ssh`, `git-remote-https`) never run a planting.
+      // The child runs with the effect's working directory, which for a
+      // linked worktree is a checkout outside the main workspace: the
+      // guarded child PATH excludes both, so git's own bare-name helpers
+      // (`ssh`, `git-remote-https`) never run a planting from either.
       env: workspaceChildEnvironment(
         process.platform,
-        Object.fromEntries(
-          Object.entries(withoutCredentials(process.env)).filter(
-            ([name]) => !/^(?:GIT_.*|HUSKY|HUSKY_SKIP_HOOKS)$/iu.test(name),
-          ),
-        ),
-        { workspaceRoot: this.workspace, realpath: realpathSync },
+        workspaceChildEnvironment(process.platform, scrubbed, {
+          workspaceRoot: this.workspace,
+          realpath: realpathSync,
+        }),
+        { workspaceRoot: effect.cwd, realpath: realpathSync },
       ),
       timeout: GIT_TIMEOUT_MS,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,

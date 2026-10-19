@@ -15,7 +15,9 @@ import { mspApprovalMode, mspPermissionProfile } from '../../../shared/permissio
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
-import { type ChildProcess, spawn } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
+import { spawnGuarded } from '../../guardedChildProcess'
+import type { GuardedChildEnv } from '../../executables'
 // Exact SDK pin: reuse bounded process teardown while wrapping actual submission.
 import { ChildStdioTransport } from '@muse-code/sdk/dist/src/connection/spawn.js'
 // Deep SDK imports (never the barrel): the barrel's facade, fold and
@@ -3518,17 +3520,23 @@ export class MuseCodeHost implements AgentHost {
 export function spawnAccountMspConnection(
   options: Pick<
     SpawnMspConnectionOptions,
-    'command' | 'args' | 'cwd' | 'env' | 'onStderr' | 'shutdownTimeoutMs'
-  >,
+    'command' | 'args' | 'cwd' | 'onStderr' | 'shutdownTimeoutMs'
+  > & {
+    /**
+     * The child's whole environment: the guarded serve environment for its
+     * cwd, so a raw environment does not type-check here.
+     */
+    readonly env: GuardedChildEnv
+  },
   accountHome: MuseCodeAccountHome,
   /** The resource governor's registration of the spawned tree (M107). */
   onSpawn?: (child: ChildProcess) => void,
 ) {
   accountHome.assertCurrent()
   const hasProcessGroup = process.platform !== 'win32'
-  const child = spawn(options.command, [...(options.args ?? [])], {
+  const child = spawnGuarded(options.command, [...(options.args ?? [])], {
     ...(options.cwd !== undefined && { cwd: options.cwd }),
-    ...(options.env !== undefined && { env: options.env }),
+    env: options.env,
     detached: hasProcessGroup,
     windowsHide: true,
   })

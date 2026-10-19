@@ -14,7 +14,7 @@ import {
   type ResourceTreeReader,
   type ResourceTreeUsage,
 } from '../../../shared/resources'
-import { runTreeProgram, type ResourceTreeRun } from './run'
+import { probeChildEnvironment, runTreeProgram, type ResourceTreeRun } from './run'
 import {
   resourceActionResultSchema,
   type ResourceActionResult,
@@ -45,7 +45,7 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
     const text = await (this.deps.run ?? runTreeProgram)(
       path.win32.join(this.deps.systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
       [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
-      { SystemRoot: this.deps.systemRoot },
+      probeChildEnvironment({ SystemRoot: this.deps.systemRoot }),
     )
     const value: unknown = JSON.parse(text)
     return value

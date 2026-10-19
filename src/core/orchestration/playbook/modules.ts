@@ -1,8 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto'
-import type { SpawnSyncOptions } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import nodePath from 'node:path'
-import { UI_TEXT } from '../../../shared/l10n/text'
 import {
   playbookModuleSchema,
   type PlaybookModule,
@@ -10,7 +6,6 @@ import {
   type PlaybookRound,
   type PlaybookDesignDecision,
 } from '../../../shared/playbook'
-import { redactSecrets } from '../../../shared/redact'
 import {
   GIT_OUTPUT_MAX_BYTES,
   GIT_TIMEOUT_MS,
@@ -21,11 +16,15 @@ import {
   PLAYBOOK_LINE_HASH_CHARS,
 } from '../../../shared/constants'
 import type { PlaybookLease } from '../../../shared/playbook'
-import { withoutCredentials } from '../../credentialEnvironment'
+import type { PlaybookHookAdmission } from './outcomes'
 import { processGitPath } from '../../../host/git'
 import { runTreeSync } from '../../../host/processTree'
-import { workspaceChildEnvironment } from '../../../core/executables'
-import type { PlaybookHookAdmission } from './outcomes'
+import { workspaceChildEnvironment } from '../../execGuard'
+import { createHash, randomUUID } from 'node:crypto'
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { UI_TEXT } from '../../../shared/l10n/text'
+import { redactSecrets } from '../../../shared/redact'
+import { withoutCredentials } from '../../credentialEnvironment'
 
 export interface ModuleState {
   module: PlaybookModule
@@ -216,7 +215,7 @@ export function renamedFiles(
     }
     if (!admission.admit(effect) || (process.platform === 'win32' && !admission.runContained))
       throw new Error(UI_TEXT.playbookUnavailable)
-    const options: SpawnSyncOptions = {
+    const options = {
       cwd: workspace,
       // The guarded child PATH for the workspace, so git's own bare-name
       // helpers never run a planting.
@@ -224,7 +223,7 @@ export function renamedFiles(
         workspaceRoot: workspace,
         realpath: realpathSync,
       }),
-      encoding: 'buffer',
+      encoding: 'buffer' as const,
       timeout: GIT_TIMEOUT_MS,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
       windowsHide: true,

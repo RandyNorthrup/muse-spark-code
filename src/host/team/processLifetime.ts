@@ -1,6 +1,26 @@
 import type { ResourceLease } from '../../core/resources/launch'
 import type { ResourcePermit } from '../../core/resources/queue'
 import type { GovernedTeamSlot } from '../../core/team/scheduler/slots'
+import { loadJobAssembly, runProgram } from '../processTree'
+import { windowsPowerShell } from '../../core/execGuard'
+import {
+  guardedEnvironmentBlock,
+  isWorkspacePath,
+  noWorkspaceChildEnvironment,
+  resolveExecutable,
+  workspaceChildEnvironment,
+} from '../../core/execGuard'
+import { isExistingFile } from '../backend/mcpProcess'
+import { resolveServerCommand, spawnLine } from '../../core/execGuard'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { spawnGuarded } from '../../core/guardedChildProcess'
+import { existsSync, realpathSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { createServer } from 'node:net'
+import { setTimeout as delay } from 'node:timers/promises'
+import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
+import { powerShellQuoted } from '../../core/shellQuote'
+import { withDeadline } from '../../core/timeouts'
 
 /** C1/T attach the reserved permit to their registry; no second admission or sampler. */
 export interface TeamProcessRegistryPort {
@@ -23,13 +43,8 @@ export function prepareTeamProcess(
   }
 }
 
-import { randomBytes, randomUUID } from 'node:crypto'
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { existsSync, realpathSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
-import { createServer } from 'node:net'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import os from 'node:os'
-import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 // Deep SDK imports, never the barrel (see MuseCodeHost.ts): the barrel's
 // unused layers would ride into the team bundles.
@@ -37,14 +52,6 @@ import { Connection } from '@muse-code/sdk/dist/src/connection/connection.js'
 import { checkServedFingerprint } from '@muse-code/sdk/dist/src/fingerprint.js'
 
 import type { TeamJournal } from './teamJournal'
-import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
-import { loadJobAssembly, runProgram, windowsPowerShell } from '../processTree'
-import {
-  absolutePathEntries,
-  resolveExecutable,
-  workspaceChildEnvironment,
-} from '../../core/executables'
-import { powerShellQuoted } from '../../core/shellQuote'
 import {
   MCP_JOB_HANDSHAKE_MAX_CHARS,
   TEAM_PROCESS_STATUS_MAX_CHARS,
@@ -58,7 +65,6 @@ import { createNativeOrphanDriver, createOrphanRecovery } from './orphanRecovery
 import { createProcessOwnership } from './processOwnership'
 import { MuseCodeHost, museCodeEffortPort } from '../../core/backends/musecode/MuseCodeHost'
 import type { CoreLogger } from '../../core/logging'
-import { withDeadline } from '../../core/timeouts'
 
 const NATIVE_POLL_MS = 10
 const NATIVE_CONFIRM_MS = 5000
@@ -467,26 +473,21 @@ export async function createNativeTeamProcessDriver(options: {
     throw new Error('TEAM_PLATFORM_UNSUPPORTED')
   const probeEnv = { PATH: process.env['PATH'], XDG_RUNTIME_DIR: process.env['XDG_RUNTIME_DIR'] }
   /**
-   * A probe tool resolved on the absolute PATH entries only: a probe never
-   * executes a relative or empty entry (the process working directory), and
-   * the probe runs the resolved absolute path. Entries inside a later
-   * launch's working directory are excluded again at launch, where the
-   * directory is known.
+   * The pre-launch probe never searches PATH: it runs only the fixed system
+   * paths with an absolute `true`, so a program planted on a workspace PATH
+   * entry never runs before any launch directory is known. The launch itself
+   * re-resolves each tool outside its own working directory (links followed)
+   * and fails closed when that directory shadows the probe. The probe child
+   * gets the explicit no-workspace guarded environment (absolute entries
+   * only, links followed).
    */
-  const probeTool = (name: string): string | undefined =>
-    resolveExecutable(name, {
-      platform: process.platform,
-      pathVariable: probeEnv.PATH,
-      fileExists: existsSync,
-    })
+  const fixedTool = (file: string): string | undefined => (existsSync(file) ? file : undefined)
+  const absoluteTrue = fixedTool('/bin/true') ?? fixedTool('/usr/bin/true')
+  const probeChildEnv = ((): ReturnType<typeof noWorkspaceChildEnvironment> =>
+    noWorkspaceChildEnvironment(process.platform, probeEnv, realpathSync))()
   const canRun = async (file: string, args: readonly string[]) => {
     try {
-      await runProgram(file, [...args], {
-        ...probeEnv,
-        PATH: absolutePathEntries(process.platform, probeEnv.PATH).join(
-          process.platform === 'win32' ? ';' : ':',
-        ),
-      })
+      await runProgram(file, [...args], probeChildEnv)
       return true
     } catch {
       return false
@@ -494,16 +495,23 @@ export async function createNativeTeamProcessDriver(options: {
   }
   let hasScope = false
   let hasSetpriv = false
-  if (process.platform === 'linux') {
-    const setpriv = probeTool('setpriv')
+  if (absoluteTrue !== undefined && process.platform === 'linux') {
+    const setpriv = fixedTool('/usr/bin/setpriv')
     hasSetpriv =
-      setpriv !== undefined && (await canRun(setpriv, ['--pdeathsig', 'KILL', '--', 'true']))
+      setpriv !== undefined && (await canRun(setpriv, ['--pdeathsig', 'KILL', '--', absoluteTrue]))
     try {
       await readFile('/sys/fs/cgroup/cgroup.controllers', 'utf8')
-      const systemdRun = probeTool('systemd-run')
+      const systemdRun = fixedTool('/usr/bin/systemd-run')
       hasScope =
         systemdRun !== undefined &&
-        (await canRun(systemdRun, ['--user', '--scope', '--collect', '--quiet', '--', 'true']))
+        (await canRun(systemdRun, [
+          '--user',
+          '--scope',
+          '--collect',
+          '--quiet',
+          '--',
+          absoluteTrue,
+        ]))
     } catch {
       /* No delegated cgroup v2 user scope: use the specified process-group path. */
     }
@@ -522,8 +530,7 @@ export async function createNativeTeamProcessDriver(options: {
           platform: process.platform,
           pathVariable: probeEnv.PATH,
           fileExists: existsSync,
-          workspaceRoot: request.cwd,
-          realpath: realpathSync,
+          scope: { workspaceRoot: request.cwd, realpath: realpathSync },
         })
       const requireLaunchTool = (name: string): string => {
         const resolved = launchTool(name)
@@ -578,16 +585,15 @@ export async function createNativeTeamProcessDriver(options: {
       // The person's configured command runs with the guarded child PATH
       // for its working directory: a bare name still resolves, but never to
       // a program planted in the workspace.
-      const child = spawn(command, args, {
+      const childEnv = workspaceChildEnvironment(
+        process.platform,
+        { ...probeEnv, ...request.env },
+        { workspaceRoot: request.cwd, realpath: realpathSync },
+      )
+      childEnv['MUSE_SPARK_LAUNCH_ID'] = launchId
+      const child = spawnGuarded(command, args, {
         cwd: request.cwd,
-        env: {
-          ...workspaceChildEnvironment(
-            process.platform,
-            { ...probeEnv, ...request.env },
-            { workspaceRoot: request.cwd, realpath: realpathSync },
-          ),
-          MUSE_SPARK_LAUNCH_ID: launchId,
-        },
+        env: childEnv,
         detached: true,
         stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
       })
@@ -829,6 +835,75 @@ export async function createNativeTeamProcessDriver(options: {
   }
 }
 
+/**
+ * The Windows team payload's whole environment, as the `string[]` block the
+ * native helper hands `CreateProcessW`: the same guarded child environment
+ * the POSIX launch uses for the same payload, so a helper the payload
+ * starts by bare name (`ssh`, `git-remote-https`) never resolves to a
+ * program planted in the workspace. (The executable itself never comes from
+ * this block: `RunTeam` receives it as `lpApplicationName`, resolved
+ * outside the workspace by `resolveWindowsTeamCommand` below.) Only a
+ * guarded environment serializes (`guardedEnvironmentBlock`), so a raw
+ * `request.env` does not type-check here.
+ */
+export function windowsTeamPayloadEnvironment(env: NodeJS.ProcessEnv, cwd: string): string[] {
+  return guardedEnvironmentBlock(
+    workspaceChildEnvironment('win32', env, {
+      workspaceRoot: cwd,
+      realpath: realpathSync,
+    }),
+  )
+}
+
+export interface WindowsTeamCommandTarget {
+  /**
+   * The absolute file `RunTeam` starts: outside the workspace, so
+   * `CreateProcessW` (which completes a partial `lpApplicationName` from
+   * the helper's own working directory without a PATH search) can never
+   * complete it to a workspace planting. A `.cmd`/`.bat` hit is the
+   * absolute `cmd.exe` instead, which alone can start one.
+   */
+  readonly executable: string
+  /** The arguments for it (the pre-quoted `cmd.exe` line for a batch file). */
+  readonly args: readonly string[]
+  /** Whether the arguments reach `CreateProcessW` exactly as built. */
+  readonly isVerbatim: boolean
+}
+
+/**
+ * The `RunTeam` executable and arguments for a team launch, resolved before
+ * the helper runs. A bare `command` resolves on the absolute PATH entries
+ * outside the launch's own working directory (PATHEXT order included), the
+ * way the MCP servers resolve theirs; a missing name fails the launch
+ * closed instead of falling back to the workspace. A path the person named
+ * is the file it names, but one inside the workspace (links followed)
+ * fails the launch closed too: with the workspace as the helper's working
+ * directory, `CreateProcessW` would otherwise complete it there.
+ */
+export function resolveWindowsTeamCommand(
+  command: string,
+  args: readonly string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+  deps: {
+    readonly systemRoot: string | undefined
+    readonly isExistingFile: (filePath: string) => boolean
+    readonly realpath: (filePath: string) => string
+  },
+): WindowsTeamCommandTarget {
+  const scope = { workspaceRoot: cwd, realpath: deps.realpath }
+  const file = resolveServerCommand(
+    command,
+    cwd,
+    env,
+    { platform: 'win32', isExistingFile: deps.isExistingFile },
+    scope,
+  )
+  if (isWorkspacePath('win32', scope, file)) throw new Error('TEAM_COMMAND_IN_WORKSPACE')
+  const line = spawnLine(file, args, { platform: 'win32', systemRoot: deps.systemRoot })
+  return { executable: line.file, args: [...line.args], isVerbatim: line.isVerbatim }
+}
+
 function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDriver {
   return {
     launch(request, launchId, lifecycle = new TeamLaunchLifecycle()) {
@@ -949,14 +1024,29 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
       }
       const strings = (values: readonly string[]) =>
         `[string[]]@(${values.map((value) => powerShellQuoted(value)).join(',')})`
-      const environment = Object.entries(request.env).flatMap(([key, value]) =>
-        value === undefined ? [] : [`${key}=${value}`],
+      // The payload's whole environment: the same guarded child environment
+      // the POSIX launch uses, so nothing the payload starts by bare name
+      // resolves to a program planted in the workspace. The executable
+      // itself is resolved outside the workspace first: `RunTeam` passes it
+      // as `lpApplicationName`, which `CreateProcessW` would otherwise
+      // complete from the helper's working directory (the workspace).
+      const environment = windowsTeamPayloadEnvironment(request.env, request.cwd)
+      const target = resolveWindowsTeamCommand(
+        request.command,
+        request.args,
+        request.cwd,
+        request.env,
+        {
+          systemRoot,
+          isExistingFile,
+          realpath: realpathSync,
+        },
       )
       const powershell = windowsPowerShell(systemRoot, request.env)
       // .NET and quoted literals only: ConvertFrom-Json discovers PowerShell
       // modules on a cold runner before the native confirmation clock can fire.
-      const script = `${loadJobAssembly(assembly)}; exit [MuseSparkJob]::RunTeam(${powerShellQuoted(request.command)}, ${strings(request.args)}, ${powerShellQuoted(request.cwd)}, ${String(process.pid)}, ${strings(environment)}, ${powerShellQuoted(ownerPipe)}, ${powerShellQuoted(nonce)}, ${powerShellQuoted(statusPipe)}, ${powerShellQuoted(group)}, $${request.priority === 'belowNormal' ? 'true' : 'false'})`
-      const child = spawn(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], {
+      const script = `${loadJobAssembly(assembly)}; exit [MuseSparkJob]::RunTeam(${powerShellQuoted(target.executable)}, ${strings(target.args)}, ${powerShellQuoted(request.cwd)}, ${String(process.pid)}, ${strings(environment)}, ${powerShellQuoted(ownerPipe)}, ${powerShellQuoted(nonce)}, ${powerShellQuoted(statusPipe)}, ${powerShellQuoted(group)}, $${request.priority === 'belowNormal' ? 'true' : 'false'}, $${target.isVerbatim ? 'true' : 'false'})`
+      const child = spawnGuarded(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], {
         cwd: request.cwd,
         env: workspaceChildEnvironment('win32', powershell.env, {
           workspaceRoot: request.cwd,

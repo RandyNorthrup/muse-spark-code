@@ -14,7 +14,6 @@
 // password).
 
 import * as z from 'zod/mini'
-import { environmentValue } from '../core/childEnvironment'
 import type { HostRouting, NetworkFacts, SupportFacts } from '../core/support/report'
 import {
   HTTP_NO_PROXY_SETTING,
@@ -29,6 +28,7 @@ import {
 import type { VoiceHttpSupport } from '../core/voice/voiceNetwork'
 import type { ProxySettings } from './backend/museCodeBackendManager'
 import type { ProcessResult } from './backend/sandboxSetup'
+import { environmentValue } from '../core/execGuard'
 
 /**
  * The global `fetch` at each call, not at activation: whatever VS Code has

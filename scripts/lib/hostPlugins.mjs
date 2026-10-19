@@ -6,6 +6,7 @@
 // builds.
 import {
   deferredCohort,
+  sharedExecGuard,
   sharedModelApiBoundaries,
   sharedResourceAdmission,
   sharedUiText,
@@ -22,4 +23,5 @@ export const HOST_PLUGINS = Object.freeze([
   sharedResourceAdmission,
   deferredTeamView,
   sharedModelApiBoundaries,
+  sharedExecGuard,
 ])

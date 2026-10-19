@@ -1,6 +1,7 @@
 import { spawnResourceProcess } from '../../resources/launcher'
 import { Socket } from 'node:net'
 import { type Duplex } from 'node:stream'
+import { probeChildEnvironment } from '../../resources/trees/run'
 import * as z from 'zod/mini'
 import { VAULT_TRANSPORT_TIMEOUT_MS, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
 
@@ -54,11 +55,13 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
     // Only a kernel socket has peer credentials; a relayed stream never passes here.
     if (!(stream instanceof Socket)) throw new Error(UI_TEXT.vault.noAccess)
     const socket = stream
+    // The peer verifier binary runs with an empty environment: absolute
+    // entries only, links followed.
     const { child, stop } = await spawnResourceProcess(
       'contained',
       this.executable,
       [],
-      { env: {} },
+      { env: probeChildEnvironment({}) },
       [z.number().check(z.int(), z.positive()).parse(this.descriptors.descriptor(socket))],
     )
     child.stdin.end()

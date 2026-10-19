@@ -1,15 +1,16 @@
 import type { ExecFileOptionsWithStringEncoding } from 'node:child_process'
-import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
-import { resolveExecutable, workspaceChildEnvironment } from '../executables'
-import { environmentValue } from '../childEnvironment'
-import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
-import { spawnResourceProcess } from './process'
 import {
   ResourceCapRefusedError,
   ResourceMemoryLimitError,
   type ResourceHandoffUntil,
 } from './launch'
+import { type GuardedChildEnv } from '../executables'
+import { isWorkspacePath, resolveExecutable, workspaceChildEnvironment } from '../execGuard'
+import { environmentValue } from '../execGuard'
+import { existsSync, realpathSync } from 'node:fs'
+import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
+import { spawnResourceProcess } from './process'
 
 /**
  * The workspace a governed child runs in: product lookups (`xdg-open`,
@@ -25,21 +26,28 @@ function resolveCommand(
   env: NodeJS.ProcessEnv,
   workspace: GovernedWorkspace,
 ): string {
-  const file = path.isAbsolute(command)
-    ? command
-    : resolveExecutable(command, {
-        platform: process.platform,
-        pathVariable: environmentValue(env, process.platform, 'PATH'),
-        fileExists: existsSync,
-        workspaceRoot: workspace.workspaceRoot,
-        realpath: realpathSync,
-      })
+  const scope = { workspaceRoot: workspace.workspaceRoot, realpath: realpathSync }
+  if (path.isAbsolute(command)) {
+    // An absolute configured path inside the workspace is refused like a
+    // bare name there: a planted absolute `gh` must not run with the
+    // person's login when a report reads GitHub.
+    if (isWorkspacePath(process.platform, scope, command))
+      throw new Error('Governed command unavailable')
+    if (!existsSync(command)) throw new Error('Governed command unavailable')
+    return command
+  }
+  const file = resolveExecutable(command, {
+    platform: process.platform,
+    pathVariable: environmentValue(env, process.platform, 'PATH'),
+    fileExists: existsSync,
+    scope,
+  })
   if (file === undefined || !existsSync(file)) throw new Error('Governed command unavailable')
   return file
 }
 
 /** The child's environment: the guarded child PATH for its workspace. */
-function childEnvironment(env: NodeJS.ProcessEnv, workspace: GovernedWorkspace): NodeJS.ProcessEnv {
+function childEnvironment(env: NodeJS.ProcessEnv, workspace: GovernedWorkspace): GuardedChildEnv {
   return workspaceChildEnvironment(process.platform, env, {
     workspaceRoot: workspace.workspaceRoot,
     realpath: realpathSync,

@@ -1,12 +1,14 @@
+import path from 'node:path'
+import * as z from 'zod/mini'
+import { runProgram } from '../host/processTree'
+import { windowsPowerShell } from '../core/execGuard'
+import { noWorkspaceChildEnvironment } from '../core/execGuard'
 import { Buffer } from 'node:buffer'
 import { randomBytes } from 'node:crypto'
-import { constants, rmSync, rmdirSync } from 'node:fs'
+import { constants, realpathSync, rmSync, rmdirSync } from 'node:fs'
 import { chmod, lstat, mkdtemp, open, realpath, rm, rmdir } from 'node:fs/promises'
-import path from 'node:path'
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { isStoreErrorCode } from '../host/backend/storeErrors'
-import { runProgram, windowsPowerShell } from '../host/processTree'
-import * as z from 'zod/mini'
 import { IDE_MCP_TOKEN_BYTES, UI_TEXT } from '../shared/constants'
 
 const FILE_MODE = constants.S_IRUSR | constants.S_IWUSR
@@ -118,10 +120,18 @@ const windowsAcl: TokenWindowsAcl = {
  * proves nothing there.
  */
 export async function darwinModeWithoutAcl(file: string): Promise<string | undefined> {
-  const output = await runProgram('/bin/ls', ['-ledn', file], {
-    ...withoutKeyringRoutes(withoutCredentials(process.env)),
-    LC_ALL: 'C',
-  })
+  const output = await runProgram(
+    '/bin/ls',
+    ['-ledn', file],
+    noWorkspaceChildEnvironment(
+      process.platform,
+      {
+        ...withoutKeyringRoutes(withoutCredentials(process.env)),
+        LC_ALL: 'C',
+      },
+      realpathSync,
+    ),
+  )
   const lines = output.trimEnd().split('\n')
   const modeReceipt = /^([d-][rwx-]{9})@?[ \t]/.exec(lines[0] ?? '')
   return lines.length === 1 ? modeReceipt?.[1] : undefined
@@ -169,9 +179,10 @@ export async function secureOwnerOnly(
   if (uid === undefined || verified.uid !== uid || (verified.mode & MODE_MASK) !== mode)
     throw new Error('EOWNER_ONLY')
   if (process.platform === 'darwin') {
-    // Accept only a single mode receipt with no '+' marker or ACL entries;
-    // even owner/deny ACLs refuse. The fixed system binary receives a path
-    // and a credential-free env only.
+    // chmod does not remove macOS allow ACEs. Accept only a single mode
+    // receipt with no '+' marker or ACL entries; even owner/deny ACLs refuse.
+    // The fixed system binary receives a path and a credential-free guarded
+    // env only.
     const expected = isDirectory ? 'drwx------' : '-rw-------'
     if ((await darwinModeWithoutAcl(file)) !== expected) throw new Error('EOWNER_ONLY')
     return { platform: 'darwin', ownerOnly: true, mode, extendedAcl: false }

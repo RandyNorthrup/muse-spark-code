@@ -1,11 +1,5 @@
-import { nonnegativeUsdSchema } from '../../shared/usdSchema'
-import { type ChildProcess, type SpawnOptions } from 'node:child_process'
-import { spawnResourceProcess, execResourceFile } from '../../core/resources/launcher'
-import { createHash, randomUUID } from 'node:crypto'
-import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
-import { homedir } from 'node:os'
 import * as z from 'zod/mini'
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import { isStoreErrorCode } from '../../host/backend/storeErrors'
@@ -31,7 +25,6 @@ import {
   SCHEDULE_NATIVE_MAX_OUTPUT_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
-import { agentDataFolder } from '../dataFolder'
 import {
   unsafeScheduleLauncher,
   backgroundDefinitionPaths,
@@ -42,6 +35,16 @@ import {
 } from './registration'
 import type { BackgroundFilePort, BackgroundProcessResult } from './nativeBackground'
 import type { TrustedPathVerifier } from '../trustedPathPort'
+import { type GuardedChildEnv } from '../../core/executables'
+import { noWorkspaceChildEnvironment } from '../../core/execGuard'
+import { nonnegativeUsdSchema } from '../../shared/usdSchema'
+import { type ChildProcess, type SpawnOptions } from 'node:child_process'
+import { realpathSync } from 'node:fs'
+import { spawnResourceProcess, execResourceFile } from '../../core/resources/launcher'
+import { createHash, randomUUID } from 'node:crypto'
+import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { agentDataFolder } from '../dataFolder'
 import { windowsTrustedPathVerifier } from '../windowsTrustedPath'
 import { effectiveBackgroundDefinition, scheduleWindowsOwner } from './effectiveDefinition'
 
@@ -128,7 +131,7 @@ export async function beginScheduleWake(
     launch: (
       file: string,
       args: readonly string[],
-      options: SpawnOptions,
+      options: Omit<SpawnOptions, 'env'> & { readonly env: GuardedChildEnv },
     ) => Pick<ChildProcess, 'once' | 'unref'> | Promise<Pick<ChildProcess, 'once' | 'unref'>>
   },
 ): Promise<() => Promise<void>> {
@@ -136,7 +139,11 @@ export async function beginScheduleWake(
     identity: startIdentity,
     trustedPath: trustedBackgroundPath,
     write: (file: string, text: string) => nodeBackgroundFiles().write(file, text),
-    launch: async (file: string, args: readonly string[], options: SpawnOptions) => {
+    launch: async (
+      file: string,
+      args: readonly string[],
+      options: Omit<SpawnOptions, 'env'> & { readonly env: GuardedChildEnv },
+    ) => {
       const { stdio: _stdio, detached: _detached, shell: _shell, ...processOptions } = options
       const { child } = await spawnResourceProcess('contained', file, args, processOptions)
       child.stdin.end()
@@ -153,11 +160,17 @@ export async function beginScheduleWake(
   await io.write(file, JSON.stringify({ pid: process.pid, startIdentity: identity }))
   return async () => {
     // Start its bounded wait after settlement, so long turns use no retry budget.
+    // The trust-checked schedule launcher: absolute entries only, links
+    // followed.
     const launching = io.launch(launcher, [script, 'schedule', 'background-maintain', '--json'], {
       detached: true,
       stdio: 'ignore',
       windowsHide: true,
-      env: withoutCredentials(process.env),
+      env: noWorkspaceChildEnvironment(
+        process.platform,
+        withoutCredentials(process.env),
+        realpathSync,
+      ),
     })
     const child =
       launching instanceof Promise

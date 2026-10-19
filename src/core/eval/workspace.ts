@@ -1,17 +1,13 @@
 // One M75 task's folders (PLAN.md D49): a fresh folder under the system's
 // temporary folder per task and arm, holding the workspace (the fixture
 // files, nothing else) and, beside it, the verifier the model never sees.
-// The verifier runs as its own Node process with an empty environment, so
-// nothing from the run's environment (the Model API key above all) reaches
-// the code the model wrote.
+// The verifier runs as its own Node process with none of the run's
+// environment (the Model API key above all), so nothing from it reaches the
+// code the model wrote; the guard's own safety variables still apply.
 
 import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
-import { execFile } from 'node:child_process'
-import { mkdir, mkdtemp, readdir, realpath, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import {
   EVAL_REMOVE_RETRIES,
   EVAL_REMOVE_RETRY_DELAY_MS,
@@ -23,8 +19,14 @@ import {
   EVAL_VERIFY_TIMEOUT_MS,
   EVAL_WORKSPACE_DIR,
 } from '../../shared/constants'
+import { noWorkspaceChildEnvironment } from '../execGuard'
+import { realpathSync } from 'node:fs'
+import { mkdir, mkdtemp, readdir, realpath, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { pathToFileURL } from 'node:url'
 import { EVAL_VERIFY_PRELUDE, isEvalPath, type EvalTask } from './tasks'
 import { wireWordForLog } from '../logging'
+import { execFileGuarded } from '../guardedChildProcess'
 
 export interface EvalFolders {
   /** The task's own temporary folder; removing it removes everything. */
@@ -124,13 +126,22 @@ export async function runEvalVerifier(
   const token = randomUUID()
   await writeFile(script, `${EVAL_VERIFY_PRELUDE}${task.verify}\ncomplete()\n`)
   return await new Promise<EvalVerdict>((resolve) => {
-    const child = execFile(
+    const child = execFileGuarded(
       process.execPath,
       [script, folders.workspace],
-      // An empty environment. On Windows, libuv adds back only what a
-      // process needs to start (PATH, SYSTEMROOT, TEMP, the profile's
-      // folders), never a variable of the run's own.
-      { cwd: folder, env: {}, timeout: timeoutMs, killSignal: 'SIGKILL', windowsHide: true },
+      // No variable of the run's own. On Windows, libuv adds back only
+      // what a process needs to start (PATH, SYSTEMROOT, TEMP, the
+      // profile's folders), and the guard sets its own
+      // `NoDefaultCurrentDirectoryInExePath` (the verifier runs
+      // model-written files, so its own bare-name lookups skip its
+      // working directory too).
+      {
+        cwd: folder,
+        env: noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
+        timeout: timeoutMs,
+        killSignal: 'SIGKILL',
+        windowsHide: true,
+      },
       (error, stdout, stderr) => {
         if (error === null) {
           const hasFinished = stdout.split(/\r?\n/u).some((line) => {

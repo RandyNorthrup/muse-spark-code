@@ -9,6 +9,7 @@ import type {
 import type { ResourceTreeActionReader } from './trees/actions'
 import type { ChildProcess, SpawnOptionsWithoutStdio } from 'node:child_process'
 import { UI_TEXT } from '../../shared/constants'
+import type { GuardedChildEnv } from '../executables'
 
 /**
  * Every governed launch names its lifetime (PLAN SPAWN017C):
@@ -20,8 +21,14 @@ export type ResourceLaunchProfile = 'contained' | 'probe' | 'handoff' | 'interac
 /** Callers cannot choose session, shell or terminal wiring; the profile does. */
 export type ResourceProcessOptions = Omit<
   SpawnOptionsWithoutStdio,
-  'detached' | 'stdio' | 'shell'
+  'detached' | 'stdio' | 'shell' | 'env'
 > & {
+  /**
+   * The child's whole environment: only `workspaceChildEnvironment` /
+   * `noWorkspaceChildEnvironment` can produce one, so a raw environment
+   * does not type-check here.
+   */
+  readonly env: GuardedChildEnv
   /**
    * The whole tree's committed memory cap in bytes. Enforced only by the Windows
    * attested job (contained and probe), whose outcome then names `jobMemory`
@@ -226,13 +233,14 @@ export interface ResourceTreeBinding {
 }
 
 /** Case-insensitive replacement also covers Windows' environment aliases. */
-export function resourceEnvironment(
-  env: Readonly<NodeJS.ProcessEnv>,
+export function resourceEnvironment<T extends NodeJS.ProcessEnv>(
+  env: T,
   lease: ResourceLease | undefined,
-): NodeJS.ProcessEnv {
+): T {
   if (lease?.temp === undefined) return { ...env }
   const projected = Object.fromEntries(
     Object.entries(env).filter(([name]) => !['TMPDIR', 'TEMP', 'TMP'].includes(name.toUpperCase())),
   )
-  return { ...projected, ...lease.temp.environment }
+  // A lease only adds its own temp variables: a guarded environment stays guarded.
+  return { ...projected, ...lease.temp.environment } as T
 }

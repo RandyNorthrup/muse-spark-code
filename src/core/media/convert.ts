@@ -6,7 +6,6 @@ import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { watch, type FSWatcher } from 'node:fs'
 import fs, { chmod, lstat, mkdtemp, open, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { isCredentialVariable } from '../../shared/credentialEnvironment'
 import {
@@ -41,6 +40,10 @@ import {
   type MediaLimits,
   type SniffMediaResult,
 } from './limits'
+import { type GuardedChildEnv } from '../executables'
+import { noWorkspaceChildEnvironment, workspaceChildEnvironment } from '../execGuard'
+import { realpathSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 
 export interface MediaConverter {
   readonly kind: 'ffmpeg' | 'avconvert'
@@ -156,8 +159,9 @@ async function probeVersion(
   args: readonly string[],
   options: VersionProbeOptions,
 ): Promise<string> {
+  // The trust-verified converter probe: absolute entries only, links followed.
   const { child, stop: stopTree } = await spawnResourceProcess('probe', command, args, {
-    env: options.env,
+    env: noWorkspaceChildEnvironment(process.platform, options.env, realpathSync),
     ...(options.signal !== undefined && { signal: options.signal }),
   })
   child.stderr.resume()
@@ -286,7 +290,7 @@ export async function locateMediaConverter(
 /** What every encoder launch must enforce, whatever watches its memory. */
 export interface LimitedRunOptions {
   readonly cwd: string
-  readonly env: NodeJS.ProcessEnv
+  readonly env: GuardedChildEnv
   readonly timeoutMs: number
   readonly signal?: AbortSignal
   readonly outputPath: string
@@ -373,9 +377,14 @@ async function runConverter(
     child,
     stop: stopTree,
     pid: payloadPid,
+    // The trust-verified converter runs with the guarded child PATH for its
+    // working directory, so nothing it starts by bare name runs from there.
   } = await spawnResourceProcess('contained', command, args, {
     cwd: options.cwd,
-    env: options.env,
+    env: workspaceChildEnvironment(process.platform, options.env, {
+      workspaceRoot: options.cwd,
+      realpath: realpathSync,
+    }),
     ...(options.signal !== undefined && { signal: options.signal }),
   })
   child.stdin.end()
@@ -756,7 +765,10 @@ async function convertWith<I extends MediaFileInfo>(
       args,
       {
         cwd: directory,
-        env: converterEnvironment(),
+        env: workspaceChildEnvironment(process.platform, converterEnvironment(), {
+          workspaceRoot: directory,
+          realpath: realpathSync,
+        }),
         timeoutMs,
         outputPath: output,
         maxOutputBytes,

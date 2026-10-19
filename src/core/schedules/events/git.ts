@@ -52,6 +52,9 @@ export function localGitRefs(
         env: withoutCredentials(process.env),
         maxBuffer: GIT_OUTPUT_MAX_BYTES,
         windowsHide: true,
+        // The schedule's own workspace: `git` never resolves to a file
+        // inside it, and the child's PATH is guarded for it.
+        workspaceRoot,
       }
       try {
         const common = await exec(

@@ -290,3 +290,253 @@ Round-4 gates (lane PR249FIX3, same timeout rule):
   0 drift; `knip`: exit 0; `node scripts/cycles.mjs`: no cycles;
   `jscpd`: 0 clones (two introduced mid-lane fixed at the cause);
   `npm run build`: exit 0 with budgets unchanged.
+
+## Fix (round 6, lane PR249FIX5, Grok re-review of PR #249)
+
+Forgetting the guard is a type error, so the next forgotten call site is
+found by the compiler, not the reviewer:
+
+- `src/core/executables.ts`: `ExecutableProbe` takes a required
+  `scope: ExecutableScope` — a workspace root with its link resolver, or
+  the explicit `NO_WORKSPACE` sentinel (absolute entries only, links
+  followed) for a capability probe before any folder is known. No
+  optional `workspaceRoot`, no default resolver. `WorkspaceChild`
+  requires `realpath`; `workspaceChildEnvironment` and the new
+  `noWorkspaceChildEnvironment` return the branded `GuardedChildEnv`
+  only they can produce. `RunProgram`, `runTreeSync` (which also
+  requires `cwd`) and the plugin spawn take it, so a raw `process.env`
+  does not type-check there. `withoutCredentials` and
+  `resourceEnvironment` preserve the brand.
+- Every wrapper follows: `gitLocator`/`processGitPath`, the shell/hook
+  interpreters and environments (the explicit no-workspace scope where
+  no folder is open), `resolveServerCommand`, the `muse` launch probe
+  and child environment, the plugin `PluginRunDeps`, the capture probe,
+  and the report/schedule/sharing callers of the governed boundary.
+- Cause fixes through those types: the team probe never searches PATH
+  (fixed `/usr/bin/setpriv` + `/usr/bin/systemd-run` with an absolute
+  `/bin/true` under the no-workspace env; the launch still re-resolves
+  outside its own directory, links followed); the report's `gh` probe
+  carries the report workspace and `resolveCommand` refuses an absolute
+  path inside it like a bare name there (the schedule git reader and
+  the sharing adapters thread their workspace the same way);
+  `foreignHooksEntry.ts` passes `realpathSync` into the production
+  `PluginSession`; playbook effects sanitize the effect's cwd (a linked
+  worktree outside the main checkout) as well as the main workspace;
+  the Linux recorder child gets the guarded environment and cwd.
+- `test/unit/pathGuardRound6.test.ts` drives each cause fix against
+  real plantings on a temporary workspace (absolute refusal at the
+  governed boundary — seen to fail with the check broken — `gh`
+  resolved outside the workspace with the root threaded to the exec,
+  the linked-worktree double sanitize through the real
+  `PlaybookOutcomes`, and a real team driver start that never executes
+  a planted `setpriv`/`true`; the recorder lookup refusal stays proven
+  by round 4's `arecord` test). The inventory scans
+  `execResourceFile`/`handoffResourceFile` and one-level aliases and
+  pins the branded signatures.
+
+## Proof (round 6)
+
+`test/unit/pathGuardRound6.test.ts` (4 tests), the updated
+`test/unit/pathGuard.test.ts` (17), `test/unit/executables.test.ts`
+(9), `test/unit/pathGuardRound4.test.ts` (19) and the extended
+`test/unit/pathGuardSpawns.test.ts` (6 tests: inventory, aliases,
+governed calls, type pins), all passing on the rig (round 6 adds 4 +
+the inventory pins):
+
+- The no-workspace scope drops relative/empty entries and still sets
+  `NoDefaultCurrentDirectoryInExePath` on Windows; `absolutePathEntries`
+  follows links for the workspace comparison.
+- A planted absolute `gh` is refused before any spawn; a real outside
+  `gh` answers with the workspace threaded through.
+- The linked worktree's child PATH excludes both checkouts; the team
+  probe runs fixed tools only and leaves planted markers untouched.
+- The refusal test fails with the check broken (reverted) and passes
+  with it; the inventory fails on an unlisted governed call and on a
+  loosened branded signature.
+
+Round-6 gates (lane PR249FIX5, repository's own timeout throughout,
+never `--testTimeout`):
+
+- `test/unit/pathGuardRound6.test.ts`: 4/4 pass.
+- Guard + inventory suites: `pathGuard` + `executables` +
+  `pathGuardRound4` (45 pass); `pathGuardSpawns` (6 pass);
+  `helperLocation` + `nativeGitCore` (41 pass).
+- Related suites of every touched file: `foreignHooks`,
+  `pluginDispatch` (with real children), `sandbox`, `playbookSurface`,
+  `schedules`, `mcpServers`, `reportProblem`, `supportReport`,
+  `diagnosticsReport`, `hookFormats`, `shellSyntax`, `teamResources`,
+  `gitState`, `gitText`, `nativeProcessDefaults`,
+  `credentialFile`, `sharingArtifacts`, `runnerHelperNative`,
+  `scheduleRegistration`, `resourcesContracts`, `githubRemote`: all
+  pass.
+- `npm run typecheck` (all five projects): exit 0.
+- eslint zero warnings; prettier clean; `node scripts/check-l10n.mjs`:
+  0 problems; `node scripts/check-plan.mjs`: 0 drift;
+  `node scripts/check-host-api.mjs`: exit 0; `knip`: exit 0;
+  `node scripts/cycles.mjs`: no cycles; `jscpd`: 0 clones;
+  `npm run build`: exit 0 with budgets unchanged.
+
+## Fix (round 7, lane PR249FIX6, Grok re-review of PR #249)
+
+Round 6 branded `runProgram` / `runTreeSync` / plugin spawn, but the
+Windows team payload environment is a `string[]` the compiler does not
+see: `windowsTeamDriver` sanitized only the PowerShell helper while
+`CreateProcessW` received the raw `request.env`, so a team worker whose
+cwd is the workspace searched the workspace first for a bare
+`request.command` and kept absolute workspace `PATH` entries for the
+helpers it starts by bare name. The spawn inventory stayed green
+because the guard name still appeared in the file (on the helper).
+
+- `src/host/team/processLifetime.ts`: `windowsTeamPayloadEnvironment`
+  builds the `RunTeam` block from
+  `workspaceChildEnvironment('win32', request.env, ...)` — the same
+  object the POSIX launch uses — dropping workspace/`PATH` entries and
+  setting `NoDefaultCurrentDirectoryInExePath=1` on the payload. That
+  block is what helpers the payload starts by bare name search; the
+  `RunTeam` executable itself is resolved outside the workspace first
+  (`resolveWindowsTeamCommand`: a bare name on the absolute `PATH`
+  entries, PATHEXT included, a `.cmd`/`.bat` hit through the absolute
+  `cmd.exe`, fail closed inside the workspace), because `CreateProcessW`
+  completes a partial `lpApplicationName` from the helper's working
+  directory without a PATH search.
+- The class, not the instance: direct `child_process` calls move behind
+  one guarded wrapper (`src/core/guardedChildProcess.ts`:
+  `spawnGuarded`/`execFileGuarded` take only the branded
+  `GuardedChildEnv`), and a native helper payload serializes only from
+  the brand (`guardedEnvironmentBlock`, `McpJobLaunch.env`). The
+  serve/login builder (`buildChildEnvironment`) returns the brand
+  through the same producers; `ResourceProcessOptions`,
+  `ResourceTreeRun`, the git/checkout/macos ports and the login and
+  schedule launch options all require it — the compiler lists every
+  site (29 errors across 14 files on the first typecheck, each fixed
+  at its cause).
+- Two spelling games closed in the producers themselves: on Windows
+  every `PATH` casing is guarded (a second raw spelling no longer
+  survives the first sanitizing empty), and a preset
+  `NoDefaultCurrentDirectoryInExePath=0` is dropped before the
+  canonical `1` is set.
+- `test/unit/pathGuardRound7.test.ts` drives the real payload builder
+  against a workspace planting (seen to fail with the builder
+  reverted: the planting and the missing guard variable fail, the
+  pass-through assertions still pass). The inventory now lists only
+  the two sanctioned direct starters (the wrapper and the tree
+  helpers), fails on any direct starter anywhere else (proven with a
+  planted raw `spawn`), and fails on any second cast to the brand
+  (proven with a planted `as GuardedChildEnv`).
+
+## Proof (round 7)
+
+`test/unit/pathGuardRound7.test.ts` (6 tests) and the extended
+`test/unit/pathGuardSpawns.test.ts` (7 tests), plus the guard suites
+`pathGuard` (17), `pathGuardRound4` (19), `pathGuardRound6` (4) and
+`executables` (9), all passing on the rig with the repository's own
+timeout (never `--testTimeout`):
+
+- The payload block keeps the system directory, drops the workspace
+  planting with every casing, empty and relative entries, sets
+  `NoDefaultCurrentDirectoryInExePath=1`, and passes other variables
+  through while dropping `undefined` ones.
+- The planted-`spawn` break fails the inventory with the file and
+  line; the planted-cast break fails the brand pin; both probes
+  removed after.
+- Related suites of every touched file pass: `treesLifecycleNative`,
+  `fileLease`, `nativeProcessDefaults`, `teamGitClassifier`,
+  `teamRefFence`, `sandbox`, `nativeGitCore`, `browserLaunch`,
+  `runtimePullRequestRecords`, `evalTasks`, `pluginDispatch`,
+  `heldTree`, `scheduleRegistration`, `mcpServers`, `handoff`,
+  `heldCheckoutCore`, `reservationLock`, `foreignHooks`, `worktrees`,
+  `supportReport`, `checkCommands`, `bestOfN`, `schedules`,
+  `importConvert`, `mediaContracts`. `inspectNative` fails 18
+  identically on the untouched base (the native confine helper
+  refuses on the rig) — measured, not assumed.
+- `npm run typecheck` (all five projects): exit 0. eslint zero
+  warnings (full `lint:js`); prettier clean; `check:l10n`:
+  0 problems; `check:plan`: 0 drift; `check:host-api`: refreshed
+  (`node:child_process` 29→22, `node:fs` 88→97, `node:util` 10→9)
+  then exit 0; `knip`: only pre-existing hints; `cycles.mjs`:
+  no cycles; `jscpd`: 0 clones (a shared producer-entries helper
+  plus the recorder test on the guarded starter; measured 2 clones
+  against 0 at base first); `npm run build`: exit 0 with budgets
+  unchanged; `security:sast` and `security:audit` as recorded on the
+  lane. (`check:reference` crashes identically on the untouched
+  base — pre-existing, unrelated: no command, setting or feature
+  changes in this lane.)
+
+## Fix (round 7 continued, lane PR249FIX7B)
+
+Hosted CI left three failures after round 7; each fixed at its cause
+on this lane, no budget, bound, timeout or cap raised.
+
+- **Activation budget** (`modelsActivationBudget`, every platform:
+  `expected 7822 to be less than or equal to 3072`). The 3072 cap is
+  the owner's and never moves. Measured first: the immutable pre-K
+  baseline is 561352 bytes; main grows it by 2901; this branch grew
+  it by 7822. The cause is what rounds 4–7 put on the activation
+  path: the guard implementation (`guardedChildProcess`,
+  the executables brand machinery and the reporting tables reachable
+  from it) linked into `dist/extension.js` before the first deferred
+  import. The fix moves the implementation to `src/core/execGuard.ts`,
+  shipped as `dist/execGuard.js` and required when the extension
+  module is evaluated: the extension's static import builds to a
+  top-level require of the external file, even when no process
+  starts. The activation cap still holds because the body lives in
+  the external file, and a missing file fails extension load instead
+  of starting an unguarded process. The wiring uses the
+  deferred-entry pattern the build already has
+  (`src/core/execGuardEntry.ts`, the `sharedExecGuard`
+  externalization in `scripts/lib/deferredBundles.mjs`, the
+  `EXEC_GUARD` deferred record, registry row, size/split/host-globals
+  pins, VSIX and ACP package lists). Types and `NO_WORKSPACE` stay in
+  `executables.ts`; the 47 call sites import the same names from the
+  guard module, so behaviour is identical. After: growth **1816**
+  (current 563168), under the cap and under main's figure.
+- **Eval verifier environment** (`evalTasks`, windows-latest only).
+  The extra variable is `NoDefaultCurrentDirectoryInExePath`, set by
+  `noWorkspaceChildEnvironment` itself — the guard's own safety
+  variable, not the run's environment. The verifier executes
+  model-written files, so its own bare-name lookups skip its working
+  directory too; removing it would weaken the guard. The test now
+  names that product-set variable exactly and why, still refusing
+  every variable that comes from the run (commit `90cb84a198`).
+- **Grok blocker GRV249G.** `windowsTeamDriver` now resolves
+  `request.command` to an absolute file outside the workspace before
+  `RunTeam` (`resolveWindowsTeamCommand`: bare name on the absolute
+  `PATH` entries outside the cwd, PATHEXT included, a `.cmd`/`.bat`
+  hit through the absolute `cmd.exe`, fail closed inside the
+  workspace), because `CreateProcessW` completes a partial
+  `lpApplicationName` from the helper's working directory with no
+  PATH search — no environment block could fix that.
+  `verbatimArguments` threads through `MuseSparkJob.cs`. The test
+  drives the real resolver and payload builder on every platform
+  (shown failing before the fix), and the notes that claimed a bare
+  name never resolves to a planting now say what the code does
+  (commit `8dbb4af2ca`).
+
+## Proof (round 7 continued)
+
+Activation, before → after (immutable pre-K baseline 561352):
+
+| Tree           | Current | Growth | Cap        |
+| -------------- | ------: | -----: | ---------- |
+| main           |  564253 |   2901 | 3072       |
+| round 7 before |  569174 |   7822 | 3072, FAIL |
+| round 7 after  |  563168 |   1816 | 3072, PASS |
+
+Suites on the rig with the repository's own timeout: budget (1),
+`pathGuardSpawns` + `pathGuardRound7` + `pathGuardRound4` (38),
+`pathGuard` + `executables` + `nativeProcessDefaults` (28),
+`windowsScreenRecorderNative` + `evalTasks` + budget (36 passed,
+recorder skips on Linux), `packagedBundles` (8, after adding the new
+chunk to the ACP list), `browserCheckLive` (skips without a browser).
+Full unit: 6284 passed, 61 skipped; the 21 failures are 18
+`inspectNative` (the native confine helper refuses on the rig —
+fails identically in a worktree without these changes, measured not
+assumed), the `browserUiText` load flake (passes isolated), and 2
+`packagedBundles` fixed by the ACP list entry above.
+`npm run typecheck` (all projects): exit 0. eslint: one
+`no-useless-undefined` in the new plugin, fixed at cause, then zero
+warnings on every touched file. prettier clean. `check:host-api`:
+regenerated (`node:fs` 97→98, `node:path` 205→204) then exit 0.
+`check:plan`: 0 drift. `check:l10n`: 0 problems. `npm run build`:
+exit 0 with budgets. `check:reference` still crashes identically
+without these changes (pre-existing, out of scope).
