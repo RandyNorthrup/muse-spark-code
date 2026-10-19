@@ -18,7 +18,8 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import type { AgentEvent } from '../../shared/agentEvents'
-import { type Logger, logRejection } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import type { Logger } from '../logger'
 
 const COMPLETED_TERMINAL = 'completed'
 const FAILED_TERMINAL = 'failed'
@@ -98,7 +99,9 @@ export class BackgroundNotifier {
         reveal()
       }
     } catch (error: unknown) {
-      logRejection(this.deps.log, 'The background notice')(error)
+      // The notice never reached the window; the record keeps the failure's
+      // kind only, never the editor's message.
+      this.deps.log.error(`The background notice failed: ${failureForLog(error)}`)
     }
   }
 

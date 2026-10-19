@@ -13,7 +13,7 @@
     },
     "host": {
       "SWALLOW": 78,
-      "GENERIC": 404,
+      "GENERIC": 394,
       "CLEANUP": 65
     },
     "root": {
@@ -5349,16 +5349,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/host/conversation/conversationCheckpoints.ts",
-      "identity": "a4efde52a467d0c22bb2ad5b9cefc0d024cc553a00745325df3c67e5dfab375d",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/conversation/conversationCheckpoints.ts",
-      "identity": "787b63ae990265d46a5b8160313a1f7fbcccb51ac58298a136f9ce1a4623f423",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/host/conversation/conversationController.ts",
       "identity": "b8d639850b8f7398f96a8a992e3d0dba77e1d15eb2e2ffcb8bc01a1dc1bc04f3",
       "class": "GENERIC"
@@ -5951,46 +5941,6 @@
     {
       "file": "src/host/conversation/conversationController.ts",
       "identity": "b18dfe681b7cc86610896db623b351bdd3d7871ef958dd78a9a155894cf6337f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/conversation/reportProblemHandler.ts",
-      "identity": "da30c30cd19f9b2b44b08770c99d67afb740de5463ecb1f65bbf63e051123a01",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/conversation/reportProblemHandler.ts",
-      "identity": "ebfedf5b34032064bc410389a1c437ef93cd9420c68b3679116867c010ab54dc",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/conversation/reportProblemHandler.ts",
-      "identity": "9de51ef9ccc1640912036dd646be09e0c668919790bc15fb90b1e6e62f9a5276",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/conversation/reportProblemHandler.ts",
-      "identity": "f58baa42220cfe1fdded719b95db297515106407c8041258fd300e50d0e7ff63",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/conversation/reportProblemHandler.ts",
-      "identity": "5b19726fa5584ae3a28156224b04c7e8297491ad2211155e3802a956a2afab53",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/conversation/sessionImport.ts",
-      "identity": "478e2e8afa0ea8b5e3553154d3b708d139fb34c02ea91b3a2e751f58d4880645",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/conversation/transferDialogs.ts",
-      "identity": "cfa352b7f8026944bd9bf0678d5ed43ba13d9332763977d28e453909271332e3",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/conversation/turnNotifications.ts",
-      "identity": "cafea3168c168306795931a85eced3d3d75ad1fb6d8ffa7977bc93900e93f19b",
       "class": "GENERIC"
     },
     {
@@ -9515,7 +9465,7 @@
     },
     {
       "file": "src/runtime/vault/vaultCommand.ts",
-      "identity": "9d1035bf03b05afd05d59d10b3b9a29ebb729ad4557829a7ffcad1c5524ce9b5",
+      "identity": "737b0209b7bed9ca2a19895a554706f2bc5712e5ca5aa4dcd36f405b94410d81",
       "class": "GENERIC"
     },
     {
