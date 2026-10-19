@@ -1234,9 +1234,13 @@ Commands: —. Settings: `museSpark.modelApiImageGeneration`. [Documentation](ht
 
 Schedule a prompt in this Model API conversation.
 
-Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.
+scheduleDeliveryCertified=false: The v2 schedule editor, list and timeline manage durable records. Automatic VS Code v2 prompt delivery is disabled. Model API /loop jobs run when you choose Run now.
+
+scheduleDeliveryCertified=false: Automatic delivery is disabled; the running editor neither asks for v2 schedule consent nor reserves its paid caps. The candidate billing port binds consent to payer kind, model, key, verified tariff and shared daily budget; changing any requires renewal. Allow once covers one fire; Allow always covers this schedule.
 
 Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.
+
+Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.
 
 ```json
 {
@@ -1290,6 +1294,16 @@ Scheduled turns support text and image inputs; video and audio inputs are unsupp
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
 Commands: —. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.scheduleDefaultDelivery`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
+
+### Runtime schedules
+
+Schedule unattended Muse Code prompts in ACP or the terminal
+
+scheduleDeliveryCertified=false: Automatic v2 delivery in VS Code, ACP and the terminal is disabled pending certification. The candidate runs unattended Muse Code prompts with standing grants, persistent fire records and background conversation targets.
+
+Surfaces: acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#runtime-scheduled-delivery)
 
 ### /agents
 
@@ -1653,16 +1667,6 @@ Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no
 
 Commands: `museSpark.showLogs`, `museSpark.diagnostics`, `museSpark.reportProblem`, `museSpark.openWalkthrough`, `museSpark.showWhatsNew`, `museSpark.openHelp`. Settings: `museSpark.showWhatsNewOnUpdate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#help-and-reference)
 
-### Vault
-
-Open the per-user credential vault in the Models & Agents panel: set it up or unlock it, manage items and grants, and lock it. Not yet available on Windows.
-
-Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them. Reset can also replace unknown writer ownership after explicit confirmation.
-
-Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
-
-Commands: `museSpark.vault`, `museSpark.lockVault`. Settings: `museSpark.vault.enabled`, `museSpark.vault.protection`, `museSpark.vault.agentFence`, `museSpark.vault.lockAfterIdleMinutes`, `museSpark.vault.lockOnScreenLock`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-vault)
-
 ## Slash commands
 
 Availability depends on the backend. Installed skills also add their own slash commands.
@@ -1995,18 +1999,6 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 `museSpark.deleteUploadedFiles` — List the uploaded files of this account and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.
 
 Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible`.
-
-### Muse Spark: Vault
-
-`museSpark.vault` — Open the per-user credential vault in the Models & Agents panel: set it up or unlock it, manage items and grants, and lock it. Not yet available on Windows.
-
-Available when: `false`.
-
-### Muse Spark: Lock Vault Now
-
-`museSpark.lockVault` — Lock the per-user credential vault now, ending every use in every window.
-
-Available when: `false`.
 
 ## Settings
 
@@ -2374,7 +2366,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.schedules
 
-scheduleRuntime=unbound&backend=museCode: Controls the legacy /loop shortcut in Muse Code chat. Schedule management and scheduled prompt execution are unavailable.
+scheduleDeliveryCertified=true: Controls the legacy /loop shortcut in Muse Code chat. Schedule management and scheduled prompt execution are unavailable.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -2387,7 +2379,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.scheduleDefaultDelivery
 
-Selects the delivery written into new schedule drafts; it does not enable scheduled execution.
+scheduleDeliveryCertified=true: Selects the delivery written into new schedule drafts; it does not enable scheduled execution.
 
 Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
 
@@ -3576,40 +3568,6 @@ Type: `"boolean"`. Default: `false`. Scope: `machine`.
 }
 ```
 
-### museSpark.vault.enabled
-
-Turn the per-user credential vault on or off. A stored legacy museSpark.vault value takes precedence while this setting has no stored value.
-
-Type: `"boolean"`. Default: `true`. Scope: `machine`.
-
-```json
-{
-  "type": "boolean",
-  "default": true
-}
-```
-
-### museSpark.vault.protection
-
-Stored for compatibility; no runtime effect.
-
-Type: `"string"`. Default: `"auto"`. Scope: `machine`.
-
-```json
-{
-  "type": "string",
-  "enum": ["auto", "osStore", "hardware", "passphrase"],
-  "default": "auto",
-  "deprecationMessage": "Stored for compatibility; no runtime effect.",
-  "deprecationMessageKey": "config.vault.protection.description"
-}
-```
-
-- `"auto"`: Stored for compatibility; no runtime effect.
-- `"osStore"`: Stored for compatibility; no runtime effect.
-- `"hardware"`: Stored for compatibility; no runtime effect.
-- `"passphrase"`: Stored for compatibility; no runtime effect.
-
 ### museSpark.vault.agentFence
 
 shellOrigin=interactive&agentFence: Controls the credential fence for interactive Model API shell commands. Verification, schedules, workers and hooks remain fenced.
@@ -3620,37 +3578,6 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 {
   "type": "boolean",
   "default": true
-}
-```
-
-### museSpark.vault.lockAfterIdleMinutes
-
-Stored for compatibility; no runtime effect.
-
-Type: `"integer"`. Default: `240`. Scope: `machine`.
-
-```json
-{
-  "type": "integer",
-  "minimum": 0,
-  "default": 240,
-  "deprecationMessage": "Stored for compatibility; no runtime effect.",
-  "deprecationMessageKey": "config.vault.lockAfterIdleMinutes.description"
-}
-```
-
-### museSpark.vault.lockOnScreenLock
-
-screenLock: Stored for compatibility; no runtime effect.
-
-Type: `"boolean"`. Default: `true`. Scope: `machine`.
-
-```json
-{
-  "type": "boolean",
-  "default": true,
-  "deprecationMessage": "Stored for compatibility; no runtime effect.",
-  "deprecationMessageKey": "config.vault.lockOnScreenLock.description"
 }
 ```
 
@@ -3681,7 +3608,6 @@ These are defaults; editor customizations take precedence.
 - `editor.action.inlineSuggest.trigger`: `alt+\`; when `editorTextFocus && museSpark.tabOn`
 - `museSpark.nextOpenQuestion`: `ctrl+alt+j` (macOS: `cmd+alt+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
 - `museSpark.previousOpenQuestion`: `ctrl+alt+shift+j` (macOS: `cmd+alt+shift+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
-- `museSpark.lockVault`: `ctrl+alt+shift+l` (macOS: `cmd+alt+shift+l`)
 - `models.table`: `ArrowDown / ArrowUp / Home / End / Enter / Escape`; when `models.table`; Navigate items, choose or complete a selection, or close the list.
 - `models.select`: `ArrowDown / ArrowUp / Enter / Escape`; when `models.select`; Navigate items, choose or complete a selection, or close the list.
 - `traffic.tabs`: `ArrowRight / ArrowDown / ArrowLeft / ArrowUp / Home / End`; when `traffic.tabs`; Navigate items, choose or complete a selection, or close the list.

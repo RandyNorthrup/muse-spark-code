@@ -580,15 +580,15 @@
         },
         {
           "command": "museSpark.schedulePrompt",
-          "when": "false"
+          "when": "museSpark.scheduleDeliveryCertified"
         },
         {
           "command": "museSpark.showSchedules",
-          "when": "false"
+          "when": "museSpark.scheduleDeliveryCertified"
         },
         {
           "command": "museSpark.showScheduleTimeline",
-          "when": "false"
+          "when": "museSpark.scheduleDeliveryCertified"
         },
         {
           "command": "museSpark.vault",

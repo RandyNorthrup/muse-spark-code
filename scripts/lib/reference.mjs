@@ -1426,11 +1426,16 @@ export function publishedReference(model, source) {
   const dormant = model.features.filter((feature) =>
     source.REFERENCE_IN_PROGRESS_FEATURES.includes(feature.id),
   )
+  const isScheduleReady = source.SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
   const commands = new Set([
     ...dormant.flatMap((feature) => feature.commands),
-    source.COMMAND_IDS.schedulePrompt,
-    source.COMMAND_IDS.showSchedules,
-    source.COMMAND_IDS.showScheduleTimeline,
+    ...(isScheduleReady
+      ? []
+      : [
+          source.COMMAND_IDS.schedulePrompt,
+          source.COMMAND_IDS.showSchedules,
+          source.COMMAND_IDS.showScheduleTimeline,
+        ]),
   ])
   const settings = new Set([
     ...dormant
@@ -1445,7 +1450,12 @@ export function publishedReference(model, source) {
     'museSpark.accountParallel',
     'museSpark.accounts.severalOnThisDevice',
   ])
-  const hiddenRoutes = new Set(['estimate', 'schedule', 'vault', 'vaultHelp'])
+  const hiddenRoutes = new Set([
+    'estimate',
+    'vault',
+    'vaultHelp',
+    ...(isScheduleReady ? [] : ['schedule']),
+  ])
 
   return {
     ...model,
@@ -1459,15 +1469,15 @@ export function publishedReference(model, source) {
     commands: model.commands.filter((command) => !commands.has(command.id)),
     settings: model.settings.filter((setting) => !settings.has(setting.id)),
     slash: model.slash.filter(
-      (command) => !['estimate', 'vault', 'schedule'].includes(command.name),
+      (command) =>
+        !['estimate', 'vault', ...(isScheduleReady ? [] : ['schedule'])].includes(command.name),
     ),
     cli: model.cli.filter(
       (command) =>
         !hiddenRoutes.has(command.route) &&
         // `--account` is served (CM108ACC); pooling is refused until its owner is bound.
-        !/(?:^|\s)--(?:scheduled-prompts|vault|no-auto-compaction|account-pool)(?:\s|$)/.test(
-          command.name,
-        ),
+        !/(?:^|\s)--(?:vault|no-auto-compaction|account-pool)(?:\s|$)/.test(command.name) &&
+        (isScheduleReady || !/(?:^|\s)--scheduled-prompts(?:\s|$)/.test(command.name)),
     ),
     shortcuts: model.shortcuts.filter(
       (shortcut) => !commands.has(shortcut.command) && shortcut.command !== 'team.tree',

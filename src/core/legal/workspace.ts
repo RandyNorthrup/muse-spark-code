@@ -314,6 +314,7 @@ export async function createLegalSnapshot(
       // `node_modules` was admitted first, from the build records.
       if (name === '.git' || name === 'node_modules') continue
       const local = localDirectory === '' ? name : `${localDirectory}/${name}`
+
       try {
         assertWorkspaceRelative(local)
         const absolute = path.join(directory, name)

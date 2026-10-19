@@ -218,6 +218,23 @@ async function readersNamedFor(folder: string, pid: number): Promise<string[]> {
 }
 
 /**
+ * Windows: this process's own birth reader. Its build swept any reader an
+ * earlier process with this id left, so the one reader named with this id
+ * is this process's own.
+ */
+async function ownBirthReader(): Promise<{
+  readonly born: number | undefined
+  readonly reader: string
+}> {
+  const born = await processStartTime(process.pid)
+  expect(born).toBeDefined()
+  const folder = birthReaderFolder()
+  const mine = await readersNamedFor(folder, process.pid)
+  expect(mine).toHaveLength(1)
+  return { born, reader: path.join(folder, mine[0] ?? '') }
+}
+
+/**
  * Windows: whether this host runs elevated, so its birth reader is walled
  * above a lower-integrity writer. Windows' own well-known SIDs (also named
  * in `src/core/locks/processOwner.ts`); the level's name would localise,
@@ -405,14 +422,8 @@ describe('process owners (M123 lane P)', () => {
   it.runIf(process.platform === 'win32')(
     'never runs a birth reader whose bytes changed after this process built it',
     async () => {
-      const born = await processStartTime(process.pid)
-      expect(born).toBeDefined()
+      const { born, reader } = await ownBirthReader()
       const folder = birthReaderFolder()
-      // This process's build swept any reader an earlier process with this id
-      // left, so the one reader named with this id is this process's own.
-      const mine = await readersNamedFor(folder, process.pid)
-      expect(mine).toHaveLength(1)
-      const reader = path.join(folder, mine[0] ?? '')
       const scratch = await mkdtemp(path.join(tmpdir(), 'm123p-impostor-'))
       try {
         const impostor = await impostorProgram(scratch)
@@ -439,12 +450,7 @@ describe('process owners (M123 lane P)', () => {
   it.runIf(process.platform === 'win32')(
     'keeps its birth reader out of a lower-integrity writer’s reach when elevated',
     async () => {
-      const born = await processStartTime(process.pid)
-      expect(born).toBeDefined()
-      const folder = birthReaderFolder()
-      const mine = await readersNamedFor(folder, process.pid)
-      expect(mine).toHaveLength(1)
-      const reader = path.join(folder, mine[0] ?? '')
+      const { born, reader } = await ownBirthReader()
       // `icacls` names the label in the installed language, but its access
       // mask does not localise: a mandatory label shows as `:(NW`, which a
       // discretionary entry never carries.

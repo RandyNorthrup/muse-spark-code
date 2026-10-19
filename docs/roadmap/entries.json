@@ -843,7 +843,7 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "Scheduled prompts v2 is in progress.",
+      "summary": "Scheduled prompts v2 is in progress, with automatic delivery disabled pending certification so the running editor neither asks for v2 consent nor reserves paid caps.",
       "area": "agents"
     },
     {

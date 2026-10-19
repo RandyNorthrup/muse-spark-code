@@ -1252,6 +1252,11 @@ function shipped(output) {
 }
 const TEXT_BLOCKS = [
   {
+    block: 'SCHEDULE_MODEL_TEXT',
+    sentinels: ['unattendedNote', 'eventUntrusted'],
+    readers: ['dist/schedules.js', 'dist/runtimeEngine.js'],
+  },
+  {
     block: 'MCP_POOL_MODEL_TEXT',
     sentinels: ['mcpArgumentsNotObject', 'mcpToolUnavailable'],
     readers: ['dist/modelApi.js', 'dist/modelApiMcp.js', 'dist/mcpPool.js'],

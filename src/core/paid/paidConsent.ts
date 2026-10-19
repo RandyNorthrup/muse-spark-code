@@ -31,16 +31,14 @@ import {
   DEFAULT_MODEL_ID,
 } from '../../shared/constants'
 import { fill, uiLocale } from '../../shared/l10n/text'
-import { formatDailyBudget, formatUsd } from '../../shared/l10n/exactUsd'
+import { formatDailyBudget } from '../../shared/l10n/exactUsd'
 import {
-  paidFeaturePrice,
   freezePaidQuote,
   paidStoreFailureKind,
   type PaidQuote,
   type PaidQuoteNotice,
   type PaidStoreFailureKind,
   type PaidUseDecision,
-  paidFeatureName,
   type PaidUseRequest,
 } from '../../shared/paid'
 import { Usd, minUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
@@ -94,7 +92,10 @@ export type PaidUseScope = 'once' | 'window' | 'always'
 export interface SchedulePaidIdentity {
   readonly modelId: string
   readonly accountId: string
+  readonly providerId?: string | undefined
+  readonly origin?: string | undefined
   readonly priceTier: string
+  readonly payerKind: 'paidKey' | 'plan'
   readonly price: string
   readonly sharedDailyBudgetUsd: UsdAmount
 }
@@ -105,25 +106,38 @@ export function isScheduleConsentCurrent(
   schedule: ScheduleV2,
   identity: SchedulePaidIdentity,
 ): boolean {
+  return scheduleConsentFailure(schedule, identity) === undefined
+}
+
+/** Every false consent branch has a translated refusal, shared by all hosts. */
+export function scheduleConsentFailure(
+  schedule: ScheduleV2,
+  identity: SchedulePaidIdentity,
+): keyof typeof UI_TEXT.scheduleV2.messages | undefined {
+  if (schedule.action.kind !== 'prompt') return 'paidUnavailable'
   const consent = schedule.paidConsent
-  return (
-    schedule.action.kind === 'prompt' &&
-    consent !== undefined &&
-    nonnegativeUsdSchema.safeParse(consent.dailyCapUsd).success &&
-    consent.dailyCapUsd !== '0' &&
-    nonnegativeUsdSchema.safeParse(consent.sharedDailyBudgetUsd).success &&
-    consent.sharedDailyBudgetUsd !== '0' &&
-    consent.modelId === identity.modelId &&
-    consent.accountId === identity.accountId &&
-    consent.priceTier === identity.priceTier &&
-    consent.sharedDailyBudgetUsd === identity.sharedDailyBudgetUsd &&
-    Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.paidCapUsd)) <= 0 &&
-    Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.grant.paidCapUsd)) <= 0
+  if (consent === undefined) return 'changedConsent'
+  if (identity.payerKind !== 'paidKey' || consent.payerKind !== identity.payerKind)
+    return 'changedPayer'
+  if (consent.modelId !== identity.modelId) return 'changedModel'
+  if (consent.accountId !== identity.accountId) return 'changedKey'
+  if (consent.priceTier !== identity.priceTier) return 'changedTariff'
+  if (
+    !nonnegativeUsdSchema.safeParse(consent.dailyCapUsd).success ||
+    consent.dailyCapUsd === '0' ||
+    !nonnegativeUsdSchema.safeParse(consent.sharedDailyBudgetUsd).success ||
+    consent.sharedDailyBudgetUsd === '0' ||
+    Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.paidCapUsd)) > 0
   )
+    return 'capReached'
+  if (consent.sharedDailyBudgetUsd !== identity.sharedDailyBudgetUsd) return 'changedSharedCap'
+  return Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.grant.paidCapUsd)) > 0
+    ? 'changedGrant'
+    : undefined
 }
 
 /** Creation/renewal only. No workspace-wide grant can silently authorize a schedule.
- * @unwired M58 schedule-run paid consent
+ * Called from the host schedule paid binding's consent step.
  */
 export async function askSchedulePaidConsent(deps: {
   readonly schedule: ScheduleV2
@@ -133,15 +147,20 @@ export async function askSchedulePaidConsent(deps: {
   readonly now: () => number
   readonly isOn: () => boolean
   readonly isCurrent: () => boolean
-  readonly ask: (question: { title: string; detail: string }) => Promise<PaidUseAnswer>
-  /** S/W binds revisioned CAS; false refuses rather than restoring stale consent. */
-  readonly remember: (consent: ScheduleConsent) => Promise<boolean>
+  readonly ask: (question: {
+    title: string
+    detail: string
+    request: Extract<PaidUseRequest, { feature: 'scheduledPrompts' }>
+  }) => Promise<PaidUseAnswer>
+  /** Optional standalone CAS; control callers publish the returned consent with the draft. */
+  readonly remember?: (consent: ScheduleConsent) => Promise<boolean>
 }): Promise<ScheduleConsent | undefined> {
   const { schedule, identity } = deps
   if (
     schedule.action.kind !== 'prompt' ||
     !deps.isOn() ||
     !deps.isCurrent() ||
+    identity.payerKind !== 'paidKey' ||
     identity.price.trim() === '' ||
     !nonnegativeUsdSchema.safeParse(identity.sharedDailyBudgetUsd).success ||
     minUsd(schedule.paidCapUsd, schedule.grant.paidCapUsd, identity.sharedDailyBudgetUsd) === '0'
@@ -149,6 +168,7 @@ export async function askSchedulePaidConsent(deps: {
     return undefined
   if (
     isScheduleConsentCurrent(schedule, identity) &&
+    (schedule.paidConsent?.scope !== 'once' || schedule.paidConsent.runId === undefined) &&
     deps.extras.length === schedule.paidConsent?.extras.length &&
     deps.extras.every((feature) => schedule.paidConsent?.extras.includes(feature) === true)
   )
@@ -157,35 +177,43 @@ export async function askSchedulePaidConsent(deps: {
     modelId: identity.modelId,
     accountId: identity.accountId,
     priceTier: identity.priceTier,
+    payerKind: identity.payerKind,
     sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
     grantedAtMs: deps.now(),
     dailyCapUsd: minUsd(schedule.paidCapUsd, schedule.grant.paidCapUsd),
     extras: deps.extras,
   })
-  const answer = await deps.ask({
-    title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidScheduledName }),
-    detail:
-      fill(UI_TEXT.scheduleV2.messages.paidConsent, {
-        prompt: schedule.action.prompt,
-        model: identity.modelId,
-        price: identity.price,
-        cadence: deps.cadence,
-        cap: formatUsd(consent.dailyCapUsd, 2),
-        budget: formatDailyBudget(identity.sharedDailyBudgetUsd),
-      }) +
-      (deps.extras.length === 0
-        ? ''
-        : `\n${deps.extras.map((feature) => `${paidFeatureName(feature)}: ${paidFeaturePrice(feature)}`).join(', ')}`),
-  })
+  const request: Extract<PaidUseRequest, { feature: 'scheduledPrompts' }> = {
+    feature: 'scheduledPrompts',
+    prompt: schedule.action.prompt,
+    modelId: identity.modelId,
+    schedule: {
+      id: schedule.id,
+      price: identity.price,
+      cadence: deps.cadence,
+      dailyCapUsd: consent.dailyCapUsd,
+      sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
+      extras: deps.extras,
+      payerKind: identity.payerKind,
+    },
+  }
+  const answer = await deps.ask({ ...(await paidUseQuestion(request)), request })
   if (answer === 'deny' || !deps.isOn() || !deps.isCurrent()) return undefined
-  if (answer === 'always' && !(await deps.remember(consent))) return undefined
-  return deps.isOn() && deps.isCurrent() ? consent : undefined
+  const approved = schedulePaidConsentSchema.parse({
+    ...consent,
+    scope: answer === 'once' ? 'once' : 'schedule',
+  })
+  if (answer === 'always' && deps.remember !== undefined && !(await deps.remember(approved)))
+    return undefined
+  return deps.isOn() && deps.isCurrent() ? approved : undefined
 }
 
 /** The run's paid port: live identity/gates plus its noninteractive limit check (D121).
+ * Called from the host schedule paid binding's run step.
  * @unwired M58 schedule paid scope
  */
 export function createSchedulePaidScope(deps: {
+  readonly runId?: string
   readonly backend: 'modelApi' | 'museCode'
   readonly schedule: ScheduleV2
   readonly identity: SchedulePaidIdentity
@@ -202,21 +230,34 @@ export function createSchedulePaidScope(deps: {
     signal: AbortSignal,
   ) => Promise<SpendClaim>
 }) {
-  const isValid = () =>
-    deps.isCurrent() && isScheduleConsentCurrent(deps.schedule, deps.currentIdentity())
-  const canUse = (feature: PaidFeature) =>
-    isValid() &&
-    (deps.backend === 'museCode' || deps.isOn('scheduledPrompts')) &&
-    deps.isOn(feature) &&
-    (feature === 'scheduledPrompts'
-      ? deps.backend === 'modelApi'
-      : deps.schedule.paidConsent?.extras.includes(feature) === true)
+  const refusal = (feature: PaidFeature): keyof typeof UI_TEXT.scheduleV2.messages | undefined => {
+    if (!deps.isCurrent()) return 'changedRevision'
+    const failure = scheduleConsentFailure(deps.schedule, deps.currentIdentity())
+    if (failure !== undefined) return failure
+    if (
+      deps.schedule.paidConsent?.scope === 'once' &&
+      (deps.runId === undefined || deps.schedule.paidConsent.runId !== deps.runId)
+    )
+      return 'lostOnceClaim'
+    if (
+      (deps.backend !== 'museCode' && !deps.isOn('scheduledPrompts')) ||
+      !deps.isOn(feature) ||
+      (feature === 'scheduledPrompts'
+        ? deps.backend !== 'modelApi'
+        : deps.schedule.paidConsent?.extras.includes(feature) !== true)
+    )
+      return 'paidUnavailable'
+    return undefined
+  }
+  const canUse = (feature: PaidFeature) => refusal(feature) === undefined
   const open = new Set<SpendClaim>()
   let settledUsd = Usd.from(0)
   let hasUnknown = false
   return {
     modelId: deps.identity.modelId,
     accountId: deps.identity.accountId,
+    providerId: deps.identity.providerId,
+    origin: deps.identity.origin,
     allows: canUse,
     cost: (): ScheduleFireRecord['cost'] => ({
       // Fire records keep what the calls reported; nothing is held (D121), so
@@ -232,12 +273,11 @@ export function createSchedulePaidScope(deps: {
       reservationUsd?: UsdAmount,
     ): Promise<SpendClaim> => {
       signal.throwIfAborted()
-      if (
-        !canUse('input' in body ? 'scheduledPrompts' : 'imageGeneration') ||
-        ('input' in body && body.model !== deps.identity.modelId)
-      )
-        throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
       const feature = 'input' in body ? 'scheduledPrompts' : 'imageGeneration'
+      const failure = refusal(feature)
+      if (failure !== undefined) throw new Error(UI_TEXT.scheduleV2.messages[failure])
+      if ('input' in body && body.model !== deps.identity.modelId)
+        throw new Error(UI_TEXT.scheduleV2.messages.changedModel)
       const costUsd = reservationUsd ?? deps.estimate(body, inputTokens)
       if (Usd.from(costUsd).compare(Usd.from(0)) <= 0)
         throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
@@ -245,7 +285,8 @@ export function createSchedulePaidScope(deps: {
       open.add(claim)
       const check = () => {
         signal.throwIfAborted()
-        if (!canUse(feature)) throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+        const failure = refusal(feature)
+        if (failure !== undefined) throw new Error(UI_TEXT.scheduleV2.messages[failure])
         claim.check()
       }
       const settle = async (actualCostUsd: UsdAmount | undefined) => {
@@ -790,6 +831,17 @@ export class PaidUseConsent {
     const { feature } = request
     if (!this.isEnabled(feature)) {
       return false
+    }
+    if (request.feature === 'scheduledPrompts' && request.schedule !== undefined) {
+      const generation = this.revocation
+      const canRemember = this.deps.canRemember()
+      const answer = await ask(request, canRemember)
+      return (
+        answer !== 'deny' &&
+        this.isEnabled(feature) &&
+        generation === this.revocation &&
+        (answer !== 'always' || (canRemember && this.deps.canRemember()))
+      )
     }
     if (request.feature === 'teamWorkers') {
       const runtime = await paidTeamRuntime()

@@ -443,6 +443,10 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
   M116's `/playbook <status|record|settings ...>`, answered locally with no
   model turn.
+  Scheduled prompt delivery remains unavailable pending shared certification.
+  M117's `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]`
+  when the estimator binding is present; it runs the same engine as the
+  panel with no model call.
   M108's `/accounts <list|current|thresholds [id]>` on the Model API
   backend, answered locally with no model turn; `/accounts use <id>` is
   refused and names the account the session keeps.
@@ -638,6 +642,20 @@ the agent starts with `--no-auto-compaction`. Every paid row names its
 price, and the agent log counts each billed use. Subagents,
 best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
 (Muse Voice needs the VS Code panel's microphone).
+
+Automatic scheduled prompt delivery remains disabled in VS Code, ACP and the
+terminal pending shared certification. The candidate engine uses standing grants,
+session-owned output and durable records. Closing a runtime settles only its own
+in-flight fires; unhanded admissions remain pending for the next owner. Confirmed
+queue withdrawals release their held amount; genuinely unknown outcomes retain
+liability and never replay.
+
+The candidate Model API policy requires schedule-specific consent naming model
+rates, cadence and both daily caps. Allow once covers one fire; Allow always covers
+that schedule. Workspace grants do not authorize scheduled spending. Changes to
+payer, model, key, tariff or shared budget require renewal. The running runtime
+neither asks this candidate question nor reserves its caps while delivery is
+uncertified. Headless exec cannot create or host schedules.
 
 ## Networks and proxies
 

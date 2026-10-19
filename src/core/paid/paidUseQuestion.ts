@@ -5,6 +5,7 @@ import { formatDailyBudget, formatUsd } from '../../shared/l10n/exactUsd'
 import { Usd } from '../../shared/usd'
 import {
   paidFeaturePrice,
+  paidFeatureName,
   autoReviewPrice,
   bestOfNPrice,
   modelApiPaidTier,
@@ -86,6 +87,24 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
       }
     }
     case 'scheduledPrompts': {
+      if (request.schedule !== undefined) {
+        const scope = request.schedule
+        return {
+          title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidScheduledName }),
+          detail:
+            fill(UI_TEXT.scheduleV2.messages.paidConsent, {
+              prompt: request.prompt,
+              model: request.modelId,
+              price: scope.price,
+              cadence: scope.cadence,
+              cap: formatUsd(scope.dailyCapUsd, 2),
+              budget: formatUsd(scope.sharedDailyBudgetUsd, 2),
+            }) +
+            (scope.extras.length === 0
+              ? ''
+              : `\n${scope.extras.map((feature) => `${paidFeatureName(feature)}: ${paidFeaturePrice(feature)}`).join(', ')}`),
+        }
+      }
       return {
         title: fill(UI_TEXT.scheduleRunConfirmTitle, { model: request.modelId }),
         detail: [

@@ -1074,6 +1074,74 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Schedule consent/pricing loads with the existing paid helper bundle; runtime
+  session ownership loads with the standalone engine, preserving the schedule
+  surface budget without another chunk or a cap increase.
+
+- **Joined schedule settlement** (M115). The candidate scheduler writes a
+  durable dispatch fence and owns every terminal record across VS Code, ACP
+  and CLI. Ambiguous dispatch becomes uncertain without replay; failed cost
+  reads preserve delivered output and retained spend. Runtime money ports join
+  schedule consent and both daily caps. One certification switch keeps all
+  automatic v2 delivery disabled until cross-platform qualification.
+
+- **Schedule delivery review repairs** (C-M115-1). The disabled candidate
+  revalidates schedule, workspace, account, model and billing authority at
+  dispatch, refunds refused reservations, and retains queued-message identity
+  through native promotion. Unattended IDE calls enforce policy on resolved
+  files and use prompt-free executors; legal scans stay offline. Retired callers
+  abort partial requests. A window-owned hold covers scheduling without an
+  open chat. Delivery remains unregistered pending the lead's qualification.
+
+- **Runtime schedule review repairs** (C-M115-2 R2). Shutdown and target
+  detachment withdraw queued scheduled input and settle admitted claims;
+  recovery retires abandoned claims without replay. Run now requires a
+  successful durable fire before reporting acceptance. Output follows its
+  owning ACP session, with background output on standard error. Help gives
+  runtime schedules their own title and detail in all 14 languages and scopes
+  disabled automatic delivery to VS Code v2.
+
+- **Schedule paid authority** (C-M115-3). The candidate billing port uses
+  schedule-scoped questions in VS Code and ACP, explicit CLI flags with a
+  printed quote, and one exact-money reservation for the schedule and shared
+  daily caps. Consent binds the payer kind, paid key, model, verified tariff
+  and shared daily budget (including the day's override);
+  legacy or changed payer bindings require renewal, and Allow once cannot
+  authorize a later fire. Changes during reservation refund nonsent claims.
+  Refusals identify the changed binding, cap, paused state, grant, revision
+  or lost once-only claim. Failed journal admissions create no in-memory
+  claim, and pricing waits cannot reuse authority read before a pause.
+  Automatic delivery remains behind the existing certification switch;
+  the running editor has no v2 consent or paid-cap reservation callback.
+
+- Native IDE calls can carry a session-bound identity. Unattended callers
+  use their own grants, retired callers lose access, and colliding request
+  ids cannot cancel another caller's tool. Interactive-only tools refuse
+  unattended calls before showing a popup or making a purchase.
+
+- **VS Code schedule delivery qualification** (C-M115-1, round 2). The
+  unregistered candidate now binds workspace/controller lifetimes, queued
+  composer cards, background history titles, session IDE identities and the
+  existing paid consent and durable reservation ledger. Windows fake-backend
+  checks cover all four asking modes and delivery choices, shared-panel
+  identity lifetime and native parallel overlap. Workspace ownership follows
+  trust and sign-in changes, queue promotion retains one composer card, and
+  configured priced providers reserve and settle using their own credential
+  identity and verified tariff. Delivery stays disabled
+  pending cross-platform, independent-review and full artifact qualification.
+
+- **Schedule delivery qualification** (C-M115-1). The lazy engine can accept
+  host-owned unattended targets, safety and authoritative cost settlement.
+  Host publication, safety and cost callbacks retain their owning receivers.
+  Fake backend tests cover collision order, interrupt, event isolation,
+  background targets and Model API queue withdrawal/parallel runs; a real
+  three-process journal test admits one fire. This composition is unregistered:
+  automatic VS Code v2 prompt delivery stays disabled. README and translated Help now
+  state that boundary and distinguish the manual Model API `/loop` flow.
+
+- Shared schedule polling retains each workspace holder, so closing one panel
+  cannot stop another panel's scheduler. The last release stops the watch.
+
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
@@ -1591,6 +1659,57 @@ happened, not what was planned; superseded entries are kept.
     again asks you to attach it again.
 
 ### Fixed
+
+- A new schedule draft no longer starts with a $1 spending cap: it starts at
+  zero and never spends until the person sets a cap and completes paid
+  consent for it, on both backends.
+
+- Closing the schedules runtime no longer touches the native background entry
+  when no background consent was ever recorded, so terminal `schedule`
+  management (`add`, `list`, `timeline`, `remove`) exits on its merits even
+  on a machine with no user bus or background runner; before, every
+  invocation ended with exit 3 and a cleanup-failed warning.
+
+- A v2 `/loop` draft no longer stamps in an end seven days out; how long a
+  schedule lives is set in the editor the draft opens. The unused duplicate
+  loop adapter that carried the same seven-day default is removed.
+
+- Carrying a pre-version schedule store into `schedules/v1` merges folders
+  entry by entry when the versioned root already holds that folder, and
+  never overwrites a file already in `v1`; before, the same folder on both
+  sides failed the carry with a not-empty error and a stale legacy file
+  could replace the current one on POSIX.
+
+- The shared schedule store has one versioned root (`schedules/v1`); the
+  first start on it carries pre-version entries across once, idempotently.
+  The `/schedule` prompt mapping loads lazily on first use. Delivery remains
+  behind certification.
+
+- Closing a schedules runtime settles only its own delivered fires; another
+  window or CLI invocation cannot consume a due Once admission. Delivery remains
+  behind certification.
+
+- Schedule migration checks prepare their real source and empty journal before
+  assertions begin; each crash-receipt shape has its own default-deadline case.
+
+- The daily extras journal lives under the machine data folder
+  (`agentDataFolder/paid-daily`) for windows, ACP and headless alike, with a
+  one-time idempotent carry from the retired global-storage ledger. The shared
+  schedule cap has one source both families read: the data-folder
+  `settings.json` (`paidDailyBudgetUsd`).
+
+- A process that releases its workspace hold without closing (an ACP session
+  ends, a window loses trust or sign-in) leaves its fires pending for the next
+  holder instead of settling them skipped; a dispatch lost to another live
+  owner records nothing; a dispatch owner is its process birth (pid plus
+  start time), so a recycled pid never blocks its target.
+
+- A host refusal before anything is sent records a known not-sent fire with
+  its liability released. After an abort only a confirmed queue withdrawal is
+  a known nothing-sent fire; a turn that had started is never recorded as
+  skipped. Manual schedule runs refuse with their true reason (deleted, not
+  held, ended, paused). A failed settlement retry in close no longer skips the
+  rest of close. Delivery remains behind certification.
 
 - Rule-2 certification now records deliberately failing parser and
   per-commit evidence drills, with byte-exact restoration and green reruns.
@@ -2134,6 +2253,17 @@ happened, not what was planned; superseded entries are kept.
   reports' frame paths, the schedule store and schedule file watches: a
   name that only starts with two dots is an ordinary folder there too now,
   and a genuine `..` segment still fails closed.
+
+- **Runtime scheduled delivery (M115).** ACP and terminal Muse Code prompts
+  use live or background sessions, validated workspace paths and durable fire
+  records. Concurrent grant audits retain every use. Refused actions appear
+  in the run; Model API fires refuse before
+  backend startup when no per-schedule paid policy is installed.
+
+- Scheduled Muse Code inputs can wait behind a user turn without replacing its
+  permissions. Queue withdrawal uses M87's message handle; revoked authority
+  is refused before promotion. Automatic v2 delivery remains unregistered
+  pending the complete VS Code binding certification (C-M115-1 round 2).
 
 - A reply from a provider you added yourself (an Anthropic, OpenAI or
   Mistral key, a local server and the others) or from a ChatGPT plan is no
@@ -3630,6 +3760,188 @@ happened, not what was planned; superseded entries are kept.
   (PR #232): `.github/workflows/real-use.yml` (`workflow_dispatch` only)
   runs the release candidate's steps under a dollar cap and an
   expected-calls guard and publishes a transcript artifact.
+
+- All fourteen translated settings tables now say Muse Code asks before a
+  command unless a permission rule allows it, matching the English modes.
+
+- Closing an ACP session no longer discards its selected permission mode;
+  loading it again on the same connection keeps that mode.
+
+- ACP waits for the selected-mode notice to leave its ordered update queue
+  before acknowledging `session/set_mode`.
+
+- ACP remembers a permission answer before dispatching it, so a stage update
+  arriving before the decision acknowledgement cannot open the same prompt again.
+
+- ACP permission answers retain the selected persistent rule's identity;
+  consent for one command prefix cannot silently install another stage's rule.
+- After Muse Code restarted, a conversation could continue on a different
+  model than the one shown (and at that model's price). It now keeps the
+  model you chose: the choice is applied and read back from Muse Code before
+  the next message is sent, the panel shows the model each request really
+  used, and a message that would run on another model is not sent.
+  A restart that finishes verification after you clear or replace the
+  conversation no longer reattaches the conversation you left. Failed model
+  verification releases its resumed handle, including command timeouts.
+  Opening Model API history on its already-selected model no longer runs
+  model-switch hooks or resets switch-related session state. ACP remembers
+  backend-reported model and effort changes too, including changes received
+  before a configuration command finishes.
+
+- Activation budget: the Create AGENTS.md command, its rules template and
+  their redaction load on the command's first run instead of at activation,
+  leaving 830 bytes of room below the 3,072-byte growth allowance. No
+  behaviour change; a missing bundle refuses the run and the next run tries
+  again.
+
+- The chat no longer takes the keyboard from a file you just opened: a chat
+  panel that finishes loading never pulls the focus in, a focus request for
+  a panel that is no longer active is dropped instead of landing on a much
+  later click, and a question that arrives while you are elsewhere waits
+  with its badge instead of taking the keyboard. Acting on the chat
+  yourself — clicking into the panel, Focus Input, sending — focuses the
+  input as before, and Focus Input while the composer is focused hands
+  the keyboard back to the file you were in (it used to focus the editor
+  group, which keeps a chat tab active).
+
+- Test-overhaul review: paid-popup lazy-load checks now build the real
+  runtime instead of writing a replacement formatter, retaining locale
+  propagation and sub-cent search-price disclosure checks.
+
+- Test-overhaul review: account-command tests now use the real parser and
+  metadata files, not a hand-built provider metadata store or key store.
+  Credential-operation composition remains for the real-life run.
+
+- Test-overhaul review: retain real on-disk session save/load, damaged
+  history, retention-boundary and path-confinement checks without fake
+  upload ledgers, question stores or filesystem replacements.
+
+- Test-overhaul review: retain real question-dock draft, focus and session
+  boundary regressions without the deleted suite's fake-timer case.
+
+- Test-overhaul review: retain stored-zone scheduling regressions through
+  the real calendar engine and Intl, without the deleted suite's fake
+  clock or spy replacements. Covers daylight-saving gaps/folds, skipped
+  dates, sparse cron and preview/admission end bounds.
+
+- Test overhaul (not a user feature): the unit suite now runs real code
+  only — about 800 fake-driven test files deleted, the screenshot
+  comparison system removed (a UI change gets one small local look,
+  `npm run ui:look -- <scene>`), the coverage gate dropped, and the
+  accessibility check moved off the pull-request path. The packed
+  product's real-life run is the product's test.
+  (docs/testing/test-overhaul-2026-10-12.md).
+
+- Test overhaul follow-up (not a user feature): the dead-code gate
+  declares the built-but-unwired in-progress source instead of deleting
+  it — one titled block in `knip.jsonc` grouping 110 files by feature
+  (vault, team workers, schedules, resources, accounts, media,
+  estimator, theme, reporting, devices, hooks, judge) with their PLAN.md
+  milestones; no file is deleted. The unused-export residue those
+  features' API surface leaves in wired files is measured in
+  docs/testing/test-overhaul-2026-10-12.md for the per-feature owners.
+
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  this does not certify endpoint quota refusal.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+
+- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
+  requests. Blank text is dropped, empty tool results ride as
+  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
+  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
+  and images for a model without image input ride as an
+  image-omitted placeholder. Tool-call ids are mapped per target format
+  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
+  provider aliases) with unique
+  per-response Gemini fallback ids. Responses replays send the call `id`
+  only for the same model with an `fc_` prefix. Gemini replays thought
+  signatures on text parts (empty ones included), counts omitted usage as
+  zero, sends vision-gated tool-result images inside `functionResponse.parts`
+  and full tool schemas through `parametersJsonSchema` on Gemini 3.
+  Gemini rejects proxy-null usage and explicitly rejects negative usage
+  counters instead of retaining an earlier tally. Signed blank parts replay;
+  late response ids salt fallback call ids; `$ref` siblings stay constrained
+  through `allOf`. The Anthropic decoder tolerates
+  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
+  requests `display: summarized` so newer models stream thinking text.
+  Lone surrogates are removed from every BYO encoder; parsed JSON retains
+  own `__proto__` keys as data, including Anthropic tool arguments.
+  Fakes only; no live
+  or paid model call.
+
+- Provider-specific retry-table binding remains pending for non-Meta transports;
+  the shared retry classifier does not certify endpoint quota refusal.
+
+- DEVID017B (developer machine id, review round 2): the machine id is a
+  random value created once in the machine-scoped data folder instead of a
+  hostname digest, so renames and `host` vs `host.local` keep the unlock and
+  profiles. Legacy raw-hostname and digest grants migrate on open and the
+  raw hostname leaves stored state at once; a different machine identity is
+  refused with an honest message and `developer reset` recovers.
+
+- DEVID017C (developer machine id, review round 3): the id is published by
+  staging the full value to a private temp file, fsyncing it and claiming
+  the final name with `link`, so a racing reader sees no file or the
+  complete id, never a prefix; only the exact 64-lowercase-hex format
+  loads, anything else refuses honestly. Foreign reset asks first with
+  nothing mutated before the answer, never re-binds the grant, and clears
+  without stopping through this machine's resource port; profile folders
+  stay on disk. Cancel leaves everything unchanged.
+
+- DEVID017D (developer machine id, review round 4): a published id loads
+  before any staging, so storage that refuses new files still returns the
+  existing identity, and failed staging removes its temp file. A failed
+  foreign reset never clears without recording it: the reset audit row
+  comes first, and when it cannot be written the stored state is left
+  unchanged. Foreign reset asks its own confirmation, which says exactly
+  what happens: this machine's developer state is cleared, nothing is
+  stopped, and profile folders and credentials stay as they are.
+
+- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
+  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
+  so only that clear is withheld when its audit append fails. Every other
+  revocation, own-machine Reset included, is still published after an audit
+  failure, and the caller still gets the persistence error.
+
+- M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
+  and P are merged and switched off until the milestone is complete, so
+  nothing changes for users yet. No GitHub setting is offered, and an
+  editor built on VS Code without its Git extension (Arduino IDE 2, some
+  forks) keeps its earlier behaviour. Merged: the GitHub token-source
+  contracts with fakes of GitHub, the device flow, `gh` and Git remotes
+  (lane 0); the runtime's native Git service (status, the commit form,
+  commit, a push confirmed with every URL Git will use and the same
+  refusals as VS Code, never a force-push, commit-message drafts),
+  revalidated after every wait and serialized per repository across
+  windows by one fenced lease (LOCKLIB) that renews every third of its
+  30-second lease, is checked synchronously at each Git dispatch and is
+  never re-created once lost (lane G, with M123G4 and M123G4C); pull
+  requests in the runtime (draft, open and link, status and checks, a
+  fork onto its parent) and checkouts of other people's pull requests
+  held under the runtime data folder, whose records take that lease with
+  fenced compare-and-swap generations, so at most one window gets a
+  checkout and no folder is left without its record (lane P, with
+  M123P9's logged sweep failures and translated uncertain writes). Still
+  to land: the GitHub sign-in (lane A, accepted on its branch), the
+  editors' leases (lane L), the panel and its strings (lane U) and each
+  editor's qualification (lane Q). The pull-request checkout's own git
+  launches are not yet under the resource governor; nothing in this release
+  can start them, and the process inventory fails the day something could.
+
+- Muse Code permissions: on the Muse Code backend one command is asked
+  about once — the first answer is reused for later stages instead of
+  asking again, and an answer given while a newer stage arrives is applied
+  to that stage instead of dropped. A permission mode set in the editor is
+  reported back and kept when the session is loaded again. The Manual and
+  Edit Automatically descriptions now say commands are asked about unless
+  a permission rule allows them.
 
 ## [0.18.2] - 2026-10-12
 

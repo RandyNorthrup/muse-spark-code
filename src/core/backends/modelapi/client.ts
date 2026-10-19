@@ -40,7 +40,13 @@ export {
 import type { ProviderClient as TransportProviderClient } from './providerClient'
 import type { ContextModel } from '../../context/overflow'
 import type { PlanUsageRow } from '../../../shared/usage'
-import type { ModelResolver } from './modelPolicy'
+import {
+  estimatedStreamTokens,
+  modelPricedUsage,
+  requestImageCount,
+  type ModelResolver,
+  type ModelPricePolicy,
+} from './modelPolicy'
 import {
   type PaidFeature,
   MODEL_API_BASE_URL,
@@ -218,6 +224,7 @@ export class ModelApiClient implements TransportProviderClient {
   public constructor(
     private readonly deps: ModelApiClientDeps,
     private readonly scheduledRun?: () => UnattendedRun | undefined,
+    private readonly scheduledPrice?: ModelPricePolicy,
   ) {
     this.transport = new RequestTransport({
       ...deps,
@@ -346,8 +353,11 @@ export class ModelApiClient implements TransportProviderClient {
   }
 
   /** Each session owns its authority callback, even when hosts share transport. */
-  public withScheduleAuthority(run: () => UnattendedRun | undefined): ModelApiClient {
-    return new ModelApiClient(this.deps, run)
+  public withScheduleAuthority(
+    run: () => UnattendedRun | undefined,
+    price?: ModelPricePolicy,
+  ): ModelApiClient {
+    return new ModelApiClient(this.deps, run, price)
   }
 
   /** Whether interactive extras have a finite daily admission port (D78). */
@@ -647,10 +657,7 @@ export class ModelApiClient implements TransportProviderClient {
           accept: EVENT_STREAM_MEDIA_TYPE,
           modelId: body.model,
           pacingClass: admitAttempt?.pacingClass ?? fanOutPacingClass(feature),
-          estimatedTokens:
-            (admitAttempt?.paidEstimatedInputTokens ??
-              new TextEncoder().encode(JSON.stringify([body.input, body.instructions, body.tools]))
-                .length) + body.max_output_tokens,
+          estimatedTokens: estimatedStreamTokens(body, admitAttempt),
           ...(paid !== undefined && { paid }),
         },
         signal,
@@ -749,8 +756,20 @@ export class ModelApiClient implements TransportProviderClient {
                     ? this.knownSearchTokenCostUsd(billable, body.model)
                     : estimateCostUsd(billable, body.model)
                 }
+                // A scheduled run settles at its pinned price even when the
+                // usage is uncounted; otherwise the reported cost settles,
+                // or cost unknown when unpriced — never the estimate (D121).
+                // Without a usage object there is nothing to price.
+                const providerCost =
+                  usage === null || usage === undefined
+                    ? undefined
+                    : this.scheduledPrice?.settle(
+                        { ...modelPricedUsage(usage), images: requestImageCount(body) },
+                        { cost: usage.provider_cost_usd },
+                      )
                 await claim.settle(
-                  tokenCostUsd === undefined ? undefined : sumUsd(tokenCostUsd, returnedFees()),
+                  providerCost ??
+                    (tokenCostUsd === undefined ? undefined : sumUsd(tokenCostUsd, returnedFees())),
                 )
               }
               hasTerminal = true

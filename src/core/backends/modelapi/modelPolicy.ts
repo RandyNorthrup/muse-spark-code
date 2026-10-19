@@ -3,6 +3,7 @@ import { Usd, type UsdAmount } from '../../../shared/usd'
 // consumers retain the distinctions between unknown and unsupported. Provider
 // core stays in dist/providers.js, so only its types cross this seam.
 import type { ModelApiClient, ProviderClient } from './client'
+import type { UnattendedRun } from '../../schedules/unattended'
 import type { ModelSummary } from '../../agent/agentBackend'
 import type { CreateResponseBody, Usage } from './schemas'
 import { estimateCostUsd } from '../../usage/insights'
@@ -320,6 +321,21 @@ export interface ModelPricedUsage extends PricedUsage {
 }
 
 /** The images in this request, including replayed attachments. */
+/**
+ * The stream request's token estimate for pacing: the paid admission's own
+ * count when it has one, else the body's byte size plus its output budget.
+ */
+export function estimatedStreamTokens(
+  body: CreateResponseBody,
+  admitAttempt: { readonly paidEstimatedInputTokens?: number | undefined } | undefined,
+): number {
+  return (
+    (admitAttempt?.paidEstimatedInputTokens ??
+      new TextEncoder().encode(JSON.stringify([body.input, body.instructions, body.tools]))
+        .length) + body.max_output_tokens
+  )
+}
+
 export function requestImageCount(body: CreateResponseBody): number {
   return body.input.reduce(
     (count, item) =>
@@ -407,6 +423,14 @@ export type ModelClient = Pick<
     readonly costUsd?: UsdAmount | undefined
     readonly accuracy?: 'exact' | 'estimate'
   }>
+  /**
+   * Scheduled runs pin one model and price behind this authority: the
+   * transport calls it instead of a second full-context reservation.
+   */
+  readonly withScheduleAuthority?: (
+    run: () => UnattendedRun | undefined,
+    price?: ModelPricePolicy,
+  ) => ModelClient
 }
 
 export interface ResolvedModel {

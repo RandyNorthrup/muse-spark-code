@@ -1,9 +1,11 @@
 import { UserRefusalError } from '../shared/refusal'
+import type { ScheduleBillingPorts } from '../host/schedules/paidBinding'
+import type { ScheduleCallerContext } from './schedules/args'
 import { resolveExecOutputCap } from './exec/runLedger'
 import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
 import { runtimeConverterPath } from './runtimeConverterPath'
-import { Usd } from '../shared/usd'
+import { Usd, sumUsd } from '../shared/usd'
 import { loadLegalScanner } from './legal/legalScanner'
 import { providersFilePath } from './providerPaths'
 import { ModelApiClient } from '../core/backends/modelapi/client'
@@ -40,7 +42,11 @@ import { MemoryStore } from '../core/memory/memoryStore'
 import { WorkspaceEdits } from '../core/verify/workspaceEdits'
 import { redactSecrets } from '../core/redact'
 import { recordPaidUse } from '../core/paid/paidFeatures'
-import { paidExtraAdmission } from '../core/paid/spendClaim'
+import {
+  checkScheduleOwnCap,
+  paidExtraAdmission,
+  passthroughSpendClaim,
+} from '../core/paid/spendClaim'
 import type { UsageRecording } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
 import { fileContextIo } from '../host/backend/contextIo'
@@ -143,6 +149,11 @@ export interface RuntimeBackendDeps {
 }
 
 export interface RuntimeBackend {
+  readonly scheduleBilling?: (
+    cwd: string,
+    modelId: string,
+    caller?: ScheduleCallerContext,
+  ) => Promise<ScheduleBillingPorts>
   readonly readUsageBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
@@ -812,6 +823,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   })
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
+    scheduleAuthorization: {
+      scheduledPrompts:
+        deps.options.backend === 'modelApi' && deps.options.scheduledPrompts === true,
+      ...(deps.options.maxBudgetUsd !== undefined && { maxBudgetUsd: deps.options.maxBudgetUsd }),
+    },
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     autoCompactionOff: deps.options.autoCompaction === false,
     canRemember: () => deps.options.trustWorkspace,
@@ -1011,7 +1027,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     return { state: 'signedOut', message: refusal }
   }
 
-  const modelApiHostFor = async (cwd: string): Promise<AgentHost> => {
+  const modelApiHostFor = async (cwd: string) => {
     const identity = await captureWorkspaceIdentity(cwd)
     if (identity === undefined) {
       throw new Error(UI_TEXT.modelApiNeedsFolder)
@@ -1105,6 +1121,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         ? undefined
         : await openUploadsLedger(await uploadsAccountId()),
   })
+  let isClosed = false
   return {
     readUsageBudgets: async () => {
       // The shared daily paid budget first, then the live session budgets:
@@ -1136,6 +1153,48 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         if (host.configureOutputSchema(sessionId, model, mode, schema)) return
       }
       throw new Error(UI_TEXT.execRequestShape)
+    },
+    scheduleBilling: async (cwd, modelId, caller) => {
+      if (deps.exec !== undefined || deps.options.backend !== 'modelApi')
+        throw new Error(UI_TEXT.schedulePaidOff)
+      const host = await modelApiHostFor(cwd)
+      const entry = await import('./runtimeAccountingEntry.js')
+      const daily = entry.createRuntimeDailyBudget({
+        dataFolder: agentDataFolder(deps),
+        now: Date.now,
+        sleep: deps.sleep,
+      })
+      return {
+        modelId: () => modelId,
+        host: () => Promise.resolve(host),
+        generation: () => 0,
+        capUsd: daily.capUsd,
+        isActive: () => !isClosed,
+        isOn: (feature) => paid.isOn(feature),
+        ...(caller !== undefined && { caller: () => caller }),
+        reportConsent: (question) => {
+          process.stderr.write(`${question.title}\n${question.detail}\n`)
+          return Promise.resolve()
+        },
+        ask: (question) =>
+          caller?.sessionId === undefined
+            ? Promise.resolve('deny')
+            : paid.askScheduleUse(caller.sessionId, question.request),
+        reserve: async (record, amount, signal) => {
+          signal.throwIfAborted()
+          // The shared daily cap first: over it the stop sentence refuses.
+          const claim = await daily.reserve(amount, signal)
+          // Then the schedule's own caps against the same day pool (the
+          // consent gates a shared budget, so the pool exists here).
+          await checkScheduleOwnCap(record, amount, async () => {
+            const rows = await daily.readToday()
+            return sumUsd(...rows.map((row) => row.budget.spentUsd))
+          })
+          // Paid consent always carries a shared budget; without one set
+          // the fire is admitted through a claim that enforces nothing.
+          return claim ?? passthroughSpendClaim(amount, signal)
+        },
+      }
     },
     museCode,
     paid,
@@ -1174,6 +1233,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       }
     },
     close: async () => {
+      isClosed = true
       // A probe still waiting on its short-lived host ends with the agent.
       accountHosts.close()
       const managers = [

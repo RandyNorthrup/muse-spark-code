@@ -224,23 +224,35 @@ export function createRuntimeDailyBudget(deps: {
      * left of today like a request's and settled from the receipt after.
      */
     reserve(costUsd: UsdAmount, signal: AbortSignal): Promise<SpendClaim | undefined> {
-      signal.throwIfAborted()
-      if (!isPositiveUsd(capUsd())) return Promise.resolve(undefined)
-      const scope = day()
-      const check = () => {
-        limitCheck(signal, scope, costUsd)
+      try {
+        signal.throwIfAborted()
+        if (!isPositiveUsd(capUsd())) return Promise.resolve(undefined)
+        const scope = day()
+        const check = () => {
+          limitCheck(signal, scope, costUsd)
+        }
+        check()
+        let isSettled = false
+        return Promise.resolve({
+          estimateUsd: costUsd,
+          check,
+          settle: async (actualCostUsd) => {
+            if (isSettled) return
+            isSettled = true
+            await spend.add(scope, actualCostUsd === undefined ? undefined : ceilUsd(actualCostUsd))
+          },
+        })
+      } catch (error: unknown) {
+        // NARROW: the check's own refusal and an aborted turn reject the
+        // returned promise, never throw synchronously; anything else
+        // rethrows for the caller to see.
+        if (
+          error instanceof UserRefusalError ||
+          (error instanceof DOMException && error.name === 'AbortError')
+        )
+          return Promise.reject(error)
+        throw error
       }
-      check()
-      let isSettled = false
-      return Promise.resolve({
-        estimateUsd: costUsd,
-        check,
-        settle: async (actualCostUsd) => {
-          if (isSettled) return
-          isSettled = true
-          await spend.add(scope, actualCostUsd === undefined ? undefined : ceilUsd(actualCostUsd))
-        },
-      })
     },
 
     /**
@@ -354,6 +366,11 @@ export function withRuntimeAccounting(
       countInputTokens: original.countInputTokens.bind(original),
       ...(original.countInputTokensDetailed !== undefined && {
         countInputTokensDetailed: original.countInputTokensDetailed.bind(original),
+      }),
+      // Scheduled transport uses its own shared+schedule admission, never a
+      // second full-context daily reservation from the interactive wrapper.
+      ...(original.withScheduleAuthority !== undefined && {
+        withScheduleAuthority: original.withScheduleAuthority.bind(original),
       }),
       listModels: original.listModels.bind(original),
       retryDelayMs: original.retryDelayMs.bind(original),
@@ -757,6 +774,9 @@ export function withRuntimeAccounting(
   }
   return {
     currentKeyDigest: client.currentKeyDigest.bind(client),
+    ...(client.withScheduleAuthority !== undefined && {
+      withScheduleAuthority: client.withScheduleAuthority.bind(client),
+    }),
     countInputTokens: client.countInputTokens.bind(client),
     listModels: client.listModels.bind(client),
     retryDelayMs: client.retryDelayMs.bind(client),

@@ -161,7 +161,7 @@
   "command.schedulePrompt.title": "Schedule this prompt…",
   "command.showSchedules.title": "Show schedules",
   "command.showScheduleTimeline.title": "Show schedule timeline",
-  "config.schedules.description": "Controlla la scorciatoia del comando /loop esistente nella chat Muse Code. La gestione delle pianificazioni e l’esecuzione dei prompt pianificati non sono disponibili.",
+  "config.schedules.description": "Controlla /loop nella chat di Muse Code. La consegna delle richieste pianificate richiede la certificazione.",
   "config.schedules.defaultDelivery.description": "Seleziona la modalità di consegna scritta nelle nuove bozze di pianificazione; non abilita l’esecuzione pianificata.",
   "config.schedules.agentCreation.description": "Conservata per compatibilità; questa preferenza non ha effetto in questa versione.",
   "command.tabLanguages.title": "Lingue di Tab",

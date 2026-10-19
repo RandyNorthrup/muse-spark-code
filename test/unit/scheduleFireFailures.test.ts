@@ -84,6 +84,15 @@ function setup(state: {
         admitted.push(intent)
         return Promise.resolve(true)
       },
+      // Single owner: this process always wins the dispatch fence, so the
+      // delivery-failure paths below run as the dispatch owner.
+      startDispatch: () => Promise.resolve(true),
+      lookupRun: (_workspaceKey, runId) =>
+        Promise.resolve({
+          status: admitted.some((intent) => intent.runId === runId)
+            ? ('admitted' as const)
+            : ('absent' as const),
+        }),
       advance: () => Promise.resolve(true),
       pending: () => Promise.resolve([...admitted]),
       abandoned: () => Promise.resolve([]),
@@ -180,7 +189,7 @@ describe('schedule delivery failures', () => {
     const recovered = recoveredFire('ran', 'exact')
     const { fire, recorded, settlements } = setup({
       deliver: () => Promise.reject(new Error('responseLost')),
-      ledgers: [{ status: 'absent' }, { status: 'settled', fire: recovered }],
+      ledgers: [{ status: 'settled', fire: recovered }],
     })
     await expect(fire()).resolves.toEqual({ kind: 'accepted', id: scheduleId })
     expect(recorded).toEqual([recovered])
@@ -192,7 +201,7 @@ describe('schedule delivery failures', () => {
     const recovered = recoveredFire('ran', 'unknown')
     const { fire, recorded } = setup({
       deliver: () => Promise.reject(deliveryError),
-      ledgers: [{ status: 'absent' }, { status: 'uncertain', fire: recovered }],
+      ledgers: [{ status: 'uncertain', fire: recovered }],
     })
     await expect(fire()).rejects.toBe(deliveryError)
     expect(recorded).toEqual([recovered])
@@ -207,7 +216,7 @@ describe('schedule delivery failures', () => {
     })
     const { fire, recorded, settlements } = setup({
       deliver: () => Promise.reject(new Error('sendDown')),
-      ledgers: [{ status: 'absent' }, { status: 'settled', fire: foreign }],
+      ledgers: [{ status: 'settled', fire: foreign }],
     })
     await expect(fire()).rejects.toThrow('scheduleSettlementIdentityMismatch')
     expect(settlements).toHaveLength(1)
@@ -218,7 +227,7 @@ describe('schedule delivery failures', () => {
   it('settles a failed accounting when a returned settlement is refused after admission', async () => {
     const { fire, recorded, settlements } = setup({
       deliver: () => Promise.resolve({}),
-      ledgers: [{ status: 'absent' }, { status: 'admitted' }],
+      ledgers: [{ status: 'admitted' }],
     })
     await expect(fire()).rejects.toThrow()
     expect(settlements).toHaveLength(1)
