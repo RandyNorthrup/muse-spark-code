@@ -205,12 +205,12 @@ export async function openHeadlessVault(
 }
 
 /**
- * Approvals from any requester reach the ACP editor while one is attached:
- * each broker approval becomes a `session/request_permission` round trip,
- * and the editor's answer is submitted back to the management session.
- * Without an attached asker (terminal, headless) approvals are left for
- * `vault watch`; answering deny here would steal them.
- */
+Approvals from any requester reach the ACP editor while one is attached:
+each broker approval becomes a `session/request_permission` round trip,
+and the editor's answer is submitted back to the management session.
+Without an attached asker (terminal, headless) approvals are left for
+`vault watch`; answering deny here would steal them.
+*/
 function routeBrokerApprovals(
   session: VaultManageSession,
   acp: AcpVault,
@@ -296,7 +296,7 @@ export async function createVaultBrokerBindings(
     path.join(__dirname, 'vaultBrokerBindings.js'),
   ) as typeof BrokerBindingsModule
   if (typeof module.createVaultBrokerBindings !== 'function')
-    throw new Error(UI_TEXT.vault.brokerBlocked)
+    throw new TypeError(UI_TEXT.vault.brokerBlocked)
   module.setUiText(UI_TEXT, uiLocale())
   return await module.createVaultBrokerBindings(context, {}, platform)
 }

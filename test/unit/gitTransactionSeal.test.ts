@@ -33,7 +33,7 @@ describe('sealOf failure marks', () => {
       expect(first).not.toBe('absent')
       const pair: unknown = JSON.parse(first)
       expect(Array.isArray(pair)).toBe(true)
-      if (!Array.isArray(pair)) throw new Error('unreachable')
+      if (!Array.isArray(pair)) throw new TypeError('unreachable')
       expect(pair[1]).toBe('absent')
       expect(isSealIntact(seal)).toBe(true)
     } finally {

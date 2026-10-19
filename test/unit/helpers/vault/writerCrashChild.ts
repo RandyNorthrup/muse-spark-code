@@ -79,7 +79,7 @@ class InterruptedFiles extends NodeVaultFiles {
 async function run(): Promise<void> {
   const chunks: Buffer[] = []
   for await (const bytes of process.stdin) {
-    if (!(bytes instanceof Buffer)) throw new Error('private fixture input')
+    if (!(bytes instanceof Buffer)) throw new TypeError('private fixture input')
     chunks.push(bytes)
   }
   const encoded = Buffer.concat(chunks)

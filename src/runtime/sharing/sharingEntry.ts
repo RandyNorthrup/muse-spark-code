@@ -284,7 +284,7 @@ export async function runRuntimeSharing(
           // streams to its end at any size.
           for await (const chunk of process.stdin) {
             controller.signal.throwIfAborted()
-            if (!(chunk instanceof Buffer)) throw new Error(UI_TEXT.promptFileInvalid)
+            if (!(chunk instanceof Buffer)) throw new TypeError(UI_TEXT.promptFileInvalid)
             text += decoder.decode(chunk, { stream: true })
           }
           return text + decoder.decode()

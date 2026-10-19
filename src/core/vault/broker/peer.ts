@@ -28,10 +28,10 @@ export interface VaultPeerVerifier {
   verify(socket: Duplex): Promise<VaultProcessIdentity>
 }
 /**
- * The Windows client's pipe dialer (lane C-M109-1c): a raw pipe socket
- * carries no inspectable server end, so the client platform verifies the
- * pipe's owner through its files-mode helper before connecting.
- */
+The Windows client's pipe dialer (lane C-M109-1c): a raw pipe socket
+carries no inspectable server end, so the client platform verifies the
+pipe's owner through its files-mode helper before connecting.
+*/
 export interface VaultPipeDialPort {
   /** The pipe's trusted server identity, or a refusal. Never a raw answer. */
   verifyPipe(pipe: string): Promise<VaultProcessIdentity>
@@ -52,7 +52,7 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
   ) {}
   async verify(stream: Duplex): Promise<VaultProcessIdentity> {
     // Only a kernel socket has peer credentials; a relayed stream never passes here.
-    if (!(stream instanceof Socket)) throw new Error(UI_TEXT.vault.noAccess)
+    if (!(stream instanceof Socket)) throw new TypeError(UI_TEXT.vault.noAccess)
     const socket = stream
     const { child, stop } = await spawnResourceProcess(
       'contained',
@@ -115,10 +115,10 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
   }
 }
 /**
- * The Windows pipe helper's relay (docs/design/vault-windows-pipe-helper.md)
- * reports GetNamedPipeClientProcessId + the client's SID, start time and image
- * with each accepted connection; inspect returns exactly that record.
- */
+The Windows pipe helper's relay (docs/design/vault-windows-pipe-helper.md)
+reports GetNamedPipeClientProcessId + the client's SID, start time and image
+with each accepted connection; inspect returns exactly that record.
+*/
 export interface WindowsVaultPipePort {
   inspect(
     socket: Duplex,

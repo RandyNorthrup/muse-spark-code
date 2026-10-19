@@ -21,7 +21,7 @@ import { UI_TEXT, fill, formatUnit } from '../../shared/l10n/text'
 
 function element<T extends HTMLElement>(selector: string, kind: new () => T): T {
   const node = document.querySelector(selector)
-  if (!(node instanceof kind)) throw new Error('EVOICE_PAGE')
+  if (!(node instanceof kind)) throw new TypeError('EVOICE_PAGE')
   return node
 }
 
