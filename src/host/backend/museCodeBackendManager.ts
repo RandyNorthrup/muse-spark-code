@@ -675,12 +675,6 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * Where the CLI is, or why it could not be found. Resolved once per set of
-   * inputs (the setting, PATH, the serve flags); a found CLI is re-checked
-   * with one file probe, so an uninstall is noticed. `invalidateLaunch`
-   * forgets the answer (a retry, a sign-in).
-   */
-  /**
    * Whether the person's own Muse Code settings enable contributor mode, as
    * the `serve` this manager starts will see them: the settings file in the
    * config home of the child's own environment (an account home moves it,
@@ -697,6 +691,12 @@ export class MuseCodeBackendManager {
     })
   }
 
+  /**
+   * Where the CLI is, or why it could not be found. Resolved once per set of
+   * inputs (the setting, PATH, the serve flags); a found CLI is re-checked
+   * with one file probe, so an uninstall is noticed. `invalidateLaunch`
+   * forgets the answer (a retry, a sign-in).
+   */
   public resolveLaunch(): LaunchResolution {
     const env = process.env
     const pathValue = environmentValue(env, process.platform, 'PATH') ?? ''
