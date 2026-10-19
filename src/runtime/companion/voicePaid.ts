@@ -14,7 +14,7 @@ import {
   PAID_PRICES_USD,
   SECONDS_PER_HOUR,
   UI_TEXT,
-  MAX_TEXT_ATTACHMENT_BYTES,
+  VOICE_TEXT_MAX_BYTES,
 } from '../../shared/constants'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import { formatUsd } from '../../shared/l10n/exactUsd'
@@ -168,7 +168,7 @@ export function paidVoiceWindow(deps: {
             const chunk = await reader.read()
             if (chunk.done) break
             bytes += chunk.value.byteLength
-            if (bytes > MAX_TEXT_ATTACHMENT_BYTES) throw new Error(UI_TEXT.companionVoiceFailed)
+            if (bytes > VOICE_TEXT_MAX_BYTES) throw new Error(UI_TEXT.companionVoiceFailed)
             text += decoder.decode(chunk.value, { stream: true })
           }
           text += decoder.decode()
