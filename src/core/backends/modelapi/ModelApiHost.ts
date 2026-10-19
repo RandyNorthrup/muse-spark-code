@@ -10098,13 +10098,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       siblings += 1
     }
     const grant = child.session.childTaskGrant
-    if (
-      siblings === 0 ||
-      grant === undefined ||
-      grant.remainingAttempts <= 0 ||
-      !this.canContinueChild(child, grant)
-    )
-      return false
+    if (siblings === 0 || grant === undefined || !this.canContinueChild(child, grant)) return false
     const verdict = await this.fireExtensionHooks(
       'TeammateIdle',
       undefined,
