@@ -181,25 +181,86 @@ PR #223's `chore/no-standins` deleted the fake suites before this audit
   one-line reason the rig rules require on the genuinely-long 180 s
   per-test timeout.
 
-## Open exception (not rewritten — recipe and blocker)
+## Open exception — resolved by the NOSTANDINKEY follow-up
 
-`test/unit/helpers/vault/sessionBrokerChild.ts` passes
+`test/unit/helpers/vault/sessionBrokerChild.ts` passed
 `memoryKeyring().openEntry` (an in-memory map) as the broker fixture's
-keyring override. By the letter that is a store double, but it backs none
-of the tests' claims (broker lifecycle, launch lock, cleanup — the keyring
-is never exercised), and every real alternative is worse or unverifiable
-here: dropping the override resolves the real OS store, which writes test
-entries under the production keyring service on secret-service machines
-and behaves differently per machine; `unavailableKeyring()`/
-`missingOsKeyring()` are module-private, so using them means changing src
-for tests. The real keyring path is proven by the host receipt
-(`test/hosts/run-vault-posix.sh` runs the broker against an isolated
-Secret Service with recorded receipts) and the degraded path by
-`brokerWithoutKeyring`. Recipe for a follow-up with a runnable rig: point
-the fixture at the real `missingOsKeyring` fallback (export it) or run the
-brokerSession suite against the isolated Secret Service harness and drop
-the override. Runtime verification of any vault-fixture change is blocked
-in this sandbox (broker suites time out at baseline).
+keyring override. The follow-up removed the override: the child calls
+`createVaultBrokerBindings(context)` with no override, so the broker
+resolves its keyring exactly the way the product does on that machine —
+the real OS store where the binding resolves, the product's real
+keyring-less fallback (`missingOsKeyring`: unavailable per-operation keyring
+plus the file-backed rollback anchor) where it does not. Nothing is chosen
+by the test: on a secret-service machine the fixture writes through the
+real store; in the keyring-less fixture root (which stands clear of every
+ancestor `node_modules`, guarded by the suite's fail-fast resolve check)
+it takes the fallback. The real keyring path stays proven by the host
+receipt (`test/hosts/run-vault-posix.sh` runs the broker against an
+isolated Secret Service with recorded receipts).
+
+Two things the audit's recipe did not foresee, both measured on the rig,
+not assumed:
+
+- The recorded "sandbox-blocked child-process birth/AF_UNIX" was a
+  misdiagnosis. A debug fixture child that prints its startup error showed
+  the broker exiting 1 with `Resource admission unavailable`: removing the
+  admission double left nothing configuring the real admission, and the
+  fixture children never call `configureResources` (only the installed
+  `main()` does), so no fixture broker could start on any machine. The
+  follow-up extracted the installed entry's governor wiring into the
+  product export `configureBrokerResources` (`src/runtime/vault/
+vaultBrokerEntry.ts`), which `main()` now calls and the broker and
+  client fixture children call over their generated paths (client on its
+  own host-scoped registry). Four simultaneous clients initially shared
+  one registry file and the native `muse-created publish` refused the
+  concurrent owners (`created directory helper refused`); scoping one
+  registry per client process — one per process that configures admission,
+  as in production — fixed the race with the mechanism named.
+- The fixture also builds the second native helper the governed spawn
+  needs: `buildBrokerChildren` now compiles `muse-created` beside
+  `muse-vault-peer` through the product's own `buildLinuxHelper` /
+  `buildVaultPeer` (both take an output directory; sources still resolve
+  from the repository root), with `scripts/*.d.mts` declarations beside
+  them per the repo idiom. `sessionBrokerNoKeyringChild.ts` merged into
+  `sessionBrokerChild.ts` (identical once the override went; the
+  keyring-less property belongs to the fixture root, not the entry) and
+  `test/unit/helpers/keyring.ts` (`memoryKeyring`) is deleted, unused.
+
+Fail-on-purpose, each reverted with `git diff` clean (“expected” quoted
+from the runs, repository's own 5 s timeout throughout):
+
+- Launch winner-recheck removed (`posixClientPlatform`): the simultaneous
+  race test fails (several broker pids); revert → green.
+- Host-record removal stubbed (`posixHost`): the orderly-lifecycle test
+  fails (`expected [ …(2) ] to deeply equal []`) and the launcher-death
+  test fails (`expected [ 'bbb…' ] to deeply equal []`); revert → green.
+- Stream error guards removed (`runVaultBrokerEntry`): the closed-pipes
+  test fails (`expected 1 to be +0`, child crashes on destroyed pipes
+  instead of exiting 0); revert → green.
+- Keyring-less fallback removed (`resolveBrokerKeyring` rethrows): the
+  without-keyring test fails (broker refuses startup, readiness timeout);
+  revert → green.
+
+Rig environment both suites need, and why: this sandbox leaves
+`XDG_RUNTIME_DIR` unset and its `TMPDIR` tree is ~135 characters, so every
+socket candidate exceeds the 107-byte `AF_UNIX` bind limit and the broker
+fail-closes with its sentence (measured `assertVaultSocketLength` refusal
+in the debug child). The runs below export a short worker-only
+`XDG_RUNTIME_DIR` under the worktree's gitignored `temp/`; the product
+resolves its socket base from it exactly as on an installed session, and
+no test file names a rig path. `brokerSession` additionally passes the
+worker's `XDG_RUNTIME_DIR` through the client fork environment, mirroring
+the product's own forwarding (`posixClientPlatform`); without it the
+broker falls back to the long fixture root and refuses. CI needs nothing:
+its short `TMPDIR` (or a set `XDG_RUNTIME_DIR`) already fits, and the
+passthrough is a no-op when the variable is absent.
+
+Result on the rig: `brokerSession` 4/4 and `brokerWithoutKeyring` 1/1
+green, repeated (3 consecutive combined 5/5 runs plus single-file runs),
+each test 422–1866 ms against the repository's own timeout. One transient
+in six executions (closed-pipes assertion, exit 0 but no `broker-*` dir
+observed once, green on the next four runs) is recorded UNMEASURED: no
+mechanism found, not reproduced since.
 
 ## Per-file verdicts
 
@@ -272,7 +333,7 @@ Added files (108 live + 3 deleted here):
 | test/unit/helpers/estimateFailures.ts                             | R (real-module probes)                                    |
 | test/unit/helpers/inspectCase.ts                                  | R (real helper binaries)                                  |
 | test/unit/helpers/inspectMacPaths.c                               | R (real helper)                                           |
-| test/unit/helpers/keyring.ts                                      | R (fixture seam; see open exception)                      |
+| test/unit/helpers/keyring.ts                                      | D (memoryKeyring deleted; override gone, no users)        |
 | test/unit/helpers/recordCalls.ts                                  | R (recording callbacks)                                   |
 | test/unit/helpers/recordLogger.ts                                 | R (recording logger)                                      |
 | test/unit/helpers/temporaryFolders.ts                             | R (real fs helpers)                                       |
@@ -282,11 +343,11 @@ Added files (108 live + 3 deleted here):
 | test/unit/helpers/vault/pipeRelayPeer.mjs                         | R (real peer)                                             |
 | test/unit/helpers/vault/receiptWarnings.mjs                       | R (real V8 stacks)                                        |
 | test/unit/helpers/vault/sessionAdmission.ts                       | D (fake module swap; see rewrite 3)                       |
-| test/unit/helpers/vault/sessionBrokerBuild.ts                     | R (alias removed; real bundle)                            |
-| test/unit/helpers/vault/sessionBrokerChild.ts                     | R (open exception: memoryKeyring)                         |
+| test/unit/helpers/vault/sessionBrokerBuild.ts                     | W (builds both native helpers via the product recipes)    |
+| test/unit/helpers/vault/sessionBrokerChild.ts                     | W (override gone; installed governor wiring, real keys)   |
 | test/unit/helpers/vault/sessionBrokerHarness.ts                   | R (real sockets)                                          |
-| test/unit/helpers/vault/sessionBrokerNoKeyringChild.ts            | R (real resolution)                                       |
-| test/unit/helpers/vault/sessionClientChild.ts                     | R (no-op dispose removed)                                 |
+| test/unit/helpers/vault/sessionBrokerNoKeyringChild.ts            | D (merged into sessionBrokerChild: root owns scenario)    |
+| test/unit/helpers/vault/sessionClientChild.ts                     | W (installed governor wiring, per-host registry)          |
 | test/unit/helpers/vault/writerCrashChild.ts                       | R (real crashed writer)                                   |
 | test/unit/inspectNative.test.ts                                   | R (modified; helper refactor, no doubles)                 |
 | test/unit/installTable.test.ts                                    | R (modified; real DOM install path)                       |
@@ -339,9 +400,9 @@ Added files (108 live + 3 deleted here):
 | test/unit/usageJournalRetry.test.ts                               | W (rewrite 1)                                             |
 | test/unit/usageLiability.test.ts                                  | R (real usage text)                                       |
 | test/unit/usagePostFailure.test.tsx                               | R (render seam; see note)                                 |
-| test/unit/vault/brokerSession.test.ts                             | R (real processes; fixtures fixed)                        |
+| test/unit/vault/brokerSession.test.ts                             | W (XDG passthrough; 4/4 green, 5 drills, see §Open)       |
 | test/unit/vault/brokerSocketDirectory.test.ts                     | R (real binds)                                            |
-| test/unit/vault/brokerWithoutKeyring.test.ts                      | R (real fallback)                                         |
+| test/unit/vault/brokerWithoutKeyring.test.ts                      | W (merged entry; 1/1 green, drill, see §Open)             |
 | test/unit/vault/credentialAdapter.test.ts                         | R (real zeroing adapter)                                  |
 | test/unit/vault/fileAnchor.test.ts                                | R (real anchor files)                                     |
 | test/unit/vault/foreignPeer.c                                     | R (modified; real C peer)                                 |
@@ -396,18 +457,25 @@ tabled above (all J).
 - `brokerWithoutKeyring` beforeAll builds the fixture bundle without the
   admission alias; its 1 failure is the pre-existing sandbox timeout,
   identical before and after (blocked child-process birth/AF_UNIX, as the
-  JOINB message records).
+  JOINB message records). [Superseded by the NOSTANDINKEY follow-up: the
+  block was unconfigured admission, now wired; see §Open exception.]
 - `npx prettier --check` on all touched files: clean. `npx eslint` on all
   touched files: zero warnings. `npm run typecheck` (all five projects):
   clean.
-- Not run to green here (sandbox-blocked child-process birth/AF_UNIX):
-  `brokerSession` times out 4/4 and `brokerWithoutKeyring` 1/1, observed
-  on this rig both before and after the fixture change. The JOINB message
-  records the same sandbox-blocked failures on the untouched tip for
-  `writerCrashPosix` (17), `slotProviders` (6), `brokerSocketDirectory`
-  (3) and `fileLease` (4); those suites are untouched by this lane and
-  were not re-run. The lead/CI run owns runtime proof for the
-  vault-fixture change.
+- vault fixtures (NOSTANDINKEY follow-up, rig `linuxlt`, repository's own
+  5 s timeout, worker `XDG_RUNTIME_DIR` under the worktree's gitignored
+  `temp/` as §Open exception records): `brokerSession` 4/4 green (422–
+  1866 ms a test) and `brokerWithoutKeyring` 1/1 green (574 ms), 3
+  consecutive combined 5/5 runs plus single-file runs; all five tests
+  fail-on-purpose proven (launch recheck, host cleanup ×2, stream guards,
+  keyring fallback) with `git diff` clean after each revert.
+  `slotProviders` (related, 9 tests) green. One closed-pipes transient in
+  six executions recorded UNMEASURED in §Open exception.
+- Not re-run by this lane (untouched; the JOINB message records the same
+  sandbox failures on the untouched tip): `writerCrashPosix` (17),
+  `slotProviders` (6 — re-run green here as the related suite, 9 tests),
+  `brokerSocketDirectory` (3) and `fileLease` (4). The lead/CI run owns
+  release proof.
 
 ## Correction during the audit
 
