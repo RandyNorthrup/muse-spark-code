@@ -360,6 +360,35 @@ function isNoDefaultCwdGuard(name: string): boolean {
 }
 
 /**
+ * Copies `env` while guarding every PATH spelling with `sanitizePath`
+ * (a spelling with nothing left is deleted, never stored empty), dropping
+ * any preset current-directory-exclusion variable, and setting the
+ * canonical `NoDefaultCurrentDirectoryInExePath=1` on Windows so a preset
+ * `0` cannot shadow it. Nothing else changes.
+ */
+function guardedEnvironmentEntries(
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+  sanitizePath: (pathVariable: string | undefined) => string,
+): NodeJS.ProcessEnv {
+  const kept: NodeJS.ProcessEnv = {}
+  const paths: [string, string][] = []
+  for (const [name, value] of Object.entries(env)) {
+    if (isPathSpelling(platform, name)) {
+      const sanitized = sanitizePath(value)
+      if (sanitized !== '') paths.push([name, sanitized])
+    } else if (platform !== 'win32' || !isNoDefaultCwdGuard(name)) {
+      kept[name] = value
+    }
+  }
+  const child: NodeJS.ProcessEnv = { ...kept, ...Object.fromEntries(paths) }
+  if (platform === 'win32') {
+    child['NoDefaultCurrentDirectoryInExePath'] = '1'
+  }
+  return child
+}
+
+/**
  * One child environment for every spawn the product makes with the workspace
  * as its working directory or on its PATH: every PATH spelling sanitised by
  * `sanitizePathForWorkspace` (empty, relative, drive-relative and workspace
@@ -373,26 +402,16 @@ export function workspaceChildEnvironment(
   env: NodeJS.ProcessEnv,
   workspace: WorkspaceChild,
 ): GuardedChildEnv {
-  const kept: NodeJS.ProcessEnv = {}
-  const paths: [string, string][] = []
-  for (const [name, value] of Object.entries(env)) {
-    if (isPathSpelling(platform, name)) {
-      const sanitized = sanitizePathForWorkspace({
+  return brandGuarded(
+    guardedEnvironmentEntries(platform, env, (pathVariable) =>
+      sanitizePathForWorkspace({
         platform,
-        pathVariable: value,
+        pathVariable,
         workspaceRoot: workspace.workspaceRoot,
         realpath: workspace.realpath,
-      })
-      if (sanitized !== '') paths.push([name, sanitized])
-    } else if (platform !== 'win32' || !isNoDefaultCwdGuard(name)) {
-      kept[name] = value
-    }
-  }
-  const child: NodeJS.ProcessEnv = { ...kept, ...Object.fromEntries(paths) }
-  if (platform === 'win32') {
-    child['NoDefaultCurrentDirectoryInExePath'] = '1'
-  }
-  return brandGuarded(child)
+      }),
+    ),
+  )
 }
 
 /**
@@ -429,21 +448,7 @@ export function noWorkspaceChildEnvironment(
         return entry
       })
       .join(separator)
-  const kept: NodeJS.ProcessEnv = {}
-  const paths: [string, string][] = []
-  for (const [name, value] of Object.entries(env)) {
-    if (isPathSpelling(platform, name)) {
-      const sanitized = sanitize(value)
-      if (sanitized !== '') paths.push([name, sanitized])
-    } else if (platform !== 'win32' || !isNoDefaultCwdGuard(name)) {
-      kept[name] = value
-    }
-  }
-  const child: NodeJS.ProcessEnv = { ...kept, ...Object.fromEntries(paths) }
-  if (platform === 'win32') {
-    child['NoDefaultCurrentDirectoryInExePath'] = '1'
-  }
-  return brandGuarded(child)
+  return brandGuarded(guardedEnvironmentEntries(platform, env, sanitize))
 }
 
 /**

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
-import { execFile } from 'node:child_process'
 import { realpathSync } from 'node:fs'
+import { execFileGuarded } from '../../src/core/guardedChildProcess'
 import {
   mkdir,
   mkdtemp,
@@ -169,12 +169,15 @@ describe.skipIf(process.platform !== 'win32')(
         const target = destination()
         const owner =
           control === 'owner'
-            ? execFile(paths.executable, ['owner'], { env, windowsHide: true })
+            ? execFileGuarded(paths.executable, ['owner'], {
+                env: noWorkspaceChildEnvironment('win32', env, realpathSync),
+                windowsHide: true,
+              })
             : undefined
         try {
           const ownerPid = owner?.pid ?? process.pid
           const output = await new Promise<string>((resolve, reject) => {
-            const child = execFile(
+            const child = execFileGuarded(
               paths.executable,
               [
                 'controlledLatest',
@@ -184,7 +187,11 @@ describe.skipIf(process.platform !== 'win32')(
                 String(ownerPid),
                 String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
               ],
-              { env, windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS },
+              {
+                env: noWorkspaceChildEnvironment('win32', env, realpathSync),
+                windowsHide: true,
+                timeout: PROCESS_TABLE_TIMEOUT_MS,
+              },
               (error, stdout) => {
                 if (error === null) resolve(stdout)
                 else reject(new Error(error.message, { cause: error }))
@@ -246,10 +253,14 @@ describe.skipIf(process.platform !== 'win32')(
     it('exits on owner death even when native work never cooperates', async () => {
       const result = await new Promise<{ code: string | number | undefined; stdout: string }>(
         (resolve) => {
-          execFile(
+          execFileGuarded(
             paths.executable,
             ['ownerDeath'],
-            { env, windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS },
+            {
+              env: noWorkspaceChildEnvironment('win32', env, realpathSync),
+              windowsHide: true,
+              timeout: PROCESS_TABLE_TIMEOUT_MS,
+            },
             (error, stdout) => {
               resolve({ code: error?.code ?? 0, stdout })
             },
