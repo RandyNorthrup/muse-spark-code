@@ -4095,13 +4095,13 @@ async function activateWindow(
   // nowhere to go, and every broker use refuses while the broker is
   // unavailable instead of opening an empty vault.
   const vaultDir = vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath
-  // A switched-off vault (README's legacy switch) refuses before anything
-  // loads, on every use: its section stays hidden and its commands refuse
-  // closed, without mounting, binding or launching.
+  // A switched-off vault (README's legacy switch) refuses on every use: the
+  // bundle's factories resolve the switch themselves, so its section stays
+  // hidden and its commands refuse closed, without mounting, binding or
+  // launching.
   const vault = vaultBundleLoader({
     bundlePath: path.join(vaultDir, VAULT_BUNDLE_FILE),
     log,
-    on: () => currentSettings()['vault.enabled'],
   })
   let modelsFeatures: ModelsPanelFeatures | undefined
   const ensureModelsFeatures = (): ModelsPanelFeatures => {
