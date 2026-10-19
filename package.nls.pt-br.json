@@ -185,7 +185,7 @@
   "config.resourceRelocate.enumDescriptions.off": "Oculta o aviso de rota ausente nas pausas por recursos; o trabalho permanece nesta máquina.",
   "command.nextOpenQuestion.title": "Próxima pergunta em aberto",
   "command.previousOpenQuestion.title": "Pergunta em aberto anterior",
-  "config.questions.deferAfterSeconds.description": "Segundos antes de adiar uma pergunta sem resposta para que o Muse possa continuar trabalhando. 60 por padrão; 0 significa nunca; 1–9 são interpretados como 10; máximo de 3.600. A pergunta permanece em aberto e pode ser respondida depois. Apenas a configuração deste computador é usada.",
+  "config.questions.deferAfterSeconds.description": "Segundos antes de adiar uma pergunta sem resposta para que o Muse possa continuar trabalhando. Sem limite, a menos que se defina um: 0 (o padrão) significa nunca; 1–9 são interpretados como 10; máximo de 3.600. A pergunta permanece em aberto e pode ser respondida depois. Apenas a configuração deste computador é usada.",
   "command.startWithOwnModel.title": "Começar com seu próprio modelo",
   "command.modelsAndAgents.title": "Modelos e agentes",
   "command.addModelProvider.title": "Adicionar um provedor de modelos…",

@@ -199,8 +199,9 @@ hash verification and migrate when read.
 ### Earlier in 0.14.3
 
 - **Questions never block.** A question Muse asks you is pinned in the
-  attention dock above the composer and kept in the transcript. After a minute
-  (`museSpark.questions.deferAfterSeconds`), Muse carries on with work that
+  attention dock above the composer and kept in the transcript. After your
+  own delay (`museSpark.questions.deferAfterSeconds`, unset by default so
+  questions never defer on their own), Muse carries on with work that
   does not need the answer.
 - **Answer later.** An unanswered question becomes an **Open Question** you can
   answer any time using **Answer** on its transcript marker or the open-question chip; **Dismiss** closes it
@@ -1086,8 +1087,9 @@ Ctrl+Alt+Shift+J (Cmd+Option+J and Cmd+Option+Shift+J on macOS). The view badge,
 tab title and History marker show the count. Native editors use their own
 bindings: these keys conflict with defaults in JetBrains and Visual Studio.
 
-`museSpark.questions.deferAfterSeconds` is machine-scoped: 60 by default,
-0 to wait indefinitely, otherwise 10–3600 seconds (1–9 are read as 10).
+`museSpark.questions.deferAfterSeconds` is machine-scoped: no limit unless
+you set one (0, the default, waits indefinitely; otherwise 10–3600 seconds,
+and 1–9 are read as 10).
 A workspace setting cannot change it. Open questions survive a reload and
 resume, with at most 20 open per session and two reminders per question.
 A late answer is your own message in the current mode and approves nothing.

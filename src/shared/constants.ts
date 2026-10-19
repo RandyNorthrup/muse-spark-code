@@ -652,8 +652,9 @@ export const SETTING_DEFAULTS = {
   environmentVariables: [] as readonly EnvironmentVariable[],
   'shell.passEnvironmentVariables': [] as readonly string[],
   // M112 (PLAN.md D92): seconds before an unanswered question defers; the
-  // host reads only the user's own value (questionStore.ts).
-  'questions.deferAfterSeconds': 60,
+  // host reads only the user's own value (questionStore.ts). D121: no limit
+  // unless the person sets one, so 0 (never) is the default.
+  'questions.deferAfterSeconds': 0,
   syncPromptsAndBookmarks: false,
   'reports.network': 'whenSignedIn',
   'reports.keepHistory': true,
@@ -4907,7 +4908,8 @@ export const QUESTION_OUTCOME_CLARIFIED = 'clarified'
 // Questions that never block (M112, PLAN.md D92). These limits apply in
 // the process holding the session, on every interactive editor surface.
 export const QUESTION_OUTCOME_DEFERRED = 'deferred'
-export const QUESTION_DEFER_DEFAULT_SECONDS = 60
+// D121: no limit unless the person sets one — 0 waits indefinitely.
+export const QUESTION_DEFER_DEFAULT_SECONDS = 0
 export const ACP_QUESTIONS_BUNDLE_FILE = 'acpQuestions.js'
 export const RUNTIME_QUESTIONS_BUNDLE_FILE = 'runtimeQuestions.js'
 // /playbook's journal-backed surface (M116): the ACP agent and the CLI load
