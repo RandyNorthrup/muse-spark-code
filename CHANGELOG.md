@@ -2709,6 +2709,15 @@ happened, not what was planned; superseded entries are kept.
   repository and the packaged readme still links the privacy policy by
   its URL.
 
+- One package per platform target (D123). `npm run package` and
+  `npm run package:acp` take `--target <platform>-<arch>` (the six
+  desktop targets); a targeted package stages only its own platform's
+  native pieces and names its target in its filename, so a platform's
+  package packs on that platform without helpers only another OS
+  builds. The universal packages keep every platform's helpers, and
+  every target is checked against the same unchanged size budget. No
+  behaviour change on any platform.
+
 - Report generations keep their requested language across overlapping reads and lazy input bundles; network bindings also belong to each generation (REPORTJOIN).
 
 - **Report review round 2: every source keeps good records beside damage, bounded and cancellable** (REPORTJOIN).
