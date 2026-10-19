@@ -90,7 +90,7 @@
   "toolArgumentPreviewPending": "전체 인수를 기다리는 중…",
   "toolArgumentPreviewPreparing": "인수 준비 중…",
   "modelApiContinuing": "출력 한도에 도달했습니다. 계속하는 중(부분 {count})…",
-  "modelApiToolStuck": "같은 도구 호출이 변하지 않는 결과를 계속 반환하여 턴을 중지했습니다. 다른 방법을 시도하려면 메시지를 보내세요.",
+  "modelApiToolRepeating": "모델이 동일한 {tool} 호출을 변하지 않는 결과로 반복하고 있습니다(연속 {count}회). 호출이 다시 실행됩니다 — 중지로 턴을 끝냅니다.",
   "structuredOutputRepair": "구조화된 답변이 유효하지 않았습니다. 다시 복구하는 중(복구 {count})…",
   "structuredOutputRetry": "구조화된 요청이 실패했습니다. 다시 시도하는 중(시도 {count})…",
   "structuredOutputFallback": "구조화된 답변을 검증할 수 없습니다. 텍스트 답변을 사용합니다.",

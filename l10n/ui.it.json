@@ -90,7 +90,7 @@
   "toolArgumentPreviewPending": "In attesa degli argomenti completi…",
   "toolArgumentPreviewPreparing": "Preparazione degli argomenti…",
   "modelApiContinuing": "È stato raggiunto il limite di output. Continuazione (parte {count})…",
-  "modelApiToolStuck": "Il turno è stato interrotto perché la stessa chiamata allo strumento restituiva un risultato invariato. Invia un messaggio per provare un altro approccio.",
+  "modelApiToolRepeating": "Il modello sta ripetendo la stessa chiamata a {tool} con un risultato invariato ({count} di fila). La chiamata viene eseguita di nuovo — Interrompi termina il turno.",
   "structuredOutputRepair": "La risposta strutturata non era valida. Nuova riparazione (riparazione {count})…",
   "structuredOutputRetry": "La richiesta strutturata non è riuscita. Nuovo tentativo (tentativo {count})…",
   "structuredOutputFallback": "Non è stato possibile convalidare la risposta strutturata. Verrà usata la risposta testuale.",

@@ -90,7 +90,7 @@
   "toolArgumentPreviewPending": "Várakozás a teljes argumentumokra…",
   "toolArgumentPreviewPreparing": "Argumentumok előkészítése…",
   "modelApiContinuing": "A kimeneti korlát elérve. Folytatás ({count}. rész)…",
-  "modelApiToolStuck": "A kör leállt, mert ugyanaz az eszközhívás újra és újra változatlan eredményt adott. Küldjön üzenetet egy másik megközelítés kipróbálásához.",
+  "modelApiToolRepeating": "A modell ugyanazt a(z) {tool} eszközhívást ismétli változatlan eredménnyel ({count}. alkalommal egymás után). A hívás újra lefut — a kör a Stop gombbal ér véget.",
   "structuredOutputRepair": "A strukturált válasz érvénytelen volt. Újbóli javítás (javítás {count})…",
   "structuredOutputRetry": "A strukturált kérés sikertelen volt. Újabb próbálkozás (próbálkozás {count})…",
   "structuredOutputFallback": "A strukturált választ nem sikerült ellenőrizni. A szöveges válasz kerül felhasználásra.",

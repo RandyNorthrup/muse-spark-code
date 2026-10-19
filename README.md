@@ -6584,7 +6584,9 @@ time; writes and other tools retain their order. A reply cut at the output
 limit keeps going for as long as the model is mid-answer, saying so with its
 part count each round. A cut-short reply containing
 tool calls runs none of them and fails the turn; replay retains their error
-results. Repeated unchanged tool results stop the turn.
+results. A repeated unchanged tool result never stops the turn: the panel,
+terminal and ACP say which call is repeating with its count, the call runs
+again, and only Stop ends it.
 
 `museSpark.webSearchMaxPerRequest` sends no search bound of ours unless you
 set one (0, the default, leaves the count to the provider; a set value stays

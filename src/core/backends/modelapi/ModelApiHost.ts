@@ -1311,8 +1311,6 @@ interface PreparedToolCall {
 }
 
 interface ExecutedToolCall {
-  readonly isRepeatSuppressed: boolean
-  readonly isRepeatStopped: boolean
   readonly isParallelExecution: boolean
   readonly result: CallResult
   readonly slot: AdmissionSlot
@@ -13810,17 +13808,16 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
         const action = this.repeatGuard.before(effectiveCall, witness)
         if (action !== 'run') {
-          return {
-            result: {
-              outcome: { output: MODEL_API_MODEL_TEXT.toolRepeatStopped, visibleOutput: '' },
-              isRejected: true,
-            },
-            slot,
-            isParallelExecution,
-            isRepeatSuppressed: true,
-            isRepeatStopped: action === 'stuck',
-            reads: undefined,
-          }
+          // D121: a repeat never stops the turn — say so plainly with the
+          // repeat count and run the call; only the person stops it.
+          this.emit({
+            type: 'backendNotice',
+            level: 'info',
+            text: fill(UI_TEXT.modelApiToolRepeating, {
+              tool: effectiveCall.name,
+              count: formatNumber(action.repeat),
+            }),
+          })
         }
       }
       if (pre.blockedReason === undefined) {
@@ -13862,8 +13859,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       result,
       slot,
       isParallelExecution,
-      isRepeatSuppressed: false,
-      isRepeatStopped: false,
       reads,
     }
   }
@@ -14077,18 +14072,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     ) {
       this.replaceOutput(attemptReplay, outcome, post.replacement.value)
     }
-    if (!executed.value.isRepeatSuppressed) {
-      this.repeatGuard.observe(
-        effectiveCall,
-        post.replacement?.target === 'toolResult'
-          ? post.replacement.value
-          : (outcome.outputParts ?? outcome.output),
-        post.replacement === undefined ? repeatWitness : undefined,
-      )
-    }
-    if (executed.value.isRepeatStopped) {
-      this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.modelApiToolStuck })
-    }
+    this.repeatGuard.observe(
+      effectiveCall,
+      post.replacement?.target === 'toolResult'
+        ? post.replacement.value
+        : (outcome.outputParts ?? outcome.output),
+      post.replacement === undefined ? repeatWitness : undefined,
+    )
     const blocked = [
       ...(post.stopReason === undefined && post.blockedReason !== undefined
         ? [post.blockedReason]
@@ -14151,9 +14141,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       },
       // A PreToolUse stop (Amp's tool.call `error`, M91b) refused the call
       // and ends the turn too.
-      stopReason: executed.value.isRepeatStopped
-        ? MODEL_API_MODEL_TEXT.toolRepeatStopped
-        : (post.stopReason ?? hookEffects?.stopReason ?? pre.stopReason),
+      stopReason: post.stopReason ?? hookEffects?.stopReason ?? pre.stopReason,
     }
   }
 
@@ -14870,9 +14858,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     // No round count of ours ends a turn (owner 2026-10-17: the only
     // hard-coded limits are each provider's own, and no provider documents
     // one): it runs until the model answers without a tool call, the person
-    // stops it, a hook stops it, the repeat guard stops an unchanged
-    // repeated tool call, the provider refuses the request, or a budget the
-    // person set is spent.
+    // stops it, a hook stops it, the provider refuses the request, or a
+    // budget the person set is spent. A repeated unchanged tool call is
+    // named out loud and runs again — it never stops the turn.
     for (let round = 0; ; round += 1) {
       if (isAbortRequested(signal)) {
         throw new AbortedError()
