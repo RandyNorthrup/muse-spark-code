@@ -238,6 +238,8 @@ export type ProvidersFileRead =
       readonly ok: false
       readonly reason: 'missing' | 'unparseable' | 'invalid'
       readonly detail: string
+      /** The read failure behind an `unparseable` file the store never read. */
+      readonly cause?: unknown
     }
 
 /**
@@ -245,13 +247,6 @@ export type ProvidersFileRead =
  * an error. An invalid file is reported, never repaired or defaulted: the
  * panel shows the failure and the user's providers stay untouched.
  */
-/** The `code` of a filesystem error, or undefined for anything else. */
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
-}
-
 export async function readProvidersFile(
   filePath: string,
   read: (path: string) => Promise<string> = (path) => readFile(path, 'utf8'),
@@ -260,14 +255,18 @@ export async function readProvidersFile(
   try {
     text = await read(filePath)
   } catch (error) {
-    return errorCode(error) === 'ENOENT'
+    // Only a missing file reads as one. Any other read failure keeps its
+    // cause on the refusal (the detail names the file, never the error).
+    return isStoreErrorCode(error, 'ENOENT')
       ? { ok: false, reason: 'missing', detail: filePath }
-      : { ok: false, reason: 'unparseable', detail: String(error) }
+      : { ok: false, reason: 'unparseable', detail: filePath, cause: error }
   }
   let value: unknown
   try {
     value = JSON.parse(text) as unknown
-  } catch {
+  } catch (error) {
+    // Only malformed text reads as unparseable; anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return { ok: false, reason: 'unparseable', detail: filePath }
   }
   const parsed = z.safeParse(providersFileSchema, value)
@@ -290,6 +289,16 @@ export async function readProvidersFile(
       })),
     },
   }
+}
+
+/**
+ * What the person reads for a refused file: the file, and — when the store
+ * was never read — the read failure behind it. A bare path never tells them
+ * whether to fix permissions or the text.
+ */
+export function refusalDetail(read: Extract<ProvidersFileRead, { ok: false }>): string {
+  const cause = read.cause instanceof Error ? read.cause.message : read.cause
+  return typeof cause === 'string' && cause !== '' ? `${read.detail}: ${cause}` : read.detail
 }
 
 export type ProvidersFileWrite =

@@ -488,6 +488,18 @@ describe('loading', () => {
     expect(refused).toEqual([{ file: 'personal/bad.json', reason: 'unknownKey', detail: 'merge' }])
   })
 
+  it('malformed files refuse as unparseable', () => {
+    const { pipelines, refused } = loadFiles({
+      'personal/bad.json': '{oops',
+      'project/bad.json': '{oops',
+    })
+    expect(pipelineIds(pipelines)).toEqual(['change', 'spec'])
+    expect(refused).toEqual([
+      { file: 'personal/bad.json', reason: 'unparseable', detail: 'not JSON' },
+      { file: 'project/bad.json', reason: 'unparseable', detail: 'not JSON' },
+    ])
+  })
+
   it('a fourth round cannot be configured: rounds above three are refused', () => {
     const { pipelines, refused } = loadFiles({
       'personal/wide.json': JSON.stringify(researchPipeline('wide', 4)),

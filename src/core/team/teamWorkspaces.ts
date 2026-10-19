@@ -447,8 +447,18 @@ async function readAgentsRef(
   agentsRef: string,
 ): Promise<string | undefined> {
   try {
-    return objectId(await runGit(['rev-parse', '--verify', agentsRef], repositoryRoot), 'ref')
-  } catch {
+    // `--quiet` keeps the unresolvable ref at exit 1 (a broken repository
+    // still exits 128), so the exit code tells absence from breakage.
+    return objectId(
+      await runGit(['rev-parse', '--quiet', '--verify', agentsRef], repositoryRoot),
+      'ref',
+    )
+  } catch (error: unknown) {
+    // Only an unresolvable ref reads absent; a broken repository reaches
+    // the caller instead of a moved-ref report.
+    if (!isTeamGitError(error) || error.exitCode !== 1) {
+      throw error
+    }
     return undefined
   }
 }

@@ -54,8 +54,9 @@ export class TeamMergeError extends Error {
       readonly restored: readonly string[]
       readonly refused: readonly string[]
     },
+    options?: { cause?: unknown },
   ) {
-    super(message)
+    super(message, options)
     this.name = 'TeamMergeError'
   }
 }
@@ -244,8 +245,16 @@ async function confinedRelative(
   let realRoot: string
   try {
     realRoot = await io.realPath(root)
-  } catch {
-    throw new TeamMergeError('linkEscape', `The team merge cannot resolve its root ${file}`, [file])
+  } catch (error) {
+    // The root cannot be resolved; the resolving failure stays as the cause.
+    throw new TeamMergeError(
+      'linkEscape',
+      `The team merge cannot resolve its root ${file}`,
+      [file],
+      undefined,
+      undefined,
+      { cause: error },
+    )
   }
   if (!isSameTeamPath(root, realRoot, platform)) {
     throw new TeamMergeError('linkEscape', `The team merge has a linked root ${file}`, [file])
@@ -563,12 +572,15 @@ export async function applyTeamMerge(
   } catch (error: unknown) {
     const undo = { files: landed }
     const rollback = await undoTeamMerge(landingRoot, undo)
+    // The merge failure reaches the caller with its code, words and files;
+    // the failure itself stays as the cause.
     throw new TeamMergeError(
       isTeamMergeError(error) ? error.code : 'mergeFailed',
       error instanceof Error ? error.message : 'The team merge failed',
       isTeamMergeError(error) ? error.files : [],
       undo,
       rollback,
+      { cause: error },
     )
   }
   return {
@@ -702,10 +714,17 @@ async function linkOf(absolute: string): Promise<Stats | undefined> {
   try {
     return await lstat(absolute)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
-      return undefined
+    // A missing path is not a link; anything else is not the absence and
+    // reaches the caller.
+    if (!(
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    )) {
+      throw error
     }
-    throw error
+    return undefined
   }
 }
 
@@ -719,18 +738,18 @@ async function readWorktreeFile(root: string, relative: string): Promise<Uint8Ar
   try {
     return await readFile(absolute)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
-      return undefined
+    // A missing file reads absent; anything else is not the absence and
+    // reaches the caller.
+    if (!(
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    )) {
+      throw error
     }
-    throw error
+    return undefined
   }
-}
-
-/** An errno-style code, if the failure carries one. */
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
 }
 
 async function mergeOneFile(

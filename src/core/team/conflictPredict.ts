@@ -27,7 +27,9 @@ export interface ConflictPredictionDeps {
     other: PredictionTask | undefined,
   ) => Promise<{ kind: 'merged' | 'conflict' }>
   readonly onConflict: (conflict: PredictedConflict) => void
-  readonly onError: (error: unknown) => void
+  /** The owner's error record: every poll failure is posted here, so the
+   * timer never drops one. */
+  readonly report: (error: unknown) => void
 }
 
 /** @unwired M96 planned team conflicts */
@@ -138,10 +140,17 @@ export class ConflictPredictor {
   start(): void {
     if (this.timer !== undefined) return
     this.timer = setInterval(() => {
-      void this.poll().catch((error: unknown) => {
-        this.deps.onError(error)
-      })
+      void this.pollGuarded()
     }, TEAM_DIFF_POLL_MS)
+  }
+
+  /** One guarded sweep: every poll failure is posted to the owner's record. */
+  async pollGuarded(): Promise<void> {
+    try {
+      await this.poll()
+    } catch (error: unknown) {
+      this.deps.report(error)
+    }
   }
 
   stop(): void {

@@ -133,8 +133,8 @@ export function retainRecords(records: readonly PlaybookRecord[]): PlaybookRecor
 /** Bindings surface this storage failure as a user recovery item. */
 export class PlaybookHistoryLostError extends Error {
   readonly needsUser = true
-  constructor() {
-    super(UI_TEXT.playbookUnavailable)
+  constructor(options?: { cause?: unknown }) {
+    super(UI_TEXT.playbookUnavailable, options)
   }
 }
 
@@ -172,10 +172,12 @@ export class FilePlaybookJournal implements PlaybookJournal {
       text = readFileSync(this.file, 'utf8')
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-        if (existsSync(this.marker)) throw new PlaybookHistoryLostError()
+        if (existsSync(this.marker)) throw new PlaybookHistoryLostError({ cause: error })
         return []
       }
-      throw new PlaybookHistoryLostError()
+      // A journal that exists but cannot be read is lost to this run; the
+      // unreadable failure stays on the error as its cause.
+      throw new PlaybookHistoryLostError({ cause: error })
     }
     // Also mark journals written by builds predating this loss guard.
     this.markEstablished()
@@ -187,7 +189,10 @@ export class FilePlaybookJournal implements PlaybookJournal {
       let parsed: unknown
       try {
         parsed = JSON.parse(line)
-      } catch {
+      } catch (error) {
+        // Only malformed text fails here; anything else is not the line and
+        // reaches the caller.
+        if (!(error instanceof SyntaxError)) throw error
         parsed = undefined
       }
       // JSON.parse errors quote input. Never expose even a malformed record's

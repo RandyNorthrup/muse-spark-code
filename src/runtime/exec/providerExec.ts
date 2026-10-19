@@ -27,7 +27,7 @@ import type {
   ProviderFormat,
   ProvidersFile,
 } from '../../core/providers/providersFile'
-const { readProvidersFile } = providersFile
+const { readProvidersFile, refusalDetail } = providersFile
 import { UserRefusalError } from '../../core/refusal'
 import { unlessAborted } from '../../core/timeouts'
 import {
@@ -541,7 +541,7 @@ export async function assembleProviderRun(input: ProviderRunInput): Promise<
     return usage(
       read.reason === 'missing'
         ? fill(UI_TEXT.providerUnknown, { provider: input.providerId })
-        : fill(UI_TEXT.providerTestFailed, { detail: read.detail }),
+        : fill(UI_TEXT.providerTestFailed, { detail: refusalDetail(read) }),
     )
   }
   const resolved = await resolveProvider(read.file, input.providerId, presetById, input.resolveHost)

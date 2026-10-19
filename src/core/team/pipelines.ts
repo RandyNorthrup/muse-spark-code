@@ -475,13 +475,27 @@ function unknownKey(value: unknown, allowed: ReadonlySet<string>): string | unde
   return undefined
 }
 
-function parseDefinition(file: string, json: string): PipelineDefinition | PipelineRefusal {
-  let parsed: unknown
+/**
+ * File text as JSON. Only malformed text refuses as unparseable; anything
+ * else keeps its kind for the caller.
+ */
+function parseFileJson(
+  json: string,
+): { readonly ok: true; readonly value: unknown } | { readonly ok: false } {
   try {
-    parsed = JSON.parse(json) as unknown
-  } catch {
+    return { ok: true, value: JSON.parse(json) as unknown }
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error
+    return { ok: false }
+  }
+}
+
+function parseDefinition(file: string, json: string): PipelineDefinition | PipelineRefusal {
+  const loaded = parseFileJson(json)
+  if (!loaded.ok) {
     return { file, reason: 'unparseable', detail: 'not JSON' }
   }
+  const parsed: unknown = loaded.value
   const badTop = unknownKey(parsed, DEFINITION_KEYS)
   if (badTop !== undefined) {
     return { file, reason: 'unknownKey', detail: badTop }
@@ -524,12 +538,11 @@ function applyNarrowing(
   base: PipelineDefinition,
   json: string,
 ): PipelineDefinition | PipelineRefusal {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(json) as unknown
-  } catch {
+  const loaded = parseFileJson(json)
+  if (!loaded.ok) {
     return { file, reason: 'unparseable', detail: 'not JSON' }
   }
+  const parsed: unknown = loaded.value
   const badKey = unknownKey(parsed, NARROWING_KEYS)
   if (badKey !== undefined) {
     return { file, reason: 'unknownKey', detail: badKey }
@@ -609,7 +622,9 @@ export function loadPipelines(args: {
       let id: string | undefined
       try {
         id = (JSON.parse(text) as { id?: unknown }).id as string | undefined
-      } catch {
+      } catch (error) {
+        // Only malformed text refuses as unparseable; anything else keeps its kind.
+        if (!(error instanceof SyntaxError)) throw error
         refused.push({ file, reason: 'unparseable', detail: 'not JSON' })
         continue
       }

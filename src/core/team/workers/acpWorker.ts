@@ -18,6 +18,7 @@ import {
   requireAcpNativeIsolation,
   confineWorkerPath,
   isCheckedWorkerWriteAllowed,
+  MuseWorkerFolderError,
   withWorkerFile,
   recheckWorkerRoot,
   type WorkerRootGrant,
@@ -234,7 +235,10 @@ export async function acpFsRead(
       const content = await handle.read(Number.MAX_SAFE_INTEGER)
       return content === undefined ? { error: 'unreadable' } : { content }
     })
-  } catch {
+  } catch (error) {
+    // Only the fence's confinement refusal reads "outside the working
+    // copy"; a file inside the copy that cannot be read reaches the caller.
+    if (!(error instanceof MuseWorkerFolderError)) throw error
     return { error: 'outside the working copy' }
   }
 }
@@ -259,7 +263,10 @@ export async function acpFsWrite(
       await handle.write(content)
       return { ok: true }
     })
-  } catch {
+  } catch (error) {
+    // Only the fence's confinement refusal reads "outside the working
+    // copy"; a write inside the copy that fails reaches the caller.
+    if (!(error instanceof MuseWorkerFolderError)) throw error
     return { error: 'outside the working copy' }
   }
 }
@@ -318,6 +325,26 @@ export interface AcpWorkerDeps {
   readonly bridgeServers: readonly McpServer[]
   readonly connection: AcpAgentConnection
   readonly signal: AbortSignal
+}
+
+/** Cancels a worker session with a grace bound; an unreachable peer still closes below. */
+async function cancelWorkerSession(
+  cancel: (sessionId: string) => Promise<unknown>,
+  sessionId: string,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    await Promise.race([
+      cancel(sessionId),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, WORKER_CANCEL_GRACE_MS)
+      }),
+    ])
+  } catch {
+    // The peer is unreachable: the close in the runner's finally still runs.
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
 }
 
 /**
@@ -396,21 +423,7 @@ export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
     return { sessionId: activeId, report: reportForStop(lastMessage ?? '', stopReason) }
   } catch (error: unknown) {
     if (sessionId !== undefined) {
-      try {
-        let timer: ReturnType<typeof setTimeout> | undefined
-        try {
-          await Promise.race([
-            deps.connection.cancel(sessionId),
-            new Promise<void>((resolve) => {
-              timer = setTimeout(resolve, WORKER_CANCEL_GRACE_MS)
-            }),
-          ])
-        } finally {
-          if (timer !== undefined) clearTimeout(timer)
-        }
-      } catch {
-        /* Finally closes an unreachable peer. */
-      }
+      await cancelWorkerSession((id) => deps.connection.cancel(id), sessionId)
     }
     throw asAcpError(error)
   } finally {

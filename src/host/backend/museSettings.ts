@@ -57,7 +57,10 @@ export function isContributorModeEnabled(deps: MuseSettingsDeps): boolean {
       parsed !== null &&
       (parsed as Record<string, unknown>)['contributor_mode_enabled'] === true
     )
-  } catch {
+  } catch (error: unknown) {
+    // JSON.parse throws only SyntaxError for text input: malformed text
+    // reads as not enabled, and anything else surfaces.
+    if (!(error instanceof SyntaxError)) throw error
     return false
   }
 }

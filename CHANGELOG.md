@@ -97,6 +97,15 @@ happened, not what was planned; superseded entries are kept.
 - A key read from stdin with malformed bytes inside a key-shaped line is
   refused as invalid again instead of being accepted: the replacement
   character decodes to non-whitespace, which the key shape would match.
+- A review over a folder the window cannot read stays closed with the git
+  failure words instead of showing the operating system's message: the
+  refusal names the failure for the log only.
+- The Hooks panel still lists every source when one hooks file cannot be
+  read: that row reads "This file could not be read: `EACCES`" (its code,
+  never the operating system's text) instead of the whole panel failing.
+- An unreadable providers file names its failure again. `providers list` and
+  the headless provider run say why the file could not be read (for example
+  a denied permission) instead of only naming the file.
 
 ### Security
 
@@ -104,15 +113,6 @@ happened, not what was planned; superseded entries are kept.
   credential-shaped environment variables of any shape (`*_TOKEN`,
   `*_PASSWORD`, …): both now use the shared credential-name rule instead of
   stripping only `*_API_KEY` key variables.
-
-### Fixed
-
-- A review over a folder the window cannot read stays closed with the git
-  failure words instead of showing the operating system's message: the
-  refusal names the failure for the log only.
-- The Hooks panel still lists every source when one hooks file cannot be
-  read: that row reads "This file could not be read: `EACCES`" (its code,
-  never the operating system's text) instead of the whole panel failing.
 
 ## [0.19.0] - 2026-10-17
 

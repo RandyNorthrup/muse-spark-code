@@ -13,14 +13,17 @@ import { describe, expect, it } from 'vitest'
 import {
   ChatGptSignIn,
   ChatGptSignInError,
+  verifyChatGptIdToken,
   type ChatGptHostPort,
   type ChatGptRecord,
 } from '../../src/core/providers/subscriptions/chatgpt'
 import { chatGptCatalogEntrySchema } from '../../src/core/providers/subscriptions/chatgptPlanFacts'
 import type { StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import {
+  chatGptAccountId,
   chatGptCatalog,
   createSubscriptionClient,
+  planRequestError,
 } from '../../src/core/providers/subscriptions/registry'
 import { providersFileSchema } from '../../src/core/providers/providersFile'
 import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../../src/shared/constants'
@@ -140,5 +143,72 @@ describe('chatgpt stalled plan error body', () => {
         seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
       }),
     })
+  })
+})
+
+function encodePart(text: string): string {
+  return Buffer.from(text, 'utf8').toString('base64url')
+}
+
+/** A real malformed answer with this status, as the provider's wire would carry it. */
+function malformedAnswer(status: number): typeof fetch {
+  return () => Promise.resolve(new Response('{{{', { status }))
+}
+
+/** The rejection a catalogue read ends in, or undefined when it resolves. */
+async function catalogueFailure(work: Promise<unknown>): Promise<unknown> {
+  try {
+    await work
+    return undefined
+  } catch (error) {
+    return error
+  }
+}
+
+describe('malformed ChatGPT bodies read as their named refusals', () => {
+  it('reads token claims that decode but are not JSON as an invalid token', () => {
+    // The header parses, so the claims part reaches the JSON parse: its
+    // malformed bytes read as an invalid token. Reverting the SyntaxError
+    // narrowing lets the parse failure escape as a SyntaxError instead.
+    const token = `${encodePart('{"alg":"RS256","kid":"k1"}')}.${encodePart('{not json')}.${encodePart('sig')}`
+    let failure: unknown
+    try {
+      verifyChatGptIdToken({ token, jwks: {}, clientId: 'x', nonce: 'y', now: 1 })
+    } catch (error) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(ChatGptSignInError)
+    expect((failure as ChatGptSignInError).code).toBe('invalid-id-token')
+  })
+
+  it('reads a catalogue answer that is not JSON as unreadable', async () => {
+    const signIn = signInWith(testGrantRecord('malformed-catalogue'))
+    const failure = await catalogueFailure(chatGptCatalog(signIn, malformedAnswer(200)))
+    expect(failure).toBeInstanceOf(ChatGptSignInError)
+    expect((failure as ChatGptSignInError).code).toBe('catalogue-unreadable')
+  })
+
+  it('names a refused catalogue answer without JSON by its status', async () => {
+    const signIn = signInWith(testGrantRecord('refused-catalogue'))
+    const failure = await catalogueFailure(chatGptCatalog(signIn, malformedAnswer(403)))
+    expect(failure).toBeInstanceOf(ChatGptSignInError)
+    expect((failure as ChatGptSignInError).code).toBe('catalogue-refused')
+    expect((failure as ChatGptSignInError).reason).toBe('HTTP 403')
+  })
+
+  it('names a plan refusal without JSON by its status', async () => {
+    const refusal = await planRequestError(new Response('{{{', { status: 500 }))
+    expect(refusal.message).toContain('HTTP 500')
+  })
+
+  it('reads malformed stored grant text as grant-unreadable', () => {
+    let failure: unknown
+    try {
+      chatGptAccountId('{not json')
+    } catch (error) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(ChatGptSignInError)
+    expect((failure as ChatGptSignInError).code).toBe('grant-unreadable')
   })
 })

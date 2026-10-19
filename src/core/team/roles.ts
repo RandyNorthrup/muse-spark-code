@@ -276,7 +276,9 @@ function isConfinedWriteGlob(pattern: string): boolean {
   try {
     compileGlob(pattern)
     return true
-  } catch {
+  } catch (error) {
+    // Only an over-cap glob reads as not confined; anything else keeps its kind.
+    if (!(error instanceof RangeError)) throw error
     return false
   }
 }
@@ -621,6 +623,15 @@ function freezeEnvironment(environment: RoleEnvironment): RoleEnvironment {
   })
 }
 
+/**
+ * The one expected resolution failure: the permission meet could not prove
+ * the project role widens nothing. Anything else is a resolver bug and
+ * keeps its kind for the caller instead of reading as widening.
+ */
+function isWideningRefusal(error: unknown): boolean {
+  return error instanceof Error && error.message === UI_TEXT.teamRoleGlobUnproven
+}
+
 /** Resolve one complete known snapshot. Precedence chooses prose; ceilings choose powers. */
 function resolveSnapshotRole(snapshot: RoleSnapshot, id: string): ResolvedRole | undefined {
   const definitions = snapshot.definitions.filter((role) => role.id === id)
@@ -754,6 +765,8 @@ export async function loadRoles(
       await deps.io.realPath(root.directory)
       ids = await deps.io.listDirectory(root.directory)
     } catch {
+      // Fail closed: an unreadable catalogue root is refused, and the
+      // refusal below is the record the person reads.
       refuse({ ...rootUnknown, issue: 'unreadable' })
       continue
     }
@@ -810,6 +823,9 @@ export async function loadRoles(
           }),
         )
       } catch {
+        // Fail closed: only the read can throw here (parses return their
+        // failures), so an unreadable role file is refused as unreadable,
+        // and the refusal below is the record the person reads.
         refuse({ ...input, issue: 'unreadable' })
       }
     }
@@ -858,7 +874,10 @@ export async function loadRoles(
       try {
         const resolved = resolveSnapshotRole(known, id)
         if (resolved !== undefined) roles.push(resolved)
-      } catch {
+      } catch (error) {
+        // Only an unproven widening refuses as widening; a resolver bug
+        // keeps its kind for the caller instead of reading as widening.
+        if (!isWideningRefusal(error)) throw error
         refuse({
           kind: 'unknown',
           input: 'role',
