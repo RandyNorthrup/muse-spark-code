@@ -360,3 +360,85 @@ each with a fresh data folder, 6 to 10 sharing one; `TEMP`, `TMP` and
 `LOCALAPPDATA` inside the worktree's `temp/`): every run exited 0 with 31
 passed and 1 skipped, both Windows tests included. "Reads this process's
 birth from the system" took 271 248 285 251 287 253 255 255 250 262 ms.
+
+## Lane PR220W2 (plan, 2026-10-18)
+
+One line per thread, as the lane demands within 15 minutes:
+
+- 259 handle (fileLease.test.ts, P2): already fixed at its cause in
+  `bdabb7ea1f` (an independent C# holder keeps the ended child's process
+  object open; no Node exit listener involved). This lane re-verifies the
+  suite and answers the thread with that commit.
+- Stale readers on PID reuse (fileLease.test.ts, P2): already fixed at
+  its cause in `bdabb7ea1f` (the sweep removes readers named with this
+  process's own id; the tamper test plants such a leftover). This lane
+  re-verifies and answers with that commit.
+- Birth helper in lower-integrity storage (processOwner.ts:309, P2):
+  open. Planned: an elevated or System host walls what it builds (its
+  source and its executable) with a High mandatory label through
+  `icacls`, so a medium-integrity same-user process can no longer write,
+  replace or delete it; a host that cannot be walled while elevated
+  refuses the build (no birth, fail closed), and any other host builds as
+  today (no privilege boundary to cross). A new Windows test asserts the
+  wall when elevated and the plain working build otherwise.
+- Hosted CI failures: the brief lists none after the threads, and this
+  rig cannot read PR checks (`gh` has no authentication here and must get
+  none). Hosted CI stays the merge gate; this lane runs the local gates
+  the brief names.
+
+## Lane PR220W2 (done, `3610b497e0`)
+
+Thread answers:
+
+- 259 handle: fixed at its cause in `bdabb7ea1f`, re-verified here by
+  reading the holder and the sweep diff and by the suite below. No new
+  change.
+- Stale readers on PID reuse: fixed at its cause in `bdabb7ea1f`,
+  re-verified the same way. No new change.
+- Birth helper in lower-integrity storage: fixed at its cause in
+  `3610b497e0`. An elevated or System host now walls its helper source
+  (before the compile) and its executable (after the seal) with a High
+  mandatory label through `icacls`, so a medium-integrity same-user
+  process can no longer write, replace or delete either; reading and
+  running stay allowed, so later runs at any level still launch and
+  sweep it. The level comes from `whoami /groups` as a SID (High
+  `S-1-16-12288`, System `S-1-16-16384`), which never localises, and both
+  tools are native: no Windows PowerShell cold start is added (one
+  `whoami` spawn per build; `icacls` only on elevated builds). A wall
+  that cannot be set removes the file and refuses the build, so an
+  elevated host never builds or launches an unwalled helper; any other
+  host builds exactly as before. A held-open handle through launch is
+  not implemented because it cannot be: `execFile` reopens the path, so
+  the file is made non-writable by the attacker for its whole life
+  instead. Remaining: the moments between the compiler's write and the
+  seal, and a first-ever build's write-to-wall instant, still trust
+  timing and the random-UUID name, as recorded before.
+
+New Windows test in `test/unit/fileLease.test.ts` (real `whoami` and
+`icacls`, no stand-ins): "keeps its birth reader out of a
+lower-integrity writer's reach when elevated" asserts the `:(NW` label
+mask (which never localises and no discretionary entry carries) when
+elevated, and the plain working build otherwise; either way the reader
+still reads this process's birth.
+
+Gates on `3610b497e0`: `prettier --check` on the changed files 0;
+`npx eslint` on the changed files 0 (3 errors found and fixed:
+`walled` to `isHighIntegrity`, the test probe to a sync
+`isElevatedHost`); `npm run lint:js:unit` 0; `npm run typecheck`
+(all projects) 0; `npm run build` 0; `check:plan` 0 drift; `check:l10n`
+0 problems; `test/unit/fileLease.test.ts` 0 (29 passed, 4 skipped on
+Linux: the three Windows tests, the new one collected, plus the
+platform-skipped one); `test/unit/runtimePullRequestRecords.test.ts` 0
+(22 passed).
+
+Drills and limits: the new test collects but skips on this Linux rig,
+so its fire-proof is owed to hosted Windows CI, which runs it at
+whatever level its runner has (both branches assert real behaviour, so
+either level proves its half). No red drill was run here for the same
+reason; the tamper test's rebuild path exercises the new probe and wall
+calls on Windows. No budget or limit was raised; no test was weakened
+or skipped to pass (the skips are the file's existing platform gates).
+
+Still open: hosted Windows CI on this head (the wall's elevated branch
+needs an elevated runner to fire; the medium branch fires anywhere);
+the packed product has not been run with this change.

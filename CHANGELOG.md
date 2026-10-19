@@ -3441,6 +3441,8 @@ happened, not what was planned; superseded entries are kept.
   `%LOCALAPPDATA%\Muse Spark Code\native`, instead of by Windows PowerShell.
   Windows PowerShell's first start on a hosted CI runner took longer than
   the 10-second bound, so the read came back empty and a lease test failed.
+  When the host runs elevated, what it builds there carries a High integrity
+  label, so a lower-integrity process of the same person cannot replace it.
   Not yet run in the packed product.
 
 - On Windows, a browser check could end at once with "unrecognized" although
