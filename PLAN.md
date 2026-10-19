@@ -103,6 +103,21 @@ overrides; fix the runner locale; and record observed fail-first drills for
 the real-module tests. No provider calls or credential access in this lane.
 Receipts: `docs/certification/prth154.md`; lead-owned real-life steps remain
 explicit where the credential store or a provider is required.
+**PRTH158 review fixes (2026-10-15, owner's Windows PC).** Merge main
+`ac21f1d24`, retaining the real-code test overhaul, then answer T1–T6 of
+PR 158. Reuse `scripts/rule2-gate.mjs`, its pure `scripts/lib/rule2Gate.mjs`
+and `test/unit/rule2Gate.test.mjs`; no substitute GitHub server or process
+test. T1 refuses re-executed release verification; T2 rereads every release
+commit immediately before passing; T3 needs successful hosted evidence;
+T4 refuses distinct executions of the same workflow on one head; T5 uses
+one workflow-path representation for recovery exclusions; T6 records
+parser/evidence red drills with exact SHA-256 restoration. Each accepted
+finding is a separate hooked commit. Pure data tests and deliberate breaks
+prove decisions; the lead's read-only hosted steps prove API composition.
+Scoped static gates, all five compiler projects, the production build and
+surviving affected inventory suites decide the final local tree. No model
+calls, pushes, gate weakening, cap changes or edits to archived blocks.
+Certification: `docs/certification/rule2-gate.md`.
 
 **PRTH165 review repair (2026-10-15, Windows).** Merge `d842cad5d`
 with hooks, retaining main's deleted fake-driven tests. Resolve threads T1–T6

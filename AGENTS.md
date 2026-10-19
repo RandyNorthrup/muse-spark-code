@@ -128,11 +128,19 @@ above.
    code comments.
 2. **Gates are not optional.** Hosted CI is the gate for a release: every job
    green on the commit that merges, and a red job is read and its cause
-   measured, never rerun into green. Local runs are for fast feedback: format,
-   lint, typecheck, the suites you touched and the packed product itself
-   (its commands, its help, its errors, its files on disk). The product's test
-   is the real-life run (the owner, 2026-10-12: "test the app in real life
-   thats the tests"; nothing is tested against fake code):
+   measured, never rerun into green. Nothing is started again on the same
+   commit, whatever the cause: a runner fault is answered like any red, by a
+   new commit that names the run and the job, and its run decides. Two doors
+   hold this (`scripts/rule2-gate.mjs`, `docs/certification/rule2-gate.md`):
+   CI's required names fail on every attempt after the run's first execution
+   (an outside contributor's run executes as attempt 2, after the approval
+   wait) and unless every other workflow run on the head is green on its
+   first, and the release workflow refuses a tag unless every run on the
+   tagged commit and on its pull request's head is. Local runs are for fast
+   feedback: format, lint, typecheck, the suites you touched and the packed
+   product itself (its commands, its help, its errors, its files on disk).
+   The product's test is the real-life run (the owner, 2026-10-12: "test the
+   app in real life thats the tests"; nothing is tested against fake code):
    `node scripts/real-life/run.mjs` installs the packed candidate into a new
    empty folder and uses it as a person and an editor do, against real
    providers on their cheapest models (`docs/testing/real-life.md`). Before a

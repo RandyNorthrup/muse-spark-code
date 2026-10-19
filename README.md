@@ -6222,7 +6222,7 @@ test/integration/           @vscode/test-cli suites
 test/fixtures/workspace/    the workspace the integration tests open
 test/harness/               the webview behind a scripted host, for the local look, the README pictures and the accessibility gate; themes/ holds four captured VS Code themes
 test/hosts/                 the extension's integration tests in VSCodium and the VS Code forks, and the installed ACP agent's help, trust refusal and key round trip, one script per check
-scripts/                    esbuild build; bundle-size, bundle-split, host-globals, notices, audit, PSScriptAnalyzer, accessibility, localization and host API gates; the pseudo-locale; theme capture, the local UI look, image rendering; CHANGELOG notes and VS Code versions for the workflows; the ACP agent's package
+scripts/                    esbuild build; bundle-size, bundle-split, host-globals, notices, audit, PSScriptAnalyzer, accessibility, localization and host API gates; the pseudo-locale; theme capture, the local UI look, image rendering; CHANGELOG notes and VS Code versions for the workflows; the ACP agent's package; the rule-2 merge/release gate (rule2-gate.mjs)
 docs/                       PRIVACY.md, and certification/: per-milestone gate-fire records
 media/                      icons, banner, social preview, README screenshots
 .github/                    workflows (ci, build, release, hosts, forks, action-live), issue and pull-request templates, audit exceptions, pinned semgrep, CODEOWNERS, Dependabot, FUNDING
@@ -6258,6 +6258,14 @@ extension-only outputs and retains the locked optional native dependencies.
 
 The seven required checks keep their names on both tiers (CONTRIBUTING.md,
 "CI tiers and required checks").
+
+Rule 2 holds mechanically at both doors (`docs/certification/rule2-gate.md`):
+`build.yml`'s `first attempt, every run green (rule 2)` job refuses any
+attempt after the run's first execution and refuses unless every other run on
+the same head is complete and green on its own first attempt
+(`node scripts/rule2-gate.mjs run`); `release.yml`'s first job stops the
+release unless every run on the tagged commit and on the merged pull request's
+head is (`node scripts/rule2-gate.mjs release`).
 
 A tag `v1.2.3` runs `release.yml`. It checks that the tag matches the
 manifest and is on `main`, reuses successful own-repository CI artifacts only

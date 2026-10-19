@@ -77,7 +77,15 @@ jobs:
           echo "This run's part: $part ($why)"
 
   build:
+    # Same-repository reusable workflow: GITHUB_TOKEN reaches it on its own;
+    # no other secret is passed (least privilege). `actions: read` is for
+    # build.yml's `first-attempt` job, which reads this run's attempts and the
+    # other workflow runs on the same head (AGENTS.md rule 2); a called
+    # workflow can ask for no more than its caller grants.
     needs: route
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/build.yml
     # The capacity app's key, read only by build.yml's `org` job in a `home`
     # run; empty wherever GitHub withholds secrets. No other secret is passed.
