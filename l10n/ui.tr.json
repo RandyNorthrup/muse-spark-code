@@ -512,8 +512,8 @@
   "playbookDisabledDetail": "{actor} tarafından {date} tarihinde kapatıldı: {reason}",
   "playbookSafetyAlwaysOn": "Güvenlik denetimleri her zaman geçerlidir. Bu kural kapatılamaz.",
   "playbookPatchRoundsLabel": "Yeniden tasarımdan önceki düzeltme turları",
-  "playbookPatchRoundsHelp": "Sınır düşürülebilir. Sınıra ulaşıldığında bir tasarım kararı yazın ve yeniden tasarım dalı başlatın.",
-  "playbookPatchRoundsInvalid": "Bir veya iki düzeltme turu seçin; üst sınır artırılamaz.",
+  "playbookPatchRoundsHelp": "0, düzeltme turlarının iş tamamlanana veya siz durdurana kadar süreceği anlamına gelir. Bu kadar turdan sonra bir tasarım kararı ve yeniden tasarım dalı gerektirmek için bir sayı belirleyin.",
+  "playbookPatchRoundsInvalid": "Sınırsız düzeltme turu için 0 ya da 1 ve üzeri bir tam sayı girin.",
   "playbookFallbackReviewer": "Sınıflandırıcı tarafından engellenen incelemeler için yedek inceleyici: {reviewer}",
   "playbookFallbackNone": "Adlandırılmış yedek inceleyici yok",
   "playbookResidualAccepted": "Artık madde kabul edildi",
@@ -541,7 +541,7 @@
     "other": "{count} inceleme turu"
   },
   "playbookRules": {
-    "threeStrikes": "Üç başarısız turdan sonra yeniden tasarla",
+    "threeStrikes": "Düzeltme turlarından sonra yeniden tasarla",
     "onePassReview": "Tüm sınıfları tek geçişte incele",
     "contractsFirst": "Önce sözleşmeler ve ön koşullar",
     "smallFirst": "Bağımlılıklardan sonra önce küçük işleri yap",

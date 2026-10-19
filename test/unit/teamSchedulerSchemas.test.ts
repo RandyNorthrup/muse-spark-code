@@ -238,19 +238,21 @@ describe('attempt, board and event boundaries', () => {
       }).success,
     ).toBe(false)
   })
-  it('requires sequential attempts, bounded retries and a blocked reason', () => {
+  it('requires sequential attempts and a blocked reason; rounds are counted, not capped', () => {
     expect(
       teamBoardTaskSchema.safeParse({ ...task(), attempts: [attempt], currentAttempt: 1 }).success,
     ).toBe(true)
     for (const input of [
       { ...task(), currentAttempt: 1 },
       { ...task(), attempts: [{ ...attempt, number: 2 }], currentAttempt: 1 },
-      { ...task(), reassignments: 3 },
-      { ...task(), reviewRounds: 4 },
       { ...task(), state: 'blocked' },
     ]) {
       expect(teamBoardTaskSchema.safeParse(input).success).toBe(false)
     }
+    // D121: reassignments and review rounds continue past any old ceiling.
+    expect(
+      teamBoardTaskSchema.safeParse({ ...task(), reassignments: 3, reviewRounds: 4 }).success,
+    ).toBe(true)
   })
   it('bounds open tasks separately from history and refuses mixed workspace or duplicate ids', () => {
     const board: TeamBoard = {

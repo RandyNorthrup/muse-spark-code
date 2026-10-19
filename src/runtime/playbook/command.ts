@@ -4,7 +4,6 @@ import * as z from 'zod/mini'
 import {
   PLAYBOOK_CONFIGURABLE_RULES,
   PLAYBOOK_ID_MAX_CHARS,
-  PLAYBOOK_PATCH_ROUNDS_MAX,
   PLAYBOOK_RECORD_MAX,
   REVIEW_FINDING_TEXT_MAX_CHARS,
   UI_TEXT,
@@ -29,7 +28,7 @@ const reviewerId = z.string().check(z.trim(), z.minLength(1), z.maxLength(PLAYBO
 export const playbookChangeSchema = z.union([
   z.strictObject({ rule: z.enum(PLAYBOOK_CONFIGURABLE_RULES), enabled: z.literal(true) }),
   z.strictObject({ rule: z.enum(PLAYBOOK_CONFIGURABLE_RULES), enabled: z.literal(false), reason }),
-  z.strictObject({ patchRoundsMax: z.int().check(z.gte(1), z.lte(PLAYBOOK_PATCH_ROUNDS_MAX)) }),
+  z.strictObject({ patchRoundsMax: z.int().check(z.gte(0)) }),
   z.strictObject({ fallbackReviewer: reviewerId, reason }),
   z.strictObject({ fallbackReviewer: z.literal('off') }),
 ])
@@ -83,8 +82,9 @@ export type PlaybookCommand =
   | { readonly view: 'settings'; readonly change: PlaybookChange }
 
 /** Shared CLI and ACP grammar. Technical rule ids are stable across locales.
- * settings <rule> on|off [<reason...>]; settings patchRoundsMax 1|2;
- * settings fallbackReviewer <reviewer-id> [<reason...>]; settings fallbackReviewer off. */
+ * settings <rule> on|off [<reason...>]; settings patchRoundsMax 0|<positive>
+ * (0 is unlimited fix rounds); settings fallbackReviewer <reviewer-id>
+ * [<reason...>]; settings fallbackReviewer off. */
 export function parsePlaybookCommand(argv: readonly string[]): PlaybookCommand | undefined {
   const [view = 'status', rule, value, ...words] = argv
   if (view !== 'status' && view !== 'record' && view !== 'settings') return undefined

@@ -513,8 +513,8 @@
   "playbookDisabledDetail": "Disattivata da {actor} il {date}: {reason}",
   "playbookSafetyAlwaysOn": "I controlli di sicurezza si applicano sempre. Questa regola non può essere disattivata.",
   "playbookPatchRoundsLabel": "Cicli di correzione prima della riprogettazione",
-  "playbookPatchRoundsHelp": "Il limite può essere abbassato. Una volta raggiunto, scrivi una decisione progettuale e avvia un ramo di riprogettazione.",
-  "playbookPatchRoundsInvalid": "Scegli uno o due cicli di correzione; il limite massimo non può essere alzato.",
+  "playbookPatchRoundsHelp": "0 significa che i cicli di correzione continuano finché il lavoro converge o finché non lo interrompi. Imposta un numero per richiedere una decisione progettuale e un ramo di riprogettazione dopo altrettanti cicli.",
+  "playbookPatchRoundsInvalid": "Inserisci 0 per cicli di correzione illimitati, oppure un numero intero pari o superiore a 1.",
   "playbookFallbackReviewer": "Revisore supplente per revisioni bloccate dal classificatore: {reviewer}",
   "playbookFallbackNone": "Nessun revisore supplente designato",
   "playbookResidualAccepted": "Punto residuo accettato",
@@ -543,7 +543,7 @@
     "many": "{count} cicli di revisione"
   },
   "playbookRules": {
-    "threeStrikes": "Riprogetta dopo tre tentativi falliti",
+    "threeStrikes": "Riprogetta dopo i cicli di correzione",
     "onePassReview": "Esamina tutte le classi in un solo passaggio",
     "contractsFirst": "Prima contratti e prerequisiti",
     "smallFirst": "Prima i lavori piccoli, dopo le loro dipendenze",

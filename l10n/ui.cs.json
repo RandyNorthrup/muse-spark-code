@@ -514,8 +514,8 @@
   "playbookDisabledDetail": "Vypnul(a) {actor} dne {date}: {reason}",
   "playbookSafetyAlwaysOn": "Bezpečnostní kontroly platí vždy. Toto pravidlo nelze vypnout.",
   "playbookPatchRoundsLabel": "Kola oprav před přepracováním návrhu",
-  "playbookPatchRoundsHelp": "Limit lze snížit. Po jeho dosažení zapište rozhodnutí o návrhu a spusťte větev přepracování.",
-  "playbookPatchRoundsInvalid": "Zvolte jedno nebo dvě kola oprav; horní limit nelze zvýšit.",
+  "playbookPatchRoundsHelp": "Hodnota 0 znamená, že kola oprav pokračují, dokud se práce nedokončí nebo je nezastavíte. Zadejte číslo, pokud po daném počtu kol oprav požadujete rozhodnutí o návrhu a větev přepracování.",
+  "playbookPatchRoundsInvalid": "Zadejte 0 pro neomezená kola oprav, nebo celé číslo 1 a vyšší.",
   "playbookFallbackReviewer": "Náhradní kontrolor pro kontroly blokované klasifikátorem: {reviewer}",
   "playbookFallbackNone": "Není určen žádný náhradní kontrolor",
   "playbookResidualAccepted": "Zbytkový problém přijat",
@@ -545,7 +545,7 @@
     "many": "{count} kola kontroly"
   },
   "playbookRules": {
-    "threeStrikes": "Po třech neúspěšných kolech přepracovat návrh",
+    "threeStrikes": "Po kolech oprav přepracovat návrh",
     "onePassReview": "Zkontrolovat všechny třídy v jednom průchodu",
     "contractsFirst": "Nejprve kontrakty a předpoklady",
     "smallFirst": "Malé úkoly nejprve, po jejich závislostech",

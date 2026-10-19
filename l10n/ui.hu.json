@@ -512,8 +512,8 @@
   "playbookDisabledDetail": "Kikapcsolta: {actor}, dátum: {date}, indok: {reason}",
   "playbookSafetyAlwaysOn": "A biztonsági ellenőrzések mindig érvényesek. Ez a szabály nem kapcsolható ki.",
   "playbookPatchRoundsLabel": "Javítási körök az újratervezés előtt",
-  "playbookPatchRoundsHelp": "A korlát csökkenthető. Elérésekor írjon tervezési döntést, és indítson újratervezési ágat.",
-  "playbookPatchRoundsInvalid": "Válasszon egy vagy két javítási kört; a felső határ nem emelhető.",
+  "playbookPatchRoundsHelp": "A 0 azt jelenti, hogy a javítási körök addig folytatódnak, amíg a munka be nem fejeződik, vagy le nem állítja. Adjon meg egy számot, ha ennyi javítási kör után tervezési döntést és újratervezési ágat kér.",
+  "playbookPatchRoundsInvalid": "Korlátlan javítási körhöz írjon 0-t, vagy 1-es, illetve annál nagyobb egész számot.",
   "playbookFallbackReviewer": "Tartalék felülvizsgáló az osztályozó által blokkolt felülvizsgálatokhoz: {reviewer}",
   "playbookFallbackNone": "Nincs megnevezett tartalék felülvizsgáló",
   "playbookResidualAccepted": "Maradványpont elfogadva",
@@ -541,7 +541,7 @@
     "other": "{count} felülvizsgálati kör"
   },
   "playbookRules": {
-    "threeStrikes": "Három sikertelen kör után újratervezés",
+    "threeStrikes": "Javítási körök után újratervezés",
     "onePassReview": "Minden osztály áttekintése egy menetben",
     "contractsFirst": "Először a szerződések és előfeltételek",
     "smallFirst": "Először a kis munkák, a függőségeik után",

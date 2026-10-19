@@ -512,8 +512,8 @@
   "playbookDisabledDetail": "Von {actor} am {date} ausgeschaltet: {reason}",
   "playbookSafetyAlwaysOn": "Sicherheitsprüfungen gelten immer. Diese Regel lässt sich nicht ausschalten.",
   "playbookPatchRoundsLabel": "Korrekturrunden vor dem Neuentwurf",
-  "playbookPatchRoundsHelp": "Die Grenze kann gesenkt werden. Sobald sie erreicht ist, schreiben Sie eine Entwurfsentscheidung und starten Sie einen Neuentwurfszweig.",
-  "playbookPatchRoundsInvalid": "Wählen Sie eine oder zwei Korrekturrunden; die Obergrenze kann nicht erhöht werden.",
+  "playbookPatchRoundsHelp": "0 bedeutet: Korrekturrunden laufen weiter, bis die Arbeit abgeschlossen ist oder Sie sie stoppen. Legen Sie eine Zahl fest, um nach so vielen Korrekturrunden eine Entwurfsentscheidung und einen Neuentwurfszweig zu verlangen.",
+  "playbookPatchRoundsInvalid": "Geben Sie 0 für unbegrenzte Korrekturrunden oder eine ganze Zahl ab 1 ein.",
   "playbookFallbackReviewer": "Ersatzprüfung für vom Klassifikator blockierte Prüfungen: {reviewer}",
   "playbookFallbackNone": "Keine Ersatzprüfung benannt",
   "playbookResidualAccepted": "Restpunkt akzeptiert",
@@ -541,7 +541,7 @@
     "other": "{count} Prüfrunden"
   },
   "playbookRules": {
-    "threeStrikes": "Nach drei erfolglosen Runden neu entwerfen",
+    "threeStrikes": "Nach Korrekturrunden neu entwerfen",
     "onePassReview": "Alle Klassen in einem Durchgang prüfen",
     "contractsFirst": "Verträge und Voraussetzungen zuerst",
     "smallFirst": "Kleine Aufgaben zuerst, nach ihren Abhängigkeiten",
