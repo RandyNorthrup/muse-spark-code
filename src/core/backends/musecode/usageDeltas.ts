@@ -45,7 +45,7 @@ export function museCodeLimitInput(
 /** Each MSP report is journaled immediately: one completion's own counters
  * where the frame carries them (1.4), else the known cumulative delta. */
 export class MuseUsageDeltas {
-  private baseline: { inputTokens: number; outputTokens: number } | undefined
+  private baseline: { inputTokens: number; outputTokens: number; cachedTokens?: number } | undefined
   private startedAt: number | undefined
   private currentModel: string
   public constructor(
@@ -106,7 +106,11 @@ export class MuseUsageDeltas {
   public receive(event: AgentEvent, isReplay = false): void {
     if (isReplay) {
       if (event.type === 'tokenUsage')
-        this.baseline = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
+        this.baseline = {
+          inputTokens: event.inputTokens,
+          outputTokens: event.outputTokens,
+          ...(event.cachedTokens !== undefined && { cachedTokens: event.cachedTokens }),
+        }
       return
     }
     if (event.type === 'turnStarted') {
@@ -122,7 +126,11 @@ export class MuseUsageDeltas {
       return
     }
     if (event.type !== 'tokenUsage') return
-    const next = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
+    const next = {
+      inputTokens: event.inputTokens,
+      outputTokens: event.outputTokens,
+      ...(event.cachedTokens !== undefined && { cachedTokens: event.cachedTokens }),
+    }
     const prior = this.baseline
     this.baseline = next
     if (event.modelId !== undefined) this.currentModel = event.modelId
@@ -164,10 +172,30 @@ export class MuseUsageDeltas {
     const input = next.inputTokens - prior.inputTokens
     const output = next.outputTokens - prior.outputTokens
     if (input === 0 && output === 0) return
+    // The cumulative cache reads sum on the same basis as the prompt total,
+    // so their deltas journal where the wire reports them; a report without
+    // them only moves the baseline, never invents them. A cached delta
+    // journals only when it stays within the input delta it was read from:
+    // the journal refuses more cached than input, and a note must never
+    // lose its input and output to a bad cached count.
+    let cached: number | undefined
+    const priorCached = prior.cachedTokens
+    const nextCached = next.cachedTokens
+    if (
+      priorCached !== undefined &&
+      nextCached !== undefined &&
+      nextCached >= priorCached &&
+      nextCached - priorCached <= input
+    )
+      cached = nextCached - priorCached
     const at = this.now()
     const startedAt = this.startedAt ?? at
     this.recording.note(
-      { input_tokens: input, output_tokens: output },
+      {
+        input_tokens: input,
+        output_tokens: output,
+        ...(cached !== undefined && { input_tokens_details: { cached_tokens: cached } }),
+      },
       {
         backend: 'museCode',
         provider: 'museCode',

@@ -2100,6 +2100,7 @@
     "footer": "Средство отображения {version}; ICU {icu}; язык {locale}",
     "notFound": "Не найдено: {id}. Ближайшие варианты: {nearest}",
     "generationFailed": "Не удалось создать отчёт.",
+    "gitXcodeStub": "Git не может работать на этом Mac: он указывает на заглушку Xcode от Apple, чьи инструменты разработчика не запускаются. Установите Command Line Tools (xcode-select --install) или переключитесь на установленные инструменты (sudo xcode-select --switch /Library/Developer/CommandLineTools), затем повторите попытку.",
     "noHistory": "Истории отчётов пока нет.",
     "networkOff": "Сетевые источники отчётов отключены.",
     "signInRequired": "Войдите в GitHub, чтобы прочитать этот источник.",

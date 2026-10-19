@@ -2042,6 +2042,7 @@
     "footer": "Görüntüleyici {version}; ICU {icu}; dil {locale}",
     "notFound": "Bulunamadı: {id}. En yakın eşleşmeler: {nearest}",
     "generationFailed": "Rapor oluşturulamadı.",
+    "gitXcodeStub": "Git bu Mac’te çalıştırılamıyor: Apple’ın Xcode taslağını işaret ediyor ve geliştirici araçları başlatılamıyor. Command Line Tools’u yükleyin (xcode-select --install) veya yüklü araçlara geçin (sudo xcode-select --switch /Library/Developer/CommandLineTools), ardından yeniden deneyin.",
     "noHistory": "Henüz rapor geçmişi yok.",
     "networkOff": "Rapor ağ kaynakları kapalı.",
     "signInRequired": "Bu kaynağı okumak için GitHub’a giriş yapın.",

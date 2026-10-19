@@ -149,6 +149,30 @@ happened, not what was planned; superseded entries are kept.
   `timeoutSeconds` (no `--timeout` means no deadline of ours) and a set
   deadline from 1 second, matching the parser: the bounds removal left the
   schemas' 10-second floor and non-null shape behind.
+- Packaging removes its `dist/*-package` stage when it finishes, on success
+  and on failure, so a stale stage can no longer poison later gates' scans of
+  `dist/`. The ACP packager leaves `dist/acp-stage-files.json` naming every
+  staged file for the release SBOM, which now reads that receipt instead of
+  the stage directory.
+- `providers usage`, `auth status` and their sibling commands print the cause
+  when the crashed-Connect recovery itself cannot read the credential store,
+  instead of exiting 1 silent. The message is the same store-unavailable
+  sentence `auth status` prints, and the exit code stays the documented
+  failure code.
+- A failed headless run prints its envelope reason in human output instead of
+  only `message withheld: the response did not complete`. The attach refusal
+  on Muse Code now names the missing file upload service on the terminal, as
+  the JSON envelope always did.
+- Muse Code turns journal the cached-input tokens the session reports: the
+  `session/tokenUsage` cumulative cache reads now flow through the usage
+  mapper into the journal like the prompt and output totals, so Cached Input
+  reads a real number where Muse Code reports one. Reasoning stays Unknown:
+  the cumulative never carries it.
+- Report generation on a Mac whose git is the Xcode stub uses the first
+  working git on PATH instead of failing on the stub, and where no working
+  git exists the git source names the cause and the fix (install the Command
+  Line Tools, or switch to the installed tools) instead of a raw exit code.
+  The production build ships the report inputs bundles again.
 
 ### Security
 

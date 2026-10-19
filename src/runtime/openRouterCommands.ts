@@ -16,7 +16,11 @@ import {
 } from '../host/backend/providersEntry'
 import type { createConfiguredProviderServices } from '../core/providers/configured'
 import { ACP_AGENT_NAME, CREDENTIAL_RECORD_VERSION, UI_TEXT } from '../shared/constants'
-import { isCredentialLockBusy, recoverOpenRouterJournalReport } from './providerAuth'
+import {
+  isCredentialLockBusy,
+  recoverOpenRouterJournalReport,
+  reportJournalRecovery,
+} from './providerAuth'
 import { fill } from '../shared/l10n/text'
 import { formatUsdAtPrecision } from '../shared/l10n/exactUsd'
 import { Usd } from '../shared/usd'
@@ -315,10 +319,8 @@ export async function runOpenRouterUsage(
   try {
     return await deps.withUserFileLock(async () => {
       const report = await recoverOpenRouterJournalReport(deps.secrets)
-      for (const notice of report.notices) deps.printError(notice)
-      if (report.failed) return 1
-      if (report.committed) deps.print(UI_TEXT.providerConnectRecoveredStored)
-      return await read()
+      reportJournalRecovery(deps, report)
+      return report.failed ? 1 : await read()
     })
   } catch (error: unknown) {
     if (!isCredentialLockBusy(error)) throw error
