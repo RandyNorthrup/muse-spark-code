@@ -1,19 +1,22 @@
 // A provider-named 429 wait is honoured whole and told at once: the retry
 // notice names when the wait ends in absolute time and plain words, and
-// the turn's Stop ends the wait immediately. Through the real transport
-// with real timers and a real AbortController, with no socket and no
-// server: the injected fetch answers each attempt with a hand-built 429
-// `Response` whose header values are the hostile input under test (a real
-// `Headers` object is input data, not a provider), exactly as the parsers
-// read them.
+// the turn's Stop ends the wait immediately. No fetch answers anything
+// here and no Response plays the provider: the header values are plain
+// input to the real decision functions (`providerWaitMs`, `backoffMs`,
+// `providerRetryReason` — the exact function the request loop calls per
+// retry), the real `pause` sleeps over real timers against a real
+// AbortController, and the real `ModelApiPacing` holds background dispatch
+// for the derived wait. The real global `fetch` is passed as the
+// transport's dependency but `request` never runs, so it is never called.
 
 import { describe, expect, it } from 'vitest'
+import { ModelApiPacing } from '../../src/core/backends/modelapi/pacing'
 import {
-  isModelApiError,
+  providerRetryReason,
+  providerWaitMs,
   RequestTransport,
-  type RetryNotice,
 } from '../../src/core/backends/modelapi/transport'
-import { UI_TEXT } from '../../src/shared/constants'
+import { MODEL_API_RETRY_MAX_MS, UI_TEXT } from '../../src/shared/constants'
 import { fill, formatDateTime } from '../../src/shared/l10n/text'
 
 const FIXED_NOW = 1_800_000_000_000
@@ -26,27 +29,10 @@ const silent = {
   error: () => undefined,
 }
 
-/** A 429 answer carrying the header values under test, built per attempt. */
-function answer429(headers: Record<string, string>): Response {
-  return Response.json(
-    { error: { message: 'slow down' } },
-    {
-      status: 429,
-      headers: { 'content-type': 'application/json', ...headers },
-    },
-  )
-}
-
-function transportAnswering(headers: Record<string, string>): {
-  readonly transport: RequestTransport
-  readonly calls: () => number
-} {
-  let calls = 0
-  const transport = new RequestTransport({
-    fetch: () => {
-      calls += 1
-      return Promise.resolve(answer429(headers))
-    },
+/** The real transport with real timers; `request` never runs, so its fetch is never called. */
+function transport(): RequestTransport {
+  return new RequestTransport({
+    fetch,
     baseUrl: 'https://example.invalid',
     apiKey: () => Promise.resolve('test-key'),
     sleep: (ms: number) => new Promise<void>((done) => setTimeout(done, ms)),
@@ -54,121 +40,119 @@ function transportAnswering(headers: Record<string, string>): {
     random: () => 0,
     log: silent,
   })
-  return { transport, calls: () => calls }
-}
-
-async function postTurn(
-  transport: RequestTransport,
-  signal: AbortSignal,
-  onRetry: (notice: RetryNotice) => void,
-): Promise<unknown> {
-  try {
-    await transport.request(
-      '/responses',
-      {
-        method: 'POST',
-        body: { model: 'muse-spark-1-3' },
-        modelId: 'muse-spark-1-3',
-        accept: 'application/json',
-      },
-      signal,
-      onRetry,
-    )
-    return 'answered'
-  } catch (error: unknown) {
-    return error
-  }
 }
 
 describe('a provider-named 429 wait', () => {
-  it('is slept whole and its notice names when it ends in absolute time', async () => {
-    // A 250 ms provider wait over real timers: four retries, then the 429
-    // stands. Every per-try pause really slept the whole named wait — the
-    // elapsed floor proves the sleeps happened, not just their values.
-    const { transport, calls } = transportAnswering({ 'retry-after-ms': '250' })
-    const notices: RetryNotice[] = []
-    const started = performance.now()
-    const outcome = await postTurn(transport, new AbortController().signal, (notice) => {
-      notices.push(notice)
-    })
-    const elapsed = performance.now() - started
-    expect(isModelApiError(outcome) && outcome.status).toBe(429)
-    expect(calls()).toBe(5)
-    expect(notices).toHaveLength(4)
-    const expected = fill(UI_TEXT.modelApiProviderRetryWait, {
-      reason: 'HTTP 429: slow down',
-      time: formatDateTime(FIXED_NOW + 250),
-    })
-    for (const [index, notice] of notices.entries()) {
-      expect(notice.delayMs).toBe(250)
-      expect(notice.reason).toBe(expected)
-      expect(notice.attempt).toBe(index + 1)
+  it('is derived from the header values as plain input and slept whole', () => {
+    // `retry-after-ms` first (Azure), then `Retry-After` seconds, then an
+    // HTTP date; a trillions-scale value stays whole — no ceiling of ours
+    // applies to a value the provider sent.
+    expect(providerWaitMs(new Headers({ 'retry-after-ms': '250' }), FIXED_NOW)).toBe(250)
+    expect(providerWaitMs(new Headers({ 'retry-after': '120' }), FIXED_NOW)).toBe(120_000)
+    expect(
+      providerWaitMs(new Headers({ 'retry-after': '2', 'retry-after-ms': '1500' }), FIXED_NOW),
+    ).toBe(1500)
+    expect(
+      providerWaitMs(
+        new Headers({ 'retry-after': new Date(FIXED_NOW + 5000).toUTCString() }),
+        FIXED_NOW,
+      ),
+    ).toBe(5000)
+    expect(
+      providerWaitMs(new Headers({ 'retry-after-ms': String(HOSTILE_WAIT_MS) }), FIXED_NOW),
+    ).toBe(HOSTILE_WAIT_MS)
+    expect(providerWaitMs(new Headers(), FIXED_NOW)).toBeUndefined()
+    // The retry loop sleeps what `backoffMs` returns: a named wait whole
+    // per try, while our own fallback (no provider value) keeps a ceiling.
+    const real = transport()
+    expect(real.backoffMs(0, 250)).toBe(250)
+    expect(real.backoffMs(0, HOSTILE_WAIT_MS)).toBe(HOSTILE_WAIT_MS)
+    for (const attempt of [0, 1, 2, 3]) {
+      expect(real.backoffMs(attempt, undefined)).toBeLessThanOrEqual(MODEL_API_RETRY_MAX_MS)
     }
-    expect(elapsed).toBeGreaterThanOrEqual(1000)
+  })
+
+  it('is told with when it ends in absolute time', () => {
+    // The exact function the request loop calls per retry: a named wait
+    // reads as the absolute-time sentence, an unnamed one as the plain
+    // `HTTP …` reason the rate-limited retry readers match on.
+    expect(providerRetryReason(429, 'slow down', 250, FIXED_NOW)).toBe(
+      fill(UI_TEXT.modelApiProviderRetryWait, {
+        reason: 'HTTP 429: slow down',
+        time: formatDateTime(FIXED_NOW + 250),
+      }),
+    )
+    expect(providerRetryReason(429, 'slow down', HOSTILE_WAIT_MS, FIXED_NOW)).toBe(
+      fill(UI_TEXT.modelApiProviderRetryWait, {
+        reason: 'HTTP 429: slow down',
+        time: formatDateTime(FIXED_NOW + HOSTILE_WAIT_MS),
+      }),
+    )
+    expect(providerRetryReason(429, 'slow down', undefined, FIXED_NOW)).toBe('HTTP 429: slow down')
   })
 
   it('ends at once when the turn stops, naming the whole wait it cut short', async () => {
-    // A 120 s provider wait never elapses: the notice fired at once naming
-    // the whole wait and its absolute end, and the Stop 50 ms later ended
-    // the real in-progress sleep immediately, before any retry was sent.
-    const { transport, calls } = transportAnswering({ 'retry-after': '120' })
-    const notices: RetryNotice[] = []
-    const stop = new AbortController()
-    const started = performance.now()
-    const outcome = await postTurn(transport, stop.signal, (notice) => {
-      notices.push(notice)
-      setTimeout(() => {
-        stop.abort()
-      }, 50)
-    })
-    const elapsed = performance.now() - started
-    expect(isModelApiError(outcome) && outcome.message).toBe('cancelled')
-    expect(calls()).toBe(1)
-    expect(notices).toHaveLength(1)
-    expect(notices[0]?.delayMs).toBe(120_000)
-    expect(notices[0]?.reason).toBe(
+    // The header values derive the whole 120 s wait and its absolute end;
+    // the real in-progress sleep ends on the Stop 50 ms later, in
+    // milliseconds rather than minutes.
+    const derived = providerWaitMs(new Headers({ 'retry-after': '120' }), FIXED_NOW)
+    expect(derived).toBe(120_000)
+    const real = transport()
+    const delay = real.backoffMs(0, derived)
+    expect(delay).toBe(120_000)
+    expect(providerRetryReason(429, 'slow down', delay, FIXED_NOW)).toBe(
       fill(UI_TEXT.modelApiProviderRetryWait, {
         reason: 'HTTP 429: slow down',
         time: formatDateTime(FIXED_NOW + 120_000),
       }),
     )
-    expect(elapsed).toBeLessThan(2000)
+    const stop = new AbortController()
+    const started = performance.now()
+    const waiting = real.pause(delay, stop.signal)
+    setTimeout(() => {
+      stop.abort()
+    }, 50)
+    await expect(waiting).rejects.toThrow('cancelled')
+    expect(performance.now() - started).toBeLessThan(2000)
   })
 
-  it('honours a trillions-scale provider wait whole in the computed delay', async () => {
-    // No ceiling of ours applies to a value the provider sent: the delay
-    // handed to the sleep hook is the whole named wait, told with its
-    // absolute end. The hook records instead of sleeping, so the run ends
-    // at once; the sleep above proves the hook's value is really slept.
-    let calls = 0
-    const slept: number[] = []
-    const transport = new RequestTransport({
-      fetch: () => {
-        calls += 1
-        return Promise.resolve(answer429({ 'retry-after-ms': String(HOSTILE_WAIT_MS) }))
+  it('really sleeps the whole named wait over real timers', async () => {
+    // A 250 ms provider wait over real timers really elapses whole — the
+    // elapsed floor proves the sleep happened, not just its value.
+    const started = performance.now()
+    await transport().pause(250, new AbortController().signal)
+    expect(performance.now() - started).toBeGreaterThanOrEqual(250)
+  })
+
+  it('pauses background dispatch for the whole derived wait while the foreground passes', async () => {
+    // The wait derived from the header values holds admitted background
+    // work: the background acquire really sleeps it out over real timers
+    // while the user's turn, acquired beside it, resolves first.
+    const derived = providerWaitMs(new Headers({ 'retry-after-ms': '250' }), Date.now())
+    expect(derived).toBe(250)
+    const waits: number[] = []
+    const pacing = new ModelApiPacing({
+      now: () => Date.now(),
+      wait: (ms: number) => {
+        waits.push(ms)
+        return new Promise<void>((done) => setTimeout(done, ms))
       },
-      baseUrl: 'https://example.invalid',
-      apiKey: () => Promise.resolve('test-key'),
-      sleep: (ms: number) => {
-        slept.push(ms)
-        return Promise.resolve()
-      },
-      now: () => FIXED_NOW,
-      random: () => 0,
-      log: silent,
     })
-    const notices: RetryNotice[] = []
-    const outcome = await postTurn(transport, new AbortController().signal, (notice) => {
-      notices.push(notice)
-    })
-    expect(isModelApiError(outcome) && outcome.status).toBe(429)
-    expect(calls).toBe(5)
-    expect(slept).toEqual([HOSTILE_WAIT_MS, HOSTILE_WAIT_MS, HOSTILE_WAIT_MS, HOSTILE_WAIT_MS])
-    expect(notices).toHaveLength(4)
-    const expected = fill(UI_TEXT.modelApiProviderRetryWait, {
-      reason: 'HTTP 429: slow down',
-      time: formatDateTime(FIXED_NOW + HOSTILE_WAIT_MS),
-    })
-    for (const notice of notices) expect(notice.reason).toBe(expected)
+    pacing.observe('rogue', undefined, derived)
+    const order: string[] = []
+    const started = performance.now()
+    const backgrounded = pacing.acquire('rogue', 'subagent', 0, AbortSignal.timeout(5000))
+    const foregrounded = pacing.acquire('rogue', 'foreground', 0, AbortSignal.timeout(5000))
+    await foregrounded
+    order.push('foreground')
+    await backgrounded
+    order.push('background')
+    const elapsed = performance.now() - started
+    expect(order).toEqual(['foreground', 'background'])
+    expect(elapsed).toBeGreaterThanOrEqual(200)
+    expect(waits).toHaveLength(1)
+    // Within one clock tick of the whole named wait (the observe-to-acquire
+    // gap can straddle a millisecond boundary).
+    expect(waits[0]).toBeGreaterThanOrEqual(249)
   })
 })
