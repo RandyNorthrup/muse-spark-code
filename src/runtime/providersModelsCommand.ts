@@ -62,9 +62,9 @@ function printModelsList(deps: ProvidersDeps, entry: ProviderEntry): void {
 }
 
 /**
- * The provider's own model list, or undefined where it cannot be read with
- * the stored key. Reads the stored key only to consult the provider's list.
- */
+The provider's own model list, or undefined where it cannot be read with
+the stored key. Reads the stored key only to consult the provider's list.
+*/
 async function readProviderModelList(
   deps: ProvidersDeps,
   file: ProvidersFile,
@@ -97,12 +97,12 @@ async function readProviderModelList(
 }
 
 /**
- * List the entry's models (and, where the provider's own list reads with
- * the stored key, which listed models the entry does not offer), or change
- * the list with `--add`/`--remove`. A model the provider does not list is
- * refused with the closest ids unless `--force` carries a reason, which is
- * stored on the entry.
- */
+List the entry's models (and, where the provider's own list reads with
+the stored key, which listed models the entry does not offer), or change
+the list with `--add`/`--remove`. A model the provider does not list is
+refused with the closest ids unless `--force` carries a reason, which is
+stored on the entry.
+*/
 export async function providersModels(
   deps: ProvidersDeps,
   options: ProvidersModelsOptions,

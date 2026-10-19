@@ -298,9 +298,9 @@ export interface TeamProcessLifetime {
 }
 
 /**
- * Whether a scope read or run failed answering: reads and runs reject with
- * Errors, so anything else is foreign to the operation and keeps its kind.
- */
+Whether a scope read or run failed answering: reads and runs reject with
+Errors, so anything else is foreign to the operation and keeps its kind.
+*/
 function isScopeOperationFailure(error: unknown): boolean {
   return error instanceof Error
 }
@@ -467,12 +467,12 @@ export async function createNativeTeamProcessDriver(options: {
     throw new Error('TEAM_PLATFORM_UNSUPPORTED')
   const probeEnv = { PATH: process.env['PATH'], XDG_RUNTIME_DIR: process.env['XDG_RUNTIME_DIR'] }
   /**
-   * A probe tool resolved on the absolute PATH entries only: a probe never
-   * executes a relative or empty entry (the process working directory), and
-   * the probe runs the resolved absolute path. Entries inside a later
-   * launch's working directory are excluded again at launch, where the
-   * directory is known.
-   */
+  A probe tool resolved on the absolute PATH entries only: a probe never
+  executes a relative or empty entry (the process working directory), and
+  the probe runs the resolved absolute path. Entries inside a later
+  launch's working directory are excluded again at launch, where the
+  directory is known.
+  */
   const probeTool = (name: string): string | undefined =>
     resolveExecutable(name, {
       platform: process.platform,

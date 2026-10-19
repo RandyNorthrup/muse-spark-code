@@ -5,12 +5,12 @@ import type { ConfirmedModelRequest, ProviderClient, ResponseAttemptGuard } from
 type RepairClient = Pick<ProviderClient, 'streamResponse'>
 
 /**
- * One unretried stream for structured-repair flows (the hook model, the auto
- * reviewer): the call names no transport retries, so a failure surfaces to
- * repair's own admission and settlement instead of retrying inside the
- * transport (owner 2026-10-16: only a call that names a ceiling stops at
- * it; these name zero).
- */
+One unretried stream for structured-repair flows (the hook model, the auto
+reviewer): the call names no transport retries, so a failure surfaces to
+repair's own admission and settlement instead of retrying inside the
+transport (owner 2026-10-16: only a call that names a ceiling stops at
+it; these name zero).
+*/
 export function streamRepairAttempt(
   client: RepairClient,
   body: CreateResponseBody,

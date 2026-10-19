@@ -16,10 +16,10 @@ import path from 'node:path'
 import { isPromptSettledError } from '../../core/agent/agentBackend'
 
 /**
- * Best-effort fallback after a failed deferral: a failed cancel is reported
- * through the failure marker without exposing the backend's text, while the
- * deferral's own failure keeps its kind past this boundary.
- */
+Best-effort fallback after a failed deferral: a failed cancel is reported
+through the failure marker without exposing the backend's text, while the
+deferral's own failure keeps its kind past this boundary.
+*/
 export async function cancelAfterFailedDeferral(
   session: Pick<Parameters<AcpQuestionRegistryFactory>[0]['session'], 'cancelQuestions'>,
   id: string,

@@ -246,10 +246,10 @@ export function hasCredentialShapes(text: string): boolean {
 }
 
 /**
- * A pull request's title and description with every credential shape
- * masked, when either holds one: what goes back to the form, so nothing
- * goes out that the user has not seen. Undefined when both are clean.
- */
+A pull request's title and description with every credential shape
+masked, when either holds one: what goes back to the form, so nothing
+goes out that the user has not seen. Undefined when both are clean.
+*/
 function maskedPullRequestText(
   title: string,
   body: string,
@@ -260,11 +260,11 @@ function maskedPullRequestText(
 }
 
 /**
- * The pull request form's own refusals, before anything is asked or sent
- * (both routes): a problem with its fields, or a credential shape in the
- * title or the description, whose masked text goes back to the form. True
- * when it was refused, said through `surface`.
- */
+The pull request form's own refusals, before anything is asked or sent
+(both routes): a problem with its fields, or a credential shape in the
+title or the description, whose masked text goes back to the form. True
+when it was refused, said through `surface`.
+*/
 export function isPullRequestFormRefused(
   fields: { readonly title: string; readonly body: string; readonly base: string },
   surface: {

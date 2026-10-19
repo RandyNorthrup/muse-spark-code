@@ -65,9 +65,9 @@ export interface ProvidersHostUi {
   /** Asks once about a private-network address (D74). */
   readonly confirmPrivateNetwork: (message: string) => Promise<boolean>
   /**
-   * Asks whether a pasted key with a wrong-thing notice is used anyway.
-   * A "no" re-opens the box; the provider judges the sent key.
-   */
+  Asks whether a pasted key with a wrong-thing notice is used anyway.
+  A "no" re-opens the box; the provider judges the sent key.
+  */
   readonly confirmKeyUse: (message: string) => Promise<boolean>
   /** Opens a URL in the system browser. */
   readonly openBrowser: (url: string) => Promise<void>

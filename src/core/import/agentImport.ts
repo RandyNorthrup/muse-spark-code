@@ -130,11 +130,11 @@ export interface ImportIo extends RealPathIo {
   /** The file, unread when it is over `maxBytes`; throws on a failure other than "not there". */
   readFile(absolutePath: string, maxBytes: number, projectRoot?: string): Promise<ImportRead>
   /**
-   * Safe git metadata query; false outside a repository, throws if
-   * classification fails. `signal` ends a stalled probe (PR #214 review):
-   * the probes name no deadline of their own, and the window closing
-   * must still reach the child.
-   */
+  Safe git metadata query; false outside a repository, throws if
+  classification fails. `signal` ends a stalled probe (PR #214 review):
+  the probes name no deadline of their own, and the window closing
+  must still reach the child.
+  */
   isIgnored(absolutePath: string, workspaceRoot: string, signal?: AbortSignal): Promise<boolean>
   /** The directory's entries; undefined when it is missing; throws on any other failure. */
   listDirectory(absolutePath: string): Promise<readonly ImportDirEntry[] | undefined>
@@ -163,9 +163,9 @@ export interface ImportScanInput {
   readonly isWorkspaceTrusted: () => boolean
   readonly isActive: () => boolean
   /**
-   * Ends the scan's git probes when it aborts (PR #214 review): the window
-   * closing. Absent, the probes wait for git's answer.
-   */
+  Ends the scan's git probes when it aborts (PR #214 review): the window
+  closing. Absent, the probes wait for git's answer.
+  */
   readonly signal?: AbortSignal
   readonly sources: readonly AgentImportSource[]
 }

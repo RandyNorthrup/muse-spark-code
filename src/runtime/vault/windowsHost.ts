@@ -46,11 +46,11 @@ import {
 const tracker = hostRegistrationTracker()
 
 /**
- * The broker's native read of one process, shaped like the POSIX peer
- * answer. Trust rides in the answer itself (the helper's owner must equal
- * the process user): files mode has no ready frame, so there is no relay
- * owner to compare against.
- */
+The broker's native read of one process, shaped like the POSIX peer
+answer. Trust rides in the answer itself (the helper's owner must equal
+the process user): files mode has no ready frame, so there is no relay
+owner to compare against.
+*/
 /** This process's native identity for the broker's host record. */
 export async function windowsSelfIdentity(relay: PipeRelay): Promise<VaultProcessIdentity> {
   const self = await windowsProcessIdentity(relay, process.pid)
@@ -100,9 +100,9 @@ async function pruneHosts(
 }
 
 /**
- * Local trusted hosts publish launch facts in owner-only files, never in a wire claim.
- * @unwired M109 Windows host registration (waits on the Windows broker join)
- */
+Local trusted hosts publish launch facts in owner-only files, never in a wire claim.
+@unwired M109 Windows host registration (waits on the Windows broker join)
+*/
 export async function registerWindowsVaultHost(
   runDirectory: string,
   files: VaultPrivateFilesPort,
@@ -146,11 +146,11 @@ const CLAIM_LOCK_ROUNDS = 100
 const CLAIM_LOCK_WAIT_MS = 50
 
 /**
- * A claim file as a mutex for the audit and epoch lanes: the holder's
- * identity rides in the claim bytes, so a provably dead holder is retired
- * and a live one is awaited, bounded always. The kernel mutex this replaces
- * cannot be stolen either: only the holder releases, anyone retires the dead.
- */
+A claim file as a mutex for the audit and epoch lanes: the holder's
+identity rides in the claim bytes, so a provably dead holder is retired
+and a live one is awaited, bounded always. The kernel mutex this replaces
+cannot be stolen either: only the holder releases, anyone retires the dead.
+*/
 export async function withWindowsClaimLock<T>(
   files: VaultPrivateFilesPort,
   guard: WindowsPipeFiles,
@@ -185,10 +185,10 @@ function isVaultClaimConflict(error: unknown): boolean {
 }
 
 /**
- * Unlink a claim whose holder is provably gone; a live or unidentifiable
- * holder is left alone for the caller to await. The verify before the unlink
- * refuses reparse points and non-owner DACLs, like every other file command.
- */
+Unlink a claim whose holder is provably gone; a live or unidentifiable
+holder is left alone for the caller to await. The verify before the unlink
+refuses reparse points and non-owner DACLs, like every other file command.
+*/
 async function didRetireDeadClaimLock(
   files: VaultPrivateFilesPort,
   guard: WindowsPipeFiles,
@@ -227,11 +227,11 @@ async function didRetireDeadClaimLock(
 }
 
 /**
- * Everything the broker entry and its bindings need from Windows that POSIX
- * reads from the peer binary and the kernel: one serve relay's files, guard
- * and native identity, plus the claim-file mutexes for the audit and epoch
- * lanes. Built once per broker start, from the starter's serve helper.
- */
+Everything the broker entry and its bindings need from Windows that POSIX
+reads from the peer binary and the kernel: one serve relay's files, guard
+and native identity, plus the claim-file mutexes for the audit and epoch
+lanes. Built once per broker start, from the starter's serve helper.
+*/
 export interface WindowsBrokerPlatform {
   readonly relay: PipeRelay
   readonly guard: WindowsPipeFiles
@@ -253,11 +253,11 @@ export interface WindowsBrokerPlatform {
 }
 
 /**
- * Only an owner-only non-link single-link file may be retired by these
- * rounds: anything else fails closed with no access, never deleted. The DACL
- * and reparse checks ride the helper's verify; Node reads the link count and
- * type around it. Same-user hardlink games are outside D89.15's scope.
- */
+Only an owner-only non-link single-link file may be retired by these
+rounds: anything else fails closed with no access, never deleted. The DACL
+and reparse checks ride the helper's verify; Node reads the link count and
+type around it. Same-user hardlink games are outside D89.15's scope.
+*/
 function assertWindowsRemnant(sample: Stats): void {
   if (sample.isSymbolicLink() || !sample.isFile() || sample.nlink !== 1)
     throw new Error(UI_TEXT.vault.noAccess)
@@ -352,11 +352,11 @@ async function settleWindowsEpochWriter(
 }
 
 /**
- * Publish one epoch under the claim-file mutex: the Windows twin of
- * bumpVaultEpoch, with the same rounds, the same rule and the same bounded
- * refusal. The mutex cannot be stolen (only the holder releases, anyone
- * retires the dead), so there is no lost-lock unwind.
- */
+Publish one epoch under the claim-file mutex: the Windows twin of
+bumpVaultEpoch, with the same rounds, the same rule and the same bounded
+refusal. The mutex cannot be stolen (only the holder releases, anyone
+retires the dead), so there is no lost-lock unwind.
+*/
 export async function bumpWindowsVaultEpoch(
   ports: { files: VaultPrivateFilesPort; guard: WindowsPipeFiles; relay: PipeRelay },
   runDirectory: string,

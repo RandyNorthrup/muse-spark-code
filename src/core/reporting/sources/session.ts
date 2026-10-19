@@ -131,11 +131,11 @@ export function sessionSource(
   })
 }
 /**
- * Usage facts keep every valid row: the scalar head is one record, while
- * each breakdown and limit entry parses on its own, so one damaged entry
- * is a named problem beside the good rows, never a lost source
- * (RVREPORTJOIN P2-1).
- */
+Usage facts keep every valid row: the scalar head is one record, while
+each breakdown and limit entry parses on its own, so one damaged entry
+is a named problem beside the good rows, never a lost source
+(RVREPORTJOIN P2-1).
+*/
 export function scrubUsage(
   reportText: UiText,
   usage: unknown,

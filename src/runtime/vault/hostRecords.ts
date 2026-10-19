@@ -30,9 +30,9 @@ export async function readHostRecordFile(
 }
 
 /**
- * Every stored host record; unreadable names and missing files are skipped,
- * anything else still refuses.
- */
+Every stored host record; unreadable names and missing files are skipped,
+anything else still refuses.
+*/
 export async function* hostRecordFiles(
   files: Pick<VaultPrivateFilesPort, 'read'>,
   directory: string,

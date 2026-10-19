@@ -178,9 +178,9 @@ export async function fingerprintUntracked(
 }
 
 /**
- * A file start's gone-or-unreadable vocabulary: the file left to the file
- * list. Anything else is not this row's to hide.
- */
+A file start's gone-or-unreadable vocabulary: the file left to the file
+list. Anything else is not this row's to hide.
+*/
 const FILE_START_CODES: ReadonlySet<string> = new Set([
   'ENOENT',
   'ENOTDIR',

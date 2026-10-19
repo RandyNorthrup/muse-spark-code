@@ -50,8 +50,8 @@ export interface PaidFeatureGateDeps {
   /** Whether the feature's `museSpark.*` setting is on. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
   /** Lane T: a runnable distinct-model team in this conversation, with a key.
-   * Absence keeps workers unavailable and loads no team code at activation.
-   */
+  Absence keeps workers unavailable and loads no team code at activation.
+  */
   readonly isTeamAvailable?: () => boolean
   /** Backend availability never changes the user's setting or accepted price. */
   readonly isAvailable?: (feature: PaidFeature) => boolean
@@ -66,23 +66,23 @@ export interface PaidFeatureGateDeps {
   readonly confirm: (feature: PaidFeature) => Promise<boolean>
   readonly isWindowFocused: () => boolean
   /**
-   * Features whose price the first use's question names instead of a
-   * turn-on confirmation (Tab, M94 Q-M94a; owner 2026-10-04: on by default,
-   * ask once before the first charge). Their acceptance follows the setting
-   * without a modal, so turning one off still voids its "always" grants
-   * (M58); nothing is billed before the first use's answer (paidConsent.ts).
-   */
+  Features whose price the first use's question names instead of a
+  turn-on confirmation (Tab, M94 Q-M94a; owner 2026-10-04: on by default,
+  ask once before the first charge). Their acceptance follows the setting
+  without a modal, so turning one off still voids its "always" grants
+  (M58); nothing is billed before the first use's answer (paidConsent.ts).
+  */
   readonly asksOnFirstUse?: ReadonlySet<PaidFeature>
   readonly log: CoreLogger
 }
 
 /**
- * M91 prompt/agent hooks (PLAN.md D70) are available by default (OWNER
- * RULING 2026-10-04, superseding the plan's "off by default"): no turn-on
- * confirmation asks for them. Their price is asked per run in the paid-use
- * popup instead, so the gate never confirms them and `isOn` reads only the
- * setting (the machine-scoped kill switch).
- */
+M91 prompt/agent hooks (PLAN.md D70) are available by default (OWNER
+RULING 2026-10-04, superseding the plan's "off by default"): no turn-on
+confirmation asks for them. Their price is asked per run in the paid-use
+popup instead, so the gate never confirms them and `isOn` reads only the
+setting (the machine-scoped kill switch).
+*/
 const AVAILABLE_BY_DEFAULT: ReadonlySet<PaidFeature> = new Set(['hookModels'])
 
 export class PaidFeatureGate {
@@ -160,11 +160,11 @@ export class PaidFeatureGate {
   }
 
   /**
-   * Brings the acceptances in line with the settings: a setting turned off
-   * forgets its acceptance, and one found on without an acceptance asks
-   * (in the focused window). Run at activation, on every settings change and
-   * when the window gains focus.
-   */
+  Brings the acceptances in line with the settings: a setting turned off
+  forgets its acceptance, and one found on without an acceptance asks
+  (in the focused window). Run at activation, on every settings change and
+  when the window gains focus.
+  */
   public async review(): Promise<void> {
     const pending: PaidFeature[] = []
     for (const feature of PAID_FEATURES) {
@@ -440,7 +440,7 @@ export class PaidUsage {
   }
 
   /** Batch transcription keeps fractional seconds. An uncertain attempt uses
-   * its admitted duration bound in this estimate, never a made-up zero bill. */
+  its admitted duration bound in this estimate, never a made-up zero bill. */
   public addVoiceBatch(seconds: number, context: Parameters<typeof recordPaidUse>[3] = {}): void {
     if (!Number.isFinite(seconds) || seconds < 0) {
       throw new Error(UI_TEXT.media.durationUnknown)
@@ -621,10 +621,10 @@ export class PaidUsage {
   }
 
   /**
-   * One Tab request's reported tokens (M94, PLAN.md D73): its cost at the
-   * request model's rates, apart from every conversation. A request that
-   * never reports keeps its unknown count, never a zero cost.
-   */
+  One Tab request's reported tokens (M94, PLAN.md D73): its cost at the
+  request model's rates, apart from every conversation. A request that
+  never reports keeps its unknown count, never a zero cost.
+  */
   public addTabUsage(modelId: string, usage: SubagentUsage): void {
     if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
       throw new Error('Cannot estimate Tab use for an unpriced model')

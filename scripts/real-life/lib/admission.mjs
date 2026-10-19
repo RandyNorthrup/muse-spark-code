@@ -32,11 +32,11 @@ export const isTurnedAwayUnsent = (turn) =>
   (turn.result.ledger?.lastResponse ?? null) === null
 
 /**
- * The model the product says it runs, in what it printed before any request:
- * its `start` line, or the session's model as it was last announced.
- * @param {readonly object[]} events the lines `exec --output jsonl` printed
- * @returns {string | undefined}
- */
+The model the product says it runs, in what it printed before any request:
+its `start` line, or the session's model as it was last announced.
+@param {readonly object[]} events the lines `exec --output jsonl` printed
+@returns {string | undefined}
+*/
 export function modelNamed(events) {
   const started = events.findLast((event) => event.type === 'start')?.model
   return typeof started === 'string'

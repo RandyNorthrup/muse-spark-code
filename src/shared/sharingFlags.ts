@@ -1,12 +1,12 @@
 /**
- * The sharing commands' flag tables (PLAN.md D119): one source read by the
- * owner parser (`src/runtime/sharing/args.ts`, which composes them per
- * action) and by the help registry (`src/runtime/cliOptions.ts`, which
- * renders the widest shape a screen can show: a repeated save `--tag`
- * where list takes one, a confirmation value for share where use takes a
- * bare `--confirm`). Plain data with no Node import, so the reference and
- * the webview can read it too; frozen literals keep every flag's name.
- */
+The sharing commands' flag tables (PLAN.md D119): one source read by the
+owner parser (`src/runtime/sharing/args.ts`, which composes them per
+action) and by the help registry (`src/runtime/cliOptions.ts`, which
+renders the widest shape a screen can show: a repeated save `--tag`
+where list takes one, a confirmation value for share where use takes a
+bare `--confirm`). Plain data with no Node import, so the reference and
+the webview can read it too; frozen literals keep every flag's name.
+*/
 
 /** One sharing flag: the subset of parseArgs option shapes sharing uses. */
 export interface SharingFlag {

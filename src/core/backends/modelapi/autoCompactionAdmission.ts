@@ -40,10 +40,10 @@ export function resolveAutoCompactModel(modelId: string): AutoCompactModel | und
 }
 
 /**
- * The daily limit behind automatic compaction: a claim under the limit the
- * person set, `undefined` when none is set (nothing is checked); a refusal
- * (over the limit, stopped, unreadable) throws.
- */
+The daily limit behind automatic compaction: a claim under the limit the
+person set, `undefined` when none is set (nothing is checked); a refusal
+(over the limit, stopped, unreadable) throws.
+*/
 export interface AutoCompactionLedger {
   reserveCompaction(amount: UsdAmount, signal: AbortSignal): Promise<SpendClaim | undefined>
 }

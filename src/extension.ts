@@ -3886,14 +3886,14 @@ async function activateWindow(
     { agent?: BackendSession | undefined; readonly dispose: () => void }
   >()
   /**
-   * The deferred conversation schedule surfaces (dist/scheduleSurfaces.js,
-   * D6): the delivery target readout, the scheduled-question settlement and
-   * the schedules panel commands. Warmed when the schedule wiring builds so
-   * the first delivery finds them; every caller past liveSchedule awaits the
-   * load, while liveSchedule reads the cache synchronously and falls back to
-   * the unattended path only inside the load window, so a first fire still
-   * runs. A bundle that cannot load refuses the run that needed it.
-   */
+  The deferred conversation schedule surfaces (dist/scheduleSurfaces.js,
+  D6): the delivery target readout, the scheduled-question settlement and
+  the schedules panel commands. Warmed when the schedule wiring builds so
+  the first delivery finds them; every caller past liveSchedule awaits the
+  load, while liveSchedule reads the cache synchronously and falls back to
+  the unattended path only inside the load window, so a first fire still
+  runs. A bundle that cannot load refuses the run that needed it.
+  */
   let loadedScheduleSurfaces: typeof ScheduleSurfaces | undefined
   const loadScheduleSurfaces = async (): Promise<typeof ScheduleSurfaces> => {
     if (loadedScheduleSurfaces !== undefined) return loadedScheduleSurfaces

@@ -226,14 +226,14 @@ export interface CaptureProbe extends HelperProbe {
   /** PATH, for Linux's recorders (absolute entries only, PLAN.md D24). */
   readonly pathVariable: string | undefined
   /**
-   * The workspace a recording runs in: `arecord`/`parec` never resolve to
-   * a file inside it. Absent leaves every absolute entry probed, as before.
-   */
+  The workspace a recording runs in: `arecord`/`parec` never resolve to
+  a file inside it. Absent leaves every absolute entry probed, as before.
+  */
   readonly workspaceRoot?: string | undefined
   /**
-   * Resolves links for the workspace comparison. Absent means lexical
-   * comparison only.
-   */
+  Resolves links for the workspace comparison. Absent means lexical
+  comparison only.
+  */
   readonly realpath?: ((filePath: string) => string) | undefined
 }
 

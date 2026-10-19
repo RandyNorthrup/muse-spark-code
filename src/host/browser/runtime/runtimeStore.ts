@@ -87,10 +87,10 @@ export interface RuntimeStoreDeps {
 }
 
 /**
- * A preparation that ends here, with its closed reason. The cause rides
- * along for the record only: every surface reads `.reason`, never the
- * cause, so no response text or OS message leaves this module.
- */
+A preparation that ends here, with its closed reason. The cause rides
+along for the record only: every surface reads `.reason`, never the
+cause, so no response text or OS message leaves this module.
+*/
 class Stop extends Error {
   public constructor(
     public readonly reason: PreparationReason,
@@ -161,10 +161,10 @@ function codeOf(error: unknown): string {
 }
 
 /**
- * A system error: an object with a string `.code`. Reads only the code,
- * never the message, so the check itself leaks nothing. Anything else is a
- * bug, which must not read as an absent file.
- */
+A system error: an object with a string `.code`. Reads only the code,
+never the message, so the check itself leaks nothing. Anything else is a
+bug, which must not read as an absent file.
+*/
 function isSystemError(error: unknown): error is Record<string, unknown> {
   return (
     typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
@@ -615,12 +615,12 @@ export async function prepareRuntime(
 }
 
 /**
- * The closed reason for a failure that is not a Stop: an ended lifetime
- * reads as its ending (a deadline, else Cancel), a lost admission as not
- * offered, a refused archive as an integrity failure, and any other
- * filesystem error as not installed. The error is passed through so the
- * record keeps the cause; the reason carries nothing it said.
- */
+The closed reason for a failure that is not a Stop: an ended lifetime
+reads as its ending (a deadline, else Cancel), a lost admission as not
+offered, a refused archive as an integrity failure, and any other
+filesystem error as not installed. The error is passed through so the
+record keeps the cause; the reason carries nothing it said.
+*/
 function closedPreparationReason(
   error: unknown,
   signal: AbortSignal,

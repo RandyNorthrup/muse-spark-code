@@ -15,13 +15,13 @@ import type { VaultStatus } from '../../shared/vaultStatus'
 export type VaultTransientReason = 'busy' | 'rollback' | 'timeout' | 'watchLost'
 
 /**
- * Why the section is unavailable. `brokerCannotStart` is the ONLY reason
- * that shows the repair sentence, and it is only reached from the broker's
- * own `brokerBlocked` verdict (never synthesized from a busy/rollback/io
- * failure). `uncreated`, `setupPending` and `firstPartyOnly` are normal
- * snapshots the broker returns, each named so no new snapshot state falls
- * through to a repair claim.
- */
+Why the section is unavailable. `brokerCannotStart` is the ONLY reason
+that shows the repair sentence, and it is only reached from the broker's
+own `brokerBlocked` verdict (never synthesized from a busy/rollback/io
+failure). `uncreated`, `setupPending` and `firstPartyOnly` are normal
+snapshots the broker returns, each named so no new snapshot state falls
+through to a repair claim.
+*/
 export type VaultUnavailableReason =
   | VaultTransientReason
   | 'brokerCannotStart'
@@ -36,11 +36,11 @@ export type VaultUnavailableReason =
   | 'firstPartyOnly'
 
 /**
- * The closed state union: a new kind without a table row fails the test
- * (the exhaustive table derives its rows from these members, and the
- * transition's default branch asserts `never`, so a member without a row
- * does not compile).
- */
+The closed state union: a new kind without a table row fails the test
+(the exhaustive table derives its rows from these members, and the
+transition's default branch asserts `never`, so a member without a row
+does not compile).
+*/
 export type VaultViewState =
   | {
       readonly kind: 'loading'
@@ -49,11 +49,11 @@ export type VaultViewState =
       /** Remaining auto-retries if the in-flight reload fails transiently. */
       readonly retriesLeft?: number
       /**
-       * The newest reload this view asked for. A snapshot reply is applied
-       * only when it answers the newest request: overlapping reloads share
-       * one generation (two approval cards), so the generation alone cannot
-       * tell an older reply from a newer one (RVCM1091G P2).
-       */
+      The newest reload this view asked for. A snapshot reply is applied
+      only when it answers the newest request: overlapping reloads share
+      one generation (two approval cards), so the generation alone cannot
+      tell an older reply from a newer one (RVCM1091G P2).
+      */
       readonly request?: number
     }
   | {
@@ -62,14 +62,14 @@ export type VaultViewState =
       readonly generation: number
       readonly frame: VaultPanelState
       /**
-       * True once the broker confirmed the lock (its event, a locked
-       * snapshot, or this window's own Lock call returning). An optimistic
-       * Locked painted from this window's in-flight Lock is unconfirmed: a
-       * snapshot failure there says Unavailable (the lock may have failed),
-       * while a confirmed one keeps Locked (RVCM1091F: a failed Lock with no
-       * snapshot is Unavailable; a Lock that succeeded while the snapshot is
-       * down stays Locked).
-       */
+      True once the broker confirmed the lock (its event, a locked
+      snapshot, or this window's own Lock call returning). An optimistic
+      Locked painted from this window's in-flight Lock is unconfirmed: a
+      snapshot failure there says Unavailable (the lock may have failed),
+      while a confirmed one keeps Locked (RVCM1091F: a failed Lock with no
+      snapshot is Unavailable; a Lock that succeeded while the snapshot is
+      down stays Locked).
+      */
       readonly confirmed: boolean
       /** The newest reload requested while this view lives (see above). */
       readonly request?: number
@@ -96,12 +96,12 @@ export type VaultViewState =
 export const VAULT_VIEW_STATES = ['loading', 'locked', 'unlocked', 'unavailable'] as const
 
 /**
- * The closed event union: every broker event, every user action and every
- * snapshot result. `brokerUnlocked` is the broker's post-unlock change as
- * this window observes it; `watchRestored` is a reopened stream's first
- * change; `autoRetry` is the machine's own bounded retry (it never resets
- * the budget — only `userRetry` does).
- */
+The closed event union: every broker event, every user action and every
+snapshot result. `brokerUnlocked` is the broker's post-unlock change as
+this window observes it; `watchRestored` is a reopened stream's first
+change; `autoRetry` is the machine's own bounded retry (it never resets
+the budget — only `userRetry` does).
+*/
 export type VaultViewEvent =
   | { readonly kind: 'brokerLocked'; readonly lockEpoch: number }
   | { readonly kind: 'brokerUnlocked' }
@@ -112,10 +112,10 @@ export type VaultViewEvent =
   | { readonly kind: 'watchLost' }
   | { readonly kind: 'watchRestored' }
   /**
-   * The host records each reload request inside the machine, before the
-   * snapshot call starts. A reply carries the request it answers; only the
-   * newest requested reply is applied (RVCM1091G P2).
-   */
+  The host records each reload request inside the machine, before the
+  snapshot call starts. A reply carries the request it answers; only the
+  newest requested reply is applied (RVCM1091G P2).
+  */
   | { readonly kind: 'reloadRequested'; readonly seq: number }
   | { readonly kind: 'userLock' }
   /** This window's Lock call returned: the optimistic view is broker truth. */
@@ -183,10 +183,10 @@ export interface VaultViewResult {
 }
 
 /**
- * The sentence each unavailable reason toasts; null means no toast. A
- * table, not code: a new reason without a row does not compile, so no
- * failure can fall through to the repair message by accident (RVCM1091G P2).
- */
+The sentence each unavailable reason toasts; null means no toast. A
+table, not code: a new reason without a row does not compile, so no
+failure can fall through to the repair message by accident (RVCM1091G P2).
+*/
 function unavailableToastTable(): Record<VaultUnavailableReason, string | null> {
   // Built on use, never at module load: the installed language is the one
   // shown (PLAN.md D33).
@@ -213,11 +213,11 @@ export function vaultUnavailableMessage(reason: VaultUnavailableReason): string 
 }
 
 /**
- * The status reason an exhausted unavailable frame carries. Transient
- * host-side reasons need their own names so they never borrow the repair
- * sentence; `brokerCannotStart` keeps the broker's own `brokerBlocked`.
- * A table for the same reason as above.
- */
+The status reason an exhausted unavailable frame carries. Transient
+host-side reasons need their own names so they never borrow the repair
+sentence; `brokerCannotStart` keeps the broker's own `brokerBlocked`.
+A table for the same reason as above.
+*/
 function frameReasonTable(): Record<VaultUnavailableReason, VaultStatus['reason']> {
   return {
     brokerCannotStart: 'brokerBlocked',
@@ -242,10 +242,10 @@ export function vaultFrameReason(reason: VaultUnavailableReason): VaultStatus['r
 }
 
 /**
- * One read of what a view shows, keeps and knows: the frame on screen, the
- * last good snapshot and the newest broker epoch. A single row per state
- * kind replaces the three per-kind switches this file used to carry.
- */
+One read of what a view shows, keeps and knows: the frame on screen, the
+last good snapshot and the newest broker epoch. A single row per state
+kind replaces the three per-kind switches this file used to carry.
+*/
 function describeView(state: VaultViewState): {
   readonly frame: VaultPanelState | null
   readonly lastGood: VaultPanelState | undefined
@@ -285,10 +285,10 @@ export function vaultViewFrame(state: VaultViewState): VaultPanelState | null {
 }
 
 /**
- * The auto-retry budget left for a failure in this state. A manual Retry
- * restores the full budget; any other event spends the in-flight one, so
- * overlapping failures cannot retry forever.
- */
+The auto-retry budget left for a failure in this state. A manual Retry
+restores the full budget; any other event spends the in-flight one, so
+overlapping failures cannot retry forever.
+*/
 function retryBudgetFor(
   state: VaultViewState,
   eventKind: VaultViewEvent['kind'],
@@ -304,11 +304,11 @@ function retryBudgetFor(
 }
 
 /**
- * The optimistic Locked frame a `locked` event or this window's Lock paints
- * at once: no item labels, no grants, no audit, no pending, no importable
- * paths — a locked section never lists item names (RVCM1091F P2). The next
- * snapshot replaces it with the broker's own locked frame.
- */
+The optimistic Locked frame a `locked` event or this window's Lock paints
+at once: no item labels, no grants, no audit, no pending, no importable
+paths — a locked section never lists item names (RVCM1091F P2). The next
+snapshot replaces it with the broker's own locked frame.
+*/
 export function lockedFrame(
   lastGood: VaultPanelState | undefined,
   lockEpoch: number,
@@ -441,13 +441,13 @@ function stateForSnapshot(
 }
 
 /**
- * The ONE transition: (state, event, host generation) -> (state, effects).
- * No event is ever gated on an earlier one: every cell either publishes a
- * frame now or reloads (whose settle always publishes), so there is no
- * silent path. A stale snapshot (older generation, or an older broker
- * epoch) republishes the current view instead of overwriting it; a stale
- * failure still toasts — it is kept and shown, never dropped.
- */
+The ONE transition: (state, event, host generation) -> (state, effects).
+No event is ever gated on an earlier one: every cell either publishes a
+frame now or reloads (whose settle always publishes), so there is no
+silent path. A stale snapshot (older generation, or an older broker
+epoch) republishes the current view instead of overwriting it; a stale
+failure still toasts — it is kept and shown, never dropped.
+*/
 export function applyVaultViewEvent(
   state: VaultViewState,
   event: VaultViewEvent,

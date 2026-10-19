@@ -114,12 +114,12 @@ async function defaultRun(
 }
 
 /**
- * Where the machine seals: systemd-creds 256+ binds TPM2 with `-T`. The
- * governed spawn carries no PATH (credential-free on purpose), so the tool
- * is named by absolute path: `/usr/bin` on usr-merged systems, `/bin`
- * where it is not. The first executable candidate wins and is memoised;
- * where neither exists the slot is unavailable, never a PATH search.
- */
+Where the machine seals: systemd-creds 256+ binds TPM2 with `-T`. The
+governed spawn carries no PATH (credential-free on purpose), so the tool
+is named by absolute path: `/usr/bin` on usr-merged systems, `/bin`
+where it is not. The first executable candidate wins and is memoised;
+where neither exists the slot is unavailable, never a PATH search.
+*/
 const SYSTEMD_CREDS_CANDIDATES = ['/usr/bin/systemd-creds', '/bin/systemd-creds'] as const
 
 const resolvedSystemdCreds: { current?: string | null } = {}

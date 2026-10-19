@@ -454,11 +454,11 @@ async function writeAtomically(
 }
 
 /**
- * Removes a failed write's temporary file, but only while it is still the
- * file the write staged: a retargeted directory must not make cleanup
- * delete a different file. A cleanup failure never hides the write's own;
- * a moved temp may be left behind.
- */
+Removes a failed write's temporary file, but only while it is still the
+file the write staged: a retargeted directory must not make cleanup
+delete a different file. A cleanup failure never hides the write's own;
+a moved temp may be left behind.
+*/
 async function removeTemporary(
   temporary: string,
   temporaryIdentity: FileIdentity | undefined,

@@ -32,10 +32,10 @@ interface Refusal {
 }
 
 /**
- * The components below `root` down to `file`, in order; undefined when `file`
- * is not under it. Only `..` itself or a leading `..\` leaves the root: an
- * ordinary name that merely starts with two dots (`..foo`, `...`) stays.
- */
+The components below `root` down to `file`, in order; undefined when `file`
+is not under it. Only `..` itself or a leading `..\` leaves the root: an
+ordinary name that merely starts with two dots (`..foo`, `...`) stays.
+*/
 export function stepsBelow(root: string, file: string): string[] | undefined {
   const relative = path.win32.relative(root, file)
   if (relative === '') return []

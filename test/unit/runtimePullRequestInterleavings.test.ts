@@ -133,9 +133,9 @@ interface Budget {
   /** Windows whose wall clock may step an hour forward. */
   steps: number
   /**
-   * Publishes that land and then fail (an I/O error after the link: the
-   * write is in, its caller is told only that something failed).
-   */
+  Publishes that land and then fail (an I/O error after the link: the
+  write is in, its caller is told only that something failed).
+  */
   faults?: number
 }
 
@@ -149,9 +149,9 @@ interface Config {
   readonly windows: readonly Window[]
   readonly budget: Budget
   /**
-   * Whose holds may run out (all when undefined), and whether one may stall
-   * before its checks too, not only after them (true when undefined).
-   */
+  Whose holds may run out (all when undefined), and whether one may stall
+  before its checks too, not only after them (true when undefined).
+  */
   readonly expiring?: readonly string[]
   readonly canStallBeforeChecks?: boolean
   /** A finished checkout's record whose folder is gone, at the start. */
@@ -196,13 +196,13 @@ class World {
   ) {}
 
   /**
-   * Whether `id`'s hold must stop between its read, its checks and its
-   * link. One that can no longer run out, while no stale hold is still
-   * inside its own, is exclusive: in between only other windows' reads and
-   * folder steps can run, and each commutes with the read or the write, so
-   * it reads, checks and links in one step without losing an outcome. A
-   * stale hold can still link in between, so then every hold stops.
-   */
+  Whether `id`'s hold must stop between its read, its checks and its
+  link. One that can no longer run out, while no stale hold is still
+  inside its own, is exclusive: in between only other windows' reads and
+  folder steps can run, and each commutes with the read or the write, so
+  it reads, checks and links in one step without losing an outcome. A
+  stale hold can still link in between, so then every hold stops.
+  */
   public mustStop(id: string): boolean {
     for (const hold of this.active) {
       if (hold.isExpired) {
@@ -745,11 +745,11 @@ interface Exploration {
 }
 
 /**
- * Every order of `config`'s steps, or every order that begins with the
- * steps `prefix` names (the parts together are every order: a search too
- * long for one test runs as one test per prefix; `widths` reports each
- * pinned step's alternatives, so a test can prove its parts cover them).
- */
+Every order of `config`'s steps, or every order that begins with the
+steps `prefix` names (the parts together are every order: a search too
+long for one test runs as one test per prefix; `widths` reports each
+pinned step's alternatives, so a test can prove its parts cover them).
+*/
 async function explore(
   config: Config,
   isHeld = true,

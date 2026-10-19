@@ -23,9 +23,9 @@ export interface ReportStoreAdapter {
   readonly request: ReportNetworkRequest
   readonly schema: z.ZodMiniType<z.infer<typeof storeFactSchema>>
   /**
-   * Pre-dispatch refusal (RVCM1136 P2): the channel row is unavailable with
-   * this reason and no request is ever sent. The request value is unused.
-   */
+  Pre-dispatch refusal (RVCM1136 P2): the channel row is unavailable with
+  this reason and no request is ever sent. The request value is unused.
+  */
   readonly refused?: string
 }
 export interface ReportStoreOptions {

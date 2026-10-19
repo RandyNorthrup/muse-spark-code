@@ -46,10 +46,10 @@ function hasCode(error: unknown, code: string): boolean {
 }
 
 /**
- * The catch-gate-visible form of the expected history condition: `is`-named
- * so the inventory reads it as the one handled case, with exactly the same
- * answer as `hasCode` on every input.
- */
+The catch-gate-visible form of the expected history condition: `is`-named
+so the inventory reads it as the one handled case, with exactly the same
+answer as `hasCode` on every input.
+*/
 function isHistoryErrorCode(error: unknown, code: string): boolean {
   return hasCode(error, code)
 }

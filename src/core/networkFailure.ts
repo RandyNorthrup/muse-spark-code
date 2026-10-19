@@ -124,10 +124,10 @@ export function networkFailureCodes(error: unknown): string {
 }
 
 /**
- * The error and its causes by their codes, or by their class names where
- * they carry none (`TypeError: ENOTFOUND`): never a message, so nothing a
- * server, a path or a secret put in one can reach a sentence.
- */
+The error and its causes by their codes, or by their class names where
+they carry none (`TypeError: ENOTFOUND`): never a message, so nothing a
+server, a path or a secret put in one can reach a sentence.
+*/
 export function failureCodeNames(error: unknown): string {
   const names: string[] = []
   let current: unknown = error
@@ -140,12 +140,12 @@ export function failureCodeNames(error: unknown): string {
 }
 
 /**
- * Whether `error` is a failure of the connection itself: Node, undici or a
- * proxy refusing the tunnel name one with a string code somewhere in its
- * causes (`ECONNRESET`, `UND_ERR_SOCKET`, `ERR_TLS_…`, `ERR_WEB_FETCH_NOT_TLS`).
- * A refusal the product raises before sending (a budget stop, an endpoint
- * pin) carries no such code and is never read, or retried, as one.
- */
+Whether `error` is a failure of the connection itself: Node, undici or a
+proxy refusing the tunnel name one with a string code somewhere in its
+causes (`ECONNRESET`, `UND_ERR_SOCKET`, `ERR_TLS_…`, `ERR_WEB_FETCH_NOT_TLS`).
+A refusal the product raises before sending (a budget stop, an endpoint
+pin) carries no such code and is never read, or retried, as one.
+*/
 export function isConnectionFailure(error: unknown): boolean {
   return chainOf(error).some((link) => link.code !== undefined)
 }

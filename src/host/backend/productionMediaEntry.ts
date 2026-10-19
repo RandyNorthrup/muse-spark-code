@@ -34,10 +34,10 @@ export type HostMediaReplayHost = Pick<
 >
 
 /**
- * The Model API bundle's `createMediaReplay` over the host seam: the Files
- * client, the account, the storage directory and the session's replay. The
- * upload-expiry setting resolves here, on demand, read per upload.
- */
+The Model API bundle's `createMediaReplay` over the host seam: the Files
+client, the account, the storage directory and the session's replay. The
+upload-expiry setting resolves here, on demand, read per upload.
+*/
 export function createHostMediaReplay(
   host: HostMediaReplayHost,
   filesClient: Pick<ModelApiClient, 'requestFile'>,

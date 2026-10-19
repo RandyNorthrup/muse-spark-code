@@ -38,9 +38,9 @@ async function folder(): Promise<string> {
 }
 
 /**
- * A staged operation's world: nothing ever stops it, every receipt sticks.
- * Real `Operation` instances through the real table, never a stand-in.
- */
+A staged operation's world: nothing ever stops it, every receipt sticks.
+Real `Operation` instances through the real table, never a stand-in.
+*/
 const operationEnv: OperationEnv = {
   now: Date.now,
   stopCause: () => undefined,

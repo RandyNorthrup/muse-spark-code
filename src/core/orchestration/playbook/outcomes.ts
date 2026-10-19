@@ -86,10 +86,10 @@ export class PlaybookOutcomes {
   ) {}
 
   /**
-   * git resolved outside the workspace (links followed): a `git` planted in
-   * the repository never runs (D24). Every effect spawns this command, so
-   * the admission sees the absolute path it approves.
-   */
+  git resolved outside the workspace (links followed): a `git` planted in
+  the repository never runs (D24). Every effect spawns this command, so
+  the admission sees the absolute path it approves.
+  */
   private gitCommand(): string {
     const git = processGitPath(this.workspace)
     if (git === undefined) throw new Error(UI_TEXT.playbookUnavailable)

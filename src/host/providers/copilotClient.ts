@@ -266,12 +266,12 @@ class CopilotClient implements ProviderClient {
     return messages
   }
   /**
-   * Drops what the vscode language-model API cannot carry: reasoning
-   * (this API has no thinking part) and hosted search calls (acceptance
-   * 11: never declared to a BYO model; the reply that used them replays
-   * as text). Anything else fails the turn loudly instead of running on
-   * silently dropped content.
-   */
+  Drops what the vscode language-model API cannot carry: reasoning
+  (this API has no thinking part) and hosted search calls (acceptance
+  11: never declared to a BYO model; the reply that used them replays
+  as text). Anything else fails the turn loudly instead of running on
+  silently dropped content.
+  */
   private skipUnsendable(item: InputItem): void {
     if (item.type === 'reasoning' || item.type === 'web_search_call') {
       return

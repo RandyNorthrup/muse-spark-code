@@ -39,19 +39,19 @@ export interface MacRssSamplerDeps {
 }
 
 /**
- * `readRssBytes(pid)` for one encoder, over /bin/ps. Conversion asks every
- * few milliseconds; ps runs at most once per `MEDIA_RSS_SAMPLE_INTERVAL_MS`,
- * the next run starts while the last reading is still fresh, and no reading
- * older than `MEDIA_RSS_SAMPLE_MAX_AGE_MS` is returned: past it the call
- * waits for the run, which the caller's own sample deadline bounds.
- *
- * A reading belongs to one live child identity. Every ps run checks the PID,
- * that its parent is `parentPid`, that it is not a zombie and that its start
- * time is the first run's (a reused PID is someone else). Between runs the
- * child handle vouches for it: its exit drops the reading, and from then on
- * every call refuses, as does a run that finishes after the exit. One
- * failure is final.
- */
+`readRssBytes(pid)` for one encoder, over /bin/ps. Conversion asks every
+few milliseconds; ps runs at most once per `MEDIA_RSS_SAMPLE_INTERVAL_MS`,
+the next run starts while the last reading is still fresh, and no reading
+older than `MEDIA_RSS_SAMPLE_MAX_AGE_MS` is returned: past it the call
+waits for the run, which the caller's own sample deadline bounds.
+
+A reading belongs to one live child identity. Every ps run checks the PID,
+that its parent is `parentPid`, that it is not a zombie and that its start
+time is the first run's (a reused PID is someone else). Between runs the
+child handle vouches for it: its exit drops the reading, and from then on
+every call refuses, as does a run that finishes after the exit. One
+failure is final.
+*/
 export function macRssSampler(
   child: EncoderChild,
   deps: MacRssSamplerDeps = {},

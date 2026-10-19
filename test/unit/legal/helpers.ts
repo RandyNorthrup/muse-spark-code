@@ -17,12 +17,12 @@ export function snapshotFrom(files: Record<string, string>): LegalFileSnapshot {
 }
 
 /**
- * A verbatim MIT license text (C-M97-1): the canonical SPDX License List
- * 3.28.0 wording with a fictional holder, so the pinned full-text matcher
- * must recognize it exactly. Keep byte-identical to the canonical text
- * apart from the holder line: any wording drift breaks the exact-match
- * assertions on purpose.
- */
+A verbatim MIT license text (C-M97-1): the canonical SPDX License List
+3.28.0 wording with a fictional holder, so the pinned full-text matcher
+must recognize it exactly. Keep byte-identical to the canonical text
+apart from the holder line: any wording drift breaks the exact-match
+assertions on purpose.
+*/
 export const FULL_MIT_LICENSE = `MIT License
 
 Copyright (c) 2026 Example Corp
@@ -49,11 +49,11 @@ export const BUNDLE_TEXT =
   '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nconsole.log(1)\n'
 
 /**
- * Hash-backed distribution evidence (M97 CM971-R3): one bundle record
- * whose inputs are every file but the output, and whose listed output
- * (`BUNDLE_OUTPUT`) must exist in the snapshot with matching bytes. File
- * names alone, or an empty output list, never prove freshness.
- */
+Hash-backed distribution evidence (M97 CM971-R3): one bundle record
+whose inputs are every file but the output, and whose listed output
+(`BUNDLE_OUTPUT`) must exist in the snapshot with matching bytes. File
+names alone, or an empty output list, never prove freshness.
+*/
 export function hashEvidence(files: Record<string, string>): DistributionEvidence {
   const inputs = Object.keys(files).filter((file) => file !== BUNDLE_OUTPUT)
   return {

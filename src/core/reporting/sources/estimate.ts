@@ -25,20 +25,20 @@ import type { ReportSourcePayloads, SourceReadContext } from './types'
 import { localSource, LocalSourceError, scrubSourceValue, type SourceScrub } from './local'
 
 /**
- * The estimator binding, supplied by the estimate owner through the report
- * inputs: VS Code runs its lazy estimator bundle, ACP and the terminal run
- * the headless one for the report's workspace root. Resolves the validated
- * request or throws the engine's named failure.
- */
+The estimator binding, supplied by the estimate owner through the report
+inputs: VS Code runs its lazy estimator bundle, ACP and the terminal run
+the headless one for the report's workspace root. Resolves the validated
+request or throws the engine's named failure.
+*/
 /**
- * The report language's refusal sentences, captured once when the report
- * request starts and carried on the reader: the reader factory snapshots
- * its own `table` argument, so the sentences are the report's even when
- * `setUiText` installs another generation's language while the estimator
- * runs. Rendered counts use `locale` with fresh `Intl` instances, never
- * the process-wide formatters. Nothing in this kind's files reads the
- * process-wide table after an await (RVCM1134G P2).
- */
+The report language's refusal sentences, captured once when the report
+request starts and carried on the reader: the reader factory snapshots
+its own `table` argument, so the sentences are the report's even when
+`setUiText` installs another generation's language while the estimator
+runs. Rendered counts use `locale` with fresh `Intl` instances, never
+the process-wide formatters. Nothing in this kind's files reads the
+process-wide table after an await (RVCM1134G P2).
+*/
 export interface EstimateReportText {
   readonly failed: string
   readonly noCapacity: string
@@ -63,10 +63,10 @@ const ESTIMATE_LANE_ID = /^[\w.-]+(?::[\w.-]+)?$/
 const UNKNOWN_GOAL_REF = /^[\w.:-]+$/
 
 /**
- * The request's own table, only for readers built without the factory.
- * This runs before the first await, so no interleaving generation can move
- * the language under it.
- */
+The request's own table, only for readers built without the factory.
+This runs before the first await, so no interleaving generation can move
+the language under it.
+*/
 function contextReportText(context: SourceReadContext): EstimateReportText {
   return {
     failed: context.reportText.estimateFailed,
@@ -78,20 +78,20 @@ function contextReportText(context: SourceReadContext): EstimateReportText {
 }
 
 /**
- * The omitted-lane count in the report's language, from its number: fresh
- * `Intl` instances over the captured locale, never the installed state.
- */
+The omitted-lane count in the report's language, from its number: fresh
+`Intl` instances over the captured locale, never the installed state.
+*/
 function missingMoreText(missingMore: PluralForms, count: number, locale: string): string {
   const form = missingMore[new Intl.PluralRules(locale).select(count)] ?? missingMore.other
   return form.replaceAll('{count}', () => new Intl.NumberFormat(locale).format(count))
 }
 
 /**
- * The `missing-estimate` lanes and omitted count as data: the lane list
- * plus the trailing `and <n> more`, re-rendered in the report's language
- * (RVCM1134G P3). Anything outside the producer's shape stays the
- * estimator's own detail, as `/estimate` renders it — never a guess.
- */
+The `missing-estimate` lanes and omitted count as data: the lane list
+plus the trailing `and <n> more`, re-rendered in the report's language
+(RVCM1134G P3). Anything outside the producer's shape stays the
+estimator's own detail, as `/estimate` renders it — never a guess.
+*/
 function missingEstimateDetail(params: string, text: EstimateReportText): string {
   const more = /^(.*) and (\d+) more$/.exec(params)
   const lanes = (more?.[1] ?? params).split(', ')
@@ -108,16 +108,16 @@ function missingEstimateDetail(params: string, text: EstimateReportText): string
 }
 
 /**
- * The estimator's typed refusal as the report-language reason: the shared
- * validated diagnostic's code plus its structured parameters, consumed
- * directly (RVCM1134G P1). The estimator's rendered message is never read,
- * attached guesses never consulted, and parameters are validated against
- * the diagnostic's own schema before use. `no-capacity` names the capacity
- * sentence; `unknown-goal` names the goal sentence with the diagnostic's
- * reference (or this request's goal when bare); any other valid code fails
- * with its detail. Anything without a valid typed diagnostic stays
- * undefined: the honest generic refusal, never a named one.
- */
+The estimator's typed refusal as the report-language reason: the shared
+validated diagnostic's code plus its structured parameters, consumed
+directly (RVCM1134G P1). The estimator's rendered message is never read,
+attached guesses never consulted, and parameters are validated against
+the diagnostic's own schema before use. `no-capacity` names the capacity
+sentence; `unknown-goal` names the goal sentence with the diagnostic's
+reference (or this request's goal when bare); any other valid code fails
+with its detail. Anything without a valid typed diagnostic stays
+undefined: the honest generic refusal, never a named one.
+*/
 function estimateRefusalDetail(
   error: unknown,
   goalJson: string,

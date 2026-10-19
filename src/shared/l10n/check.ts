@@ -16,11 +16,11 @@ export interface CheckOptions {
   /** The table's language: its plural categories come from `Intl.PluralRules`. */
   readonly locale: string
   /**
-   * The gate's checks on top of the shape: the English key order at every
-   * level, exactly the language's plural categories, the same code spans and
-   * bold markers, and no value left in English unless its key is in
-   * `untranslated`.
-   */
+  The gate's checks on top of the shape: the English key order at every
+  level, exactly the language's plural categories, the same code spans and
+  bold markers, and no value left in English unless its key is in
+  `untranslated`.
+  */
   readonly isStrict: boolean
   /** Dotted keys whose value may equal the English (names, commands, …). */
   readonly untranslated?: ReadonlySet<string>
@@ -132,14 +132,14 @@ function formsProblems(
 }
 
 /**
- * The first key of `table` that sits out of the English order, at this one
- * level. The packaged UI archive stores values in the English layout and the
- * reader restores that order, so a locale file in any other order can never
- * match what the package ships (`scripts/check-l10n.mjs --packaged-acp`):
- * the strict gate requires the English order here, where both modes see it.
- * Only keys both tables have take part, so a missing or extra key reports on
- * its own. Plural forms are one packed value and keep the file's own order.
- */
+The first key of `table` that sits out of the English order, at this one
+level. The packaged UI archive stores values in the English layout and the
+reader restores that order, so a locale file in any other order can never
+match what the package ships (`scripts/check-l10n.mjs --packaged-acp`):
+the strict gate requires the English order here, where both modes see it.
+Only keys both tables have take part, so a missing or extra key reports on
+its own. Plural forms are one packed value and keep the file's own order.
+*/
 function orderProblems(
   prefix: string,
   english: Readonly<Record<string, unknown>>,

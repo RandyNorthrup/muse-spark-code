@@ -156,10 +156,10 @@ async function entriesOf(scope: string, name: string): Promise<string[]> {
 }
 
 /**
- * What an R1 interleaving needs: its own lock scope and throwaway account, the
- * file whose existence resumes a paused process, and the two long values it
- * races (different lengths, so no part lines up).
- */
+What an R1 interleaving needs: its own lock scope and throwaway account, the
+file whose existence resumes a paused process, and the two long values it
+races (different lengths, so no part lines up).
+*/
 function raceSetup() {
   return {
     scope: randomUUID().slice(0, 16),
@@ -171,10 +171,10 @@ function raceSetup() {
 }
 
 /**
- * The next owner of an account, as a fresh process: it optionally writes
- * `rewrite`, then deletes the account, so what a killed owner left is found
- * and removed by the owner's own reclamation.
- */
+The next owner of an account, as a fresh process: it optionally writes
+`rewrite`, then deletes the account, so what a killed owner left is found
+and removed by the owner's own reclamation.
+*/
 async function nextOwnerDeletes(scope: string, name: string, rewrite?: string): Promise<void> {
   const owner = new Worker(scope)
   try {

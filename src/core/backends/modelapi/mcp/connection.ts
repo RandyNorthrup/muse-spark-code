@@ -78,10 +78,10 @@ export interface McpConnectionOptions {
 
 export interface RequestOptions {
   /**
-   * The entry's own deadline in milliseconds, or undefined: then the answer
-   * is waited on until the server answers, the connection closes or the
-   * signal aborts (a Stop ends it), with a still-waiting notice on the log.
-   */
+  The entry's own deadline in milliseconds, or undefined: then the answer
+  is waited on until the server answers, the connection closes or the
+  signal aborts (a Stop ends it), with a still-waiting notice on the log.
+  */
   readonly timeoutMs: number | undefined
   readonly signal?: AbortSignal | undefined
 }

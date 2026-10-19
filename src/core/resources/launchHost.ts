@@ -54,11 +54,11 @@ const TREE_BOUND: ReadonlySet<ResourceLaunchProfile | undefined> = new Set([
 const isTreeBound = (profile: ResourceLaunchProfile | undefined) => TREE_BOUND.has(profile)
 
 /**
- * Fixed sampler-failure cause, preserved through the sampler boundary for
- * the installed receipt (RVCM109JD P2-2): the finished-tree membership race
- * is the only cause the receipt may ever whitelist; every other sampler
- * failure stays fatal there.
- */
+Fixed sampler-failure cause, preserved through the sampler boundary for
+the installed receipt (RVCM109JD P2-2): the finished-tree membership race
+is the only cause the receipt may ever whitelist; every other sampler
+failure stays fatal there.
+*/
 export type ResourceSamplerCause = 'unproven-membership' | 'sampler-error'
 function samplerCauseOf(error: unknown): ResourceSamplerCause {
   return error instanceof Error && error.message === RESOURCE_MEMBERSHIP_UNPROVEN

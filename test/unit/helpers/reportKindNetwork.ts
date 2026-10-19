@@ -52,10 +52,10 @@ export interface TransportCall {
 }
 
 /**
- * A transport over plain closures: every call is logged, and the case
- * replaces the implementation by assignment. The reader, cache and sources
- * under test stay the real modules; only the seam inputs come from here.
- */
+A transport over plain closures: every call is logged, and the case
+replaces the implementation by assignment. The reader, cache and sources
+under test stay the real modules; only the seam inputs come from here.
+*/
 export interface TransportRecorder {
   readonly transport: ReportNetworkTransport
   readonly calls: readonly TransportCall[]
@@ -170,11 +170,11 @@ export function githubEmptyReads(request: { readonly url: string }): Promise<Res
 }
 
 /**
- * A GitHub capture transport: empty pulls/checks, the given bodies for
- * tags, releases and release-workflow runs, then the caller's fallback.
- * Cases differ only in which bodies they serve and what an unexpected
- * request means, so those stay parameters instead of repeated branches.
- */
+A GitHub capture transport: empty pulls/checks, the given bodies for
+tags, releases and release-workflow runs, then the caller's fallback.
+Cases differ only in which bodies they serve and what an unexpected
+request means, so those stay parameters instead of repeated branches.
+*/
 export function githubCaptureTransport(input: {
   readonly tags?: unknown
   readonly releases?: unknown
@@ -197,10 +197,10 @@ export function githubCaptureTransport(input: {
 }
 
 /**
- * One workflow/release case: the captured bodies, the repo coordinates and
- * the source options. Cases differ only in the release tag they pin, so that
- * stays a parameter instead of a repeated options literal.
- */
+One workflow/release case: the captured bodies, the repo coordinates and
+the source options. Cases differ only in the release tag they pin, so that
+stays a parameter instead of a repeated options literal.
+*/
 export function githubReleaseCase(releaseTag?: string) {
   const captures = githubReleaseCaptures()
   return {
@@ -219,10 +219,10 @@ export function githubReleaseCase(releaseTag?: string) {
 }
 
 /**
- * One GitHub releases read through a rig: the networkRig plus
- * source.read call every workflow/release case repeats. Cases differ only
- * in the transport they drive and the page bound they prove.
- */
+One GitHub releases read through a rig: the networkRig plus
+source.read call every workflow/release case repeats. Cases differ only
+in the transport they drive and the page bound they prove.
+*/
 export function readGithubReleases(input: {
   readonly transport: ReportNetworkDeps['transport']
   readonly options: Omit<ReportGitHubOptions, 'reader' | 'additional'>
@@ -241,10 +241,10 @@ export function readGithubReleases(input: {
 }
 
 /**
- * The three gallery/npm channel rows every bound-surface case reads,
- * through the production binding. Cases differ only in the surface and
- * public-fetch answers they drive, which stay at the call site.
- */
+The three gallery/npm channel rows every bound-surface case reads,
+through the production binding. Cases differ only in the surface and
+public-fetch answers they drive, which stay at the call site.
+*/
 export async function readBoundChannelRows(
   bound: Pick<ReturnType<typeof bindStoresNetwork>, 'stores'>,
 ) {

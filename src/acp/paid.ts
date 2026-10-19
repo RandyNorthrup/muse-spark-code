@@ -80,10 +80,10 @@ export interface AcpPaidUseDeps {
   readonly log: CoreLogger
   readonly headless?: HeadlessPaidPolicy
   /**
-   * Tells the terminal operator what the person must hear (an "always" that
-   * could not be kept). A session notifier attached with `attachNotify`
-   * reaches the session's person instead, where there is one.
-   */
+  Tells the terminal operator what the person must hear (an "always" that
+  could not be kept). A session notifier attached with `attachNotify`
+  reaches the session's person instead, where there is one.
+  */
   readonly notify?: (text: string) => void
 }
 
@@ -107,9 +107,9 @@ export function paidUseOptions(canRemember: boolean, isSchedule = false): Permis
 }
 
 /**
- * The client's answer. A cancel, or an option the prompt did not offer, is
- * Deny: nothing is billed by a translation default (D62).
- */
+The client's answer. A cancel, or an option the prompt did not offer, is
+Deny: nothing is billed by a translation default (D62).
+*/
 export function paidUseAnswer(
   response: RequestPermissionResponse,
   canRemember: boolean,
@@ -163,10 +163,10 @@ export class AcpPaidUse {
   }
 
   /**
-   * "Allow always" for the folder: only what this answer adds, merged into
-   * the file as it is when written, so a set read before another agent's
-   * change is never written back over it.
-   */
+  "Allow always" for the folder: only what this answer adds, merged into
+  the file as it is when written, so a set read before another agent's
+  change is never written back over it.
+  */
   private async keep(workspaceRoot: string, grants: ReadonlySet<PaidFeature>): Promise<void> {
     const held = this.deps.grants.read(workspaceRoot)
     await this.deps.grants.add(
@@ -319,12 +319,12 @@ export class AcpPaidUse {
   }
 
   /**
-   * At start: a feature without its flag loses "always" in every folder, so
-   * turning the flag on again asks again. Compaction counts as flagged
-   * while it is default-on; with `--no-auto-compaction` its grant lapses
-   * too. A file that cannot be written is logged; the grant is still never
-   * honoured while the feature is off.
-   */
+  At start: a feature without its flag loses "always" in every folder, so
+  turning the flag on again asks again. Compaction counts as flagged
+  while it is default-on; with `--no-auto-compaction` its grant lapses
+  too. A file that cannot be written is logged; the grant is still never
+  honoured while the feature is off.
+  */
   public async forgetUnflagged(): Promise<void> {
     if (this.deps.headless !== undefined) return
     const flagged: readonly AcpPaidFeature[] =

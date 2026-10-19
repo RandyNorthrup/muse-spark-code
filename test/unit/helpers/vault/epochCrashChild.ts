@@ -20,9 +20,9 @@ const helper = path.resolve(process.argv[3] ?? '')
 const action = process.argv[4]
 const stopAt = process.argv[5]
 /**
- * Announce the parent's chosen stage, then park on an unsettled promise with
- * a heartbeat keeping the event loop alive until the parent's SIGKILL.
- */
+Announce the parent's chosen stage, then park on an unsettled promise with
+a heartbeat keeping the event loop alive until the parent's SIGKILL.
+*/
 async function point(stage: string): Promise<void> {
   if (stage !== stopAt) return
   const parked = new Promise<void>(() => {

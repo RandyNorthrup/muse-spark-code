@@ -174,10 +174,10 @@ export interface FileLease {
 }
 
 /**
- * Atomic publication is impossible here: the filesystem refused the
- * exclusive link (FAT/exFAT, some SMB or sync folders). Never a generic
- * I/O failure: the caller names the cause instead of retrying blindly.
- */
+Atomic publication is impossible here: the filesystem refused the
+exclusive link (FAT/exFAT, some SMB or sync folders). Never a generic
+I/O failure: the caller names the cause instead of retrying blindly.
+*/
 export class LeaseLinkUnsupportedError extends Error {
   public constructor() {
     super('The filesystem cannot publish the lock')
@@ -208,10 +208,10 @@ export class LeaseBusyError extends Error {
 }
 
 /**
- * Whether the failure is the named operating-system condition. A named
- * check (never a collapsed code) so the expected condition reads at the
- * handler that owns it.
- */
+Whether the failure is the named operating-system condition. A named
+check (never a collapsed code) so the expected condition reads at the
+handler that owns it.
+*/
 function isErrno(error: unknown, code: string): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === code
 }
@@ -413,12 +413,12 @@ async function sweepFences(port: LeasePort, fences: string, current: number): Pr
 }
 
 /**
- * Removes abandoned publication stages (`<lock>.<note id>.stage`) whose
- * owner is provably gone, judged by the same evidence as a takeover. A
- * crash between the stage write and its cleanup leaves one behind; a
- * stage whose note is unreadable, or whose owner may still live, stays.
- * Best effort.
- */
+Removes abandoned publication stages (`<lock>.<note id>.stage`) whose
+owner is provably gone, judged by the same evidence as a takeover. A
+crash between the stage write and its cleanup leaves one behind; a
+stage whose note is unreadable, or whose owner may still live, stays.
+Best effort.
+*/
 async function sweepStages(
   port: LeasePort,
   lockPath: string,

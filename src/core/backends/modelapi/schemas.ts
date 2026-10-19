@@ -254,11 +254,11 @@ export type StreamEvent = z.infer<typeof streamEventSchema>
 export const eventTypeSchema = z.object({ type: z.string() })
 
 /**
- * An error envelope's `code`, as text. llama.cpp's server sends it as a
- * number (its HTTP status, captured b11541); every other captured preset
- * sends a string. A number decodes to its decimal text so the overflow
- * classifier still sees the code; absent stays absent.
- */
+An error envelope's `code`, as text. llama.cpp's server sends it as a
+number (its HTTP status, captured b11541); every other captured preset
+sends a string. A number decodes to its decimal text so the overflow
+classifier still sees the code; absent stays absent.
+*/
 const errorCodeSchema = z.codec(
   z.optional(z.nullable(z.union([z.string(), z.number()]))),
   z.optional(z.nullable(z.string())),
@@ -276,11 +276,11 @@ const errorObjectSchema = z.object({
 })
 
 /**
- * An error envelope's `error`, as an object. LM Studio's server sends it as
- * a bare string instead (Express-style, captured 2026-10-10); a string
- * decodes to a message-only object so the failure still reads as the
- * server's words rather than a bare HTTP status.
- */
+An error envelope's `error`, as an object. LM Studio's server sends it as
+a bare string instead (Express-style, captured 2026-10-10); a string
+decodes to a message-only object so the failure still reads as the
+server's words rather than a bare HTTP status.
+*/
 type ErrorObject = z.output<typeof errorObjectSchema>
 
 const errorFieldSchema = z.codec(z.union([z.string(), errorObjectSchema]), errorObjectSchema, {
@@ -338,12 +338,12 @@ export interface InputFilePart {
 }
 
 /**
- * A file the provider already holds (M105, D85.2): the upload's id replays
- * instead of its bytes. Captured on the wire in
- * `docs/research/m105-captures/` (round 1 U6b `input_file`, round 3 I13/I12
- * `input_image` at every detail, round 1/2/3 `input_video` with and without
- * `fps`); only the replay codec mints these, never the request builder.
- */
+A file the provider already holds (M105, D85.2): the upload's id replays
+instead of its bytes. Captured on the wire in
+`docs/research/m105-captures/` (round 1 U6b `input_file`, round 3 I13/I12
+`input_image` at every detail, round 1/2/3 `input_video` with and without
+`fps`); only the replay codec mints these, never the request builder.
+*/
 export interface InputUploadedFilePart {
   readonly type: 'input_file'
   readonly file_id: string
@@ -392,29 +392,29 @@ export type FunctionOutputPart =
   | { readonly type: 'input_image'; readonly image_url: string; readonly detail: 'auto' }
 
 /**
- * TOOLCAP: the text of a tool result allowed into a request. Only
- * `boundToolResultText` (tool text through the one bound), `withCutNotice`
- * (bounded text with its cut notice appended) and `fixedHarnessText` (fixed
- * harness words with no tool text: cancellations, refusals) in
- * toolResultBound.ts produce it; every place that builds a
- * `function_call_output` or a tool-carrying note takes this type, not
- * `string`, so bypassing the bound fails compilation. A plain `string` is
- * never assignable: a new site must route through the bound, and a cast
- * elsewhere needs its own justification.
- */
+TOOLCAP: the text of a tool result allowed into a request. Only
+`boundToolResultText` (tool text through the one bound), `withCutNotice`
+(bounded text with its cut notice appended) and `fixedHarnessText` (fixed
+harness words with no tool text: cancellations, refusals) in
+toolResultBound.ts produce it; every place that builds a
+`function_call_output` or a tool-carrying note takes this type, not
+`string`, so bypassing the bound fails compilation. A plain `string` is
+never assignable: a new site must route through the bound, and a cast
+elsewhere needs its own justification.
+*/
 export type BoundedToolText = string & { readonly __boundedToolText: true }
 
 /**
- * TOOLCAP: stored text re-entering the live session. This lives beside the
- * brand (not the bound: the stored-session format ships in the activation
- * bundle, while the bound loads lazily with the backend). Restore keeps
- * stored bytes byte-identical (golden requests, forks and compaction rely on
- * it), so the bound cannot re-cut here; text stored before the bound still
- * meets it through send-time recovery, which cuts whatever exceeds the bound
- * with a spill before the turn gives up. The only brand restatement outside
- * the bound itself, the cut notice, and fixed harness words (PLAN.md §8:
- * TOOLCAP brand).
- */
+TOOLCAP: stored text re-entering the live session. This lives beside the
+brand (not the bound: the stored-session format ships in the activation
+bundle, while the bound loads lazily with the backend). Restore keeps
+stored bytes byte-identical (golden requests, forks and compaction rely on
+it), so the bound cannot re-cut here; text stored before the bound still
+meets it through send-time recovery, which cuts whatever exceeds the bound
+with a spill before the turn gives up. The only brand restatement outside
+the bound itself, the cut notice, and fixed harness words (PLAN.md §8:
+TOOLCAP brand).
+*/
 export function restoredToolText(text: string): BoundedToolText {
   // Brand: restore is byte-identical by design; the send-time recovery is the backstop (PLAN.md §8: TOOLCAP brand).
   return text as BoundedToolText
@@ -740,24 +740,24 @@ export interface JsonSchemaTextFormat {
 }
 
 /**
- * Whether a request declares tools for the wire: the ONE predicate behind
- * every tool-less request in the product (the wrap-up, compaction without
- * reused tools, git drafts, the reviewer and hook-model calls with no
- * tools, any side call). A tool-less request omits tools and tool choice
- * alike on every wire format: xAI answers 400 "A tool_choice was set on
- * the request but no tools were specified."
- * (`docs/certification/toolrounds-captures/xai/`), and the omitted shape
- * is the only one all twelve captures accept.
- */
+Whether a request declares tools for the wire: the ONE predicate behind
+every tool-less request in the product (the wrap-up, compaction without
+reused tools, git drafts, the reviewer and hook-model calls with no
+tools, any side call). A tool-less request omits tools and tool choice
+alike on every wire format: xAI answers 400 "A tool_choice was set on
+the request but no tools were specified."
+(`docs/certification/toolrounds-captures/xai/`), and the omitted shape
+is the only one all twelve captures accept.
+*/
 export function hasDeclaredTools(tools: readonly unknown[]): boolean {
   return tools.length > 0
 }
 
 /**
- * The wire body for a tool-less request: `tools` and `tool_choice` omitted,
- * every other key (and its order) untouched, so the instruction prefix
- * stays byte-identical and cacheable.
- */
+The wire body for a tool-less request: `tools` and `tool_choice` omitted,
+every other key (and its order) untouched, so the instruction prefix
+stays byte-identical and cacheable.
+*/
 export function omitToolShape(body: CreateResponseBody): Record<string, unknown> {
   const wire: Record<string, unknown> = { ...body }
   delete wire['tools']
@@ -772,10 +772,10 @@ export interface CreateResponseBody {
   readonly tools: readonly ToolDefinition[]
   readonly tool_choice: 'auto' | 'none'
   /**
-   * The plan route's priority tier (`priority`) while the conversation's
-   * Fast switch is on; absent otherwise and off the keyed route, whose
-   * bytes are unchanged.
-   */
+  The plan route's priority tier (`priority`) while the conversation's
+  Fast switch is on; absent otherwise and off the keyed route, whose
+  bytes are unchanged.
+  */
   readonly service_tier?: string
   // Optional: Tab asks for no reasoning summary (M94, PLAN.md D73), so it
   // omits the key. Every existing request still sends `summary: 'auto'`,
@@ -784,17 +784,17 @@ export interface CreateResponseBody {
     readonly effort: string
     readonly summary?: 'auto'
     /**
-     * OpenAI's `pro` execution mode (lane REASONSHAPESR2, OPENAI-G08):
-     * GPT-5.6 and GPT-6 models take `standard` (default) and `pro`.
-     * No product surface sets it yet; UNVERIFIED until OPENAI-PRO answers.
-     */
+    OpenAI's `pro` execution mode (lane REASONSHAPESR2, OPENAI-G08):
+    GPT-5.6 and GPT-6 models take `standard` (default) and `pro`.
+    No product surface sets it yet; UNVERIFIED until OPENAI-PRO answers.
+    */
     readonly mode?: 'standard' | 'pro'
     /**
-     * Which reasoning the model may render (lane REASONSHAPESR2,
-     * OPENAI-G07): `auto` is the model's default (`all_turns` on GPT-5.6
-     * and later). No product surface sets it yet; UNVERIFIED until
-     * OPENAI-CONTEXT answers.
-     */
+    Which reasoning the model may render (lane REASONSHAPESR2,
+    OPENAI-G07): `auto` is the model's default (`all_turns` on GPT-5.6
+    and later). No product surface sets it yet; UNVERIFIED until
+    OPENAI-CONTEXT answers.
+    */
     readonly context?: 'auto' | 'current_turn' | 'all_turns'
   }
   readonly stream: true

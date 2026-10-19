@@ -303,11 +303,11 @@ export type ProvidersFileWrite =
     }
 
 /**
- * A rename the platform briefly denies (Windows readers hold the
- * destination): worth another attempt after a pause. Anything else keeps
- * its kind at once. One named test so the retry condition reads as the
- * single expected case it is.
- */
+A rename the platform briefly denies (Windows readers hold the
+destination): worth another attempt after a pause. Anything else keeps
+its kind at once. One named test so the retry condition reads as the
+single expected case it is.
+*/
 function isRenameRetryCode(error: unknown): boolean {
   return (
     isStoreErrorCode(error, 'EPERM') ||

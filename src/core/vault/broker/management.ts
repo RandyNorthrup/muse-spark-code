@@ -157,16 +157,16 @@ interface PendingSetup {
   readonly recovery: VaultSlotRecord
   readonly expiresAt: number
   /**
-   * The OS-store wrap a failed confirmation left behind. A retry reuses this
-   * exact wrap (one slot per setup) instead of creating another native
-   * credential; it is cleared whenever its credential is removed.
-   */
+  The OS-store wrap a failed confirmation left behind. A retry reuses this
+  exact wrap (one slot per setup) instead of creating another native
+  credential; it is cleared whenever its credential is removed.
+  */
   wrappedOsStore?: { slotId: string; record: VaultSlotRecord } | undefined
   /**
-   * The hardware wrap a failed confirmation left behind, beside the OS one
-   * (D89 protection:auto wraps both). A retry reuses it instead of sealing
-   * again; it is cleared whenever its slot is removed.
-   */
+  The hardware wrap a failed confirmation left behind, beside the OS one
+  (D89 protection:auto wraps both). A retry reuses it instead of sealing
+  again; it is cleared whenever its slot is removed.
+  */
   wrappedHardware?: { slotId: string; record: VaultSlotRecord } | undefined
 }
 const newId = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
@@ -180,10 +180,10 @@ function storeRefusal(error: unknown): VaultManagementError | VaultWriterError {
   )
 }
 /**
- * Whether any vault document exists here. The serialized check first; when
- * a stuck writer refuses it, reads still go through, so existence is read
- * directly instead of failing the whole snapshot (RVAPP-LEASE2 P1-2).
- */
+Whether any vault document exists here. The serialized check first; when
+a stuck writer refuses it, reads still go through, so existence is read
+directly instead of failing the whole snapshot (RVAPP-LEASE2 P1-2).
+*/
 async function hasVaultFiles(files: VaultFilePort): Promise<boolean> {
   try {
     return await VaultStore.exists(files)
@@ -253,10 +253,10 @@ export class VaultManagement implements VaultManagementPort {
     this.pending = null
   }
   /**
-   * Whether a committed setup intent names this attempt's wrap, so a retry
-   * completes it instead of wrapping again. Reads owned bytes and erases
-   * them, like every other file read here.
-   */
+  Whether a committed setup intent names this attempt's wrap, so a retry
+  completes it instead of wrapping again. Reads owned bytes and erases
+  them, like every other file read here.
+  */
   private async hasSetupIntent(): Promise<boolean> {
     const intent = await this.deps.files.read('pending.v1')
     try {
@@ -330,11 +330,11 @@ export class VaultManagement implements VaultManagementPort {
     }
   }
   /**
-   * Whether the anchored vault cannot be opened. A recovery token alone is
-   * not loss: without an anchor nothing can prove the files openable, but
-   * an anchored vault that still opens is stuck, never lost; without a
-   * token an unanchored vault is never called lost (RVAPP-LEASE2 P1-2).
-   */
+  Whether the anchored vault cannot be opened. A recovery token alone is
+  not loss: without an anchor nothing can prove the files openable, but
+  an anchored vault that still opens is stuck, never lost; without a
+  token an unanchored vault is never called lost (RVAPP-LEASE2 P1-2).
+  */
   private async isUnopenable(): Promise<boolean> {
     const recovery = await this.deps.files.writerRecovery?.()
     const anchored = await this.anchoredId()
@@ -364,11 +364,11 @@ export class VaultManagement implements VaultManagementPort {
     return importer
   }
   /**
-   * The finish sweep at every unlocked snapshot: kept or orphaned receipts
-   * whose source or secret still exists are listed with their two real
-   * actions (RVAPP-CM1091D5 P2-2). A sweep a Lock overtook lists nothing
-   * this time; the receipts stay for the next snapshot.
-   */
+  The finish sweep at every unlocked snapshot: kept or orphaned receipts
+  whose source or secret still exists are listed with their two real
+  actions (RVAPP-CM1091D5 P2-2). A sweep a Lock overtook lists nothing
+  this time; the receipts stay for the next snapshot.
+  */
   private async sweepReceipts(): Promise<VaultBrokerSnapshot['pendingReceipts']> {
     try {
       const swept = await this.fileImporter().pending()
@@ -612,10 +612,10 @@ export class VaultManagement implements VaultManagementPort {
     })
   }
   /**
-   * Step 2: the exact word for this challenge, the same lost vault, then the
-   * audit line, the files (displaced document retained) and the anchor.
-   * Rollback protection restarts with the next setup's new anchor.
-   */
+  Step 2: the exact word for this challenge, the same lost vault, then the
+  audit line, the files (displaced document retained) and the anchor.
+  Rollback protection restarts with the next setup's new anchor.
+  */
   async resetConfirm(resetId: string, word: string): Promise<void> {
     await this.serialize(async (generation) => {
       const pending = this.pendingReset

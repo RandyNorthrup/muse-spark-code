@@ -8,11 +8,11 @@ import path from 'node:path'
 import { WINDOWS_PSMODULEPATH_SEGMENTS } from '../shared/constants'
 
 /**
- * Sets `name` in a copied environment. Windows names are case-insensitive
- * and Node passes the first of several spellings in sort order, so an
- * inherited `PSMODULEPATH` would beat a new `PSModulePath`: every other
- * spelling goes first.
- */
+Sets `name` in a copied environment. Windows names are case-insensitive
+and Node passes the first of several spellings in sort order, so an
+inherited `PSMODULEPATH` would beat a new `PSModulePath`: every other
+spelling goes first.
+*/
 export function setEnvironmentVariable(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
@@ -59,10 +59,10 @@ export function environmentValue(
 }
 
 /**
- * Windows PowerShell 5.1's own module directories. A pwsh 7 `PSModulePath`
- * inherited by powershell.exe makes it load 7.x modules it cannot use
- * (verified failure: `Get-FileHash` not recognised).
- */
+Windows PowerShell 5.1's own module directories. A pwsh 7 `PSModulePath`
+inherited by powershell.exe makes it load 7.x modules it cannot use
+(verified failure: `Get-FileHash` not recognised).
+*/
 export function windowsPowerShellModulePath(
   systemRoot: string,
   programFiles: string | undefined,

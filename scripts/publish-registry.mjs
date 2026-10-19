@@ -215,10 +215,10 @@ function publishCommand(channel, artifact) {
 }
 
 /**
- * Publish one artifact without waiting for registry visibility. Resolves
- * true when freshly published (visibility still to poll), false when the
- * version already existed and the local artifact verified against it.
- */
+Publish one artifact without waiting for registry visibility. Resolves
+true when freshly published (visibility still to poll), false when the
+version already existed and the local artifact verified against it.
+*/
 export async function publishOnce(channel, artifact, manifest, deps = {}) {
   const execute = deps.run ?? run
   const sleep = deps.sleep ?? setTimeout
@@ -267,16 +267,16 @@ export async function publishRegistry(channel, artifact, manifest, deps = {}) {
 }
 
 /**
- * Poll every freshly published artifact until each is visible, under one
- * shared deadline (VISIBILITY_TIMEOUT_MS in total, not per artifact). The
- * release publishes every artifact first and only then waits, so a slow
- * registry delays the job once instead of once per artifact, and a
- * cancelled job never leaves only some targets published: re-running the
- * job re-publishes nothing (the existing-version path verifies at once)
- * and re-polls what is still pending. Returns the `visible` and `pending`
- * labels; an integrity mismatch rejects. The clock and sleep are
- * injectable for tests.
- */
+Poll every freshly published artifact until each is visible, under one
+shared deadline (VISIBILITY_TIMEOUT_MS in total, not per artifact). The
+release publishes every artifact first and only then waits, so a slow
+registry delays the job once instead of once per artifact, and a
+cancelled job never leaves only some targets published: re-running the
+job re-publishes nothing (the existing-version path verifies at once)
+and re-polls what is still pending. Returns the `visible` and `pending`
+labels; an integrity mismatch rejects. The clock and sleep are
+injectable for tests.
+*/
 export async function pollAllVisible(entries, deps = {}) {
   const sleep = deps.sleep ?? setTimeout
   const now = deps.now ?? Date.now

@@ -10,9 +10,9 @@ import { readFileSync } from 'node:fs'
 import { ROUTES, routeRefusal } from './routes.mjs'
 
 /**
- * @param {unknown} listed the models of one route as the file spells them
- * @returns {{ id: string, free: boolean }[]} none when the list is empty or one is misspelt
- */
+@param {unknown} listed the models of one route as the file spells them
+@returns {{ id: string, free: boolean }[]} none when the list is empty or one is misspelt
+*/
 function modelsOf(listed) {
   if (!Array.isArray(listed)) return []
   const models = listed.map((one) =>
@@ -23,9 +23,9 @@ function modelsOf(listed) {
 }
 
 /**
- * @param {string} file
- * @returns {{ ok: true, groups: { routeId: string, models: { id: string, free: boolean }[] }[] } | { ok: false, reason: string }}
- */
+@param {string} file
+@returns {{ ok: true, groups: { routeId: string, models: { id: string, free: boolean }[] }[] } | { ok: false, reason: string }}
+*/
 export function readMatrix(file) {
   let parsed
   try {

@@ -39,11 +39,11 @@ export interface LegacyClaimIdentity {
 }
 
 /**
- * Why a legacy claim row cannot be summed, or `undefined` when its
- * identity matches its journal entry. A damaged or misplaced row is
- * never spend: the migration keeps the stored total instead of adding
- * the row and stamping the result migrated.
- */
+Why a legacy claim row cannot be summed, or `undefined` when its
+identity matches its journal entry. A damaged or misplaced row is
+never spend: the migration keeps the stored total instead of adding
+the row and stamping the result migrated.
+*/
 export function legacyClaimIdentityError(
   claim: LegacyClaim,
   expected: LegacyClaimIdentity,
@@ -57,13 +57,13 @@ export function legacyClaimIdentityError(
 }
 
 /**
- * What a legacy claim contributes to a migrated total (D121: a
- * reservation is never spend). A settled charge counts; an unsettled
- * claim whose retained liability was written down counts that liability
- * instead — fees its run incurred past the reservation, known before
- * final token settlement — so a resumed capped session cannot spend it
- * again. A bare reservation, held but never spent, stays out.
- */
+What a legacy claim contributes to a migrated total (D121: a
+reservation is never spend). A settled charge counts; an unsettled
+claim whose retained liability was written down counts that liability
+instead — fees its run incurred past the reservation, known before
+final token settlement — so a resumed capped session cannot spend it
+again. A bare reservation, held but never spent, stays out.
+*/
 export function legacyClaimSpendUsd(claim: LegacyClaim): UsdAmount | undefined {
   const amount = claim.settledUsd ?? claim.retainedUsd
   return amount === undefined ? undefined : Usd.from(amount).toAmount()

@@ -73,10 +73,10 @@ export function createBackgroundConsentStore(
 }
 
 /**
- * What the person is told when the consent file cannot be read (P3-4): the
- * errno the store kept reaches the sentence through a closed kind word,
- * never raw. Anything else (including the invalid shape) is not ours to say.
- */
+What the person is told when the consent file cannot be read (P3-4): the
+errno the store kept reaches the sentence through a closed kind word,
+never raw. Anything else (including the invalid shape) is not ours to say.
+*/
 export function scheduleStoredUnreadableReason(error: unknown): string | undefined {
   if (!(error instanceof Error)) return undefined
   if (!error.message.startsWith(UNREADABLE_PREFIX)) return undefined

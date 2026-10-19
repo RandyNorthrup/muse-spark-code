@@ -48,10 +48,10 @@ export interface MigrationCredential {
   readonly key: string
   readonly itemId: string
   /**
-   * The vault item name `decode` builds, always equal to it: the constructor
-   * binds a wrapper that refuses any other decoded name with `conflict`, and
-   * refuses a name shared by two credentials outright.
-   */
+  The vault item name `decode` builds, always equal to it: the constructor
+  binds a wrapper that refuses any other decoded name with `conflict`, and
+  refuses a name shared by two credentials outright.
+  */
   readonly name: string
   decode(value: Uint8Array): VaultItem
   encode(item: VaultItem): Uint8Array
@@ -73,10 +73,10 @@ export interface MigrationJournalPort {
   read(key: string): Promise<unknown>
   write(record: MigrationRecord, authorize: () => void): Promise<void>
   /**
-   * Drop the row: only the rollback of a copy the engine can never verify
-   * removes one (`rollbackCopy`, and `removeStaleVaultCopy` for a
-   * `copying`/`writing` row whose slot now holds a non-apiKey record).
-   */
+  Drop the row: only the rollback of a copy the engine can never verify
+  removes one (`rollbackCopy`, and `removeStaleVaultCopy` for a
+  `copying`/`writing` row whose slot now holds a non-apiKey record).
+  */
   remove(key: string): Promise<void>
 }
 export interface MigrationVaultPort extends Pick<VaultStorePort, 'list' | 'read'> {

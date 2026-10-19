@@ -51,10 +51,10 @@ export interface GitHubSignInDeps {
 }
 
 /**
- * A source whose silent read fails (an unreadable secret store, say) counts
- * as having nothing, so it never keeps a later source's credential from
- * the call; an asked source's failure is the user's to see.
- */
+A source whose silent read fails (an unreadable secret store, say) counts
+as having nothing, so it never keeps a later source's credential from
+the call; an asked source's failure is the user's to see.
+*/
 function tolerant(source: GitHubTokenSource, log: CoreLogger): GitHubTokenSource {
   return {
     kind: source.kind,
@@ -161,10 +161,10 @@ export class GitHubSignIn {
   }
 
   /**
-   * The credential for one GitHub call. `askWith` is the source the user
-   * chose to sign in with (the first in order otherwise); a kind this
-   * window does not have asks nobody.
-   */
+  The credential for one GitHub call. `askWith` is the source the user
+  chose to sign in with (the first in order otherwise); a kind this
+  window does not have asks nobody.
+  */
   public async credential(
     mode: 'ask' | 'silent',
     signal: AbortSignal,
@@ -233,10 +233,10 @@ export class GitHubSignIn {
   }
 
   /**
-   * Sign out: every source forgets what it holds (the device-flow source
-   * deletes its token and opens the app's page on GitHub, where the grant
-   * is revoked). The editor's own sign-in and `gh` keep theirs.
-   */
+  Sign out: every source forgets what it holds (the device-flow source
+  deletes its token and opens the app's page on GitHub, where the grant
+  is revoked). The editor's own sign-in and `gh` keep theirs.
+  */
   public async signOut(): Promise<void> {
     this.cancel()
     for (const source of this.sources) {
@@ -248,9 +248,9 @@ export class GitHubSignIn {
   }
 
   /**
-   * The account line in the user's words (`GitHub: <login>, through <the
-   * source>`), or undefined before any GitHub call had a credential.
-   */
+  The account line in the user's words (`GitHub: <login>, through <the
+  source>`), or undefined before any GitHub call had a credential.
+  */
   public accountText(): string | undefined {
     const account = this.view().account
     if (account === undefined) {
@@ -263,20 +263,20 @@ export class GitHubSignIn {
   }
 
   /**
-   * A sign-in failure in the user's fixed words, or undefined for anything
-   * else. A method, so the failure is recognised by the module copy that
-   * threw it, whichever bundle asks.
-   */
+  A sign-in failure in the user's fixed words, or undefined for anything
+  else. A method, so the failure is recognised by the module copy that
+  threw it, whichever bundle asks.
+  */
   public failureText(error: unknown): string | undefined {
     return signInFailureText(error)
   }
 
   /**
-   * A credential for one GitHub call, saying in fixed words why a sign-in
-   * did not finish (`isSaid`), so the caller adds nothing on top. Cancel
-   * and a closed conversation say only "cancelled", and only while the
-   * caller still waits.
-   */
+  A credential for one GitHub call, saying in fixed words why a sign-in
+  did not finish (`isSaid`), so the caller adds nothing on top. Cancel
+  and a closed conversation say only "cancelled", and only while the
+  caller still waits.
+  */
   public async credentialOrSaid(
     request: {
       readonly mode: 'ask' | 'silent'

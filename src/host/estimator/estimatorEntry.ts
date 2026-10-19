@@ -64,7 +64,7 @@ import type { EstimateStartPort } from '../../shared/estimate'
 /** The milestone bindings, injected: each refuses with its handoff until it merges. */
 export interface EstimatorSourcePorts extends EstimateGoalSourcesPort {
   /** This estimate's lanes ride along so the fleet can offer them capacity.
-   * The fleet is stamped with the request's asOf, never a second clock. */
+  The fleet is stamped with the request's asOf, never a second clock. */
   fleet(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
   history(): Promise<unknown>
   candidatePool(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>

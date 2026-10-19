@@ -153,11 +153,11 @@ export class GitHubError extends Error {
 }
 
 /**
- * A 401 drops the credential at its source (M123, PLAN.md D104), so the
- * user signs in again. True when `error` was GitHub's sign-in refusal.
- * Here, beside the error it reads, so the token sources (which the
- * terminal's sign-in loads) never carry the REST client.
- */
+A 401 drops the credential at its source (M123, PLAN.md D104), so the
+user signs in again. True when `error` was GitHub's sign-in refusal.
+Here, beside the error it reads, so the token sources (which the
+terminal's sign-in loads) never carry the REST client.
+*/
 export async function didDropRejectedCredential(
   signIn: { rejected(credential: GitHubCredential): Promise<void> },
   credential: GitHubCredential,
@@ -331,11 +331,11 @@ export class GitHubClient {
   public constructor(private readonly deps: GitHubClientDeps) {}
 
   /**
-   * One call: JSON in and out, the token in the header, a deadline,
-   * GitHub's refusals as `GitHubError`. An operation's signal joins the
-   * deadline, so Cancel stops pull-request discovery at once (Codex on PR
-   * #227); without one the deadline stands alone as before.
-   */
+  One call: JSON in and out, the token in the header, a deadline,
+  GitHub's refusals as `GitHubError`. An operation's signal joins the
+  deadline, so Cancel stops pull-request discovery at once (Codex on PR
+  #227); without one the deadline stands alone as before.
+  */
   private async request(
     token: string,
     method: 'GET' | 'POST',

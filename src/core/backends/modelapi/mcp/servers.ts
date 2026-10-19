@@ -66,11 +66,11 @@ export interface McpServerSpec {
     | { readonly ok: true; readonly value: McpLaunch }
     | { readonly ok: false; readonly reason: string }
   /**
-   * The entry's own `startup_timeout_sec` / `tool_timeout_sec` in
-   * milliseconds, or undefined when the entry names none: then starting and
-   * tool calls are waited on until the server answers or is stopped (owner
-   * 2026-10-16: no arbitrary limits), never killed at an invented default.
-   */
+  The entry's own `startup_timeout_sec` / `tool_timeout_sec` in
+  milliseconds, or undefined when the entry names none: then starting and
+  tool calls are waited on until the server answers or is stopped (owner
+  2026-10-16: no arbitrary limits), never killed at an invented default.
+  */
   readonly startupTimeoutMs: number | undefined
   readonly toolTimeoutMs: number | undefined
   /** Only these tools are offered, when set. */

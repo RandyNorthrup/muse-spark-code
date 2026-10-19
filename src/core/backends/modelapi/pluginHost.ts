@@ -79,10 +79,10 @@ export interface PluginChildHandle {
 }
 
 /**
- * How plugin children start and end as a whole tree. The host gives a
- * kill-on-close job object on Windows (the M50 job launcher); POSIX uses a
- * process group of its own. `killTree` never throws.
- */
+How plugin children start and end as a whole tree. The host gives a
+kill-on-close job object on Windows (the M50 job launcher); POSIX uses a
+process group of its own. `killTree` never throws.
+*/
 export interface PluginProcessTree {
   spawn(
     command: string,
@@ -94,22 +94,22 @@ export interface PluginProcessTree {
 
 export interface PluginRunDeps {
   /**
-   * M51's allowlisted hook environment, computed by the caller
-   * (`hookEnvironment` in the host). It is the only environment the probe
-   * and the child see; the extension host's own never reaches either.
-   */
+  M51's allowlisted hook environment, computed by the caller
+  (`hookEnvironment` in the host). It is the only environment the probe
+  and the child see; the extension host's own never reaches either.
+  */
   readonly env: NodeJS.ProcessEnv
   /**
-   * The workspace the plugin runs for: `node`, `bun` and `prlimit` are
-   * never resolved to a file inside it, and the child's PATH carries the
-   * guarded child environment for it. Absent leaves every absolute entry
-   * probed, as before.
-   */
+  The workspace the plugin runs for: `node`, `bun` and `prlimit` are
+  never resolved to a file inside it, and the child's PATH carries the
+  guarded child environment for it. Absent leaves every absolute entry
+  probed, as before.
+  */
   readonly workspaceRoot?: string | undefined
   /**
-   * Resolves links for the workspace comparison. Absent means lexical
-   * comparison only.
-   */
+  Resolves links for the workspace comparison. Absent means lexical
+  comparison only.
+  */
   readonly realpath?: ((filePath: string) => string) | undefined
   readonly platform?: NodeJS.Platform | undefined
   /** `node --version` / `bun --version` output for an absolute command. */
@@ -227,9 +227,9 @@ function isAtLeast(have: readonly [number, number, number], want: string): boole
 }
 
 /**
- * One runtime name by absolute path on the allowlisted PATH, never a file
- * inside the workspace the plugin runs for (resolved through links).
- */
+One runtime name by absolute path on the allowlisted PATH, never a file
+inside the workspace the plugin runs for (resolved through links).
+*/
 function probeRuntime(
   name: string,
   deps: PluginRunDeps,
@@ -246,12 +246,12 @@ function probeRuntime(
 }
 
 /**
- * The user's runtime for this plugin system, by absolute path on the
- * allowlisted PATH (D24), or a refusal with a reason: Amp and plain JS need
- * system node >= 22.18 (TS goes through Node's built-in type stripping; the
- * extension host's Electron Node is never used); OpenCode is Bun-native and
- * needs the installed bun.
- */
+The user's runtime for this plugin system, by absolute path on the
+allowlisted PATH (D24), or a refusal with a reason: Amp and plain JS need
+system node >= 22.18 (TS goes through Node's built-in type stripping; the
+extension host's Electron Node is never used); OpenCode is Bun-native and
+needs the installed bun.
+*/
 export async function resolvePluginRuntime(
   system: PluginSystem,
   deps: PluginRunDeps,
@@ -304,16 +304,16 @@ export async function resolvePluginRuntime(
 }
 
 /**
- * Bun has no heap flag, so its memory is bounded outside it (RVM91X P2 12)
- * where the OS offers a spawner-set cap: on Windows by the job's memory
- * limit (the host's tree), on Linux by util-linux's `prlimit --data`, the
- * data segment and private writable mappings since Linux 4.7. macOS offers
- * neither, and OpenCode itself runs bun plugins with no memory bound there —
- * so on macOS bun runs directly, under the same per-call timeout, answer
- * frame and process-tree bounds as everywhere else, and the same fail-closed
- * rule. A plugin child that outgrows the machine is ended with its tree on
- * timeout or by the OS, not refused up front.
- */
+Bun has no heap flag, so its memory is bounded outside it (RVM91X P2 12)
+where the OS offers a spawner-set cap: on Windows by the job's memory
+limit (the host's tree), on Linux by util-linux's `prlimit --data`, the
+data segment and private writable mappings since Linux 4.7. macOS offers
+neither, and OpenCode itself runs bun plugins with no memory bound there —
+so on macOS bun runs directly, under the same per-call timeout, answer
+frame and process-tree bounds as everywhere else, and the same fail-closed
+rule. A plugin child that outgrows the machine is ended with its tree on
+timeout or by the OS, not refused up front.
+*/
 function boundedBun(
   bun: string,
   env: NodeJS.ProcessEnv,
@@ -428,10 +428,10 @@ export type PluginJobLaunch = (
 ) => ChildProcess
 
 /**
- * Children started through a job launcher. Ending the launcher closes the
- * job's only handle, so kill-on-close ends the runtime and everything it
- * started; the launcher also returns, closing the job, when the child exits.
- */
+Children started through a job launcher. Ending the launcher closes the
+job's only handle, so kill-on-close ends the runtime and everything it
+started; the launcher also returns, closing the job, when the child exits.
+*/
 export function jobProcessTree(launch: PluginJobLaunch): PluginProcessTree {
   const launchers = new WeakMap<PluginChildHandle, ChildProcess>()
   return {
@@ -502,9 +502,9 @@ const FRAME_SCHEMA = z.union([
 ])
 
 /**
- * Registrations the mapping refuses (PLAN.md M91, the lane X tables), each
- * with its fixed reason. The child reports names; only these reach the log.
- */
+Registrations the mapping refuses (PLAN.md M91, the lane X tables), each
+with its fixed reason. The child reports names; only these reach the log.
+*/
 const REFUSED_REGISTRATIONS: Readonly<Record<PluginSystem, Readonly<Record<string, string>>>> = {
   amp: { 'changes.prompt': 'there is no Ship or Push workflow here' },
   opencode: {
@@ -543,11 +543,11 @@ function noteRefused(call: PluginCall, names: readonly string[], deps: PluginRun
 }
 
 /**
- * A plugin answer can only refuse, narrow or add context: every allow
- * grant is dropped (an allow becomes a plain completed), and tool
- * narrowing the plugin was never offered is dropped. Runs on every answer,
- * including the child's, so a compromised child cannot widen a decision.
- */
+A plugin answer can only refuse, narrow or add context: every allow
+grant is dropped (an allow becomes a plain completed), and tool
+narrowing the plugin was never offered is dropped. Runs on every answer,
+including the child's, so a compromised child cannot widen a decision.
+*/
 export function sanitizePluginAnswer(answer: ForeignHookAnswer): ForeignHookAnswer {
   const { allowedToolNames: _dropped, ...offered } = answer
   const parsed = ANSWER_SCHEMA.safeParse(offered)
@@ -626,10 +626,10 @@ function treeFor(deps: PluginRunDeps, platform: NodeJS.Platform): PluginProcessT
 }
 
 /**
- * One plugin hook call in one child. The child's tree is always ended: on
- * its answer line, on timeout, on crash, and by PluginSession.dispose for
- * stragglers.
- */
+One plugin hook call in one child. The child's tree is always ended: on
+its answer line, on timeout, on crash, and by PluginSession.dispose for
+stragglers.
+*/
 async function runInScope(
   call: PluginCall,
   deps: PluginRunDeps,
@@ -760,8 +760,8 @@ async function runInScope(
 }
 
 /** One plugin hook call outside any session.
- * @unwired M91b one plugin hook call outside any session
- */
+@unwired M91b one plugin hook call outside any session
+*/
 export async function runPluginHook(
   call: PluginCall,
   deps: PluginRunDeps,
@@ -778,9 +778,9 @@ export class PluginSession {
   public constructor(private readonly deps: PluginRunDeps) {}
 
   /**
-   * Run one hook call; refused when the session is closed, at any await.
-   * A stopped turn (`signal`) ends the child and answers nothing.
-   */
+  Run one hook call; refused when the session is closed, at any await.
+  A stopped turn (`signal`) ends the child and answers nothing.
+  */
   public async run(call: PluginCall, signal?: AbortSignal): Promise<ForeignHookAnswer> {
     const stop =
       signal === undefined

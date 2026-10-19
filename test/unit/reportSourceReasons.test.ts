@@ -791,8 +791,8 @@ const resilienceEntries: readonly ResilienceEntry[] = [
 ]
 
 /** Every way each sub-source can fail. A sub-source that gains a new way
- * to fail grows this map, which fails the coverage test until its case
- * exists. */
+to fail grows this map, which fails the coverage test until its case
+exists. */
 const REQUIRED_MODES: Record<string, readonly ResilienceEntry['mode'][]> = {
   registry: ['unreadable', 'unparseable', 'badRecord', 'wrongVersion'],
   usage: ['unreadable', 'unparseable', 'badRecord', 'wrongVersion'],

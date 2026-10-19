@@ -63,12 +63,12 @@ export function isOwnerAlive(pid: number): boolean {
 }
 
 /**
- * The OpenRouter Connect journal binding (the only vendor Connect): where
- * its journal lives, and the label and removal page the recovery notice
- * names. Mirrors the Connect flow's own constants in
- * `host/providers/openRouter` (kept separate so activation can report
- * without loading the OAuth flow): keep the three strings identical.
- */
+The OpenRouter Connect journal binding (the only vendor Connect): where
+its journal lives, and the label and removal page the recovery notice
+names. Mirrors the Connect flow's own constants in
+`host/providers/openRouter` (kept separate so activation can report
+without loading the OAuth flow): keep the three strings identical.
+*/
 export const OPENROUTER_JOURNAL_KEY_LABEL = 'Muse Spark Code (Unofficial)'
 export const OPENROUTER_JOURNAL_KEYS_URL = 'https://openrouter.ai/settings/keys'
 
@@ -123,13 +123,13 @@ export class CredentialLockBusyError extends Error {
 }
 
 /**
- * Creates the directory and writes the owner's record when nobody owns it
- * now. Returns undefined when a fellow contender owns it instead, so the
- * caller re-observes rather than failing: a contender's in-flight takeover
- * remove verifies against a stale read and may wipe a directory this mkdir
- * just won, so a missing (or already present) owner file means someone else
- * owns the directory now, never a wedged lock.
- */
+Creates the directory and writes the owner's record when nobody owns it
+now. Returns undefined when a fellow contender owns it instead, so the
+caller re-observes rather than failing: a contender's in-flight takeover
+remove verifies against a stale read and may wipe a directory this mkdir
+just won, so a missing (or already present) owner file means someone else
+owns the directory now, never a wedged lock.
+*/
 async function claimFreshLock(
   lockDir: string,
   owner: CredentialLockOwner,
@@ -170,11 +170,11 @@ async function claimFreshLock(
 }
 
 /**
- * Holds the credential lease until `release` runs. Refuses (rather than
- * queues) when another live process owns it, and takes over only a lock
- * whose owner is proven gone. A process's own surviving lock refuses too:
- * credential transactions never nest.
- */
+Holds the credential lease until `release` runs. Refuses (rather than
+queues) when another live process owns it, and takes over only a lock
+whose owner is proven gone. A process's own surviving lock refuses too:
+credential transactions never nest.
+*/
 export async function acquireCredentialLock(
   lockDir: string,
   options: CredentialLockOptions = {},
@@ -243,12 +243,12 @@ export async function acquireCredentialLock(
 }
 
 /**
- * Runs `operation` inside the credential lease. Every provider-credential
- * write or removal (Connect, its recovery and rollback, `auth set/clear
- * --provider`, the panel wizard save and the removal finish) enters through
- * here with the same lock directory, so no two replace or remove the same
- * credential at once.
- */
+Runs `operation` inside the credential lease. Every provider-credential
+write or removal (Connect, its recovery and rollback, `auth set/clear
+--provider`, the panel wizard save and the removal finish) enters through
+here with the same lock directory, so no two replace or remove the same
+credential at once.
+*/
 export async function withCredentialLock<T>(
   lockDir: string,
   operation: () => Promise<T>,
@@ -317,14 +317,14 @@ function journalText(value: string): unknown {
 }
 
 /**
- * Recovers one crashed attempt. Call with the credential lease held, so no
- * other attempt's staging record can be deleted from under it. Compares the
- * staged journal with the primary and decides: primary equals staged next
- * means committed (delete the journal); primary equals previous, or the
- * previous was absent and the primary still is, means the created key was
- * not kept; anything else is stale. A refused journal delete keeps the
- * journal: the only copy of the previous record is never deleted.
- */
+Recovers one crashed attempt. Call with the credential lease held, so no
+other attempt's staging record can be deleted from under it. Compares the
+staged journal with the primary and decides: primary equals staged next
+means committed (delete the journal); primary equals previous, or the
+previous was absent and the primary still is, means the created key was
+not kept; anything else is stale. A refused journal delete keeps the
+journal: the only copy of the previous record is never deleted.
+*/
 export async function recoverCredentialJournal(
   secrets: Pick<CredentialStorePort, 'get' | 'delete'>,
   account: string,

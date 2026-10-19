@@ -218,10 +218,10 @@ async function readersNamedFor(folder: string, pid: number): Promise<string[]> {
 }
 
 /**
- * Windows: this process's own birth reader. Its build swept any reader an
- * earlier process with this id left, so the one reader named with this id
- * is this process's own.
- */
+Windows: this process's own birth reader. Its build swept any reader an
+earlier process with this id left, so the one reader named with this id
+is this process's own.
+*/
 async function ownBirthReader(): Promise<{
   readonly born: number | undefined
   readonly reader: string
@@ -235,11 +235,11 @@ async function ownBirthReader(): Promise<{
 }
 
 /**
- * Windows: whether this host runs elevated, so its birth reader is walled
- * above a lower-integrity writer. Windows' own well-known SIDs (also named
- * in `src/core/locks/processOwner.ts`); the level's name would localise,
- * the SID never does.
- */
+Windows: whether this host runs elevated, so its birth reader is walled
+above a lower-integrity writer. Windows' own well-known SIDs (also named
+in `src/core/locks/processOwner.ts`); the level's name would localise,
+the SID never does.
+*/
 function isElevatedHost(): boolean {
   const systemRoot = process.env['SystemRoot'] ?? ''
   try {

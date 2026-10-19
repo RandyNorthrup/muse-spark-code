@@ -33,9 +33,9 @@ export interface ResourceHistoryBinding {
   /** Daily rows are kept for these days; defaults to the shared usage-history file's days. */
   readonly historyDays?: () => number
   /**
-   * A damaged choice, announced once per distinct damage with what the
-   * person is told. The recorder still calls `onError` for the log.
-   */
+  A damaged choice, announced once per distinct damage with what the
+  person is told. The recorder still calls `onError` for the log.
+  */
   readonly onDamagedChoice?: (notice: DamagedChoiceNotice) => void
 }
 

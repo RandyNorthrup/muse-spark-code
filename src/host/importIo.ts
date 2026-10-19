@@ -49,11 +49,11 @@ import { withoutCredentials } from '../runtime/credentialVariables'
 const importGit = processGitProcess()
 
 /**
- * Ignore metadata only: no workspace executable, inherited git override or
- * configured monitor. `signal` ends a stalled probe's child (PR #214
- * review): the probes name no deadline of their own, and the window
- * closing must still reach the child.
- */
+Ignore metadata only: no workspace executable, inherited git override or
+configured monitor. `signal` ends a stalled probe's child (PR #214
+review): the probes name no deadline of their own, and the window
+closing must still reach the child.
+*/
 async function isImportIgnored(
   absolutePath: string,
   workspaceRoot: string,

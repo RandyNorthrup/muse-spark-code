@@ -403,12 +403,12 @@ function readSetting<K extends SettingKey>(
 }
 
 /**
- * README's legacy vault switch: an explicitly stored `museSpark.vault`
- * boolean stays effective until `museSpark.vault.enabled` is explicitly
- * configured. Explicitness needs `inspect` (VS Code's `get` merges the true
- * default, so it cannot tell configured from defaulted); a source without
- * it reads the new flag alone.
- */
+README's legacy vault switch: an explicitly stored `museSpark.vault`
+boolean stays effective until `museSpark.vault.enabled` is explicitly
+configured. Explicitness needs `inspect` (VS Code's `get` merges the true
+default, so it cannot tell configured from defaulted); a source without
+it reads the new flag alone.
+*/
 function isVaultEnabled(config: SettingsSource, log: Logger): boolean {
   // The new flag is machine-scoped, so only its global value can be set;
   // the legacy key is unregistered, so `get` (which merges no default for

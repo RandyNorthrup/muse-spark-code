@@ -87,12 +87,12 @@ const githubFactsSchema = z.strictObject({
 })
 
 /**
- * N-captures: bind workflow/release readers only after approved wire captures.
- * A port returns its facts as `{ runs, releases }` (validated below) and may
- * return `reasons: string[]` naming the rows it skipped per row (RVCM1136B
- * P2): those reasons join the source's own partial reason while the
- * surviving rows stay.
- */
+N-captures: bind workflow/release readers only after approved wire captures.
+A port returns its facts as `{ runs, releases }` (validated below) and may
+return `reasons: string[]` naming the rows it skipped per row (RVCM1136B
+P2): those reasons join the source's own partial reason while the
+surviving rows stay.
+*/
 export interface ReportGitHubAdditionalPort {
   read(
     context: SourceReadContext,

@@ -54,21 +54,21 @@ export type ResponsesCodecQuirks =
       /** Stable across turns; supplied by the host, never derived from a token. */
       readonly toolNamespace: string
       /**
-       * The namespace's own description. Required on this profile: the
-       * plan endpoint answers HTTP 400 without it
-       * (`missing_required_parameter: tools[0].description`), so the type
-       * leaves no way to omit it.
-       */
+      The namespace's own description. Required on this profile: the
+      plan endpoint answers HTTP 400 without it
+      (`missing_required_parameter: tools[0].description`), so the type
+      leaves no way to omit it.
+      */
       readonly toolNamespaceDescription: string
     }
 /**
- * M101 lane P1 (BYO item 2): per-request replay provenance. Replayed call
- * ids resolve only against the model that produced them (Pi
- * `openai-responses-shared.ts`): `replayOrigins` names that model per
- * `call_id`, defaulting to the request's own model. Lane I fills it from
- * each replay entry's provider and model; until it does, every replay reads
- * as same-model.
- */
+M101 lane P1 (BYO item 2): per-request replay provenance. Replayed call
+ids resolve only against the model that produced them (Pi
+`openai-responses-shared.ts`): `replayOrigins` names that model per
+`call_id`, defaulting to the request's own model. Lane I fills it from
+each replay entry's provider and model; until it does, every replay reads
+as same-model.
+*/
 export interface ResponsesEncodeOptions {
   /** Fixed session choice; false preserves canonical non-strict declarations. */
   readonly shouldUseStrictTools?: boolean | undefined
@@ -77,10 +77,10 @@ export interface ResponsesEncodeOptions {
 }
 
 /**
- * Technical diagnostics contain no provider-controlled text or schema errors.
- * `isLocal` marks a refusal of this app's own setup (a hosted tool it cannot
- * send), not of what the provider streamed.
- */
+Technical diagnostics contain no provider-controlled text or schema errors.
+`isLocal` marks a refusal of this app's own setup (a hosted tool it cannot
+send), not of what the provider streamed.
+*/
 export class ResponsesDecodeError extends Error {
   public constructor(
     public readonly reason: string,
@@ -117,10 +117,10 @@ type ResponsesRequestBody = Omit<CreateResponseBody, 'tools' | 'reasoning'> & {
     | (Omit<FunctionToolDefinition, 'strict'> & { readonly strict: boolean })
   )[]
   /**
-   * Absent where the record has no effort levels (lane REASONSHAPESR2):
-   * the wire carries no `reasoning` field and the provider default
-   * applies, instead of a value the model does not take.
-   */
+  Absent where the record has no effort levels (lane REASONSHAPESR2):
+  the wire carries no `reasoning` field and the provider default
+  applies, instead of a value the model does not take.
+  */
   readonly reasoning?: CreateResponseBody['reasoning'] | undefined
 }
 
@@ -140,11 +140,11 @@ export interface ResponsesWireCodec {
 const RESPONSES_CALL_ID_PREFIX = 'fc_'
 
 /**
- * M101 lane P1 (BYO item 2): whether a replayed `function_call` keeps its
- * `id`. Only a server-minted `fc_…` id from the request's own model replays;
- * a foreign id (another format's, a synthetic one) or another model's id is
- * dropped while `call_id` still pairs the result (Pi #886).
- */
+M101 lane P1 (BYO item 2): whether a replayed `function_call` keeps its
+`id`. Only a server-minted `fc_…` id from the request's own model replays;
+a foreign id (another format's, a synthetic one) or another model's id is
+dropped while `call_id` still pairs the result (Pi #886).
+*/
 function shouldKeepReplayCallId(
   item: FunctionCallItem,
   model: string,
@@ -161,11 +161,11 @@ function replayTextPart(text: string): { readonly text: string } | undefined {
 }
 
 /**
- * One message content part replayed (BYO items 1, 13): blank text drops
- * (as `undefined`), images ride as the image-omitted placeholder where the
- * model takes no images, and files ride with a cleaned name. Inputs
- * without any of these map back byte-identical.
- */
+One message content part replayed (BYO items 1, 13): blank text drops
+(as `undefined`), images ride as the image-omitted placeholder where the
+model takes no images, and files ride with a cleaned name. Inputs
+without any of these map back byte-identical.
+*/
 function replayContentPart(
   part: InputContentPart,
   quirks: ResponsesCodecQuirks,
@@ -201,13 +201,13 @@ function replayContentPart(
 }
 
 /**
- * M101 lane P1 (BYO items 1, 13): the replay-safe input. Blank text is
- * dropped (an item left with no content is dropped with it), empty results
- * ride as an explicit marker, lone surrogates are removed, and images ride
- * as the image-omitted placeholder where the model takes no images. Inputs
- * without any of these map back byte-identical (the copies below keep every
- * key in order).
- */
+M101 lane P1 (BYO items 1, 13): the replay-safe input. Blank text is
+dropped (an item left with no content is dropped with it), empty results
+ride as an explicit marker, lone surrogates are removed, and images ride
+as the image-omitted placeholder where the model takes no images. Inputs
+without any of these map back byte-identical (the copies below keep every
+key in order).
+*/
 function replayInput(
   input: readonly InputItem[],
   quirks: ResponsesCodecQuirks,
@@ -366,10 +366,10 @@ type NativeItem = z.infer<typeof nativeItemSchema>
 type NativeResponse = z.infer<typeof responseFrameSchema>['response']
 
 /**
- * A ChatGPT plan response's output: the items its stream delivered, in their
- * output order. A terminal frame that lists items itself must list the same
- * number, or the stream is refused rather than one of the two trusted.
- */
+A ChatGPT plan response's output: the items its stream delivered, in their
+output order. A terminal frame that lists items itself must list the same
+number, or the stream is refused rather than one of the two trusted.
+*/
 function withStreamedOutput(
   response: NativeResponse,
   streamed: readonly { readonly index: number; readonly item: NativeItem }[],

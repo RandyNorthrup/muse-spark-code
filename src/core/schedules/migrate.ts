@@ -25,10 +25,10 @@ export interface ScheduleMigrationJournalPort {
   migrationReceipt(workspaceKey: string, sourceId: string): Promise<MigrationReceipt | undefined>
   saveMigrationReceipt(workspaceKey: string, receipt: MigrationReceipt): Promise<void>
   /**
-   * Completes the migration and returns the completion-time snapshot, so the
-   * caller verifies without a second journal read. A missing receipt or
-   * schedule completes idempotently to undefined.
-   */
+  Completes the migration and returns the completion-time snapshot, so the
+  caller verifies without a second journal read. A missing receipt or
+  schedule completes idempotently to undefined.
+  */
   completeMigration(
     workspaceKey: string,
     sourceId: string,

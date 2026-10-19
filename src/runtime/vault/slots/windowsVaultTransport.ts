@@ -50,9 +50,9 @@ try {
 }
 
 /**
- * A guarded helper launch: the helper shape is proven, then PowerShell
- * starts it with no inherited credentials, shell, or visible console window.
- */
+A guarded helper launch: the helper shape is proven, then PowerShell
+starts it with no inherited credentials, shell, or visible console window.
+*/
 export async function spawnGuardedHelper(
   helper: WindowsVaultExecutable,
 ): Promise<Awaited<ReturnType<typeof spawnResourceProcess>>> {

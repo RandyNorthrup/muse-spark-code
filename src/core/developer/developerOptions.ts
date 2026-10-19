@@ -63,8 +63,8 @@ function isPreviousMachine(stored: string, previous: readonly string[] | undefin
 }
 
 /** Best-effort disable after a failed start: the start refusal dominates, so
- * a disable failure is attempted and dropped, never replacing the refusal
- * the person must hear (a refused providers file among them). */
+a disable failure is attempted and dropped, never replacing the refusal
+the person must hear (a refused providers file among them). */
 const disableMultipleQuietly = async (owner: DeveloperOptions): Promise<void> => {
   try {
     await owner.setMultiple(false, 'lifecycle')
@@ -281,8 +281,8 @@ export class DeveloperOptions {
   }
 
   /** Best-effort stop after a failed start: the start refusal dominates, so
-   * a stop failure is attempted and dropped, while the disable below still
-   * runs before the refusal travels. */
+  a stop failure is attempted and dropped, while the disable below still
+  runs before the refusal travels. */
   private async stopProfilesQuietly(): Promise<void> {
     try {
       await this.stopAll()

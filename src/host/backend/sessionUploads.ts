@@ -28,10 +28,10 @@ export interface SessionUploadsDeps {
 }
 
 /**
- * The file session store's `uploads` factory over the real provider ledger.
- * The declared ledger also serves the uploaded-files port: an `UploadLedger`
- * is a `SessionUploadLifecycle`.
- */
+The file session store's `uploads` factory over the real provider ledger.
+The declared ledger also serves the uploaded-files port: an `UploadLedger`
+is a `SessionUploadLifecycle`.
+*/
 export function createSessionUploads(
   deps: SessionUploadsDeps,
 ): (accountId: string) => Promise<UploadLedger> {
@@ -70,10 +70,10 @@ export function createSessionUploads(
 }
 
 /**
- * The last keyed account's ledger once the key is gone: the binding's
- * keyless opener, so the retained list survives a restart and a reload.
- * Without the key its account check reads read-only and refuses deletes.
- */
+The last keyed account's ledger once the key is gone: the binding's
+keyless opener, so the retained list survives a restart and a reload.
+Without the key its account check reads read-only and refuses deletes.
+*/
 export function openLastAccountUploads(
   deps: SessionUploadsDeps,
 ): () => Promise<UploadLedger | undefined> {

@@ -87,10 +87,10 @@ const LIST_SEPARATOR = ', '
 const DETAIL_SEPARATOR = ' · '
 
 /**
- * A settings read's errno vocabulary: a permission or a path that is not a
- * file reads as its code (the message can hold the file's path), so the
- * reason shown stays closed. Anything else is not this read's to name.
- */
+A settings read's errno vocabulary: a permission or a path that is not a
+file reads as its code (the message can hold the file's path), so the
+reason shown stays closed. Anything else is not this read's to name.
+*/
 const SETTINGS_READ_CODES: ReadonlySet<string> = new Set(['EACCES', 'EPERM', 'EISDIR', 'ENOTDIR'])
 
 function isSettingsReadError(error: unknown): error is Error & { readonly code: string } {
@@ -345,11 +345,11 @@ const EXTENSION_EVENTS: ReadonlySet<string> = new Set(EXTENSION_HOOK_EVENTS)
 type SparkScope = 'project' | 'user'
 
 /**
- * A hooks file's view; undefined when there is no such file, or why it
- * could not be read (an operating-system code, never its text, which can
- * name a path). A file that cannot be read stays visible as unreadable, and
- * the panel still lists every other source.
- */
+A hooks file's view; undefined when there is no such file, or why it
+could not be read (an operating-system code, never its text, which can
+name a path). A file that cannot be read stays visible as unreadable, and
+the panel still lists every other source.
+*/
 function hookFile(
   deps: MuseConfigDeps,
   fsPath: string | undefined,

@@ -46,31 +46,31 @@ export type Known<T> =
   | { readonly state: 'unknown' }
 
 /**
- * The record-sourced optional reasoning facts (lane REASONSHAPESR2):
- * the affirmed Thinking-off value, the list's default effort,
- * manual-only thinking, the preset's Thinking-off switch and the
- * full-vocabulary flag. Evidence and policy share them; the policy
- * adds the resolved level list and disable flag.
- */
+The record-sourced optional reasoning facts (lane REASONSHAPESR2):
+the affirmed Thinking-off value, the list's default effort,
+manual-only thinking, the preset's Thinking-off switch and the
+full-vocabulary flag. Evidence and policy share them; the policy
+adds the resolved level list and disable flag.
+*/
 export interface ReasoningPolicyFields {
   /**
-   * The Thinking-off value the record affirms instead of `disabled`
-   * (Claude Sonnet 5.5's `between_tools`, lane REASONSHAPESR2): Thinking
-   * off rides to the codec on a model whose `disabled` is refused.
-   */
+  The Thinking-off value the record affirms instead of `disabled`
+  (Claude Sonnet 5.5's `between_tools`, lane REASONSHAPESR2): Thinking
+  off rides to the codec on a model whose `disabled` is refused.
+  */
   readonly offSwitch?: 'disabled' | 'between_tools' | undefined
   /**
-   * The list's own default effort where it names one (lane REASONSHAPESR2,
-   * XAI-G01). The picker falls back to the highest served tier without it.
-   */
+  The list's own default effort where it names one (lane REASONSHAPESR2,
+  XAI-G01). The picker falls back to the highest served tier without it.
+  */
   readonly defaultEffort?: string | undefined
   /**
-   * Manual-only thinking (lane REASONSHAPESR2, GAPANTH-G10/G17): manual
-   * mode carries no effort level, so an on-level request the record does
-   * not list rides through unnamed (the tier sizes the budget) instead
-   * of resolving to the provider default — otherwise a model that
-   * supports extended thinking could never think.
-   */
+  Manual-only thinking (lane REASONSHAPESR2, GAPANTH-G10/G17): manual
+  mode carries no effort level, so an on-level request the record does
+  not list rides through unnamed (the tier sizes the budget) instead
+  of resolving to the provider default — otherwise a model that
+  supports extended thinking could never think.
+  */
   readonly manualOnly?: boolean | undefined
   /** The preset's documented Thinking-off switch (lane DSTHINK3). */
   readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
@@ -188,30 +188,30 @@ export function outputLimitFor(policy: ModelPolicy, ceiling: number): number {
 }
 
 /**
- * The smallest max_output_tokens the provider accepts (Meta's live capture
- * is 16). Requests below it are rejected by the provider, so a budget that
- * cannot fit it refuses instead of sending. Unknown keeps 1.
- */
+The smallest max_output_tokens the provider accepts (Meta's live capture
+is 16). Requests below it are rejected by the provider, so a budget that
+cannot fit it refuses instead of sending. Unknown keeps 1.
+*/
 export function minOutputTokensForPolicy(policy: Pick<ModelPolicy, 'output'>): number {
   return policy.output.minTokens ?? 1
 }
 
 /**
- * Whether the record affirms the model takes an effort value (lane
- * REASONSHAPESR2): declared levels with at least one level besides
- * `none`. A model without usable levels gets no reasoning field in any
- * request: the parameter itself is what providers such as xAI refuse.
- */
+Whether the record affirms the model takes an effort value (lane
+REASONSHAPESR2): declared levels with at least one level besides
+`none`. A model without usable levels gets no reasoning field in any
+request: the parameter itself is what providers such as xAI refuse.
+*/
 export function hasUsableEffortLevels(levels: Known<readonly string[]>): boolean {
   return levels.state === 'yes' && levels.value.some((level) => level !== THINKING_OFF_EFFORT)
 }
 
 /**
- * The resolver input for a policy (lane REASONSHAPESR2): unwraps the
- * record's `Known<>` facts into the shared control. The resolver and
- * its test mirror build it here, so the mirror checks decisions, not
- * plumbing.
- */
+The resolver input for a policy (lane REASONSHAPESR2): unwraps the
+record's `Known<>` facts into the shared control. The resolver and
+its test mirror build it here, so the mirror checks decisions, not
+plumbing.
+*/
 export function reasoningControlForPolicy(
   policy: Pick<ModelPolicy, 'reasoning'>,
 ): ReasoningControl {
@@ -224,14 +224,14 @@ export function reasoningControlForPolicy(
 }
 
 /**
- * Meta's client-side tiers (lane REASONSHAPES): `ultra` is an alias, not
- * a tier of its own: the 1.4.x live probe (`docs/certification/m3.md`,
- * one turn per tier) shows the CLI forwards `ultra` to the API as `max`
- * (the 1.2 400 for `ultra` names `'max'`), and the SDK types `ultra` in
- * the client-side `ReasoningEffort` vocabulary (`@muse-code/sdk`
- * `dist/src/msp.d.ts:1258`). `none` rides as `minimal` the same way.
- * Other providers get `undefined`: the record decides for them.
- */
+Meta's client-side tiers (lane REASONSHAPES): `ultra` is an alias, not
+a tier of its own: the 1.4.x live probe (`docs/certification/m3.md`,
+one turn per tier) shows the CLI forwards `ultra` to the API as `max`
+(the 1.2 400 for `ultra` names `'max'`), and the SDK types `ultra` in
+the client-side `ReasoningEffort` vocabulary (`@muse-code/sdk`
+`dist/src/msp.d.ts:1258`). `none` rides as `minimal` the same way.
+Other providers get `undefined`: the record decides for them.
+*/
 export function metaRequestedEffort(
   policy: Pick<ModelPolicy, 'identity'>,
   requested: string,
@@ -242,12 +242,12 @@ export function metaRequestedEffort(
 }
 
 /**
- * Routing preamble shared by the resolver and its test mirror (lane
- * REASONSHAPESR2): the Meta mapping and the full-vocabulary passthrough
- * are stable round-1 routing, so both sides call it and the mirror keeps
- * only the decision branches it checks. Returns the effort where routing
- * decides it, else `undefined`.
- */
+Routing preamble shared by the resolver and its test mirror (lane
+REASONSHAPESR2): the Meta mapping and the full-vocabulary passthrough
+are stable round-1 routing, so both sides call it and the mirror keeps
+only the decision branches it checks. Returns the effort where routing
+decides it, else `undefined`.
+*/
 export function routedEffortForPolicy(policy: ModelPolicy, requested: string): string | undefined {
   const meta = metaRequestedEffort(policy, requested)
   if (meta !== undefined) {
@@ -260,17 +260,17 @@ export function routedEffortForPolicy(policy: ModelPolicy, requested: string): s
 }
 
 /**
- * The selected model's request effort, from the one resolver (lane
- * DSTHINK3). A listed level rides as named; an unlisted on-level resolves
- * to `default` (the provider default: codecs omit the field), never to a
- * neighbour and never to off. Off rides as `none` where the record
- * affirms disabling (a listed `none`, an affirmed `canDisable`, or an
- * affirmed off switch); anywhere else the record speaks, the typed
- * refusal is raised before dispatch instead of sending a value the model
- * does not take (lane REASONSHAPESR2). With a declared switch, a default
- * or refused setting rides unchanged to the model's codec, which
- * resolves it again from the same record.
- */
+The selected model's request effort, from the one resolver (lane
+DSTHINK3). A listed level rides as named; an unlisted on-level resolves
+to `default` (the provider default: codecs omit the field), never to a
+neighbour and never to off. Off rides as `none` where the record
+affirms disabling (a listed `none`, an affirmed `canDisable`, or an
+affirmed off switch); anywhere else the record speaks, the typed
+refusal is raised before dispatch instead of sending a value the model
+does not take (lane REASONSHAPESR2). With a declared switch, a default
+or refused setting rides unchanged to the model's codec, which
+resolves it again from the same record.
+*/
 export function effortForPolicy(policy: ModelPolicy, requested: string): string {
   const routed = routedEffortForPolicy(policy, requested)
   if (routed !== undefined) {
@@ -322,9 +322,9 @@ export interface ModelPricedUsage extends PricedUsage {
 
 /** The images in this request, including replayed attachments. */
 /**
- * The stream request's token estimate for pacing: the paid admission's own
- * count when it has one, else the body's byte size plus its output budget.
- */
+The stream request's token estimate for pacing: the paid admission's own
+count when it has one, else the body's byte size plus its output budget.
+*/
 export function estimatedStreamTokens(
   body: CreateResponseBody,
   admitAttempt: { readonly paidEstimatedInputTokens?: number | undefined } | undefined,
@@ -410,11 +410,11 @@ export type ModelClient = Pick<
   | 'personCap'
 > & {
   /**
-   * EXECPROV round 6: an exact same-body input count where the provider
-   * documents one, with the count call's own billed cost when the provider
-   * bills it (undefined when the count is free). Absent keeps the byte bound
-   * and sends no count request.
-   */
+  EXECPROV round 6: an exact same-body input count where the provider
+  documents one, with the count call's own billed cost when the provider
+  bills it (undefined when the count is free). Absent keeps the byte bound
+  and sends no count request.
+  */
   readonly countInputTokensDetailed?: (
     body: CreateResponseBody,
     signal?: AbortSignal,
@@ -424,9 +424,9 @@ export type ModelClient = Pick<
     readonly accuracy?: 'exact' | 'estimate'
   }>
   /**
-   * Scheduled runs pin one model and price behind this authority: the
-   * transport calls it instead of a second full-context reservation.
-   */
+  Scheduled runs pin one model and price behind this authority: the
+  transport calls it instead of a second full-context reservation.
+  */
   readonly withScheduleAuthority?: (
     run: () => UnattendedRun | undefined,
     price?: ModelPricePolicy,

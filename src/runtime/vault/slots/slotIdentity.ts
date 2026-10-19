@@ -56,9 +56,9 @@ export function freshSlotContext(vaultId: string, slotId: string): SlotContext {
 export type PresenceRecords = () => Promise<readonly VaultSlotRecord[]>
 
 /**
- * A fresh presence unwrap through the platform slot: the helper prompts
- * (naming the exact use) and the operation fails closed without it.
- */
+A fresh presence unwrap through the platform slot: the helper prompts
+(naming the exact use) and the operation fails closed without it.
+*/
 export async function isPresenceUnwrapped(
   presenceRecords: PresenceRecords | undefined,
   provider: string,

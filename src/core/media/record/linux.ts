@@ -402,14 +402,14 @@ function recordingRun(
 
 export interface LatestRecordingPort {
   /** The OS recordings locations: Linux Videos roots, Windows Screen
-   * Recordings, or the macOS Desktop default. The host factory sets them. */
+  Recordings, or the macOS Desktop default. The host factory sets them. */
   readonly roots: readonly string[]
   /**
-   * An extra per-platform file-name gate for a general-purpose directory:
-   * macOS scans the Desktop, so only Screenshot names qualify. Absent means
-   * every recent media file qualifies (Linux Videos, Windows Screen
-   * Recordings are dedicated recordings folders).
-   */
+  An extra per-platform file-name gate for a general-purpose directory:
+  macOS scans the Desktop, so only Screenshot names qualify. Absent means
+  every recent media file qualifies (Linux Videos, Windows Screen
+  Recordings are dedicated recordings folders).
+  */
   readonly isRecordingFileName?: (fileName: string) => boolean
   /** Nonrecursive, confined regular files only; reject symlinks/special files. */
   readonly list: (
@@ -421,11 +421,11 @@ export interface LatestRecordingPort {
 }
 
 /**
- * Whether a discovered file sits directly inside a recordings root. Both
- * sides normalize to forward slashes first, so Windows drive-letter roots
- * confine the same way POSIX ones do; anything else (relative, traversal
- * outside the root) fails closed.
- */
+Whether a discovered file sits directly inside a recordings root. Both
+sides normalize to forward slashes first, so Windows drive-letter roots
+confine the same way POSIX ones do; anything else (relative, traversal
+outside the root) fails closed.
+*/
 export function isWithinRecordingRoot(root: string, file: string): boolean {
   const normalRoot = root.replaceAll('\\', '/').replace(/\/$/u, '')
   const normalFile = file.replaceAll('\\', '/')

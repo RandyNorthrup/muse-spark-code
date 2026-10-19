@@ -19,13 +19,13 @@ const SHELL_NAMES = new Set(['exec', 'execSync'])
 /** The raw governed launch: only `commands.ts` (guarded) may resolve bare names through it. */
 const LAUNCH_NAME = 'spawnResourceProcess'
 /**
- * Wrappers that end in a process start, taking the program as their first
- * argument: `runProgram` (`execFile` with a timeout), `runTreeSync`
- * (`spawnSync` under the POSIX supervisor), `runResourceCommand` (the
- * governed runner). A bare call with a literal or a variable command alike
- * is a spawn the direct-start walk cannot see (round 5: the playbook's bare
- * `git` variable and the team probes' bare names stayed green).
- */
+Wrappers that end in a process start, taking the program as their first
+argument: `runProgram` (`execFile` with a timeout), `runTreeSync`
+(`spawnSync` under the POSIX supervisor), `runResourceCommand` (the
+governed runner). A bare call with a literal or a variable command alike
+is a spawn the direct-start walk cannot see (round 5: the playbook's bare
+`git` variable and the team probes' bare names stayed green).
+*/
 const WRAPPER_NAMES = new Set(['runProgram', 'runTreeSync', 'runResourceCommand'])
 
 interface KnownSpawn {
@@ -465,11 +465,11 @@ function wrapperSpawns(file: string, text: string): SpawnSite[] {
 }
 
 /**
- * Template scripts that start a process of their own: a backtick literal
- * containing a `spawn(`/`execFile` call (the POSIX tree supervisor keeps
- * its child in `POSIX_TREE_SUPERVISOR`, where the import walk never sees
- * it). Tagged templates (`String.raw`) count too.
- */
+Template scripts that start a process of their own: a backtick literal
+containing a `spawn(`/`execFile` call (the POSIX tree supervisor keeps
+its child in `POSIX_TREE_SUPERVISOR`, where the import walk never sees
+it). Tagged templates (`String.raw`) count too.
+*/
 function embeddedScripts(file: string, text: string): SpawnSite[] {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
   const sites: SpawnSite[] = []
@@ -494,10 +494,10 @@ function embeddedScripts(file: string, text: string): SpawnSite[] {
 }
 
 /**
- * The inventory, built once at import: walking and parsing the whole tree
- * takes seconds, far past a test's own budget, and the result cannot change
- * mid-suite. Every test reads these maps.
- */
+The inventory, built once at import: walking and parsing the whole tree
+takes seconds, far past a test's own budget, and the result cannot change
+mid-suite. Every test reads these maps.
+*/
 const inventory = ((): {
   readonly starts: Map<string, SpawnSite[]>
   readonly launches: Map<string, SpawnSite[]>

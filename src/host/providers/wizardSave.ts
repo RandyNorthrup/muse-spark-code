@@ -164,16 +164,16 @@ function editedProvider(
 }
 
 /**
- * Validates before writing; later failures return an honest partial outcome.
- * Completed writes stay saved. No compensating writes or inverse recovery.
- *
- * The scanned windows a save carries into `providers.json` (C-M95-4 R3):
- * every saved local model keeps its server's reported window in
- * `modelLimits`, so the request path never meets a missing window. The
- * server reports no separate output cap, so output is bounded by the
- * window. Undefined when nothing was carried (a keyed provider, whose
- * catalogue owns its windows, or no scanned window for a saved model).
- */
+Validates before writing; later failures return an honest partial outcome.
+Completed writes stay saved. No compensating writes or inverse recovery.
+
+The scanned windows a save carries into `providers.json` (C-M95-4 R3):
+every saved local model keeps its server's reported window in
+`modelLimits`, so the request path never meets a missing window. The
+server reports no separate output cap, so output is bounded by the
+window. Undefined when nothing was carried (a keyed provider, whose
+catalogue owns its windows, or no scanned window for a saved model).
+*/
 export function scannedLocalModelLimits(
   auth: ProviderEntry['auth'],
   ids: readonly string[],
@@ -191,10 +191,10 @@ export function scannedLocalModelLimits(
 }
 
 /**
- * Saves a finished draft: the file and the secret together, then the
- * default model, then (for Save and use now) the composer's model. Throws
- * on an invalid draft before writing anything.
- */
+Saves a finished draft: the file and the secret together, then the
+default model, then (for Save and use now) the composer's model. Throws
+on an invalid draft before writing anything.
+*/
 export async function saveWizardDraft(
   deps: WizardSaveDeps,
   draft: WizardDraft,

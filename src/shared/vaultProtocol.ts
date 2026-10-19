@@ -306,10 +306,10 @@ export const vaultPrivateMaterialSchema = z.strictObject({
   bytes: vaultEncodedSchema,
 })
 /**
- * v2 item writes (manage-only). `material` is the base64 of crypto.ts's
- * encodeVaultMaterial; the broker decodes, validates kind against metadata and
- * erases its copy. `add` refuses an existing id or name; `edit` an absent id.
- */
+v2 item writes (manage-only). `material` is the base64 of crypto.ts's
+encodeVaultMaterial; the broker decodes, validates kind against metadata and
+erases its copy. `add` refuses an existing id or name; `edit` an absent id.
+*/
 const privateWrite = <K extends 'add' | 'edit'>(kind: K) =>
   z.strictObject({
     v: z.literal(VAULT_PROTOCOL_VERSION),

@@ -384,10 +384,10 @@ function previewMarkdown(
 type ProjectStanding = 'inside' | 'outside' | 'changed'
 
 /**
- * Whether the failure carries an import error code (a refused path or a
- * file failure, never a foreign value). Only coded failures read as a
- * standing; anything else is not the import's to place.
- */
+Whether the failure carries an import error code (a refused path or a
+file failure, never a foreign value). Only coded failures read as a
+standing; anything else is not the import's to place.
+*/
 function isImportFailure(error: unknown): boolean {
   return importErrorCode(error) !== 'error'
 }

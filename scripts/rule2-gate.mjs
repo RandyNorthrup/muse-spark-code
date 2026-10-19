@@ -67,11 +67,11 @@ const OWN_WORKFLOWS = '.github/workflows/'
 const MAX_NAMED_JOBS = 8
 
 /**
- * The decoded answer of one endpoint. Every caller validates what it reads
- * (`runOf`, `pullOf`, the list shape in `list`) and throws instead of passing
- * on a shape it cannot read: this job installs nothing, so the check is
- * written out rather than read through zod.
- */
+The decoded answer of one endpoint. Every caller validates what it reads
+(`runOf`, `pullOf`, the list shape in `list`) and throws instead of passing
+on a shape it cannot read: this job installs nothing, so the check is
+written out rather than read through zod.
+*/
 async function get(endpoint) {
   const reply = await fetch(`${API}${endpoint}`, {
     headers: {
@@ -144,10 +144,10 @@ async function onlyWaitedForApproval(runId, attempt) {
 }
 
 /**
- * Why a run on a later attempt was started again: the rule and what its
- * earliest executed attempt looked like. Undefined when every earlier attempt
- * only waited for approval, so that this attempt is the run's first execution.
- */
+Why a run on a later attempt was started again: the rule and what its
+earliest executed attempt looked like. Undefined when every earlier attempt
+only waited for approval, so that this attempt is the run's first execution.
+*/
 async function startedAgain(runId, attempt) {
   for (let earlier = 1; earlier < attempt; earlier += 1) {
     if (await onlyWaitedForApproval(runId, earlier)) continue

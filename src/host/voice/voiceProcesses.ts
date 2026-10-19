@@ -30,9 +30,9 @@ export interface HelperProcess {
   on(event: 'exit', listener: (code: number | null, signal: NodeJS.Signals | null) => void): unknown
   kill(): unknown
   /**
-   * Fires when an explicit kill of a live process is refused (the recorder
-   * may still hold the microphone): never an exit, which stays on `exit`.
-   */
+  Fires when an explicit kill of a live process is refused (the recorder
+  may still hold the microphone): never an exit, which stays on `exit`.
+  */
   onStopFailed(listener: (description: string) => void): void
 }
 

@@ -124,10 +124,10 @@ async function museResourceLaunch(
 }
 
 /**
- * Closes a half-started launch while its failure crosses: the close runs
- * first and the launch always completes as failed. A close that fails too
- * still throws, so the failure always crosses with its cause.
- */
+Closes a half-started launch while its failure crosses: the close runs
+first and the launch always completes as failed. A close that fails too
+still throws, so the failure always crosses with its cause.
+*/
 async function settleLaunchClose(
   handshake: ResourceHandshake,
   launch: Awaited<ReturnType<typeof museResourceLaunch>> | undefined,
@@ -279,12 +279,12 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
 }
 
 /**
- * Ordinary and account-owned transports use the same containment boundary.
- * The SDK spawn paths come from the Muse Code backend's bundle
- * (dist/museCode.js), so this module — and the activation bundle holding
- * it — never carries the SDK or the host: the caller hands in the spawner
- * its loaded bundle exports.
- */
+Ordinary and account-owned transports use the same containment boundary.
+The SDK spawn paths come from the Muse Code backend's bundle
+(dist/museCode.js), so this module — and the activation bundle holding
+it — never carries the SDK or the host: the caller hands in the spawner
+its loaded bundle exports.
+*/
 export function spawnResourceConnection<T extends ResourceHandshake>(
   spawnConnection: (launch: Parameters<typeof spawnMspConnection>[0]) => T,
   options: Parameters<typeof spawnMspConnection>[0],

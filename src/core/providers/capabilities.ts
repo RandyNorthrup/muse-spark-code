@@ -33,9 +33,9 @@ export interface ModelCapabilities {
   /** Unknown is off; resolved for this model, never inferred from its format. */
   readonly supportsStrictTools?: boolean | undefined
   /**
-   * Which `tool_choice` values the model takes; unknown (absent) means auto
-   * only. Read from the model's capability record, never inferred.
-   */
+  Which `tool_choice` values the model takes; unknown (absent) means auto
+  only. Read from the model's capability record, never inferred.
+  */
   readonly toolChoiceModes?: readonly ('auto' | 'none')[] | undefined
   /** Documented pixel limits only; absence preserves today's image bytes. */
   readonly imageLimits?: ImageLimits | undefined

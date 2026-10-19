@@ -158,11 +158,11 @@ export function promptExportName(slug: string): string {
 }
 
 /**
- * The Share → File save dialog's suggested name for a prompt title. The
- * title itself stays unlimited; only this one filename component is cut to
- * the platform's supported limit, on a UTF-8 boundary, so a long first line
- * never hands the dialog an ENAMETOOLONG default.
- */
+The Share → File save dialog's suggested name for a prompt title. The
+title itself stays unlimited; only this one filename component is cut to
+the platform's supported limit, on a UTF-8 boundary, so a long first line
+never hands the dialog an ENAMETOOLONG default.
+*/
 export function promptShareFilename(title: string): string {
   const cleaned = title.replaceAll(/[^\p{L}\p{N}_-]/gu, '-')
   const encoded = new TextEncoder().encode(cleaned)

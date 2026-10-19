@@ -152,10 +152,10 @@ export interface ModelsVaultBindingDeps {
   /** A test's migration chunk; the window's own is required from dist. */
   readonly loadMigrationBundle?: ((file: string) => unknown) | undefined
   /**
-   * The key-store migration's shell and sources (D89.14 lane M). While a
-   * test owns the service no migration binds. The controller runs after an
-   * unlock, never at activation, and the legacy port reads the raw store.
-   */
+  The key-store migration's shell and sources (D89.14 lane M). While a
+  test owns the service no migration binds. The controller runs after an
+  unlock, never at activation, and the legacy port reads the raw store.
+  */
   readonly credentialMigration?:
     | {
         readonly shell: MigrationShell
@@ -182,11 +182,11 @@ function lockStatusItem(): vscode.StatusBarItem {
 }
 
 /**
- * What both factories resolve the same way: the broker-backed service (or
- * a test's), the lock item and its writer. The broker connection stays
- * lazy; without a reachable broker every use refuses with
- * `vault.brokerBlocked`.
- */
+What both factories resolve the same way: the broker-backed service (or
+a test's), the lock item and its writer. The broker connection stays
+lazy; without a reachable broker every use refuses with
+`vault.brokerBlocked`.
+*/
 function serviceAndStatus(deps: {
   readonly distDir: string
   readonly service?: VaultPanelService | undefined
@@ -200,9 +200,9 @@ function serviceAndStatus(deps: {
   /** Disposes the broker-backed service's platform; no-op while a test owns the service. */
   disposeBroker: () => void
   /**
-   * The broker-backed session and its connection, shared with the key-store
-   * migration chunk; both absent while a test owns the service.
-   */
+  The broker-backed session and its connection, shared with the key-store
+  migration chunk; both absent while a test owns the service.
+  */
   session: VaultManageSession | undefined
   connect: (() => Promise<Awaited<ReturnType<VaultBrokerProcess['connect']>>>) | undefined
 } {
@@ -225,14 +225,14 @@ function serviceAndStatus(deps: {
 }
 
 /**
- * The vault section's binding for the Models & Agents panel (C-M109-1 P1):
- * the same broker-backed host the window uses, publishing into the panel's
- * webview instead. The panel owns it while its tab lives; the lock status
- * item behaves as the window's does. The broker connection stays lazy, so
- * without a reachable broker every use refuses with `vault.brokerBlocked`
- * (surfaced as the host's operation failure); the panel hides the section
- * because it is given no factory.
- */
+The vault section's binding for the Models & Agents panel (C-M109-1 P1):
+the same broker-backed host the window uses, publishing into the panel's
+webview instead. The panel owns it while its tab lives; the lock status
+item behaves as the window's does. The broker connection stays lazy, so
+without a reachable broker every use refuses with `vault.brokerBlocked`
+(surfaced as the host's operation failure); the panel hides the section
+because it is given no factory.
+*/
 export function createModelsVaultBinding(
   deps: ModelsVaultBindingDeps,
   table: UiText,
@@ -321,12 +321,12 @@ export interface WindowVaultControlsDeps {
 }
 
 /**
- * The window commands without a second host: open reveals the Models &
- * Agents vault section, whose own binding owns the window's single host,
- * subscription and lock item; lock works without the panel through one
- * broker-backed service alone. A refusal keeps its fixed sentence; anything
- * else stays the generic failure, never native text.
- */
+The window commands without a second host: open reveals the Models &
+Agents vault section, whose own binding owns the window's single host,
+subscription and lock item; lock works without the panel through one
+broker-backed service alone. A refusal keeps its fixed sentence; anything
+else stays the generic failure, never native text.
+*/
 export function createWindowVaultControls(
   deps: WindowVaultControlsDeps,
   table: UiText,

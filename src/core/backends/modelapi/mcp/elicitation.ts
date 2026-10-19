@@ -222,9 +222,9 @@ export interface ElicitationResultInput {
   readonly fieldNames: readonly string[]
   readonly action: ElicitationOutcome['action']
   /**
-   * The accepted answer, for user-scope hooks only; absent unless the
-   * elicitation was accepted. Project hooks never receive it.
-   */
+  The accepted answer, for user-scope hooks only; absent unless the
+  elicitation was accepted. Project hooks never receive it.
+  */
   readonly values?: Readonly<Record<string, unknown>>
 }
 export interface ElicitationHookSeam {

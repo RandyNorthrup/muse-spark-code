@@ -94,12 +94,12 @@ export class ConnectorStore {
   }
 
   /**
-   * The connection's live authority (design §3a): its grant and the kill
-   * switch as last read. A change to either file is read at once (a watch
-   * on this folder, while it exists) and `refresh` reads them again; a
-   * reading that finishes after a newer one is dropped. Until the first
-   * reading it is switched off (fail closed).
-   */
+  The connection's live authority (design §3a): its grant and the kill
+  switch as last read. A change to either file is read at once (a watch
+  on this folder, while it exists) and `refresh` reads them again; a
+  reading that finishes after a newer one is dropped. Until the first
+  reading it is switched off (fail closed).
+  */
   public authority(connectionId: string): AuthorityPort {
     let state: AuthorityState = { grant: undefined, killed: true }
     let started = 0

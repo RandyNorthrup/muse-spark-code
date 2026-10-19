@@ -424,10 +424,10 @@ function nearestNamed(stack) {
 }
 
 /**
- * One source character through the depth tracker. The dispatch switch
- * lives here rather than in the line loop, so its breaks end the switch
- * instead of a nested loop.
- */
+One source character through the depth tracker. The dispatch switch
+lives here rather than in the line loop, so its breaks end the switch
+instead of a nested loop.
+*/
 function trackChar(state, line, charIndex) {
   const ch = line[charIndex]
   switch (ch) {
@@ -608,10 +608,10 @@ function walk(root, files) {
 }
 
 /**
- * Fail any completed-terminal comparison outside the accessor and the
- * allow-list. Fails on missing, empty or unreadable input: no input is
- * never a pass. Returns `{ ok: true }` or `{ ok: false, problem }`.
- */
+Fail any completed-terminal comparison outside the accessor and the
+allow-list. Fails on missing, empty or unreadable input: no input is
+never a pass. Returns `{ ok: true }` or `{ ok: false, problem }`.
+*/
 export function checkUsableReply(root) {
   if (typeof root !== 'string' || root.length === 0) {
     return { ok: false, problem: 'usable-reply guard: pass the source root to check' }

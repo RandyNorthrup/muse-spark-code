@@ -267,10 +267,10 @@ async function watch(port: VaultCommandPort, deps: VaultCommandDeps): Promise<vo
 }
 
 /**
- * The source is already gone: finish the person's Delete by clearing the
- * leftover record instead of dropping it (RVCM1091G P3). A record already
- * cleared (or still stuck) leaves the caller's refusal below as it stands.
- */
+The source is already gone: finish the person's Delete by clearing the
+leftover record instead of dropping it (RVCM1091G P3). A record already
+cleared (or still stuck) leaves the caller's refusal below as it stands.
+*/
 export async function clearGoneImport(
   keepImport: (receipt: string) => Promise<void>,
   receipt: string,
@@ -313,11 +313,11 @@ async function importFile(
   return 0
 }
 /**
- * Finish kept or orphaned imports from the terminal: the same two real
- * actions the panel offers (RVAPP-CM1091D5 P2-2). Every "try again" refusal
- * names an action that exists here too: the receipt stays listed until it
- * is kept or its delete succeeds.
- */
+Finish kept or orphaned imports from the terminal: the same two real
+actions the panel offers (RVAPP-CM1091D5 P2-2). Every "try again" refusal
+names an action that exists here too: the receipt stays listed until it
+is kept or its delete succeeds.
+*/
 async function finishReceipts(port: VaultCommandPort, deps: VaultCommandDeps): Promise<number> {
   const pending = await port.pendingReceipts()
   if (pending.length === 0) {
@@ -413,13 +413,13 @@ async function setUpVault(port: VaultCommandPort, deps: VaultCommandDeps): Promi
 }
 
 /**
- * A refused Delete (or any other refused management call) tells the true
- * reason on the terminal too: every named refusal keeps its own sentence,
- * and only an unnamed failure stays "No access" (RVAPP-CM1091D5 P2-3).
- * The client's own broker sentences keep theirs as well: a broker that
- * cannot start names its repair, and a switched-off build says so.
- * Exact match only: no foreign text can quote a full sentence.
- */
+A refused Delete (or any other refused management call) tells the true
+reason on the terminal too: every named refusal keeps its own sentence,
+and only an unnamed failure stays "No access" (RVAPP-CM1091D5 P2-3).
+The client's own broker sentences keep theirs as well: a broker that
+cannot start names its repair, and a switched-off build says so.
+Exact match only: no foreign text can quote a full sentence.
+*/
 export function vaultCommandFailure(error: unknown): string {
   // Every named sentence, shared with the panel (RVAPP-CM1091D5 P2-3),
   // plus the client's own broker sentences, terminal-only.

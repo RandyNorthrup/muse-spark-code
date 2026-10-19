@@ -41,11 +41,11 @@ export async function acpResourceCommand(
 }
 
 /**
- * A local tool id supplies correlation; it never enters the bounded resource
- * payload. A governor status is the app's own words, never the model's: where
- * the client advertised `session.notices` it goes out as its own `notice`
- * update, and only then falls back to an agent message (F82's class).
- */
+A local tool id supplies correlation; it never enters the bounded resource
+payload. A governor status is the app's own words, never the model's: where
+the client advertised `session.notices` it goes out as its own `notice`
+update, and only then falls back to an agent message (F82's class).
+*/
 export function acpResourceUpdates(
   notice: RuntimeResourceNotice,
   areNoticesSupported = false,

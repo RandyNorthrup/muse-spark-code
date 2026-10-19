@@ -12,10 +12,10 @@ import {
 } from './launch'
 
 /**
- * The workspace a governed child runs in: product lookups (`xdg-open`,
- * `open`, `rundll32.exe`, the governed probes) never resolve to a file
- * inside it, and the child's PATH is the guarded child PATH for it.
- */
+The workspace a governed child runs in: product lookups (`xdg-open`,
+`open`, `rundll32.exe`, the governed probes) never resolve to a file
+inside it, and the child's PATH is the guarded child PATH for it.
+*/
 export interface GovernedWorkspace {
   readonly workspaceRoot: string
 }
@@ -62,9 +62,9 @@ export async function handoffResourceFile(
     signal?: AbortSignal
     readonly until?: ResourceHandoffUntil
     /**
-     * The workspace the child runs in (guards its lookup and PATH).
-     * Defaults to the spawn's own working directory, else this process's.
-     */
+    The workspace the child runs in (guards its lookup and PATH).
+    Defaults to the spawn's own working directory, else this process's.
+    */
     readonly workspaceRoot?: string | undefined
   },
 ): Promise<void> {
@@ -103,9 +103,9 @@ export async function execResourceFile(
   args: readonly string[],
   options: ExecFileOptionsWithStringEncoding & {
     /**
-     * The workspace the child runs in (guards its lookup and PATH).
-     * Defaults to the spawn's own working directory, else this process's.
-     */
+    The workspace the child runs in (guards its lookup and PATH).
+    Defaults to the spawn's own working directory, else this process's.
+    */
     readonly workspaceRoot?: string | undefined
   },
 ): Promise<{ stdout: string; stderr: string }> {

@@ -281,11 +281,11 @@ const GPL_NOTICE =
   /\bGNU\s+(Affero\s+|Lesser\s+|Library\s+)?General\s+Public\s+License\b[\s\S]{0,200}?\bversion\s+(\d(?:\.\d)?)\b[\s\S]{0,120}?\bany\s+later\s+version\b/iu
 
 /**
- * The licence grants the project's own sources make in their headers
- * (M97 CM971-R3): each `SPDX-License-Identifier` expression as written,
- * plus `<stem>-or-later` for a standard GNU notice granting "any later
- * version". Vendored and generated files grant nothing for the project.
- */
+The licence grants the project's own sources make in their headers
+(M97 CM971-R3): each `SPDX-License-Identifier` expression as written,
+plus `<stem>-or-later` for a standard GNU notice granting "any later
+version". Vendored and generated files grant nothing for the project.
+*/
 export function projectHeaderGrants(snapshot: LegalFileSnapshot): string[] {
   const grants = new Set<string>()
   for (const file of snapshot.files) {

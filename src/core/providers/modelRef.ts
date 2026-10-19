@@ -20,11 +20,11 @@ const MODEL_ID_PATTERN = /^\S+$/
 const UNPRINTABLE_PATTERN = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu
 
 /**
- * Whether a model id may be stored or offered: no control or format
- * characters (the bidi controls live in Cf), so a stored id can never steer
- * a terminal that prints it. Whitespace never reaches here: the command
- * layer refuses it first (Codex on PR #227).
- */
+Whether a model id may be stored or offered: no control or format
+characters (the bidi controls live in Cf), so a stored id can never steer
+a terminal that prints it. Whitespace never reaches here: the command
+layer refuses it first (Codex on PR #227).
+*/
 export function isStorableModelId(id: string): boolean {
   return !/[\p{Cc}\p{Cf}]/u.test(id)
 }

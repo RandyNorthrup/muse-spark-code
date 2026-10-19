@@ -128,9 +128,9 @@ export const CAPTURED_PULL_LIST = [
 ]
 
 /**
- * One check run in the shape GitHub sent on 2026-09-28 (see above): tests
- * vary the id and name for volume, never the fields.
- */
+One check run in the shape GitHub sent on 2026-09-28 (see above): tests
+vary the id and name for volume, never the fields.
+*/
 export function checkRun(id: number, name: string, status: string, conclusion: string | null) {
   const url = `https://github.com/${REPOSITORY}/actions/runs/36465729961/job/${String(id)}`
   return {

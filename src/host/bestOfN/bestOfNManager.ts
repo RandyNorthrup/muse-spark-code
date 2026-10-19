@@ -98,10 +98,10 @@ export interface BestOfNManagerDeps extends Pick<
 const ABORT_CHOICE_ID = 'abort'
 
 /**
- * A failed attempt's reason for the run: the redacted failure text, as the
- * runner records its own failures, never the log's kind word. The dialog
- * renders it (`bestOfNAttemptFailed`), and the log keeps the kind.
- */
+A failed attempt's reason for the run: the redacted failure text, as the
+runner records its own failures, never the log's kind word. The dialog
+renders it (`bestOfNAttemptFailed`), and the log keeps the kind.
+*/
 export function attemptFailureReason(error: unknown): string {
   return redactSecrets(error instanceof Error ? error.message : String(error))
 }
