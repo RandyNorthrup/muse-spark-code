@@ -48,8 +48,10 @@ describe('createWindowHints journal recovery', () => {
       await hints.publish(state())
       const fresh = await hints.readFresh()
       expect(fresh).toHaveLength(1)
-      expect(fresh[0].instanceId).toBe(UID)
-      expect(fresh[0].workers).toBe(1)
+      const hint = fresh[0]
+      if (hint === undefined) throw new Error('the published hint did not read back')
+      expect(hint.instanceId).toBe(UID)
+      expect(hint.workers).toBe(1)
       await hints.dispose()
     })
   })
