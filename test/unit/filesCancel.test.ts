@@ -95,7 +95,9 @@ describe('Files internal calls answer the operation signal', () => {
             name: 'a.txt',
             mime: 'text/plain',
           },
-          sessions: [],
+          // Owned by the released session, so this sync orphans it: RULE 3
+          // deletes only files the sync left without a session.
+          sessions: ['session-1'],
         },
       ],
       cachedFiles: [],
