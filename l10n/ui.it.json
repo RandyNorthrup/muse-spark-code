@@ -3498,6 +3498,7 @@
   "permissionReviewerTornReason": "la modifica della modalità si è interrotta durante l’applicazione",
   "permissionReviewerMissing": "I nuovi turni sono rifiutati: il revisore delle autorizzazioni non ha potuto essere installato. Imposta di nuovo la modalità di autorizzazione per continuare.",
   "permissionReviewerRollbackTorn": "La modifica della modalità di autorizzazione si è interrotta durante l’applicazione; la modalità precedente ({mode}) è ripristinata e il suo revisore è ancora installato, ma l’adozione non ha potuto essere confermata. I nuovi turni sono rifiutati finché la modalità non viene impostata di nuovo.",
+  "permissionModeTornUnconfirmed": "La modifica della modalità di autorizzazione si è interrotta durante l'applicazione; l'host esegue {mode}, ma l'adozione non ha potuto essere confermata. I nuovi turni vengono rifiutati finché la modalità non viene impostata di nuovo.",
   "permissionReviewerUnknown": "La modalità di autorizzazione non può essere cambiata e la modalità in cui è in esecuzione l’host è sconosciuta. I nuovi turni sono rifiutati finché la modalità non viene impostata di nuovo.",
   "permissionModeKept": "La modifica della modalità di autorizzazione non è stata applicata ({reason}); l’host continua a usare la sua modalità.",
   "permissionRestoreRefused": "La modalità di autorizzazione della conversazione non ha potuto essere ripristinata ({reason}); l’host esegue ancora {mode}. I nuovi turni sono rifiutati finché la modalità non viene impostata di nuovo.",

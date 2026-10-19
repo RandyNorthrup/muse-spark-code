@@ -4093,6 +4093,13 @@ export const EN = {
   // itself could not be confirmed, so turns stay refused until a reset.
   permissionReviewerRollbackTorn:
     'The permission mode change tore while applying; the previous mode ({mode}) is restored and its reviewer is still installed, but the adoption could not be confirmed. New turns are refused until the mode is set again.',
+  // {mode}: the wire mode the host runs after a torn change (the
+  // acknowledged mode on a forward tear, the restored previous mode on a
+  // rollback's). The mode installs no reviewer (Plan, Bypass), so the tear
+  // must not claim one failed: the mode is in effect, only the adoption is
+  // unconfirmed, and turns stay refused until a reset.
+  permissionModeTornUnconfirmed:
+    'The permission mode change tore while applying; the host runs {mode} but the adoption could not be confirmed. New turns are refused until the mode is set again.',
   permissionReviewerUnknown:
     'The permission mode could not be changed and the mode the host runs is unknown. New turns are refused until the mode is set again.',
   // {reason}: the refusal that stopped the change, in its own words.

@@ -3352,6 +3352,7 @@
   "permissionReviewerTornReason": "모드 변경이 적용 중에 중단되었기 때문",
   "permissionReviewerMissing": "새 턴이 거부됩니다: 권한 검토자를 설치할 수 없습니다. 계속하려면 권한 모드를 다시 설정하세요.",
   "permissionReviewerRollbackTorn": "권한 모드 변경이 적용 중에 중단되었습니다. 이전 모드({mode})가 복원되었고 해당 검토자가 계속 설치되어 있지만, 적용을 확인할 수 없었습니다. 모드를 다시 설정할 때까지 새 턴이 거부됩니다.",
+  "permissionModeTornUnconfirmed": "권한 모드 변경이 적용 중 중단되었습니다. 호스트는 {mode} 모드로 실행 중이지만 전환을 확인할 수 없었습니다. 모드를 다시 설정할 때까지 새 턴이 거부됩니다.",
   "permissionReviewerUnknown": "권한 모드를 변경할 수 없으며 호스트가 실행 중인 모드를 알 수 없습니다. 모드를 다시 설정할 때까지 새 턴이 거부됩니다.",
   "permissionModeKept": "권한 모드 변경이 적용되지 않았습니다 ({reason}); 호스트는 현재 모드로 계속 실행됩니다.",
   "permissionRestoreRefused": "대화의 권한 모드를 복원할 수 없었습니다({reason}). 호스트가 계속 {mode}로 실행 중입니다. 모드를 다시 설정할 때까지 새 턴이 거부됩니다.",
