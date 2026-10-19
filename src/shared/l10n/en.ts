@@ -63,7 +63,7 @@ export const EN = {
   resourceDiskFree: 'Free Disk Space',
   resourceDiskWriteRefused: 'Cannot write to {volume}: critically low free disk space.',
   resourceDiskMinFreeGiBDescription:
-    'Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.',
+    'Free disk space floor in GiB. Unset means no floor; a set floor is at least 2 GiB.',
   resourceHistory: 'Resource History',
   resourceHarness: 'Harness Work',
   resourceCpuTime: 'CPU Time',
@@ -112,11 +112,11 @@ export const EN = {
   resourceGovernorDescription:
     'Keep this machine responsive by slowing or deferring work started by the harness. On by default.',
   resourceCpuMaxPercentDescription:
-    'Throttle when machine CPU use stays above this percentage for 30 seconds.',
+    'Throttle when machine CPU use stays above this percentage for 30 seconds. Unset means no CPU limit.',
   resourceMemoryMaxPercentDescription:
-    'Throttle when memory in use stays above this percentage for two samples.',
+    'Throttle when memory in use stays above this percentage for two samples. Unset means no memory-use limit.',
   resourceMemoryMinFreeGiBDescription:
-    'Minimum available memory in GiB, capped at 15% of this machine’s RAM.',
+    'Minimum available memory in GiB, capped at 15% of this machine’s RAM. Unset means no memory floor.',
   resourceGpuMaxPercentDescription: 'Optional GPU use limit in percent. Unset means no GPU probe.',
   resourceDiskBusyMaxPercentDescription:
     'Optional disk busy limit in percent. Unset means no disk probe.',

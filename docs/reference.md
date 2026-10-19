@@ -3164,14 +3164,14 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.resourceCpuMaxPercent
 
-resourceThreshold: Throttle when machine CPU use stays above this percentage for 30 seconds.
+resourceThreshold: Throttle when machine CPU use stays above this percentage for 30 seconds. Unset means no CPU limit.
 
-Type: `"number"`. Default: `85`. Scope: `machine`.
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ```json
 {
-  "type": "number",
-  "default": 85,
+  "type": ["number", "null"],
+  "default": null,
   "minimum": 30,
   "maximum": 100
 }
@@ -3179,14 +3179,14 @@ Type: `"number"`. Default: `85`. Scope: `machine`.
 
 ### museSpark.resourceMemoryMaxPercent
 
-resourceThreshold&memoryHeadroom=available: Throttle when memory in use stays above this percentage for two samples.
+resourceThreshold&memoryHeadroom=available: Throttle when memory in use stays above this percentage for two samples. Unset means no memory-use limit.
 
-Type: `"number"`. Default: `90`. Scope: `machine`.
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ```json
 {
-  "type": "number",
-  "default": 90,
+  "type": ["number", "null"],
+  "default": null,
   "minimum": 40,
   "maximum": 98
 }
@@ -3194,14 +3194,14 @@ Type: `"number"`. Default: `90`. Scope: `machine`.
 
 ### museSpark.resourceMemoryMinFreeGiB
 
-memoryHeadroom=available: Minimum available memory in GiB, capped at 15% of this machine’s RAM.
+memoryHeadroom=available: Minimum available memory in GiB, capped at 15% of this machine’s RAM. Unset means no memory floor.
 
-Type: `"number"`. Default: `2`. Scope: `machine`.
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ```json
 {
-  "type": "number",
-  "default": 2,
+  "type": ["number", "null"],
+  "default": null,
   "minimum": 0.5,
   "maximum": 64
 }
@@ -3239,7 +3239,7 @@ Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ### museSpark.resourceDiskMinFreeGiB
 
-resourceDiskThreshold: Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.
+resourceDiskThreshold: Free disk space floor in GiB. Unset means no floor; a set floor is at least 2 GiB.
 
 Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 

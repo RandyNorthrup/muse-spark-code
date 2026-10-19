@@ -3962,13 +3962,13 @@
       },
       "id": "museSpark.resourceCpuMaxPercent",
       "name": "museSpark.resourceCpuMaxPercent",
-      "description": "Throttle when machine CPU use stays above this percentage for 30 seconds.",
+      "description": "Throttle when machine CPU use stays above this percentage for 30 seconds. Unset means no CPU limit.",
       "descriptionKey": "config.resourceCpuMaxPercent.description",
-      "type": "number",
-      "default": 85,
+      "type": ["number", "null"],
+      "default": null,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 85, "minimum": 30, "maximum": 100 }
+      "schema": { "type": ["number", "null"], "default": null, "minimum": 30, "maximum": 100 }
     },
     {
       "text": {
@@ -3981,13 +3981,13 @@
       },
       "id": "museSpark.resourceMemoryMaxPercent",
       "name": "museSpark.resourceMemoryMaxPercent",
-      "description": "Throttle when memory in use stays above this percentage for two samples.",
+      "description": "Throttle when memory in use stays above this percentage for two samples. Unset means no memory-use limit.",
       "descriptionKey": "config.resourceMemoryMaxPercent.description",
-      "type": "number",
-      "default": 90,
+      "type": ["number", "null"],
+      "default": null,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 90, "minimum": 40, "maximum": 98 }
+      "schema": { "type": ["number", "null"], "default": null, "minimum": 40, "maximum": 98 }
     },
     {
       "text": {
@@ -3997,13 +3997,13 @@
       },
       "id": "museSpark.resourceMemoryMinFreeGiB",
       "name": "museSpark.resourceMemoryMinFreeGiB",
-      "description": "Minimum available memory in GiB, capped at 15% of this machine’s RAM.",
+      "description": "Minimum available memory in GiB, capped at 15% of this machine’s RAM. Unset means no memory floor.",
       "descriptionKey": "config.resourceMemoryMinFreeGiB.description",
-      "type": "number",
-      "default": 2,
+      "type": ["number", "null"],
+      "default": null,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 2, "minimum": 0.5, "maximum": 64 }
+      "schema": { "type": ["number", "null"], "default": null, "minimum": 0.5, "maximum": 64 }
     },
     {
       "text": {
@@ -4045,7 +4045,7 @@
       },
       "id": "museSpark.resourceDiskMinFreeGiB",
       "name": "museSpark.resourceDiskMinFreeGiB",
-      "description": "Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.",
+      "description": "Free disk space floor in GiB. Unset means no floor; a set floor is at least 2 GiB.",
       "descriptionKey": "config.resourceDiskMinFreeGiB.description",
       "type": ["number", "null"],
       "default": null,
