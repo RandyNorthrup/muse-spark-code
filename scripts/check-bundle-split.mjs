@@ -1351,7 +1351,9 @@ const TEXT_BLOCKS = [
     readers: ['dist/codeIntel.js', BUNDLES.modelApi.output, 'dist/modelApiCodeIntel.js'],
   },
   // A picked text file's template (M54): the backends' bundles and the
-  // conversation carry it; activation reads it no longer (PR206).
+  // conversation carry it; activation reads it no longer (PR206). The
+  // runtime media port formats picked text files over ACP/exec (M105),
+  // so it reads the block too.
   {
     block: 'TEXT_ATTACHMENT_MODEL_TEXT',
     sentinels: ['attachedTextFile'],

@@ -1008,7 +1008,9 @@ export function featureCatalog(): readonly Feature[] {
       [],
       [],
       'playback',
-      undefined,
+      // D203: no zero-tool turn exists on Muse Code, so playback runs on the
+      // Model API backend only and is refused on Muse Code.
+      ['modelApi'],
       false,
       ['vscode', 'acp'],
     ),
