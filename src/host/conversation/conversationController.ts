@@ -11904,6 +11904,19 @@ export class ConversationController {
   }
 
   /**
+   * Auth reached signedIn after this panel opened cold (first open during
+   * the check, a later sign-in): surfaceReady's warm-up stood down for it,
+   * so the host starts now, as when the panel opens. A panel that already
+   * warmed is untouched.
+   */
+  public warmUpAfterSignIn(): void {
+    if (this.models !== undefined) {
+      return
+    }
+    void this.warmModels()
+  }
+
+  /**
    * Ctrl+B (M46, the TUI's key): every shell command the running turn still
    * waits on goes on in the background, and the turn goes on without them.
    */
