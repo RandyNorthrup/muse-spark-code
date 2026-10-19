@@ -4,11 +4,12 @@
 // up again at connect time. The name `probe.invalid` never resolves on any
 // machine, so any bytes arriving prove the dial used the checked address,
 // and the `Host` bytes still carry the original name. Where a real socket
-// is needed to prove the dial target, a bare TCP acceptor takes the
-// connection, records the peer address and the raw request bytes, then
-// closes without writing a single byte: it answers nothing, so it is not
-// a provider. Refusals are proven the same way — the acceptor sees zero
-// connections, so nothing was sent.
+// is needed, a bare TCP acceptor takes the connection, records the peer
+// address and the raw request bytes, then answers as told: silence (it
+// answers nothing, so it is not a provider) or a bare 302 with no body
+// and no provider content (a redirect carries no answer by definition).
+// Refusals are proven with silence — the acceptor sees zero connections,
+// so nothing was sent.
 
 import { createServer, type Server, type Socket } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -30,7 +31,7 @@ afterEach(async () => {
   }
 })
 
-interface SilentAcceptor {
+interface Acceptor {
   readonly port: number
   readonly connections: () => number
   readonly peerAddresses: () => (string | undefined)[]
@@ -39,11 +40,12 @@ interface SilentAcceptor {
 
 /**
  * A bare TCP acceptor on 127.0.0.1: it records each connection's peer
- * address and raw bytes, then closes without writing anything — no HTTP
- * status, no headers, no body. The client's request therefore always
- * fails; the recorded bytes are the proof of where it dialled.
+ * address and raw bytes, then answers each request as told once its
+ * headers arrive. Silence closes without writing anything — no HTTP
+ * status, no headers, no body — so the client's request always fails
+ * and the recorded bytes are the proof of where it dialled.
  */
-async function listenSilent(): Promise<SilentAcceptor> {
+async function listenAcceptor(answer: (socket: Socket) => void): Promise<Acceptor> {
   let connections = 0
   const peerAddresses: (string | undefined)[] = []
   let received = ''
@@ -52,7 +54,7 @@ async function listenSilent(): Promise<SilentAcceptor> {
     peerAddresses.push(socket.remoteAddress)
     socket.on('data', (chunk: Buffer) => {
       received += chunk.toString('utf8')
-      if (received.includes('\r\n\r\n')) socket.end()
+      if (received.includes('\r\n\r\n')) answer(socket)
     })
     socket.on('error', () => undefined)
   })
@@ -61,13 +63,20 @@ async function listenSilent(): Promise<SilentAcceptor> {
     server.listen(0, '127.0.0.1', resolve)
   })
   const bound = server.address()
-  if (typeof bound !== 'object' || bound === null) throw new Error('silent acceptor did not bind')
+  if (typeof bound !== 'object' || bound === null) throw new Error('acceptor did not bind')
   return {
     port: bound.port,
     connections: () => connections,
     peerAddresses: () => [...peerAddresses],
     received: () => received,
   }
+}
+
+/** An acceptor that answers nothing: every client request must fail. */
+function listenSilent(): Promise<Acceptor> {
+  return listenAcceptor((socket) => {
+    socket.end()
+  })
 }
 
 function providerFor(port: number): ResolvedProvider {
@@ -120,27 +129,51 @@ describe('pinProviderFetch dials the checked address', () => {
     expect(target.received()).toContain(JSON.stringify({ model: 'llama3' }))
   })
 
-  it('sends nothing when the answers move to a forbidden address', async () => {
-    const target = await listenSilent()
-    const provider = providerFor(target.port)
-    const pinned = pinProviderFetch(provider, [{ kind: 'exact', path: '/api/chat' }], () =>
-      Promise.resolve(['169.254.169.254']),
-    )
-    await expect(
-      pinned(`http://probe.invalid:${String(target.port)}/api/chat`, { method: 'GET' }),
-    ).rejects.toThrow('rebinding')
-    expect(target.connections()).toBe(0)
+  it('sends nothing when the answers leave the saved network', async () => {
+    // A wholly forbidden answer, then one mixed with the loopback
+    // address: both refuse before anything is sent, so the acceptor
+    // never sees a connection either time.
+    const hostileAnswers: (readonly string[])[] = [
+      ['169.254.169.254'],
+      ['127.0.0.1', '169.254.169.254'],
+    ]
+    for (const answers of hostileAnswers) {
+      const target = await listenSilent()
+      const pinned = pinProviderFetch(
+        providerFor(target.port),
+        [{ kind: 'exact', path: '/api/chat' }],
+        () => Promise.resolve(answers),
+      )
+      await expect(
+        pinned(`http://probe.invalid:${String(target.port)}/api/chat`, { method: 'GET' }),
+      ).rejects.toThrow('rebinding')
+      expect(target.connections()).toBe(0)
+    }
   })
 
-  it('sends nothing on mixed answers either', async () => {
-    const target = await listenSilent()
-    const provider = providerFor(target.port)
-    const pinned = pinProviderFetch(provider, [{ kind: 'exact', path: '/api/chat' }], () =>
-      Promise.resolve(['127.0.0.1', '169.254.169.254']),
+  it('refuses a redirect instead of following it', async () => {
+    // The acceptor speaks bare framing only: a 302 with no body and no
+    // provider content. The pin refuses it like `redirect: 'error'`
+    // rather than following the Location answer.
+    const redirecting = await listenAcceptor((socket) => {
+      socket.end(
+        'HTTP/1.1 302 Found\r\nLocation: /api/chat\r\nContent-Length: 0\r\nConnection: close\r\n\r\n',
+      )
+    })
+    const pinned = pinProviderFetch(
+      providerFor(redirecting.port),
+      [{ kind: 'exact', path: '/api/chat' }],
+      () => Promise.resolve(['127.0.0.1']),
     )
-    await expect(
-      pinned(`http://probe.invalid:${String(target.port)}/api/chat`, { method: 'GET' }),
-    ).rejects.toThrow('rebinding')
-    expect(target.connections()).toBe(0)
+    let failure: unknown
+    try {
+      await pinned(`http://probe.invalid:${String(redirecting.port)}/api/chat`, { method: 'GET' })
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(TypeError)
+    expect((failure as TypeError).message).toBe('fetch failed')
+    // Never followed: the one request arrived and nothing else was sent.
+    expect(redirecting.connections()).toBe(1)
   })
 })
