@@ -1048,13 +1048,12 @@ export const HOOK_NOTIFICATION_DELAY_MS = 6000
 export const HOOK_SESSION_END_TIMEOUT_MS = 10_000
 // Cline v1 contextModification cap (M91 lane X; hooks-parity/raw-copilot-cline.md:25).
 export const CLINE_CONTEXT_MODIFICATION_MAX_CHARS = 50_000
-// M91 lane X: the plugin child runs one plugin per hook call under these bounds.
-export const PLUGIN_HOOK_TIMEOUT_MS = 30_000
+// M91 lane X: the plugin child runs one plugin per hook call. D121 (owner
+// 2026-10-16): no bound of ours — a call waits for the child's answer, an
+// explicit per-hook timeout, or Stop, and the runtime answers whole. Only
+// the runtime's own floor stays: the node version it needs for type
+// stripping.
 export const PLUGIN_NODE_MINIMUM = '22.18.0'
-export const PLUGIN_CHILD_MAX_HEAP_MB = 256
-export const PLUGIN_RESPONSE_MAX_BYTES = 64 * 1024
-// How long `node --version` / `bun --version` may take before the runtime counts as absent.
-export const PLUGIN_RUNTIME_PROBE_TIMEOUT_MS = 15_000
 // M91 handler types (PLAN.md D70, lane H): the http, mcp_tool, prompt and
 // agent handlers take the same caps as commands (M91 acceptance: stdin,
 // stdout and timeout caps shared).
@@ -1072,14 +1071,15 @@ export const HOOK_MODEL_MAX_OUTPUT_TOKENS = 1024
 // on a partial answer is parsed as-is when the run ends.
 // A prompt/agent hook's transcript row: the paid run is loud, like a review's.
 export const HOOK_MODEL_ROW_TOOL = 'hook_model'
-// RVM91X P2 12: a plugin child's whole memory, as a Windows job limit and,
-// for bun on Linux, as prlimit's data limit (node also keeps its heap cap).
-export const PLUGIN_CHILD_MAX_MEMORY_BYTES = 1024 * 1024 * 1024
+// D121: no memory bound of ours on a plugin child — the runtime's own
+// default applies, and a child that outgrows the machine is ended with its
+// tree, not refused up front.
 // After the Windows job launcher fails to prepare, the next plugin dispatch
-// past this delay tries once more; a second failure stays until Retry.
+// past this delay tries once more; the delay only paces retries and bounds
+// nothing, so it stays.
 export const PLUGIN_JOB_RETRY_BACKOFF_MS = 5000
-// The plugin files an import reads to find their events, per system.
-export const PLUGIN_IMPORT_MAX_BYTES = 256 * 1024
+// D121: no import bound of ours on plugin files — an import reads the whole
+// file through the shared import reader.
 export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',

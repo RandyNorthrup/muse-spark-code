@@ -14,6 +14,10 @@ happened, not what was planned; superseded entries are kept.
 - Schedules never pause themselves on failures: `museSpark.schedulePauseAfterFailures`
   (`0`, the default) keeps firing with every failure in the run history, and a
   set count pauses the schedule after that many consecutive failures.
+- Plugin children run with no bound of ours: no per-call deadline, heap flag,
+  memory bound, answer-size bound or failure latch — a call waits for the
+  child's answer, an explicit per-hook timeout (which names the bound it
+  waited) or Stop, and a stopped probe names how long it waited.
 - The schedules bundle defers its editor-delivery binding: `dist/schedules.js`
   is 179,540 B against its 250 KiB budget, and the binding (workspace
   targets, run dispatch, grant checks) loads as the new
