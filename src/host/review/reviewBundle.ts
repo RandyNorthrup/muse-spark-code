@@ -9,6 +9,7 @@
 // refused with the reason, the log has the cause, and the next review tries
 // again.
 
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { PlanModeHold, PlanModeHoldDeps } from '../../core/review/planModeHold'
 import type { ReviewTurnInput } from '../../core/review/reviewPrompt'
 import { UI_TEXT } from '../../shared/constants'
@@ -92,10 +93,6 @@ export interface LazyReviewDeps {
   readonly loadBundle?: ((file: string) => unknown) | undefined
 }
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
 /**
  * The review's parts, the bundle required the first time any is used and
  * kept from then on. A missing or corrupt bundle throws `reviewUnavailable`
@@ -113,11 +110,11 @@ export function lazyReview(deps: LazyReviewDeps): ReviewFeatures {
     try {
       bundle = loadBundle(bundlePath)
     } catch (error: unknown) {
-      deps.log.error(`The review ${bundlePath} could not be loaded: ${describe(error)}`)
+      deps.log.error(`The review bundle could not be loaded: ${failureForLog(error)}`)
       throw new Error(unavailable, { cause: error })
     }
     if (!isReviewBundle(bundle)) {
-      deps.log.error(`${bundlePath} does not export the review`)
+      deps.log.error('The review bundle does not export the review')
       if (deps.loadBundle === undefined) {
         forgetFile(bundlePath)
       }

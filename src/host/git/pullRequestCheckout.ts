@@ -152,6 +152,7 @@ export async function openPullRequestInConversation(deps: PullRequestCheckoutDep
     repository = owned.repository
     checkOwner = owned.check
   } catch (error: unknown) {
+    deps.log.warn('Opening a pull request failed while opening the repository')
     deps.showFailure(UI_TEXT.gitUnavailable, failureText(error))
     return
   }
@@ -207,6 +208,7 @@ export async function openPullRequestInConversation(deps: PullRequestCheckoutDep
       pullRequest = found
       isOwn = found.author.id === user.id
     } catch (error: unknown) {
+      deps.log.warn(`Reading pull request #${String(ref.number)} from GitHub failed`)
       deps.dropRejectedGitHubToken(token, error)
       deps.showFailure(UI_TEXT.gitHubFailed, failureText(error))
       return
@@ -221,6 +223,7 @@ export async function openPullRequestInConversation(deps: PullRequestCheckoutDep
       check,
     })
   } catch (error: unknown) {
+    deps.log.warn('Opening a pull request failed while checking it out')
     deps.showFailure(UI_TEXT.openPullRequestFetchFailed, failureText(error))
   }
 }
@@ -345,6 +348,7 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
     await deps.registry.complete(folder, record.createdAt)
   } catch (error: unknown) {
     await deps.registry.remove(folder, record.createdAt, previous)
+    deps.log.warn(`Checking out pull request #${String(pullRequest.number)} failed`)
     deps.showFailure(UI_TEXT.worktreeAddFailed, failureText(error))
     return
   }

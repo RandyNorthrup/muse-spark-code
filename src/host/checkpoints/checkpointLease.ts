@@ -74,13 +74,18 @@ export class CheckpointLease {
         this.state = { kind: 'idle' }
         return
       } catch (error: unknown) {
-        if (attempt === 1 || signal.aborted) {
-          this.deps.log.warn(`The restore lease could not be released: ${failureForLog(error)}`)
+        // Nobody waits on it any more after an abort: it counts for nothing.
+        if (signal.aborted) {
           return
         }
-        await new Promise<void>((resolve) => {
-          setTimeout(resolve, CHECKPOINT_PUBLISH_RETRY_MS)
-        })
+        if (attempt === 0) {
+          await new Promise<void>((resolve) => {
+            setTimeout(resolve, CHECKPOINT_PUBLISH_RETRY_MS)
+          })
+          continue
+        }
+        this.deps.log.warn(`The restore lease could not be released: ${failureForLog(error)}`)
+        return
       }
     }
   }

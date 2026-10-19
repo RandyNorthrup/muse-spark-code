@@ -1550,6 +1550,7 @@
     "many": "{count} hooków w pliku {file}"
   },
   "hooksSparkAbout": "Muse Code nigdy nie odczytuje tego pliku. Zawiera zdarzenia obsługiwane tylko przez to rozszerzenie oraz hooki zaimportowane z innych agentów.",
+  "hooksFileUnreadable": "Nie można odczytać tego pliku:",
   "hooksBackendMuseCode": "Uruchamiane przez Muse Code",
   "hooksBackendBoth": "Uruchamiane przez Muse Code oraz przez to okno w backendzie Model API",
   "hooksBackendSpark": "Uruchamiane przez to okno: w backendzie Model API oraz w obu backendach dla zdarzeń obsługiwanych przez samo rozszerzenie",

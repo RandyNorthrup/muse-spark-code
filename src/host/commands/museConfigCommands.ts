@@ -29,6 +29,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
+import { errnoCode, isMissingPath } from '../canonicalPath'
 import type { PickItem, PickOne } from './pickItem'
 
 export type McpAction = 'login' | 'logout'
@@ -85,8 +86,20 @@ const STREAMABLE_HTTP = 'streamable-http'
 const LIST_SEPARATOR = ', '
 const DETAIL_SEPARATOR = ' · '
 
-function describe(error: unknown): string {
-  return redactSecrets(error instanceof Error ? error.message : String(error))
+/**
+ * A settings read's errno vocabulary: a permission or a path that is not a
+ * file reads as its code (the message can hold the file's path), so the
+ * reason shown stays closed. Anything else is not this read's to name.
+ */
+const SETTINGS_READ_CODES: ReadonlySet<string> = new Set(['EACCES', 'EPERM', 'EISDIR', 'ENOTDIR'])
+
+function isSettingsReadError(error: unknown): error is Error & { readonly code: string } {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    SETTINGS_READ_CODES.has(error.code)
+  )
 }
 
 /** The file's text, or why it could not be read (a permission, a directory). */
@@ -95,7 +108,10 @@ function settingsText(deps: MuseConfigDeps): { readonly text?: string; readonly 
     const text = deps.readSettings()
     return text === undefined ? {} : { text }
   } catch (error: unknown) {
-    return { error: describe(error) }
+    if (!isSettingsReadError(error)) {
+      throw error
+    }
+    return { error: error.code }
   }
 }
 
@@ -328,16 +344,34 @@ export async function showMcpServers(deps: MuseConfigDeps): Promise<void> {
 const EXTENSION_EVENTS: ReadonlySet<string> = new Set(EXTENSION_HOOK_EVENTS)
 type SparkScope = 'project' | 'user'
 
-/** A hooks file's view; undefined when there is no such file or it cannot be read. */
-function hookFile(deps: MuseConfigDeps, fsPath: string | undefined): HookFileView | undefined {
+/**
+ * A hooks file's view; undefined when there is no such file, or why it
+ * could not be read (an operating-system code, never its text, which can
+ * name a path). A file that cannot be read stays visible as unreadable, and
+ * the panel still lists every other source.
+ */
+function hookFile(
+  deps: MuseConfigDeps,
+  fsPath: string | undefined,
+): { readonly view: HookFileView | undefined; readonly error: string | undefined } {
   if (fsPath === undefined || deps.readTextFile === undefined || !deps.fileExists(fsPath)) {
-    return undefined
+    return { view: undefined, error: undefined }
   }
   try {
-    return readHookFile(deps.readTextFile(fsPath))
-  } catch {
-    return undefined
+    return { view: readHookFile(deps.readTextFile(fsPath)), error: undefined }
+  } catch (error: unknown) {
+    // The file vanished between the existence check and the read: there is
+    // no file to show.
+    return {
+      view: undefined,
+      error: isMissingPath(error) ? undefined : (errnoCode(error) ?? 'error'),
+    }
   }
+}
+
+/** A hooks row's unreadable detail: fixed words and the code, never the operating system's text. */
+function unreadableDetail(code: string): string {
+  return `${UI_TEXT.hooksFileUnreadable} ${code}`
 }
 
 /**
@@ -394,10 +428,16 @@ function projectHooksItem(deps: MuseConfigDeps): PickItem {
   } else {
     detail = UI_TEXT.hooksProjectTrusted
   }
-  const notes =
-    projectHooksPath !== undefined && deps.fileExists(projectHooksPath)
-      ? museFileNotes(hookFile(deps, projectHooksPath))
-      : []
+  const read = hookFile(deps, projectHooksPath)
+  if (read.error !== undefined) {
+    // Unreadable, not absent: the file stays visible as unreadable, without
+    // the who-runs notes, which would claim hooks that cannot load.
+    detail = unreadableDetail(read.error)
+  }
+  // The notes read as before: whenever the file is there, even when its
+  // content says nothing; never for a file that is not there or cannot load.
+  const isPresent = projectHooksPath !== undefined && deps.fileExists(projectHooksPath)
+  const notes = isPresent && read.error === undefined ? museFileNotes(read.view) : []
   return {
     id: PROJECT_HOOKS,
     label: UI_TEXT.hooksProject,
@@ -420,17 +460,23 @@ function sparkItem(deps: MuseConfigDeps, scope: SparkScope): PickItem | undefine
   if (fsPath === undefined) {
     return undefined
   }
-  const view = hookFile(deps, fsPath)
+  const read = hookFile(deps, fsPath)
   const file = scope === 'project' ? UI_TEXT.hooksSparkProjectFile : fsPath
-  const status =
-    view === undefined
-      ? sparkNone(scope)
-      : withTrustNote(deps, plural(UI_TEXT.hooksSparkCount, view.count, { file }))
+  let status: string
+  if (read.error !== undefined) {
+    status = unreadableDetail(read.error)
+  } else if (read.view === undefined) {
+    status = sparkNone(scope)
+  } else {
+    status = withTrustNote(deps, plural(UI_TEXT.hooksSparkCount, read.view.count, { file }))
+  }
   return {
     id: scope === 'project' ? SPARK_PROJECT_HOOKS : SPARK_USER_HOOKS,
     label: scope === 'project' ? UI_TEXT.hooksSparkProject : UI_TEXT.hooksSparkUser,
     description: file,
-    detail: [status, ...(view === undefined ? [] : sparkFileNotes(view))].join(DETAIL_SEPARATOR),
+    detail: [status, ...(read.view === undefined ? [] : sparkFileNotes(read.view))].join(
+      DETAIL_SEPARATOR,
+    ),
   }
 }
 

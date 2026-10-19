@@ -1505,6 +1505,7 @@
     "other": "{file} 中有 {count} 個鉤子"
   },
   "hooksSparkAbout": "Muse Code 絕不會讀取此檔案。其中包含只有此擴充功能會執行的事件，以及從其他代理匯入的鉤子。",
+  "hooksFileUnreadable": "無法讀取此檔案：",
   "hooksBackendMuseCode": "由 Muse Code 執行",
   "hooksBackendBoth": "由 Muse Code 執行；在 Model API 後端上也由此視窗執行",
   "hooksBackendSpark": "由此視窗執行：在 Model API 後端上執行；對於擴充功能本身處理的事件，在兩種後端上都會執行",

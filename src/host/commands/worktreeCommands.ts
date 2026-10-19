@@ -18,7 +18,9 @@ import {
   worktreeRemoveArgs,
 } from '../../core/worktrees'
 import { redactSecrets } from '../../core/redact'
-import { UI_TEXT } from '../../shared/constants'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import { gitExitCode, isGitExitError } from '../git'
+import { GIT_WORKTREE_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { Logger } from '../logger'
 import type { PickItem, PickOne } from './pickItem'
@@ -116,6 +118,7 @@ async function repositoryRoot(deps: WorktreeDeps): Promise<string | undefined> {
     const toplevel = await runCurrentGit(deps, ['rev-parse', '--show-toplevel'], workspaceRoot)
     return toplevel.trim()
   } catch (error: unknown) {
+    deps.log.warn(`No worktree repository: ${failureForLog(error)}`)
     deps.showError(`${UI_TEXT.worktreeNotRepository}: ${gitMessage(error)}`)
     return undefined
   }
@@ -133,15 +136,26 @@ async function branchProblem(
   }
   try {
     await runCurrentGit(deps, branchCheckArgs(name), root)
-  } catch {
-    return UI_TEXT.worktreeBranchInvalid
+  } catch (error: unknown) {
+    // `check-ref-format --branch` ends non-zero only for an invalid name
+    // (128 on git 2.50.1): git's own verdict. A git that never ended (-1:
+    // a signal; anything else: the runner's failure, a revoked trust)
+    // reaches the caller with its cause.
+    if (isGitExitError(error) && gitExitCode(error) !== -1) {
+      return UI_TEXT.worktreeBranchInvalid
+    }
+    throw error
   }
   try {
-    // `show-ref --quiet` exits 0 only when the branch exists.
+    // `show-ref --quiet` exits 0 only when the branch exists; any other of
+    // git's own verdicts means it does not.
     await runCurrentGit(deps, branchExistsArgs(name), root)
     return UI_TEXT.worktreeBranchExists
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    if (isGitExitError(error) && gitExitCode(error) !== -1) {
+      return undefined
+    }
+    throw error
   }
 }
 
@@ -149,8 +163,13 @@ async function outputOrEmpty(deps: WorktreeDeps, args: readonly string[], root: 
   try {
     const output = await runCurrentGit(deps, args, root)
     return output.trim()
-  } catch {
-    return ''
+  } catch (error: unknown) {
+    // Git answered with its own verdict: the value is unknown, not an error.
+    // A git that never answered (a timeout, a signal, no git) still throws.
+    if (isGitExitError(error) && gitExitCode(error) !== -1) {
+      return ''
+    }
+    throw error
   }
 }
 
@@ -205,6 +224,7 @@ export async function newWorktree(deps: WorktreeDeps): Promise<void> {
   try {
     await runCurrentGit(deps, worktreeAddArgs(folder, branch, base), root, Infinity)
   } catch (error: unknown) {
+    deps.log.warn(`git worktree add failed: ${failureForLog(error)}`)
     deps.showError(`${UI_TEXT.worktreeAddFailed}: ${gitMessage(error)}`)
     return
   }
@@ -213,7 +233,7 @@ export async function newWorktree(deps: WorktreeDeps): Promise<void> {
     await deps.recordWorktree(folder, branch, nativePath(root, deps.platform))
   } catch (error: unknown) {
     // The worktree is there either way: it is offered, only without its record.
-    deps.log.warn(`The new worktree was not recorded: ${gitMessage(error)}`)
+    deps.log.warn(`The new worktree was not recorded: ${failureForLog(error)}`)
   }
   if (
     !canContinue(deps) ||
@@ -237,14 +257,37 @@ function removalItem(entry: WorktreeEntry): PickItem {
   }
 }
 
+/** `git worktree remove --force`, after the second, explicit yes. */
+async function didForceRemoveFolder(
+  deps: WorktreeDeps,
+  root: string,
+  folder: string,
+): Promise<boolean> {
+  try {
+    await runCurrentGit(deps, worktreeRemoveArgs(folder, true), root, GIT_WORKTREE_TIMEOUT_MS)
+    return true
+  } catch (error: unknown) {
+    if (!isGitExitError(error)) {
+      throw error
+    }
+    deps.log.warn(`Removing the worktree with its changes failed: ${failureForLog(error)}`)
+    deps.showError(`${UI_TEXT.worktreeRemoveFailed}: ${gitMessage(error)}`)
+    return false
+  }
+}
+
 /** `git worktree remove`, then with `--force` only after a second, explicit yes. */
 async function didRemoveFolder(deps: WorktreeDeps, root: string, folder: string): Promise<boolean> {
   try {
     await runCurrentGit(deps, worktreeRemoveArgs(folder, false), root, Infinity)
     return true
   } catch (error: unknown) {
+    if (!isGitExitError(error)) {
+      throw error
+    }
     const message = gitMessage(error)
     if (!isDirtyWorktreeError(message)) {
+      deps.log.warn(`Removing the worktree failed: ${failureForLog(error)}`)
       deps.showError(`${UI_TEXT.worktreeRemoveFailed}: ${message}`)
       return false
     }
@@ -254,16 +297,7 @@ async function didRemoveFolder(deps: WorktreeDeps, root: string, folder: string)
     folder,
     UI_TEXT.worktreeDiscardAction,
   )
-  if (!isDiscarding || !canContinue(deps)) {
-    return false
-  }
-  try {
-    await runCurrentGit(deps, worktreeRemoveArgs(folder, true), root, Infinity)
-    return true
-  } catch (error: unknown) {
-    deps.showError(`${UI_TEXT.worktreeRemoveFailed}: ${gitMessage(error)}`)
-    return false
-  }
+  return isDiscarding && canContinue(deps) && (await didForceRemoveFolder(deps, root, folder))
 }
 
 export async function removeWorktree(deps: WorktreeDeps): Promise<void> {
@@ -281,6 +315,7 @@ export async function removeWorktree(deps: WorktreeDeps): Promise<void> {
       path: nativePath(entry.path, deps.platform),
     }))
   } catch (error: unknown) {
+    deps.log.warn(`Listing the worktrees failed: ${failureForLog(error)}`)
     deps.showError(`${UI_TEXT.worktreeListFailed}: ${gitMessage(error)}`)
     return
   }

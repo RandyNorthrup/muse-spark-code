@@ -39,6 +39,7 @@ const PRESENCE_SUFFIX = '.json'
 const ASIDE_SUFFIX = '.aside'
 const ALREADY_THERE = 'EEXIST'
 const NO_SUCH_PROCESS = 'ESRCH'
+const NOT_PERMITTED = 'EPERM'
 const UNREADABLE_TURN = 'unreadable-presence'
 
 const presenceSchema = z.object({
@@ -48,29 +49,30 @@ const presenceSchema = z.object({
 })
 type Presence = z.infer<typeof presenceSchema>
 
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
-}
-
 /** The text as JSON; undefined when it is not JSON. */
 function parsedJson(text: string): unknown {
   try {
     return JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    // Without a reviver only malformed text fails here, always as a
+    // SyntaxError; anything else is not this parse's to drop.
+    if (!(error instanceof SyntaxError)) {
+      throw error
+    }
     return undefined
   }
 }
 
 /** Runs `task` once `previous` settled, whichever way: that write failed for its own caller. */
 async function afterSettled(previous: Promise<unknown>, task: () => Promise<void>): Promise<void> {
-  try {
-    await previous
-  } catch {
-    // This write carries the latest state regardless.
-  }
+  // This write carries the latest state regardless.
+  await Promise.allSettled([previous])
   await task()
+}
+
+/** Whether the failure names the given errno code. */
+function isErrno(error: unknown, code: string): boolean {
+  return error instanceof Error && 'code' in error && error.code === code
 }
 
 /** Whether a process with this id exists (one we may not signal still exists). */
@@ -79,7 +81,15 @@ export function isProcessAlive(pid: number): boolean {
     process.kill(pid, 0)
     return true
   } catch (error: unknown) {
-    return errorCode(error) !== NO_SUCH_PROCESS
+    // Only "no such process" says gone; "not permitted" says it exists.
+    // Anything else is not this probe's to answer.
+    if (isErrno(error, NO_SUCH_PROCESS)) {
+      return false
+    }
+    if (isErrno(error, NOT_PERMITTED)) {
+      return true
+    }
+    throw error
   }
 }
 
@@ -223,7 +233,8 @@ export class WindowPresence {
       try {
         await copyFile(aside, filePath, fsConstants.COPYFILE_EXCL)
       } catch (error: unknown) {
-        if (errorCode(error) !== ALREADY_THERE) {
+        // The window put its file back meanwhile: it beat us, and stays.
+        if (!isErrno(error, ALREADY_THERE)) {
           throw error
         }
       }

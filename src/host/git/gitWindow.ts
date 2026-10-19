@@ -177,6 +177,29 @@ export async function fingerprintUntracked(
   return hash.digest('hex')
 }
 
+/**
+ * A file start's gone-or-unreadable vocabulary: the file left to the file
+ * list. Anything else is not this row's to hide.
+ */
+const FILE_START_CODES: ReadonlySet<string> = new Set([
+  'ENOENT',
+  'ENOTDIR',
+  'EACCES',
+  'EPERM',
+  'ELOOP',
+  'ENAMETOOLONG',
+  'EBUSY',
+])
+
+function isFileStartError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    FILE_START_CODES.has(error.code)
+  )
+}
+
 /** Up to `max` bytes from the start of a regular file; undefined for a link or anything else. */
 async function fileStart(
   file: string,
@@ -222,7 +245,10 @@ export async function untrackedDiff(
     let start: Awaited<ReturnType<typeof fileStart>>
     try {
       start = await fileStart(file.path, room)
-    } catch {
+    } catch (error: unknown) {
+      if (!isFileStartError(error)) {
+        throw error
+      }
       start = undefined
     }
     check()

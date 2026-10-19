@@ -21,6 +21,7 @@ import {
 } from '../../core/agent/agentBackend'
 import type { JudgeAdvisory, JudgeFence } from '../../core/judge/use'
 import { allowOnceChoice } from '../../core/agent/approvalRules'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { ReviewBreaker, ReviewRequest } from '../../core/backends/modelapi/autoReviewer'
 import type { CoreLogger } from '../../core/logging'
 import type { AgentEvent, ApprovalSubject } from '../../shared/agentEvents'
@@ -148,7 +149,7 @@ export class ReviewedApprovals {
       )
     } catch (error: unknown) {
       this.deps.log.warn(
-        `The Auto reviewer could not be asked; the user decides: ${this.deps.describeFailure(error)}`,
+        `The Auto reviewer could not be asked; the user decides: ${failureForLog(error)}`,
       )
       outcome = { decision: 'ask', cause: 'failed', reason: undefined, hasTripped: false }
     }
@@ -203,13 +204,11 @@ export class ReviewedApprovals {
       if (isPromptSettledError(error) || isMuseCodeFaultError(error)) {
         // Settled meanwhile, or applied all the same (#29): the host's events follow.
         this.deps.log.info(
-          `The Auto reviewer's answer to ${event.approvalId}: ${this.deps.describeFailure(error)}`,
+          `The Auto reviewer's answer to ${event.approvalId}: ${failureForLog(error)}`,
         )
         return
       }
-      this.deps.log.warn(
-        `The Auto reviewer's answer could not be sent: ${this.deps.describeFailure(error)}`,
-      )
+      this.deps.log.warn(`The Auto reviewer's answer could not be sent: ${failureForLog(error)}`)
       if (this.allowed.get(event.approvalId) === allowance) {
         this.allowed.delete(event.approvalId)
         this.deps.showCard(event, UI_TEXT.autoReviewerFailed)
