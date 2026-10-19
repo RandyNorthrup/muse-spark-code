@@ -238,3 +238,20 @@ the real VaultStore. Full record, tests and gates: `docs/certification/msm109.md
 §VAULTMIGFIX2. No parity-surface change. The store suite could not run in this
 sandbox (`/bin/ps: Operation not permitted` stops `VaultStore.create` in
 `beforeEach`, like `writerCrashPosix`); the lead runs it outside.
+
+## Lane VAULTMIGFIX3 note (2026-10-19, appended by the VAULTMIGFIX3 lane)
+
+VAULTMIGFIX2 left one race open: a save landing between a fresh sign-out's
+SecretStorage clear and its engine delete lost the newer key the old
+`removeLegacy` way. This lane closes it on branch `ms/msm109-open-fix3`
+(each shell save and each shell sign-out holds the shared migration lane
+across both phases as one atomic op, holder detected by async ancestry;
+second-comer wins, proven by a real save racing a real sign-out through
+the real controller over the real VaultStore). This rig runs the store
+suite VAULTMIGFIX2 could not: `credentialMigrationStore.test.ts` 19/19
+with the repository's own timeout, plus every other vault suite — the
+only failures are byte-identical on the untouched base (one `vaultPanelBuild`
+U-host module-graph assertion, three `brokerSocketDirectory` cases under
+this sandbox's long TMPDIR plus umask 077, four `brokerSession` spawn
+timeouts). Full record, tests and gates: `docs/certification/msm109.md`
+§VAULTMIGFIX3. No parity-surface change.
