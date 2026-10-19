@@ -391,7 +391,7 @@ describe('keybindings report facts', () => {
         const gesture = (platform === 'linux' ? (fact.linux ?? fact.key) : fact.key).trim()
         return gesture === ''
           ? []
-          : [{ chord: normalizeTestChord(gesture), when: fact.when, command: fact.command }]
+          : { chord: normalizeTestChord(gesture), when: fact.when, command: fact.command }
       })
       const chordsSeen = new Set(gestures.map((gesture) => gesture.chord))
       const whensSeen = new Set(gestures.map((gesture) => gesture.when ?? ''))

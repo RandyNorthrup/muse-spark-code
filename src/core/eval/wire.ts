@@ -50,11 +50,11 @@ export interface EvalWireCall {
     readonly responseTools: string[]
     otherTools: number
     /**
-     * The request offered at least one function tool and every one of
-     * them carried a strict schema (M101 strict-tools engagement). A
-     * request with no function tool proves nothing either way, so it
-     * reads false: the arm engages only through strict requests.
-     */
+    The request offered at least one function tool and every one of
+    them carried a strict schema (M101 strict-tools engagement). A
+    request with no function tool proves nothing either way, so it
+    reads false: the arm engages only through strict requests.
+    */
     readonly strictTools: boolean
   }
 }
@@ -141,12 +141,12 @@ function modelOf(body: string): string | undefined {
 }
 
 /**
- * Whether a model-call request body offers function tools with strict
- * schemas throughout (M101 strict-tools engagement): at least one
- * function tool, and every function tool carries `strict: true`.
- * Non-function tools (search) carry no strict flag and count neither
- * way; a request with no function tool reads false.
- */
+Whether a model-call request body offers function tools with strict
+schemas throughout (M101 strict-tools engagement): at least one
+function tool, and every function tool carries `strict: true`.
+Non-function tools (search) carry no strict flag and count neither
+way; a request with no function tool reads false.
+*/
 function hasStrictTools(body: string): boolean {
   const parsed = modelBodySchema.safeParse(parseJson(body))
   if (!parsed.success) return false
@@ -460,7 +460,7 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
     const [passed, copied] = metered(response.body)
     const offered = new Set(
       (modelBodySchema.safeParse(parseJson(body)).data?.tools ?? []).flatMap((tool) =>
-        tool.type === 'function' && tool.name !== undefined ? [tool.name] : [],
+        tool.type === 'function' && tool.name !== undefined ? tool.name : [],
       ),
     )
     reads.push(readUsage(copied, call, offered))

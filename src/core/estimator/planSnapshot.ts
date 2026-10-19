@@ -121,9 +121,9 @@ function slug(text: string): string {
 }
 
 /** The snapshot's canonical lane short: the reader keeps plan punctuation
- * (M112's `Integration,` row), but protocol ids allow only word chars, dots
- * and dashes. Edge punctuation is stripped; a row with no addressable token
- * is refused instead of emitted against the id grammar. */
+(M112's `Integration,` row), but protocol ids allow only word chars, dots
+and dashes. Edge punctuation is stripped; a row with no addressable token
+is refused instead of emitted against the id grammar. */
 function canonicalLaneShort(raw: string): string | null {
   const token = raw.replaceAll(/[*`]/g, '').split(/\s+/, 1)[0] ?? ''
   const clean = token.replaceAll(/^[^\w.-]+|[^\w.-]+$/g, '')
@@ -184,7 +184,7 @@ function laneTableCells(text: string): Map<string, Map<string, LaneCells>> {
         const startsIndex = columns.indexOf('Starts')
         const rigIndex = columns.indexOf('Rig')
         const fileIndexes = columns.flatMap((column, index) =>
-          FILE_COLUMNS.has(column) ? [index] : [],
+          FILE_COLUMNS.has(column) ? index : [],
         )
         for (const row of tableRows) {
           const cells = tableCells(row.text)
@@ -230,10 +230,10 @@ function laneTableCells(text: string): Map<string, Map<string, LaneCells>> {
 }
 
 /** The milestones each delivery-order entry's bold title assigns, by version.
- * A versioned release train names its components in the title ("0.15.0: M95,
- * M96, M97, M101 and M102"); the reader keeps only the entry id, so the
- * titles are re-read here with the reader's own item boundaries. Only the
- * label matters, so trailing prose can never corrupt membership. */
+A versioned release train names its components in the title ("0.15.0: M95,
+M96, M97, M101 and M102"); the reader keeps only the entry id, so the
+titles are re-read here with the reader's own item boundaries. Only the
+label matters, so trailing prose can never corrupt membership. */
 function releaseMembers(text: string): Map<string, Set<string>> {
   const members = new Map<string, Set<string>>()
   const itemStart = /^(?:\d+[.)]\s|[-*+]\s|\*\*(?:M\d|\d+\.\d))/
@@ -356,8 +356,8 @@ function startsTokens(cell: string): StartsToken[] | null {
 }
 
 /** clause := first | last | day integer | after ref (separator ref)*
- * ref := lane local-id | milestone M-id | M-id:local-id | M-id | local-id
- * Notes may follow a complete clause and contain no ordering words. */
+ref := lane local-id | milestone M-id | M-id:local-id | M-id | local-id
+Notes may follow a complete clause and contain no ordering words. */
 function parseStartsCell(
   cell: string,
   id: string,
@@ -460,7 +460,7 @@ function isMalformedStarts(
 }
 
 /** One lane's Starts cell against the whole plan's ids, shared by the goal
- * closure validator and the whole-plan check. */
+closure validator and the whole-plan check. */
 function parseLaneStarts(
   lane: PlanGraphLane,
   graph: Pick<PlanGraph, 'shortsByMilestone' | 'resolveQualified'>,
@@ -507,7 +507,7 @@ function unknownQuantity(): {
 }
 
 /** Whether a PR touches the goal's lanes. A loop, not the Set methods the
- * linter prefers: the extension host runs Node 20, which lacks them. */
+linter prefers: the extension host runs Node 20, which lacks them. */
 function hasSharedLanes(laneIds: ReadonlySet<string>, included: ReadonlySet<string>): boolean {
   for (const id of laneIds) {
     if (included.has(id)) return true
@@ -516,8 +516,8 @@ function hasSharedLanes(laneIds: ReadonlySet<string>, included: ReadonlySet<stri
 }
 
 /** A disclosed assumption: the plan never meters demand, so the snapshot
- * assumes the engine fixtures' scale with zero samples instead of refusing
- * every forecast (or silently running on zeros). Calibration replaces it. */
+assumes the engine fixtures' scale with zero samples instead of refusing
+every forecast (or silently running on zeros). Calibration replaces it. */
 function assumedDemand(value: number): {
   readonly status: 'known'
   readonly value: number
@@ -553,7 +553,7 @@ interface PlanGraph {
 }
 
 /** Collect lane identities, including rows from diagnosed tables and
- * hour-less lanes. Parsing and row diagnostics precede closure validation. */
+hour-less lanes. Parsing and row diagnostics precede closure validation. */
 function collectPlanGraph(
   facts: Pick<PlanFacts, 'milestones'>,
   cells: Map<string, Map<string, LaneCells>>,
@@ -662,10 +662,10 @@ function collectPlanGraph(
 }
 
 /**
- * The goal's snapshot from the plan text and the captured evidence. Every
- * goal kind resolves through it: milestones, PRs, issues, labels, releases
- * and lane lists. Unknown resource demands stay explicit unknowns.
- */
+The goal's snapshot from the plan text and the captured evidence. Every
+goal kind resolves through it: milestones, PRs, issues, labels, releases
+and lane lists. Unknown resource demands stay explicit unknowns.
+*/
 export function buildPlanSnapshot(
   planText: string,
   goal: EstimateGoal,
@@ -1058,7 +1058,7 @@ export function buildPlanSnapshot(
           const lane = withDeps.get(id)
           return lane?.state === 'merged' || lane?.rigId === null || lane?.rigId === undefined
             ? []
-            : [lane.rigId]
+            : lane.rigId
         }),
       ),
     ]
@@ -1112,7 +1112,7 @@ function expandStarts(lane: PlanGraphLane, parsed: StartsRefs, graph: PlanGraph)
 }
 
 /** Attach reader and identity problems to the actual plan row before any
- * goal selection. Unsupported tables still have an owning milestone. */
+goal selection. Unsupported tables still have an owning milestone. */
 function collectPlanProblems(planText: string, facts: PlanFacts, graph: PlanGraph): PlanProblem[] {
   const lines = planLines(planText)
   const problems: PlanProblem[] = []

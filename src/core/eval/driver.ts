@@ -45,11 +45,11 @@ import type { EvalBudget } from './wire'
 export type EvalHostChange = (deps: ModelApiHostDeps) => ModelApiHostDeps
 
 /**
- * Installs the real shared D78 admission over `base`, with its switches
- * reading whatever `readArmed` returns when the turn asks to compact. The
- * driver passes the dependencies its frozen change is about to arm; a
- * caller that arms first (a session-level test) passes its armed result.
- */
+Installs the real shared D78 admission over `base`, with its switches
+reading whatever `readArmed` returns when the turn asks to compact. The
+driver passes the dependencies its frozen change is about to arm; a
+caller that arms first (a session-level test) passes its armed result.
+*/
 export function bindEvalAdmission(
   base: ModelApiHostDeps,
   admission: EvalCompactionAdmission,
@@ -100,26 +100,26 @@ export interface EvalTurnDeps {
   /** How long the turn may run; the constant unless a test shortens it. */
   readonly turnTimeoutMs?: number | undefined
   /**
-   * A memory store for the turn; absent unless a test supplies a fake one.
-   * Never owner data: the counted run runs without memory, as the harness
-   * certifies. A mechanism must not change it (it is held fixed below).
-   */
+  A memory store for the turn; absent unless a test supplies a fake one.
+  Never owner data: the counted run runs without memory, as the harness
+  certifies. A mechanism must not change it (it is held fixed below).
+  */
   readonly memory?: MemoryStore | undefined
   /**
-   * Lane E's spend authority for admitted compaction (PLAN.md M101): the
-   * counted runner binds it, tests bind it. Without it the auto-compaction
-   * arm fails closed: its frozen change requires the parent's admission.
-   */
+  Lane E's spend authority for admitted compaction (PLAN.md M101): the
+  counted runner binds it, tests bind it. Without it the auto-compaction
+  arm fails closed: its frozen change requires the parent's admission.
+  */
   readonly admission?: EvalCompactionAdmission | undefined
 }
 
 /**
- * What the parent binds behind one evaluation turn's automatic compaction
- * (PLAN.md M101 lane E): the REAL shared D78 admission and a ledger against
- * the run's own hard budget — never a test double that admits without
- * charge. Consent admits because launching the counted run is the opt-in;
- * every admitted attempt is trace-counted and settled against the budget.
- */
+What the parent binds behind one evaluation turn's automatic compaction
+(PLAN.md M101 lane E): the REAL shared D78 admission and a ledger against
+the run's own hard budget — never a test double that admits without
+charge. Consent admits because launching the counted run is the opt-in;
+every admitted attempt is trace-counted and settled against the budget.
+*/
 export interface EvalCompactionAdmission {
   /** Reserves and settles admitted attempts; a refusal throws. It tallies started and settled attempts. */
   readonly ledger: AutoCompactionLedger & { readonly tally: EvalCompactionTally }
@@ -143,14 +143,14 @@ export interface EvalCompactionTally {
 }
 
 /**
- * The evaluation ledger: a real D78 ledger, not an allowance stub. It
- * reserves each admitted attempt against the run's hard budget and refuses
- * (by throwing, as the interface requires) past it, on unknown usage, or
- * on abort. Settling releases the reservation without adding to the spent
- * total: the trace owns actual spend — the wire adds every reply's usage
- * when it arrives — so settling here must not count it twice. Unknown cost
- * stops the run, like the wire's own rule.
- */
+The evaluation ledger: a real D78 ledger, not an allowance stub. It
+reserves each admitted attempt against the run's hard budget and refuses
+(by throwing, as the interface requires) past it, on unknown usage, or
+on abort. Settling releases the reservation without adding to the spent
+total: the trace owns actual spend — the wire adds every reply's usage
+when it arrives — so settling here must not count it twice. Unknown cost
+stops the run, like the wire's own rule.
+*/
 export function createEvalCompactionLedger(
   budget: EvalBudget,
 ): AutoCompactionLedger & { readonly tally: EvalCompactionTally } {
@@ -210,10 +210,10 @@ function evalLedgerRefusal(why: string): Error {
 }
 
 /**
- * The evaluation's paid-use fence: current while the run budget can still
- * cover a send. Read live, so an admitted use revokes the moment the run
- * cannot cover it.
- */
+The evaluation's paid-use fence: current while the run budget can still
+cover a send. Read live, so an admitted use revokes the moment the run
+cannot cover it.
+*/
 export function evalPaidUseFence(budget: EvalBudget): () => boolean {
   return () =>
     budget.hasUnknownUsage !== true &&
@@ -226,17 +226,17 @@ export interface EvalTurnOptions {
   readonly prompt: string
   readonly change?: EvalHostChange | undefined
   /**
-   * The context window both arms of the turn share (M101 R2: the window is
-   * harness condition, never a mechanism — a mechanism that changed it
-   * would also change file-read truncation). The runner resolves it per
-   * task; a test passes it directly. The default is the shipped window.
-   */
+  The context window both arms of the turn share (M101 R2: the window is
+  harness condition, never a mechanism — a mechanism that changed it
+  would also change file-read truncation). The runner resolves it per
+  task; a test passes it directly. The default is the shipped window.
+  */
   readonly windowTokens?: number | undefined
   /**
-   * The approval mode for the turn; the frozen constant unless a test needs
-   * a refusing disposition (denied automatic memory flush) on the same
-   * harness. The counted run never overrides it.
-   */
+  The approval mode for the turn; the frozen constant unless a test needs
+  a refusing disposition (denied automatic memory flush) on the same
+  harness. The counted run never overrides it.
+  */
   readonly approvalMode?: ApprovalMode | undefined
 }
 
@@ -260,9 +260,9 @@ export interface EvalTurnOutcome {
   /** The host accepted a summary and replaced history, independent of failed attempts. */
   readonly compactionsApplied: number
   /**
-   * What each `recall_output` call that succeeded returned (M73), for the
-   * packing arm's own check; never copied into a report.
-   */
+  What each `recall_output` call that succeeded returned (M73), for the
+  packing arm's own check; never copied into a report.
+  */
   readonly recalledOutputs: readonly string[]
 }
 
@@ -507,7 +507,7 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
         item.status === EVAL_TURN_COMPLETED &&
         item.failureReason === undefined &&
         item.visibleOutput !== undefined
-          ? [item.visibleOutput]
+          ? item.visibleOutput
           : [],
       ),
     }

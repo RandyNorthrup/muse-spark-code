@@ -56,44 +56,42 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
             ? undefined
             : fill(UI_TEXT.providerModelNoToolCalling, { model: model.ref })
         const pricing = model.pricing
-        return [
-          {
-            modelId: model.ref,
-            displayLabel: sanitizeModelLabel(model.displayLabel ?? model.ref),
-            providerId: policy.identity.provider,
-            providerLabel: sanitizeModelLabel(model.providerLabel ?? policy.identity.provider),
-            contextLimit: model.contextTokens,
-            isActive: false,
-            // The record's own levels light the composer's slider (lane
-            // REASONSHAPESR2, OPENAI-G01/XAI-G01): a configured-provider id
-            // contains `/`, so the static table serves nothing and only
-            // the row can offer the model's levels. Unknown names stay
-            // out: the option carries tiers the UI serves, never a guess.
-            ...(policy.reasoning.effortLevels.state === 'yes' &&
-              policy.reasoning.effortLevels.value.some((level) => isEffortLevel(level)) && {
-                effortLevels: policy.reasoning.effortLevels.value.filter((level) =>
-                  isEffortLevel(level),
-                ),
-              }),
-            // The list's own default where it names a served tier (lane
-            // REASONSHAPESR2, XAI-G01); the controller falls back to the
-            // highest served tier without it.
-            ...(policy.reasoning.defaultEffort !== undefined &&
-              isEffortLevel(policy.reasoning.defaultEffort) && {
-                defaultEffort: policy.reasoning.defaultEffort,
-              }),
-            isDefault: model.isDefault === true,
-            pricing: pricing.kind,
-            isPinned: model.isPinned,
-            trainsOnContent: model.trainsOnContent,
-            planLimitsUrl: model.planLimitsUrl,
-            ...(agentLimit !== undefined && { agentLimit }),
-            ...(pricing.kind === 'priced' && {
-              inputUsdPerMTokens: pricing.card.input * TOKENS_PER_MILLION,
-              outputUsdPerMTokens: pricing.card.output * TOKENS_PER_MILLION,
+        return {
+          modelId: model.ref,
+          displayLabel: sanitizeModelLabel(model.displayLabel ?? model.ref),
+          providerId: policy.identity.provider,
+          providerLabel: sanitizeModelLabel(model.providerLabel ?? policy.identity.provider),
+          contextLimit: model.contextTokens,
+          isActive: false,
+          // The record's own levels light the composer's slider (lane
+          // REASONSHAPESR2, OPENAI-G01/XAI-G01): a configured-provider id
+          // contains `/`, so the static table serves nothing and only
+          // the row can offer the model's levels. Unknown names stay
+          // out: the option carries tiers the UI serves, never a guess.
+          ...(policy.reasoning.effortLevels.state === 'yes' &&
+            policy.reasoning.effortLevels.value.some((level) => isEffortLevel(level)) && {
+              effortLevels: policy.reasoning.effortLevels.value.filter((level) =>
+                isEffortLevel(level),
+              ),
             }),
-          },
-        ]
+          // The list's own default where it names a served tier (lane
+          // REASONSHAPESR2, XAI-G01); the controller falls back to the
+          // highest served tier without it.
+          ...(policy.reasoning.defaultEffort !== undefined &&
+            isEffortLevel(policy.reasoning.defaultEffort) && {
+              defaultEffort: policy.reasoning.defaultEffort,
+            }),
+          isDefault: model.isDefault === true,
+          pricing: pricing.kind,
+          isPinned: model.isPinned,
+          trainsOnContent: model.trainsOnContent,
+          planLimitsUrl: model.planLimitsUrl,
+          ...(agentLimit !== undefined && { agentLimit }),
+          ...(pricing.kind === 'priced' && {
+            inputUsdPerMTokens: pricing.card.input * TOKENS_PER_MILLION,
+            outputUsdPerMTokens: pricing.card.output * TOKENS_PER_MILLION,
+          }),
+        }
       })
     },
     async resolve(ref): Promise<ResolvedModel> {
