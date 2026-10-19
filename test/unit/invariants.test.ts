@@ -208,13 +208,18 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
   const CALL_ID = RECORDED.call.call_id
   const BIG = RECORDED.output
 
-  function send(pack: ObservationPack): InputItem[] {
+  function recordedPair(): [InputItem, InputItem] {
     const call: InputItem = { ...RECORDED.call }
     const result: InputItem = {
       type: 'function_call_output',
       call_id: CALL_ID,
       output: restoredToolText(BIG),
     }
+    return [call, result]
+  }
+
+  function send(pack: ObservationPack): InputItem[] {
+    const [call, result] = recordedPair()
     const projected = pack.project([call, result])
     pack.noteSent(projected)
     return projected
@@ -261,12 +266,7 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
 
   it('does not count a retried send of the same request twice', () => {
     const pack = new ObservationPack()
-    const call: InputItem = { ...RECORDED.call }
-    const result: InputItem = {
-      type: 'function_call_output',
-      call_id: CALL_ID,
-      output: restoredToolText(BIG),
-    }
+    const [call, result] = recordedPair()
     const projected = pack.project([call, result])
     pack.noteSent(projected)
     pack.noteSent(projected)
