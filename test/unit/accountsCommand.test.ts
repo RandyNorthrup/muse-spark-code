@@ -105,6 +105,16 @@ describe('terminal account command parsing and real metadata files', () => {
     expect(JSON.stringify(parsed)).not.toContain('account-secret-canary')
   })
 
+  it.each([[], ['list']].map((args) => ({ args })))(
+    'exits 2 with usage for accounts misuse: %j',
+    ({ args }) => {
+      expect(parseCommandLine(['providers', 'accounts', ...args])).toMatchObject({
+        command: 'invalid',
+        exitCode: 2,
+      })
+    },
+  )
+
   it.each(
     [
       ['auth', 'set', 'account-secret-canary'],
