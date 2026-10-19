@@ -262,6 +262,39 @@ describe('mapNotification', () => {
       { type: 'tokenUsage', inputTokens: 30, outputTokens: 12, modelId: 'muse-spark-1.3' },
     ],
     [
+      // The cumulative cache reads sum on the prompt basis, so they are
+      // carried (live 2026-10-08 shape); the per-completion usage beside
+      // them is still dropped, and reasoning stays unreported.
+      'session/tokenUsage',
+      {
+        sessionId,
+        modelId: 'muse-spark-1.3-contributor',
+        usage: {
+          inputTokens: 25_790,
+          outputTokens: 117,
+          cachedTokens: 24_945,
+          cacheWriteTokens: 0,
+          cacheReadTokens: 24_945,
+          reasoningTokens: 85,
+        },
+        promptTokens: 25_790,
+        totalTokens: 25_907,
+        cumulative: {
+          promptTokens: 50_789,
+          outputTokens: 887,
+          totalTokens: 51_676,
+          cacheReadTokens: 24_945,
+        },
+      },
+      {
+        type: 'tokenUsage',
+        inputTokens: 50_789,
+        outputTokens: 887,
+        cachedTokens: 24_945,
+        modelId: 'muse-spark-1.3-contributor',
+      },
+    ],
+    [
       'session/tokenUsage',
       {
         sessionId,
