@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { catalogOptionsRefusal, estimateContractFailure } from './helpers/estimateFailures'
 import { BASE_LOCALE, fill, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import { EN } from '../../src/shared/l10n/en'
-import type { EstimateRunPort } from '../../src/runtime/estimator/command'
+import { estimateFailureText, type EstimateRunPort } from '../../src/runtime/estimator/command'
 import { EstimateViewSession } from '../../src/runtime/estimator/session'
 
 const AS_OF_1 = '2026-10-17T00:00:01.000Z'
@@ -16,7 +16,6 @@ function makeSession(runner: EstimateRunPort): {
   texts: string[]
 } {
   const texts: string[] = []
-  const sections: unknown[] = []
   const listeners: ((event: unknown) => void)[] = []
   const session = new EstimateViewSession(
     {
@@ -34,11 +33,8 @@ function makeSession(runner: EstimateRunPort): {
         }
       },
     },
-    (section) => {
-      sections.push(section)
-    },
-    (text) => {
-      texts.push(text)
+    (state) => {
+      if (state.status === 'failed') texts.push(estimateFailureText(state.diagnostic))
     },
   )
   return { session, texts }
@@ -82,7 +78,7 @@ describe('estimate view session failures', () => {
     const first = session.refresh(AS_OF_1)
     await session.refresh(AS_OF_2)
     // Settled, never an unsettled rejection: the view reports through its
-    // error port.
+    // publish port.
     await first
     expect(texts).toEqual([fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' })])
   })
