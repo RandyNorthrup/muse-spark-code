@@ -13,6 +13,7 @@ import {
   type WebFetchDeps,
 } from '../../src/core/web/webFetch'
 import { WEB_FETCH_BUFFER_WINDOW_BYTES } from '../../src/shared/constants'
+import { recordedPinnedResponse } from './helpers/webfetchRecord'
 
 const FIXTURES = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -46,21 +47,10 @@ function recordedResponse(
   closed?: { count: number },
 ): PinnedResponse {
   const released = closed ?? { count: 0 }
-  return {
-    status: 200,
-    headers,
-    body: (async function* () {
-      const piece = 64 * 1024
-      for (let at = 0; at < body.length; at += piece) {
-        await Promise.resolve()
-        yield body.subarray(at, Math.min(at + piece, body.length))
-      }
-    })(),
-    // The stubs never dial; closing only records that the fetch let go.
-    close() {
-      released.count += 1
-    },
-  }
+  // The stubs never dial; closing only records that the fetch let go.
+  return recordedPinnedResponse(body, headers, () => {
+    released.count += 1
+  })
 }
 
 const noNat64: Nat64Discovery = { isKnown: true, prefixes: [] }

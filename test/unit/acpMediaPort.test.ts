@@ -11,6 +11,7 @@ import { attachedOrWorkspaceSource } from '../../src/core/media/productionMedia'
 import { sniffMediaBytes } from '../../src/core/media/limits'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import { wavRecord } from './helpers/attachedRecords'
 import { videoFixture, wavFixture } from './helpers/media/fixtures'
 
 const signal = new AbortController().signal
@@ -123,12 +124,6 @@ function counted(bytes: Uint8Array | undefined) {
     },
   }
   return { source, reads }
-}
-
-function wavRecord(bytes: Uint8Array) {
-  const info = sniffMediaBytes(bytes)
-  if (info?.kind !== 'audio') throw new Error('fixture must sniff as audio')
-  return { name: 'clip.wav', info, sha256: createHash('sha256').update(bytes).digest('hex') }
 }
 
 describe('attached-media registrations: identity, ownership and bound (RVMEDIAV 5, 7)', () => {

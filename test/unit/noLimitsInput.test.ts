@@ -4,12 +4,9 @@
 // own frame validity, and the model's real context window (with a spill file
 // the model pages through). Each test below fails on the code before the
 // change and passes after it.
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { AttachmentStore } from '../../src/core/attachments'
 import { resolveModelCapabilities } from '../../src/core/providers/capabilities'
 import { metaCapabilityRecord } from '../../src/core/providers/capabilityRecord'
 import {
@@ -21,61 +18,11 @@ import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { MODEL_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { AttachedMedia, type AttachedSource } from '../../src/core/media/attachedMedia'
-import { sniffMediaBytes } from '../../src/core/media/limits'
 import { convertHtmlJob } from '../../src/core/web/htmlToMarkdown'
-import type { HtmlConversion } from '../../src/core/web/htmlConversion'
-import {
-  fetchWebPage,
-  type Nat64Discovery,
-  type PinnedResponse,
-  type WebFetchDeps,
-} from '../../src/core/web/webFetch'
-import { wavFixture } from './helpers/media/fixtures'
-
-const dimension = (value: number) => [
-  (value >>> 24) & 0xff,
-  (value >>> 16) & 0xff,
-  (value >>> 8) & 0xff,
-  value & 0xff,
-]
-
-function png(width: number, height: number, padding = 0): Uint8Array {
-  return Uint8Array.from([
-    0x89,
-    0x50,
-    0x4e,
-    0x47,
-    0x0d,
-    0x0a,
-    0x1a,
-    0x0a,
-    0,
-    0,
-    0,
-    13,
-    0x49,
-    0x48,
-    0x44,
-    0x52,
-    ...dimension(width),
-    ...dimension(height),
-    ...Array.from({ length: padding }, () => 0),
-  ])
-}
-
-function store() {
-  let next = 0
-  return new AttachmentStore(() => {
-    next += 1
-    return `att-${String(next)}`
-  })
-}
-
-function wavRecord(bytes: Uint8Array) {
-  const info = sniffMediaBytes(bytes)
-  if (info?.kind !== 'audio') throw new Error('fixture must sniff as audio')
-  return { name: 'clip.wav', info, sha256: createHash('sha256').update(bytes).digest('hex') }
-}
+import { fetchWebPage } from '../../src/core/web/webFetch'
+import { attachmentStore, wavRecord } from './helpers/attachedRecords'
+import { pngFixture, wavFixture } from './helpers/media/fixtures'
+import { loadWebCapture, recordedFetchDeps, recordedPinnedResponse } from './helpers/webfetchRecord'
 
 function fixedSource(bytes: Uint8Array): AttachedSource {
   const chunk = Promise.resolve(bytes)
@@ -93,55 +40,15 @@ const FIXTURES = path.join(
   'webfetch',
 )
 
-function loadCapture(name: string) {
-  const capture = JSON.parse(readFileSync(path.join(FIXTURES, `${name}.json`), 'utf8')) as {
-    readonly finalUrl: string
-    readonly responseHeaders: Record<string, string>
-    readonly wireFile: string
-    readonly wireSha256: string
-    readonly decompressedBytes: number
-  }
-  const body = readFileSync(path.join(FIXTURES, capture.wireFile))
-  expect(createHash('sha256').update(body).digest('hex')).toBe(capture.wireSha256)
-  return { body, capture }
-}
-
-const noNat64: Nat64Discovery = { isKnown: true, prefixes: [] }
-
-function fetchDeps(
-  body: Buffer,
-  headers: Record<string, string>,
-  onClose?: () => void,
-): WebFetchDeps {
-  const response: PinnedResponse = {
-    status: 200,
-    headers,
-    body: (async function* () {
-      const piece = 64 * 1024
-      for (let at = 0; at < body.length; at += piece) {
-        await Promise.resolve()
-        yield body.subarray(at, Math.min(at + piece, body.length))
-      }
-    })(),
-    close() {
-      onClose?.()
-    },
-  }
-  return {
-    resolve: () => Promise.resolve(['8.8.8.8']),
-    nat64: () => Promise.resolve(noNat64),
-    request: () => Promise.resolve(response),
-    convertHtml: (job): Promise<HtmlConversion> =>
-      Promise.resolve({ ok: true, page: convertHtmlJob(job) }),
-    newMarker: () => 'marker',
-  }
+function convertLoopback(job: Parameters<typeof convertHtmlJob>[0]) {
+  return Promise.resolve({ ok: true as const, page: convertHtmlJob(job) })
 }
 
 describe('no input limits: attachments reach the model whole', () => {
   it('attaches past twenty files: no count of ours stops the message', () => {
-    const attachments = store()
+    const attachments = attachmentStore()
     for (let index = 0; index < 21; index += 1) {
-      expect(attachments.add(`${String(index)}.png`, png(1, 1)).ok).toBe(true)
+      expect(attachments.add(`${String(index)}.png`, pngFixture(1, 1)).ok).toBe(true)
     }
     expect(attachments.size).toBe(21)
   })
@@ -149,18 +56,18 @@ describe('no input limits: attachments reach the model whole', () => {
   it('admits an image past our old 10 MiB bound when no record states one', () => {
     // The Model API path: the Muse Code path still answers to its own 8 MiB
     // frame budget (transport validity, kept).
-    expect(store().add('big.png', png(1, 1, 12 * 1024 * 1024), true).ok).toBe(true)
+    expect(attachmentStore().add('big.png', pngFixture(1, 1, 12 * 1024 * 1024), true).ok).toBe(true)
   })
 
   it('admits a document past our old 32 MB bound when no record states one', () => {
     const bytes = new Uint8Array(33 * 1024 * 1024)
     bytes.set(new TextEncoder().encode('%PDF-1.4'))
-    expect(store().add('big.pdf', bytes, true).ok).toBe(true)
+    expect(attachmentStore().add('big.pdf', bytes, true).ok).toBe(true)
   })
 
   it('admits text past our old 1 MiB ceiling on the Muse Code path', () => {
     const bytes = new Uint8Array(2 * 1024 * 1024).fill(0x61)
-    expect(store().add('notes.md', bytes, false, true).ok).toBe(true)
+    expect(attachmentStore().add('notes.md', bytes, false, true).ok).toBe(true)
   })
 
   it('carries Meta-documented image and document bytes in the capability record', () => {
@@ -205,14 +112,17 @@ describe('no input limits: the attached registry never refuses', () => {
 
 describe('no input limits: a fetched page reaches the model whole', () => {
   it('hands a recorded 290,810-char page to the model with no slice and no notice', async () => {
-    const { body, capture } = loadCapture('wiki-internet')
+    const { body, capture } = loadWebCapture(FIXTURES, 'wiki-internet')
     expect(capture.decompressedBytes).toBeGreaterThan(100_000)
     let closed = 0
     const result = await fetchWebPage(
       capture.finalUrl,
-      fetchDeps(body, capture.responseHeaders, () => {
-        closed += 1
-      }),
+      recordedFetchDeps(
+        recordedPinnedResponse(body, capture.responseHeaders, () => {
+          closed += 1
+        }),
+        convertLoopback,
+      ),
       new AbortController().signal,
     )
     if (result.kind !== 'page') throw new Error('expected the page to read')
@@ -225,7 +135,7 @@ describe('no input limits: a fetched page reaches the model whole', () => {
   })
 
   it('converts a page whole when the job names no char bound', () => {
-    const { body } = loadCapture('wiki-internet')
+    const { body } = loadWebCapture(FIXTURES, 'wiki-internet')
     const page = convertHtmlJob({
       bytes: body,
       charset: 'utf8',
@@ -237,11 +147,15 @@ describe('no input limits: a fetched page reaches the model whole', () => {
   })
 
   it('Stop still ends a fetch: an aborted turn rejects instead of hanging', async () => {
-    const { body, capture } = loadCapture('example')
+    const { body, capture } = loadWebCapture(FIXTURES, 'example')
     const controller = new AbortController()
     controller.abort()
     await expect(
-      fetchWebPage(capture.finalUrl, fetchDeps(body, capture.responseHeaders), controller.signal),
+      fetchWebPage(
+        capture.finalUrl,
+        recordedFetchDeps(recordedPinnedResponse(body, capture.responseHeaders), convertLoopback),
+        controller.signal,
+      ),
     ).rejects.toThrow()
   })
 })
@@ -273,6 +187,15 @@ function imageWorkspace(onRead: () => void): ImageWorkspace {
   return { workspaceRoot: '/work', platform: 'linux', io }
 }
 
+function customImageRecord(value: { mimes: string[]; maxEditSources?: number }) {
+  return resolveModelCapabilities({ provider: 'custom', nativeModel: 'model', format: 'chat' }, [
+    {
+      source: { kind: 'user' },
+      fields: { modalities: { image: { state: 'yes', value } } },
+    },
+  ])
+}
+
 describe("no input limits: the edit count is the provider's record", () => {
   const eleven = Array.from({ length: 11 }, (_, index) => `s${String(index)}.png`)
 
@@ -282,19 +205,7 @@ describe("no input limits: the edit count is the provider's record", () => {
   })
 
   it('honours a record that states its own edit count', () => {
-    const record = resolveModelCapabilities(
-      { provider: 'custom', nativeModel: 'model', format: 'chat' },
-      [
-        {
-          source: { kind: 'user' },
-          fields: {
-            modalities: {
-              image: { state: 'yes', value: { mimes: ['image/png'], maxEditSources: 3 } },
-            },
-          },
-        },
-      ],
-    )
+    const record = customImageRecord({ mimes: ['image/png'], maxEditSources: 3 })
     expect(editImageLimit(record)).toBe(3)
   })
 
@@ -332,17 +243,7 @@ describe("no input limits: the edit count is the provider's record", () => {
   })
 
   it('prepares eleven sources when the record states no count', async () => {
-    const record = resolveModelCapabilities(
-      { provider: 'custom', nativeModel: 'model', format: 'chat' },
-      [
-        {
-          source: { kind: 'user' },
-          fields: {
-            modalities: { image: { state: 'yes', value: { mimes: ['image/png'] } } },
-          },
-        },
-      ],
-    )
+    const record = customImageRecord({ mimes: ['image/png'] })
     let reads = 0
     const result = await prepareImageCall(
       'edit',
