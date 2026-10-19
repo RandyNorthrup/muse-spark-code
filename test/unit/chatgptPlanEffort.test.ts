@@ -5,9 +5,9 @@
 // catalogue levels with its catalogue default, and every other model
 // keeps the shared range and standing default. No session runs here.
 import { describe, expect, it } from 'vitest'
-import { defaultEffortFor, modelEffortLevels } from '../../src/acp/agent'
+import { defaultEffortFor, effortRefusalData, modelEffortLevels } from '../../src/acp/agent'
 import type { ModelSummary } from '../../src/core/agent/agentBackend'
-import { DEFAULT_EFFORT, EFFORT_LEVELS } from '../../src/shared/constants'
+import { DEFAULT_EFFORT, EFFORT_LEVELS, UI_TEXT } from '../../src/shared/constants'
 
 function summary(overrides: Partial<ModelSummary> & { modelId: string }): ModelSummary {
   return {
@@ -60,5 +60,11 @@ describe('plan model effort levels', () => {
       defaultEffort: 'minimal',
     })
     expect(defaultEffortFor([odd], 'chatgpt/gpt-6.1-sol')).toBe(DEFAULT_EFFORT)
+  })
+
+  it('refuses an unserved level naming the levels the model serves', () => {
+    expect(effortRefusalData([planModel], 'chatgpt/gpt-6.1-sol')).toBe(
+      `${UI_TEXT.execEffortUnavailable} --effort: low, medium, high, xhigh, max`,
+    )
   })
 })
