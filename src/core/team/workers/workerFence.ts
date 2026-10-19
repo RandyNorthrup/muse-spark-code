@@ -692,8 +692,9 @@ export async function isWorkerCommandAllowed(
   try {
     await assertWorkerRoot(input)
   } catch (error) {
-    // Only the admission refusal answers false; anything else is not the
-    // admission and reaches the caller.
+    // Admission-time failures arrive as the fence's refusal (the admission
+    // normalizes them, unreadable roots included) and deny closed; anything
+    // else keeps its kind for the caller.
     if (!(error instanceof MuseWorkerFolderError)) throw error
     return false
   }
@@ -786,8 +787,9 @@ export async function answerAcpPermission(
   try {
     await assertWorkerRoot(input)
   } catch (error) {
-    // Only the admission refusal rejects; anything else is not the
-    // admission and reaches the caller.
+    // Admission-time failures arrive as the fence's refusal (the admission
+    // normalizes them, unreadable roots included) and reject closed;
+    // anything else keeps its kind for the caller.
     if (!(error instanceof MuseWorkerFolderError)) throw error
     return { action: 'rejectOnce' }
   }

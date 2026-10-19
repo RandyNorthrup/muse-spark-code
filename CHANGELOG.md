@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- An unreadable providers file names its failure again. `providers list` and
+  the headless provider run say why the file could not be read (for example
+  a denied permission) instead of only naming the file.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights

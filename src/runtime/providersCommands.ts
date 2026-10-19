@@ -28,7 +28,8 @@ import type {
   ProvidersFile,
   ProvidersFileRead,
 } from '../core/providers/providersFile'
-const { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } = providersFile
+const { emptyProvidersFile, readProvidersFile, refusalDetail, writeProvidersFileAtomic } =
+  providersFile
 import {
   CREDENTIAL_RECORD_VERSION,
   HTTP_STATUS,
@@ -118,7 +119,9 @@ function fileOrError(
   if (read.ok) {
     return { file: read.file }
   }
-  return read.reason === 'missing' ? { file: emptyProvidersFile() } : { reason: read.detail }
+  return read.reason === 'missing'
+    ? { file: emptyProvidersFile() }
+    : { reason: refusalDetail(read) }
 }
 
 function failed(deps: ProvidersDeps, line: string): number {
