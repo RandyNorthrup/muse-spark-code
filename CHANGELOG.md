@@ -21,22 +21,29 @@ happened, not what was planned; superseded entries are kept.
   other non-interactive path) start with no profile, keeping the host default
   `:auto-review` as before, so commands the judge allowed stay allowed
   instead of becoming rejected approvals. A mode switch whose profile step
-  fails puts the previous approval mode back before throwing, so the Modes
-  menu never shows a mode the host is not running. A scheduled admission on
+  fails puts the previous approval mode back before throwing a ModeKeptError
+  that names the running mode, so the Modes menu never shows a mode the host
+  is not running. A scheduled admission on
   a Manual conversation runs with `:auto-review` while the unattended run is
   in charge and puts the conversation's reviewer back afterwards.
 - Three failure-path corrections to that profile work. Resume, fork and load
   seed the session from the approval mode the host serves, so the first mode
-  change rolls back like a live one. When no previous mode is known, the
-  rollback fails, or a turn ends while the mode command is in flight, the
-  session refuses new turns until the mode is set again, and the Modes menu
-  (panel) or mode notice (ACP) shows the mode the host actually runs, with
-  one true sentence — Manual is never left running with the judge, and the
-  menu always agrees with the host. A finished schedule puts its mode and
+  change rolls back like a live one. Every mode-switch failure names the wire
+  mode the host runs: a refused mode command, or a profile step the rollback
+  undoes, throws a ModeKeptError with the running mode and turns stay live;
+  an unknown previous mode, a failed rollback, a torn adoption, or a failed
+  schedule restore quarantines with a PermissionReviewerError naming the
+  running mode instead. A refused command releases its effect without
+  forgetting the mode, so later turns and mode changes are judged on their
+  own instead of rejected by that failure. The Modes menu (panel) and the
+  editor (ACP) show the running mode with the error's own sentence; when no
+  menu mode selects it, the panel refuses the send in flight instead. A torn
+  change says the running mode is unconfirmed; an unknown running
+  mode says so. Manual is never left running with the judge, and the menu
+  always agrees with the host. A finished schedule puts its mode and
   reviewer back as one unit; when the reviewer cannot be put back the
   session refuses new turns instead of running them under the wrong
-  reviewer, and later turns and mode changes are judged on their own instead
-  of rejected by that failure. No production path in this tree sends through
+  reviewer. No production path in this tree sends through
   the scheduled-admission entry points (`sendScheduledTurn` /
   `steerScheduledTurn`): the only production delivery composition (the
   runtime engine) refuses every target, and `ScheduleAgentSession`

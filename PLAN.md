@@ -14527,17 +14527,28 @@ throwing, so the menu never shows a mode the host is not running; and a
 scheduled admission on a Manual conversation runs with `:auto-review` while
 the unattended run is in charge, putting the conversation's reviewer back
 when the mode is restored. The failure paths are closed too (lane
-PR251FIX2, 2026-10-19): resume, fork and load seed the handle from the
-approval mode the envelope serves, so the first mode change rolls back like
-a live one; when no previous mode is known, the rollback itself fails, or a
-turn ends while the mode command is in flight, the session refuses new
-turns until the mode is set again and the surface shows the mode the host
-actually runs with one true sentence (`PermissionReviewerError`), so Manual
-is never left running with the judge and the menu always agrees with the
-host; a finished schedule puts its mode and reviewer back as one unit, and
-when the reviewer cannot be put back the session refuses new turns while
-the restore gate resolves, so later turns and mode changes are judged on
-their own. No production path in this tree sends through the
+PR251FIX2, 2026-10-19; corrected by lane PR251FIX3B after Grok's second
+re-review GRV251D): resume, fork and load seed the handle from the
+approval mode the envelope serves, so the first mode change rolls back
+like a live one. Every mode-switch failure names the wire mode the host
+runs: a refused mode command, or a profile step the rollback undoes,
+throws `ModeKeptError` with the running mode and turns stay live; an
+unknown previous mode, a failed rollback, a torn adoption, or a failed
+schedule restore quarantines with `PermissionReviewerError` naming the
+running mode instead. A refused command releases its effect without
+forgetting the mode, so later turns and mode changes are judged on their
+own. The Modes menu (panel composer) and the editor (ACP) show the running
+mode (`composerModeForApprovalMode`) with the error's own sentence; when no
+menu mode selects it, the panel refuses the send in flight instead. A torn
+change says the previous mode is back but unconfirmed; an unknown running
+mode says so. So Manual is never left running with the judge and the menu
+always agrees with the host; a finished schedule puts its mode and reviewer
+back as one unit, and when the reviewer cannot be put back the session
+refuses new turns while the restore gate resolves. The mode-sync
+orchestration lives in the deferred bundle `dist/approvalModes.js`
+(`src/core/backends/musecode/approvalModesEntry.ts`, loaded on the first
+mode change, schedule admission or restore), so activation carries only
+thin shells. No production path in this tree sends through the
 scheduled-admission entry points (the runtime engine's delivery targets
 refuse; `ScheduleAgentSession` is never constructed); the admission and
 restore paths are proven by live probes. Manual's words stand unchanged;

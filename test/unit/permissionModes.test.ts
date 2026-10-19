@@ -8,6 +8,7 @@ import {
 import {
   approvalModeFor,
   availablePermissionModes,
+  composerModeForApprovalMode,
   isPermissionMode,
   mspPermissionProfile,
   mspStartPermissionProfile,
@@ -166,5 +167,36 @@ describe('mspStartPermissionProfile', () => {
     expect(mspStartPermissionProfile('onRequest', false)).toBe(MUSE_AUTO_REVIEW_PROFILE)
     expect(mspStartPermissionProfile('denyUnmatched', false)).toBeUndefined()
     expect(mspStartPermissionProfile('allowAll', false)).toBeUndefined()
+  })
+})
+
+describe('composerModeForApprovalMode', () => {
+  it('keeps the preferred mode when it selects the running wire mode', () => {
+    expect(composerModeForApprovalMode('promptUnmatched', 'manual', true)).toBe('manual')
+    expect(composerModeForApprovalMode('promptUnmatched', 'acceptEdits', true)).toBe('acceptEdits')
+    expect(composerModeForApprovalMode('onRequest', 'auto', true)).toBe('auto')
+    expect(composerModeForApprovalMode('denyUnmatched', 'plan', true)).toBe('plan')
+    expect(composerModeForApprovalMode('allowAll', 'bypassPermissions', true)).toBe(
+      'bypassPermissions',
+    )
+  })
+
+  it('falls back to the first menu mode on the wire mode', () => {
+    // Manual before Edit automatically: the asking-safe one.
+    expect(composerModeForApprovalMode('promptUnmatched', 'auto', true)).toBe('manual')
+    expect(composerModeForApprovalMode('onRequest', 'manual', true)).toBe('auto')
+    expect(composerModeForApprovalMode('denyUnmatched', 'manual', true)).toBe('plan')
+  })
+
+  it('finds nothing for an unknown wire mode, so the surface refuses the send', () => {
+    expect(composerModeForApprovalMode('', 'manual', true)).toBeUndefined()
+    expect(composerModeForApprovalMode('a-future-mode', 'manual', true)).toBeUndefined()
+  })
+
+  it('maps through the no-approval-UI collapse', () => {
+    // Without the approval UI Manual behaves as deny: showing it for a
+    // refusing host is true, and Plan still resolves to itself.
+    expect(composerModeForApprovalMode('denyUnmatched', 'manual', false)).toBe('manual')
+    expect(composerModeForApprovalMode('denyUnmatched', 'plan', false)).toBe('plan')
   })
 })

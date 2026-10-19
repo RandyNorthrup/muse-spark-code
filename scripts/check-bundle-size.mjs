@@ -36,6 +36,9 @@ const BUDGETS = [
   // Keep M112's original cap; M105's inherited temporary increase is removed.
   { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
   { path: 'dist/questionNotes.js', budgetKiB: 25 },
+  // PR251FIX3B: the Muse Code approval-mode effect and reviewer-profile sync,
+  // off activation; measured 22.88 KiB when split out, +15% rounded up to 27 KiB (PLAN.md D6).
+  { path: 'dist/approvalModes.js', budgetKiB: 27 },
   { path: 'dist/extension.js', budgetKiB: 600 },
   // M107: 89.5 / 1.8 KiB measured; +15%, rounded up to 25 KiB.
   { path: 'dist/resourceGovernor.js', budgetKiB: 125 },

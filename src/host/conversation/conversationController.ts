@@ -47,6 +47,7 @@ import {
   type HostExit,
   isDecisionNotAppliedError,
   isGoalRefusedError,
+  isModeKeptError,
   isMuseCodeFaultError,
   isPermissionReviewerError,
   isPromptSettledError,
@@ -204,6 +205,7 @@ import { parseScheduleHostMessage } from '../../shared/scheduleProtocol'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import {
   approvalModeFor,
+  composerModeForApprovalMode,
   mspPermissionProfile,
   untrustedStartMode,
 } from '../../shared/permissionModes'
@@ -4230,13 +4232,15 @@ export class ConversationController {
         approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
       )
     } catch (error: unknown) {
-      // The reviewer error means the mode took: the composer already shows
-      // the mode the host runs, and its own sentence is the true one.
+      // A refused change names the running mode: the composer moves onto it
+      // with the error's own sentence. Any other throw means the mode did
+      // not change.
+      const shown = this.showRunningMode(error, this.permissionMode)
       this.notice(
         'warning',
-        isPermissionReviewerError(error)
-          ? describe(error)
-          : `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
+        shown === undefined
+          ? `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`
+          : describe(error),
         undefined,
         error,
       )
@@ -4880,13 +4884,15 @@ export class ConversationController {
       await loaded.session.setApprovalMode(target)
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        // The reviewer error means the mode took: the composer already shows
-        // the mode the host runs, and its own sentence is the true one.
+        // A refused change names the running mode: the composer moves onto it
+        // with the error's own sentence. Any other throw means the mode did
+        // not change.
+        const shown = this.showRunningMode(error, this.permissionMode)
         this.notice(
           'warning',
-          isPermissionReviewerError(error)
-            ? describe(error)
-            : `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
+          shown === undefined
+            ? `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`
+            : describe(error),
           undefined,
           error,
         )
@@ -8364,6 +8370,29 @@ export class ConversationController {
   }
 
   /** Keep mode writes ordered, including Bypass revoked during an ordinary choice. */
+  /**
+   * Show the wire mode a refused mode change names (GRV251D): the composer
+   * moves onto the mode the host runs, with the error's own sentence said at
+   * the call site. Returns the shown mode, `null` when no menu mode selects
+   * the running mode (the send already in flight is refused instead of
+   * showing a mode the host is not running), or `undefined` when the throw
+   * is not a mode error at all.
+   */
+  private showRunningMode(
+    error: unknown,
+    preferred: PermissionMode,
+  ): PermissionMode | null | undefined {
+    if (!isPermissionReviewerError(error) && !isModeKeptError(error)) return undefined
+    const shown = composerModeForApprovalMode(error.actualMode, preferred, this.deps.hasApprovalUi)
+    if (shown === undefined) {
+      this.sendInvalidationEpoch += 1
+      return null
+    }
+    this.permissionMode = shown
+    this.postComposerState()
+    return shown
+  }
+
   private async setSessionPermissionMode(session: AgentSession, mode: string): Promise<void> {
     const changing = session.setApprovalMode(mode)
     this.reviewModeSettling = changing
@@ -8466,13 +8495,12 @@ export class ConversationController {
           this.retireBypassSession()
           return
         }
-        // The reviewer error means the host runs the chosen mode with its
-        // old reviewer: the menu keeps the choice so the two agree, and the
-        // error's own sentence (quarantined, set the mode again) is the one
-        // shown. Any other throw means the mode did not change.
-        if (isPermissionReviewerError(error)) {
-          this.notice('error', describe(error), undefined, error)
-        } else {
+        // A refused change names the running mode: the menu shows it with the
+        // error's own sentence, so the two agree. Any other throw means the
+        // mode did not change: the choice is taken back. Turns the panel kept
+        // running in Plan mode stay Plan-mode turns when it shows Plan again.
+        const shown = this.showRunningMode(error, previous)
+        if (shown === undefined) {
           this.permissionMode = previous
           this.restorePlanTurns(leftPlanTurns)
           this.notice(
@@ -8481,6 +8509,9 @@ export class ConversationController {
             undefined,
             error,
           )
+        } else {
+          if (shown === PLAN_MODE) this.restorePlanTurns(leftPlanTurns)
+          this.notice('error', describe(error), undefined, error)
         }
       }
     }

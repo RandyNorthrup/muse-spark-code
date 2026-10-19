@@ -150,13 +150,21 @@ export class SessionOwner {
     return effect
   }
 
+  /**
+   * A command that did not change the host (a refused `session/setApprovalMode`,
+   * a stale token) releases its effect but keeps the mode: the host still runs
+   * it with its reviewer, so turns stay live. Only a mode the host runs with an
+   * unconfirmed reviewer quarantines, through `quarantine()` at that site.
+   */
   public modeApplied(effect: SessionEffect, didSucceed: boolean): boolean {
     if (this.modePending !== effect) return false
     this.modePending = undefined
     if (effect.type === 'restore') this.restoring = false
     if (!this.matches(effect.token)) return false
-    this.mode = didSucceed ? effect.mode : undefined
-    this.isQuarantined = !didSucceed
+    if (didSucceed) {
+      this.mode = effect.mode
+      this.isQuarantined = false
+    }
     return didSucceed
   }
 

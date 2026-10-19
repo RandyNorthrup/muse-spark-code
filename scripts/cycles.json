@@ -95,6 +95,7 @@
     "src/core/backends/modelapi/sse.ts",
     "src/core/imageResizeWorker.ts",
     "src/core/questions/deferralEntry.ts",
+    "src/core/backends/musecode/approvalModesEntry.ts",
     "src/core/resources/sampler/optionalProbes.ts",
     "src/host/backend/searchWorker.ts",
     "src/host/extensionHooksEntry.ts",

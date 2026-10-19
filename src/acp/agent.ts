@@ -47,6 +47,7 @@ import {
 import {
   type AgentHost,
   type AgentSession,
+  isModeKeptError,
   isPermissionReviewerError,
   isPromptSettledError,
   type ModelSummary,
@@ -91,6 +92,7 @@ import type { PaidUseRequest } from '../shared/paid'
 import {
   approvalModeFor,
   availablePermissionModes,
+  composerModeForApprovalMode,
   mspStartPermissionProfile,
   permissionModeDetail,
 } from '../shared/permissionModes'
@@ -1140,6 +1142,33 @@ class AcpSession {
     }
   }
 
+  /**
+   * Show the wire mode a refused mode change names (GRV251D): the editor is
+   * told the mode the host runs. Nothing is published when no editor mode
+   * selects it; the throw still carries the error's own true sentence.
+   */
+  private async showRunningMode(
+    error: { actualMode: string },
+    preferred: PermissionMode,
+  ): Promise<void> {
+    const shown = composerModeForApprovalMode(error.actualMode, preferred, true)
+    if (shown === undefined) return
+    this.mode = shown
+    this.send({ sessionUpdate: 'current_mode_update', currentModeId: shown })
+    await this.outbox
+  }
+
+  /** A load or resume runs on the remembered mode: a refusal names the host's instead. */
+  private async syncRememberedMode(): Promise<void> {
+    try {
+      await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    } catch (error: unknown) {
+      if (!isPermissionReviewerError(error) && !isModeKeptError(error)) throw error
+      await this.showRunningMode(error, this.mode)
+      throw error
+    }
+  }
+
   /** A late answer belongs only to the prompt that asked, while that prompt still runs. */
   private isCurrentPrompt(pending: PendingPrompt | undefined): boolean {
     return !this.isDisposed && this.pending === pending && pending?.isCancelled !== true
@@ -1540,7 +1569,7 @@ class AcpSession {
    */
   public async matchAdvertised(): Promise<void> {
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    await this.syncRememberedMode()
     const reported = await this.host.listModels(this.sessionId)
     const active = reported.find((model) => model.isActive)
     if (active !== undefined && this.models.some((model) => model.modelId === active.modelId)) {
@@ -1580,7 +1609,7 @@ class AcpSession {
    */
   public async restoreChoice(modelId: string, effort: EffortLevel): Promise<void> {
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    await this.syncRememberedMode()
     this.ensureHeld()
     // Muse resume needs an explicit selection; Model API's loaded model is
     // authoritative and an unchanged selection must not run switch hooks.
@@ -1621,13 +1650,10 @@ class AcpSession {
     try {
       await this.session.setApprovalMode(approvalModeFor(mode, true))
     } catch (error: unknown) {
-      if (!isPermissionReviewerError(error)) throw error
-      // The host runs the requested mode with its old reviewer: show that
-      // mode so the editor agrees with the host, then report the quarantine
-      // in the error's own true words.
-      this.mode = mode
-      this.send({ sessionUpdate: 'current_mode_update', currentModeId: mode })
-      await this.outbox
+      if (!isPermissionReviewerError(error) && !isModeKeptError(error)) throw error
+      // The host runs another mode: show it so the editor agrees with the
+      // host, then report the failure in the error's own true words.
+      await this.showRunningMode(error, mode)
       throw error
     }
     this.mode = mode

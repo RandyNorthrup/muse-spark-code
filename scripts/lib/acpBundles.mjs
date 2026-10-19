@@ -59,6 +59,7 @@ export const ACP_BUNDLES = [
   'runtimeQuestions.js',
   'runtimeAccounts.js',
   'questionNotes.js',
+  'approvalModes.js',
   'mcpPool.js',
   'exec.js',
   'modelApiCodeIntel.js',

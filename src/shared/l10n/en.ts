@@ -4084,6 +4084,13 @@ export const EN = {
     'The permission mode was applied, but its reviewer could not be installed ({reason}). New turns are refused until the mode is set again.',
   permissionReviewerMissing:
     'New turns are refused: the permission reviewer could not be installed. Set the permission mode again to recover.',
+  permissionReviewerTorn:
+    'The permission mode change tore while applying; the running mode is unconfirmed. New turns are refused until the mode is set again.',
+  permissionReviewerUnknown:
+    'The permission mode could not be changed and the mode the host runs is unknown. New turns are refused until the mode is set again.',
+  // {reason}: the refusal that stopped the change, in its own words.
+  permissionModeKept:
+    'The permission mode change did not take ({reason}); the host keeps running its mode.',
   // {action}: the panel's id for a host command, such as `openSettings`.
   hostActionFailed: '{action} failed',
   backendListenerFailed:
