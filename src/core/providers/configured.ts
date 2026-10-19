@@ -463,6 +463,25 @@ export function configuredTransportLog(log: CoreLogger | undefined): CoreLogger 
   }
 }
 
+/**
+ * A manual thinking step fitted under the output cap, keeping room for the
+ * answer. No output cap sent (a D121 hook call on a record-silent model)
+ * keeps the full step; every other caller sends one, so their budget is
+ * unchanged.
+ */
+export function manualThinkingBudget(
+  budgetStep: number,
+  maxOutputTokens: number | undefined,
+): number {
+  return Math.min(
+    budgetStep,
+    Math.max(
+      PROVIDER_MANUAL_THINKING_BUDGET,
+      (maxOutputTokens ?? Infinity) - PROVIDER_MANUAL_THINKING_BUDGET,
+    ),
+  )
+}
+
 async function* chunks(response: PinnedResponse, idleMs: number | undefined, provider: string) {
   let size = 0
   const iterator = response.body[Symbol.asyncIterator]()
@@ -1287,13 +1306,7 @@ export function createConfiguredProviderServices(
               capabilityRecord: record,
               ...(isManualOnly &&
                 budgetStep !== undefined && {
-                  thinkingBudget: Math.min(
-                    budgetStep,
-                    Math.max(
-                      PROVIDER_MANUAL_THINKING_BUDGET,
-                      body.max_output_tokens - PROVIDER_MANUAL_THINKING_BUDGET,
-                    ),
-                  ),
+                  thinkingBudget: manualThinkingBudget(budgetStep, body.max_output_tokens),
                 }),
             })
             wire = request.body
