@@ -44,8 +44,10 @@ happened, not what was planned; superseded entries are kept.
   A refused schedule restore quarantines too, naming the mode the host still
   runs. A quarantine keeps its sentence, which the next refused turn repeats
   instead of the generic reviewer-missing words; the mode notice naming the
-  recorded mode keeps it, and only a genuinely different mode falls back to
-  the generic words. Tears on Plan and Bypass say the acknowledged mode is in
+  recorded mode keeps it, and a genuinely different mode replaces it with
+  the sentence naming that mode, which says new turns stay refused until
+  the mode is set again, with no reviewer or tear words (the notice
+  installs and removes no reviewer). Tears on Plan and Bypass say the acknowledged mode is in
   effect but the adoption could not be confirmed, since those modes install
   no reviewer. An unknown running
   mode says so. Manual is never left running with the judge, and the menu
