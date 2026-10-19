@@ -15,6 +15,9 @@ import {
 
 const percent = (value: number | null) =>
   value === null ? UI_TEXT.resourceUnknown : formatPercent(value)
+// A null threshold prints the bare reading: measured, with no limit set.
+const against = (reading: string, threshold: number | null) =>
+  threshold === null ? reading : `${reading} / ${formatPercent(threshold)}`
 
 /**
  * J's resource branch for `/usage resources`, `usage resources` and
@@ -39,8 +42,8 @@ export function resourceHistoryText(input: ResourceHistory, now = Date.now()): s
           ? [UI_TEXT.resourceHistoryCurrentMinute]
           : []),
         resourceHistoryLevel(minute.level),
-        `${UI_TEXT.resourceCpu}: ${percent(minute.cpuPercent)} / ${formatPercent(minute.thresholds.cpuMaxPercent)}`,
-        `${UI_TEXT.resourceMemory}: ${percent(minute.memoryUsedPercent)} / ${formatPercent(minute.thresholds.memoryMaxPercent)}`,
+        `${UI_TEXT.resourceCpu}: ${against(percent(minute.cpuPercent), minute.thresholds.cpuMaxPercent)}`,
+        `${UI_TEXT.resourceMemory}: ${against(percent(minute.memoryUsedPercent), minute.thresholds.memoryMaxPercent)}`,
         `${UI_TEXT.resourceAvailableMemory}: ${resourceHistoryBucket(minute.availableMemory)}`,
         `${UI_TEXT.resourceGpu}: ${percent(minute.gpuPercent)}`,
         `${UI_TEXT.resourceDisk}: ${percent(minute.diskBusyPercent)}`,

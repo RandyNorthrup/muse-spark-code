@@ -95,19 +95,23 @@ function levelLabel(status: ResourceStatus): string {
 function pauseText(status: ResourceStatus): string {
   const sample = status.sample
   const settings = status.settings
+  const limit = (value: number | null) =>
+    value === null ? UI_TEXT.resourceUnknown : formatPercent(value)
   let metric = UI_TEXT.resourceCpu
   let reading =
     sample?.cpuPercent == null ? UI_TEXT.resourceUnknown : formatPercent(sample.cpuPercent)
-  let threshold = formatPercent(settings.cpuMaxPercent)
-  if (
-    sample?.memoryTotalBytes != null &&
-    sample.memoryAvailableBytes !== null &&
-    sample.memoryAvailableBytes < resourceMemoryFloorBytes(settings, sample.memoryTotalBytes)
-  ) {
+  let threshold = limit(settings.cpuMaxPercent)
+  const floor =
+    sample?.memoryTotalBytes == null
+      ? null
+      : resourceMemoryFloorBytes(settings, sample.memoryTotalBytes)
+  const available = sample?.memoryAvailableBytes ?? null
+  if (floor !== null && available !== null && available < floor) {
     metric = UI_TEXT.resourceAvailableMemory
-    reading = formatBytes(sample.memoryAvailableBytes)
-    threshold = formatBytes(resourceMemoryFloorBytes(settings, sample.memoryTotalBytes))
+    reading = formatBytes(available)
+    threshold = formatBytes(floor)
   } else if (
+    settings.memoryMaxPercent !== null &&
     sample?.memoryUsedPercent != null &&
     sample.memoryUsedPercent >= settings.memoryMaxPercent
   ) {

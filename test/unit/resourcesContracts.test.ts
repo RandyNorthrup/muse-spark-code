@@ -56,12 +56,12 @@ const workspaceOnly: ResourceSettingsReader = () => ({
 })
 
 describe('M107 resource contracts', () => {
-  it('starts on with D87 defaults and optional probes unset', () => {
+  it('starts on with no person-set limit and optional probes unset', () => {
     expect(defaults).toEqual({
       enabled: true,
-      cpuMaxPercent: 85,
-      memoryMaxPercent: 90,
-      memoryMinFreeGiB: 2,
+      cpuMaxPercent: null,
+      memoryMaxPercent: null,
+      memoryMinFreeGiB: null,
       gpuMaxPercent: null,
       diskBusyMaxPercent: null,
       diskMinFreeGiB: null,
@@ -121,14 +121,19 @@ describe('M107 resource contracts', () => {
     ).toThrow()
   })
   it('caps the floor at 15% of RAM, retaining the requested floor on large machines', () => {
-    expect(resourceMemoryFloorBytes(defaults, 8 * constants.RESOURCE_GIB_BYTES)).toBeCloseTo(
+    const floored = resourceSettingsSchema.parse({ memoryMinFreeGiB: 2 })
+    expect(resourceMemoryFloorBytes(floored, 8 * constants.RESOURCE_GIB_BYTES)).toBeCloseTo(
       1.2 * constants.RESOURCE_GIB_BYTES,
     )
-    expect(resourceMemoryFloorBytes(defaults, 32 * constants.RESOURCE_GIB_BYTES)).toBe(
+    expect(resourceMemoryFloorBytes(floored, 32 * constants.RESOURCE_GIB_BYTES)).toBe(
       2 * constants.RESOURCE_GIB_BYTES,
     )
     for (const total of [0, -1, NaN, Infinity])
-      expect(() => resourceMemoryFloorBytes(defaults, total)).toThrow()
+      expect(() => resourceMemoryFloorBytes(floored, total)).toThrow()
+  })
+  it('reports no memory floor without a person’s floor', () => {
+    for (const total of [8 * constants.RESOURCE_GIB_BYTES, 32 * constants.RESOURCE_GIB_BYTES])
+      expect(resourceMemoryFloorBytes(defaults, total)).toBeNull()
   })
   it('preserves unknown readings separately from real zero and bounds memory', () => {
     expect(resourceSampleSchema.parse(sample)).toEqual(sample)
