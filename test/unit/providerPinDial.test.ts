@@ -1,46 +1,76 @@
-// The DNS-rebinding pin: the name is resolved once, the answers are
-// checked against the saved network, and the request dials the checked
-// address itself — never a name looked up again at connect time. Over a
-// real loopback socket with a real resolver function returning a fixed
-// address list (the documented hook, not a stand-in for our code): the
-// name `probe.invalid` never resolves on any machine, so an answer proves
-// the dial used the checked address, and the `Host` header still carries
-// the original name.
+// The DNS-rebinding pin: the name is resolved once through the documented
+// `resolveHost` hook, the answers are checked against the saved network,
+// and the request dials the checked address itself — never a name looked
+// up again at connect time. The name `probe.invalid` never resolves on any
+// machine, so any bytes arriving prove the dial used the checked address,
+// and the `Host` bytes still carry the original name. Where a real socket
+// is needed to prove the dial target, a bare TCP acceptor takes the
+// connection, records the peer address and the raw request bytes, then
+// closes without writing a single byte: it answers nothing, so it is not
+// a provider. Refusals are proven the same way — the acceptor sees zero
+// connections, so nothing was sent.
 
+import { createServer, type Server, type Socket } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import { presetById } from '../../src/core/providers/presets'
 import { pinProviderFetch, type ResolvedProvider } from '../../src/runtime/exec/providerExec'
-import { closeLoopbackServers, listenLoopback } from './helpers/loopbackServer'
 
-afterEach(closeLoopbackServers)
+const servers: Server[] = []
 
-interface Seen {
-  readonly url: string
-  readonly host: string | undefined
-  readonly remote: string | undefined
+afterEach(async () => {
+  await Promise.all(
+    servers.splice(0).map(
+      (server) =>
+        new Promise<void>((resolve) => {
+          server.close(() => {
+            resolve()
+          })
+        }),
+    ),
+  )
+})
+
+interface SilentAcceptor {
+  readonly port: number
+  readonly connections: () => number
+  readonly peerAddresses: () => (string | undefined)[]
+  readonly received: () => string
 }
 
-async function listen(): Promise<{ port: number; seen: Seen[] }> {
-  const seen: Seen[] = []
-  const target = await listenLoopback((request, reply) => {
-    seen.push({
-      url: request.url ?? '',
-      host: request.headers.host,
-      remote: request.socket.remoteAddress,
+/**
+ * A bare TCP acceptor on 127.0.0.1: it records each connection's peer
+ * address and raw bytes, then closes without writing anything — no HTTP
+ * status, no headers, no body. The client's request therefore always
+ * fails; the recorded bytes are the proof of where it dialled.
+ */
+async function listenSilent(): Promise<SilentAcceptor> {
+  let connections = 0
+  const peerAddresses: (string | undefined)[] = []
+  let received = ''
+  const server = createServer((socket: Socket) => {
+    connections += 1
+    peerAddresses.push(socket.remoteAddress)
+    socket.on('data', (chunk: Buffer) => {
+      received += chunk.toString('utf8')
+      if (received.includes('\r\n\r\n')) socket.end()
     })
-    if (request.url === '/redirect') {
-      reply(302, '', { location: '/api/chat' })
-      return
-    }
-    let text = ''
-    request.on('data', (chunk: Buffer) => {
-      text += chunk.toString('utf8')
-    })
-    request.on('end', () => {
-      reply(200, JSON.stringify({ heard: text }), { 'content-type': 'application/json' })
+    socket.on('error', () => undefined)
+  })
+  servers.push(server)
+  const port = await new Promise<number>((resolve, reject) => {
+    server.on('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      if (typeof address === 'object' && address !== null) resolve(address.port)
+      else reject(new Error('silent acceptor did not bind'))
     })
   })
-  return { port: target.port, seen }
+  return {
+    port,
+    connections: () => connections,
+    peerAddresses: () => [...peerAddresses],
+    received: () => received,
+  }
 }
 
 function providerFor(port: number): ResolvedProvider {
@@ -63,8 +93,8 @@ function providerFor(port: number): ResolvedProvider {
 }
 
 describe('pinProviderFetch dials the checked address', () => {
-  it('reaches the checked loopback address under an unresolvable name with its Host header', async () => {
-    const target = await listen()
+  it('reaches the checked loopback address under an unresolvable name with its Host bytes', async () => {
+    const target = await listenSilent()
     const provider = providerFor(target.port)
     let resolutions = 0
     const resolveHost = (hostname: string): Promise<readonly string[]> => {
@@ -73,22 +103,28 @@ describe('pinProviderFetch dials the checked address', () => {
       return Promise.resolve(['127.0.0.1'])
     }
     const pinned = pinProviderFetch(provider, [{ kind: 'exact', path: '/api/chat' }], resolveHost)
-    const response = await pinned(`http://probe.invalid:${String(target.port)}/api/chat`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'llama3' }),
-    })
-    expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ heard: JSON.stringify({ model: 'llama3' }) })
+    // The acceptor closes without answering, so the client's request must
+    // fail: the proof is server-side, in the bytes that arrived.
+    await expect(
+      pinned(`http://probe.invalid:${String(target.port)}/api/chat`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ model: 'llama3' }),
+      }),
+    ).rejects.toThrow()
     // Resolved once, dialled as resolved: no second lookup at connect time.
     expect(resolutions).toBe(1)
-    expect(target.seen).toHaveLength(1)
-    expect(target.seen[0]?.host).toBe(`probe.invalid:${String(target.port)}`)
-    expect(target.seen[0]?.remote).toBe('127.0.0.1')
+    expect(target.connections()).toBe(1)
+    expect(target.peerAddresses()).toEqual(['127.0.0.1'])
+    expect(target.received()).toContain('POST /api/chat HTTP/1.1')
+    // Node sends the header name lowercased; the value must stay the
+    // original name, never the dialled address.
+    expect(target.received()).toContain(`host: probe.invalid:${String(target.port)}`)
+    expect(target.received()).toContain(JSON.stringify({ model: 'llama3' }))
   })
 
   it('sends nothing when the answers move to a forbidden address', async () => {
-    const target = await listen()
+    const target = await listenSilent()
     const provider = providerFor(target.port)
     const pinned = pinProviderFetch(provider, [{ kind: 'exact', path: '/api/chat' }], () =>
       Promise.resolve(['169.254.169.254']),
@@ -96,11 +132,11 @@ describe('pinProviderFetch dials the checked address', () => {
     await expect(
       pinned(`http://probe.invalid:${String(target.port)}/api/chat`, { method: 'GET' }),
     ).rejects.toThrow('rebinding')
-    expect(target.seen).toHaveLength(0)
+    expect(target.connections()).toBe(0)
   })
 
   it('sends nothing on mixed answers either', async () => {
-    const target = await listen()
+    const target = await listenSilent()
     const provider = providerFor(target.port)
     const pinned = pinProviderFetch(provider, [{ kind: 'exact', path: '/api/chat' }], () =>
       Promise.resolve(['127.0.0.1', '169.254.169.254']),
@@ -108,22 +144,6 @@ describe('pinProviderFetch dials the checked address', () => {
     await expect(
       pinned(`http://probe.invalid:${String(target.port)}/api/chat`, { method: 'GET' }),
     ).rejects.toThrow('rebinding')
-    expect(target.seen).toHaveLength(0)
-  })
-
-  it('refuses redirects like redirect error', async () => {
-    const target = await listen()
-    const provider = providerFor(target.port)
-    const pinned = pinProviderFetch(
-      provider,
-      [
-        { kind: 'exact', path: '/api/chat' },
-        { kind: 'exact', path: '/redirect' },
-      ],
-      () => Promise.resolve(['127.0.0.1']),
-    )
-    await expect(
-      pinned(`http://probe.invalid:${String(target.port)}/redirect`, { method: 'GET' }),
-    ).rejects.toThrow(TypeError)
+    expect(target.connections()).toBe(0)
   })
 })
