@@ -242,12 +242,16 @@ export class VaultBrokerClient {
           })
         } catch (error: unknown) {
           // The request bytes wipe before the close, whatever the close
-          // costs; the executor throw rejects with the write failure.
+          // costs. The close must not settle the call first: pending is
+          // detached so the failure below rejects it with the write failure.
           bytes.fill(0)
+          // Pending is set above with no await between, so it is still ours.
+          const pending = this.pending
+          this.pending = null
+          clearTimeout(pending.timer)
           this.close('writeFailed')
-          throw error instanceof VaultChannelError
-            ? error
-            : new VaultChannelError('writeFailed', { cause: error })
+          if (error instanceof VaultChannelError) throw error
+          throw new VaultChannelError('writeFailed', { cause: error })
         }
       })
     })()
