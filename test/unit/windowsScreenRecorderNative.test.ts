@@ -39,14 +39,8 @@ const check = async (...args: string[]) => {
   return result.trim()
 }
 const destination = () => path.join(paths.root, `muse-spark-screen-${crypto.randomUUID()}`)
-const latest = async (source: string, target: string, maxBytes = 100) =>
-  await check(
-    'latest',
-    source,
-    target,
-    String(maxBytes),
-    String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
-  )
+const latest = async (source: string, target: string) =>
+  await check('latest', source, target, String(100), String(SCREEN_RECORDING_RECENT_MAX_AGE_MS))
 // The real Windows trust check: the inbox compiler and the built helper must
 // each pass the owner, ACL and link checks in their real folders before the
 // helper is built or run. Its PowerShell probes run as real processes through

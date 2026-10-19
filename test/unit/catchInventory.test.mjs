@@ -9,11 +9,12 @@ import {
   countByArea,
 } from '../../scripts/lib/catch-inventory.mjs'
 
-function scan(text, file = 'src/acp/agent.ts') {
+function scan(text, file) {
   return classifySource(file, ts.createSourceFile(file, text, ts.ScriptTarget.ESNext, true))
 }
 
-function classesOf(text, file = 'src/fixture.ts') {
+function classesOf(text) {
+  const file = 'src/fixture.ts'
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.ESNext, true)
   return classifySource(file, source).map((entry) => entry.class)
 }
@@ -223,18 +224,24 @@ describe('catch-inventory baseline', () => {
   })
 
   it('refuses replacement or relocated debt even when area counts stay equal', () => {
-    const original = scan('function read() { try { load() } catch { return fallback } }')
+    const original = scan(
+      'function read() { try { load() } catch { return fallback } }',
+      'src/acp/agent.ts',
+    )
     const baseline = { version: 3, counts: countByArea(original), sites: original }
     expect(checkBaseline(original, baseline)).toEqual([])
     expect(
       checkBaseline(
-        scan('\n\nfunction read() { try { load() } catch { return fallback } }'),
+        scan(
+          '\n\nfunction read() { try { load() } catch { return fallback } }',
+          'src/acp/agent.ts',
+        ),
         baseline,
       ),
     ).toEqual([])
     expect(
       checkBaseline(
-        scan('function save() { try { write() } catch { return fallback } }'),
+        scan('function save() { try { write() } catch { return fallback } }', 'src/acp/agent.ts'),
         baseline,
       ).join('\n'),
     ).toMatch(/new GENERIC catch site/)
@@ -260,6 +267,7 @@ describe('catch-inventory baseline', () => {
     // silently.
     const planted = scan(
       'void sampleOnce(status).catch(() => {\n// foreign failures have no consumer\nreport()\n})',
+      'src/acp/agent.ts',
     )
     expect(planted.map((entry) => entry.class)).toEqual(['CLEANUP'])
     const empty = { version: 3, counts: {}, sites: [] }

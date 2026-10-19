@@ -28,7 +28,7 @@ function neverReached(name: string): () => never {
   }
 }
 
-function draftWith(paidCapUsd: string, grantCapUsd: string): ScheduleDraft {
+function draftWith(paidCapUsd: string): ScheduleDraft {
   return scheduleDraftSchema.parse({
     name: 'Test schedule',
     action: { kind: 'prompt', prompt: 'Summarize the inbox' },
@@ -38,7 +38,7 @@ function draftWith(paidCapUsd: string, grantCapUsd: string): ScheduleDraft {
     whenClosed: 'open',
     catchUp: 'runOnce',
     mode: 'manual',
-    grant: { rules: [], destinationIds: [], paidCapUsd: canonicalUsd(grantCapUsd) },
+    grant: { rules: [], destinationIds: [], paidCapUsd: canonicalUsd('1') },
     paidCapUsd: canonicalUsd(paidCapUsd),
     parallel: false,
     zone: 'America/Los_Angeles',
@@ -88,7 +88,7 @@ describe('the production surface refuses a paid V2 draft without caller budget (
   }
 
   it('a paid draft from the panel is refused before anything is forwarded', async () => {
-    const result = await createOnSurface(draftWith('1', '1'), panelCaller)
+    const result = await createOnSurface(draftWith('1'), panelCaller)
     expect(result).toEqual({
       kind: 'refused',
       reason: UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired,
@@ -96,7 +96,7 @@ describe('the production surface refuses a paid V2 draft without caller budget (
   })
 
   it('a cap carried only by the grant is refused the same way', async () => {
-    const result = await createOnSurface(draftWith('0', '1'), panelCaller)
+    const result = await createOnSurface(draftWith('0'), panelCaller)
     expect(result).toEqual({
       kind: 'refused',
       reason: UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired,
@@ -104,7 +104,7 @@ describe('the production surface refuses a paid V2 draft without caller budget (
   })
 
   it('a caller budget below the cap is refused', async () => {
-    const result = await createOnSurface(draftWith('1', '1'), {
+    const result = await createOnSurface(draftWith('1'), {
       source: 'cli',
       isInteractive: false,
       scheduledPrompts: true,
@@ -119,7 +119,7 @@ describe('the production surface refuses a paid V2 draft without caller budget (
   it('a caller with the flag and enough budget passes the surface gate', async () => {
     let wasReached = false
     const result = await createOnSurface(
-      draftWith('1', '1'),
+      draftWith('1'),
       {
         source: 'cli',
         isInteractive: false,

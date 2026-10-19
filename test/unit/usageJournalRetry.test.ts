@@ -4,7 +4,8 @@
 import { describe, expect, it } from 'vitest'
 import { UsageJournalStore, type UsageFs } from '../../src/core/usage/journalStore'
 
-function options(writeErrors: string[] = []) {
+function options() {
+  const writeErrors: string[] = []
   return {
     writerId: 'test-writer',
     isEnabled: () => true,

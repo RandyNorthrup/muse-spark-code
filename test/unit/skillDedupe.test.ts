@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest'
 import { dedupeSkillSelectors } from '../../src/acp/agent'
 import { isPlanModelRef } from '../../src/shared/providerRouting'
 
-const skill = (selector: string, description = 'does things', argumentHint?: string) => ({
+const skill = (selector: string, description = 'does things') => ({
   selector,
   displayName: selector,
   description,
-  argumentHint,
+  argumentHint: undefined,
 })
 
 describe('dedupeSkillSelectors', () => {

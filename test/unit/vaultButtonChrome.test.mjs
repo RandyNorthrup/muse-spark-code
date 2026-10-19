@@ -12,9 +12,9 @@ const VAULT_CSS = path.resolve(
 const TOKENS_CSS = path.resolve(import.meta.dirname, '../../src/webview/tokens.css')
 const THEME_DIRECTORY = path.resolve(import.meta.dirname, '../harness/themes')
 
-function declarations(source, selector) {
-  const start = source.indexOf(selector)
-  if (start === -1) throw new Error(`Missing rule: ${selector}`)
+function declarations(source) {
+  const start = source.indexOf('.vault-card button')
+  if (start === -1) throw new Error('Missing rule: .vault-card button')
   const open = source.indexOf('{', start)
   const close = source.indexOf('}', open)
   const found = new Map()
@@ -90,7 +90,7 @@ const THEMES = readdirSync(THEME_DIRECTORY).filter((name) => name.endsWith('.jso
 describe('RVCM1091D vault button chrome', () => {
   it.each(THEMES)('keeps a visible button edge in %s', (theme) => {
     const source = readFileSync(VAULT_CSS, 'utf8')
-    const rules = declarations(source, '.vault-card button')
+    const rules = declarations(source)
     const border = rules.get('border')
     if (border === undefined) throw new Error('Vault buttons need a border declaration')
     const colour = /^1px\s+solid\s+(.+)$/.exec(border)
@@ -102,7 +102,7 @@ describe('RVCM1091D vault button chrome', () => {
 
   it.each(THEMES)('resolves the button fill and label in %s', (theme) => {
     const source = readFileSync(VAULT_CSS, 'utf8')
-    const rules = declarations(source, '.vault-card button')
+    const rules = declarations(source)
     const tokens = tokenDeclarations()
     const variables = themeVariables(theme)
     for (const property of ['background', 'color']) {

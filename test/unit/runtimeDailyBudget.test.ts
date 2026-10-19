@@ -212,18 +212,15 @@ function budget(dataFolder: string) {
   })
 }
 
-async function cappedFolder(capUsd: number) {
+async function cappedFolder() {
   const root = await mkdtemp(path.join(tmpdir(), 'runtime-daily-budget-'))
-  await writeFile(
-    path.join(root, RUNTIME_SETTINGS_FILE),
-    JSON.stringify({ paidDailyBudgetUsd: capUsd }),
-  )
+  await writeFile(path.join(root, RUNTIME_SETTINGS_FILE), JSON.stringify({ paidDailyBudgetUsd: 1 }))
   return root
 }
 
 describe('runtime daily budget', () => {
   it('reads the shared cap from the data-folder settings file', async () => {
-    const root = await cappedFolder(1)
+    const root = await cappedFolder()
     try {
       expect(budget(root).capUsd()).toBe('1')
     } finally {
@@ -232,7 +229,7 @@ describe('runtime daily budget', () => {
   })
 
   it('enforces spend settled through one instance against another on the same folder', async () => {
-    const root = await cappedFolder(1)
+    const root = await cappedFolder()
     try {
       const first = budget(root)
       const second = budget(root)

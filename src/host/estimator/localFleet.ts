@@ -32,8 +32,8 @@ const MACHINE_OS: ReadonlyMap<string, MachineOs> = new Map<string, MachineOs>([
   ['win32', 'windows'],
 ])
 
-function refuse(detail: string): never {
-  throw new EstimateDiagnosticError(detail)
+function refuse(): never {
+  throw new EstimateDiagnosticError('unsupported-platform')
 }
 
 /** This machine's fleet for these lanes; refuses platforms it cannot name. */
@@ -44,9 +44,9 @@ export function fleetFromHost(
 ): FleetSnapshot {
   // Node names Windows `win32` and macOS `darwin`; the fleet names them by OS.
   const machineOs = MACHINE_OS.get(host.platform)
-  if (machineOs === undefined) refuse('unsupported-platform')
-  if (host.arch !== 'x64' && host.arch !== 'arm64') refuse('unsupported-platform')
-  if (!(host.cores > 0) || !(host.ramGiB > 0)) refuse('unsupported-platform')
+  if (machineOs === undefined) refuse()
+  if (host.arch !== 'x64' && host.arch !== 'arm64') refuse()
+  if (!(host.cores > 0) || !(host.ramGiB > 0)) refuse()
   // Code-unit order, independent of the host's language and ICU version.
   const kinds = [...new Set(lanes.map((lane) => lane.kind))].toSorted((left, right) => {
     if (left === right) return 0
@@ -112,13 +112,13 @@ function missingEstimateBinding(dependency: string): never {
 }
 
 /**
- * The milestone bindings every shell assembles (M117, PLAN.md D97): this
- * machine measured as the fleet; the snapshot reads the workspace plan
- * through the shared core adapter (C-M117-1); the board, broker and catalog
- * bindings refuse with their handoff names until those merge; history
- * appends arrive with M115's lane-finished trigger. Only the price lookup
- * differs.
- */
+The milestone bindings every shell assembles (M117, PLAN.md D97): this
+machine measured as the fleet; the snapshot reads the workspace plan
+through the shared core adapter (C-M117-1); the board, broker and catalog
+bindings refuse with their handoff names until those merge; history
+appends arrive with M115's lane-finished trigger. Only the price lookup
+differs.
+*/
 export function estimatorSourcePorts(
   priceLookup: EstimatorSourcePorts['priceLookup'],
   snapshot: EstimatorSourcePorts['snapshot'],
@@ -142,8 +142,8 @@ export function estimatorSourcePorts(
 }
 
 /** This machine's fleet at the request's asOf: cores are read at call time
- * (hot-plugged cores count) but the stamp is passed through, never a second
- * clock, so the inputs' fleet/request equality holds. */
+(hot-plugged cores count) but the stamp is passed through, never a second
+clock, so the inputs' fleet/request equality holds. */
 export function localFleet(lanes: readonly EstimateLane[], asOf: string): FleetSnapshot {
   return fleetFromHost(
     {

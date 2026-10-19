@@ -90,10 +90,10 @@ function noopCountdown(): void {
   // Countdown display is the host's.
 }
 
-function depsWith(
-  spawn: MacosScreenRecordingDeps['spawn'],
-  overrides: Partial<MacosScreenRecordingDeps> = {},
-): { deps: MacosScreenRecordingDeps; helpers: TestHelper[] } {
+function depsWith(spawn: MacosScreenRecordingDeps['spawn']): {
+  deps: MacosScreenRecordingDeps
+  helpers: TestHelper[]
+} {
   const helpers: TestHelper[] = []
   return {
     helpers,
@@ -119,7 +119,6 @@ function depsWith(
       startupTimeoutMs: 1000,
       finishTimeoutMs: 50,
       maxProtocolChars: 65_536,
-      ...overrides,
     },
   }
 }
