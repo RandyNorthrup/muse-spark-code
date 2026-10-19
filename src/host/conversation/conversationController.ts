@@ -6207,6 +6207,10 @@ export class ConversationController {
     // generation's turn.
     this.notice('info', fill(UI_TEXT.historyDeleted, { name }))
     if (isStale) {
+      // History renders the last posted list, not this map: post it so the
+      // row goes even though a newer generation owns the turn now. Only the
+      // row goes — the newer generation's open conversation is not cleared.
+      this.postSessionList()
       return
     }
     try {

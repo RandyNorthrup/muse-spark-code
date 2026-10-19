@@ -29,6 +29,7 @@ import type { EditReviewActions } from '../../src/host/editor/editReview'
 import type { ReviewTurnFeatures } from '../../src/host/review/reviewBundle'
 import type { ChatSurface } from '../../src/host/views/chatSurface'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import type { AgentSession, SessionListEvent } from '../../src/core/agent/agentBackend'
 import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
@@ -324,11 +325,16 @@ function makePanel(directory: string, confirm: 'yes' | 'no' | 'deferred'): Panel
     markAuthRequired: unused('auth.markAuthRequired'),
     markBackendError: unused('auth.markBackendError'),
   }
-  // No test path below attaches a session, so git is never reached: every
-  // entry fails closed instead of pretending git ran.
+  // No test path below attaches a session, so git behaviour is never
+  // reached: every entry fails closed instead of pretending git ran, except
+  // the session-changed notification below.
   const git: ConversationGitPort = {
+    // `clearConversation` (the stale-delete test's real newer generation)
+    // notifies the git port that no session is open. The rig has no git
+    // panel observing it, so the notification stays a no-op; every git
+    // behaviour the delete path depends on still fails closed below.
+    sessionChanged: () => undefined,
     postState: unused('git.postState'),
-    sessionChanged: unused('git.sessionChanged'),
     handleAction: unused('git.handleAction'),
     commit: unused('git.commit'),
     createPullRequest: unused('git.createPullRequest'),
@@ -510,8 +516,13 @@ async function waitForConfirm(
 }
 
 // A live conversation with a save on disk: every panel test starts from
-// this real state, then drives its own delete through the controller.
-async function startNamedSession(panel: PanelRig, directory: string): Promise<string> {
+// this real state, then drives its own delete through the controller. The
+// live handle stays out for tests that touch the stopped session after the
+// delete (a turn settling late touches the same path).
+async function startNamedSession(
+  panel: PanelRig,
+  directory: string,
+): Promise<{ readonly live: AgentSession; readonly sessionId: string }> {
   const live = await panel.host.startSession({
     workspaceRoot: directory,
     modelId: DEFAULT_MODEL_ID,
@@ -520,7 +531,7 @@ async function startNamedSession(panel: PanelRig, directory: string): Promise<st
   const sessionId = live.sessionId
   await live.rename('Parser fix')
   await awaitSaved(panel.host, panel.store, panel.warnings, sessionId)
-  return sessionId
+  return { live, sessionId }
 }
 
 describe('ConversationController.deleteSession tells one true story', () => {
@@ -528,7 +539,7 @@ describe('ConversationController.deleteSession tells one true story', () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'muse-panel-session-delete-'))
     try {
       const panel = makePanel(directory, 'yes')
-      const sessionId = await startNamedSession(panel, directory)
+      const { sessionId } = await startNamedSession(panel, directory)
       expect(panel.warnings).toEqual([])
       const listed = await panel.host.listSessions({ workspaceRoot: directory, limit: 50 })
       const record = listed.sessions.find((entry) => entry.sessionId === sessionId)
@@ -553,11 +564,56 @@ describe('ConversationController.deleteSession tells one true story', () => {
     }
   })
 
+  it('a touch that lands after the delete does not put the row back', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'muse-panel-session-late-touch-'))
+    try {
+      const panel = makePanel(directory, 'yes')
+      const { live, sessionId } = await startNamedSession(panel, directory)
+      const listed = await panel.host.listSessions({ workspaceRoot: directory, limit: 50 })
+      const record = listed.sessions.find((entry) => entry.sessionId === sessionId)
+      if (record === undefined) {
+        throw new Error(`session ${sessionId} was never listed`)
+      }
+      await panel.controller.handle({ type: 'listSessions' })
+      expect(panelSessionLists(panel.posted).at(-1)).toContain(sessionId)
+
+      await panel.controller.handle({ type: 'deleteSession', sessionId })
+      await panel.host.flush()
+      expect(await panel.store.load(sessionId)).toBeUndefined()
+
+      // A turn settling after the removal touches the stopped handle: its
+      // change callback persists nothing and must publish nothing either, or
+      // the row comes back with its file gone. A rename drives the same
+      // onChanged persist-and-announce path a turn exit takes; no provider
+      // turn can run on this rig, and a hand-answered one would be a fake.
+      // The listener below subscribes after the delete, so only a late
+      // publish can fill it.
+      const heard: SessionListEvent[] = []
+      const unlisten = panel.host.onSessionListEvent((event) => {
+        heard.push(event)
+      })
+      try {
+        await live.rename('A rename after the delete')
+        await panel.host.flush()
+      } finally {
+        unlisten()
+      }
+
+      expect(heard).toEqual([])
+      expect(await panel.store.load(sessionId)).toBeUndefined()
+      const deletedText = fill(UI_TEXT.historyDeleted, { name: sessionTitle(record) })
+      expect(panelNotices(panel.posted)).toEqual([{ level: 'info', text: deletedText }])
+      expect(panelSessionLists(panel.posted).at(-1)).not.toContain(sessionId)
+    } finally {
+      await removeFolder(directory)
+    }
+  })
+
   it('keeps the row and says nothing when the person declines', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'muse-panel-session-decline-'))
     try {
       const panel = makePanel(directory, 'no')
-      const sessionId = await startNamedSession(panel, directory)
+      const { sessionId } = await startNamedSession(panel, directory)
 
       await panel.controller.handle({ type: 'deleteSession', sessionId })
       await panel.host.flush()
@@ -574,7 +630,7 @@ describe('ConversationController.deleteSession tells one true story', () => {
     try {
       const panel = makePanel(directory, 'yes')
       panel.armArchivedIdsFailure(new Error('archived ids storage is down'))
-      const sessionId = await startNamedSession(panel, directory)
+      const { sessionId } = await startNamedSession(panel, directory)
 
       await panel.controller.handle({ type: 'deleteSession', sessionId })
       await panel.host.flush()
@@ -600,7 +656,7 @@ describe('ConversationController.deleteSession tells one true story', () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'muse-panel-session-epoch-'))
     try {
       const panel = makePanel(directory, 'deferred')
-      const sessionId = await startNamedSession(panel, directory)
+      const { sessionId } = await startNamedSession(panel, directory)
 
       // The delete is parked at its confirm dialog. Once the person confirms,
       // the hosts stop (a real epoch invalidator) while the removal is still
@@ -619,6 +675,48 @@ describe('ConversationController.deleteSession tells one true story', () => {
       expect(await panel.store.load(sessionId)).toBeUndefined()
       const deletedText = fill(UI_TEXT.historyDeleted, { name: sessionId })
       expect(panelNotices(panel.posted)).toEqual([{ level: 'info', text: deletedText }])
+    } finally {
+      await removeFolder(directory)
+    }
+  })
+
+  it('a new conversation mid-delete still drops the row from the posted list', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'muse-panel-session-stale-list-'))
+    try {
+      const panel = makePanel(directory, 'deferred')
+      const { sessionId } = await startNamedSession(panel, directory)
+      const listed = await panel.host.listSessions({ workspaceRoot: directory, limit: 50 })
+      const record = listed.sessions.find((entry) => entry.sessionId === sessionId)
+      if (record === undefined) {
+        throw new Error(`session ${sessionId} was never listed`)
+      }
+      await panel.controller.handle({ type: 'listSessions' })
+      expect(panelSessionLists(panel.posted).at(-1)).toContain(sessionId)
+
+      // The delete is parked at its confirm dialog. The person starts a new
+      // conversation while the removal is still in flight: a real epoch
+      // invalidator that posts no list of its own, so the stale delete must
+      // post one itself or the row stays on screen with its file gone.
+      const deleting = panel.controller.handle({ type: 'deleteSession', sessionId })
+      await waitForConfirm(panel.releaseConfirm)
+      panel.releaseConfirm()?.(true)
+      // Let the confirmed delete pass its generation check, then start the
+      // new conversation before the removal settles: the file writes below
+      // still take real I/O, so this always lands first.
+      await Promise.resolve()
+      await panel.controller.handle({ type: 'clearConversation' })
+      await deleting
+      await panel.host.flush()
+
+      expect(await panel.store.load(sessionId)).toBeUndefined()
+      const deletedText = fill(UI_TEXT.historyDeleted, { name: sessionTitle(record) })
+      expect(panelNotices(panel.posted)).toEqual([{ level: 'info', text: deletedText }])
+      // The newer generation posts no list: the last posted list is the
+      // stale delete's own, and it omits the row. Without that post the
+      // last list still names it and History keeps showing it.
+      const lists = panelSessionLists(panel.posted)
+      expect(lists.length).toBeGreaterThan(1)
+      expect(lists.at(-1)).not.toContain(sessionId)
     } finally {
       await removeFolder(directory)
     }

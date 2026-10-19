@@ -17221,6 +17221,13 @@ export class ModelApiHost implements AgentHost {
   }
 
   private announce(session: ModelApiSession): void {
+    // History's delete wins over a late touch: a turn settling after the
+    // removal must not publish the session again (the row would come back
+    // with its file gone). Every save already refuses a deleted id; the
+    // list event refuses one here.
+    if (this.deletedSessionIds.has(session.sessionId)) {
+      return
+    }
     notify<SessionListEvent>(
       this.listListeners,
       { type: 'changed', record: session.record() },
