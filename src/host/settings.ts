@@ -11,9 +11,7 @@ import {
   BACKEND_MODES,
   HOOK_MAX_STOP_CONTINUATIONS,
   HOOK_RUNNING_COMMANDS_MIN,
-  HOOK_STOP_CONTINUATIONS_MIN,
   SUBAGENT_CONCURRENT_MAX,
-  SUBAGENT_CONCURRENT_MIN,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
   type BackendMode,
   VAULT_PROTECTION_MODES,
@@ -162,11 +160,11 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly webSearchMaxPerRequest: number
   /** Lane RETRYLIMITS: the person's retry limit; null leaves the providers' own maxima in force. */
   readonly modelApiMaxRetries: number | null
-  /** Stop-hook continuations in a row (M127, Muse Code's default 8). */
+  /** Stop-hook continuations in a row (M127, D121: 0 is no limit of ours). */
   readonly hooksMaxStopContinuations: number
   /** Running hook commands at once; 0 starts them all (M127, as Muse Code). */
   readonly hooksMaxRunningCommands: number
-  /** Concurrent subagents (M127, Muse Code's 1–64 range, default 8). */
+  /** Concurrent subagents (M127, D121: 0 is no limit of ours). */
   readonly subagentMaxConcurrent: number
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
@@ -300,21 +298,22 @@ const settingSchemas = {
   modelApiAutoCompaction: z.boolean(),
   modelApiStrictTools: z.boolean(),
   modelApiParallelReads: z.boolean(),
+  // D121: 0 is no search bound of ours (the default); a set value stays
+  // within 1–20.
   webSearchMaxPerRequest: z
     .number()
-    .check(z.int(), z.gte(1), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
+    .check(z.int(), z.gte(0), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
   // Lane RETRYLIMITS: null (unset) is the default; 0 never retries.
   modelApiMaxRetries: z.nullable(z.int().check(z.gte(0))),
   // Capped at Muse Code's own bound: machine settings are writable by a
   // dev-container definition (SECURITY.md, workspace trust), so no
   // workspace may raise Stop-hook billing past what Muse Code itself does.
+  // D121: 0 is no limit of ours (the default); a set value stays in range.
   hooksMaxStopContinuations: z
     .number()
-    .check(z.int(), z.gte(HOOK_STOP_CONTINUATIONS_MIN), z.lte(HOOK_MAX_STOP_CONTINUATIONS)),
+    .check(z.int(), z.gte(0), z.lte(HOOK_MAX_STOP_CONTINUATIONS)),
   hooksMaxRunningCommands: z.number().check(z.int(), z.gte(HOOK_RUNNING_COMMANDS_MIN)),
-  subagentMaxConcurrent: z
-    .number()
-    .check(z.int(), z.gte(SUBAGENT_CONCURRENT_MIN), z.lte(SUBAGENT_CONCURRENT_MAX)),
+  subagentMaxConcurrent: z.number().check(z.int(), z.gte(0), z.lte(SUBAGENT_CONCURRENT_MAX)),
   turnCheckpoints: z.boolean(),
   // Each entry a plain host name or IP address (no port, path or wildcard):
   // one that is not refuses the whole list, so a typo warns rather than
@@ -340,13 +339,17 @@ const settingSchemas = {
     .int()
     .check(z.minimum(USAGE_HISTORY_DAYS_MIN), z.maximum(USAGE_HISTORY_DAYS_MAX)),
   // No ceiling of ours: the person sets any MiB, the provider refuses what it cannot take.
-  mediaMaxUploadMiB: z.int().check(z.gte(1)),
+  // D121: 0 is no cap of ours (the default).
+  mediaMaxUploadMiB: z.int().check(z.gte(0)),
   mediaUploadExpiryDays: z
     .int()
     .check(z.gte(MEDIA_UPLOAD_EXPIRY_MIN_DAYS), z.lte(MEDIA_UPLOAD_EXPIRY_MAX_DAYS)),
-  screenRecordingMaxSeconds: z
-    .int()
-    .check(z.gte(SCREEN_RECORDING_MIN_SECONDS), z.lte(SCREEN_RECORDING_MAX_SECONDS)),
+  // D121: 0 records until stopped (the default); a set value stays 10–600.
+  screenRecordingMaxSeconds: z.int().check(
+    z.gte(0),
+    z.lte(SCREEN_RECORDING_MAX_SECONDS),
+    z.refine((value) => value === 0 || value >= SCREEN_RECORDING_MIN_SECONDS),
+  ),
   mediaAudioAction: z.enum(MEDIA_AUDIO_ACTION_OPTIONS),
   mediaConverterPath: z.string().check(z.maxLength(MEDIA_CONVERTER_PATH_MAX_CHARS)),
   accountSwap: z.boolean(),

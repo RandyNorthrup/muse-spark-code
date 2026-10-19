@@ -422,7 +422,7 @@ export const EN = {
       '--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)',
     verbose: '--verbose                        Log every detail on stderr',
     'questions-defer-after':
-      '--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600',
+      '--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600)',
     help: 'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
     version: 'Print the installed agent version.',
     cwd: 'Use this directory as the workspace.',
@@ -571,7 +571,7 @@ export const EN = {
   referenceQuestions:
     'Choose and Submit an answer, explain in your own words, or Cancel. Muse receives submitted answers and explanations in the conversation.',
   referenceQuestionsDeferral:
-    'Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer <n> <text> answers one.',
+    'Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (no limit unless you set one; 0, the default, waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer <n> <text> answers one.',
   referencePermissionLimits:
     'museCode:manual: Muse asks before running each command, unless a permission rule allows it; Muse Code edits workspace files without asking\nmuseCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking, and asks before running each command, unless a permission rule allows it\nmuseCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmuseCode:bypassPermissions: Muse will edit files and run commands without asking\nmodelApi:manual: Muse will ask for approval before each edit and each command\nmodelApi:acceptEdits: Muse will edit files without asking and ask before running commands\nmodelApi:plan: Muse will explore the code and present a plan before editing\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.',
   referenceElicitationTitle: 'MCP Elicitation',
@@ -681,8 +681,8 @@ export const EN = {
   playbookSafetyAlwaysOn: 'Safety checks always apply. This rule cannot be turned off.',
   playbookPatchRoundsLabel: 'Fix Rounds Before Redesign',
   playbookPatchRoundsHelp:
-    'The limit can be lowered. After it is reached, write a design decision and dispatch a redesign lane.',
-  playbookPatchRoundsInvalid: 'Choose one or two fix rounds; the ceiling cannot be raised.',
+    '0 means fix rounds continue until the work converges or you stop it. Set a number to require a design decision and a redesign lane after that many fix rounds.',
+  playbookPatchRoundsInvalid: 'Enter 0 for unlimited fix rounds, or a whole number of 1 or more.',
   playbookFallbackReviewer: 'Fallback reviewer for classifier-blocked reviews: {reviewer}',
   playbookFallbackNone: 'No fallback reviewer named',
   playbookResidualAccepted: 'Residual Accepted',
@@ -710,7 +710,7 @@ export const EN = {
   playbookSaved: 'Playbook settings saved.',
   playbookStrikeBadge: forms({ one: '{count} review round', other: '{count} review rounds' }),
   playbookRules: {
-    threeStrikes: 'Redesign After Three Strikes',
+    threeStrikes: 'Redesign After Fix Rounds',
     onePassReview: 'Review Every Class in One Pass',
     contractsFirst: 'Contracts and Prerequisites First',
     smallFirst: 'Small Work First, After Dependencies',
@@ -1164,6 +1164,7 @@ export const EN = {
     attachRecording: 'Attach Screen Recording…',
     attachLatestRecording: 'Attach Latest Screen Recording',
     recordingCountdown: 'Recording: {remaining} remaining',
+    recordingElapsed: 'Recording: {elapsed} elapsed',
     recordingMicrophone: 'Microphone',
     recordingSystemAudio: 'System Audio',
     recordingPreview: 'Preview Screen Recording',
@@ -4534,7 +4535,7 @@ export const EN = {
     '  --trust-workspace                Load the folder’s rules, skills and memory',
     '  --muse-binary <path>             The Muse Code CLI to run',
     '  --shell-sandbox auto|muse|off    Muse Code’s shell sandbox',
-    '  --questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600',
+    '  --questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600)',
     '  --allow-dangerously-skip-permissions  Offer the Bypass permissions mode',
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
