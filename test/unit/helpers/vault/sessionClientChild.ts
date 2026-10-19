@@ -2,7 +2,6 @@ import { posixVaultClientPlatform } from '../../../../src/runtime/vault/posixCli
 import { VaultBrokerProcess } from '../../../../src/host/vault/brokerProcess'
 import { VaultBrokerClient } from '../../../../src/core/vault/broker/client'
 import { setTimeout as delay } from 'node:timers/promises'
-import { disposeSession } from './sessionAdmission'
 import path from 'node:path'
 import process from 'node:process'
 const dataDir = process.argv[2],
@@ -26,12 +25,10 @@ void (async () => {
   process.on('message', (message: unknown) => {
     if (message === 'status')
       void client.send({ kind: 'status' }).then((reply) => process.send?.(reply))
-    else if (message === 'close')
-      void (async () => {
-        client.close()
-        await disposeSession()
-        process.disconnect()
-      })()
+    else if (message === 'close') {
+      client.close()
+      process.disconnect()
+    }
   })
 })().catch(() => {
   process.send?.({ failed: true })
