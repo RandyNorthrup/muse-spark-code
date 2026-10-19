@@ -180,8 +180,8 @@ export class ScheduledReportRunner {
           return false
       }
       return true
-    } catch {
-      throw new Error(reportUi.generationFailed)
+    } catch (error: unknown) {
+      throw new Error(reportUi.generationFailed, { cause: error })
     }
   }
 

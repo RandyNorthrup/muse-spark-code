@@ -32,6 +32,7 @@ import {
 import { handleIdentity, lstatIdentity, sameFile } from '../fs/fileIdentity'
 import { withoutCredentials } from '../credentialEnvironment'
 import { compareReports } from './diff'
+import { isErrno } from '../fs/errno'
 
 /** R supplies canonical, scrubbed JSON and verifies the saved content hash on decode. */
 export interface ReportHistoryCodec {
@@ -63,10 +64,6 @@ function compareSavedReports(a: SavedReport, b: SavedReport): number {
   return a.id > b.id ? 1 : 0
 }
 
-function hasCode(error: unknown, code: string): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === code
-}
-
 function validName(name: string): void {
   const reportUi = UI_TEXT.reportUi
 
@@ -88,7 +85,7 @@ async function processStart(pid: number, probeBudgetMs: number): Promise<string 
   try {
     process.kill(pid, 0)
   } catch (error: unknown) {
-    if (hasCode(error, 'ESRCH')) return
+    if (isErrno(error) && error.code === 'ESRCH') return
     throw error
   }
   if (process.platform === 'linux') {
@@ -102,7 +99,8 @@ async function processStart(pid: number, probeBudgetMs: number): Promise<string 
       if (startedAt === undefined || !/^\d+$/.test(startedAt)) throw new Error(reportUi.saveFailed)
       return startedAt
     } catch (error: unknown) {
-      if (hasCode(error, 'ENOENT') || hasCode(error, 'ESRCH')) return
+      if (isErrno(error) && error.code === 'ENOENT') return
+      if (isErrno(error) && error.code === 'ESRCH') return
       throw error
     }
   }
@@ -186,14 +184,15 @@ export class ReportStorage {
         try {
           await mkdir(directory, { mode: CHECKPOINT_STORAGE_MODE })
         } catch (error: unknown) {
-          if (!hasCode(error, 'EEXIST')) throw error
+          if (!(isErrno(error) && error.code === 'EEXIST')) throw error
         }
       }
       try {
         const info = await lstat(directory)
         if (!info.isDirectory() || info.isSymbolicLink()) throw new Error(reportUi.generationFailed)
       } catch (error: unknown) {
-        if (isWriting || !hasCode(error, 'ENOENT')) throw error
+        if (isWriting) throw error
+        if (!(isErrno(error) && error.code === 'ENOENT')) throw error
         isMissing = true
         break
       }
@@ -247,7 +246,7 @@ export class ReportStorage {
           const info = await lstat(fileFor(name))
           return info.mtimeMs
         } catch (error: unknown) {
-          if (hasCode(error, 'ENOENT')) return
+          if (isErrno(error) && error.code === 'ENOENT') return
           throw error
         }
       },
@@ -288,7 +287,7 @@ export class ReportStorage {
             await handle.close()
           }
         } catch (error: unknown) {
-          if (hasCode(error, 'ENOENT')) return
+          if (isErrno(error) && error.code === 'ENOENT') return
           throw error
         }
       },
@@ -300,7 +299,7 @@ export class ReportStorage {
         try {
           await regular(target)
         } catch (error: unknown) {
-          if (!hasCode(error, 'ENOENT')) throw error
+          if (!(isErrno(error) && error.code === 'ENOENT')) throw error
         }
         const stage = fileFor(`stage-${randomUUID()}`)
         const handle = await open(stage, 'wx', REPORT_STORAGE_FILE_MODE)
@@ -310,7 +309,7 @@ export class ReportStorage {
           try {
             if (sameFile(identity, await regular(stage))) await unlink(stage)
           } catch (error: unknown) {
-            if (!hasCode(error, 'ENOENT')) throw error
+            if (!(isErrno(error) && error.code === 'ENOENT')) throw error
           }
         }
         try {
@@ -420,7 +419,7 @@ export class ReportStorage {
       try {
         handle = await open(lock, 'wx', REPORT_STORAGE_FILE_MODE)
       } catch (error: unknown) {
-        if (!hasCode(error, 'EEXIST')) throw error
+        if (!(isErrno(error) && error.code === 'EEXIST')) throw error
         try {
           const recorded = await readOwner('writer.lock')
           if (recorded !== undefined && (await isDead(recorded)))
@@ -447,7 +446,7 @@ export class ReportStorage {
               }
               if (await didRetire(name, owner.token, identity)) return
             } catch (error: unknown) {
-              if (!hasCode(error, 'ENOENT')) throw error
+              if (!(isErrno(error) && error.code === 'ENOENT')) throw error
             }
           }
           if (performance.now() >= releaseDeadline) throw new Error(reportUi.saveFailed)
@@ -463,7 +462,7 @@ export class ReportStorage {
               return
             }
           } catch (error: unknown) {
-            if (!hasCode(error, 'ENOENT')) throw error
+            if (!(isErrno(error) && error.code === 'ENOENT')) throw error
           }
         }
       }
@@ -598,6 +597,7 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
       )
       return { status: 'listed', entries }
     } catch {
+      // A history the storage cannot list is unavailable, never regenerated.
       return { status: 'failed', reason: reportUi.generationFailed }
     }
   }

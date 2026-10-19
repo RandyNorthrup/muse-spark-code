@@ -143,8 +143,8 @@ export class ReportEmailDelivery {
     let isAllowed: boolean
     try {
       isAllowed = await this.port.isRecipientAllowed(recipient)
-    } catch {
-      throw new Error(reportUi.recipientUnverified)
+    } catch (error: unknown) {
+      throw new Error(reportUi.recipientUnverified, { cause: error })
     }
     if (!isAllowed || !(await this.connectionAllowed(connection))) return { status: 'failed' }
     try {
@@ -171,19 +171,20 @@ export class ReportEmailDelivery {
         attachment: null,
       }
       try {
-        return reportDeliveryReceiptSchema.parse(
-          await this.port.send(connection, message, {
-            requester: 'report:verify-recipient',
-            idempotencyKey: salt,
-            requireTls: true,
-            rejectUnauthorized: true,
-          }),
-        )
+        const receipt = await this.port.send(connection, message, {
+          requester: 'report:verify-recipient',
+          idempotencyKey: salt,
+          requireTls: true,
+          rejectUnauthorized: true,
+        })
+        // A receipt that will not parse after a send is uncertain, never failed:
+        // the code may already be on its way and must not be sent twice.
+        return reportDeliveryReceiptSchema.parse(receipt)
       } catch {
         return { status: 'uncertain' }
       }
-    } catch {
-      throw new Error(reportUi.recipientUnverified)
+    } catch (error: unknown) {
+      throw new Error(reportUi.recipientUnverified, { cause: error })
     }
   }
 
@@ -221,8 +222,8 @@ export class ReportEmailDelivery {
           value: isValid,
         }
       })
-    } catch {
-      throw new Error(reportUi.recipientUnverified)
+    } catch (error: unknown) {
+      throw new Error(reportUi.recipientUnverified, { cause: error })
     }
   }
 

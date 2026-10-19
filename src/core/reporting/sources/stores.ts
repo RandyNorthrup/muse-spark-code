@@ -1,5 +1,7 @@
 import * as z from 'zod/mini'
 import { compareVersions, isVersion } from '../../whatsNew/whatsNewVersions'
+import { isErrno } from '../../fs/errno'
+import { isParseFailure } from './local'
 import type { ReportSourcePayloads, ReportSourcePort } from './types'
 import {
   ReportNetworkFailure,
@@ -155,13 +157,30 @@ export function storesReportSource(options: ReportStoreOptions): ReportSourcePor
               reason: null,
             })
           } catch (error: unknown) {
-            rows.push({
-              ...target,
-              version: null,
-              status: 'unavailable',
-              reason:
-                error instanceof ReportNetworkFailure ? error.message : 'store-response-invalid',
-            })
+            // A channel keeps its own failure: network failures carry their
+            // code, an unparsable response is invalid. Anything else is not a
+            // channel outcome and reaches the reader instead.
+            if (error instanceof ReportNetworkFailure) {
+              rows.push({ ...target, version: null, status: 'unavailable', reason: error.message })
+            } else if (isParseFailure(error)) {
+              rows.push({
+                ...target,
+                version: null,
+                status: 'unavailable',
+                reason: 'store-response-invalid',
+              })
+            } else if (error instanceof Error && error.name === 'AbortError') {
+              throw error
+            } else if (isErrno(error)) {
+              rows.push({
+                ...target,
+                version: null,
+                status: 'unavailable',
+                reason: 'store-response-invalid',
+              })
+            } else {
+              throw error
+            }
           }
         }
         if (rows.every((row) => row.status === 'unavailable'))

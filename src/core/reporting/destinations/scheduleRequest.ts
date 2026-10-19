@@ -18,8 +18,8 @@ export async function openReportSchedule(
   if (!flags.includes('--schedule')) return 'ignored'
   try {
     await port.openReportSchedule(options)
-  } catch {
-    throw new Error(reportUi.generationFailed)
+  } catch (error: unknown) {
+    throw new Error(reportUi.generationFailed, { cause: error })
   }
   return 'opened'
 }
@@ -33,7 +33,7 @@ export async function saveReportSchedule(
   if (!validation.success) throw new Error(reportUi.generationFailed)
   try {
     await port.saveReportSchedule(validation.data)
-  } catch {
-    throw new Error(reportUi.generationFailed)
+  } catch (error: unknown) {
+    throw new Error(reportUi.generationFailed, { cause: error })
   }
 }

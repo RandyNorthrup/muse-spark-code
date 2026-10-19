@@ -130,6 +130,29 @@ export function pushPartialReason(partials: string[], reason: string): void {
   }
   partials.push(reason)
 }
+/**
+ * Whether a throw is the content failing to parse: malformed JSON or a schema
+ * mismatch. Sources map both to their invalid-data outcome; anything else is
+ * not a content failure.
+ *
+ * Read by shape, never by `instanceof` on zod's error class: `zod/mini`
+ * exports no error class, so `z.core.$ZodError` would read `core` off the
+ * shared validation bundle, which does not export it (the split gate fails,
+ * and the packed bundle throws `TypeError` where the source maps a code).
+ * The pinned zod names every schema failure `$ZodError` explicitly
+ * (`inst.name = "$ZodError"` in its core), so the name survives minification;
+ * the `issues` array keeps a same-named foreign error out.
+ */
+export function isParseFailure(error: unknown): boolean {
+  return (
+    error instanceof SyntaxError ||
+    (error instanceof Error &&
+      error.name === '$ZodError' &&
+      'issues' in error &&
+      Array.isArray(error.issues))
+  )
+}
+
 export function codeUnitCompare(a: string, b: string): number {
   if (a === b) return 0
   return a < b ? -1 : 1
