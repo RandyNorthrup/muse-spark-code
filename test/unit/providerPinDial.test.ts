@@ -15,19 +15,19 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { presetById } from '../../src/core/providers/presets'
 import { pinProviderFetch, type ResolvedProvider } from '../../src/runtime/exec/providerExec'
 
-const servers: Server[] = []
+const acceptors: Server[] = []
 
 afterEach(async () => {
-  await Promise.all(
-    servers.splice(0).map(
-      (server) =>
-        new Promise<void>((resolve) => {
-          server.close(() => {
-            resolve()
-          })
-        }),
-    ),
-  )
+  let running = acceptors.pop()
+  while (running !== undefined) {
+    const closing: Server = running
+    await new Promise<void>((done) => {
+      closing.close(() => {
+        done()
+      })
+    })
+    running = acceptors.pop()
+  }
 })
 
 interface SilentAcceptor {
@@ -56,17 +56,14 @@ async function listenSilent(): Promise<SilentAcceptor> {
     })
     socket.on('error', () => undefined)
   })
-  servers.push(server)
-  const port = await new Promise<number>((resolve, reject) => {
-    server.on('error', reject)
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address()
-      if (typeof address === 'object' && address !== null) resolve(address.port)
-      else reject(new Error('silent acceptor did not bind'))
-    })
+  acceptors.push(server)
+  await new Promise<void>((resolve) => {
+    server.listen(0, '127.0.0.1', resolve)
   })
+  const bound = server.address()
+  if (typeof bound !== 'object' || bound === null) throw new Error('silent acceptor did not bind')
   return {
-    port,
+    port: bound.port,
     connections: () => connections,
     peerAddresses: () => [...peerAddresses],
     received: () => received,

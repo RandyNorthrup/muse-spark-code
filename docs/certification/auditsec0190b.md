@@ -135,15 +135,24 @@ rate-limited retry readers match as before.
 Proof: `test/unit/providerPacing.test.ts` (`provider waits are
 honoured whole`: the exact negation of the cap assertions, failing on
 the capped code and passing on this tree, 15/15) and the new
-`test/unit/providerRetryWait.test.ts` driving the real
-`RequestTransport.request` against a real loopback socket with real
-timers and a real `AbortSignal`: a hostile `retry-after-ms:
-99999999999999` yields four uncapped-wait notices carrying the
-absolute-time sentence (5 socket hits: 1 + 4 retries), and a
-`Retry-After: 120` wait ends at once on Stop (1 notice, 1 hit,
-`cancelled`, milliseconds not minutes). Both suites fail on the capped
-code (the notice suite hits the repo's own 5 s timeout on the 60 s
-capped sleep — the silent stall, observed).
+`test/unit/providerRetryWait.test.ts`, which drives the real
+`RequestTransport.request` with real timers and a real `AbortSignal`
+and no socket and no server: the injected fetch answers each attempt
+with a hand-built 429 `Response` whose header values are the hostile
+input under test (a real `Headers` object is input data, not a
+provider). A 250 ms `retry-after-ms` wait is really slept whole four
+times (5 answers: 1 + 4 retries; the ~1 s elapsed floor proves the
+sleeps happened), every notice carries the absolute-time sentence, a
+`Retry-After: 120` wait ends at once on Stop (1 notice, 1 answer,
+`cancelled` in milliseconds not minutes), and a trillions-scale
+`retry-after-ms` wait is honoured whole in the computed delay. Drill
+(2026-10-19, lane AUDITSEC2FIX2): with the capped pre-fix sources back
+in place all three tests fail (`expected [ 60000, 60000, 60000, 60000
+]` for the trillions wait; the plain `HTTP 429: slow down` reason
+where the sentence belongs); with the fix restored all three pass.
+No committed capture holds a real provider 429 with `Retry-After`
+(`docs/certification/m95-captures` has no 429 frame and no
+`retry-after` header), so the capture leg does not apply.
 
 ### DNS-rebinding TOCTOU in `pinProviderFetch`: pinned at the dial
 
@@ -163,9 +172,24 @@ and verifies the original name (`servername` defaults to it) and the
 family in the callback alone fails with `Invalid IP address`).
 
 Proof: `test/unit/providerPinDial.test.ts` with a real resolver
-function returning a fixed address list and a real loopback server
-under the unresolvable name `probe.invalid` (RFC 2606: no machine
-resolves it, so an answer proves the dial used the checked address):
-the request reaches `127.0.0.1` with `Host: probe.invalid:<port>`
-after exactly one resolution; answers moved to `169.254.169.254`, or
-mixed with it, send nothing (`rebinding`, zero socket hits).
+function returning a fixed address list and, where a real socket is
+needed to prove the dial target, a bare TCP acceptor that records the
+peer address and the raw request bytes then closes without writing a
+byte — it answers nothing, so it is not a provider. Under the
+unresolvable name `probe.invalid` (RFC 2606: no machine resolves it,
+so arriving bytes prove the dial used the checked address): the
+request reaches `127.0.0.1` with the `host: probe.invalid:<port>`
+bytes and its body after exactly one resolution (the client's own
+request fails, as it must with no answer); answers moved to
+`169.254.169.254`, or mixed with it, send nothing (`rebinding`, zero
+connections). Drill (2026-10-19, lane AUDITSEC2FIX2): with the pinned
+`lookup` removed (hostname resolution at connect time, as before the
+fix) the dial-target test fails with zero connections arriving while
+the two refusal tests still pass — they guard unchanged behavior;
+with the fix restored all three pass. The redirect refusal
+(`HTTP_REDIRECT_STATUSES` in `sendPinned`) is enforced in code but has
+no socket test: any such test would need a server speaking HTTP as the
+provider. `test/unit/helpers/loopbackServer.ts` is deleted:
+`test/unit/providerLoopbackFetch.test.ts` replays no captured wire
+traffic, so its inline server stands back as it was (verified by an
+empty diff against the pre-fix file; 12/12 green).
