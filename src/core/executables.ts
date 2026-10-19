@@ -34,12 +34,11 @@ export function absolutePathEntries(
 }
 
 /**
- * The absolute path of `name` on PATH, or undefined when it is not there. On
- * Windows a name that already ends in `.exe` or `.com` (the OS adapters'
- * `rundll32.exe`, `explorer.exe`, `powershell.exe`) is looked up as named;
- * any other name gets those extensions, so a batch file never resolves.
+ * Every absolute path of `name` on PATH, in PATH order. A file that exists
+ * need not run (macOS's Xcode stub exists while its tools are missing), so a
+ * caller that executes what it resolves tries each in order until one works.
  */
-export function resolveExecutable(name: string, probe: ExecutableProbe): string | undefined {
+export function resolveAllExecutables(name: string, probe: ExecutableProbe): readonly string[] {
   const p = probe.platform === 'win32' ? path.win32 : path.posix
   const isNamedExecutable = WINDOWS_EXECUTABLE_EXTENSIONS.some((extension) =>
     name.toLowerCase().endsWith(extension),
@@ -48,13 +47,24 @@ export function resolveExecutable(name: string, probe: ExecutableProbe): string 
     isNamedExecutable || probe.platform !== 'win32'
       ? [name]
       : WINDOWS_EXECUTABLE_EXTENSIONS.map((extension) => `${name}${extension}`)
+  const found: string[] = []
   for (const directory of absolutePathEntries(probe.platform, probe.pathVariable)) {
     for (const candidate of candidates) {
       const full = p.join(directory, candidate)
       if (probe.fileExists(full)) {
-        return full
+        found.push(full)
       }
     }
   }
-  return undefined
+  return found
+}
+
+/**
+ * The absolute path of `name` on PATH, or undefined when it is not there. On
+ * Windows a name that already ends in `.exe` or `.com` (the OS adapters'
+ * `rundll32.exe`, `explorer.exe`, `powershell.exe`) is looked up as named;
+ * any other name gets those extensions, so a batch file never resolves.
+ */
+export function resolveExecutable(name: string, probe: ExecutableProbe): string | undefined {
+  return resolveAllExecutables(name, probe).at(0)
 }

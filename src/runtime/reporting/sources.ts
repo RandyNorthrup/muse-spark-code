@@ -11,7 +11,7 @@ import {
 } from '../../shared/constants'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { withoutCredentials } from '../../core/credentialEnvironment'
-import { resolveExecutable } from '../../core/executables'
+import { resolveAllExecutables } from '../../core/executables'
 import { handleIdentity, lstatIdentity, sameFile, statIdentity } from '../../core/fs/fileIdentity'
 import { pathModule } from '../../core/workspaceRoot'
 import { isBelow, resolveWorkspacePath } from '../../core/workspacePath'
@@ -21,7 +21,11 @@ import {
   reportWorkspaceKey,
   type LocalFileIo,
 } from '../../core/reporting/sources/local'
-import type { ReportGitIo } from '../../core/reporting/sources/git'
+import {
+  XcodeStubGitError,
+  isXcodeStubGitFailure,
+  type ReportGitIo,
+} from '../../core/reporting/sources/git'
 import {
   isAgentUsagePath,
   type AgentUsageAgent,
@@ -184,7 +188,11 @@ export function reportGitIo(
   env: NodeJS.ProcessEnv,
 ): ReportGitIo {
   const p = pathModule(platform)
-  const program = resolveExecutable('git', {
+  // Every absolute PATH entry's git, in order: the first file need not run
+  // (macOS's Xcode stub exists while its tools are missing), so the first
+  // candidate whose `--version` answers is the git that runs. The guard is
+  // unchanged: absolute PATH entries only, never the working directory.
+  const candidates = resolveAllExecutables('git', {
     platform,
     pathVariable: env['PATH'] ?? env['Path'],
     fileExists: existsSync,
@@ -194,20 +202,72 @@ export function reportGitIo(
       ([name]) => !/^(?:GIT_|GCM_)/iu.test(name),
     ),
   )
+  const commandEnvironment = {
+    ...childEnvironment,
+    GIT_OPTIONAL_LOCKS: '0',
+    GIT_TERMINAL_PROMPT: '0',
+  }
+  // Settled once per sources object: one probe round serves the whole
+  // generation, and a stub-only PATH stays a stub verdict.
+  let winner: string | undefined
+  let hasProbed = false
+  let hasSeenStub = false
+  async function workingGit(signal: AbortSignal): Promise<string> {
+    if (winner !== undefined) return winner
+    if (hasProbed) {
+      if (hasSeenStub) throw new XcodeStubGitError()
+      const first = candidates.at(0)
+      if (first === undefined) throw new LocalSourceError('missing')
+      return first
+    }
+    hasProbed = true
+    for (const candidate of candidates) {
+      signal.throwIfAborted()
+      try {
+        await execResourceFile('probe', candidate, ['--version'], {
+          cwd: root,
+          env: commandEnvironment,
+          encoding: 'utf8',
+          windowsHide: true,
+          timeout: REPORT_SOURCE_TIMEOUT_MS,
+          maxBuffer: GIT_OUTPUT_MAX_BYTES,
+          signal,
+        })
+        winner = candidate
+        return candidate
+      } catch (error: unknown) {
+        const code =
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          typeof error.code === 'number'
+            ? error.code
+            : undefined
+        const stderr =
+          typeof error === 'object' &&
+          error !== null &&
+          'stderr' in error &&
+          typeof error.stderr === 'string'
+            ? error.stderr
+            : ''
+        if (isXcodeStubGitFailure(platform, code, stderr)) hasSeenStub = true
+      }
+    }
+    if (hasSeenStub) throw new XcodeStubGitError()
+    const first = candidates.at(0)
+    if (first === undefined) throw new LocalSourceError('missing')
+    return first
+  }
   // Only these read commands are admitted by the source port; no shell, check or hook.
   return {
     async run(args, signal) {
-      if (program === undefined || !existsSync(p.join(root, '.git')))
-        throw new LocalSourceError('missing')
+      if (!existsSync(p.join(root, '.git'))) throw new LocalSourceError('missing')
+      const program = await workingGit(signal)
       signal.throwIfAborted()
       try {
         const { stdout } = await execResourceFile('probe', program, ['--no-pager', ...args], {
           cwd: root,
-          env: {
-            ...childEnvironment,
-            GIT_OPTIONAL_LOCKS: '0',
-            GIT_TERMINAL_PROMPT: '0',
-          },
+          env: commandEnvironment,
           encoding: 'utf8',
           windowsHide: true,
           timeout: REPORT_SOURCE_TIMEOUT_MS,

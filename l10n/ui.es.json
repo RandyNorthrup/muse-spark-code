@@ -1979,6 +1979,7 @@
     "footer": "Generador de formato {version}; ICU {icu}; idioma {locale}",
     "notFound": "No se encontró: {id}. Coincidencias cercanas: {nearest}",
     "generationFailed": "No se pudo generar el informe.",
+    "gitXcodeStub": "Git no puede ejecutarse en este Mac: apunta al stub de Xcode de Apple, cuyas herramientas de desarrollo no pueden iniciarse. Instale las Command Line Tools (xcode-select --install) o cambie a las herramientas instaladas (sudo xcode-select --switch /Library/Developer/CommandLineTools) e inténtelo de nuevo.",
     "noHistory": "Aún no hay historial de informes.",
     "networkOff": "Las fuentes de red de los informes están desactivadas.",
     "signInRequired": "Inicia sesión en GitHub para leer esta fuente.",

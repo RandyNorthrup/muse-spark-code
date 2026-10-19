@@ -1919,6 +1919,7 @@
     "footer": "렌더러 {version}; ICU {icu}; 언어 {locale}",
     "notFound": "찾을 수 없음: {id}. 가까운 항목: {nearest}",
     "generationFailed": "보고서를 생성하지 못했습니다.",
+    "gitXcodeStub": "이 Mac에서는 Git을 실행할 수 없습니다. Apple의 Xcode 스텁을 가리키고 있으며 개발자 도구를 시작할 수 없습니다. Command Line Tools를 설치(xcode-select --install)하거나 설치된 도구로 전환(sudo xcode-select --switch /Library/Developer/CommandLineTools)한 뒤 다시 시도하세요.",
     "noHistory": "보고서 기록이 아직 없습니다.",
     "networkOff": "보고서 네트워크 출처가 꺼져 있습니다.",
     "signInRequired": "이 출처를 읽으려면 GitHub에 로그인하세요.",

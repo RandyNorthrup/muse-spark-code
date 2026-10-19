@@ -1979,6 +1979,7 @@
     "footer": "Rendu {version} ; ICU {icu} ; langue {locale}",
     "notFound": "Introuvable : {id}. Correspondances proches : {nearest}",
     "generationFailed": "Le rapport n’a pas pu être généré.",
+    "gitXcodeStub": "Git ne peut pas s’exécuter sur ce Mac : il pointe vers le stub Xcode d’Apple, dont les outils de développement ne peuvent pas démarrer. Installez les Command Line Tools (xcode-select --install), ou basculez vers les outils installés (sudo xcode-select --switch /Library/Developer/CommandLineTools), puis réessayez.",
     "noHistory": "Aucun historique de rapports pour le moment.",
     "networkOff": "Les sources réseau des rapports sont désactivées.",
     "signInRequired": "Connectez-vous à GitHub pour lire cette source.",
