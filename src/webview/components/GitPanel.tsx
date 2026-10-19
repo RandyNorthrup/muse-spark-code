@@ -81,17 +81,17 @@ function checksLabel(view: PullRequestView): string | undefined {
         [checks.skipped, UI_TEXT.gitChecksSkipped],
         [checks.cancelled, UI_TEXT.gitChecksCancelled],
       ] as const
-    ).flatMap(([count, label]) => (count > 0 ? [plural(label, count)] : [])),
+    ).flatMap(([count, label]) => (count > 0 ? plural(label, count) : [])),
     ...checks.other,
   ]
   return parts.length === 0 ? UI_TEXT.gitChecksNone : parts.join(' · ')
 }
 
 /**
- * The status dot, as a tool row's: failed, running, or done; always beside
- * words. A check in a state not counted is not known to have passed: the
- * dot stays neutral.
- */
+The status dot, as a tool row's: failed, running, or done; always beside
+words. A check in a state not counted is not known to have passed: the
+dot stays neutral.
+*/
 function dotClass(view: PullRequestView): string {
   const { checks } = view
   if (checks === undefined) {
@@ -163,12 +163,12 @@ function HoldCard({
 }
 
 /**
- * The window's GitHub sign-in: a device-flow code waiting to be entered on
- * GitHub's own page (only that page is ever opened, whatever a reply
- * said), or which sign-in GitHub calls use and its account. Sign Out is
- * offered for Muse Spark's own sign-in only: the editor's and `gh`'s are
- * their own to sign out of.
- */
+The window's GitHub sign-in: a device-flow code waiting to be entered on
+GitHub's own page (only that page is ever opened, whatever a reply
+said), or which sign-in GitHub calls use and its account. Sign Out is
+offered for Muse Spark's own sign-in only: the editor's and `gh`'s are
+their own to sign out of.
+*/
 function GitHubCard({
   github,
   onAction,

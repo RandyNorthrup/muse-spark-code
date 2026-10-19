@@ -26,7 +26,7 @@ function documentedInstalls(): readonly string[] {
       // Resolved from the environment, as the product resolves them.
       return MEDIA_CONVERTER_WINDOWS_INSTALLS.flatMap(({ variable, segments }) => {
         const root = Object.entries(process.env).find(([name]) => name.toUpperCase() === variable)
-        return root?.[1] === undefined ? [] : [path.win32.join(root[1], ...segments)]
+        return root?.[1] === undefined ? [] : path.win32.join(root[1], ...segments)
       })
     }
     default: {

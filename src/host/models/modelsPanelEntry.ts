@@ -56,9 +56,9 @@ export interface ModelsPanelHostDeps {
   readonly log: Logger
   readonly globalState: ModelsPanelMemento
   /**
-   * `museSpark.suggestedProvider` as written (a preset id at most): read
-   * fresh on every call, so a workspace edit applies without a reload.
-   */
+  `museSpark.suggestedProvider` as written (a preset id at most): read
+  fresh on every call, so a workspace edit applies without a reload.
+  */
   readonly suggestedProviderSetting: () => string
   /** True in a remote window: connects paste a code instead of a callback. */
   readonly isRemote: boolean
@@ -71,18 +71,18 @@ export interface ModelsPanelHostDeps {
   readonly onWizardSaved?: (outcome: WizardSaveOutcome) => void | Promise<void>
   readonly onKeyUsage?: Parameters<typeof createProvidersHost>[0]['onKeyUsage']
   /**
-   * The vault bundle loader and its dist/ directory (C-M109-1 P1): the entry
-   * builds the broker-backed binding factory around this panel's publisher
-   * here, in dist/modelsPanel.js, so activation carries no factory body.
-   * Without both the section stays hidden.
-   */
+  The vault bundle loader and its dist/ directory (C-M109-1 P1): the entry
+  builds the broker-backed binding factory around this panel's publisher
+  here, in dist/modelsPanel.js, so activation carries no factory body.
+  Without both the section stays hidden.
+  */
   readonly vault?: (() => VaultBundle) | undefined
   readonly vaultDir?: string | undefined
   /**
-   * The key-store migration's shell and its raw legacy source (D89.14 lane
-   * M). Absent until the window enables the vault path; the binding below
-   * builds the controller from it on first mount.
-   */
+  The key-store migration's shell and its raw legacy source (D89.14 lane
+  M). Absent until the window enables the vault path; the binding below
+  builds the controller from it on first mount.
+  */
   readonly credentialMigration?:
     | {
         readonly shell: MigrationShell
@@ -156,7 +156,7 @@ function storedRemovals(value: unknown): PendingRemoval[] {
       !isStoredEntry(removal['entry']) ||
       typeof removal['removedAt'] !== 'number'
       ? []
-      : [{ entry: removal['entry'], removedAt: removal['removedAt'] }]
+      : { entry: removal['entry'], removedAt: removal['removedAt'] }
   })
 }
 
@@ -249,15 +249,15 @@ async function readImportFile(): Promise<string | undefined> {
 }
 
 /**
- * The panel's features, composed from the VS Code host and the lane-P/T
- * seam. One instance serves the window; the panel it opens is one tab.
- */
+The panel's features, composed from the VS Code host and the lane-P/T
+seam. One instance serves the window; the panel it opens is one tab.
+*/
 /**
- * The vault binding factory around this panel's publisher, built here in
- * dist/modelsPanel.js so activation carries no factory body. A throwing
- * loader (a switched-off vault, a missing bundle) leaves the panel without
- * the section, refusing exactly as 0.17.0 does.
- */
+The vault binding factory around this panel's publisher, built here in
+dist/modelsPanel.js so activation carries no factory body. A throwing
+loader (a switched-off vault, a missing bundle) leaves the panel without
+the section, refusing exactly as 0.17.0 does.
+*/
 function vaultBindingFactory(
   host: ModelsPanelHostDeps,
   seam: ModelsPanelSeam,
