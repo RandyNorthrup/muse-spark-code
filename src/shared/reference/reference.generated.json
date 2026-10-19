@@ -4110,18 +4110,13 @@
     {
       "id": "museSpark.vault.enabled",
       "name": "museSpark.vault.enabled",
-      "description": "Stored for compatibility; no runtime effect.",
-      "descriptionKey": "config.vault.description",
+      "description": "Turn the per-user credential vault on or off. On: the vault stores secrets and serves its panel section, commands and agent uses. Off: the section stays hidden and every vault use refuses before anything loads. A stored legacy museSpark.vault value applies until an explicit value for this setting exists.",
+      "descriptionKey": "config.vault.enabled.description",
       "type": "boolean",
       "default": true,
       "scope": "machine",
       "refinements": [],
-      "schema": {
-        "type": "boolean",
-        "default": true,
-        "deprecationMessage": "Stored for compatibility; no runtime effect.",
-        "deprecationMessageKey": "config.vault.description"
-      }
+      "schema": { "type": "boolean", "default": true }
     },
     {
       "id": "museSpark.vault.protection",
