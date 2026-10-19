@@ -1592,6 +1592,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Rule-2 certification now records deliberately failing parser and
+  per-commit evidence drills, with byte-exact restoration and green reruns.
+- Rule-2 workflow identity strips the API's `@ref` suffix too, so prior
+  release runs do not incorrectly block fresh artifact-only recovery.
+- Rule 2 refuses a second run ID for the same workflow and unchanged head,
+  including a close/reopen run on attempt 1; different workflows still run once.
+- Skipped or neutral workflows no longer count as green rule-2 results;
+  every release commit needs an actually successful hosted run.
+- The rule-2 release door rereads hosted evidence immediately before passing;
+  a late pending run, rerun or deleted evidence refuses publication.
+- The rule-2 release door now refuses re-executed verification. Publication
+  recovery uses a fresh artifact-only run, not another attempt of a failed run.
 - Real-life run: product children explicitly use English, so usage-label
   scenarios do not fail because the release machine uses another locale.
 - Real-life run: `--model` rejects a misspelled or unselected route instead

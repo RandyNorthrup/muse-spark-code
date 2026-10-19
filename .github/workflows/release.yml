@@ -36,7 +36,13 @@ jobs:
   verify:
     name: tag checks
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # The last step waits up to 60 minutes for a run on the tagged commit that
+    # is still in progress (the Hosts run a merge to main starts takes 4 to 8).
+    timeout-minutes: 75
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     steps:
       # The whole history and every branch, for the ancestry check.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -67,6 +73,17 @@ jobs:
       # than 14 days behind the newest Stable (design spec v4 §4.2).
       - name: the browser check runtime pin is current
         run: node scripts/check-browser-runtime-pin.mjs
+      # AGENTS.md rule 2 at the release door (docs/certification/rule2-gate.md):
+      # every workflow run on the tagged commit and on the head of the pull
+      # request that merged as it is complete and green on its first attempt.
+      # One still in progress is waited for; a red one, or one that was started
+      # again, stops the release here, with the run, job and step named. An
+      # expected commit with no run of its own stops it too. A
+      # recovery run passes the same door.
+      - name: every hosted run on the tagged commit is green on its first attempt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/rule2-gate.mjs release
 
   reuse:
     name: verified CI artifacts or full-build fallback
@@ -217,6 +234,11 @@ jobs:
     # Same-repository reusable workflow: GITHUB_TOKEN reaches it on its own;
     # no other secret is passed (least privilege). A job that calls a
     # reusable workflow takes no timeout-minutes; build.yml's jobs set theirs.
+    # `actions: read` is for build.yml's `first-attempt` job (rule 2); a called
+    # workflow can ask for no more than its caller grants.
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/build.yml
 
   # check:claims (branch feat/claims-gate): the real-life record check lands

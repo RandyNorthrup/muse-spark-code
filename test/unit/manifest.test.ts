@@ -539,7 +539,9 @@ describe('packaging (M26)', () => {
     const publish = release.split('\n  release:\n', 2)[1]!.split('\n  publish:\n', 1)[0]!
     expect(reuse).toContain('needs: verify')
     expect(reuse).toContain('actions: read')
-    expect(count(release, /^ {6}actions: read$/gm)).toBe(5)
+    // Rule 2 adds two: the verify job reads other runs, and the build
+    // caller grants what build.yml's first-attempt job asks.
+    expect(count(release, /^ {6}actions: read$/gm)).toBe(7)
     expect(reuse).toContain('FORCE_REBUILD: ${{ vars.RELEASE_FORCE_REBUILD }}')
     // D140: the reuse job also downloads the two Linux helper builds, so
     // every per-download count moves from four to six.
@@ -797,6 +799,8 @@ describe('tiered CI (CIFLOW)', () => {
       'packages',
       'secrets',
       'sast',
+      // Rule 2: the first-attempt gate judges the run's own attempt.
+      'first-attempt',
     ])
     // The aggregate itself never runs in the capacity repository: that run
     // carries only the Windows and macOS unit shards, and the home run's
@@ -808,6 +812,14 @@ describe('tiered CI (CIFLOW)', () => {
     // D122: a home run's Windows and macOS unit shards ran in the capacity
     // repository, so home additionally requires the `org` job; elsewhere its
     // result is not read.
+    expect(job(id)).toContain('          FIRST_ATTEMPT: ${{ needs.first-attempt.result }}\n')
+    expect(job(id)).toContain(
+      '          JUDGED_ATTEMPT: ${{ needs.first-attempt.outputs.attempt }}\n',
+    )
+    // Rule 2: a carried-over result never counts; the judged attempt must be
+    // this very attempt, and its result must be success.
+    expect(job(id)).toContain('          test "$FIRST_ATTEMPT" = success\n')
+    expect(job(id)).toContain('          if [ "$JUDGED_ATTEMPT" != "$ATTEMPT" ]; then\n')
     expect(job(id)).toContain('          ORG: ${{ needs.org.result }}\n')
     expect(job(id)).toContain('          PART: ${{ inputs.part }}\n')
     expect(job(id)).toContain('          if [ "$PART" = home ]; then\n')
@@ -870,7 +882,8 @@ describe('tiered CI (CIFLOW)', () => {
           ?.split(',')
           .map((value) => value.trim())
           .filter(Boolean) ?? []
-      const always = ['checks', 'unit', 'secrets', 'sast']
+      // Rule 2's gate runs on every event with if: always(), like the rest.
+      const always = ['checks', 'unit', 'secrets', 'sast', 'first-attempt']
       const fullOnly = [
         'accessibility',
         'integration',
@@ -886,9 +899,13 @@ describe('tiered CI (CIFLOW)', () => {
       expect(pairs.map(([expression]) => expression).toSorted(byText)).toEqual(
         [
           'github.event_name',
+          // Rule 2 compares the run's own attempt against the judged one.
+          'github.run_attempt',
           'inputs.fast',
           'inputs.part',
           'matrix.check',
+          // Rule 2 also reads which attempt the gate judged.
+          'needs.first-attempt.outputs.attempt',
           ...ids.map((id) => `needs.${id}.result`),
         ].toSorted(byText),
       )

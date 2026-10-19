@@ -1046,6 +1046,7 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `packaging (M26) > bounds every CI job, keeps tokens out of checkouts and the PAT in one step (M26)`
 - `packaging (M26) > takes the macOS helper’s version from package.json when it is built, never by hand`
 - `packaging (M26) > keeps exact-tree reuse behind tag checks and preserves full-build fallback (RELFAST)`
+  - Pull request 158 (rule 2 gate) moved this claim before the deletion: `release.yml` has seven jobs with `actions: read`; the two new ones are the job that runs the rule 2 release door (`scripts/rule2-gate.mjs release`) and the call to `build.yml`, whose `first-attempt` job reads the runs (`docs/certification/rule2-gate.md`).
 - `packaging (M26) > keeps manual recovery on the shared verified staging path and never rebuilds it (RELFAST2)`
 - `packaging (M26) > blocks every release publisher and tag mover after cancellation (RELFAST2)`
 - `packaging (M26) > starts the live Action receipt by the owner’s hand only, under a hard cap (M80 LA)`
@@ -1053,8 +1054,10 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `tiered CI (CIFLOW) > carries the whole production dist, not a hand list, to the accessibility job`
 - `tiered CI (CIFLOW) > runs every shard per OS (eight on Windows and macOS, four on Ubuntu) with no coverage gate`
 - `tiered CI (CIFLOW) > keeps all required names and wires fail-closed checks for each selected-tier dependency`
+  - Pull request 158 (rule 2 gate) extended this claim before the deletion: the `first-attempt` job is needed on every tier, and the required aggregate fails unless its `FIRST_ATTEMPT` result is `success`.
 - `tiered CI (CIFLOW) > scans a merge group with the checked CLI, since the action refuses that event`
 - `tiered CI (CIFLOW) > passes a required name only when its whole tier succeeded`
+  - Pull request 158 (rule 2 gate) extended this claim before the deletion: a required name passes only on the run's first attempt (`github.run_attempt`) and only for the attempt the `first-attempt` job judged (`needs.first-attempt.outputs.attempt`). Its hosted first execution is in `docs/certification/rule2-gate.md`.
 - `toolchain pins (AGENTS.md) > keeps Dependabot from proposing TypeScript 7 while typescript-eslint cannot take it`
 - `npm scripts on Windows (CIFIX017W2) > fit cmd.exe’s command line as npm runs them and as a node_modules/.bin shim expands them`
 
