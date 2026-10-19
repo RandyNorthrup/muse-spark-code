@@ -229,7 +229,8 @@ Windows and macOS eight (their files stay serial within a shard); all run
 without a coverage gate. The accessibility harness runs on Ubuntu against
 the production webview from the static gate except on pull requests; its
 pages, themes and scenarios do not depend on the OS. Linux/Windows VS Code
-integration, the macOS helper and the universal VSIX/ACP package checks
+integration, the macOS helper and the per-target VSIX (plus universal
+fallback)/ACP package checks
 remain. Expected wall time is roughly 10–15 minutes, pending hosted proof.
 In a merge group, gitleaks runs its pinned CLI (checksum-checked) over every
 commit the group reaches, since the gitleaks action refuses the
@@ -242,8 +243,11 @@ The seven required names stay: `build / quality (ubuntu-latest)`,
 aggregate job that fails unless every job of the selected tier succeeded
 (failed, cancelled and unexpectedly skipped all fail; on a run that uses the
 capacity repository, below, its run is one of those jobs). On a fast PR run they
-mean the fast tier passed; in the queue, the full tier. Artifact names and
-contents stay unchanged. Hosts and Action check are not required by the main
+mean the fast tier passed; in the queue, the full tier. The release
+artifacts are the six per-target `.vsix` files
+(`muse-spark-code-<target>-<version>.vsix`), the universal fallback
+`.vsix` (`muse-spark-code-<version>.vsix`), the ACP tarball and the
+SBOMs. Hosts and Action check are not required by the main
 ruleset and keep their existing triggers.
 
 Maintainer rollout, in this order: land the workflows (their PR runs the full

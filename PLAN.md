@@ -15195,11 +15195,20 @@ carry the same arch-independent sources (the .ps1 run directly, the .cs
 compiled on the person's machine), so win32-arm64 is supported today.
 The darwin binaries ship universal (both slices) in both darwin
 targets: splitting per-arch saves little against the megabytes the other
-platforms' pieces free, and keeps build.sh's single lipo output unchanged. No universal
-fallback ships: all six desktop targets VS Code runs on are covered, and
-linux-armhf, alpine and web never had native helpers. Every target is
-checked against the same D6 budget; CI builds and checks all six, and
-the release publishes all six to the Marketplace and Open VSX.
+platforms' pieces free, and keeps build.sh's single lipo output unchanged.
+Beside the six, the release ships the untargeted universal package (no
+`--target`): VS Code serves it as the fallback on every platform without
+its own package, so Alpine (`alpine-x64`, `alpine-arm64`) and `linux-armhf`
+servers — `extensionKind: ["workspace"]`, so a Dev Container or Remote SSH
+window installs the extension on the server — keep installing exactly what
+they ran before. (There is no `web` target to serve: the extension has no
+`browser` entry, so VS Code never installs it on web.) Every one of the
+seven packages is checked against the same D6 budget; CI builds and checks
+all seven, and the release publishes all seven to the Marketplace and Open
+VSX: every artifact is published before any visibility poll runs, all share
+one 30-minute poll deadline inside 60-minute jobs, and unfinished targets
+are re-checked in the same job, so a cancelled job never leaves only some
+targets published.
 Evidence: `docs/certification/vsix-platform.md`.
 
 ## 3. Open questions (need the owner)

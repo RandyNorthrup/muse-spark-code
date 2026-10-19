@@ -711,7 +711,9 @@ jobs:
       - run: node scripts/build-linux-helper-pins.mjs native/linux/x64 native/linux/arm64
       - run: node scripts/check-linux-helper-pins.mjs --require-values
       # One production build for every target; each target is packed from
-      # its own filtered stage (PLAN.md D123).
+      # its own filtered stage, and the untargeted universal package is
+      # packed beside them as the fallback for platforms without their own
+      # target (PLAN.md D123).
       - run: npm run build
       - name: pack one .vsix per supported target
         env:
@@ -721,6 +723,7 @@ jobs:
           for target in win32-x64 win32-arm64 darwin-x64 darwin-arm64 linux-x64 linux-arm64; do
             node scripts/package-vsix.mjs --target "$target"
           done
+          node scripts/package-vsix.mjs
           stat -c '%n %s' ./*.vsix
       - name: every target VSIX stays within its measured budget
         run: node scripts/check-vsix-size.mjs ./*.vsix
@@ -791,6 +794,24 @@ jobs:
             fi
             echo "$vsix holds $(wc -l <<< "$listing") entries, its own helpers and TargetPlatform=\"$target\" included"
           done
+          # The universal fallback carries every platform's helpers (both
+          # muse-created binaries, the Windows sources, the darwin
+          # binaries) and declares no TargetPlatform, so VS Code serves it
+          # on platforms without their own package.
+          vsix="muse-spark-code-${version}.vsix"
+          listing="$(unzip -Z1 "$vsix")"
+          # shellcheck disable=SC2086
+          for entry in $common $windows $darwin extension/native/linux/x64/muse-created extension/native/linux/arm64/muse-created; do
+            if ! grep -Fxq -- "$entry" <<< "$listing"; then
+              echo "::error::$entry is missing from $vsix" >&2
+              exit 1
+            fi
+          done
+          if unzip -p "$vsix" extension.vsixmanifest | grep -Fq "TargetPlatform="; then
+            echo "::error::$vsix must not declare a TargetPlatform" >&2
+            exit 1
+          fi
+          echo "$vsix holds $(wc -l <<< "$listing") entries, every helper and no TargetPlatform included"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-spark-code-vsix

@@ -514,8 +514,18 @@ Muse Code's subscription and its existing explicit key-paid opt-ins are unchange
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.14.0.vsix
+   code --install-extension muse-spark-code-linux-x64-0.14.0.vsix
    ```
+
+   Each release ships one `.vsix` per platform
+   (`muse-spark-code-<target>-<version>.vsix` for `win32-x64`,
+   `win32-arm64`, `darwin-x64`, `darwin-arm64`, `linux-x64` and
+   `linux-arm64`) plus the universal `muse-spark-code-<version>.vsix`,
+   which VS Code serves as the fallback on platforms without their own
+   package (Alpine and 32-bit ARM Linux servers keep installing the way
+   they always have). Pick the file matching the machine VS Code runs
+   on — in a Remote SSH or Dev Container window, the machine holding
+   the workspace folder.
 
    Other editors install it from
    [Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code)
@@ -6227,8 +6237,11 @@ and every pull request until the queue is on) runs the full tier:
   stable and the `engines.vscode` floor) on Ubuntu and Windows;
 - gitleaks and semgrep, as jobs of their own;
 - a job that compiles the macOS helper and checks its disclaim;
-- a packaging job (Ubuntu) that packs the `.vsix` with both helpers as the
-  `muse-spark-code-vsix` artifact, checks its compressed size budget, and
+- a packaging job (Ubuntu) that packs one `.vsix` per platform
+  (`muse-spark-code-<target>-<version>.vsix`) plus the universal fallback
+  (`muse-spark-code-<version>.vsix`) as the
+  `muse-spark-code-vsix` artifact, checks each against the same compressed
+  size budget, and
   packages the ACP agent with every locale table, and writes both CycloneDX
   inventories (the `muse-spark-code-sboms` artifact).
 
@@ -6259,18 +6272,21 @@ as **admin move required**, preserving the release channels' outcomes. The
 [release guide](docs/RELEASING.md#signing-and-the-prepared-m80-hooks) documents
 the administrator's fast-forward recovery; the ruleset stays in place.
 The workflow creates a GitHub Release with
-that `.vsix`, the ACP tarball, both inventories, the exec schemas from `docs/schemas/` and `SHA256SUMS`, with the
+those seven `.vsix` files, the ACP tarball, both inventories, the exec schemas from `docs/schemas/` and `SHA256SUMS`, with the
 CHANGELOG section as its notes and package provenance attestations. Each
 target's VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX,
-which serve each person their platform's package; the same
+which serve each person their platform's package, and the universal fallback
+goes with them for platforms without their own package; the same
 ACP tarball goes to npm with provenance by npm trusted publishing: npm
 trusts `release.yml` in the tag-only `marketplace` environment, so the npm
 job reads no npm token. Marketplace and Open VSX use their tokens from that
 environment (`VSCE_PAT`, `OVSX_PAT`); a missing token is reported as a
-skip. Network errors get bounded retries;
+skip. Every artifact is published before any visibility poll runs, all share
+one poll deadline, and unfinished targets are re-checked in the same job;
+network errors get bounded retries;
 already-published versions require matching artifact hashes/integrity. A final
 summary reports every channel and fails if any channel failed. A `.vsix` packed
-locally has no macOS helper, so only CI's per-target artifacts are published.
+locally has no macOS helper, so only CI's per-target artifacts and its universal fallback are published.
 See [the release and recovery guide](docs/RELEASING.md) for half-published
 states, npm EOTP, signing decisions and the M80 hooks (the schemas as
 release assets and the Action's `v0` tag). A manual run of `release.yml` on
