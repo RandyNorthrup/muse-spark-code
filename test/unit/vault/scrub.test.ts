@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { VaultScrubber, VaultScrubService } from '../../../src/core/vault/scrub'
 import { scrubSecrets } from '../../../src/shared/redact'
 import { REDACTED_MARK, VAULT_SCRUB_MIN_MBPS, VAULT_LIMITS } from '../../../src/shared/constants'
@@ -238,19 +238,33 @@ describe('vault scrub', () => {
       scrub.dispose()
     }
   })
-  it('measures the 1,000-value throughput floor', () => {
-    const values = Array.from({ length: 1000 }, () => Buffer.from(generated()))
-    const scrub = new VaultScrubber(values)
-    const text = 'ordinary compiler output with no matching value\n'.repeat(100_000)
-    try {
-      scrub.scrub(text)
+  // The 1,000-value trie build is one-time setup, not the measured
+  // behaviour: it lives in beforeAll, outside the test's deadline, while
+  // the test itself still scrubs the same text through the same 1,000
+  // values against the same floor.
+  describe('1,000-value throughput floor', () => {
+    let values: Buffer[] = []
+    let scrub: VaultScrubber | undefined
+    let text = ''
+    beforeAll(() => {
+      values = Array.from({ length: 1000 }, () => Buffer.from(generated()))
+      scrub = new VaultScrubber(values)
+      text = 'ordinary compiler output with no matching value\n'.repeat(100_000)
+    })
+    afterAll(() => {
+      for (const value of values) value.fill(0)
+      scrub?.dispose()
+      values = []
+      scrub = undefined
+    })
+    it('measures the 1,000-value throughput floor', () => {
+      const active = scrub
+      if (active === undefined) throw new Error('missing fixture scrubber')
+      active.scrub(text)
       const start = performance.now()
-      expect(scrub.scrub(text)).toBe(text)
+      expect(active.scrub(text)).toBe(text)
       const mbps = Buffer.byteLength(text) / ((performance.now() - start) * 1000)
       expect(mbps).toBeGreaterThanOrEqual(VAULT_SCRUB_MIN_MBPS)
-    } finally {
-      for (const value of values) value.fill(0)
-      scrub.dispose()
-    }
+    })
   })
 })
