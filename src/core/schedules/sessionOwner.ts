@@ -1,3 +1,5 @@
+import { UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type { UnattendedRun } from './unattended'
 
 /** A waiter/effect is valid only in the generation and turn that created it. */
@@ -198,11 +200,15 @@ export class SessionOwner {
     // change can be adopted; owned commands use their tagged acknowledgement.
     // A torn rollback's notice names the mode the quarantine already
     // recorded (the rollback restored it), so the sentence stays and the
-    // next refused turn repeats it. Only a genuinely different mode drops
-    // it (it named another mode), and then the later refusal falls back to
-    // the generic words.
+    // next refused turn repeats it. A genuinely different mode replaces it
+    // with the sentence naming that mode: the notice installs and removes no
+    // reviewer (a mode notice writes no profile fact, and Plan and Bypass
+    // install none), so the later refusal must not say one failed to
+    // install, nor that the change tore — the reviewer already installed is
+    // still installed. Turns stay refused until the mode is set again.
     if (this.fire !== undefined || this.modePending || this.restoring) return
-    if (this.isQuarantined && mode !== this.mode) this.quarantineNote = undefined
+    if (this.isQuarantined && mode !== this.mode)
+      this.quarantineNote = fill(UI_TEXT.permissionModeChangedWhileQuarantined, { mode })
     this.mode = mode
   }
 

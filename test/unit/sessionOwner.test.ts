@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SessionOwner } from '../../src/core/schedules/sessionOwner'
+import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 describe('SessionOwner quarantine', () => {
   it('refuses turns while quarantined, and a later applied mode recovers', () => {
@@ -25,6 +27,31 @@ describe('SessionOwner quarantine', () => {
     expect(owner.quarantined).toBe(false)
     expect(owner.currentMode).toBe('promptUnmatched')
     expect(owner.start(owner.token())).toBe(true)
+  })
+
+  it('a different mode notice while quarantined names that mode, never a reviewer', () => {
+    const owner = new SessionOwner('onRequest')
+    owner.quarantineWith(
+      fill(UI_TEXT.permissionReviewerRollbackTorn, { mode: 'onRequest' }),
+      'onRequest',
+    )
+    // The rollback's own notice names the recorded mode: the sentence stays.
+    owner.observeMode('onRequest')
+    expect(owner.quarantineCause).toBe(
+      fill(UI_TEXT.permissionReviewerRollbackTorn, { mode: 'onRequest' }),
+    )
+    // A notice naming another mode replaces it: the notice installs and
+    // removes no reviewer (Plan installs none), so the sentence names that
+    // mode and says turns stay refused, with no reviewer or tear words. The
+    // session stays quarantined on the adopted mode.
+    owner.observeMode('denyUnmatched')
+    expect(owner.quarantineCause).toBe(
+      fill(UI_TEXT.permissionModeChangedWhileQuarantined, { mode: 'denyUnmatched' }),
+    )
+    expect(owner.quarantineCause).not.toContain('reviewer')
+    expect(owner.quarantineCause).not.toContain('tore')
+    expect(owner.currentMode).toBe('denyUnmatched')
+    expect(owner.quarantined).toBe(true)
   })
 
   it('a refused command releases its effect but keeps the mode', () => {

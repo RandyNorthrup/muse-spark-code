@@ -3351,6 +3351,7 @@
   "permissionReviewerNotInstalled": "权限模式已应用，但无法安装其审查器 ({reason})。在重新设置模式之前，新回合将被拒绝。",
   "permissionReviewerTornReason": "模式更改在应用过程中中断",
   "permissionReviewerMissing": "新回合将被拒绝：无法安装权限审查器。请重新设置权限模式以继续。",
+  "permissionModeChangedWhileQuarantined": "在新回合被拒绝期间，权限模式已更改为 {mode}。在重新设置模式之前，新轮次将被拒绝。",
   "permissionReviewerRollbackTorn": "权限模式更改在应用过程中中断;以前的模式({mode})已恢复,其审查器仍已安装,但无法确认采用。在重新设置模式之前,将拒绝新的轮次。",
   "permissionModeTornUnconfirmed": "权限模式更改在应用期间中断；主机正在运行 {mode} 模式，但无法确认采用。在重新设置模式之前，新轮次将被拒绝。",
   "permissionReviewerUnknown": "无法更改权限模式,且主机正在运行的模式未知。在重新设置模式之前,将拒绝新的轮次。",

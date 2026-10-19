@@ -3497,6 +3497,7 @@
   "permissionReviewerNotInstalled": "Le mode d’autorisation a été appliqué, mais son réviseur n’a pas pu être installé ({reason}). Les nouveaux tours sont refusés jusqu’à ce que le mode soit de nouveau défini.",
   "permissionReviewerTornReason": "le changement de mode s’est interrompu pendant son application",
   "permissionReviewerMissing": "Les nouveaux tours sont refusés : le réviseur d’autorisations n’a pas pu être installé. Définissez de nouveau le mode d’autorisation pour continuer.",
+  "permissionModeChangedWhileQuarantined": "Le mode d’autorisation est passé à {mode} alors que les nouveaux tours étaient refusés. Les nouveaux tours sont refusés jusqu’à ce que le mode soit de nouveau défini.",
   "permissionReviewerRollbackTorn": "Le changement de mode d’autorisation s’est interrompu pendant son application ; le mode précédent ({mode}) est restauré et son réviseur est toujours installé, mais l’adoption n’a pas pu être confirmée. Les nouveaux tours sont refusés jusqu’à ce que le mode soit de nouveau défini.",
   "permissionModeTornUnconfirmed": "Le changement de mode d'autorisation s'est interrompu pendant son application ; l'hôte exécute {mode}, mais l'adoption n'a pas pu être confirmée. Les nouveaux tours sont refusés jusqu'à ce que le mode soit de nouveau défini.",
   "permissionReviewerUnknown": "Le mode d’autorisation n’a pas pu être modifié et le mode sur lequel l’hôte s’exécute est inconnu. Les nouveaux tours sont refusés jusqu’à ce que le mode soit de nouveau défini.",

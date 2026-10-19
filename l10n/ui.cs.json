@@ -3570,6 +3570,7 @@
   "permissionReviewerNotInstalled": "Režim oprávnění byl použit, ale jeho kontrolor nemohl být nainstalován ({reason}). Nové tahy jsou odmítnuty, dokud nebude režim oprávnění znovu nastaven.",
   "permissionReviewerTornReason": "změna režimu se při použití přerušila",
   "permissionReviewerMissing": "Nové tahy jsou odmítnuty: kontrolor oprávnění nemohl být nainstalován. Chcete-li pokračovat, nastavte znovu režim oprávnění.",
+  "permissionModeChangedWhileQuarantined": "Režim oprávnění se změnil na {mode}, zatímco nové tahy byly odmítány. Nové tahy jsou odmítány, dokud se režim znovu nenastaví.",
   "permissionReviewerRollbackTorn": "Změna režimu oprávnění se při použití přerušila; předchozí režim ({mode}) je obnoven a jeho kontrolor je stále nainstalován, ale převzetí se nepodařilo potvrdit. Nová kola budou odmítnuta, dokud nebude režim znovu nastaven.",
   "permissionModeTornUnconfirmed": "Změna režimu oprávnění se během použití přerušila; hostitel používá režim {mode}, ale převzetí se nepodařilo potvrdit. Nové tahy jsou odmítány, dokud se režim znovu nenastaví.",
   "permissionReviewerUnknown": "Režim oprávnění se nepodařilo změnit a režim, ve kterém host běží, není znám. Nová kola budou odmítnuta, dokud nebude režim znovu nastaven.",

@@ -3424,6 +3424,7 @@
   "permissionReviewerNotInstalled": "İzin modu uygulandı, ancak inceleyicisi yüklenemedi ({reason}). Mod yeniden ayarlanana kadar yeni turlar reddedilir.",
   "permissionReviewerTornReason": "değişiklik uygulanırken yarıda kaldığı için",
   "permissionReviewerMissing": "Yeni turlar reddedilir: izin inceleyicisi yüklenemedi. Devam etmek için izin modunu yeniden ayarlayın.",
+  "permissionModeChangedWhileQuarantined": "Yeni turlar reddedilirken izin modu {mode} olarak değişti. Mod yeniden ayarlanana kadar yeni turlar reddedilir.",
   "permissionReviewerRollbackTorn": "İzin modu değişikliği uygulanırken yarıda kaldı; önceki mod ({mode}) geri yüklendi ve incelemecisi hâlâ yüklü, ancak devralma onaylanamadı. Mod yeniden ayarlanana kadar yeni turlar reddedilir.",
   "permissionModeTornUnconfirmed": "İzin modu değişikliği uygulanırken kesintiye uğradı; ana bilgisayar {mode} modunda çalışıyor ancak benimseme doğrulanamadı. Mod yeniden ayarlanana kadar yeni turlar reddedilir.",
   "permissionReviewerUnknown": "İzin modu değiştirilemedi ve ana bilgisayarın çalıştırdığı mod bilinmiyor. Mod yeniden ayarlanana kadar yeni turlar reddedilir.",

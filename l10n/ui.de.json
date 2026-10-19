@@ -3424,6 +3424,7 @@
   "permissionReviewerNotInstalled": "Der Berechtigungsmodus wurde angewendet, aber sein Prüfer konnte nicht installiert werden ({reason}). Neue Durchläufe werden abgelehnt, bis der Modus erneut festgelegt wird.",
   "permissionReviewerTornReason": "die Änderung während der Anwendung gerissen ist",
   "permissionReviewerMissing": "Neue Durchläufe werden abgelehnt: Der Berechtigungsprüfer konnte nicht installiert werden. Legen Sie den Berechtigungsmodus erneut fest, um fortzufahren.",
+  "permissionModeChangedWhileQuarantined": "Der Berechtigungsmodus hat zu {mode} gewechselt, während neue Durchläufe abgelehnt wurden. Neue Durchläufe werden abgelehnt, bis der Modus erneut festgelegt wird.",
   "permissionReviewerRollbackTorn": "Der Wechsel des Berechtigungsmodus ist während der Anwendung gerissen; der vorherige Modus ({mode}) ist wiederhergestellt und sein Prüfer ist weiterhin installiert, aber die Übernahme konnte nicht bestätigt werden. Neue Durchläufe werden abgelehnt, bis der Modus erneut festgelegt wird.",
   "permissionModeTornUnconfirmed": "Der Wechsel des Berechtigungsmodus ist während der Anwendung gerissen; der Host führt {mode} aus, aber die Übernahme konnte nicht bestätigt werden. Neue Durchläufe werden abgelehnt, bis der Modus erneut festgelegt wird.",
   "permissionReviewerUnknown": "Der Berechtigungsmodus konnte nicht geändert werden und der Modus, in dem der Host läuft, ist unbekannt. Neue Durchläufe werden abgelehnt, bis der Modus erneut festgelegt wird.",
