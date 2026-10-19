@@ -29,9 +29,9 @@ export interface ChatGptPlanFacts {
 
 /**
  * The catalogue levels the app can honestly offer: its own effort
- * vocabulary, in catalogue order. Levels it does not name (`ultra`) are
- * kept out of every picker; the send path below still maps them the way
- * the provider's own client does.
+ * vocabulary, in catalogue order. Levels it does not name are kept out
+ * of every picker; the send path below still maps them the way the
+ * provider's own client does.
  */
 export function planOfferedLevels(facts: ChatGptPlanFacts): readonly EffortLevel[] {
   return facts.reasoningLevels.filter(isEffortLevel)
