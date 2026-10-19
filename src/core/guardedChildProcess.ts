@@ -65,12 +65,18 @@ export type GuardedExecFileCallback = (
   stderr: string,
 ) => void
 
-/** Runs `file` to its end with the guarded child environment for its cwd. */
+/**
+ * Runs `file` to its end with the guarded child environment for its cwd.
+ * Like `execFile`, the callback may be omitted for a fire-and-forget start
+ * whose errors surface on the child.
+ */
 export function execFileGuarded(
   file: string,
   args: readonly string[],
   options: GuardedExecFileOptions,
-  callback: GuardedExecFileCallback,
+  callback?: GuardedExecFileCallback,
 ): ChildProcess {
-  return nodeExecFile(file, [...args], { ...options, env: options.env }, callback)
+  return callback === undefined
+    ? nodeExecFile(file, [...args], { ...options, env: options.env })
+    : nodeExecFile(file, [...args], { ...options, env: options.env }, callback)
 }
