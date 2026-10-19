@@ -8,8 +8,8 @@ import { watch, type FSWatcher } from 'node:fs'
 import fs, { chmod, lstat, mkdtemp, open, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { isCredentialVariable } from '../../shared/credentialEnvironment'
 import {
-  HOOK_FORBIDDEN_ENV_NAMES,
   BYTES_PER_MIB,
   MEDIA_ATTACHED_READ_CHUNK_BYTES,
   MEDIA_MAX_UPLOAD_MIB,
@@ -129,12 +129,10 @@ async function trustedCommand(
 }
 
 function converterEnvironment(): NodeJS.ProcessEnv {
+  // The one credential-name rule: a converter never needs a secret of any
+  // shape (`*_TOKEN`, `*_PASSWORD`, …), not only the key variables.
   return Object.fromEntries(
-    Object.entries(process.env).filter(
-      ([name]) =>
-        !name.toUpperCase().endsWith('_API_KEY') &&
-        !HOOK_FORBIDDEN_ENV_NAMES.has(name.toUpperCase()),
-    ),
+    Object.entries(process.env).filter(([name]) => !isCredentialVariable(name)),
   )
 }
 

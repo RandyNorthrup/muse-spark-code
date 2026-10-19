@@ -93,6 +93,13 @@ happened, not what was planned; superseded entries are kept.
   refused as invalid again instead of being accepted: the replacement
   character decodes to non-whitespace, which the key shape would match.
 
+### Security
+
+- Media converter and macOS recording helper child processes no longer inherit
+  credential-shaped environment variables of any shape (`*_TOKEN`,
+  `*_PASSWORD`, …): both now use the shared credential-name rule instead of
+  stripping only `*_API_KEY` key variables.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights
