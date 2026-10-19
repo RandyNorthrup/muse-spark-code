@@ -1,29 +1,26 @@
 import path from 'node:path'
 import process from 'node:process'
 import { unlinkSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { lstatSync, type Stats } from 'node:fs'
-import { lstatIdentitySync, sameFile } from '../../core/fs/fileIdentity'
+import { isVaultFileMissing, type VaultPrivateFilesPort } from '../../core/vault/broker/files'
 import {
-  VAULT_CLAIM_PENDING_SUFFIX,
-  isVaultFileMissing,
-  type VaultPrivateFilesPort,
-} from '../../core/vault/broker/files'
-import {
-  vaultEpochWriterPath,
-  vaultEpochWriterSchema,
-  VaultLockEpoch,
-  type VaultEpochWriterOwner,
-} from '../../core/vault/broker/epoch'
-import { EPOCH_WRITER_SETTLE_ROUNDS, EPOCH_WRITER_SETTLE_WAIT_MS } from './epochContender'
+  createHostRegistrations,
+  hostRecordFor,
+  isVaultHost,
+  pruneDeadHosts,
+  publishHostRecord,
+  trackHostFile,
+} from './hostRegistry'
+import { VaultLockEpoch, type VaultEpochWriterOwner } from '../../core/vault/broker/epoch'
+import { runEpochSettleRounds, settleEpochWriter, type EpochRemnantPorts } from './epochContender'
 import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
 import type {
   windowsVaultPipeProcessResultSchema,
   WindowsVaultPipeProcess,
 } from '../../core/vault/broker/windowsPipe'
-import { UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import {
   WindowsVaultPrivateFiles,
   WindowsPipeFiles,
@@ -31,21 +28,7 @@ import {
   type PipeRelay,
 } from './windowsPipeRelay'
 
-const id = z.string().check(z.regex(/^[a-f0-9]{32}$/u))
-const hostSchema = z.strictObject({
-  hostId: id,
-  hostSession: id,
-  processId: z.number().check(z.int(), z.positive()),
-  userId: z.string().check(z.minLength(1), z.maxLength(VAULT_LIMITS.text)),
-  startedAt: z.number().check(z.int(), z.positive()),
-  executable: z.string().check(z.minLength(1), z.maxLength(VAULT_LIMITS.text)),
-})
-
-const registrations = new Map<string, () => void>()
-const lifecycle = { isWatching: false }
-function removeRegistrations(): void {
-  for (const remove of registrations.values()) remove()
-}
+const hosts = createHostRegistrations()
 
 /**
  * The broker's native read of one process, shaped like the POSIX peer
@@ -69,6 +52,18 @@ export async function windowsProcessIdentity(
     : { process: answer.process, ownerSid: answer.ownerSid }
 }
 
+/** This process's own native identity, shaped like the POSIX peer answer. */
+export async function windowsSelfIdentity(relay: PipeRelay): Promise<VaultProcessIdentity> {
+  const self = await windowsProcessIdentity(relay, process.pid)
+  if (!self) throw new Error(UI_TEXT.vault.noAccess)
+  return {
+    processId: self.process.processId,
+    userId: self.process.userId,
+    startedAt: self.process.startedAt,
+    executable: self.process.executable,
+  }
+}
+
 /** Only kernel-proven dead/PID-reused hosts are pruned; unreadable records still refuse. */
 async function pruneHosts(
   directory: string,
@@ -76,28 +71,22 @@ async function pruneHosts(
   guard: WindowsPipeFiles,
   relay: PipeRelay,
 ): Promise<void> {
-  const names = await readdir(directory)
-  for (const name of names) {
-    // Atomic replace publishes a temporary name before rename; it is never a host record.
-    if (!id.safeParse(name).success) continue
-    const file = path.join(directory, name)
-    let bytes: Buffer
-    try {
-      bytes = await files.read(file)
-    } catch (error: unknown) {
-      if (isVaultFileMissing(error)) continue
-      throw error
-    }
-    const record = hostSchema.parse(JSON.parse(bytes.toString()))
-    const live = await windowsProcessIdentity(relay, record.processId)
-    if (live?.process.startedAt === record.startedAt) continue
-    await guard.verify(file, 'file')
-    try {
-      unlinkSync(file)
-    } catch (error: unknown) {
-      if (!isVaultFileMissing(error)) throw error
-    }
-  }
+  await pruneDeadHosts({
+    directory,
+    files,
+    liveStartedAt: async (processId) => {
+      const live = await windowsProcessIdentity(relay, processId)
+      return live?.process.startedAt
+    },
+    retire: async (file) => {
+      await guard.verify(file, 'file')
+      try {
+        unlinkSync(file)
+      } catch (error: unknown) {
+        if (!isVaultFileMissing(error)) throw error
+      }
+    },
+  })
 }
 
 /** Local trusted hosts publish launch facts in owner-only files, never in a wire claim. */
@@ -109,36 +98,13 @@ export async function registerWindowsVaultHost(
   hostId: string,
   hostSession: string,
 ): Promise<() => void> {
-  const self = await windowsProcessIdentity(relay, process.pid)
-  if (!self) throw new Error(UI_TEXT.vault.noAccess)
-  const identity: VaultProcessIdentity = {
-    processId: self.process.processId,
-    userId: self.process.userId,
-    startedAt: self.process.startedAt,
-    executable: self.process.executable,
-  }
-  const record = hostSchema.parse({ ...identity, hostId, hostSession })
+  const identity = await windowsSelfIdentity(relay)
+  const record = hostRecordFor(identity, hostId, hostSession)
   const directory = path.join(runDirectory, 'hosts')
-  await files.directory(directory)
-  await pruneHosts(directory, files, guard, relay)
-  const file = path.join(directory, record.hostId)
-  await files.replace(file, Buffer.from(JSON.stringify(record)))
-  const registered = lstatIdentitySync(file)
-  const remove = (): void => {
-    try {
-      if (sameFile(registered, lstatIdentitySync(file))) unlinkSync(file)
-    } catch (error: unknown) {
-      if (!isVaultFileMissing(error)) throw error
-    } finally {
-      registrations.delete(file)
-    }
-  }
-  if (!lifecycle.isWatching) {
-    lifecycle.isWatching = true
-    process.once('exit', removeRegistrations)
-  }
-  registrations.set(file, remove)
-  return remove
+  const file = await publishHostRecord(files, directory, record, () =>
+    pruneHosts(directory, files, guard, relay),
+  )
+  return trackHostFile(hosts, file)
 }
 
 /** Rechecks birth and image against the native pipe identity before granting manage authority. */
@@ -149,20 +115,7 @@ export async function isWindowsVaultHost(
   hostId: string,
   hostSession?: string,
 ): Promise<boolean> {
-  try {
-    const bytes = await files.read(path.join(runDirectory, 'hosts', id.parse(hostId)))
-    const record = hostSchema.parse(JSON.parse(bytes.toString()))
-    return (
-      record.hostId === hostId &&
-      (hostSession === undefined || record.hostSession === hostSession) &&
-      record.processId === identity.processId &&
-      record.userId === identity.userId &&
-      record.startedAt === identity.startedAt &&
-      record.executable === identity.executable
-    )
-  } catch {
-    return false
-  }
+  return await isVaultHost(files, runDirectory, identity, hostId, hostSession)
 }
 
 const holderSchema = z.strictObject({
@@ -291,114 +244,28 @@ function assertWindowsRemnant(sample: Stats): void {
     throw new Error(UI_TEXT.vault.noAccess)
 }
 
-async function retireWindowsStalePending(
-  guard: WindowsPipeFiles,
-  writer: string,
-  mutexAcquiredAt: number,
-): Promise<void> {
-  const pending = `${writer}${VAULT_CLAIM_PENDING_SUFFIX}`
-  let sample: Stats
-  try {
-    sample = lstatSync(pending)
-  } catch (error: unknown) {
-    if (isVaultFileMissing(error)) return
-    throw error
-  }
-  assertWindowsRemnant(sample)
-  if (sample.mtimeMs > mutexAcquiredAt) throw new Error(UI_TEXT.vault.noAccess)
-  await guard.verify(pending, 'file')
-  unlinkSync(pending)
-}
-
-async function retireWindowsUnparsableWriter(
-  ports: { files: VaultPrivateFilesPort; guard: WindowsPipeFiles },
-  writer: string,
-  mutexAcquiredAt: number,
-): Promise<'retry' | 'wait'> {
-  let sample: Stats
-  try {
-    sample = lstatSync(writer)
-  } catch (error: unknown) {
-    // Released between the read and this check: reclaim on the next round.
-    if (isVaultFileMissing(error)) return 'retry'
-    throw error
-  }
-  assertWindowsRemnant(sample)
-  if (sample.mtimeMs > mutexAcquiredAt) return 'wait'
-  let reread: Buffer
-  try {
-    reread = await ports.files.read(writer)
-  } catch (error: unknown) {
-    if (isVaultFileMissing(error)) return 'retry'
-    throw error
-  }
-  try {
-    vaultEpochWriterSchema.parse(JSON.parse(reread.toString('utf8')))
-    // A complete record appeared under the mutex: decide it by rule next round.
-    return 'retry'
-  } catch {
-    /* Still unparsable: the remnant below is retired. */
-  }
-  try {
-    await ports.guard.verify(writer, 'file')
-    unlinkSync(writer)
-  } catch (error: unknown) {
-    if (isVaultFileMissing(error)) return 'retry'
-    throw error
-  }
-  return 'retry'
-}
-
-async function settleWindowsEpochWriter(
-  ports: { files: VaultPrivateFilesPort; guard: WindowsPipeFiles; relay: PipeRelay },
-  runDirectory: string,
-  self: VaultEpochWriterOwner,
-  mutexAcquiredAt: number,
-): Promise<'retry' | 'wait'> {
-  const writer = vaultEpochWriterPath(runDirectory)
-  await retireWindowsStalePending(ports.guard, writer, mutexAcquiredAt)
-  let raw: Buffer
-  try {
-    raw = await ports.files.read(writer)
-  } catch (error: unknown) {
-    // Released between our claim and this read: reclaim on the next round.
-    if (isVaultFileMissing(error)) return 'retry'
-    throw error
-  }
-  let owner: VaultEpochWriterOwner
-  try {
-    const parsed = vaultEpochWriterSchema.parse(JSON.parse(raw.toString('utf8')))
-    owner = { processId: parsed.processId, startedAt: parsed.startedAt }
-  } catch {
-    return await retireWindowsUnparsableWriter(ports, writer, mutexAcquiredAt)
-  }
-  // Our own record, or a same-process sibling's: both are alive by definition.
-  if (owner.processId === self.processId && owner.startedAt === self.startedAt) return 'wait'
-  let live: { startedAt: number } | null
-  try {
-    const identity = await windowsProcessIdentity(ports.relay, owner.processId)
-    live = identity === null ? null : { startedAt: identity.process.startedAt }
-  } catch {
-    // Unprovable (native failure): fail closed.
-    return 'wait'
-  }
-  if (live !== null && live.startedAt === owner.startedAt) return 'wait'
-  // Provably gone: replace atomically. Owner-only checks plus a re-read of
-  // the exact record precede the unlink; a release in flight surfaces as a
-  // missing file and simply reclaims on the next round.
-  try {
-    const sample = lstatSync(writer)
-    assertWindowsRemnant(sample)
-    const reread = await ports.files.read(writer)
-    const current = vaultEpochWriterSchema.parse(JSON.parse(reread.toString('utf8')))
-    if (current.processId !== owner.processId || current.startedAt !== owner.startedAt)
-      return 'retry'
-    await ports.guard.verify(writer, 'file')
-    unlinkSync(writer)
-    return 'retry'
-  } catch (error: unknown) {
-    if (isVaultFileMissing(error)) return 'retry'
-    throw error
+/**
+ * The settle rounds sample the relay-guarded file view: synchronous stat,
+ * and retirement only after the guard verifies the file, like every other
+ * file command. Liveness rides the pipe identity.
+ */
+function windowsRemnantPorts(ports: {
+  files: VaultPrivateFilesPort
+  guard: WindowsPipeFiles
+  relay: PipeRelay
+}): EpochRemnantPorts {
+  return {
+    files: ports.files,
+    sample: (file) => lstatSync(file),
+    assertRemnant: assertWindowsRemnant,
+    retire: async (file) => {
+      await ports.guard.verify(file, 'file')
+      unlinkSync(file)
+    },
+    liveStartedAt: async (processId) => {
+      const live = await windowsProcessIdentity(ports.relay, processId)
+      return live?.process.startedAt
+    },
   }
 }
 
@@ -423,26 +290,14 @@ export async function bumpWindowsVaultEpoch(
     async () => {
       // The recovery age rule retires only remnants older than this hold.
       const mutexAcquiredAt = Date.now()
-      for (let round = 0; round < EPOCH_WRITER_SETTLE_ROUNDS; round++) {
-        try {
-          return await epoch.bump(() => {
+      const remnant = windowsRemnantPorts(ports)
+      return await runEpochSettleRounds(
+        () =>
+          epoch.bump(() => {
             authorize?.()
-          })
-        } catch (error: unknown) {
-          // Only a contended writer is decided by rule; every other failure keeps its meaning.
-          if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
-          if (round + 1 >= EPOCH_WRITER_SETTLE_ROUNDS)
-            throw new Error(UI_TEXT.vault.noAccess, { cause: error })
-          const settled = await settleWindowsEpochWriter(
-            ports,
-            runDirectory,
-            owner,
-            mutexAcquiredAt,
-          )
-          if (settled === 'wait') await delay(EPOCH_WRITER_SETTLE_WAIT_MS)
-        }
-      }
-      throw new Error(UI_TEXT.vault.noAccess)
+          }),
+        () => settleEpochWriter(remnant, runDirectory, owner, mutexAcquiredAt),
+      )
     },
   )
 }
