@@ -1462,10 +1462,26 @@ export const IMAGE_EXTENSIONS: Readonly<Record<string, ImageMediaType>> = {
   '.gif': 'image/gif',
   '.webp': 'image/webp',
 }
-export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+// D121 (lane NOLIMITSINPUT): no attach count or size of ours. What the
+// provider documents lives in its capability record with the documentation
+// URL (capabilityRecord.ts, metaMediaCapabilities.ts); nothing else is
+// enforced locally, and the provider's own refusal reaches the person in
+// words. Whole-file media reads are bounded only by host memory below
+// (MEDIA_READ_MAX_BYTES), and the transports keep their own frame validity
+// (MSP_FRAME_LIMIT_BYTES, ACP_MAX_MESSAGE_BYTES).
+//
+// Meta's documented inline image limit (dev.meta.ai/docs/image-understanding,
+// read 2026-10-19: "Max file size per image (inline image_url) 50 MB
+// (50,000,000 bytes)"): the capability record carries it, never an
+// attach-time constant of ours.
+export const META_IMAGE_MAX_BYTES = 50_000_000
 // M101: operational raster bounds, independent of a model's documented limits.
 export const IMAGE_RESIZE_TIMEOUT_MS = 5000
 export const IMAGE_RESIZE_MAX_MEMORY_MIB = 256
+// D121: the serial resize worker's queue depth (each queued job holds its
+// full bytes while it waits its turn). Worker memory safety, not an
+// attachment count: kept and listed for the lead.
+export const IMAGE_RESIZE_MAX_QUEUED = 20
 export const IMAGE_RESIZE_MAX_PIXELS = 16_000_000
 export const IMAGE_RESIZE_RGBA_CHANNELS = 4
 export const IMAGE_RESIZE_JPEG_QUALITY = 85
@@ -1474,11 +1490,9 @@ export const PNG_CHUNK_HEADER_BYTES = 8
 export const PNG_CHUNK_CRC_BYTES = 4
 export const PNG_SIGNATURE_BYTES = 8
 export const PIXELS_PER_MEGAPIXEL = 1_000_000
-// Documented Anthropic image limit: 10 MB, not the product's 10 MiB default
+// Documented Anthropic image limit: 10 MB
 // (docs/certification/m95-research.md §1.5, A-vi).
 export const ANTHROPIC_MAX_IMAGE_BYTES = 10_000_000
-// Images and PDFs together (M54).
-export const MAX_ATTACHMENTS_PER_MESSAGE = 20
 
 // M105 / D85: portable media contracts. These are our bounds and defaults,
 // not evidence that a model supports a modality or that storage is free.
@@ -1539,9 +1553,9 @@ export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
 export const MEDIA_CONVERTER_PATH_MAX_CHARS = 4096
 /** An attached file's digest and upload reread, one bounded chunk at a time. */
 export const MEDIA_ATTACHED_READ_CHUNK_BYTES = 1024 * 1024
-/** Attached video and audio registrations a process holds at once (RVMEDIAV 7):
- * a few messages' worth; the oldest unused one makes room for the next. */
-export const MEDIA_ATTACHED_MAX_ENTRIES = 64
+// D121: the attached registry holds any number of registrations (RVMEDIAV 7:
+// entries are metadata only — a token, a digest, a name — and owners,
+// discards and turn releases still let them go). No eviction, no refusal.
 export const MEDIA_CONVERSION_MAX_RSS_BYTES = 512 * 1024 * 1024
 /** The `code` a kernel-limited encoder launch rejects with when its memory cap hit. */
 export const MEDIA_CONVERSION_MEMORY_CAP_CODE = 'EMEDIA_MEMORY_CAP'
@@ -1655,30 +1669,52 @@ export const SCREEN_RECORDING_REMOVE_ATTEMPTS = 3
 export const SCREEN_RECORDING_REMOVE_RETRY_MS = 200
 
 // PDFs as input (M54, PLAN.md D47): the one document type Meta's Responses
-// API reads for inference (dev.meta.ai/docs/file-handling, read
-// 2026-09-25), sent inline as `input_file`, never uploaded. 32 MB encodes
-// to 42.7 MB of base64, under Meta's 50 MB inline limit whether that counts
-// the file or the encoded text, so the Files API is never needed.
+// API reads for inference, sent inline as `input_file`, never uploaded.
+// Meta's documented inline limit (dev.meta.ai/docs/file-handling, read
+// 2026-10-19: "Limited to the 50 MB inline limit"): the capability record
+// carries it, never an attach-time constant of ours.
 export const PDF_MEDIA_TYPE = 'application/pdf'
 export const PDF_EXTENSION = '.pdf'
-export const MAX_DOCUMENT_BYTES = 32_000_000
+export const META_DOCUMENT_MAX_BYTES = 50_000_000
 // Sizes the ACP transport's NDJSON frame (with the headroom below): a valid
-// prompt can carry tens of megabytes of base64 media. It caps no model
+// prompt can carry one documented-size image as base64. It caps no model
 // media: the record carries no aggregate character budget, so none is
-// enforced on attach, in the composer or per request.
-export const MAX_ENCODED_MEDIA_CHARS = 48_000_000
+// enforced on attach, in the composer or per request. D121: a literal so
+// bundles that never attach media drop the whole line: 4 * ceil(50_000_000
+// / 3), room for the largest inline file Meta documents.
 // ACP SDK 1.5.1 refuses an NDJSON line over 32 MiB unless told otherwise (1.7.0
-// unchanged, SDK144), and a valid prompt can carry the whole aggregate media
-// budget above as base64 (three near-10 MiB images already exceed 32 MiB).
+// unchanged, SDK144), and one documented-size image already exceeds that.
 // The ACP transport takes that budget plus room for prompt text, embedded
-// resources and the JSON-RPC envelope; the per-image and aggregate checks then
-// answer with a message.
+// resources and the JSON-RPC envelope; past the frame the SDK answers with
+// its own message-too-large error.
+// D121: this sizes the ACP transport's own frame, never model media.
+export const MAX_ENCODED_MEDIA_CHARS = 66_666_668
 export const ACP_MESSAGE_HEADROOM_BYTES = 16 * 1024 * 1024
 export const ACP_MAX_MESSAGE_BYTES = MAX_ENCODED_MEDIA_CHARS + ACP_MESSAGE_HEADROOM_BYTES
 export const BASE64_INPUT_BLOCK_BYTES = 3
 export const BASE64_OUTPUT_BLOCK_CHARS = 4
-export const MAX_TEXT_ATTACHMENT_BYTES = 1024 * 1024
+// D121: the 1 MiB per-file text cap is gone — text attaches at any size and
+// the transports (MSP frame budget) and the model's window (Model API text
+// budget, TOOLCAP spill) decide. The voice pipeline below keeps its own
+// 1 MiB protocol bound under its own name: companion events, transcription
+// results and spoken prompts are voice-protocol shape, not attachments.
+/** Voice-protocol text bound (companion events, prompts, transcription results). */
+export const VOICE_TEXT_MAX_BYTES = 1024 * 1024
+// D121: whole-file media reads (attach, the read tools, edit sources, ACP
+// blobs) are bounded only by host memory, never by an attachment limit: a
+// larger file is refused here with its size named, and Stop aborts the read.
+// Admission past this is the record's, the transports' and the provider's
+// own. Sized so Meta's largest documented inline file (50 MB) reads with
+// headroom, while a runaway read cannot take the host.
+export const MEDIA_READ_MAX_BYTES = 512 * 1024 * 1024
 export const TEXT_ATTACHMENT_MEDIA_TYPE = 'text/plain'
+// D121: the tool row's picture keeps its own display bound — the model reads
+// images whole through the read tools. Display shape, not an attachment
+// limit: kept and listed for the lead.
+export const TOOL_IMAGE_PREVIEW_MAX_BYTES = 10 * 1024 * 1024
+// D121: settled attachment request ids kept for late settlement are UI state
+// shape, never an attachment count: kept and listed for the lead.
+export const SETTLED_ATTACHMENT_REQUEST_IDS_KEPT = 40
 /** A readable MSP display-text suffix carrying picked-file names for History replay. */
 export const TEXT_FILE_DISPLAY_MARKER = '\n[Muse Spark Code attached text files: '
 export const TEXT_ATTACHMENT_EXTENSIONS: ReadonlySet<string> = new Set([
@@ -1747,11 +1783,19 @@ export const UNSUPPORTED_BINARY_ATTACHMENT_EXTENSIONS: ReadonlySet<string> = new
   '.sqlite',
   '.db',
 ])
-// A base64 attachment crossing webview postMessage (M54): cap before decode.
-// A literal so bundles that never attach media drop the whole line: 4 * ceil(32_000_000 / 3).
-export const MAX_ATTACHMENT_BASE64_CHARS = 42_666_668
-// Meta reads at most 50 images in one request, and a PDF's page images
-// (its first 50 pages) count toward them (file-handling, image-understanding).
+// A base64 attachment pasted or dropped into the composer, crossing webview
+// postMessage (M54): cap before decode. A literal so bundles that never
+// attach media drop the whole line: 4 * ceil(50_000_000 / 3), room for the
+// largest inline file Meta documents (META_IMAGE/DOCUMENT_MAX_BYTES); the
+// postMessage transport past it is refused, never the attachment.
+// D121: this caps the webview transport only, no model media.
+export const MAX_ATTACHMENT_BASE64_CHARS = 66_666_668
+// Meta's documented per-request image budget
+// (dev.meta.ai/docs/image-understanding, read 2026-10-19: "You can include
+// up to 50 images; more than 50 returns HTTP 400 ... A PDF upload
+// contributes at most its first 50 page-images toward this budget"). The
+// send path packs requests against these and the capability record carries
+// them with the same URLs; no attach count of ours stops the message first.
 export const MODEL_API_MEDIA_PER_REQUEST = 50
 export const MODEL_API_PDF_PAGE_IMAGES = 50
 // The page count is read from a directly visible PDF page tree when cheap.
@@ -2977,11 +3021,14 @@ export const WEB_FETCH_TIMEOUT_MS = 30_000
 // past it still reads.
 export const WEB_FETCH_BUFFER_WINDOW_MIB = 5
 export const WEB_FETCH_BUFFER_WINDOW_BYTES = WEB_FETCH_BUFFER_WINDOW_MIB * BYTES_PER_MIB
-// What the model receives of the converted text, within TOOL_OUTPUT_MAX_CHARS.
-export const WEB_FETCH_MAX_CONTENT_CHARS = 50_000
-// The HTML converter stops past this much Markdown (room for the text it
-// trims), so a page built to expand costs no more than this.
-export const WEB_FETCH_CONVERT_MAX_CHARS = WEB_FETCH_MAX_CONTENT_CHARS * 2
+// D121: a fetched page reaches the model whole — no char slice of ours.
+// Past the model's real context window the TOOLCAP spill carries the full
+// text in a file the model pages through, with the cut notice saying so.
+// The converter takes no char bound either: its input never exceeds the
+// buffer window above, and the worker's own time and heap limits still stop
+// a hostile page. What stays: the buffer window (bomb guard), the
+// content-type checks, the redirect and private-address refusals, and the
+// fetch's own deadline (Stop ends it sooner).
 // The HTML converter runs on a worker thread (src/host/web/pageWorker.ts),
 // stopped past these: a 5 MiB page of ordinary markup parses in under a
 // second with under 250 MiB of heap, while one nested to be hostile grows
@@ -3181,15 +3228,14 @@ export const IMAGE_FILE_EXTENSION = '.png'
 // out loud while they wait.
 // Image edits (M44, dev.meta.ai/docs/api-reference/images/edit-image, read
 // 2026-09-25; error catalog dev.meta.ai/docs/image-generation, read
-// 2026-10-16: "an edit needs 1–10 items"): `POST /images/edits` with the
+// 2026-10-19: "an edit needs 1–10 items"): `POST /images/edits` with the
 // source images inline as data URLs, one PNG back, the same price as a
-// generated image. Meta's own 1–10-item range is enforced in the runtime
-// schema and the tool definition (IMAGE_EDIT_SOURCE_MIN/MAX), before any
-// source is read or the paid-use question is asked. Each source stays
-// bounded by MAX_IMAGE_BYTES.
-/** Meta's own edit-item range: an edit needs 1–10 items. */
+// generated image. Meta's own 1–10-item range is enforced from the
+// capability record (maxEditSources) before any source is read or the
+// paid-use question is asked; without a record Meta's own refusal reaches
+// the caller in words. An empty edit is malformed, never a limit.
+/** An edit with no sources is malformed: Meta needs 1–10 items. */
 export const IMAGE_EDIT_SOURCE_MIN = 1
-export const IMAGE_EDIT_SOURCE_MAX = 10
 // The source images an edit can send, by the media type their name gives.
 export const IMAGE_EDIT_SOURCE_TYPES: ReadonlySet<string> = new Set([
   'image/png',
@@ -6836,6 +6882,9 @@ export const MODEL_TEXT = {
     'the code intelligence tools could not be loaded (the extension needs reinstalling); use search and file reads instead',
   // The user said no in the price confirmation (M44): nothing was bought.
   imageDeclined: 'the user declined to buy this image; nothing was bought or written',
+  // D121: past the record's documented edit-item cap (Meta documents 1–10):
+  // refused before any source is read or anything is asked or billed.
+  imageEditTooManySources: 'an edit starts from at most {max} images; send fewer source paths',
   exploreAgentDescription:
     'Read-only reconnaissance: maps unfamiliar code and reports back with path:line references.',
   exploreAgentPrompt:

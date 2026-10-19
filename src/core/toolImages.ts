@@ -2,11 +2,16 @@
 // looked at, or the one `generate_image` saved. Muse Code tells the client
 // only the path (the image the model saw is not on the live stream, captured
 // 2026-09-25), so the host reads the file itself: an image type by name,
-// inside the workspace (links that lead out are refused, D24), and no larger
-// than an attachment may be.
+// inside the workspace (links that lead out are refused, D24), and within
+// the panel preview's own display bound (TOOL_IMAGE_PREVIEW_MAX_BYTES;
+// D121 keeps it as display shape, not an attachment limit).
 
 import { Buffer } from 'node:buffer'
-import { IMAGE_EXTENSIONS, type ImageMediaType, MAX_IMAGE_BYTES } from '../shared/constants'
+import {
+  IMAGE_EXTENSIONS,
+  type ImageMediaType,
+  TOOL_IMAGE_PREVIEW_MAX_BYTES,
+} from '../shared/constants'
 import { pathModule } from './workspaceRoot'
 import { confineWorkspacePath } from './workspacePath'
 
@@ -50,19 +55,28 @@ export async function loadToolImage(
   if (!resolved.ok) {
     return resolved
   }
+  // D121: the panel preview keeps its own display bound — the model still
+  // reads the image whole through the read tools. Display shape, not an
+  // attachment limit: kept and listed for the lead.
   const size = await io.fileSize(resolved.checkedAbsolute)
-  if (size > MAX_IMAGE_BYTES) {
-    return { ok: false, reason: `${given} is larger than ${String(MAX_IMAGE_BYTES)} bytes` }
+  if (size > TOOL_IMAGE_PREVIEW_MAX_BYTES) {
+    return {
+      ok: false,
+      reason: `${given} is larger than ${String(TOOL_IMAGE_PREVIEW_MAX_BYTES)} bytes`,
+    }
   }
   const bytes = await io.readBytes(
     resolved.checkedAbsolute,
-    MAX_IMAGE_BYTES,
+    TOOL_IMAGE_PREVIEW_MAX_BYTES,
     resolved.checkedAbsolute,
   )
   if (bytes === undefined) {
     return { ok: false, reason: `${given} does not exist` }
   }
-  return bytes.byteLength > MAX_IMAGE_BYTES
-    ? { ok: false, reason: `${given} is larger than ${String(MAX_IMAGE_BYTES)} bytes` }
+  return bytes.byteLength > TOOL_IMAGE_PREVIEW_MAX_BYTES
+    ? {
+        ok: false,
+        reason: `${given} is larger than ${String(TOOL_IMAGE_PREVIEW_MAX_BYTES)} bytes`,
+      }
     : { ok: true, dataUri: `data:${mediaType};base64,${Buffer.from(bytes).toString('base64')}` }
 }
