@@ -9,6 +9,7 @@
 // failed: …", the log has the cause), and the next press tries again.
 
 import type { DictationHandle, DictationListener } from '../../core/voice/dictation'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
@@ -80,14 +81,28 @@ export function voiceLinuxLoader(deps: VoiceLoaderDeps): () => VoiceLinuxBundle 
 }
 
 /**
+ * What the listener hears when the driver cannot start: the bundle
+ * loader's own remedy when the code did not load (it names the reinstall),
+ * otherwise the fixed failed words with the failure's kind. The log keeps
+ * the kind either way.
+ */
+export function voiceStartRefusal(error: unknown): string {
+  return error instanceof Error && error.message === UI_TEXT.dictationNotLoaded
+    ? `${UI_TEXT.dictationFailed}: ${UI_TEXT.dictationNotLoaded}`
+    : `${UI_TEXT.dictationFailed}: ${failureForLog(error)}`
+}
+
+/**
  * A driver whose implementation is made on the first `start`, so the bundle
  * loads with the first recording rather than with the panel. A load that
- * fails is the listener's `onError` (the status is still idle), and the next
- * `start` tries again; `stop` and `dispose` reach the driver once there is one.
+ * fails is the listener's `onError` (the status is still idle) with the log
+ * keeping the failure's kind, and the next `start` tries again; `stop` and
+ * `dispose` reach the driver once there is one.
  */
 export function deferredDriver(
   listener: DictationListener,
   make: () => DictationHandle,
+  log: Logger,
 ): DictationHandle {
   let driver: DictationHandle | undefined
   let isDisposed = false
@@ -100,7 +115,8 @@ export function deferredDriver(
         try {
           driver = make()
         } catch (error: unknown) {
-          listener.onError(error instanceof Error ? error.message : String(error))
+          log.warn(`Voice driver failed to start: ${failureForLog(error)}`)
+          listener.onError(voiceStartRefusal(error))
           return
         }
       }

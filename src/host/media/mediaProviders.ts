@@ -156,6 +156,7 @@ export function createMediaSourceOpen(deps: MediaSourceOpenDeps): MediaAttachDep
       try {
         checked = await deps.canonicalRelativePath(file.fsPath)
       } catch {
+        // An unreadable source refuses the attach: no handle, no words.
         return
       }
       if (
@@ -173,6 +174,7 @@ export function createMediaSourceOpen(deps: MediaSourceOpenDeps): MediaAttachDep
     try {
       meta = await lstat(absolute)
     } catch {
+      // A file that is already gone refuses the attach: no handle, no words.
       return
     }
     if (!meta.isFile() || meta.isSymbolicLink()) return

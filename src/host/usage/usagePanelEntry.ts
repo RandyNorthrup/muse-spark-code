@@ -1,7 +1,6 @@
 import { Usd } from '../../shared/usd'
 import { setUiText } from '../../shared/l10n/text'
 import { loadUsageTable, setUsageText } from '../../shared/l10n/usageTable'
-import { readUsageTableFile } from '../../runtime/usage/usageTableFile'
 import * as vscode from 'vscode'
 import { UsagePanel, type UsagePanelDeps } from './usagePanel'
 import { homedir, hostname } from 'node:os'
@@ -15,6 +14,7 @@ import {
   TAB_NO_BUDGET_USD,
 } from '../../shared/constants'
 import { createPaidDailyBudget } from '../paid/paidDailyBudget'
+import { readHostUsageTableText } from './usageTableText'
 
 import { createTabLedger } from '../tab/tabLedger'
 
@@ -40,15 +40,14 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
   setUiText(deps.l10n.table, deps.l10n.locale)
   const table = await loadUsageTable({
     language: deps.l10n.locale,
-    readTableFile: async (segments) => {
-      try {
-        return new TextDecoder().decode(
+    readTableFile: async (segments) =>
+      await readHostUsageTableText(
+        async () =>
           await vscode.workspace.fs.readFile(vscode.Uri.joinPath(deps.extensionUri, ...segments)),
-        )
-      } catch {
-        return await readUsageTableFile(deps.extensionUri.fsPath, segments)
-      }
-    },
+        deps.extensionUri.fsPath,
+        segments,
+        deps.log,
+      ),
     warn: (message) => {
       deps.log.warn(message)
     },

@@ -127,46 +127,49 @@ export function createDictationSetup(
   return {
     isAvailable: true,
     create: (listener) =>
-      deferredDriver(listener, () =>
-        directory !== undefined && probe.platform === 'linux'
-          ? voiceLinux().createLinuxDictation(
-              {
-                invocation: location.invocation,
-                listener,
-                log,
-                isEnabled: caps.isLinuxModelEnabled,
-                model: {
-                  directory,
-                  fetch,
-                  consent: async (signal) =>
-                    await caps.askDownloadConsent(
-                      {
-                        helperDownloadBytes: LINUX_DICTATION.helperDownloadBytes,
-                        bytes: LINUX_DICTATION.bytes,
-                      },
-                      directory,
-                      signal,
-                    ),
+      deferredDriver(
+        listener,
+        () =>
+          directory !== undefined && probe.platform === 'linux'
+            ? voiceLinux().createLinuxDictation(
+                {
+                  invocation: location.invocation,
+                  listener,
+                  log,
+                  isEnabled: caps.isLinuxModelEnabled,
+                  model: {
+                    directory,
+                    fetch,
+                    consent: async (signal) =>
+                      await caps.askDownloadConsent(
+                        {
+                          helperDownloadBytes: LINUX_DICTATION.helperDownloadBytes,
+                          bytes: LINUX_DICTATION.bytes,
+                        },
+                        directory,
+                        signal,
+                      ),
+                  },
+                  helper: {
+                    directory,
+                    fetch,
+                    consent: async (signal) =>
+                      await caps.askDownloadConsent(
+                        {
+                          helperDownloadBytes: LINUX_DICTATION.helperDownloadBytes,
+                          bytes: LINUX_DICTATION.bytes,
+                        },
+                        directory,
+                        signal,
+                      ),
+                    arch: process.arch,
+                  },
                 },
-                helper: {
-                  directory,
-                  fetch,
-                  consent: async (signal) =>
-                    await caps.askDownloadConsent(
-                      {
-                        helperDownloadBytes: LINUX_DICTATION.helperDownloadBytes,
-                        bytes: LINUX_DICTATION.bytes,
-                      },
-                      directory,
-                      signal,
-                    ),
-                  arch: process.arch,
-                },
-              },
-              UI_TEXT,
-              uiLocale(),
-            )
-          : voice().createDictation(location.invocation, listener, log, UI_TEXT, uiLocale()),
+                UI_TEXT,
+                uiLocale(),
+              )
+            : voice().createDictation(location.invocation, listener, log, UI_TEXT, uiLocale()),
+        log,
       ),
   }
 }
@@ -259,13 +262,16 @@ export function createMuseVoiceSetup(
   return {
     isAvailable: true,
     create: (listener) =>
-      deferredDriver(listener, () =>
-        voice().createMuseVoice(
-          { ...driverDeps, capture: location },
-          listener,
-          UI_TEXT,
-          uiLocale(),
-        ),
+      deferredDriver(
+        listener,
+        () =>
+          voice().createMuseVoice(
+            { ...driverDeps, capture: location },
+            listener,
+            UI_TEXT,
+            uiLocale(),
+          ),
+        deps.log,
       ),
   }
 }

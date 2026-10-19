@@ -119,6 +119,20 @@ async function askTokenCount(
 }
 
 /**
+ * The address as the key-stored note shows it: the URL's origin, or the raw
+ * address when the URL parser itself rejects it (`TypeError`). Anything
+ * else still throws.
+ */
+export function originOf(address: string): string {
+  try {
+    return new URL(address).origin
+  } catch (error: unknown) {
+    if (error instanceof TypeError) return address
+    throw error
+  }
+}
+
+/**
  * Adds one provider through the quick pick. The outcome, or undefined when
  * cancelled at any step (nothing written).
  */
@@ -383,12 +397,7 @@ export async function runAddProviderQuickPick(
       break
     }
     const modelRef = `${providerId}/${defaultModel}`
-    let origin: string
-    try {
-      origin = new URL(address).origin
-    } catch {
-      origin = address
-    }
+    const origin = originOf(address)
     const isConfirmed = await ui.confirmSave(
       UI_TEXT.saveProvider,
       [fill(UI_TEXT.keyStoredNote, { origin }), `${preset.name} · ${modelRef}`].join('\n'),

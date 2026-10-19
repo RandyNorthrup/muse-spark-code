@@ -613,6 +613,7 @@ export async function createNativeTeamProcessDriver(options: {
           state.isExited = true
         })
         .catch(() => {
+          // Settled either way: a failed spawn counts as exited too.
           state.isExited = true
         })
       const confirmation = (async (): Promise<LaunchConfirmation> => {

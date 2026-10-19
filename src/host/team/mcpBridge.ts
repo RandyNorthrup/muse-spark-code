@@ -31,6 +31,7 @@ import {
   type CheckCommandSetting,
 } from '../../shared/constants'
 import { type Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLoopback'
 import { fill } from '../../shared/l10n/text'
 import {
@@ -251,7 +252,8 @@ export class TeamMcpBridge {
     let args: unknown
     try {
       args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       return this.refused(MCP_POOL_MODEL_TEXT.mcpArgumentsNotObject)
     }
     if (!bridgeArgumentsSchema.safeParse(args).success) {
@@ -403,6 +405,7 @@ export class TeamMcpBridge {
       callerId = decodeURIComponent(parts[0] ?? '')
       serverName = parts[1] === undefined ? undefined : decodeURIComponent(parts[1])
     } catch {
+      // A route that cannot be parsed names no caller: 404, never a throw.
       response.writeHead(HTTP_STATUS.notFound).end()
       return
     }
@@ -432,6 +435,7 @@ export class TeamMcpBridge {
     try {
       parsed = JSON.parse(body)
     } catch {
+      // An unparseable body answers the JSON-RPC parse error, never a throw.
       response
         .writeHead(HTTP_STATUS.ok, { 'content-type': JSON_CONTENT_TYPE })
         .end(this.errorBody(null, JSON_RPC_ERRORS.parseError, 'Parse error'))
@@ -497,7 +501,7 @@ export class TeamMcpBridge {
     try {
       await this.handle(request, response)
     } catch (error: unknown) {
-      this.deps.log.error(`Team MCP bridge request failed: ${describe(error)}`)
+      this.deps.log.error(`Team MCP bridge request failed: ${failureForLog(error)}`)
       if (response.headersSent) {
         response.end()
       } else {

@@ -20,8 +20,11 @@ export function hostPackagePath(location: string, extensionRoot: string): string
   if (file.startsWith(FILE_URL_PREFIX)) {
     try {
       file = fileURLToPath(file)
-    } catch {
-      return undefined
+    } catch (error: unknown) {
+      // A malformed URL or its escapes drop the frame: anything else keeps
+      // its kind past the frame.
+      if (error instanceof TypeError || error instanceof URIError) return undefined
+      throw error
     }
   }
   if (!path.isAbsolute(file)) {

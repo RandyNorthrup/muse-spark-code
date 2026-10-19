@@ -3,6 +3,7 @@ import { pageConverter } from '../web/pageConverter'
 import type { Logger } from '../logger'
 import { uiLocale } from '../../shared/l10n/text'
 import { PromptInsertion } from './promptInsertion'
+import { isPromptStoreDamaged, safePromptFailure } from './promptFailure'
 import { createChatSharing } from './chatSharing'
 import { createChatSharePrivacy } from '../../core/sharing/privacy'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
@@ -176,7 +177,7 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
   try {
     await library.synchronise()
   } catch (error: unknown) {
-    if (!(error instanceof Error && error.message === UI_TEXT.promptStoreDamaged)) throw error
+    if (!isPromptStoreDamaged(error)) throw error
     await ui.report(fill(UI_TEXT.promptScopeDamaged, { scope: UI_TEXT.promptScopeUser }))
   }
   const insertion = new PromptInsertion(deps.chat)
@@ -320,30 +321,6 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
       insert: (text) => insertion.insert(text),
     },
   })
-}
-
-function safePromptFailure(error: unknown): Error {
-  const safeMessages = [
-    UI_TEXT.promptFileInvalid,
-    UI_TEXT.promptTitleRequired,
-    UI_TEXT.promptStoreDamaged,
-    UI_TEXT.promptStoreBusy,
-    UI_TEXT.promptWorkspaceRequired,
-    UI_TEXT.shareRangeInvalid,
-    UI_TEXT.shareAttachmentUnavailable,
-    UI_TEXT.sharePreviewExpired,
-    UI_TEXT.exportNothing,
-    UI_TEXT.exportHistoryUnavailable,
-    UI_TEXT.exportWaitForTurn,
-    UI_TEXT.shareConfidential,
-    UI_TEXT.shareCancelled,
-  ]
-  // The boundary discards the original cause: it may contain private paths or prompt text.
-  return new Error(
-    error instanceof Error && safeMessages.includes(error.message)
-      ? error.message
-      : UI_TEXT.promptFileInvalid,
-  )
 }
 
 /** The lazy factory installs the caller's language before every command. */
