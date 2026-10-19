@@ -300,96 +300,157 @@ Designed baselines with reasons (accepted, not forgotten):
   runtime probes (an absent runtime refuses), spawn and write failures (a
   child that never starts or takes a request settles failed).
 
+Lane CATCHHOST2 designed baselines (0.19.0; every one read in place, its
+fail-closed words proven by a real-failure test unless noted):
+
+- `src/host/auth/cliAccount.ts` (2): the credential-file tri-state
+  boundary — missing (ENOENT/ENOTDIR) reads as absent, anything else as
+  `unrecognized` with the `unreadable` signature; never a value from the
+  file, never a throw (`cliCredentialFile` tests: a real missing file, real
+  garbage).
+- `src/host/auth/credentialRead.ts` (3): every SecretStorage, provider-list
+  and provider-entry failure maps onto the closed `unreadable` kind and
+  warns once per kind with the kind only; presence answers stay tri-state
+  and never read as absence.
+- `src/host/editor/verifyEditor.ts` (2): a file that cannot be stat or read
+  cannot be compared, so it stays "not checked"; the check reruns on the
+  next report (vscode-bound, no logger seam).
+- `src/host/judge/museCodeSameJudge.ts` (1): a temp folder that cannot be
+  removed is logged through `failureForLog` directly (the unverifiable
+  `describeFailure` seam is removed) and disposal continues.
+- `src/host/models/accountsHandler.ts` (1): only fixed bridge codes leave
+  (`providersInvalid`, `invalidAccount`, `notOffered`, `unavailable`); a raw
+  adapter error, which may contain a credential, never crosses
+  (`accountsHandlerErrors` tests).
+- `src/host/prompts/promptEntry.ts` (3): the `safePromptFailure` boundary —
+  fixed words to the log and the surface, the cause discarded by design
+  since it may hold paths or prompt text (`promptFailure` tests).
+- `src/host/runners/sshRunner.ts` (4): every probe and act failure releases
+  admission and answers fixed notices or `uncertain`/`offline`; the runner
+  carries no logger seam (`sshRunnerUnreachable` test: a real refused
+  connection).
+- `src/host/support/reportJournal.ts` (13): storage failures centralize in
+  `disable(error)` — one warn with the closed code, `isAvailable` false
+  afterwards; a marker a peer just consumed races as missing, and anything
+  else stays for the next start rather than producing an offer from garbage.
+- `src/host/support/reportProblem.ts` (4): export answers stay in the fixed
+  `ReportExportOutcome` vocabulary; a refused browser open reads as not
+  opened (`reportProblemOutcomes` tests).
+- `src/host/support/reportRecorder.ts` (1): a load failure hands the
+  original error to `onUnavailable` and answers undefined
+  (`reportRecorderUnavailable` test).
+- `src/host/tab/tabBundle.ts` (1): completions stay quiet when the provider
+  is not loaded yet — typing never breaks (vscode-bound).
+- `src/host/team/processLifetime.ts` (4): probes answer false as capability
+  data; an unreadable cgroup stays `uncertain`, never invented proof; the
+  kill-signal fallback re-reads the scope file — a two-failure decision
+  (absent cgroup keeps `uncertain`, anything else rethrows the signal
+  failure) the classifier cannot express.
+- `src/host/team/teamJournal.ts` (3): reads answer the typed `JournalRead`
+  (`missing`, `broken`, record); torn records stay as evidence and are never
+  moved without authority (`teamEvidence` tests: real torn files).
+- `src/host/team/windowHints.ts` (1): an unreadable journal disables hints
+  and reads none; the owner is notified through `disabled()`
+  (`windowHintsRecovery` tests: a real blocking file, a real fatal file).
+- `src/host/voice/voiceProcesses.ts` (2): helper failures reach the
+  listeners as `error` events (an abort reads as a SIGTERM exit); the
+  emitter is the delivery channel.
+- `src/host/web/hookHttpRequest.ts` (1): the retry loop keeps the last
+  failure and throws it after the budget; an abort supersedes through
+  `throwIfAborted`.
+- `src/host/web/webFetchBundle.ts` (1): a bundle-loader failure answers
+  `unavailable()`; the loader logged the file and the cause.
+
 | Folder                 | GENERIC | SWALLOW |
 | ---------------------- | ------- | ------- |
-| src                    | 9       | 3       |
-| src/acp                | 19      | 0       |
-| src/core               | 11      | 1       |
+| src                    | 906     | 301     |
+| src/acp                | 18      | 0       |
+| src/core               | 369     | 169     |
 | src/core/backends      | 79      | 14      |
-| src/core/bestOfN       | 5       | 0       |
+| src/core/bestOfN       | 3       | 0       |
 | src/core/browser       | 9       | 8       |
-| src/core/codeIntel     | 3       | 0       |
-| src/core/context       | 4       | 0       |
-| src/core/developer     | 6       | 0       |
-| src/core/estimator     | 5       | 0       |
-| src/core/eval          | 5       | 1       |
-| src/core/events        | 0       | 1       |
-| src/core/export        | 1       | 0       |
-| src/core/git           | 2       | 0       |
+| src/core/codeIntel     | 2       | 0       |
+| src/core/context       | 0       | 0       |
+| src/core/developer     | 1       | 0       |
+| src/core/estimator     | 4       | 0       |
+| src/core/eval          | 5       | 0       |
+| src/core/events        | 0       | 0       |
+| src/core/export        | 0       | 0       |
+| src/core/git           | 3       | 1       |
 | src/core/import        | 10      | 8       |
 | src/core/judge         | 14      | 5       |
-| src/core/legal         | 3       | 3       |
-| src/core/locks         | 8       | 7       |
-| src/core/media         | 11      | 17      |
-| src/core/memory        | 5       | 0       |
+| src/core/legal         | 1       | 6       |
+| src/core/locks         | 9       | 11      |
+| src/core/media         | 19      | 20      |
+| src/core/memory        | 0       | 0       |
 | src/core/orchestration | 10      | 2       |
-| src/core/plans         | 2       | 0       |
-| src/core/prompts       | 2       | 1       |
-| src/core/providers     | 15      | 2       |
-| src/core/questions     | 1       | 0       |
-| src/core/reporting     | 8       | 1       |
-| src/core/resources     | 23      | 16      |
+| src/core/plans         | 1       | 0       |
+| src/core/prompts       | 0       | 0       |
+| src/core/providers     | 22      | 5       |
+| src/core/questions     | 0       | 0       |
+| src/core/reporting     | 24      | 7       |
+| src/core/resources     | 25      | 14      |
 | src/core/review        | 4       | 2       |
-| src/core/schedules     | 9       | 10      |
-| src/core/support       | 0       | 2       |
-| src/core/tab           | 5       | 0       |
+| src/core/schedules     | 9       | 11      |
+| src/core/support       | 0       | 0       |
+| src/core/tab           | 4       | 0       |
 | src/core/team          | 19      | 6       |
-| src/core/usage         | 4       | 8       |
-| src/core/vault         | 37      | 36      |
-| src/core/voice         | 3       | 3       |
-| src/core/web           | 8       | 3       |
-| src/host               | 6       | 1       |
-| src/host/auth          | 8       | 0       |
-| src/host/backend       | 10      | 3       |
-| src/host/bestOfN       | 1       | 0       |
+| src/core/usage         | 1       | 0       |
+| src/core/vault         | 65      | 41      |
+| src/core/voice         | 7       | 3       |
+| src/core/web           | 2       | 0       |
+| src/host               | 204     | 49      |
+| src/host/auth          | 5       | 0       |
+| src/host/backend       | 15      | 6       |
+| src/host/bestOfN       | 0       | 0       |
 | src/host/browser       | 10      | 6       |
 | src/host/checkpoints   | 14      | 6       |
 | src/host/commands      | 17      | 2       |
 | src/host/conversation  | 6       | 0       |
-| src/host/editor        | 9       | 0       |
-| src/host/estimator     | 1       | 0       |
-| src/host/git           | 20      | 5       |
-| src/host/ide           | 2       | 0       |
-| src/host/judge         | 2       | 1       |
-| src/host/media         | 1       | 2       |
-| src/host/mention       | 1       | 0       |
-| src/host/models        | 4       | 2       |
-| src/host/prompts       | 4       | 0       |
-| src/host/providers     | 8       | 8       |
-| src/host/resources     | 1       | 2       |
+| src/host/editor        | 2       | 0       |
+| src/host/estimator     | 2       | 3       |
+| src/host/git           | 22      | 5       |
+| src/host/ide           | 0       | 0       |
+| src/host/judge         | 1       | 0       |
+| src/host/media         | 1       | 1       |
+| src/host/mention       | 0       | 0       |
+| src/host/models        | 1       | 1       |
+| src/host/prompts       | 3       | 0       |
+| src/host/providers     | 14      | 14      |
+| src/host/resources     | 0       | 0       |
 | src/host/review        | 11      | 1       |
 | src/host/runners       | 4       | 0       |
-| src/host/skills        | 10      | 0       |
-| src/host/support       | 18      | 1       |
-| src/host/tab           | 10      | 2       |
-| src/host/team          | 11      | 10      |
-| src/host/usage         | 1       | 0       |
-| src/host/vault         | 3       | 4       |
+| src/host/skills        | 10      | 1       |
+| src/host/support       | 19      | 0       |
+| src/host/tab           | 2       | 0       |
+| src/host/team          | 6       | 0       |
+| src/host/usage         | 0       | 0       |
+| src/host/vault         | 18      | 2       |
 | src/host/views         | 1       | 0       |
-| src/host/voice         | 3       | 0       |
-| src/host/web           | 4       | 0       |
-| src/host/whatsNew      | 3       | 0       |
-| src/runtime            | 42      | 6       |
-| src/runtime/companion  | 2       | 5       |
-| src/runtime/estimator  | 1       | 0       |
+| src/host/voice         | 2       | 0       |
+| src/host/web           | 2       | 0       |
+| src/host/whatsNew      | 0       | 0       |
+| src/runtime            | 281     | 73      |
+| src/runtime/companion  | 2       | 6       |
+| src/runtime/estimator  | 3       | 0       |
 | src/runtime/exec       | 19      | 4       |
 | src/runtime/fonts      | 2       | 0       |
 | src/runtime/legal      | 8       | 1       |
-| src/runtime/panel      | 49      | 12      |
-| src/runtime/playbook   | 2       | 0       |
-| src/runtime/providers  | 4       | 2       |
-| src/runtime/questions  | 2       | 0       |
-| src/runtime/reporting  | 16      | 0       |
-| src/runtime/resources  | 8       | 1       |
-| src/runtime/schedules  | 15      | 1       |
-| src/runtime/sharing    | 3       | 0       |
-| src/runtime/usage      | 4       | 4       |
-| src/runtime/vault      | 9       | 12      |
-| src/shared             | 7       | 3       |
-| src/shared/hostApi     | 1       | 0       |
-| src/shared/l10n        | 1       | 0       |
-| src/shared/reference   | 0       | 1       |
-| src/webview            | 5       | 0       |
+| src/runtime/panel      | 52      | 12      |
+| src/runtime/playbook   | 1       | 0       |
+| src/runtime/providers  | 2       | 0       |
+| src/runtime/questions  | 0       | 0       |
+| src/runtime/reporting  | 32      | 2       |
+| src/runtime/resources  | 7       | 0       |
+| src/runtime/schedules  | 14      | 3       |
+| src/runtime/sharing    | 1       | 0       |
+| src/runtime/usage      | 1       | 0       |
+| src/runtime/vault      | 51      | 28      |
+| src/shared             | 1       | 0       |
+| src/shared/hostApi     | 0       | 0       |
+| src/shared/l10n        | 0       | 0       |
+| src/shared/reference   | 0       | 0       |
+| src/webview            | 33      | 9       |
 | src/webview/components | 4       | 0       |
 | src/webview/media      | 7       | 0       |
 | src/webview/models     | 1       | 0       |

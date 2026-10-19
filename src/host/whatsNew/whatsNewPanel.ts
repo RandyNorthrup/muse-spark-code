@@ -13,6 +13,7 @@ import {
   type TryIt,
   type WhatsNewContent,
 } from '../../core/whatsNew/whatsNewContent'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { releasesToShow } from '../../core/whatsNew/whatsNewVersions'
 import {
   UI_TEXT,
@@ -105,9 +106,7 @@ export function createWhatsNewPagesFor(deps: WhatsNewPagesDeps): WhatsNewPages {
     try {
       await act(target, message)
     } catch (error: unknown) {
-      deps.log.error(
-        `What’s New: ${message.type} failed: ${error instanceof Error ? error.message : String(error)}`,
-      )
+      deps.log.error(`What’s New: ${message.type} failed: ${failureForLog(error)}`)
     }
   }
 

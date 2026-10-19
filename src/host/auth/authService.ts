@@ -284,7 +284,7 @@ export class AuthService {
         this.isLogoutPersistenceFailed = false
       }
       return true
-    } catch {
+    } catch (error: unknown) {
       // read-state: cert TBL-04. A hold write that fails returns false, and
       // every caller keeps the hold and says signOutHoldFailed on false:
       // false here is "not saved", never "not held".
@@ -292,6 +292,7 @@ export class AuthService {
         this.isLogoutPersistenceFailed = true
       }
       this.deps.log.warn('Muse Code sign-out state could not be saved')
+      this.deps.log.trace(`Muse Code sign-out state failure: ${failureForLog(error)}`)
       return false
     }
   }
@@ -329,11 +330,12 @@ export class AuthService {
     try {
       await this.restartHosts(true)
       return true
-    } catch {
+    } catch (error: unknown) {
       // read-state: cert TBL-05. "Could not stop" returns false and the
       // sign-out keeps its hold with signOutStopFailed on false: false is
       // "still running", never "nothing to stop".
       this.deps.log.warn('Muse Code backend could not stop during sign-out')
+      this.deps.log.trace(`Muse Code backend stop failure: ${failureForLog(error)}`)
       return false
     }
   }
@@ -378,8 +380,10 @@ export class AuthService {
     )
     try {
       await this.restartHosts(true)
-    } catch {
-      this.deps.log.warn('The running backend could not stop before switching backends')
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `The running backend could not stop before switching backends: ${failureForLog(error)}`,
+      )
       // The failure is published under the same guards as the success: a
       // newer state, or a sign-out, published meanwhile stands (Codex on
       // 86d63652).
@@ -605,9 +609,7 @@ export class AuthService {
       this.deps.backend.forgetCliAnswers()
       return await this.confirmCliSignIn(flow)
     } catch (error: unknown) {
-      this.deps.log.warn(
-        `In-panel sign-in failed: ${error instanceof Error ? error.name : 'unknown error'}`,
-      )
+      this.deps.log.warn(`In-panel sign-in failed: ${failureForLog(error)}`)
       return await this.finishFailedCliSignIn(flow, 'error', UI_TEXT.signInFailed, 'warning')
     } finally {
       this.deviceAbort = undefined
@@ -797,9 +799,7 @@ export class AuthService {
       }
       return await this.installFailed(UI_TEXT.installTimedOut, epoch)
     } catch (error: unknown) {
-      this.deps.log.warn(
-        `Muse Code installer terminal failed: ${error instanceof Error ? error.name : 'unknown error'}`,
-      )
+      this.deps.log.warn(`Muse Code installer terminal failed: ${failureForLog(error)}`)
       return await this.installFailed(UI_TEXT.installStartFailed, epoch)
     }
   }
@@ -979,11 +979,12 @@ export class AuthService {
     try {
       await this.deps.runInTerminal(cliPath, MUSE_LOGOUT_ARGS)
       return true
-    } catch {
+    } catch (error: unknown) {
       // read-state: cert TBL-06. "Terminal would not open" returns false and
       // the sign-out falls back to the next logout path on false: false is
       // "not attempted", never "logged out".
       this.deps.log.warn('Muse Code logout terminal could not open')
+      this.deps.log.trace(`Muse Code logout terminal failure: ${failureForLog(error)}`)
       return false
     }
   }

@@ -1,0 +1,103 @@
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import { describe, expect, it } from 'vitest'
+import { createWindowHints } from '../../src/host/team/windowHints'
+import { usingTempDir } from './helpers/temporaryFolders'
+
+const UID = '123e4567-e89b-12d3-a456-426614174000'
+const state = () => ({
+  workspaceName: 'lane',
+  trees: [],
+  exclusiveServers: [],
+  workers: 1,
+  processWorkers: 0,
+  heavyCommands: 0,
+})
+
+const base = (extra: Record<string, unknown> = {}) => ({
+  platform: process.platform,
+  freshMs: 60_000,
+  writeMs: 60_000,
+  maxHintBytes: 1_000_000,
+  now: () => Date.now(),
+  disabled: () => undefined,
+  question: () => Promise.resolve('continue' as const),
+  overlap: () => [] as readonly string[],
+  ...extra,
+})
+const blockerHints = (root: string) => {
+  const blocker = path.join(root, 'blocker')
+  writeFileSync(blocker, 'in the way', 'utf8')
+  let disabledCalls = 0
+  const hints = createWindowHints({
+    ...base({
+      disabled: () => {
+        disabledCalls += 1
+      },
+    }),
+    directory: blocker,
+    instanceId: UID,
+  })
+  return { hints, disabledCount: () => disabledCalls }
+}
+
+describe('createWindowHints journal recovery', () => {
+  it('round-trips a published hint through a real journal file', async () => {
+    await usingTempDir('muse-window-hints-', async (root) => {
+      const hints = createWindowHints({ ...base(), directory: root, instanceId: UID })
+      await hints.publish(state())
+      const fresh = await hints.readFresh()
+      expect(fresh).toHaveLength(1)
+      expect(fresh[0].instanceId).toBe(UID)
+      expect(fresh[0].workers).toBe(1)
+      await hints.dispose()
+    })
+  })
+
+  it('keeps an unreadable journal but still reads a valid hint', async () => {
+    await usingTempDir('muse-window-hints-', async (root) => {
+      const hints = createWindowHints({ ...base(), directory: root, instanceId: UID })
+      await hints.publish(state())
+      await hints.readFresh()
+      const hintFile = path.join(root, `${UID}.json`)
+      writeFileSync(hintFile, '{not valid json', 'utf8')
+      const fresh = await hints.readFresh()
+      expect(fresh).toHaveLength(0)
+      await hints.dispose()
+    })
+  })
+
+  it('disables the journal when a hint read fails fatally, not just skips it', async () => {
+    await usingTempDir('muse-window-hints-', async (root) => {
+      const hints = createWindowHints({ ...base(), directory: root, instanceId: UID })
+      await hints.publish(state())
+      // A directory wearing a hint's name fails the file check: fatal, so the
+      // read surfaces it to the outer handler and the journal disables.
+      const fatal = '223e4567-e89b-12d3-a456-426614174001'
+      mkdirSync(path.join(root, `${fatal}.json`))
+      await expect(hints.readFresh()).resolves.toEqual([])
+      rmSync(path.join(root, `${fatal}.json`), { recursive: true, force: true })
+      // Disabled, not skipped: the valid hint stays unread after cleanup.
+      await expect(hints.readFresh()).resolves.toEqual([])
+      await hints.dispose()
+    })
+  })
+
+  it('disables the journal when its directory cannot be created', async () => {
+    await usingTempDir('muse-window-hints-', async (root) => {
+      const { hints, disabledCount } = blockerHints(root)
+      await hints.publish(state())
+      expect(disabledCount()).toBeGreaterThan(0)
+      await hints.dispose()
+    })
+  })
+
+  it('reads no hints when the journal cannot be listed', async () => {
+    await usingTempDir('muse-window-hints-', async (root) => {
+      const { hints, disabledCount } = blockerHints(root)
+      await expect(hints.readFresh()).resolves.toEqual([])
+      expect(disabledCount()).toBeGreaterThan(0)
+      await hints.dispose()
+    })
+  })
+})

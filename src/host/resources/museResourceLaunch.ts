@@ -111,6 +111,7 @@ async function museResourceLaunch(
           resource.register({ pid, group: true, parentPid: process.pid })
           return
         } catch {
+          // The pid file is not there yet; wait for the next poll.
           await delay(RESOURCE_LAUNCH_POLL_MS)
         }
       }
@@ -119,6 +120,22 @@ async function museResourceLaunch(
     dispose: async () => {
       await rm(folder, { recursive: true, force: true })
     },
+  }
+}
+
+/**
+ * Closes a half-started launch while its failure crosses: the close runs
+ * first and the launch always completes as failed. A close that fails too
+ * still throws, so the failure always crosses with its cause.
+ */
+async function settleLaunchClose(
+  handshake: ResourceHandshake,
+  launch: Awaited<ReturnType<typeof museResourceLaunch>> | undefined,
+): Promise<void> {
+  try {
+    await handshake.close()
+  } finally {
+    launch?.complete(false)
   }
 }
 
@@ -241,6 +258,7 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
         ended()
       })
       .catch(() => {
+        // An exit report that rejects still ends the launch as failed.
         resource?.failed?.()
         ended()
       })
@@ -252,11 +270,7 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
       if (launch === undefined) resource?.complete(true)
       else launch.complete(true)
     } else {
-      try {
-        await handshake.close()
-      } finally {
-        launch?.complete(false)
-      }
+      await settleLaunchClose(handshake, launch)
     }
     throw error
   } finally {

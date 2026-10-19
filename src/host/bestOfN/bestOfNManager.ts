@@ -13,6 +13,8 @@ import { randomUUID } from 'node:crypto'
 import type { AgentHost, AgentSession } from '../../core/agent/agentBackend'
 import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 import type { OwnedSessionBudgetScope } from '../../core/backends/modelapi/sessionBudget'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import { redactSecrets } from '../../core/redact'
 import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import { confineWorkspacePath } from '../../core/workspacePath'
 import { isProtectedPath } from '../../core/protectedPaths'
@@ -30,7 +32,6 @@ import {
   type WorktreeSession,
   type WorktreeSessionEvent,
 } from '../../core/bestOfN/worktreeConversationHost'
-import { redactSecrets } from '../../core/redact'
 import {
   type AgentEvent,
   requirementRefSchema,
@@ -96,7 +97,12 @@ export interface BestOfNManagerDeps extends Pick<
 
 const ABORT_CHOICE_ID = 'abort'
 
-function describe(error: unknown): string {
+/**
+ * A failed attempt's reason for the run: the redacted failure text, as the
+ * runner records its own failures, never the log's kind word. The dialog
+ * renders it (`bestOfNAttemptFailed`), and the log keeps the kind.
+ */
+export function attemptFailureReason(error: unknown): string {
   return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
@@ -297,8 +303,8 @@ class AttemptDriver implements BestOfNAttemptDriver {
         })
       })
       .catch((error: unknown) => {
-        this.deps.log.warn(`A best-of-N attempt never ran: ${describe(error)}`)
-        this.attempt.onEvent({ type: 'failed', reason: describe(error) })
+        this.deps.log.warn(`A best-of-N attempt never ran: ${failureForLog(error)}`)
+        this.attempt.onEvent({ type: 'failed', reason: attemptFailureReason(error) })
       })
   }
 

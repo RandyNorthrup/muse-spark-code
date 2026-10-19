@@ -165,6 +165,7 @@ export const EN = {
   companionLaunchFailed:
     'Could not open the panel. Return to your editor and open Muse Spark Code again to get a fresh launch link.',
   // M118: prompt library and local sharing; read UI_TEXT at use time.
+  promptLimits: 'The prompt exceeds the size limit, or this scope has too many prompts.',
   promptWorkspaceRequired: 'Open a workspace to save workspace prompts.',
   promptScopeDamaged:
     '{scope}: The prompt store is unreadable or damaged. Its files were kept unchanged.',
@@ -230,6 +231,7 @@ export const EN = {
   shareAllMessages: 'All Messages',
   shareAttachmentContents: 'Include Selected Attachment Contents',
   shareRangeInvalid: 'Choose an ordered range of messages from this conversation.',
+  shareTooLarge: 'This share exceeds the file size or transcript limit.',
   shareAttachmentUnavailable: 'Selected attachment content is unavailable in this range.',
   sharePreviewExpired: 'The preview changed or expired. Preview again before sharing.',
   // M117 / D97: portable estimator surfaces, help and future manifest copy.

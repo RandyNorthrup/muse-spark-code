@@ -4,6 +4,7 @@ import { estimateFailureText } from '../../shared/estimateDiagnostic'
 // `ChatSurface` handle (chatSurface.ts) the rest of the host uses to talk back.
 
 import * as vscode from 'vscode'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   UI_TEXT,
   WEBVIEW_DIST_SEGMENTS,
@@ -185,8 +186,11 @@ export function configureWebview(
           context.onConversationMessage(surface, parsed.message)
         })
         .catch((error: unknown) => {
-          if (!isActive || generation !== estimatorGeneration) return
-          context.log.error(`Estimator boundary unavailable: ${String(error)}`)
+          if (!isActive || generation !== estimatorGeneration) {
+            context.log.warn(`Estimator boundary unavailable: ${failureForLog(error)}`)
+            return
+          }
+          context.log.error(`Estimator boundary unavailable: ${failureForLog(error)}`)
           surface.post({
             type: 'estimatorFailure',
             diagnostic: { estimateDiagnostic: 'estimate-unavailable' },

@@ -23,6 +23,7 @@ import { Usd, legacyUsdSchema, usdAmountSchema, type UsdAmount } from '../../sha
 import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { ATOMIC_TEMPORARY_SUFFIX } from '../../shared/constants'
 import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
@@ -162,12 +163,14 @@ export function createTabLedger(
         return { reservedUsd: Usd.from(0).toAmount(), reportedUsd: Usd.from(0).toAmount() }
       }
       // This window's own unreadable file: fail closed, and say which.
+      deps.log.warn(`Tab ledger ${fileName} unreadable: ${failureForLog(error)}`)
       return undefined
     }
     let parsed: unknown
     try {
       parsed = JSON.parse(raw) as unknown
-    } catch {
+    } catch (error: unknown) {
+      deps.log.warn(`Tab ledger ${fileName} unparseable: ${failureForLog(error)}`)
       return undefined
     }
     const file = ledgerFileSchema.safeParse(parsed)
@@ -189,8 +192,24 @@ export function createTabLedger(
         { sleep: deps.sleep },
       )
       return true
-    } catch {
+    } catch (error: unknown) {
+      deps.log.warn(`Tab ledger ${fileName} unwritable: ${failureForLog(error)}`)
       return false
+    }
+  }
+
+  // The day's file names, or undefined when the day refuses the total: no
+  // folder yet means no window spent today, while a base that is not a
+  // directory (Windows answers ENOENT through a file used as a folder) or
+  // any other failure never counts as zero spend.
+  const readDayNames = async (date: string): Promise<string[] | undefined> => {
+    try {
+      const base = await stat(deps.directory)
+      return base.isDirectory() ? await readdir(dayDirectory(date)) : undefined
+    } catch (error: unknown) {
+      if (isMissing(error)) return []
+      deps.log.warn(`Tab ledger day unreadable: ${failureForLog(error)}`)
+      return undefined
     }
   }
 
@@ -198,29 +217,9 @@ export function createTabLedger(
     if (!DATE_PATTERN.test(date)) {
       return { ok: false, detail: date }
     }
-    try {
-      // Windows answers ENOENT (not ENOTDIR) through a file used as a
-      // folder, so a base that is not a directory must refuse explicitly:
-      // it never counts as zero spend.
-      const base = await stat(deps.directory)
-      if (!base.isDirectory()) {
-        return { ok: false, detail: date }
-      }
-    } catch (error: unknown) {
-      // No folder yet means no window spent today; anything else refuses.
-      return isMissing(error)
-        ? { ok: true, totalUsd: Usd.from(0).toAmount() }
-        : { ok: false, detail: date }
-    }
-    let names: string[]
-    try {
-      names = await readdir(dayDirectory(date))
-    } catch (error: unknown) {
-      // No folder yet means no window spent today; anything else refuses.
-      return isMissing(error)
-        ? { ok: true, totalUsd: Usd.from(0).toAmount() }
-        : { ok: false, detail: date }
-    }
+    const names = await readDayNames(date)
+    if (names === undefined) return { ok: false, detail: date }
+    if (names.length === 0) return { ok: true, totalUsd: Usd.from(0).toAmount() }
     let totalUsd = Usd.from(0).toAmount()
     let uncertainUsd = Usd.from(0).toAmount()
     const sorted = names.toSorted((left, right) => left.localeCompare(right))
@@ -231,13 +230,15 @@ export function createTabLedger(
       let raw: string
       try {
         raw = await readFile(path.join(dayDirectory(date), name), 'utf8')
-      } catch {
+      } catch (error: unknown) {
+        deps.log.warn(`Tab ledger ${name} unreadable: ${failureForLog(error)}`)
         return { ok: false, detail: name }
       }
       let parsed: unknown
       try {
         parsed = JSON.parse(raw) as unknown
-      } catch {
+      } catch (error: unknown) {
+        deps.log.warn(`Tab ledger ${name} unparseable: ${failureForLog(error)}`)
         return { ok: false, detail: name }
       }
       const file = ledgerFileSchema.safeParse(parsed)

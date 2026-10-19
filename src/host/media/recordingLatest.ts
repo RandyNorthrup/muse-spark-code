@@ -59,6 +59,18 @@ export interface LatestRecordingPlatformHost extends LatestRecordingHost {
 }
 
 /**
+ * Best-effort disposal after a failed preview copy: a disposal that fails
+ * too is moot, since the copy's own error is the news that crosses.
+ */
+async function settleCopyDispose(dispose: () => Promise<void>): Promise<void> {
+  try {
+    await dispose()
+  } catch {
+    // The copy already failed; its error below is the news.
+  }
+}
+
+/**
  * Real fs-backed latest-recording discovery (the core `findLatestRecording`
  * port): nonrecursive scans of the OS recordings locations, symlinks and
  * special files rejected, private owner-only copies under the host's
@@ -134,11 +146,7 @@ function createLatestPort(
         const preview: ScreenRecordingPreview = { path: target, info: sniffed.info, dispose }
         return preview
       } catch (error: unknown) {
-        try {
-          await dispose()
-        } catch {
-          // The copy already failed; its error below is the news.
-        }
+        await settleCopyDispose(dispose)
         throw error
       }
     },

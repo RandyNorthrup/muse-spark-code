@@ -28,6 +28,8 @@ import {
   WHATS_NEW_SETTLE_MS,
 } from '../../shared/constants'
 import { fill, uiLocale } from '../../shared/l10n/text'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import { isStoreErrorCode, storeErrorCode } from '../backend/storeErrors'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as WhatsNewEntry from './whatsNewEntry'
@@ -68,12 +70,6 @@ export function whatsNewLoader(deps: WhatsNewLoaderDeps): () => WhatsNewBundle {
   })
 }
 
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
-}
-
 /**
  * Claims showing `version` for this window: true when this window created
  * the version's claim file, false when another window already had. Any other
@@ -94,7 +90,7 @@ export async function hasClaimedVersion(
   const name = `${version}${WHATS_NEW_CLAIM_SUFFIX}`
   const canShowUnclaimed = (error: unknown): boolean => {
     log.warn(
-      `What’s New could not record its claim (${errorCode(error) ?? 'unknown'}); this window shows it`,
+      `What’s New could not record its claim (${storeErrorCode(error) ?? 'unknown'}); this window shows it`,
     )
     return true
   }
@@ -107,7 +103,7 @@ export async function hasClaimedVersion(
     const handle = await open(path.join(dir, name), 'wx')
     await handle.close()
   } catch (error: unknown) {
-    return errorCode(error) !== ALREADY_CLAIMED && canShowUnclaimed(error)
+    return !isStoreErrorCode(error, ALREADY_CLAIMED) && canShowUnclaimed(error)
   }
   return true
 }
@@ -204,9 +200,7 @@ export function createWhatsNew(deps: WhatsNewDeps): WhatsNew {
     try {
       await present(from)
     } catch (error: unknown) {
-      deps.log.error(
-        `What’s New after the update failed: ${error instanceof Error ? error.message : String(error)}`,
-      )
+      deps.log.error(`What’s New after the update failed: ${failureForLog(error)}`)
     }
   }
 

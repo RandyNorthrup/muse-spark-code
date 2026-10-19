@@ -28,6 +28,7 @@ import {
 } from '../../shared/constants'
 import type { Logger } from '../logger'
 import type { UnattendedRun } from '../../core/schedules/unattended'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLoopback'
 
 /** What `session/start` is told: where the server is and how to authenticate. */
@@ -253,7 +254,7 @@ export class IdeMcpServer {
     try {
       await this.handle(request, response)
     } catch (error: unknown) {
-      this.log.error(`IDE tool server request failed: ${String(error)}`)
+      this.log.error(`IDE tool server request failed: ${failureForLog(error)}`)
       if (response.headersSent) {
         response.end()
       } else {

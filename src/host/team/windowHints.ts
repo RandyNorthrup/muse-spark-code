@@ -161,6 +161,21 @@ const hintSchema = z.strictObject({
   heavyCommands: countSchema,
 })
 
+/**
+ * Whether a hint read failed fatally: a conflicting lock, a loop, an unsafe
+ * file or a path that changed under the read still surfaces, while a torn,
+ * malformed, linked or concurrently removed hint carries no authority and
+ * is skipped.
+ */
+function isFatalHintFailure(error: unknown): boolean {
+  return (
+    storeErrorCode(error) === 'EACCES' ||
+    storeErrorCode(error) === 'ELOOP' ||
+    (error instanceof Error &&
+      (error.message === 'TEAM_HINT_FILE_UNSAFE' || error.message === 'TEAM_HINT_PATH_CHANGED'))
+  )
+}
+
 export type WindowHint = z.infer<typeof hintSchema>
 export type HintCollision =
   | {
@@ -297,15 +312,10 @@ export function createWindowHints(options: {
           const age = options.now() - parsed.data.at
           if (age >= 0 && age < options.freshMs) hints.push(parsed.data)
         } catch (error: unknown) {
-          // A torn, malformed, linked or concurrently removed hint carries no authority.
-          if (
-            storeErrorCode(error) === 'EACCES' ||
-            storeErrorCode(error) === 'ELOOP' ||
-            (error instanceof Error &&
-              (error.message === 'TEAM_HINT_FILE_UNSAFE' ||
-                error.message === 'TEAM_HINT_PATH_CHANGED'))
-          )
-            throw error
+          // A torn, malformed, linked or concurrently removed hint carries
+          // no authority; a fatal read failure still surfaces.
+          if (!isFatalHintFailure(error)) continue
+          throw error
         }
       }
       return hints
@@ -356,6 +366,7 @@ export function createWindowHints(options: {
           await rm(temporary, { force: true })
         }
       } catch {
+        // A publish that fails disables hints rather than retrying blindly.
         disable()
       }
     })()
@@ -450,6 +461,7 @@ export function createWindowHints(options: {
           try {
             void publish(state())
           } catch {
+            // A scheduled publish that fails disables the schedule.
             disable()
           }
         }, options.writeMs)
@@ -468,6 +480,7 @@ export function createWindowHints(options: {
         await assertHintPath(file)
         await rm(file, { force: true })
       } catch {
+        // A dispose that cannot remove the hint file still disables hints.
         disable()
       }
     },
