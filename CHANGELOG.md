@@ -25,6 +25,24 @@ happened, not what was planned; superseded entries are kept.
   menu never shows a mode the host is not running. A scheduled admission on
   a Manual conversation runs with `:auto-review` while the unattended run is
   in charge and puts the conversation's reviewer back afterwards.
+- Three failure-path corrections to that profile work. Resume, fork and load
+  seed the session from the approval mode the host serves, so the first mode
+  change rolls back like a live one. When no previous mode is known, the
+  rollback fails, or a turn ends while the mode command is in flight, the
+  session refuses new turns until the mode is set again, and the Modes menu
+  (panel) or mode notice (ACP) shows the mode the host actually runs, with
+  one true sentence — Manual is never left running with the judge, and the
+  menu always agrees with the host. A finished schedule puts its mode and
+  reviewer back as one unit; when the reviewer cannot be put back the
+  session refuses new turns instead of running them under the wrong
+  reviewer, and later turns and mode changes are judged on their own instead
+  of rejected by that failure. No production path in this tree sends through
+  the scheduled-admission entry points (`sendScheduledTurn` /
+  `steerScheduledTurn`): the only production delivery composition (the
+  runtime engine) refuses every target, and `ScheduleAgentSession`
+  (`src/host/schedules/backgroundTarget.ts`) is never constructed. The
+  admission and restore paths are proven by live probes driving the real
+  session class directly; see `docs/certification/manualmode.md`.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
