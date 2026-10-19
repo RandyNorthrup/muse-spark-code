@@ -24,6 +24,7 @@ import type { SecretStore } from '../host/auth/credentialStore'
 const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl } = endpointPolicy
 import type { ProviderPreset } from '../core/providers/presets'
+import { isConnectionFailure } from '../core/networkFailure'
 const {
   azureOrigin,
   inspectProviderKey,
@@ -586,6 +587,23 @@ export async function listProviderModels(
 }
 
 /**
+ * The raw connection failure behind the endpoint pin's refused-connection
+ * refusal: the pin answers `providerProbeUnreachable` with the fetch
+ * failure as its cause. A refusal with no such cause (a failed DNS lookup,
+ * a codeless local refusal) has no codes to name and keeps the fixed
+ * sentence.
+ */
+function pinRefusedCause(error: unknown): unknown {
+  return error instanceof Error &&
+    error.name === 'UserRefusalError' &&
+    error.message === UI_TEXT.providerProbeUnreachable &&
+    error.cause !== undefined &&
+    isConnectionFailure(error.cause)
+    ? error.cause
+    : undefined
+}
+
+/**
  * The free check that proves a key works (D74): the preset's models list,
  * or its provider-key path where the list is public. Nothing is billed.
  * Azure's `paid-token` test has no free check and stays in the panel, where
@@ -632,9 +650,16 @@ export async function probeProvider(
       }
       if (error instanceof Error && error.message === 'rebinding') failureReason = 'rebinding'
       // A send with no answer says what failed; the probe's own time running
-      // out, or a pin refusal before sending, keeps the fixed sentence.
+      // out, a pin refusal before sending, or a codeless failure keeps the
+      // fixed sentence.
       else if (shared.isModelApiError(error) && !read.signal.aborted) failureReason = error.message
-      else failureReason = 'unreachable'
+      else {
+        const refused = pinRefusedCause(error)
+        // A refused connection names its codes and its unknown fate through
+        // the configured path's one reader, as `providers add` and
+        // `providers test` promise.
+        failureReason = refused === undefined ? 'unreachable' : reader.sendFailure(refused)
+      }
       return undefined
     }
     return { status: read.status, body: read.body }
