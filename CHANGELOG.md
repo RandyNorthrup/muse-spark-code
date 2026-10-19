@@ -106,6 +106,49 @@ happened, not what was planned; superseded entries are kept.
 - An unreadable providers file names its failure again. `providers list` and
   the headless provider run say why the file could not be read (for example
   a denied permission) instead of only naming the file.
+- Headless `exec` has no default request limit: without `--max-requests` a
+  Model API run is not stopped after 30 requests. A set value is any
+  positive safe integer — no provider publishes a request-count maximum,
+  so the product sets none; 0 and negatives are refused as not a count.
+- Headless `--max-budget-usd` no longer stops at 20 USD: a person's amount
+  is honored as given (validated only as a positive number), in `exec`,
+  `serve`, the run ledger, the protocol schemas, the generated reference
+  and the Action's input and result validation. The 20 USD ceiling was
+  ours, not a provider's.
+- Headless `--timeout` has no default: without it an `exec` run has no
+  deadline of ours (it ends with the turn, the person, or the provider),
+  reported as null `timeoutSeconds` in the result and event limits. A set
+  deadline is any positive safe integer of seconds — the 1800-second
+  default and the 10-second floor are gone — in `exec`, the protocol
+  schemas, the generated reference and the Action's `timeout-minutes`. 0,
+  negatives and non-numbers are refused as not a time. The deadline timer
+  re-arms past Node's timer ceiling instead of overflowing. The
+  21,600-second maximum was ours, not a provider's.
+- The GitHub Action no longer caps a run at 30 requests unless the person
+  asks: with no `max-requests` input the Action sets no request limit, and
+  a set value allows any positive number of billable HTTP attempts,
+  retries included.
+- The GitHub Action no longer stops a run after 20 minutes unless the
+  person asks: with no `timeout-minutes` input the Action forwards no
+  `--timeout` and arms no wrapper deadline of its own (the run ends with
+  the person's deadline, a signal, or the job's own timeout), and a set
+  value allows any positive number of minutes.
+- The published headless v2 event/result schemas state no request-count
+  maximum for a set `maxRequests` and no deadline maximum for a set
+  `timeoutSeconds`: any positive safe integer is accepted, and
+  `timeoutSeconds` is null without `--timeout`. The 500-request and
+  21,600-second maxima were ours, not a provider's.
+- Every terminal misuse exits 2 and names its flag or argument instead of
+  exiting 1 with a bare usage line: unknown commands, refused
+  serve/login/auth/provider flags, bad `exec`/`usage`/`resources` values
+  and `developer` misuse (which prints the usage before any store is
+  touched). `auth` texts keep the credential guidance and never echo the
+  argv. Two refused `auth` values (`--backend`, `--shell-sandbox`) missed
+  the exit-2 change and exited 1; they exit 2 now.
+- The published v1 event/result output schemas accept a null
+  `timeoutSeconds` (no `--timeout` means no deadline of ours) and a set
+  deadline from 1 second, matching the parser: the bounds removal left the
+  schemas' 10-second floor and non-null shape behind.
 
 ### Security
 

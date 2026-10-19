@@ -9,9 +9,6 @@ import {
   THINKING_OFF_EFFORT,
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
-  EXEC_DEFAULT_TIMEOUT_SECONDS,
-  EXEC_MAX_TIMEOUT_SECONDS,
-  EXEC_MIN_TIMEOUT_SECONDS,
   MODEL_API_MAX_OUTPUT_TOKENS,
   EXEC_MODES,
   EXEC_OUTPUTS,
@@ -84,7 +81,8 @@ export interface ExecOptions {
    * parsing). Carried into the request's output limit and its reservation.
    */
   readonly maxOutputTokens?: number | undefined
-  readonly timeoutMs: number
+  /** No deadline of ours without `--timeout`: the run ends with the turn, the person, or the provider. */
+  readonly timeoutMs: number | undefined
   readonly paidFeatures: readonly ExecPaidFeature[]
   readonly failOnDenial: boolean
   readonly ephemeral: boolean
@@ -162,6 +160,19 @@ function invalid(reason: string): { readonly ok: false; readonly reason: string 
   return { ok: false, reason }
 }
 
+/** The refused flag in words, with its value when one was given. */
+function flagArgument(key: string, value: unknown): string {
+  return typeof value === 'string' && value !== '' ? `--${key} ${value}` : `--${key}`
+}
+
+/** A refused flag value owns the usage refusal and names the flag. */
+function invalidFlagValue(
+  key: string,
+  value: unknown,
+): { readonly ok: false; readonly reason: string } {
+  return invalid(fill(UI_TEXT.acpUnknownArgument, { argument: flagArgument(key, value) }))
+}
+
 /**
  * Bare single-segment IDs qualify immediately. Slash-containing IDs remain
  * intact until assembly can distinguish a configured native ID from a qualified
@@ -217,7 +228,10 @@ export function parseExec(
   if (values['vault'] === true && values['key-stdin'] === true)
     return invalid(`${UI_TEXT.vault.noAccess}: --vault / --key-stdin`)
   const mode = enumValue(EXEC_MODES, values['permission-mode'] ?? EXEC_DEFAULT_MODE)
-  if (mode === undefined) return invalid(UI_TEXT.execModeRefused)
+  if (mode === undefined)
+    return invalid(
+      `${fill(UI_TEXT.acpUnknownArgument, { argument: flagArgument('permission-mode', values['permission-mode']) })}: ${UI_TEXT.execModeRefused}`,
+    )
   const backend = enumValue(ACP_BACKENDS, values['backend'] ?? ACP_DEFAULT_BACKEND)
   const output = enumValue(EXEC_OUTPUTS, values['output'] ?? EXEC_DEFAULT_OUTPUT)
   const shellSandbox = enumValue(
@@ -236,21 +250,20 @@ export function parseExec(
       (values['account'] !== undefined && values['account'] !== ACCOUNT_DEFAULT_ID))
   )
     return invalid(UI_TEXT.accounts.museCodeUnavailable)
-  // A wrong value names its own option (D119), never a bare usage line.
-  if (backend === undefined) return invalid(fill(UI_TEXT.execValueInvalid, { option: '--backend' }))
-  if (output === undefined) return invalid(fill(UI_TEXT.execValueInvalid, { option: '--output' }))
-  if (shellSandbox === undefined)
-    return invalid(fill(UI_TEXT.execValueInvalid, { option: '--shell-sandbox' }))
+  if (backend === undefined) return invalidFlagValue('backend', values['backend'])
+  if (output === undefined) return invalidFlagValue('output', values['output'])
+  if (shellSandbox === undefined) return invalidFlagValue('shell-sandbox', values['shell-sandbox'])
   if (effort === undefined && values['effort'] !== undefined)
-    return invalid(fill(UI_TEXT.execValueInvalid, { option: '--effort' }))
-  const timeout = integer(
-    values['timeout'],
-    EXEC_DEFAULT_TIMEOUT_SECONDS,
-    EXEC_MIN_TIMEOUT_SECONDS,
-    EXEC_MAX_TIMEOUT_SECONDS,
-  )
-  // The six-decimal sentence is true only of the budget; a wrong timeout
-  // or request count names its own flag instead (D119).
+    return invalidFlagValue('effort', values['effort'])
+  // No default: without `--timeout` the run has no deadline of ours. A set
+  // deadline is any positive safe integer of seconds: no provider publishes a
+  // run deadline, so the product sets no maximum (the deadline timer re-arms
+  // past Node's setTimeout ceiling instead of overflowing). Zero, negatives
+  // and non-numbers are refused as not a time.
+  const timeout =
+    values['timeout'] === undefined
+      ? undefined
+      : integer(values['timeout'], 0, 1, Number.MAX_SAFE_INTEGER)
   // No default: without `--max-requests` the run has no request limit. A set
   // value is any positive safe integer; no provider publishes a maximum.
   const maxRequests =
@@ -284,9 +297,6 @@ export function parseExec(
     return invalid(
       fill(UI_TEXT.execOutputCapExceeded, { cap: String(MODEL_API_MAX_OUTPUT_TOKENS) }),
     )
-  if (timeout === undefined) return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--timeout' }))
-  if (maxRequests === undefined && values['max-requests'] !== undefined)
-    return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--max-requests' }))
   const budgetUsd = budgetUnits(values['max-budget-usd'])
   // TOOLCAP: a present-but-below-floor guard is refused with its translated
   // sentence (the same words capRefusalReason renders where the window is
@@ -303,17 +313,20 @@ export function parseExec(
     return invalid(
       fill(UI_TEXT.toolResultCapBelowFloor, { floor: formatNumber(TOOL_RESULT_MIN_BYTES) }),
     )
-  if (
-    maxToolOutputBytes === undefined ||
-    (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
-  )
-    return invalid(UI_TEXT.execNumberInvalid)
+  if (maxToolOutputBytes === undefined) return invalid(UI_TEXT.execNumberInvalid)
+  if (timeout === undefined && values['timeout'] !== undefined)
+    return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--timeout' }))
+  if (maxRequests === undefined && values['max-requests'] !== undefined)
+    return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--max-requests' }))
+  if (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
+    return invalid(
+      `${fill(UI_TEXT.acpUnknownArgument, { argument: flagArgument('max-budget-usd', values['max-budget-usd']) })}: ${UI_TEXT.execNumberInvalid}`,
+    )
   if (backend === 'modelApi' && budgetUsd === undefined) return invalid(UI_TEXT.execBudgetRequired)
-  if (
-    values['output-schema'] === '' ||
-    (values['output-schema-outside'] === true && values['output-schema'] === undefined)
-  )
-    return invalid(UI_TEXT.execUsage)
+  if (values['output-schema'] === '')
+    return invalidFlagValue('output-schema', values['output-schema'])
+  if (values['output-schema-outside'] === true && values['output-schema'] === undefined)
+    return invalidFlagValue('output-schema-outside', values['output-schema-outside'])
   if (
     backend === 'museCode' &&
     [
@@ -393,7 +406,7 @@ export function parseExec(
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,
       maxToolOutputBytes: backend === 'modelApi' ? maxToolOutputBytes : undefined,
       ...(backend === 'modelApi' && maxOutputTokens !== undefined && { maxOutputTokens }),
-      timeoutMs: timeout * MILLISECONDS_PER_SECOND,
+      timeoutMs: timeout === undefined ? undefined : timeout * MILLISECONDS_PER_SECOND,
       paidFeatures: [
         ...(values['image-generation'] === true ? (['imageGeneration'] as const) : []),
         ...(values['auto-compaction'] === true ? (['autoCompaction'] as const) : []),

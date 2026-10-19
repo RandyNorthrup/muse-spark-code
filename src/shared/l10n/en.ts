@@ -450,7 +450,8 @@ export const EN = {
     'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
     'max-output-tokens':
       'Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it.',
-    timeout: 'Set the run deadline in seconds.',
+    timeout:
+      'Set the run deadline in seconds (any positive integer); without it the run has no deadline of its own.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
     ephemeral: 'Keep the session in memory without saving it.',
     'key-stdin':

@@ -376,6 +376,27 @@ describe('key intake, inputs and the job deadline', () => {
     expect(() => bootstrapStartMs({})).toThrow('MUSE_CI_BOOTSTRAP_START_MS')
     expect(requiredJobMinutes({ timeoutMinutes: 20 })).toBeLessThanOrEqual(35)
     expect(requiredRunMs({ timeoutMinutes: 20 })).toBeLessThan(35 * 60_000)
+    // No timeout-minutes leaves no total of ours: only the fixed tail needs
+    // to fit the job, and a shortfall names the missing deadline honestly.
+    expect(requiredRunMs({ timeoutMinutes: null })).toBeLessThan(
+      requiredRunMs({ timeoutMinutes: 20 }),
+    )
+    const freshNull = {
+      CI_JOB_TIMEOUT: '2100',
+      CI_JOB_STARTED_AT: new Date(now).toISOString(),
+    }
+    expect(() => {
+      checkJobDeadline(freshNull, 'gitlab', { timeoutMinutes: null }, now)
+    }).not.toThrow()
+    // A job with less than the fixed tail left is refused even with no
+    // deadline: the tail, not a turn, is what must fit.
+    const nearlySpent = {
+      CI_JOB_TIMEOUT: '2100',
+      CI_JOB_STARTED_AT: new Date(now - 35 * 60_000).toISOString(),
+    }
+    expect(() => {
+      checkJobDeadline(nearlySpent, 'gitlab', { timeoutMinutes: null }, now)
+    }).toThrow('no deadline needs a job timeout of at least')
     expect(jobMinutes({ CI_JOB_TIMEOUT: '2100' }, 'gitlab')).toBe(35)
     expect(jobMinutes({ MUSE_CI_JOB_TIMEOUT_MINUTES: '35' }, 'azure')).toBe(35)
     expect(() => jobMinutes({}, 'jenkins')).toThrow('MUSE_CI_JOB_TIMEOUT_MINUTES')

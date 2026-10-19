@@ -14,9 +14,6 @@ import {
   EFFORT_LEVELS,
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
-  EXEC_DEFAULT_TIMEOUT_SECONDS,
-  EXEC_MAX_TIMEOUT_SECONDS,
-  EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MODES,
   EXEC_OUTPUTS,
   EXEC_SCAN_EXIT_FOUND,
@@ -126,12 +123,12 @@ function factFor(name: string): CliOptionFact | undefined {
       }
     }
     case 'timeout': {
+      // No default of ours: unset, a run has no deadline. No maximum
+      // of ours either: a set value is any positive safe integer.
       return {
         kind: 'range',
-        min: EXEC_MIN_TIMEOUT_SECONDS,
-        max: EXEC_MAX_TIMEOUT_SECONDS,
-        default: EXEC_DEFAULT_TIMEOUT_SECONDS,
-        unit: 'seconds',
+        min: 1,
+        max: Number.MAX_SAFE_INTEGER,
       }
     }
     case 'max-budget-usd': {

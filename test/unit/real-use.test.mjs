@@ -11,7 +11,6 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { EXEC_TIMEOUT_MAX_SECONDS } from '../../action/lib/result.mjs'
 import {
   buildExecArgs,
   checkNoLeak,
@@ -20,7 +19,6 @@ import {
   parseBudgetUsd,
   parseStepsFile,
   REAL_USE_MODEL,
-  REAL_USE_STEP_TIMEOUT_SECONDS,
   RealUseInputError,
   resolveStepsFile,
   verdictForStep,
@@ -57,10 +55,6 @@ describe('tonight steps file', () => {
       expectStatus: 'budget_exceeded',
       expectNoRequests: true,
     })
-  })
-
-  it('runs a step under the product CLI ceiling, never a repo time box', () => {
-    expect(REAL_USE_STEP_TIMEOUT_SECONDS).toBe(EXEC_TIMEOUT_MAX_SECONDS)
   })
 })
 

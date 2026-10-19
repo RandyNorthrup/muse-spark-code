@@ -24,9 +24,9 @@
 # Inputs, as repository variables (empty or unset takes the default; an
 # explicitly empty MUSE_INPUT_MAX_BUDGET_USD stays empty and is refused):
 #   MUSE_INPUT_MODE                     review (plan mode, no edits) or fix (a patch is proposed)
-#   MUSE_INPUT_MAX_BUDGET_USD           hard USD cap, more than 0, at most 20; 2.00 when unset
-#   MUSE_INPUT_MAX_REQUESTS             billable HTTP attempts, retries included (1-500); 30
-#   MUSE_INPUT_TIMEOUT_MINUTES          the run's deadline (1-360); 20; max-time must cover it
+#   MUSE_INPUT_MAX_BUDGET_USD           hard USD cap, more than 0; 2.00 when unset
+#   MUSE_INPUT_MAX_REQUESTS             billable HTTP attempts, retries included (any positive integer); empty sets no request limit
+#   MUSE_INPUT_TIMEOUT_MINUTES          the run's deadline (any positive integer); 20; max-time must cover it
 #   MUSE_INPUT_MODEL                    Model API model id; the agent's default
 #   MUSE_INPUT_EFFORT                   reasoning effort; the model's default
 #   MUSE_INPUT_ALLOW_CONTRIBUTOR_MODELS true allows a contributor model (training-eligible); false

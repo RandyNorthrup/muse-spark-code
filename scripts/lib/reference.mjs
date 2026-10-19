@@ -868,10 +868,9 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       maximum: source.MODEL_API_MAX_OUTPUT_TOKENS,
       unit: 'tokens',
     },
+    // No default: without `--timeout` a run has no deadline of ours.
     timeout: {
-      default: source.EXEC_DEFAULT_TIMEOUT_SECONDS,
-      minimum: source.EXEC_MIN_TIMEOUT_SECONDS,
-      maximum: source.EXEC_MAX_TIMEOUT_SECONDS,
+      minimum: 1,
       unit: 'seconds',
     },
     // D121: the person's --max-budget-usd has no ceiling of ours (the removed
@@ -1065,12 +1064,19 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   for (const refused of ['0', '-1', 'abc'])
     if (exec(['--max-requests', refused]).command !== 'invalid')
       errors.push('CLI request bound mismatch')
-  for (const value of [source.EXEC_MIN_TIMEOUT_SECONDS, source.EXEC_MAX_TIMEOUT_SECONDS])
+  if (exec([]).options?.timeoutMs !== undefined)
+    errors.push('CLI timeout mismatch: --timeout unset must leave no deadline')
+  if (exec(['--timeout', '1']).options?.timeoutMs !== 1 * source.MILLISECONDS_PER_SECOND)
+    errors.push('CLI timeout limit mismatch')
+  for (const refused of ['0', '-1', 'abc'])
+    if (exec(['--timeout', refused]).command !== 'invalid')
+      errors.push('CLI timeout bound mismatch')
+  for (const value of ['21601', '1000000'])
     if (
-      exec(['--timeout', String(value)]).options?.timeoutMs !==
-      value * source.MILLISECONDS_PER_SECOND
+      exec(['--timeout', value]).options?.timeoutMs !==
+      Number(value) * source.MILLISECONDS_PER_SECOND
     )
-      errors.push('CLI timeout limit mismatch')
+      errors.push('CLI timeout mismatch: a set deadline has no maximum')
   for (const flag of ['--trust-workspace', '--allow-dangerously-skip-permissions', '--web-search'])
     if (exec([flag]).command !== 'invalid') errors.push(`CLI refusal mismatch: ${flag}`)
   // referenceCliOptions['questions-defer-after'] states the parser's own normalization.
@@ -1472,13 +1478,7 @@ export function publishedReference(model, source) {
       (command) =>
         !['estimate', 'vault', ...(isScheduleReady ? [] : ['schedule'])].includes(command.name),
     ),
-    cli: model.cli.filter(
-      (command) =>
-        !hiddenRoutes.has(command.route) &&
-        // `--account` is served (CM108ACC); pooling is refused until its owner is bound.
-        !/(?:^|\s)--(?:vault|no-auto-compaction|account-pool)(?:\s|$)/.test(command.name) &&
-        (isScheduleReady || !/(?:^|\s)--scheduled-prompts(?:\s|$)/.test(command.name)),
-    ),
+    cli: model.cli.filter((command) => !hiddenRoutes.has(command.route)),
     shortcuts: model.shortcuts.filter(
       (shortcut) => !commands.has(shortcut.command) && shortcut.command !== 'team.tree',
     ),

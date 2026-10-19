@@ -164,7 +164,7 @@ describe('M80 args (A1–A10, F1)', () => {
       backend: 'museCode',
       mode: 'plan',
       output: 'text',
-      timeoutMs: 1_800_000,
+      timeoutMs: undefined,
       prompt: { kind: 'text', text: 'hi' },
       maxRequests: undefined,
       paidFeatures: [],
@@ -238,6 +238,7 @@ describe('M80 args (A1–A10, F1)', () => {
     // docs/certification/pr228fix.md (2026-10-18, rig macmini).
     ['20.01', 20_010_000],
     ['250.50', 250_500_000],
+    ['250.5', 250_500_000],
     ['0001.000001', 1_000_001],
   ])('F1 parses %s directly into exact micro-USD', (value, units) => {
     const parsed = parseExec({ backend: 'modelApi', 'max-budget-usd': value }, ['hi'])
@@ -262,8 +263,7 @@ describe('M80 args (A1–A10, F1)', () => {
     { backend: 'auto' },
     { output: 'xml' },
     { effort: 'unknown' },
-    { timeout: '9' },
-    { timeout: '21601' },
+    { timeout: '0' },
     { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': '0' },
     { backend: 'modelApi', 'max-budget-usd': '1', 'max-tool-output-bytes': '0' },
     { backend: 'modelApi', 'max-budget-usd': '1', 'max-tool-output-bytes': '1023' },
@@ -316,6 +316,44 @@ describe('M80 args (A1–A10, F1)', () => {
         'hi',
       ]),
     ).toMatchObject({ command: 'exec', options: { maxOutputTokens: 2000 } })
+  })
+  it('leaves no request limit without --max-requests and accepts any positive count', () => {
+    // No provider publishes a request-count maximum, so a set value has none.
+    const parsed = parseExec({ backend: 'modelApi', 'max-budget-usd': '1' }, ['hi'])
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(parsed.reason)
+    expect(parsed.options.maxRequests).toBeUndefined()
+    for (const value of ['0', '-1', 'abc', '10x']) {
+      expect(
+        parseExec({ backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': value }, ['hi']).ok,
+      ).toBe(false)
+    }
+    for (const value of ['1', '500', '501', '1000000']) {
+      const accepted = parseExec(
+        { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': value },
+        ['hi'],
+      )
+      expect(accepted.ok).toBe(true)
+      if (!accepted.ok) throw new Error(accepted.reason)
+      expect(accepted.options.maxRequests).toBe(Number(value))
+    }
+  })
+  it('leaves no deadline without --timeout and honors any positive duration', () => {
+    // No provider publishes a run deadline, so the product sets neither a
+    // default nor a maximum; 0, negatives and non-numbers are not a time.
+    const unset = parseExec({}, ['hi'])
+    expect(unset.ok).toBe(true)
+    if (!unset.ok) throw new Error(unset.reason)
+    expect(unset.options.timeoutMs).toBeUndefined()
+    for (const value of ['0', '-1', 'abc', '10x']) {
+      expect(parseExec({ timeout: value }, ['hi']).ok).toBe(false)
+    }
+    for (const value of ['1', '9', '10', '21601', '1000000']) {
+      const accepted = parseExec({ timeout: value }, ['hi'])
+      expect(accepted.ok).toBe(true)
+      if (!accepted.ok) throw new Error(accepted.reason)
+      expect(accepted.options.timeoutMs).toBe(Number(value) * 1000)
+    }
   })
   it('accepts full bounded Model API options and the two alternate prompt sources', () => {
     const values = {
