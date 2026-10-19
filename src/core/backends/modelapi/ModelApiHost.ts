@@ -150,8 +150,7 @@ import {
   QUESTION_OUTCOME_DEFERRED,
   REPO_MAP_PROMPT_TRIES,
   WEB_SEARCH_MAX_PER_REQUEST,
-  WEB_SEARCH_MIN_PER_REQUEST,
-  WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
+  webSearchMaxCallsFor,
   SHELL_DEFAULT_TIMEOUT_MS,
   SKILL_FILE_NAME,
   STORED_SESSION_VERSION,
@@ -789,7 +788,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
         }
       }
     | undefined
-  /** The configured bound is captured once for the session (D86.1). */
+  /** The configured bound, 0 for none of ours, captured once for the session (D86.1). */
   readonly webSearchMaxPerRequest?: () => number
   /**
    * Stop-hook continuations in a row (M127, D121: 0 is no limit of ours):
@@ -5476,24 +5475,31 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
   }
 
-  private webSearchBound(): number | undefined {
+  /** The model's record offers hosted search with a max-calls tool (D121). */
+  private webSearchCapable(): boolean {
     const hosted = this.deps.modelCapabilities?.(this.modelId)?.hosted
     const price = this.deps.client.searchPriceUsd?.(this.modelId)
-    return price !== undefined &&
+    return (
+      price !== undefined &&
       Usd.from(price).compare(Usd.from(0)) >= 0 &&
       hosted?.webSearch.state === 'yes' &&
       hosted.webSearch.value.tool === MODEL_API_WEB_SEARCH_TOOL &&
-      hosted.maxToolCalls.state === 'yes' &&
-      Number.isSafeInteger(this.searchMaxPerRequest) &&
-      this.searchMaxPerRequest >= WEB_SEARCH_MIN_PER_REQUEST &&
-      this.searchMaxPerRequest <= WEB_SEARCH_MAX_PER_REQUEST_LIMIT
-      ? this.searchMaxPerRequest
-      : undefined
+      hosted.maxToolCalls.state === 'yes'
+    )
+  }
+
+  /**
+   * The request's max of ours (D121): 0 sends none and the provider decides
+   * how many hosted searches run; a set value stays within 1–20.
+   */
+  private webSearchBound(): number | undefined {
+    return this.webSearchCapable() ? webSearchMaxCallsFor(this.searchMaxPerRequest) : undefined
   }
 
   private canOfferWebSearch(): boolean {
     return (
-      this.webSearchBound() !== undefined ||
+      (this.webSearchCapable() &&
+        (this.searchMaxPerRequest === 0 || this.webSearchBound() !== undefined)) ||
       (this.deps.modelCapabilities === undefined &&
         !this.deps.client.hasPaidDailyBudget &&
         Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) <= 0)

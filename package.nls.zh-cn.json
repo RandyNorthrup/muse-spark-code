@@ -195,7 +195,7 @@
   "config.modelApiAutoCompaction.description": "默认开启。在稳定的工具边界压缩长 Model API 对话；每次摘要都是付费模型调用。付费使用同意通知会在首次收费前列出价格和每日预算。ACP 代理通过编辑器权限请求询问一次，在客户端无法询问时保持关闭；无头 exec 仅在 --auto-compaction 和 --max-budget-usd 下运行它。",
   "config.modelApiStrictTools.description": "当所选模型支持时，使用严格的工具架构。关闭后保留原有工具声明。",
   "config.modelApiParallelReads.description": "并发执行安全的只读工具调用，每次最多四个。其他工具调用按顺序执行。",
-  "config.webSearchMaxPerRequest.description": "每次回答允许的服务端网页搜索次数上限（1–20，默认 5）。首次收费前会显示价格和共享每日预算。",
+  "config.webSearchMaxPerRequest.description": "每次回答允许的服务端网页搜索次数上限。除非自行设置，否则不限：默认为0，不发送上限，由服务方决定；设置值须在1–20范围内。首次收费前会显示价格和共享每日预算。",
   "config.modelApiMaxRetries.description": "失败的模型 API 请求的重试上限，按首次之后的每次尝试计算（0 表示不重试）。默认未设置：适用各提供商文档记载的上限（Anthropic 2、OpenAI 2、Gemini 4、Azure 10、xAI 4、Meta 4），未记载上限的提供商会一直重试，直到其自身的等待或停止应答结束本次交互。",
   "config.hooksMaxStopContinuations.description": "Stop挂钩连续让已结束轮次继续的次数。除非自行设置，否则不限：默认为0，会一直继续到轮次自行结束；设置值须在Muse Code自身的1–8范围内，更高的值会被拒绝，任何工作区都无法调高。",
   "config.hooksMaxRunningCommands.description": "同时运行的挂钩命令数（最小0）。0会像Muse Code一样一次性全部启动。",

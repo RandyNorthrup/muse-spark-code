@@ -1526,10 +1526,10 @@
         },
         "museSpark.webSearchMaxPerRequest": {
           "type": "number",
-          "default": 5,
+          "default": 0,
           "scope": "machine",
           "description": "%config.webSearchMaxPerRequest.description%",
-          "minimum": 1,
+          "minimum": 0,
           "maximum": 20
         },
         "museSpark.modelApiMaxRetries": {
