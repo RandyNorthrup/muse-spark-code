@@ -151,3 +151,44 @@ after the wait instead of before it.
 | `vitest run` runtimeManifest, browserLaunch, browserPolicy, browserCheckLive, browserCheckR51 | 0: 25 passed, 8 skipped (no pinned runtime here) |
 | `npm run build` (sizes, split, host globals, notices)                                         | 0                                                |
 | `npm run check:roadmap`, `npm run check:plan`                                                 | 0, 0                                             |
+
+## Review round 2 (PR #222's two Codex threads; lane PR222W2, 2026-10-18)
+
+Both threads describe the code as of `1107cb834c` (a 5 s startup cap, the
+targets read before the wait) and are already fixed on this branch by
+`0b1782b067`; no new source change was needed. Re-verified on this head
+(`89e951dbcd`):
+
+- **P2, `browserRun.ts`: re-read startup targets after the wait.** Answered
+  by `0b1782b067`. `holdToContract` awaits `startedNetworkServiceId(page)`
+  (`browserRun.ts:606`) before `Target.getTargets` (`browserRun.ts:608`),
+  so the exactly-one-`about:blank` test (`browserRun.ts:610`) judges the
+  browser as it stands after the wait; a target that appears during the
+  wait is seen and refused `unrecognized`.
+- **P1, `browserCheckConstants.ts`: no hard-coded startup cap.** Answered
+  by `0b1782b067`. `BROWSER_NETWORK_SERVICE_START_MS` exists nowhere in
+  `src/` (grep clean); only the 50 ms re-ask interval
+  (`BROWSER_NETWORK_SERVICE_POLL_MS`) stays, which stops nothing. The wait
+  ends with the check's own 60-second lifetime: its end closes the pipe,
+  which wakes the wait and fails the next ask, ending the check `timedOut`
+  or `cancelled` with no request made.
+- **Hosted CI failures.** The lane brief lists none after the threads, so
+  there is nothing further to fix here; `gh` has no authentication on this
+  rig, so the hosted status could not be read from here. The lead confirms
+  on fetch.
+- **No new test.** The ordering across two live CDP calls cannot be pinned
+  without a stand-in pipe, which the no-fakes rule forbids; the committed
+  proof stays the round-1 contended measurement with its deliberate break
+  above, and the live suite (`browserCheckLive`) exercises this path with
+  real Chrome.
+
+| Gate (round 2; no source change, full lane gates re-run on this head)   | Exit                                         |
+| ----------------------------------------------------------------------- | -------------------------------------------- |
+| `prettier --check` (changed file)                                       | 0                                            |
+| `eslint --max-warnings 0` (`browserRun.ts`, `browserCheckConstants.ts`) | 0                                            |
+| `npm run typecheck` (all projects)                                      | 0                                            |
+| `node scripts/check-l10n.mjs`                                           | 0 (0 problems)                               |
+| `npm run build` (sizes, split, host globals, notices)                   | 0                                            |
+| `vitest run` runtimeManifest, browserLaunch, browserPolicy              | 0: 25 passed                                 |
+| `vitest run` browserCheckLive, browserCheckR51                          | 0: 8 skipped (no pinned runtime on this rig) |
+| `npm run check:plan`                                                    | 0 (0 drift)                                  |
