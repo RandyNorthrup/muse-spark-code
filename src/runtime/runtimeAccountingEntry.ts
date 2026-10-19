@@ -269,12 +269,14 @@ export function createRuntimeDailyBudget(deps: {
           },
         })
       } catch (error: unknown) {
-        // NARROW: the check's own refusal and an aborted turn reject the
+        // NARROW: the check's own stop (a paid stop such as the daily-budget
+        // refusal), its midnight refusal and an aborted turn reject the
         // returned promise, never throw synchronously; anything else
         // rethrows for the caller to see.
         if (
           error instanceof UserRefusalError ||
-          (error instanceof DOMException && error.name === 'AbortError')
+          (error instanceof DOMException && error.name === 'AbortError') ||
+          (error instanceof Error && isPaidStop(error))
         )
           return Promise.reject(error)
         throw error
