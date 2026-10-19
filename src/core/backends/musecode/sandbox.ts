@@ -19,6 +19,8 @@ import {
   LINUX_SANDBOX_PROBE_ARGS,
   LINUX_SANDBOX_PROBE_COMMAND,
   LINUX_SANDBOX_PROBE_TIMEOUT_MS,
+  MUSE_CONTRIBUTOR_MODE_ARG,
+  MUSE_CONTRIBUTOR_MODE_ON,
   MUSE_DISABLE_SANDBOX_ARG,
   MUSE_DISABLE_SHELL_ARG,
   MUSE_SANDBOX_CHECK_ARGS,
@@ -371,17 +373,20 @@ export function isSandboxNetworkApplied(
  * the workspace's trust on the host. A trusted workspace loads its rules and
  * skills (Muse Code's `--trust-workspace`); an untrusted one gets no rules,
  * no skills and no workspace shell, VS Code's Restricted Mode contract
- * (PLAN.md D13).
+ * (PLAN.md D13). `isContributorMode` is the person's own Muse Code settings
+ * (`contributor_mode_enabled`); absent reads as off, never defaulted on.
  */
 export function serveArguments(
   posture: ShellSandboxPosture,
   isWorkspaceTrusted: boolean,
   network: SandboxNetworkMode,
+  isContributorMode = false,
 ): readonly string[] {
   return [
     ...MUSE_SERVE_ARGS,
     ...(posture.isSandboxed ? [] : [MUSE_DISABLE_SANDBOX_ARG]),
     ...(isSandboxNetworkApplied(network, posture) ? [MUSE_SANDBOX_NETWORK_ARG, network] : []),
+    ...(isContributorMode ? [MUSE_CONTRIBUTOR_MODE_ARG, MUSE_CONTRIBUTOR_MODE_ON] : []),
     isWorkspaceTrusted ? MUSE_TRUST_WORKSPACE_ARG : MUSE_DISABLE_SHELL_ARG,
   ]
 }

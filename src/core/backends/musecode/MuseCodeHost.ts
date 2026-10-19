@@ -46,6 +46,7 @@ import {
   APPROVAL_REJECT_ATTEMPTS,
   APPROVAL_REJECT_DEADLINE_MS,
   CLARIFICATION_FORMAT,
+  CONTRIBUTOR_MODEL_SUFFIX,
   GOAL_RECOVERY_MAX_PAGES,
   GOAL_RECOVERY_PAGE_LIMIT,
   JSON_RPC_ERRORS,
@@ -251,6 +252,16 @@ export interface MuseCodeFeaturePorts {
   readonly modelEfforts?: {
     parseModel(row: unknown): MuseCodeEffortInfo
   }
+  /**
+   * True while this host's `serve` runs with `--contributor-mode on` (the
+   * person's own Muse Code settings enabled it); absent reads as off. The
+   * CLI's `model/list` never names contributor-tier models (verified
+   * 2026-10-18 on 1.4.10: the same four ids with and without the flag), so
+   * `listModels` derives each listed model's `-contributor` counterpart by
+   * name while this holds. The provider, not the product, decides whether
+   * the person may use one.
+   */
+  readonly contributorMode?: boolean
 }
 
 const SESSION_LIST_CHANGED = 'session/listChanged'
@@ -433,6 +444,52 @@ export function toModelSummary(
     ...(tiers !== undefined && tiers.levels.length > 0 && { effortLevels: [...tiers.levels] }),
     ...(tiers?.defaultEffort !== undefined && { defaultEffort: tiers.defaultEffort }),
   }
+}
+
+/**
+ * One listed base model's contributor counterpart, by name: the CLI accepts
+ * `<base>-contributor` at `session/start` for every listed base (verified
+ * 2026-10-18 on 1.4.10 for all four served ids, and the CLI's own bundled
+ * code-review agent names `muse-wonder-full-1.0-contributor`), while
+ * `model/list` never serves the row itself. Limits and effort support are
+ * the base row's own; the label is the id, never an invented name; a
+ * contributor session is never flagged active on the wire, so neither is
+ * the derived row.
+ */
+export function toContributorSummary(base: MuseCodeModelSummary): MuseCodeModelSummary {
+  return {
+    modelId: `${base.modelId}${CONTRIBUTOR_MODEL_SUFFIX}`,
+    displayLabel: `${base.modelId}${CONTRIBUTOR_MODEL_SUFFIX}`,
+    contextLimit: base.contextLimit,
+    ...(base.outputLimit !== undefined && { outputLimit: base.outputLimit }),
+    isDefault: false,
+    isActive: false,
+    ...(base.variants !== undefined && { variants: base.variants }),
+    ...(base.reasoningEffortVariants !== undefined && {
+      reasoningEffortVariants: base.reasoningEffortVariants,
+    }),
+    ...(base.defaultReasoningEffort !== undefined && {
+      defaultReasoningEffort: base.defaultReasoningEffort,
+    }),
+  }
+}
+
+/**
+ * The contributor counterparts of a `model/list` reading: one per listed
+ * base model, skipping rows that already name the tier (so a future CLI
+ * that serves the rows itself never doubles them).
+ */
+export function contributorModelSummaries(
+  models: readonly MuseCodeModelSummary[],
+): readonly MuseCodeModelSummary[] {
+  const listed = new Set(models.map((model) => model.modelId))
+  return models
+    .filter(
+      (model) =>
+        !model.modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX) &&
+        !listed.has(`${model.modelId}${CONTRIBUTOR_MODEL_SUFFIX}`),
+    )
+    .map((model) => toContributorSummary(model))
 }
 
 /**
@@ -3369,7 +3426,12 @@ export class MuseCodeHost implements AgentHost {
     })
   }
 
-  /** The visible model catalogue; with a session id the active row is flagged. */
+  /**
+   * The visible model catalogue; with a session id the active row is
+   * flagged. While this host runs with `--contributor-mode on`, each
+   * listed model's `-contributor` counterpart rides along (the CLI serves
+   * no such row itself); otherwise the wire reading stands as served.
+   */
   public async listModels(
     sessionId?: string,
     signal?: AbortSignal,
@@ -3384,9 +3446,12 @@ export class MuseCodeHost implements AgentHost {
       },
       signal,
     )
-    return modelListResultSchema
+    const models = modelListResultSchema
       .parse(result)
       .models.map((model) => toModelSummary(model, this.features.modelEfforts))
+    return this.features.contributorMode === true
+      ? [...models, ...contributorModelSummaries(models)]
+      : models
   }
 
   /** Registered literal secrets remain in the host; only the scrubbed note is previewed. */

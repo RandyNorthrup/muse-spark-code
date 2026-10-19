@@ -825,6 +825,13 @@ happened, not what was planned; superseded entries are kept.
   despite the person's opt-in. With `--allow-contributor-models` a
   contributor-tier id is now attempted and the CLI's answer stands; anything
   else is still refused before anything is sent.
+- The Muse Code backend honours the person's contributor mode. While their
+  own Muse Code settings enable it (`contributor_mode_enabled`), `serve`
+  starts with `--contributor-mode on`, and the model picker, `exec --model`,
+  ACP `session/set_config_option` and the panel list each served model's
+  `-contributor` counterpart by name (the CLI serves no such row itself).
+  Choosing one keeps the existing contributor confirmation, and someone not
+  entitled hears the provider's own refusal. Nothing of ours defaults it on.
 
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
