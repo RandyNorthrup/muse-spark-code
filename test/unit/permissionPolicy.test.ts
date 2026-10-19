@@ -88,6 +88,20 @@ describe('compilePolicy: profiles (M78)', () => {
     expect(policy.problems[0]).toMatchObject({ kind: 'profileInvalid', name: 'bad' })
   })
 
+  it('fails closed on a deny-read glob past the compiler caps, naming only its kind', () => {
+    const long = `*.${'x'.repeat(300)}`
+    const policy = compilePolicy(
+      settings({ profiles: { locked: { denyRead: [long] } }, profile: 'locked' }),
+      'linux',
+    )
+    expect(policy.files.isDenyAll).toBe(true)
+    expect(policy.files.isDenied(['anything.txt'])).toBe(true)
+    expect(policy.problems).toEqual([{ kind: 'globInvalid', glob: long, detail: 'RangeError' }])
+    const said = describePolicyProblem(policy.problems[0]!)
+    expect(said).toContain('RangeError')
+    expect(said).not.toContain('256')
+  })
+
   it('does not silently drop misspelled or unsupported profile restrictions', () => {
     const policy = compilePolicy(
       settings({ profiles: { locked: { denyread: ['private.txt'] } }, profile: 'locked' }),

@@ -466,7 +466,7 @@ export class ModelApiClient implements TransportProviderClient {
       // Bounded like every other Model API body: an oversized status page is
       // cancelled at the cap instead of being buffered whole before zod runs.
       return modelApiStatusSchema.parse(JSON.parse(await readBoundedText(response)))
-    } catch {
+    } catch (error: unknown) {
       // Shared scrubber plus an allowlist: provider prose, identifiers, stack and causes never cross.
       const failure = new ModelApiError(
         redactSecrets(UI_TEXT.modelApiStatusUnavailable),
@@ -474,7 +474,7 @@ export class ModelApiClient implements TransportProviderClient {
         'service_status',
         undefined,
       )
-      throw Object.assign(failure, { retryAfterMs: retryAfter })
+      throw Object.assign(failure, { retryAfterMs: retryAfter, cause: error })
     }
   }
 
@@ -686,7 +686,8 @@ export class ModelApiClient implements TransportProviderClient {
           let json: unknown
           try {
             json = JSON.parse(frame.data)
-          } catch {
+          } catch (error: unknown) {
+            if (!(error instanceof SyntaxError)) throw error
             throw new ModelApiError(
               // Its length, not its text: the frame is model output, and this
               // message becomes the failed turn's reason in the log (M39).
@@ -796,6 +797,8 @@ export class ModelApiClient implements TransportProviderClient {
           )
         }
       } catch (error: unknown) {
+        // The stream ended in an error; the redacted failure keeps its cause below.
+        this.deps.log.warn('A Model API stream ended before its terminal event')
         await rethrowStreamError(error, redact, response.status)
       } finally {
         // An early end (a malformed frame, a stall, the caller stopping)

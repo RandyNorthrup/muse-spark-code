@@ -28,7 +28,8 @@ export function parseRunChecks(
   let raw: unknown
   try {
     raw = JSON.parse(argsJson)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return { ok: false, reason: 'arguments are not valid JSON' }
   }
   const parsed = runChecksArgs.safeParse(raw)
@@ -54,7 +55,8 @@ export function thenRunOf(argsJson: string): ThenRunRequest {
   let raw: unknown
   try {
     raw = JSON.parse(argsJson)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     // The edit tool itself refuses arguments that are not JSON.
     return { kind: 'absent' }
   }

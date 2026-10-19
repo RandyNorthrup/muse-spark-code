@@ -350,7 +350,8 @@ export function readChatReasoning(
   let parsed: unknown
   try {
     parsed = JSON.parse(encryptedContent)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   const result = chatReasoningEnvelopeSchema.safeParse(parsed)
@@ -1357,7 +1358,8 @@ export class ChatStreamDecoder {
       }
       try {
         raw = JSON.parse(trimmed)
-      } catch {
+      } catch (error: unknown) {
+        if (!(error instanceof SyntaxError)) throw error
         return this.fail('malformed_chunk')
       }
     }
@@ -1372,12 +1374,9 @@ export class ChatStreamDecoder {
     ) {
       return events
     }
-    let chunk: ChatChunk
-    try {
-      chunk = chatChunkSchema.parse(raw)
-    } catch {
-      return this.fail('malformed_chunk')
-    }
+    const parsed = chatChunkSchema.safeParse(raw)
+    if (!parsed.success) return this.fail('malformed_chunk')
+    const chunk: ChatChunk = parsed.data
     const error = readStreamError(chunk)
     if (error !== undefined) {
       this.streamError = error

@@ -508,7 +508,8 @@ export function createResponsesCodec(
         let json: unknown
         try {
           json = JSON.parse(frame.data)
-        } catch {
+        } catch (error: unknown) {
+          if (!(error instanceof SyntaxError)) throw error
           throw new ResponsesDecodeError('invalid JSON', frame.data.length)
         }
         const typed = eventTypeSchema.safeParse(json)

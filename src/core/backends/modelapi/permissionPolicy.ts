@@ -97,11 +97,10 @@ function validGlobs(
       compileGlob(lower)
       valid.push(lower)
     } catch (error: unknown) {
-      problems.push({
-        kind: 'globInvalid',
-        glob,
-        detail: error instanceof Error ? error.message : String(error),
-      })
+      // compileGlob fails only on a RangeError (past the length or
+      // alternative caps); anything else is not the glob's fault.
+      if (!(error instanceof RangeError)) throw error
+      problems.push({ kind: 'globInvalid', glob, detail: error.name })
       isDenyAll = true
     }
   }

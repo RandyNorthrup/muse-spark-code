@@ -337,6 +337,34 @@ describe('encodeOllamaRequest', () => {
       ).body,
     ).not.toContain('"thinking":')
   })
+  it('drops a thinking envelope that is not JSON, keeping the request', () => {
+    const loop = toolLoop()
+    const damaged = encodeOllamaRequest(
+      {
+        ...loop,
+        input: loop.input.map((item) =>
+          item.type === 'reasoning'
+            ? { ...item, encrypted_content: 'ollama-thinking-v2:{oops' }
+            : item,
+        ),
+      },
+      encodeOptions,
+    ).body
+    expect(damaged).not.toContain('"thinking":')
+  })
+  it('passes non-JSON call arguments to the server instead of an empty object', () => {
+    const loop = toolLoop()
+    const passed = encodeOllamaRequest(
+      {
+        ...loop,
+        input: loop.input.map((item) =>
+          item.type === 'function_call' ? { ...item, arguments: '{oops' } : item,
+        ),
+      },
+      encodeOptions,
+    ).body
+    expect(passed).toContain('{oops')
+  })
   it('uses the installed language for codec refusals at invocation time', () => {
     const text = { ...EN, ollamaModelRequired: 'Modell fehlt.' }
     setUiText(text, 'de')
