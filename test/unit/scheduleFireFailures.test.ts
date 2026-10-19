@@ -3,16 +3,30 @@
 // and record nothing; settled recovery resolves with the proven fire; an
 // ambiguous or unvalidated recovery settles its failed accounting first and
 // then rejects so the poll record hears it.
+//
+// Real code throughout: the real scheduler over the real file-backed
+// schedule store and run journal in a real temp dir (the store serves both
+// ports, the way the production engine wires them), holding a real
+// schedulable schedule parsed by the real schema. Only the delivery layer
+// is scripted — its ledgers and outcomes are the scenario, the way a
+// recorded provider answer would be — and the clock is the host port's own
+// seam, fixed so run identities stay deterministic.
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { createScheduler, type SchedulerDeps } from '../../src/core/schedules/scheduler'
+import { createScheduleStore } from '../../src/core/schedules/store'
+import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import { scheduleFailedSettlement } from '../../src/runtime/schedules/engine'
 import type { ScheduleRunIntent } from '../../src/core/schedules/store'
 import { scheduleEventRunId } from '../../src/shared/scheduleEvents'
 import { Usd } from '../../src/shared/usd'
 import {
   scheduleFireRecordSchema,
+  scheduleV2Schema,
   type ScheduleDeliveryResult,
   type ScheduleDeliveryState,
   type ScheduleFireRecord,
@@ -26,7 +40,9 @@ const runId = scheduleEventRunId(scheduleId, { source: 'manual', eventKey: reque
 const nowMs = 1_700_000_000_000
 
 function job(): ScheduleV2 {
-  return {
+  // A real schedulable schedule: the store parses it on every read, so an
+  // invalid shape fails here instead of silently standing in.
+  return scheduleV2Schema.parse({
     id: scheduleId,
     name: 'Check the build',
     action: { kind: 'prompt', prompt: 'Read the build result and report any failures.' },
@@ -38,65 +54,39 @@ function job(): ScheduleV2 {
     mode: 'manual',
     grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(1).toAmount() },
     paidCapUsd: Usd.from(1).toAmount(),
-    parallel: true,
+    parallel: false,
     zone: 'America/Los_Angeles',
     pinned: false,
     version: 2,
-    revision: 2,
+    revision: 0,
     workspaceKey,
     paused: false,
     createdAtMs: nowMs,
     updatedAtMs: nowMs,
     nextFireAtMs: nowMs + 60_000,
-    fireCount: 2,
+    fireCount: 0,
     consecutiveFailures: 0,
     depth: 0,
     allowAgentReschedule: false,
     creator: { kind: 'agent', agentId: 'lead', sessionId: 'planning', orchestratorId: 'orch' },
-  }
+  })
 }
 
-function setup(state: {
+async function setup(state: {
   deliver: () => Promise<unknown>
   ledgers: [ScheduleDeliveryState, ...ScheduleDeliveryState[]]
 }) {
-  const recorded: ScheduleFireRecord[] = []
+  const dir = await mkdtemp(path.join(tmpdir(), 'muse-schedule-failures-'))
+  const store = createScheduleStore(createNodeScheduleFs(dir))
+  await store.create(job())
   const settlements: unknown[] = []
-  const admitted: ScheduleRunIntent[] = []
-  const stored = job()
   const remaining = [...state.ledgers]
   const last = state.ledgers.at(-1)!
   const deps: SchedulerDeps = {
-    store: {
-      create: () => Promise.resolve(),
-      list: () => Promise.resolve([stored]),
-      update: () => Promise.resolve(true),
-      remove: () => Promise.resolve(true),
-      claim: () => Promise.resolve(true),
-      record: (fire) => {
-        recorded.push(fire)
-        return Promise.resolve()
-      },
-      fires: () => Promise.resolve(recorded),
-    },
-    runs: {
-      admit: (intent) => {
-        admitted.push(intent)
-        return Promise.resolve(true)
-      },
-      advance: () => Promise.resolve(true),
-      pending: () => Promise.resolve([...admitted]),
-      abandoned: () => Promise.resolve([]),
-      acknowledge: (fire) => {
-        admitted.splice(
-          admitted.findIndex((intent) => intent.runId === fire.runId),
-          1,
-        )
-        return Promise.resolve()
-      },
-      acknowledged: () => Promise.resolve(undefined),
-      maintain: () => Promise.resolve(),
-    },
+    store,
+    runs: store,
+    // Single-flight requests: no concurrent dispatch shares a target, so the
+    // inline tail is the whole queue.
     queue: { serialize: (_key, work) => work() },
     host: {
       now: () => nowMs,
@@ -113,28 +103,19 @@ function setup(state: {
     deferEvent: () => Promise.resolve(),
     failureSettlement: (intent, error) => {
       settlements.push(error)
-      return Promise.resolve(
-        scheduleFireRecordSchema.parse({
-          runId: intent.runId,
-          scheduleId: intent.schedule.id,
-          workspaceKey: intent.schedule.workspaceKey,
-          occurrenceMs: intent.occurrenceMs,
-          observedAtMs: nowMs,
-          target: intent.schedule.target,
-          delivery: intent.schedule.delivery,
-          outcome: 'failed',
-          reason: 'Delivery failed: Error',
-          refusedActions: [],
-          cost: { usd: '0', certainty: 'unknown', retainedLiabilityUsd: '0' },
-          ...(intent.event !== undefined && { event: intent.event }),
-        }),
-      )
+      return Promise.resolve(scheduleFailedSettlement(intent, error, nowMs))
     },
   }
   const scheduler = createScheduler(deps)
   const fire = () =>
     scheduler.request({ method: 'schedules/runNow', workspaceKey, id: scheduleId }, requestId)
-  return { scheduler, fire, recorded, settlements }
+  return {
+    scheduler,
+    fire,
+    fires: () => store.fires(workspaceKey),
+    settlements,
+    cleanup: () => rm(dir, { recursive: true, force: true }),
+  }
 }
 
 function recoveredFire(outcome: 'ran', certainty: 'exact' | 'unknown'): ScheduleFireRecord {
@@ -157,45 +138,61 @@ function recoveredFire(outcome: 'ran', certainty: 'exact' | 'unknown'): Schedule
 describe('schedule delivery failures', () => {
   it('rejects an absent run with the delivery error and records nothing', async () => {
     const deliveryError = new Error('sendDown')
-    const { fire, recorded } = setup({
+    const { fire, fires, cleanup } = await setup({
       deliver: () => Promise.reject(deliveryError),
       ledgers: [{ status: 'absent' }],
     })
-    await expect(fire()).rejects.toBe(deliveryError)
-    expect(recorded).toEqual([])
+    try {
+      await expect(fire()).rejects.toBe(deliveryError)
+      expect(await fires()).toEqual([])
+    } finally {
+      await cleanup()
+    }
   })
 
   it('rejects admitted-not-returned work with the transport error', async () => {
     const deliveryError = new Error('transportDown')
-    const { fire, recorded, settlements } = setup({
+    const { fire, fires, settlements, cleanup } = await setup({
       deliver: () => Promise.reject(deliveryError),
       ledgers: [{ status: 'absent' }, { status: 'admitted' }],
     })
-    await expect(fire()).rejects.toBe(deliveryError)
-    expect(recorded).toEqual([])
-    expect(settlements).toEqual([])
+    try {
+      await expect(fire()).rejects.toBe(deliveryError)
+      expect(await fires()).toEqual([])
+      expect(settlements).toEqual([])
+    } finally {
+      await cleanup()
+    }
   })
 
   it('resolves a proven settlement with the recovered fire', async () => {
     const recovered = recoveredFire('ran', 'exact')
-    const { fire, recorded, settlements } = setup({
+    const { fire, fires, settlements, cleanup } = await setup({
       deliver: () => Promise.reject(new Error('responseLost')),
       ledgers: [{ status: 'absent' }, { status: 'settled', fire: recovered }],
     })
-    await expect(fire()).resolves.toEqual({ kind: 'accepted', id: scheduleId })
-    expect(recorded).toEqual([recovered])
-    expect(settlements).toEqual([])
+    try {
+      await expect(fire()).resolves.toEqual({ kind: 'accepted', id: scheduleId })
+      expect(await fires()).toEqual([recovered])
+      expect(settlements).toEqual([])
+    } finally {
+      await cleanup()
+    }
   })
 
   it('settles an ambiguous recovery and still rejects with the delivery error', async () => {
     const deliveryError = new Error('ambiguousSend')
     const recovered = recoveredFire('ran', 'unknown')
-    const { fire, recorded } = setup({
+    const { fire, fires, cleanup } = await setup({
       deliver: () => Promise.reject(deliveryError),
       ledgers: [{ status: 'absent' }, { status: 'uncertain', fire: recovered }],
     })
-    await expect(fire()).rejects.toBe(deliveryError)
-    expect(recorded).toEqual([recovered])
+    try {
+      await expect(fire()).rejects.toBe(deliveryError)
+      expect(await fires()).toEqual([recovered])
+    } finally {
+      await cleanup()
+    }
   })
 
   it('settles a failed accounting and rejects when the recovered fire is foreign', async () => {
@@ -205,25 +202,35 @@ describe('schedule delivery failures', () => {
       scheduleId: 'schedule-other',
       target: stored.target,
     })
-    const { fire, recorded, settlements } = setup({
+    const { fire, fires, settlements, cleanup } = await setup({
       deliver: () => Promise.reject(new Error('sendDown')),
       ledgers: [{ status: 'absent' }, { status: 'settled', fire: foreign }],
     })
-    await expect(fire()).rejects.toThrow('scheduleSettlementIdentityMismatch')
-    expect(settlements).toHaveLength(1)
-    expect(recorded).toHaveLength(1)
-    expect(recorded[0]?.outcome).toBe('failed')
+    try {
+      await expect(fire()).rejects.toThrow('scheduleSettlementIdentityMismatch')
+      expect(settlements).toHaveLength(1)
+      const recorded = await fires()
+      expect(recorded).toHaveLength(1)
+      expect(recorded[0]?.outcome).toBe('failed')
+    } finally {
+      await cleanup()
+    }
   })
 
   it('settles a failed accounting when a returned settlement is refused after admission', async () => {
-    const { fire, recorded, settlements } = setup({
+    const { fire, fires, settlements, cleanup } = await setup({
       deliver: () => Promise.resolve({}),
       ledgers: [{ status: 'absent' }, { status: 'admitted' }],
     })
-    await expect(fire()).rejects.toThrow()
-    expect(settlements).toHaveLength(1)
-    expect(recorded).toHaveLength(1)
-    expect(recorded[0]?.outcome).toBe('failed')
+    try {
+      await expect(fire()).rejects.toThrow()
+      expect(settlements).toHaveLength(1)
+      const recorded = await fires()
+      expect(recorded).toHaveLength(1)
+      expect(recorded[0]?.outcome).toBe('failed')
+    } finally {
+      await cleanup()
+    }
   })
 })
 
