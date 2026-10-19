@@ -14547,8 +14547,12 @@ installed, with turns refused until the mode is set again; a refused
 schedule restore quarantines too, naming the mode the host still runs; a
 quarantine keeps its sentence, which the next refused turn repeats; lane
 PR251FIX5, 2026-10-19, after Grok's fourth re-review GRV251F: the rollback
-notice naming the recorded mode keeps that sentence, and only a genuinely
-different mode falls back to the generic words; tears on Plan and Bypass say
+notice naming the recorded mode keeps that sentence, and a genuinely
+different mode replaces it with the sentence naming that mode
+(`permissionModeChangedWhileQuarantined`: new turns stay refused until the
+mode is set again, with no reviewer or tear words, since the notice
+installs and removes no reviewer — lane PR251FIX6, 2026-10-19, after
+Grok's fifth re-review GRV251G); tears on Plan and Bypass say
 the acknowledged mode is in effect but unconfirmed, since those modes
 install no reviewer; the proof replays the recorded 1.4.7 frames through
 the real session). An

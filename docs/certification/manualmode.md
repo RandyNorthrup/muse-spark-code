@@ -614,3 +614,58 @@ mode's sentence), `src/shared/l10n/en.ts` + all 14 `l10n/ui.*.json`
 `test/fixtures/m106/msp-1.4.7-approval-modes.json` (new capture),
 `test/unit/approvalModesFailurePaths.test.ts` (rewritten on saved wire),
 `CHANGELOG.md`, PLAN.md D123.
+
+## 2026-10-19 — Grok's fifth re-review correction (lane PR251FIX6)
+
+GRV251G confirms every earlier finding fixed and the captured frames real,
+and finds one path left: a quarantined session that receives a mode notice
+naming a different mode deleted its quarantine sentence, and the next send,
+steer, or scheduled admission fell back to `permissionReviewerMissing` ("the
+permission reviewer could not be installed"). That sentence is false there:
+a mode notice installs and removes no reviewer (`session/setApprovalMode`
+writes no profile fact), and Plan (`denyUnmatched`) and Bypass (`allowAll`)
+install none — the reviewer already installed is still installed, and no
+switch failed to install one.
+
+Fix at its cause (`src/core/schedules/sessionOwner.ts`, `observeMode`):
+when the notice names a different mode, the note is replaced with
+`permissionModeChangedWhileQuarantined` — "The permission mode changed to
+{mode} while new turns were refused. New turns stay refused until the mode
+is set again." It names that mode, says turns stay refused until the mode
+is set again, and carries no reviewer or tear words; the session stays
+quarantined on the adopted mode. The torn adoption's own notice still
+names the recorded mode, so that sentence stays (its tear words are true
+there: the notice IS the torn adoption). Plan and Bypass never mention a
+reviewer — no branch does; one sentence serves every mode.
+
+No new capture was needed: the recorded `denyUnmatched` broadcast already
+serves the different-mode notice. Proof on saved wire through the real
+`MuseSession`/`MuseCodeHost` (`test/unit/approvalModesFailurePaths.test.ts`,
+retargeted tail of the torn-rollback test): fail-before with the fix
+reverted gets the generic reviewer-missing sentence instead of the
+mode-naming one (1 failed, 4 passed); green after: 5 passed with the
+repository's own timeout. `test/unit/sessionOwner.test.ts` covers the owner
+directly: the recorded mode's notice keeps its sentence, a different mode
+replaces it with the new one (no `reviewer`, no `tore`), still quarantined
+on the adopted mode.
+
+Activation (`test/unit/modelsActivationBudget.test.ts`, repo timeout, rig
+`linuxlt`): before baseline=561352 current=565497 growth=4145, after
+baseline=561352 current=565542 growth=4190 (+45 bytes for the owner's
+replacement sentence; the English table stays external, and the mode-sync
+builders stay in `dist/approvalModes.js`). The branch was already over the
+3 KiB budget before this lane; the release is making room elsewhere —
+nothing raised or weakened to get here.
+
+UNVERIFIED until real use (lead drills, VS Code, Manual, Muse Code ≥
+1.4.7): a quarantined session receiving another mode notice (a managed
+policy, the CLI, or another client) arriving as the mode-naming sentence
+on the next refused turn, on both surfaces, and setting the mode again
+recovering from it.
+
+Files: `src/core/schedules/sessionOwner.ts` (`observeMode` replaces the
+note with the mode-naming sentence), `src/shared/l10n/en.ts` + all 14
+`l10n/ui.*.json` (`permissionModeChangedWhileQuarantined`),
+`test/unit/approvalModesFailurePaths.test.ts` (retargeted different-mode
+tail), `test/unit/sessionOwner.test.ts` (new owner case), `CHANGELOG.md`,
+PLAN.md D123.
