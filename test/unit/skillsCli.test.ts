@@ -106,6 +106,19 @@ describe('parseSkillCatalog', () => {
     expect(() => parseSkillCatalog('{"skills":[{"id":1}]}')).toThrow(/unexpected shape/)
     expect(() => parseSkillCatalog('{}')).toThrow(/unexpected shape/)
   })
+
+  it('keeps the parse failure as the cause when the output is not JSON', () => {
+    const failure = (() => {
+      try {
+        parseSkillCatalog('Skills: 26 loaded')
+      } catch (error: unknown) {
+        return error
+      }
+      throw new Error('parseSkillCatalog did not throw')
+    })()
+    expect(failure).toBeInstanceOf(Error)
+    expect(failure instanceof Error && failure.cause).toBeInstanceOf(SyntaxError)
+  })
 })
 
 describe('skill activation', () => {

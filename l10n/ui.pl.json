@@ -1443,6 +1443,7 @@
   "mcpRestartDetail": "Trwająca odpowiedź zostanie zatrzymana; rozmowa będzie kontynuowana po Twojej następnej wiadomości",
   "mcpInvalidUrl": "nieprawidłowy adres URL",
   "mcpNoCommand": "brak polecenia",
+  "mcpInvalidJson": "plik nie jest poprawnym JSON",
   "mcpRestarted": "Muse Code uruchomiono ponownie; Twoja następna wiadomość wczyta ustawienia w obecnej postaci.",
   "mcpDocs": "Serwery MCP w Muse Code (dokumentacja)",
   "mcpSignIn": "Zaloguj się",

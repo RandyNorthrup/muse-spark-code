@@ -1780,6 +1780,7 @@ export const EN = {
     'A reply that is running stops; the conversation continues on your next message',
   mcpInvalidUrl: 'an invalid URL',
   mcpNoCommand: 'no command',
+  mcpInvalidJson: 'the file is not valid JSON',
   mcpRestarted: 'Muse Code restarted; your next message loads the settings as they are now.',
   mcpDocs: 'MCP Servers in Muse Code (Documentation)',
   mcpSignIn: 'Sign In',

@@ -632,8 +632,8 @@ function parseOutputPage(result: unknown): OutputPage {
   let text: string
   try {
     text = STRICT_UTF8.decode(Buffer.from(page.content, BASE64_ENCODING))
-  } catch {
-    throw new Error(`${UI_TEXT.outputIsBinary} (${page.mediaType})`)
+  } catch (error: unknown) {
+    throw new Error(`${UI_TEXT.outputIsBinary} (${page.mediaType})`, { cause: error })
   }
   return { ...page, content: text, encoding: UTF8_ENCODING }
 }
@@ -1345,7 +1345,11 @@ export class MuseSession implements ScheduledAgentSession {
           : await run.decide(action, !isAutomatic)
       isAllowed = decision.allowed && this.owner.matches(token) && this.owner.run() === run
       reason = decision.reason
-    } catch {
+    } catch (error: unknown) {
+      // The decider failed; the turn is refused and the failure is recorded.
+      this.log.warn(
+        `Scheduled approval ${event.approvalId} decision failed: ${failureForLog(error)}; the turn is refused`,
+      )
       reason = run.refuse(action, run.modelText.approvalRefused)
     }
     const choice = event.availableChoices.find((candidate) =>
@@ -1382,17 +1386,26 @@ export class MuseSession implements ScheduledAgentSession {
       return result
     } catch (error: unknown) {
       this.restoreScheduleMode(this.owner.admissionFailed(token))
-      const cancellation = this.owner.token()
-      try {
-        if (this.owner.canCancel(cancellation, run)) await this.command('turn/cancel', {})
-      } catch {
-        this.log.warn('Scheduled admission failed; the turn could not be stopped')
-      }
+      await this.stopAfterFailedAdmission(run)
       throw error
     } finally {
       const events = this.heldScheduleEvents
       this.heldScheduleEvents = undefined
       for (const held of events) this.emit(held.event, true, held.fire)
+    }
+  }
+
+  /**
+   * Best effort after a failed admission: a turn that kept running is
+   * stopped. A stop that fails is recorded and left running; the admission
+   * failure stays the failure the caller sees.
+   */
+  private async stopAfterFailedAdmission(run: UnattendedRun): Promise<void> {
+    const cancellation = this.owner.token()
+    try {
+      if (this.owner.canCancel(cancellation, run)) await this.command('turn/cancel', {})
+    } catch {
+      this.log.warn('Scheduled admission failed; the turn could not be stopped')
     }
   }
 
@@ -1576,6 +1589,11 @@ export class MuseSession implements ScheduledAgentSession {
         ...(decision.feedback !== undefined && { feedback: decision.feedback }),
       })
     } catch (error: unknown) {
+      // The mapped failure below is what the caller sees; the failure as it
+      // arrived is recorded here, never echoed.
+      this.log.info(
+        `Approval ${approvalId} stage ${String(requirementId.sourceIndex)} decision failed: ${failureForLog(error)}`,
+      )
       throw await this.decisionFailed(requirementId, error)
     }
     // `terminal: true` closed the whole approval; a trailing stage update the
@@ -2065,6 +2083,9 @@ export class MuseSession implements ScheduledAgentSession {
     try {
       turnUnqueueResultSchema.parse(await this.command('turn/unqueue', { turnId: ref.turnId }))
     } catch (error: unknown) {
+      // Every refusal below is a named `turn/unqueue` outcome; anything else
+      // is rethrown. The failure as it arrived is recorded here, never echoed.
+      this.log.info(`turn/unqueue for turn ${ref.turnId} failed: ${failureForLog(error)}`)
       const reason = unqueueRefusal(error)
       if (reason === UNQUEUE_LAUNCHED) {
         return TOO_LATE
@@ -3151,7 +3172,12 @@ export class MuseCodeHost implements AgentHost {
       return await raced
     } catch (error: unknown) {
       // Dispatch validated the terminal before shutdown; async admission may still be resuming.
-      if (deletion.state.phase === 'terminalValidated') return deletion.state.event
+      if (deletion.state.phase === 'terminalValidated') {
+        this.log.info(
+          `session/delete for session ${sessionId} failed after its terminal was validated (${failureForLog(error)}); the validated terminal stands`,
+        )
+        return deletion.state.event
+      }
       throw error
     } finally {
       stopNoticing()
