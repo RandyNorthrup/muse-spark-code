@@ -174,42 +174,50 @@ describe('the production browser English and full-table contract', () => {
     expect(UI_TEXT.referenceCliOptions).toEqual(canonical.referenceCliOptions)
   })
 
-  it('checks every installed language against the same complete canonical shape and slots', () => {
-    const { EN, TABLE_LOCALES, tableFileName, tableProblems } = fixture.canonical
-    const { EN_SHAPE, installEmbeddedTable } = fixture.browser
-    const options = { locale: 'en', isStrict: false }
-    const broken = [
-      { ...EN, execBudgetRequired: undefined },
-      { ...EN, extra: 'unexpected' },
-      { ...EN, execBudgetRequired: '{unknown}' },
-      { ...EN, toolLabels: { ...EN.toolLabels, shell: undefined } },
-      { ...EN, todoProgress: '{unknown}' },
-      { ...EN, stepSummary: { ...EN.stepSummary, other: undefined } },
-      { ...EN, composerLabel: 1 },
-    ]
-    for (const table of broken) {
-      const expected = tableProblems(EN, table, options)
-      expect(expected.length).toBeGreaterThan(0)
-      expect(tableProblems(EN_SHAPE, table, options)).toEqual(expected)
-    }
-    for (const locale of TABLE_LOCALES) {
-      const table = JSON.parse(readFileSync(path.join('l10n', tableFileName(locale)), 'utf8'))
-      expect(tableProblems(EN_SHAPE, table, { locale, isStrict: false }), locale).toEqual(
-        tableProblems(EN, table, { locale, isStrict: false }),
-      )
+  // Fourteen full locale tables validated twice over: genuinely long on a
+  // busy rig (measured 5-7 s against the 5 s default).
+  it(
+    'checks every installed language against the same complete canonical shape and slots',
+    { timeout: 60_000 },
+    () => {
+      const { EN, TABLE_LOCALES, tableFileName, tableProblems } = fixture.canonical
+      const { EN_SHAPE, installEmbeddedTable } = fixture.browser
+      const options = { locale: 'en', isStrict: false }
+      const broken = [
+        { ...EN, execBudgetRequired: undefined },
+        { ...EN, extra: 'unexpected' },
+        { ...EN, execBudgetRequired: '{unknown}' },
+        { ...EN, toolLabels: { ...EN.toolLabels, shell: undefined } },
+        { ...EN, todoProgress: '{unknown}' },
+        { ...EN, stepSummary: { ...EN.stepSummary, other: undefined } },
+        { ...EN, composerLabel: 1 },
+      ]
+      for (const table of broken) {
+        const expected = tableProblems(EN, table, options)
+        expect(expected.length).toBeGreaterThan(0)
+        expect(tableProblems(EN_SHAPE, table, options)).toEqual(expected)
+      }
+      for (const locale of TABLE_LOCALES) {
+        const table = JSON.parse(readFileSync(path.join('l10n', tableFileName(locale)), 'utf8'))
+        expect(tableProblems(EN_SHAPE, table, { locale, isStrict: false }), locale).toEqual(
+          tableProblems(EN, table, { locale, isStrict: false }),
+        )
+        expect(
+          installEmbeddedTable({
+            querySelector: () => ({ textContent: JSON.stringify({ locale, table }) }),
+          }),
+          locale,
+        ).toBeUndefined()
+      }
       expect(
         installEmbeddedTable({
-          querySelector: () => ({ textContent: JSON.stringify({ locale, table }) }),
-        }),
-        locale,
-      ).toBeUndefined()
-    }
-    expect(
-      installEmbeddedTable({
-        querySelector: () => ({ textContent: JSON.stringify({ locale: 'en', table: broken[0] }) }),
-      })?.message,
-    ).toContain('execBudgetRequired: missing')
-  })
+          querySelector: () => ({
+            textContent: JSON.stringify({ locale: 'en', table: broken[0] }),
+          }),
+        })?.message,
+      ).toContain('execBudgetRequired: missing')
+    },
+  )
 
   it('does not eagerly load an English group for a technical command word', () => {
     const source = path.join(fixture.folder, 'technical-group.ts')
