@@ -57,7 +57,7 @@ function agentScript(agentDir) {
   const manifest = JSON.parse(readFileSync(path.join(directory, 'package.json'), 'utf8'))
   if (manifest?.name !== AGENT_PACKAGE) throw new Error('package identity')
   const bin = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.[AGENT_PACKAGE]
-  if (typeof bin !== 'string') throw new Error('package bin')
+  if (typeof bin !== 'string') throw new TypeError('package bin')
   const script = realpathSync(path.resolve(directory, bin))
   const relative = path.relative(directory, script)
   if (relative.startsWith('..') || path.isAbsolute(relative) || !statSync(script).isFile()) {

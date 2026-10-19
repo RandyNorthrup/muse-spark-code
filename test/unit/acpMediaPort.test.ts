@@ -194,7 +194,7 @@ describe('attached-media registrations: identity, ownership and bound (RVMEDIAV 
     const parts = []
     for (let index = 0; index < 3; index++) {
       const part = await media.block({ type: 'audio', data, mimeType: 'audio/wav' }, signal)
-      if (typeof part === 'string') throw new Error(part)
+      if (typeof part === 'string') throw new TypeError(part)
       parts.push(part)
     }
     const [running, ...idle] = parts
