@@ -18,7 +18,7 @@ function host(message: HostToWebviewMessage, state = start, at = 1000) {
 function snapshot(questions = [questionFixture()], state = start, at = 1000) {
   return host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions } }, state, at)
 }
-function requested(state = start) {
+function requested() {
   const record = questionFixture()
   return host(
     {
@@ -30,7 +30,7 @@ function requested(state = start) {
         questions: record.questions,
       },
     },
-    state,
+    start,
   )
 }
 

@@ -419,10 +419,10 @@ export class TeamLedger {
   }
 
   /**
-   * Appends a row version: state changes (and ends) flush at once, usage
-   * updates wait for the timer. The brief is redacted and bounded here, so
-   * no secret and no other prompt text reaches the file.
-   */
+  Appends a row version: state changes (and ends) flush at once, usage
+  updates wait for the timer. The brief is redacted and bounded here, so
+  no secret and no other prompt text reaches the file.
+  */
   public async record(record: TeamLedgerRecord): Promise<void> {
     const candidate = toLedgerLine(record)
     await this.queued(() => this.recordPending(candidate))
@@ -434,10 +434,10 @@ export class TeamLedger {
   }
 
   /**
-   * Every row of every day file, validated: malformed lines (a crashed
-   * writer's partial tail) are skipped and counted, never fatal. Callers
-   * take the latest row per task id.
-   */
+  Every row of every day file, validated: malformed lines (a crashed
+  writer's partial tail) are skipped and counted, never fatal. Callers
+  take the latest row per task id.
+  */
   public async read(): Promise<TeamLedgerRead> {
     const rows: TeamLedgerRow[] = []
     let skippedLines = 0
@@ -470,12 +470,12 @@ export class TeamLedger {
   }
 
   /**
-   * Marks a task interrupted after its window died, with its partial usage:
-   * appends a terminal snapshot only while the latest row is still active.
-   * A foreign owner needs the explicit Take over decision. Hints never
-   * authorize recovery. The source remains byte-exact; this window appends
-   * its own snapshot and records the decision as a decision, not proof.
-   */
+  Marks a task interrupted after its window died, with its partial usage:
+  appends a terminal snapshot only while the latest row is still active.
+  A foreign owner needs the explicit Take over decision. Hints never
+  authorize recovery. The source remains byte-exact; this window appends
+  its own snapshot and records the decision as a decision, not proof.
+  */
   public async markInterrupted(
     latest: TeamLedgerRow,
     usage: TeamMeterUsage,
@@ -519,10 +519,10 @@ export class TeamLedger {
   }
 
   /**
-   * Rolls files older than `retentionDays` into per-entry totals rows of
-   * their own (kept until Reset, so a spent `lifetime` cap never refills)
-   * and removes the old files. With 0, everything is kept.
-   */
+  Rolls files older than `retentionDays` into per-entry totals rows of
+  their own (kept until Reset, so a spent `lifetime` cap never refills)
+  and removes the old files. With 0, everything is kept.
+  */
   public async prune(): Promise<{ readonly rolled: number; readonly removed: number }> {
     if (this.deps.retentionDays <= 0) {
       return { rolled: 0, removed: 0 }
@@ -579,8 +579,8 @@ function toLedgerLine(record: TeamLedgerRecord): string {
 }
 
 /** One deterministic rollup per terminal delegation preserves reset boundaries.
- * Repeating a prune after an interrupted removal writes the same identities.
- */
+Repeating a prune after an interrupted removal writes the same identities.
+*/
 function rollUp(
   rows: readonly TeamLedgerRow[],
   latest: ReadonlyMap<string, TeamLedgerRow>,

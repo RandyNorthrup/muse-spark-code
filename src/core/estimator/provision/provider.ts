@@ -29,17 +29,17 @@ export interface EstimateBrokerRequest {
 }
 
 /** M109 owns the origin-bound credential. It MUST reject redirects before
- * dispatch, enforce this request's scope and scrub all returned bodies.
- * Neither a credential value nor a credential-bearing header crosses here.
- */
+dispatch, enforce this request's scope and scrub all returned bodies.
+Neither a credential value nor a credential-bearing header crosses here.
+*/
 export interface EstimateProviderBroker {
   isConnected(providerId: string, apiOrigin: string): boolean
   request(request: EstimateBrokerRequest): Promise<unknown>
 }
 
 /** Concrete adapters supply captured-wire parsers/encoders. These are not
- * guessed HTTP response shapes: decode returns normalized application data.
- */
+guessed HTTP response shapes: decode returns normalized application data.
+*/
 export interface EstimateProviderCodec {
   createBody(size: ProviderSize, image: ProviderImage, cloudInit: string): unknown
   decode(operation: EstimateProviderOperation, body: unknown): unknown
@@ -119,8 +119,8 @@ function isSafePath(endpoint: EstimateProviderEndpoint): boolean {
 }
 
 /** The five methods are the only dispatch surface. Manifests/codecs are
- * trusted, captured adapter definitions, never supplied by a model or UI.
- */
+trusted, captured adapter definitions, never supplied by a model or UI.
+*/
 export function brokeredEstimateProvider(
   binding: Pick<EstimateProviderPort, 'id' | 'apiOrigin' | 'endpoints'>,
   broker: EstimateProviderBroker,

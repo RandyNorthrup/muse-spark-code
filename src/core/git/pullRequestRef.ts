@@ -58,11 +58,11 @@ const UPSTREAM_REMOTE = 'upstream'
 const DEFAULT_REMOTE = 'origin'
 
 /**
- * The remote a pull request is fetched from. A page URL names its
- * repository, and only a remote of that repository will do. A bare number
- * is read in `upstream`, else the remote the branch tracks, else `origin`,
- * else the only GitHub remote; undefined when none of those is one.
- */
+The remote a pull request is fetched from. A page URL names its
+repository, and only a remote of that repository will do. A bare number
+is read in `upstream`, else the remote the branch tracks, else `origin`,
+else the only GitHub remote; undefined when none of those is one.
+*/
 export function remoteForPullRequest(
   remotes: readonly GitHubRemote[],
   wanted: GitHubRepository | undefined,

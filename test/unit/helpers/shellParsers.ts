@@ -126,10 +126,10 @@ const WORD_END = '\u{1F}'
 const FUNCTION_NAME = /^[A-Za-z_][\w-]*$/
 
 /**
- * Every command bash runs for the line, as the words it was called with
- * (a set: order and repeats aside). Throws for a name that cannot be a
- * recording function, so no line of the table can reach a real program.
- */
+Every command bash runs for the line, as the words it was called with
+(a set: order and repeats aside). Throws for a name that cannot be a
+recording function, so no line of the table can reach a real program.
+*/
 export function commandsBashRuns(
   bash: string,
   line: string,

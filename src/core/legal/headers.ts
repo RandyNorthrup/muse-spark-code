@@ -159,7 +159,7 @@ function hasSidecarProvenance(sidecar: string | undefined): sidecar is string {
   if (sidecar === undefined) return false
   const declarations = topLines(sidecar).flatMap((line) => {
     const raw = readHeader([line]).spdxRaw
-    return raw === undefined ? [] : [raw]
+    return raw ?? []
   })
   return (
     /SPDX-FileCopyrightText:\s*\S/.test(sidecar) &&
@@ -367,10 +367,10 @@ export function scanAttributionRisks(snapshot: LegalFileSnapshot): HeaderScanRes
 }
 
 /**
- * Check headers over the snapshot's source files. `projectLicenses` holds
- * the canonical ids the project declares; an empty list skips the
- * file-against-project comparison instead of flagging every header.
- */
+Check headers over the snapshot's source files. `projectLicenses` holds
+the canonical ids the project declares; an empty list skips the
+file-against-project comparison instead of flagging every header.
+*/
 export function scanHeaders(
   snapshot: LegalFileSnapshot,
   policy: LegalHeaderPolicy,

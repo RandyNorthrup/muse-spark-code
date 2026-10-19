@@ -46,9 +46,9 @@ export interface TeamSessionBinding {
   /** Conversation-owned storage: rebinding and server reload use the same record. */
   readonly commandRecords?: TeamCommandStore
   /**
-   * Answer one team tool call for this conversation; throw to report a tool
-   * error. `signal` aborts when the caller stops waiting for it.
-   */
+  Answer one team tool call for this conversation; throw to report a tool
+  error. `signal` aborts when the caller stops waiting for it.
+  */
   readonly run: (
     tool: string,
     args: Readonly<Record<string, unknown>>,
@@ -297,10 +297,10 @@ export class TeamMcpServer {
   }
 
   /**
-   * This conversation's endpoint: a token minted for it, refused everywhere
-   * else. Stable for the conversation's life, so `session/resume` keeps the
-   * set unchanged.
-   */
+  This conversation's endpoint: a token minted for it, refused everywhere
+  else. Stable for the conversation's life, so `session/resume` keeps the
+  set unchanged.
+  */
   public async endpointForConversation(binding: TeamSessionBinding): Promise<TeamMcpEndpoint> {
     const lifetime = this.lifetime
     const url = await this.start()
@@ -358,7 +358,7 @@ export class TeamMcpServer {
 // bearer tokens and registration. Build this list once, never on tools/list.
 
 /** Workers may collect their own children through M96's scoped runtime, but
- * only the orchestrator may enqueue landings or reschedule the board. */
+only the orchestrator may enqueue landings or reschedule the board. */
 export function teamServerToolList(
   tools: readonly McpTool[],
   caller: 'orchestrator' | 'worker',

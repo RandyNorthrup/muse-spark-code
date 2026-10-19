@@ -22,10 +22,10 @@ interface PlanMarkdownBundle {
 }
 
 /**
- * Whether a required module is the bundle: its reader has the three
- * functions. Their signatures are taken on trust (PLAN.md §8): both bundles
- * come from one source tree, one `npm run build` and one package.
- */
+Whether a required module is the bundle: its reader has the three
+functions. Their signatures are taken on trust (PLAN.md §8): both bundles
+come from one source tree, one `npm run build` and one package.
+*/
 export function isPlanMarkdownBundle(value: unknown): value is PlanMarkdownBundle {
   if (typeof value !== 'object' || value === null || !('planMarkdown' in value)) {
     return false
@@ -47,10 +47,10 @@ export interface PlanMarkdownLoaderDeps {
 }
 
 /**
- * The reader, required the first time it is asked for and kept from then
- * on. A missing or corrupt bundle throws `planMarkdownUnavailable` (the log
- * has the cause) and is tried again on the next call.
- */
+The reader, required the first time it is asked for and kept from then
+on. A missing or corrupt bundle throws `planMarkdownUnavailable` (the log
+has the cause) and is tried again on the next call.
+*/
 export function planMarkdownLoader(deps: PlanMarkdownLoaderDeps): () => PlanMarkdown {
   let reader: PlanMarkdown | undefined
   return () => {

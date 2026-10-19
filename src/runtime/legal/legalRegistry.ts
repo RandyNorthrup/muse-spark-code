@@ -245,10 +245,10 @@ async function queryOne(
 }
 
 /**
- * Enriches at most LEGAL_REGISTRY_MAX_QUERIES targets, one request each, in
- * order. A failed request marks its own target; it never fails the scan's
- * facts. Call only with the user's `--registry` consent.
- */
+Enriches at most LEGAL_REGISTRY_MAX_QUERIES targets, one request each, in
+order. A failed request marks its own target; it never fails the scan's
+facts. Call only with the user's `--registry` consent.
+*/
 export async function enrichFromRegistries(input: {
   readonly targets: readonly LegalRegistryTarget[]
   readonly fetch: typeof fetch
@@ -343,25 +343,23 @@ export async function enrichInteractiveLegalScan(
   const facts = report.licenses.flatMap((entry, index) =>
     entry.license === undefined
       ? []
-      : [
-          {
-            id: `registry/1/${String(index + 1)}`,
-            category: 'dependencyLicense',
-            severity: 'advice',
-            packageName: entry.target.name,
-            packageVersion: entry.target.version,
-            licenseExpression: entry.license,
-            evidenceSource: LEGAL_REGISTRY_HOSTS[entry.target.ecosystem],
-            confidence: 1,
-            explanation: fill(UI_TEXT.legalRegistryFact, {
-              name: entry.target.name,
-              version: entry.target.version,
-              license: entry.license,
-            }),
-            recommendation: UI_TEXT.legalRegistryRecommendation,
-            fixable: false,
-          },
-        ],
+      : {
+          id: `registry/1/${String(index + 1)}`,
+          category: 'dependencyLicense',
+          severity: 'advice',
+          packageName: entry.target.name,
+          packageVersion: entry.target.version,
+          licenseExpression: entry.license,
+          evidenceSource: LEGAL_REGISTRY_HOSTS[entry.target.ecosystem],
+          confidence: 1,
+          explanation: fill(UI_TEXT.legalRegistryFact, {
+            name: entry.target.name,
+            version: entry.target.version,
+            license: entry.license,
+          }),
+          recommendation: UI_TEXT.legalRegistryRecommendation,
+          fixable: false,
+        },
   )
   return legalScanResultSchema.parse({
     ...handle.result,

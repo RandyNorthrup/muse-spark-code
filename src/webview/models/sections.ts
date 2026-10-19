@@ -52,11 +52,11 @@ export interface PanelSectionDef {
   readonly isOffered?: ((panelState: ModelsPanelState | undefined) => boolean) | undefined
   readonly Component: ComponentType<SectionProps>
   /**
-   * The section's own fold of a panel action. Every section sees every
-   * action and handles only its own overlay kinds; the host-owned slices
-   * close an overlay the host cleared (a gone wizard draft cannot stay
-   * open, since the host owns the draft).
-   */
+  The section's own fold of a panel action. Every section sees every
+  action and handles only its own overlay kinds; the host-owned slices
+  close an overlay the host cleared (a gone wizard draft cannot stay
+  open, since the host owns the draft).
+  */
   readonly reduceSection: (state: PanelUiState, action: PanelUiAction) => PanelUiState
 }
 

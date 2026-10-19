@@ -37,10 +37,10 @@ export function distinctTeamModels(ids: readonly string[]): string[] {
 }
 
 /**
- * Whether pool entries plus the orchestrator slot hold one model: nothing
- * configured, only Default, duplicate models, or entries that all resolve
- * to the slot's model. Lane A resolves Default to the slot before calling.
- */
+Whether pool entries plus the orchestrator slot hold one model: nothing
+configured, only Default, duplicate models, or entries that all resolve
+to the slot's model. Lane A resolves Default to the slot before calling.
+*/
 export function isSingleTeamModel(ids: readonly string[]): boolean {
   return distinctTeamModels(ids).length <= 1
 }

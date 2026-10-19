@@ -30,10 +30,10 @@ export interface ResourceEntryOptions {
   overrides?: Partial<ResourceSettings>
   hasRelocationTarget?: () => boolean
   /**
-   * Long-lived hosts (the ACP agent) record their governor's samples into the
-   * machine journal with this usage-history consent. One-shot commands and
-   * headless runs leave it unset and only read.
-   */
+  Long-lived hosts (the ACP agent) record their governor's samples into the
+  machine journal with this usage-history consent. One-shot commands and
+  headless runs leave it unset and only read.
+  */
   isRecordingHistory?: () => boolean
 }
 

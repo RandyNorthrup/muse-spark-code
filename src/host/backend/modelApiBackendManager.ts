@@ -106,10 +106,10 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** One explicit yes before a contributor-tier agent model is used (M76). */
   readonly confirmContributorModel: (modelId: string) => Promise<boolean>
   /**
-   * Sessions between windows (PLAN.md D14); undefined without workspace
-   * storage. A function is called when the host is built, so a store in a
-   * lazy bundle (dist/modelApiSessions.js) loads with the backend.
-   */
+  Sessions between windows (PLAN.md D14); undefined without workspace
+  storage. A function is called when the host is built, so a store in a
+  lazy bundle (dist/modelApiSessions.js) loads with the backend.
+  */
   readonly store: SessionStore | (() => SessionStore) | undefined
   readonly scheduleStore?: ScheduleStore | undefined
   /** Account upload ledger and calibration observations (MONEY017D, D85.2/D85.6). */
@@ -171,9 +171,9 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** Amp and OpenCode plugin hooks' host side (M91b). */
   readonly pluginHooks?: ModelApiHostDeps['pluginHooks']
   /**
-   * The MCP servers for a host in this workspace (M50), one set per host,
-   * made with the bundle's pool (M57).
-   */
+  The MCP servers for a host in this workspace (M50), one set per host,
+  made with the bundle's pool (M57).
+  */
   readonly createMcpServers?:
     | ((workspaceRoot: string, newPool: McpPoolFactory) => McpToolSource | Promise<McpToolSource>)
     | undefined
@@ -306,10 +306,10 @@ export class ModelApiBackendManager {
   public static usageRecording: UsageRecording | undefined
   private host: ModelApiHost | undefined
   /**
-   * The host being built (PLAN.md D25): every caller waits for the stored
-   * sessions to be read, and a failed build is forgotten so the next call
-   * tries again instead of reusing half a host.
-   */
+  The host being built (PLAN.md D25): every caller waits for the stored
+  sessions to be read, and a failed build is forgotten so the next call
+  tries again instead of reusing half a host.
+  */
   private building: Promise<ModelApiHost> | undefined
   /** Bumped by every dispose: a build that finishes after one is closed, not kept. */
   private generation = 0
@@ -593,16 +593,16 @@ export class ModelApiBackendManager {
   }
 
   /**
-   * A host rooted in a best-of-N worktree (M77, PLAN.md D49): the attempt's
-   * own conversations, confined to it. No durable sessions, no schedules, no
-   * MCP servers, no hooks, no memory and no paid tools: an attempt's billed
-   * surface is exactly the run's quoted token rates, and nothing in it can
-   * open the paid-use popup. No shell either, so no configured checks: a
-   * command's working folder confines nothing, and in Bypass or under a
-   * standing rule a command (or a check running files the model wrote)
-   * could change the main checkout (the review of PR #89). Closed by the
-   * run when the attempt settles.
-   */
+  A host rooted in a best-of-N worktree (M77, PLAN.md D49): the attempt's
+  own conversations, confined to it. No durable sessions, no schedules, no
+  MCP servers, no hooks, no memory and no paid tools: an attempt's billed
+  surface is exactly the run's quoted token rates, and nothing in it can
+  open the paid-use popup. No shell either, so no configured checks: a
+  command's working folder confines nothing, and in Bypass or under a
+  standing rule a command (or a check running files the model wrote)
+  could change the main checkout (the review of PR #89). Closed by the
+  run when the attempt settles.
+  */
   public streamLegalExplanation(
     body: CreateResponseBody,
     signal: AbortSignal,

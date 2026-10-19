@@ -80,9 +80,9 @@ export interface ResourceHostSettings {
 const state: { host?: ResourceLaunchHost; recorder?: ResourceHistoryRecorder } = {}
 
 /**
- * Window disposal (RVM107W2 P2): the open minute and any pending snapshot are
- * written, waiting at most RESOURCE_HISTORY_FLUSH_TIMEOUT_MS so shutdown never hangs.
- */
+Window disposal (RVM107W2 P2): the open minute and any pending snapshot are
+written, waiting at most RESOURCE_HISTORY_FLUSH_TIMEOUT_MS so shutdown never hangs.
+*/
 export async function flushResourceHistory(): Promise<void> {
   const recorder = state.recorder
   if (recorder === undefined) return

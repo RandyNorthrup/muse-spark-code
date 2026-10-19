@@ -15,10 +15,10 @@ import { contentHash } from '../../core/schedules/provenance'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
 
 /**
- * At most `maxBytes + 1` bytes of a regular file (M76): the catalogs cap a
- * file the repository ships, and a cap checked after a whole read would not
- * stop a huge file, a pipe that never ends or a device that blocks.
- */
+At most `maxBytes + 1` bytes of a regular file (M76): the catalogs cap a
+file the repository ships, and a cap checked after a whole read would not
+stop a huge file, a pipe that never ends or a device that blocks.
+*/
 async function readCapped(absolutePath: string, maxBytes: number): Promise<Uint8Array> {
   const info = await stat(absolutePath)
   if (!info.isFile()) {

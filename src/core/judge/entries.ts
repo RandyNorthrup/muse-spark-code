@@ -57,10 +57,10 @@ function canonicalJson(value: unknown): string {
 }
 
 /**
- * The entry key: the sha256 of the backend, session, turn, tool and
- * canonical arguments. Key order in `args` does not matter; a changed
- * argument is a different key.
- */
+The entry key: the sha256 of the backend, session, turn, tool and
+canonical arguments. Key order in `args` does not matter; a changed
+argument is a different key.
+*/
 export function entryKey(parts: JudgeEntryParts): string {
   return createHash('sha256')
     .update(
@@ -93,12 +93,12 @@ interface JudgeEntry {
 }
 
 /**
- * Memory-only store of judged actions. Starting the same exact action
- * twice keeps the first entry; settling or reading an unknown, consumed or
- * discarded handle does nothing and reports false/undefined. A restarted
- * exact action has a fresh handle, so old callbacks and fences cannot
- * affect its replacement even though the action key is unchanged.
- */
+Memory-only store of judged actions. Starting the same exact action
+twice keeps the first entry; settling or reading an unknown, consumed or
+discarded handle does nothing and reports false/undefined. A restarted
+exact action has a fresh handle, so old callbacks and fences cannot
+affect its replacement even though the action key is unchanged.
+*/
 export class JudgeEntryStore {
   private readonly entries = new Map<string, JudgeEntry>()
 
@@ -125,9 +125,9 @@ export class JudgeEntryStore {
   }
 
   /**
-   * Settle a pending entry. Returns false — and changes nothing — for an
-   * unknown, consumed, discarded or superseded handle: a late result is dropped.
-   */
+  Settle a pending entry. Returns false — and changes nothing — for an
+  unknown, consumed, discarded or superseded handle: a late result is dropped.
+  */
   settle(handle: JudgeEntryHandle, outcome: JudgeReadyOutcome | 'failed'): boolean {
     const entry = this.entries.get(handle.key)
     if (entry?.handle !== handle || entry.settled) {
@@ -139,11 +139,11 @@ export class JudgeEntryStore {
   }
 
   /**
-   * Read the latch once, synchronously, and consume the entry: a ready
-   * caution or none, or undefined for pending, failed or gone. The fence
-   * reads exactly once; a second read — or any later settle — finds
-   * nothing.
-   */
+  Read the latch once, synchronously, and consume the entry: a ready
+  caution or none, or undefined for pending, failed or gone. The fence
+  reads exactly once; a second read — or any later settle — finds
+  nothing.
+  */
   readLatch(handle: JudgeEntryHandle): JudgeReadyOutcome | undefined {
     const entry = this.entries.get(handle.key)
     if (entry?.handle !== handle) {

@@ -32,26 +32,26 @@ function clamp(value: number, low: number, high: number): number {
 }
 
 /**
- * Every pill's width (the owner, 2026-10-04: "they should be a uniform
- * size"; 2026-10-09: "only as long as the text in the longest text
- * button"): `natural`, the widest pill's own max-content width as the
- * browser laid it out, so no pill is wider than its longest label needs.
- * Only too little room beside the opener narrows every pill together;
- * a longer label ends in an ellipsis and keeps its full tooltip.
- */
+Every pill's width (the owner, 2026-10-04: "they should be a uniform
+size"; 2026-10-09: "only as long as the text in the longest text
+button"): `natural`, the widest pill's own max-content width as the
+browser laid it out, so no pill is wider than its longest label needs.
+Only too little room beside the opener narrows every pill together;
+a longer label ends in an ellipsis and keeps its full tooltip.
+*/
 export function gooeyPillWidth(available: number, natural: number): number {
   return Math.max(0, Math.min(natural, available))
 }
 
 /**
- * The pills beside `anchor`, one row each, centred on its height and moved
- * whole to stay inside the panel, with 6 px gaps. Their near ends sit on half an ellipse
- * 16–32 px from the anchor: the pills level with it reach farthest, the outer ones
- * curve back, so the rows read as a fan. When the fan would leave the panel
- * it moves back whole, keeping its arc and clearance from the opener.
- * Only too little room beside the opener gives it narrower pills and
- * a shallower arc. Rows and the opener never overlap.
- */
+The pills beside `anchor`, one row each, centred on its height and moved
+whole to stay inside the panel, with 6 px gaps. Their near ends sit on half an ellipse
+16–32 px from the anchor: the pills level with it reach farthest, the outer ones
+curve back, so the rows read as a fan. When the fan would leave the panel
+it moves back whole, keeping its arc and clearance from the opener.
+Only too little room beside the opener gives it narrower pills and
+a shallower arc. Rows and the opener never overlap.
+*/
 function column(
   anchor: MenuPoint,
   side: GooeySide,
@@ -100,12 +100,12 @@ function column(
 }
 
 /**
- * The pills of a menu opened at `origin` (M87, the owner's requests of
- * 2026-10-04: one blue pill per item, icon and label in it, all one size,
- * in a fan). They reach to the side of the origin with more room, away from
- * the nearer side edge, and centre on the origin unless that would leave
- * the panel.
- */
+The pills of a menu opened at `origin` (M87, the owner's requests of
+2026-10-04: one blue pill per item, icon and label in it, all one size,
+in a fan). They reach to the side of the origin with more room, away from
+the nearer side edge, and centre on the origin unless that would leave
+the panel.
+*/
 export function gooeyLayout(
   origin: MenuPoint,
   count: number,
@@ -123,10 +123,10 @@ export function gooeyLayout(
 }
 
 /**
- * A group's second burst opens from its pill: the children centre on that
- * pill's height, on the same side of the menu's origin, and scale in from
- * the pill's centre. Undefined for an index with no pill.
- */
+A group's second burst opens from its pill: the children centre on that
+pill's height, on the same side of the menu's origin, and scale in from
+the pill's centre. Undefined for an index with no pill.
+*/
 export function gooeySecondBurst(
   layout: GooeyPillLayout,
   index: number,

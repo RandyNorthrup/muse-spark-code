@@ -219,10 +219,10 @@ function walkKey(
 }
 
 /**
- * A subschema with its `$ref`s written out, and the references that took
- * (for the recursion check below it). A reference that recurs, or names
- * nothing here, is dropped with a note; its siblings stay.
- */
+A subschema with its `$ref`s written out, and the references that took
+(for the recursion check below it). A reference that recurs, or names
+nothing here, is dropped with a note; its siblings stay.
+*/
 function dereferenced(
   node: JsonObject,
   refs: readonly string[],

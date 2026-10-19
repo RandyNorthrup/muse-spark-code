@@ -1,9 +1,9 @@
 import type { ConversationController } from './conversationController'
 
 /**
- * The extension's existing restart sequence (D25/D26), shared with its tests
- * so a Muse-only recovery proves both controller and host isolation.
- */
+The extension's existing restart sequence (D25/D26), shared with its tests
+so a Muse-only recovery proves both controller and host isolation.
+*/
 export async function restartConversationBackends(
   controllers: Iterable<ConversationController>,
   museCode: { dispose: (options?: { readonly accountEnding?: boolean }) => Promise<void> },

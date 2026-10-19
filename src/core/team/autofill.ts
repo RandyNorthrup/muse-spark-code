@@ -66,9 +66,9 @@ export interface TeamAutofillContext {
 export { TEAM_LEARNED_MIN_TASKS } from '../../shared/constants'
 
 /**
- * Typical use per role: the starting value until the role has five tasks
- * here, then the median of the local record (D75).
- */
+Typical use per role: the starting value until the role has five tasks
+here, then the median of the local record (D75).
+*/
 export function typicalUseFor(
   role: string,
   records: readonly TeamRoleRecord[],
@@ -95,10 +95,10 @@ function medianOf(samples: readonly number[]): number {
 }
 
 /**
- * Every suggestion the rules fire, each with its reason; dismissed ones
- * stay out. Rule order is stable: review vendor, cheapest capable, no
- * fallback, caps from the budget.
- */
+Every suggestion the rules fire, each with its reason; dismissed ones
+stay out. Rule order is stable: review vendor, cheapest capable, no
+fallback, caps from the budget.
+*/
 export function buildTeamSuggestions(context: TeamAutofillContext): readonly TeamSuggestion[] {
   const suggestions: TeamSuggestion[] = []
   const reviewVendor = suggestReviewVendor(context)
@@ -270,9 +270,9 @@ function suggestBudgetCaps(context: TeamAutofillContext): readonly TeamSuggestio
 }
 
 /**
- * Each role's share of the daily budget, weighted by its typical use
- * among the draft's roles.
- */
+Each role's share of the daily budget, weighted by its typical use
+among the draft's roles.
+*/
 export function budgetShareFor(
   role: string,
   roles: readonly string[],

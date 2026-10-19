@@ -19,9 +19,9 @@ export function errorDetail(error: unknown): string {
 }
 
 /**
- * For a call nobody awaits (`void promise.catch(…)`): its failure goes to the
- * log as "`what` failed", not only to VS Code's Extension Host log (M39).
- */
+For a call nobody awaits (`void promise.catch(…)`): its failure goes to the
+log as "`what` failed", not only to VS Code's Extension Host log (M39).
+*/
 export function logRejection(log: Logger, what: string): (error: unknown) => void {
   return (error) => {
     log.error(`${what} failed: ${errorDetail(error)}`)

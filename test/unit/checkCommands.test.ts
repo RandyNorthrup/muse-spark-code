@@ -137,8 +137,12 @@ describe('checkCommandLine', () => {
   afterAll(async () => {
     await removeFolder(folder)
   })
-  const throughPowerShell = (command: string, paths: readonly string[]): unknown => {
-    const built = checkCommandLine({ name: 'argv', command, changedFiles: true }, paths, 'win32')
+  const throughPowerShell = (command: string): unknown => {
+    const built = checkCommandLine(
+      { name: 'argv', command, changedFiles: true },
+      SAFE_ON_WINDOWS,
+      'win32',
+    )
     if (!built.ok) {
       throw new Error(built.reason)
     }
@@ -168,7 +172,7 @@ describe('checkCommandLine', () => {
   }, 0)
 
   it.skipIf(!isWindows)('hands a native program each path as one argument', () => {
-    expect(throughPowerShell(`& '${process.execPath}' ${NODE_ARGV}`, SAFE_ON_WINDOWS)).toEqual([
+    expect(throughPowerShell(`& '${process.execPath}' ${NODE_ARGV}`)).toEqual([
       'probe',
       '--',
       ...SAFE_ON_WINDOWS,
@@ -181,11 +185,7 @@ describe('checkCommandLine', () => {
       probe,
       `@"${process.execPath}" -e "console.log(JSON.stringify(process.argv.slice(1)))" probe %*\r\n`,
     )
-    expect(throughPowerShell(`& '${probe}'`, SAFE_ON_WINDOWS)).toEqual([
-      'probe',
-      '--',
-      ...SAFE_ON_WINDOWS,
-    ])
+    expect(throughPowerShell(`& '${probe}'`)).toEqual(['probe', '--', ...SAFE_ON_WINDOWS])
   })
 
   it.skipIf(process.platform === 'win32')('hands bash each path as one argument', () => {

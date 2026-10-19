@@ -116,9 +116,9 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** M91 http hook handlers (D70): allowlisted hosts, empty by default. */
   readonly hookHttpAllowedHosts: readonly string[]
   /**
-   * M78 (PLAN.md D49): each kept whole here; the Model API bundle parses
-   * every rule and profile and reports what it refuses (permissionPolicy.ts).
-   */
+  M78 (PLAN.md D49): each kept whole here; the Model API bundle parses
+  every rule and profile and reports what it refuses (permissionPolicy.ts).
+  */
   readonly modelApiCommandRules: readonly unknown[]
   readonly modelApiPermissionProfiles: Readonly<Record<string, unknown>>
   readonly modelApiPermissionProfile: unknown
@@ -216,10 +216,10 @@ export interface ExtensionSettings extends SettingsSnapshot {
 }
 
 /**
- * The one method this module needs from `vscode.WorkspaceConfiguration`,
- * which satisfies it structurally. Keeping the dependency this narrow makes
- * the reader trivially fakeable in unit tests.
- */
+The one method this module needs from `vscode.WorkspaceConfiguration`,
+which satisfies it structurally. Keeping the dependency this narrow makes
+the reader trivially fakeable in unit tests.
+*/
 interface StoredSettingValues {
   readonly globalValue?: unknown
   readonly workspaceValue?: unknown

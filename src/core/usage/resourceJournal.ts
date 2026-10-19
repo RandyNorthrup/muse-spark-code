@@ -306,11 +306,11 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * The commit check of every change (RVM107W2H P2-4), run by the file system
-   * at the last step, after the destination is open or staged: it refuses unless
-   * this process still holds the write lease's current generation (a lease
-   * reclaimed after 30 s has a new one) and `atMs` is after the boundary.
-   */
+  The commit check of every change (RVM107W2H P2-4), run by the file system
+  at the last step, after the destination is open or staged: it refuses unless
+  this process still holds the write lease's current generation (a lease
+  reclaimed after 30 s has a new one) and `atMs` is after the boundary.
+  */
   private fence(lock: UsageLock, atMs: number): () => Promise<void> {
     return async () => {
       if (!(await lock.isHeld()) || atMs <= this.resetBoundary())
@@ -319,10 +319,10 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * Runs `action` holding the journal write lock, waiting a bounded time for
-   * another process's change. `acquireLock` returns only a lease it just proved
-   * held; each write inside `action` proves it again at its commit (`fence`).
-   */
+  Runs `action` holding the journal write lock, waiting a bounded time for
+  another process's change. `acquireLock` returns only a lease it just proved
+  held; each write inside `action` proves it again at its commit (`fence`).
+  */
   private async exclusive<T>(action: (lock: UsageLock) => Promise<T>): Promise<T> {
     const sleep =
       this.options.sleep ??
@@ -370,9 +370,9 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * One whole JSON file within `maxBytes` and the remaining read `budget`,
-   * charged the bytes actually read; a vanished file is undefined.
-   */
+  One whole JSON file within `maxBytes` and the remaining read `budget`,
+  charged the bytes actually read; a vanished file is undefined.
+  */
   private async readJson(
     file: string,
     maxBytes: number,
@@ -640,11 +640,11 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * Delete history (RVM107W2G P2-2): `action` (write the reset boundary, then
-   * remove the usage folder) runs holding the write lock, so an append or live
-   * write in flight either finishes first and is deleted, or runs after and
-   * refuses on the new boundary.
-   */
+  Delete history (RVM107W2G P2-2): `action` (write the reset boundary, then
+  remove the usage folder) runs holding the write lock, so an append or live
+  write in flight either finishes first and is deleted, or runs after and
+  refuses on the new boundary.
+  */
   public async deleteWith(action: () => Promise<void>): Promise<void> {
     await this.exclusive(action)
     this.cache.clear()
@@ -668,11 +668,11 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * Rolls completed days up into daily rows, then removes raw days past the
-   * detail window (only once rolled up), day rows past the usage-history days
-   * and expired live files. At most hourly, under the write lock (RVM107W2H
-   * P2-3), so it never runs alongside a Delete history.
-   */
+  Rolls completed days up into daily rows, then removes raw days past the
+  detail window (only once rolled up), day rows past the usage-history days
+  and expired live files. At most hourly, under the write lock (RVM107W2H
+  P2-3), so it never runs alongside a Delete history.
+  */
   public async retain(): Promise<void> {
     const now = this.options.now()
     if (isWithinRetainInterval(this.retainedAt, now)) return
@@ -753,9 +753,9 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * What Delete history removes: every stored line (read or not, valid or
-   * not), each live minute and each daily row. Counting never parses records.
-   */
+  What Delete history removes: every stored line (read or not, valid or
+  not), each live minute and each daily row. Counting never parses records.
+  */
   public async count(): Promise<number> {
     let entries = 0
     const days = await this.fs.list(RESOURCE_JOURNAL_ROOT)

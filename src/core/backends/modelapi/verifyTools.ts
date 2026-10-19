@@ -47,10 +47,10 @@ export type ThenRunRequest =
   | { readonly kind: 'invalid' }
 
 /**
- * The command an edit call's `then_run` names, trimmed (M101): a value that
- * is present but not a string is reported, never silently dropped. An empty
- * line is no command.
- */
+The command an edit call's `then_run` names, trimmed (M101): a value that
+is present but not a string is reported, never silently dropped. An empty
+line is no command.
+*/
 export function thenRunOf(argsJson: string): ThenRunRequest {
   let raw: unknown
   try {

@@ -71,12 +71,12 @@ export function whatsNewLoader(deps: WhatsNewLoaderDeps): () => WhatsNewBundle {
 }
 
 /**
- * Claims showing `version` for this window: true when this window created
- * the version's claim file, false when another window already had. Any other
- * failure (a read-only folder) lets this window show it, logged: a second
- * tab is better than none. Keep other versions' claims: windows running
- * different builds must not delete each other's claim and show twice.
- */
+Claims showing `version` for this window: true when this window created
+the version's claim file, false when another window already had. Any other
+failure (a read-only folder) lets this window show it, logged: a second
+tab is better than none. Keep other versions' claims: windows running
+different builds must not delete each other's claim and show twice.
+*/
 export async function hasClaimedVersion(
   dir: string,
   version: string,
@@ -141,9 +141,9 @@ export interface WhatsNewDeps extends WhatsNewLoaderDeps {
 
 export interface WhatsNew {
   /**
-   * Activation's check: records the version, and after an upgrade schedules
-   * the page or the notification. Resolves once decided, not once shown.
-   */
+  Activation's check: records the version, and after an upgrade schedules
+  the page or the notification. Resolves once decided, not once shown.
+  */
   readonly check: () => Promise<void>
   /** The command and the panel's item: this version's page, now, with the keyboard. */
   readonly show: () => void

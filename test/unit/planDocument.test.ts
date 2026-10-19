@@ -227,7 +227,7 @@ describe('plan names, markup and the log (M79)', () => {
   })
 
   it('finds the control and format characters the panel paints otherwise than the model reads', () => {
-    for (const character of ['‮', '⁦', '​', '‍', '­', '﻿']) {
+    for (const character of ['‮', '⁦', '\u{200B}', '‍', '­', '\u{FEFF}']) {
       expect(hasUnshownCharacters(`1. Do it${character} now.`), JSON.stringify(character)).toBe(
         true,
       )

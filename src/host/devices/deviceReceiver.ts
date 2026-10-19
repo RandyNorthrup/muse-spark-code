@@ -52,7 +52,7 @@ export interface DeviceAccountReceiverDeps {
   /** Receiver consent, permissions, lease and governor; never sender approvals. */
   readonly admit: (request: DeviceAccountRequest) => Promise<DeviceAccountClaim | undefined>
   /** Build from the receiver's local session, mode, flags, verified tariff/model
-   * and budgets. No sender account, interaction flag or price is accepted. */
+  and budgets. No sender account, interaction flag or price is accepted. */
   readonly request: (request: DeviceAccountRequest) => AccountPoolRequest
 }
 

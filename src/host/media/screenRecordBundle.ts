@@ -35,16 +35,16 @@ export interface RecordingCommandDeps extends RecordingPreviewDeps {
   readonly maxSeconds: number
   readonly latest?: () => Promise<ScreenRecordingPreview | undefined>
   /**
-   * False once the conversation that started the recording cleared or
-   * closed: the bundle cancels the run instead of previewing it (M105 E1
-   * review). Absent means the caller owns liveness (tests, other hosts).
-   */
+  False once the conversation that started the recording cleared or
+  closed: the bundle cancels the run instead of previewing it (M105 E1
+  review). Absent means the caller owns liveness (tests, other hosts).
+  */
   readonly isLive?: () => boolean
   /**
-   * The bundle registers the driver's cancel here right after start and
-   * unregisters when the result settles; clear/dispose cancels what is
-   * still registered. Absent means nobody can cancel from outside.
-   */
+  The bundle registers the driver's cancel here right after start and
+  unregisters when the result settles; clear/dispose cancels what is
+  still registered. Absent means nobody can cancel from outside.
+  */
   readonly trackRun?: (cancel: () => Promise<void>) => () => void
 }
 

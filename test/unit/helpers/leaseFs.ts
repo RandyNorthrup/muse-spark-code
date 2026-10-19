@@ -94,10 +94,10 @@ export function pausingPort(base: LeasePort = nodeLeasePort) {
 }
 
 /**
- * Node's lease port, failing chosen listings (`failureCode`), counted from
- * the first generation published after `arm()`: 1 is that publish's own
- * proof, 2 the sweep after it (or, unproven, the reconciliation read).
- */
+Node's lease port, failing chosen listings (`failureCode`), counted from
+the first generation published after `arm()`: 1 is that publish's own
+proof, 2 the sweep after it (or, unproven, the reconciliation read).
+*/
 export function failingListingsAfterLink(failing: readonly number[], failureCode = 'EACCES') {
   let isArmed = false
   let listings: number | undefined

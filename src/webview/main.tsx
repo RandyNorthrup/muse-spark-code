@@ -38,11 +38,11 @@ if (rootElement === null) {
 }
 
 /**
- * The report dialog over the crash screen (M93): the store outlives the
- * crashed tree and keeps reducing the host's `reportDraft` answers, so the
- * boundary's crash screen renders the dialog itself while the app's copy is
- * gone with the tree, and a render failure keeps its "Report a Problem" way on.
- */
+The report dialog over the crash screen (M93): the store outlives the
+crashed tree and keeps reducing the host's `reportDraft` answers, so the
+boundary's crash screen renders the dialog itself while the app's copy is
+gone with the tree, and a render failure keeps its "Report a Problem" way on.
+*/
 function CrashReportDialog({
   store,
   postMessage,

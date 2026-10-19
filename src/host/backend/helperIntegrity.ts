@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto'
 import { readFile, rm } from 'node:fs/promises'
 
 /**
- * A prepared helper changed after its self-test (SPAWN017C). The launch is
- * refused, the changed file is removed, and the next use re-prepares it.
- */
+A prepared helper changed after its self-test (SPAWN017C). The launch is
+refused, the changed file is removed, and the next use re-prepares it.
+*/
 export class ResourceHelperChangedError extends Error {
   readonly code = 'helperChanged'
 
@@ -53,13 +53,13 @@ async function refuse(file: string): Promise<never> {
 }
 
 /**
- * Seals a helper around its self-test: its bytes are hashed before it runs and
- * must hash the same afterwards. `verify` hashes the file again before every
- * use. Size, times and file identity can be set by any same-user process, so
- * only the bytes count: equal bytes are the self-tested helper wherever they
- * live; changed or missing bytes are refused. The helper is a small file, read
- * once per launch.
- */
+Seals a helper around its self-test: its bytes are hashed before it runs and
+must hash the same afterwards. `verify` hashes the file again before every
+use. Size, times and file identity can be set by any same-user process, so
+only the bytes count: equal bytes are the self-tested helper wherever they
+live; changed or missing bytes are refused. The helper is a small file, read
+once per launch.
+*/
 export async function sealHelper(
   file: string,
   selfTest: () => Promise<void>,

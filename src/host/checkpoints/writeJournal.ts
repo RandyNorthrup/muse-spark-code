@@ -83,12 +83,12 @@ export interface WriteJournalDeps {
 export interface InstanceJournal {
   readonly entries: JournalEntry[]
   /**
-   * `none`: every line whole. `intent`: the last line was cut short but
-   * parses as an intent, which is its last entry (an unsettled write).
-   * `unparsed`: a line that does not parse, skipped (its unit is unknown).
-   * A cut-short last line that parses as any other entry is left out: it
-   * was never durable, and what it would have settled stays unsettled.
-   */
+  `none`: every line whole. `intent`: the last line was cut short but
+  parses as an intent, which is its last entry (an unsettled write).
+  `unparsed`: a line that does not parse, skipped (its unit is unknown).
+  A cut-short last line that parses as any other entry is left out: it
+  was never durable, and what it would have settled stays unsettled.
+  */
   readonly tornTail: 'none' | 'unparsed' | 'intent'
 }
 

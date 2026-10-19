@@ -34,17 +34,17 @@ export interface PlanDirectoryEntry {
 
 export interface PlanIo extends RealPathIo {
   /**
-   * Publishes a new file with `content` at `absolutePath`, the checked
-   * canonical target, its folder created and checked again before the file
-   * appears; false when a file of that name exists already, which is left
-   * as it was. Any other failure rejects.
-   */
+  Publishes a new file with `content` at `absolutePath`, the checked
+  canonical target, its folder created and checked again before the file
+  appears; false when a file of that name exists already, which is left
+  as it was. Any other failure rejects.
+  */
   createFile(absolutePath: string, content: string): Promise<boolean>
   /**
-   * The file's bytes, read only from `expectedCanonicalPath`'s target, never
-   * more than `maxBytes` whatever the file is; `bytes` is undefined when it
-   * is missing or larger.
-   */
+  The file's bytes, read only from `expectedCanonicalPath`'s target, never
+  more than `maxBytes` whatever the file is; `bytes` is undefined when it
+  is missing or larger.
+  */
   readFile(
     absolutePath: string,
     maxBytes: number,
@@ -61,9 +61,9 @@ export interface PlanStoreDeps {
   readonly platform: NodeJS.Platform
   readonly io: PlanIo
   /**
-   * The panel's Markdown parser for a plan's title (dist/planMarkdown.js,
-   * loaded on first use); throws, with the reason, when it cannot load.
-   */
+  The panel's Markdown parser for a plan's title (dist/planMarkdown.js,
+  loaded on first use); throws, with the reason, when it cannot load.
+  */
   readonly markdown: () => PlanMarkdown
   /** Host-owned notices; only a true new-file result counts as the captured owner's edit. */
   readonly beginEdit?: (
@@ -155,10 +155,10 @@ export class PlanStore {
   }
 
   /**
-   * Where this plan is saved already under one of the names a save would
-   * give it (the same bytes), so a second press asks nothing and writes
-   * nothing; undefined when it is not.
-   */
+  Where this plan is saved already under one of the names a save would
+  give it (the same bytes), so a second press asks nothing and writes
+  nothing; undefined when it is not.
+  */
   public async find(content: PlanContent): Promise<SavedPlan | undefined> {
     const bytes = new TextEncoder().encode(content.text)
     const folder = await this.place(PLANS_DIR)
@@ -178,10 +178,10 @@ export class PlanStore {
   }
 
   /**
-   * Saves the plan byte for byte as `<date>-<slug>.md`, or the first free
-   * `-<n>` after it. A name that already holds exactly this plan is the
-   * plan's (saved before, from this or another panel): no second copy.
-   */
+  Saves the plan byte for byte as `<date>-<slug>.md`, or the first free
+  `-<n>` after it. A name that already holds exactly this plan is the
+  plan's (saved before, from this or another panel): no second copy.
+  */
   public async save(
     content: PlanContent,
     ownerRecorder?: WorkspaceEditRecorder,
@@ -261,10 +261,10 @@ export class PlanStore {
   }
 
   /**
-   * The saved plans, newest date first (a plan's name starts with the day it
-   * was saved; one day's plans follow in reverse name order). One that
-   * cannot be read is listed by its name.
-   */
+  The saved plans, newest date first (a plan's name starts with the day it
+  was saved; one day's plans follow in reverse name order). One that
+  cannot be read is listed by its name.
+  */
   public async list(): Promise<readonly PlanSummary[]> {
     // The parser first: a listing it cannot title is refused, not half made.
     this.deps.markdown()

@@ -135,9 +135,9 @@ export const teamPlanItemSchema = z.object({
 })
 
 /**
- * A worker's own card, routed to the main panel (D75): the role, the agent
- * and the task, drawn by the panel's chrome, never by the worker.
- */
+A worker's own card, routed to the main panel (D75): the role, the agent
+and the task, drawn by the panel's chrome, never by the worker.
+*/
 export const teamWorkerLabelSchema = z.object({
   roleId: z.string(),
   agentLabel: z.string(),
@@ -146,10 +146,10 @@ export const teamWorkerLabelSchema = z.object({
 export type TeamWorkerLabel = z.infer<typeof teamWorkerLabelSchema>
 
 /**
- * Each card's fields, shared by the host item and the transcript row, so
- * the two cannot drift apart: the row carries the card's payload with its
- * kind, id and status.
- */
+Each card's fields, shared by the host item and the transcript row, so
+the two cannot drift apart: the row carries the card's payload with its
+kind, id and status.
+*/
 export const teamPlanFields = {
   /** Each item delegated or kept, with its rubric reason. */
   items: z.readonly(z.array(teamPlanItemSchema)),
@@ -210,9 +210,9 @@ export const teamItemFields = {
   /** A worker's own card: the panel draws the label from this (D75). */
   teamWorker: z.optional(teamWorkerLabelSchema),
   /**
-   * The confirmed answer to a waiting card or a merge card, folded back
-   * into the row on the host's next update.
-   */
+  The confirmed answer to a waiting card or a merge card, folded back
+  into the row on the host's next update.
+  */
   teamDecision: z.optional(z.string()),
 } as const
 

@@ -220,11 +220,11 @@ export interface RowMetrics {
 }
 
 /**
- * Rows the box needs: the wrapped content's height in rows when the box is
- * measurable (a browser), else the newline count (jsdom reports 0 for both).
- * Never below one row, never above COMPOSER_MAX_ROWS: past that the textarea
- * scrolls inside (issue #4).
- */
+Rows the box needs: the wrapped content's height in rows when the box is
+measurable (a browser), else the newline count (jsdom reports 0 for both).
+Never below one row, never above COMPOSER_MAX_ROWS: past that the textarea
+scrolls inside (issue #4).
+*/
 export function rowsFor(draft: string, metrics?: RowMetrics): number {
   const isMeasured = metrics !== undefined && metrics.rowHeight > 0
   const measured = isMeasured ? Math.round(metrics.scrollHeight / metrics.rowHeight) : 0
@@ -233,9 +233,9 @@ export function rowsFor(draft: string, metrics?: RowMetrics): number {
 }
 
 /**
- * Sizes the box to its draft. One row first, so a draft that shrank is
- * measured against its own height rather than the taller box it is leaving.
- */
+Sizes the box to its draft. One row first, so a draft that shrank is
+measured against its own height rather than the taller box it is leaving.
+*/
 function fitRows(textarea: HTMLTextAreaElement, draft: string): void {
   textarea.rows = MIN_ROWS
   textarea.rows = rowsFor(draft, {
@@ -245,9 +245,9 @@ function fitRows(textarea: HTMLTextAreaElement, draft: string): void {
 }
 
 /**
- * Whether the key belongs to an input method's composition (M25): Chromium
- * flags it `isComposing` and names the key "Process" (keyCode 229).
- */
+Whether the key belongs to an input method's composition (M25): Chromium
+flags it `isComposing` and names the key "Process" (keyCode 229).
+*/
 function isComposing(event: KeyboardEvent<HTMLElement>): boolean {
   return event.nativeEvent.isComposing || event.key === IME_PROCESS_KEY
 }
@@ -264,10 +264,10 @@ export function isSendKey(
 }
 
 /**
- * A mousedown on a toggle button would blur the open palette or menu (which
- * closes it) before the click could toggle; keeping focus where it is lets the
- * click decide.
- */
+A mousedown on a toggle button would blur the open palette or menu (which
+closes it) before the click could toggle; keeping focus where it is lets the
+click decide.
+*/
 function keepMenuFocus(event: MouseEvent<HTMLButtonElement>): void {
   event.preventDefault()
 }
@@ -754,10 +754,10 @@ export function Composer(props: ComposerProps) {
   }
 
   /**
-   * Enter runs a command; a skill, `/goal` (M45), `/handoff` (M74) or Tab
-   * completes the name instead, a skill and those commands ready for what
-   * follows them.
-   */
+  Enter runs a command; a skill, `/goal` (M45), `/handoff` (M74) or Tab
+  completes the name instead, a skill and those commands ready for what
+  follows them.
+  */
   const chooseSlash = (command: SlashCommand, isCompleting: boolean) => {
     const { action } = command
     // A command with arguments stays in the prompt, ready for them; any

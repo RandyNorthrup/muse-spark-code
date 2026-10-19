@@ -17,11 +17,11 @@ const percent = (value: number | null) =>
   value === null ? UI_TEXT.resourceUnknown : formatPercent(value)
 
 /**
- * J's resource branch for `/usage resources`, `usage resources` and
- * `resources history`: the usage page's Resources section as text, from the
- * same validated aggregate. The minute containing `now` is labelled as this
- * minute so far. No usage-table or runtime-only imports.
- */
+J's resource branch for `/usage resources`, `usage resources` and
+`resources history`: the usage page's Resources section as text, from the
+same validated aggregate. The minute containing `now` is labelled as this
+minute so far. No usage-table or runtime-only imports.
+*/
 export function resourceHistoryText(input: ResourceHistory, now = Date.now()): string {
   const history = resourceHistorySchema.parse(input)
   const days = history.days ?? []

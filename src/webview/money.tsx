@@ -106,10 +106,10 @@ function settle(source: MoneySource, load: MoneyLoad): void {
 }
 
 /**
- * The document's money chunk: the first call starts the one load, every
- * later call shares it, and a failure stays failed until Retry rebuilds
- * the document.
- */
+The document's money chunk: the first call starts the one load, every
+later call shares it, and a failure stays failed until Retry rebuilds
+the document.
+*/
 export function loadMoneyDisplay(
   importer: MoneyImporter = importMoneyDisplay,
 ): Promise<MoneyDisplay> {
@@ -134,10 +134,10 @@ async function attemptLoad(source: MoneySource, importer: MoneyImporter): Promis
 }
 
 /**
- * The money chunk's state for a consumer. `isNeeded` starts the load; a
- * consumer that only reports the state (the failure notice) leaves it off,
- * so nothing is fetched for a view that shows no price.
- */
+The money chunk's state for a consumer. `isNeeded` starts the load; a
+consumer that only reports the state (the failure notice) leaves it off,
+so nothing is fetched for a view that shows no price.
+*/
 export function useMoneyLoad(importer?: MoneyImporter, isNeeded = true): MoneyLoad {
   const load = importer ?? importMoneyDisplay
   const source = sourceOf(load)
@@ -159,10 +159,10 @@ export function useMoneyLoad(importer?: MoneyImporter, isNeeded = true): MoneyLo
 }
 
 /**
- * The loaded money chunk for surfaces that format several amounts (the
- * palette's model prices): undefined while it loads or when it fails, so
- * rows render without prices rather than with guessed ones.
- */
+The loaded money chunk for surfaces that format several amounts (the
+palette's model prices): undefined while it loads or when it fails, so
+rows render without prices rather than with guessed ones.
+*/
 export function useMoneyDisplay(
   importer?: MoneyImporter,
   isNeeded = true,
@@ -172,9 +172,9 @@ export function useMoneyDisplay(
 }
 
 /**
- * A registry-style price lookup for palette rows: undefined while the money
- * chunk loads, when it fails, or when the price refuses (unknown tariff).
- */
+A registry-style price lookup for palette rows: undefined while the money
+chunk loads, when it fails, or when the price refuses (unknown tariff).
+*/
 export function usePriceOf(
   importer?: MoneyImporter,
   isNeeded = true,
@@ -204,7 +204,7 @@ export function useFormatUsd(
 }
 
 /** A conservative amount (four places under a dollar), or undefined until loaded.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function useConservativeUsd(
   amount: number | string | Usd,
   importer?: MoneyImporter,
@@ -214,7 +214,7 @@ export function useConservativeUsd(
 }
 
 /** A check's test cost as the language writes it, or undefined until loaded.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function useFormatTestCost(
   costUsd: UsdAmount | undefined,
   importer?: MoneyImporter,
@@ -227,11 +227,11 @@ export function useFormatTestCost(
 }
 
 /**
- * A failed money load, said in words with Retry (STARTUP017): prices stay
- * absent rather than guessed, and `onRetry` rebuilds the document, where
- * the chunk is fetched afresh for every consumer. It only reports: it never
- * starts a load, so a view that shows no price fetches nothing.
- */
+A failed money load, said in words with Retry (STARTUP017): prices stay
+absent rather than guessed, and `onRetry` rebuilds the document, where
+the chunk is fetched afresh for every consumer. It only reports: it never
+starts a load, so a view that shows no price fetches nothing.
+*/
 export function MoneyUnavailable({
   onRetry,
   buttonClassName = 'button-secondary',

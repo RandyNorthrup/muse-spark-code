@@ -31,20 +31,20 @@ const COMPACT_JSON =
   /^(?:l10n\/(?:ui|usage)\.[^/]+\.json|dist\/(?:providerCatalog|whatsNew)\.json|package(?:\.nls(?:\.[^/]+)?)?\.json)$/
 
 /**
- * The Marketplace and VS Code changelog tab's CHANGELOG.md: the Unreleased
- * Highlights when there are any, then the planned releases, then the link
- * to the complete history. `releases` is the writer's own parse
- * (`parseChangelog`) of `text`, `plan` its selection
- * (`selectWhatsNewReleases`): each entry ships in full, or as its
- * Highlights only with a link to its full notes — a shortened entry without
- * Highlights as the link alone, exactly as the page shows it (an `omitted`
- * entry ships nothing) — so the packaged notes agree with What's New's page
- * on what is shown. Without a plan the newest RECENT_RELEASES releases ship
- * in full, as always. Every section is sliced by the parser's source
- * ranges; this file matches no heading of its own, so a fenced example or
- * an indented heading can never select or package a different section than
- * the writer did.
- */
+The Marketplace and VS Code changelog tab's CHANGELOG.md: the Unreleased
+Highlights when there are any, then the planned releases, then the link
+to the complete history. `releases` is the writer's own parse
+(`parseChangelog`) of `text`, `plan` its selection
+(`selectWhatsNewReleases`): each entry ships in full, or as its
+Highlights only with a link to its full notes — a shortened entry without
+Highlights as the link alone, exactly as the page shows it (an `omitted`
+entry ships nothing) — so the packaged notes agree with What's New's page
+on what is shown. Without a plan the newest RECENT_RELEASES releases ship
+in full, as always. Every section is sliced by the parser's source
+ranges; this file matches no heading of its own, so a fenced example or
+an indented heading can never select or package a different section than
+the writer did.
+*/
 export function packagedChangelog(text, releases, plan, repository) {
   if (releases.length === 0) throw new Error('No released changelog section')
   const [newest] = releases

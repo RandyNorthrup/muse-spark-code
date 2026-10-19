@@ -14,9 +14,9 @@ export type JudgeEngineSetting = z.infer<typeof engineSchema>
 export type JudgeMode = 'same' | 'off'
 
 /**
- * Why the resolver decided as it did. Reason codes, not user text: lane U
- * says them through lane 0's strings.
- */
+Why the resolver decided as it did. Reason codes, not user text: lane U
+says them through lane 0's strings.
+*/
 export type JudgeModeReason =
   | 'explicit-off'
   | 'unknown-setting'
@@ -40,17 +40,17 @@ export interface JudgeModeContext {
   readonly engine: unknown
   readonly paidConsent: JudgePaidConsent
   /**
-   * Measured ready rate for this backend (lane U, from M75 replays), or
-   * undefined while unmeasured. Enhancements are on by default, so an
-   * unmeasured backend stays on.
-   */
+  Measured ready rate for this backend (lane U, from M75 replays), or
+  undefined while unmeasured. Enhancements are on by default, so an
+  unmeasured backend stays on.
+  */
   readonly readyRate: number | undefined
   /** `JUDGE_MIN_READY_RATE` (lane 0). */
   readonly minReadyRate: number
   /**
-   * The backend source may judge now (on Muse Code, false while standing
-   * user-level always-allow rules exist; lane S checks before each batch).
-   */
+  The backend source may judge now (on Muse Code, false while standing
+  user-level always-allow rules exist; lane S checks before each batch).
+  */
   readonly sourceAvailable: boolean
   // --- re-resolve triggers (compared by shouldReResolve, D77) ---
   readonly providerId: string
@@ -59,11 +59,11 @@ export interface JudgeModeContext {
 }
 
 /**
- * Resolve the phase-1 mode. Fail-closed order: an unknown setting, a
- * declined or not-yet-asked paid consent, an unavailable source, and a
- * measured ready rate under the floor forces `auto` off with its reason.
- * Explicit `same` bypasses only that automatic default.
- */
+Resolve the phase-1 mode. Fail-closed order: an unknown setting, a
+declined or not-yet-asked paid consent, an unavailable source, and a
+measured ready rate under the floor forces `auto` off with its reason.
+Explicit `same` bypasses only that automatic default.
+*/
 export function resolveJudgeMode(context: JudgeModeContext): JudgeModeResolution {
   const parsed = engineSchema.safeParse(context.engine)
   if (!parsed.success) {
@@ -101,10 +101,10 @@ export interface JudgeModeTriggers {
 }
 
 /**
- * Whether to re-resolve: on a change of setting, provider, consent or
- * confidential flag (D77). Anything else — including a fresh ready-rate
- * measurement — keeps the cached resolution.
- */
+Whether to re-resolve: on a change of setting, provider, consent or
+confidential flag (D77). Anything else — including a fresh ready-rate
+measurement — keeps the cached resolution.
+*/
 export function shouldReResolve(previous: JudgeModeTriggers, current: JudgeModeTriggers): boolean {
   return (
     previous.engine !== current.engine ||

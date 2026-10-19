@@ -56,11 +56,11 @@ const FENCE_NAME = /^\d+$/u
 const FENCE_CREATE_ATTEMPTS = 8
 
 /**
- * How far a created file must get before the create returns: `flushed` to
- * the disk (data that must outlive a crash, such as a record generation),
- * or only `visible` to other processes (a lease's note and fences: a crash
- * ends the lease anyway, and the records' own fence bounds any later one).
- */
+How far a created file must get before the create returns: `flushed` to
+the disk (data that must outlive a crash, such as a record generation),
+or only `visible` to other processes (a lease's note and fences: a crash
+ends the lease anyway, and the records' own fence bounds any later one).
+*/
 export type Durability = 'flushed' | 'visible'
 
 /** The file operations a lease needs: node's, or a test's that pauses one. */
@@ -77,13 +77,13 @@ export interface LeasePort {
   /** The entry itself (a link is not followed), with exact native ids. */
   lstat(file: string): Promise<BigIntStats>
   /**
-   * Rewrites `file` in place with `content` only while `isOwn` accepts the
-   * opened file, judged on the open handle's own stats and content (so a
-   * replacement at the name, even one with a reused file id, is never
-   * written); false otherwise, or when the file is gone. Call `isOwn`
-   * immediately before beginning the rewrite: acceptance lets the holder
-   * recognize a torn note until this call settles.
-   */
+  Rewrites `file` in place with `content` only while `isOwn` accepts the
+  opened file, judged on the open handle's own stats and content (so a
+  replacement at the name, even one with a reused file id, is never
+  written); false otherwise, or when the file is gone. Call `isOwn`
+  immediately before beginning the rewrite: acceptance lets the holder
+  recognize a torn note until this call settles.
+  */
   rewriteOwn(
     file: string,
     isOwn: (opened: BigIntStats, content: Buffer) => boolean,
@@ -160,11 +160,11 @@ export interface FileLease {
   /** Strictly greater than every earlier hold's. */
   readonly fence: number
   /**
-   * Synchronously: the lease runs, the lock file is this very instance and
-   * the highest fence is this one. For a gate with no await before it acts.
-   * Own renewal may show either count; a torn note is owned only during
-   * the opened file's accepted rewrite, while the lease still runs.
-   */
+  Synchronously: the lease runs, the lock file is this very instance and
+  the highest fence is this one. For a gate with no await before it acts.
+  Own renewal may show either count; a torn note is owned only during
+  the opened file's accepted rewrite, while the lease still runs.
+  */
   isHeldSync(): boolean
   isHeld(): Promise<boolean>
   /** Extends this instance's lease; false when lost or a renewal already runs. */
@@ -373,10 +373,10 @@ function readHighestFenceSync(port: LeasePort, fences: string): number | undefin
 }
 
 /**
- * Takes the next fence: an exclusively created file one above the highest,
- * and above `fenceAbove` (what the caller's data already carries, should
- * the fences have lost their history).
- */
+Takes the next fence: an exclusively created file one above the highest,
+and above `fenceAbove` (what the caller's data already carries, should
+the fences have lost their history).
+*/
 async function takeFence(port: LeasePort, fences: string, fenceAbove: number): Promise<number> {
   await port.mkdir(fences)
   for (let attempt = 1; ; attempt += 1) {
@@ -467,12 +467,12 @@ async function instanceAt(
 }
 
 /**
- * Moves `instance` out of the lock's name and proves what moved is it.
- * 'retired': proven and removed (or the name was free already). 'kept':
- * not proven, put back under its name; the caller waits on. Throws
- * `LeaseBusyError` when an unproven instance cannot go back: it stays
- * aside, never removed, and its taker does not acquire.
- */
+Moves `instance` out of the lock's name and proves what moved is it.
+'retired': proven and removed (or the name was free already). 'kept':
+not proven, put back under its name; the caller waits on. Throws
+`LeaseBusyError` when an unproven instance cannot go back: it stays
+aside, never removed, and its taker does not acquire.
+*/
 async function retire(
   port: LeasePort,
   lockPath: string,
@@ -669,11 +669,11 @@ function heldLease(
 }
 
 /**
- * Takes the lease at `lockPath` (its folder exists): created exclusively,
- * or, once the instance there expired, taken over as above; then the next
- * fence, above `fenceAbove` too. Throws `LeaseBusyError` past the wait, or
- * when a moved instance could not be put back.
- */
+Takes the lease at `lockPath` (its folder exists): created exclusively,
+or, once the instance there expired, taken over as above; then the next
+fence, above `fenceAbove` too. Throws `LeaseBusyError` past the wait, or
+when a moved instance could not be put back.
+*/
 export async function acquireFileLease(
   lockPath: string,
   env: FileLeaseEnv,

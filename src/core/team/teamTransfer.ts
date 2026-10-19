@@ -44,10 +44,10 @@ const teamRoleSchema = z.object({
 })
 
 /**
- * The import schema: strict — an unknown key refuses the file whole
- * (D75). `z.object` in zod-mini strips unknown keys, so the check below
- * compares the parsed keys against the raw ones explicitly.
- */
+The import schema: strict — an unknown key refuses the file whole
+(D75). `z.object` in zod-mini strips unknown keys, so the check below
+compares the parsed keys against the raw ones explicitly.
+*/
 const teamImportSchema = z.object({
   format: z.literal(TEAM_EXPORT_FORMAT),
   version: z.literal(TEAM_EXPORT_VERSION),
@@ -114,10 +114,10 @@ export interface TeamImportRefusal {
 }
 
 /**
- * Parses an import: refused whole on an unknown key or a schema failure.
- * `knownModelRefs` are the model references the user has (M95's picker
- * rows); anything else is marked missing.
- */
+Parses an import: refused whole on an unknown key or a schema failure.
+`knownModelRefs` are the model references the user has (M95's picker
+rows); anything else is marked missing.
+*/
 export function parseTeamImport(
   raw: unknown,
   knownModelRefs: readonly string[],
@@ -196,11 +196,11 @@ export function parseTeamImport(
 }
 
 /**
- * A stored role as the workspace keeps it. Entries may carry live
- * sensitive shapes — a credential record, an endpoint, a provider
- * definition or an external agent's command line — which the export
- * leaves behind (M95's trust rule).
- */
+A stored role as the workspace keeps it. Entries may carry live
+sensitive shapes — a credential record, an endpoint, a provider
+definition or an external agent's command line — which the export
+leaves behind (M95's trust rule).
+*/
 export interface TeamStoredRole {
   readonly role: string
   readonly mode: TeamRoleDraft['mode']
@@ -220,11 +220,11 @@ export interface TeamStoredRole {
 }
 
 /**
- * Builds the export document from stored roles. Only the allowlisted
- * fields are copied: credentials, endpoints, provider definitions and
- * command lines the stored entries may carry never reach the file, and
- * the test asserts their absence.
- */
+Builds the export document from stored roles. Only the allowlisted
+fields are copied: credentials, endpoints, provider definitions and
+command lines the stored entries may carry never reach the file, and
+the test asserts their absence.
+*/
 export function buildTeamExport(
   template: TeamDraft['template'],
   roles: readonly TeamStoredRole[],

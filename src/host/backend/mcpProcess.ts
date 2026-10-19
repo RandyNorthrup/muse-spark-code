@@ -225,10 +225,8 @@ export function spawnLine(
   }
 }
 
-function exitDescription(code: number | null, signal: NodeJS.Signals | null): string {
-  return code === null
-    ? `it was ended by ${signal ?? 'a signal'}`
-    : `it exited with code ${String(code)}`
+function exitDescription(code: number | null, signal: string): string {
+  return code === null ? `it was ended by ${signal}` : `it exited with code ${String(code)}`
 }
 
 /** The Node process events are separate: `exit` can precede its last stdout bytes. */
@@ -312,7 +310,9 @@ export function observeMcpProcess(
     }
   })
   child.onStreamsClose((code, signal) => {
-    exited(startError ?? exitDescription(code ?? processCode, signal ?? processSignal))
+    exited(
+      startError ?? exitDescription(code ?? processCode, signal ?? processSignal ?? 'a signal'),
+    )
   })
   child.onStartError((error) => {
     startError = `it could not be started: ${redactSecrets(error.message)}`

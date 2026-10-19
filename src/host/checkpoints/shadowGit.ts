@@ -62,12 +62,12 @@ import type { GitProcess } from '../git'
 const SHADOW_DIR = 'shadow.git'
 
 /**
- * Whether a path runs through a checkpoint repository folder, of any install or
- * namespace: a tool never writes into one, since a filter planted in its config
- * would run as the user at a turn's end (Codex and Muse reviews of PR #55). The
- * name is unusual enough that a real project folder of that name is not a concern;
- * case is folded, as Windows and macOS folders fold it.
- */
+Whether a path runs through a checkpoint repository folder, of any install or
+namespace: a tool never writes into one, since a filter planted in its config
+would run as the user at a turn's end (Codex and Muse reviews of PR #55). The
+name is unusual enough that a real project folder of that name is not a concern;
+case is folded, as Windows and macOS folders fold it.
+*/
 export function isInShadowRepository(absolutePath: string): boolean {
   return absolutePath.split(/[\\/]/u).some((segment) => segment.toLowerCase() === SHADOW_DIR)
 }
@@ -105,9 +105,9 @@ export interface ShadowLayout {
 }
 
 /**
- * git's PATH_MAX on a platform, terminator included. Only Windows is ever
- * near it; a test lowers it to reach the same decisions with short paths.
- */
+git's PATH_MAX on a platform, terminator included. Only Windows is ever
+near it; a test lowers it to reach the same decisions with short paths.
+*/
 export function gitPathMax(platform: NodeJS.Platform): number {
   if (platform === 'win32') {
     return GIT_PATH_MAX_WINDOWS
@@ -130,10 +130,10 @@ export class ShadowPathTooLongError extends Error {
 }
 
 /**
- * The checkpoint storage and the workspace hold one another, so the model's file
- * tools could rewrite the repository's own configuration (a clean filter runs as
- * the user at the turn's end). Nothing was made or run.
- */
+The checkpoint storage and the workspace hold one another, so the model's file
+tools could rewrite the repository's own configuration (a clean filter runs as
+the user at the turn's end). Nothing was made or run.
+*/
 export class ShadowStorageInWorkspaceError extends Error {
   public constructor() {
     super('the checkpoint storage and the workspace overlap')
@@ -260,12 +260,12 @@ export class ShadowGit {
   }
 
   /**
-   * Makes the repository in a short, unique folder beside its final place,
-   * then publishes it with one rename (atomic, and on the same volume by
-   * being in the same folder). Whatever the outcome, this window's own
-   * initializer folder is gone afterwards: a failed or cancelled `git init`
-   * leaves no half-made repository behind.
-   */
+  Makes the repository in a short, unique folder beside its final place,
+  then publishes it with one rename (atomic, and on the same volume by
+  being in the same folder). Whatever the outcome, this window's own
+  initializer folder is gone afterwards: a failed or cancelled `git init`
+  leaves no half-made repository behind.
+  */
   private async initialize(): Promise<void> {
     const { storageDir } = this.layout
     const initializing = path.join(storageDir, this.initializer)
@@ -355,12 +355,12 @@ export class ShadowGit {
   }
 
   /**
-   * Refuses a layout git cannot open, before any file is made or git is
-   * run (the store asks first, then prepares). A longer repository path than
-   * git's `PATH_MAX` leaves is not reachable by any spelling (measured with
-   * git 2.52.0.windows.1), nor is a work tree beyond the folders it can
-   * change into.
-   */
+  Refuses a layout git cannot open, before any file is made or git is
+  run (the store asks first, then prepares). A longer repository path than
+  git's `PATH_MAX` leaves is not reachable by any spelling (measured with
+  git 2.52.0.windows.1), nor is a work tree beyond the folders it can
+  change into.
+  */
   public assertFits(): void {
     const repository = this.shadowDir.length
     if (repository > this.repositoryMax) {
@@ -373,12 +373,12 @@ export class ShadowGit {
   }
 
   /**
-   * Refuses a workspace that holds the checkpoint storage (or is held by it): the
-   * model's file tools could then rewrite `shadow.git/config` or plant a hook,
-   * and git would run it as the user. Checked before any file is made, on the
-   * paths as written and as resolved: a link or junction on the way to the
-   * storage (VS Code's own profile folder, say) can put it inside the workspace.
-   */
+  Refuses a workspace that holds the checkpoint storage (or is held by it): the
+  model's file tools could then rewrite `shadow.git/config` or plant a hook,
+  and git would run it as the user. Checked before any file is made, on the
+  paths as written and as resolved: a link or junction on the way to the
+  storage (VS Code's own profile folder, say) can put it inside the workspace.
+  */
   public async assertSeparate(): Promise<void> {
     const { storageDir, top } = this.layout
     const root = this.layout.storageRoot ?? storageDir
@@ -393,11 +393,11 @@ export class ShadowGit {
   }
 
   /**
-   * Removes the lock files older than `staleMs` that a git ended mid-command
-   * left in the shadow repository (a crash, a window closed), and initializer
-   * folders a window that died mid-`init` left. `staleMs` is well over the
-   * time any git may run, so no live window's lock or initializer is removed.
-   */
+  Removes the lock files older than `staleMs` that a git ended mid-command
+  left in the shadow repository (a crash, a window closed), and initializer
+  folders a window that died mid-`init` left. `staleMs` is well over the
+  time any git may run, so no live window's lock or initializer is removed.
+  */
   public async clearStaleLocks(now: number, staleMs: number): Promise<void> {
     const names = await readdir(this.layout.storageDir)
     for (const name of names) {
@@ -428,12 +428,12 @@ export class ShadowGit {
   }
 
   /**
-   * Runs one git command in the shadow repository over the work tree. A
-   * repository path git would refuse as `GIT_DIR` (PATH_MAX - 40 or longer)
-   * is named relative to its own folder, which is then the working directory:
-   * git changes into the work tree itself, and the index and work tree stay
-   * absolute because they are read after that change.
-   */
+  Runs one git command in the shadow repository over the work tree. A
+  repository path git would refuse as `GIT_DIR` (PATH_MAX - 40 or longer)
+  is named relative to its own folder, which is then the working directory:
+  git changes into the work tree itself, and the index and work tree stay
+  absolute because they are read after that change.
+  */
   public async run(args: readonly string[], command: ShadowCommand = {}): Promise<Buffer> {
     this.assertFits()
     const env: NodeJS.ProcessEnv = {

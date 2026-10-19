@@ -38,9 +38,9 @@ export type WorkerToolGroup =
 export type WorkerReportShape = 'summary' | 'review' | 'qa'
 
 /**
- * The role policy a worker runs under. Lane R resolves this from the role's
- * `AGENT.md` keys; lane W takes it as given and enforces it.
- */
+The role policy a worker runs under. Lane R resolves this from the role's
+`AGENT.md` keys; lane W takes it as given and enforces it.
+*/
 export interface WorkerRolePolicy {
   readonly roleId: WorkerRoleId
   readonly workspaceMode: WorkerWorkspaceMode
@@ -62,9 +62,9 @@ export interface WorkerTask {
   /** The task's branch (`agents/<role>/<task-id>`), named with the brief. */
   readonly branch: string
   /**
-   * The folder the worker runs in: its working copy, or a scratch copy for
-   * a `read-only` role. Lane I creates it; lane W never runs elsewhere.
-   */
+  The folder the worker runs in: its working copy, or a scratch copy for
+  a `read-only` role. Lane I creates it; lane W never runs elsewhere.
+  */
   readonly folder: string
   /** Files named as paths; small text files are inlined up to the byte cap. */
   readonly files: readonly string[]

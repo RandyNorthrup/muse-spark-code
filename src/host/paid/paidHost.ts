@@ -148,10 +148,10 @@ async function isTurnOnConfirmed(feature: PaidFeature): Promise<boolean> {
 }
 
 /**
- * The popup before a paid use (M58): Allow once, Allow always in this
- * workspace (only where it can be kept), or Deny, which is also what closing
- * the popup answers.
- */
+The popup before a paid use (M58): Allow once, Allow always in this
+workspace (only where it can be kept), or Deny, which is also what closing
+the popup answers.
+*/
 export async function askPaidUse(
   request: PaidUseRequest,
   canRemember: boolean,

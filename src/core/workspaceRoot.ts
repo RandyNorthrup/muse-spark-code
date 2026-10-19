@@ -31,9 +31,9 @@ export interface FolderLookup<U> {
   /** `workspace.getWorkspaceFolder(uri)`: the innermost folder holding `uri`, a folder's own URI naming itself. */
   readonly folderOf: (uri: U) => WorkspaceFolderRef<U> | undefined
   /**
-   * `workspace.asRelativePath(uri, false)`: relative to the innermost folder
-   * holding `uri`, and a folder's own URI relative to the folder around it.
-   */
+  `workspace.asRelativePath(uri, false)`: relative to the innermost folder
+  holding `uri`, and a folder's own URI relative to the folder around it.
+  */
   readonly relativePath: (uri: U) => string
   /** The URI of the directory holding `uri`. */
   readonly parentOf: (uri: U) => U
@@ -71,11 +71,11 @@ function pathInRoot<U>(
 }
 
 /**
- * The resource's path relative to the root, with forward slashes; undefined
- * for a resource VS Code attributes to no folder (an untitled document, a
- * git revision, a file elsewhere), to a folder beside the root, and for the
- * root itself. A folder added inside the root is where it sits in it.
- */
+The resource's path relative to the root, with forward slashes; undefined
+for a resource VS Code attributes to no folder (an untitled document, a
+git revision, a file elsewhere), to a folder beside the root, and for the
+root itself. A folder added inside the root is where it sits in it.
+*/
 export function rootRelativePath<U>(uri: U, lookup: FolderLookup<U>): string | undefined {
   const folder = lookup.folderOf(uri)
   if (folder === undefined) {
@@ -102,16 +102,16 @@ const LOCAL_SCHEME = 'vscode-local'
 const FILE_SCHEME = 'file'
 
 /**
- * A URI the webview sent (a drop), as the extension host names the same
- * resource. In a remote window the panel runs on the UI side, where a file
- * of the remote workspace is `vscode-remote://<authority>/path` and a file
- * of the local machine `file:///path`, while this extension runs on the
- * remote side, where they are `file:///path` and `vscode-local:///path`:
- * the mapping VS Code's URI transformer applies to every URI that crosses
- * between them (microsoft/vscode `src/vs/base/common/uriTransformer.ts`),
- * which a string inside a webview message never gets (Claude Code #92403).
- * In a local window both sides name a resource alike.
- */
+A URI the webview sent (a drop), as the extension host names the same
+resource. In a remote window the panel runs on the UI side, where a file
+of the remote workspace is `vscode-remote://<authority>/path` and a file
+of the local machine `file:///path`, while this extension runs on the
+remote side, where they are `file:///path` and `vscode-local:///path`:
+the mapping VS Code's URI transformer applies to every URI that crosses
+between them (microsoft/vscode `src/vs/base/common/uriTransformer.ts`),
+which a string inside a webview message never gets (Claude Code #92403).
+In a local window both sides name a resource alike.
+*/
 export function hostSideUri(parts: UriParts, remoteName: string | undefined): UriParts {
   if (remoteName === undefined) {
     return parts
@@ -127,10 +127,10 @@ export function pathModule(platform: NodeJS.Platform): path.PlatformPath {
 }
 
 /**
- * An absolute path as given; a relative one (the agent's, a link's) against
- * the root, never against another folder. Throws without a root rather than
- * resolving against the extension host's working directory.
- */
+An absolute path as given; a relative one (the agent's, a link's) against
+the root, never against another folder. Throws without a root rather than
+resolving against the extension host's working directory.
+*/
 export function resolveAgainstRoot(
   filePath: string,
   root: string | undefined,

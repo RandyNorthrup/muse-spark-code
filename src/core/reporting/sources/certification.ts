@@ -36,7 +36,7 @@ export function certificationSource(io: LocalFileIo, scrub: SourceScrub) {
             const match = /^\s*- \[([ xX])\] (.+)$/u.exec(line)
             if (match === null) return []
             if (line.length > REPORT_MAX_TEXT_CHARS) throw new LocalSourceError('limit')
-            return [{ text: scrub(match[2] ?? ''), done: match[1]?.toLowerCase() === 'x' }]
+            return { text: scrub(match[2] ?? ''), done: match[1]?.toLowerCase() === 'x' }
           })
           if (checklist.length > REPORT_MAX_ROWS) throw new LocalSourceError('limit')
           records.push({

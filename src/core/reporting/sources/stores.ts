@@ -15,9 +15,9 @@ type Channel = 'Marketplace' | 'Open VSX' | 'npm'
 const storeFactSchema = z.strictObject({ version: z.string().check(z.minLength(1)), url: z.url() })
 
 /**
- * N-captures: the host binds a captured endpoint's schema/transformation to
- * this normalized contract. No store JSON shape is guessed on this base.
- */
+N-captures: the host binds a captured endpoint's schema/transformation to
+this normalized contract. No store JSON shape is guessed on this base.
+*/
 export interface ReportStoreAdapter {
   readonly channel: Channel
   readonly request: ReportNetworkRequest

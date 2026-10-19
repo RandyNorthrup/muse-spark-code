@@ -66,12 +66,12 @@ const AUTOMATION_ORDER: readonly PermissionMode[] = [
 ]
 
 /**
- * The mode a child's approvals are answered under (M76 review, RV70x): the
- * less automatic of its parent's mode and its own `permission-mode`, the
- * parent's when the agent names none. So a Manual parent caps every child,
- * a Manual child asks under any parent, and an Edit automatically child
- * keeps its automation under an Auto or Bypass parent, which permits it.
- */
+The mode a child's approvals are answered under (M76 review, RV70x): the
+less automatic of its parent's mode and its own `permission-mode`, the
+parent's when the agent names none. So a Manual parent caps every child,
+a Manual child asks under any parent, and an Edit automatically child
+keeps its automation under an Auto or Bypass parent, which permits it.
+*/
 export function childPermissionMode(
   parent: PermissionMode,
   child: PermissionMode | undefined,
@@ -92,13 +92,13 @@ export function allowOnceChoice(
 }
 
 /**
- * Whether the Auto reviewer on Muse Code may be asked about an approval
- * (M90, PLAN.md D69): one Muse Code raised in Auto for `parentTurnId`,
- * the running parent turn (so never a child's), with an allow-once choice.
- * Never a request replayed to a later surface, a protected write, one the
- * CLI's own judge escalated, a subject kind MSP does not name, a child task
- * or a paid call.
- */
+Whether the Auto reviewer on Muse Code may be asked about an approval
+(M90, PLAN.md D69): one Muse Code raised in Auto for `parentTurnId`,
+the running parent turn (so never a child's), with an allow-once choice.
+Never a request replayed to a later surface, a protected write, one the
+CLI's own judge escalated, a subject kind MSP does not name, a child task
+or a paid call.
+*/
 export function isReviewableApproval(
   event: Extract<AgentEvent, { type: 'approvalRequested' }>,
   mode: PermissionMode,
@@ -129,10 +129,10 @@ export function isReviewableApproval(
 }
 
 /**
- * The allow-once choice "Edit Automatically" takes for a request answered
- * under `mode` (the client's own, for the parent conversation); undefined
- * for anything the user must see.
- */
+The allow-once choice "Edit Automatically" takes for a request answered
+under `mode` (the client's own, for the parent conversation); undefined
+for anything the user must see.
+*/
 export function editAutomaticallyChoice(
   event: Extract<AgentEvent, { type: 'approvalRequested' }>,
   mode: PermissionMode,

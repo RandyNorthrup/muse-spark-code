@@ -15,9 +15,9 @@ import type { ModelApiHostDeps } from './ModelApiHost'
 import type { CreateResponseBody, Usage } from './schemas'
 
 /**
- * Meta catalogue rates for the cost model, projected to exact per-token
- * money like every other catalogue quote; anything else is unpriced there.
- */
+Meta catalogue rates for the cost model, projected to exact per-token
+money like every other catalogue quote; anything else is unpriced there.
+*/
 function perTokenUsd(amount: UsdAmount): number {
   return Number(Usd.from(amount).divide(TOKENS_PER_MILLION).toString())
 }

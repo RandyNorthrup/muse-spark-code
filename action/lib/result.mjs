@@ -608,11 +608,11 @@ export function isExecResult(value) {
 }
 
 /**
- * The single result in exec's JSONL text, or undefined when any line is not a
- * valid v2 event with the next sequence number, the text is cut mid-line,
- * there is no result, more than one, a line after it, or the result is
- * invalid.
- */
+The single result in exec's JSONL text, or undefined when any line is not a
+valid v2 event with the next sequence number, the text is cut mid-line,
+there is no result, more than one, a line after it, or the result is
+invalid.
+*/
 export function parseEventsText(text) {
   if (text === '' || !text.endsWith('\n')) return
   const lines = text.slice(0, -1).split('\n')
@@ -634,11 +634,11 @@ export function parseEventsText(text) {
 }
 
 /**
- * Extracts and publishes the result under the owner (SPEC §6.5, G21): the
- * valid result whose exit code equals `execCode`, staged privately and
- * renamed into out/result.json with the events beside it. Anything else is
- * null: no result path, and the patch is withheld as no_result.
- */
+Extracts and publishes the result under the owner (SPEC §6.5, G21): the
+valid result whose exit code equals `execCode`, staged privately and
+renamed into out/result.json with the events beside it. Anything else is
+null: no result path, and the patch is withheld as no_result.
+*/
 export async function extractResult({ owner, paths, execCode }) {
   return await owner.phase('extract', ACTION_EXTRACT_MS, async (signal) => {
     let bytes

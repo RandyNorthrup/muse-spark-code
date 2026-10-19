@@ -93,9 +93,9 @@ async function axeResultOf(tab, remaining) {
 }
 
 /**
- * A scenario that needs scrollbars (the 1400 px column's check), which the
- * workers' browsers hide: a browser of its own at its size.
- */
+A scenario that needs scrollbars (the 1400 px column's check), which the
+workers' browsers hide: a browser of its own at its size.
+*/
 async function scanWithScrollbars(chrome, url, sized) {
   const profileDir = await mkdtemp(path.join(tmpdir(), 'muse-a11y-sized-'))
   try {

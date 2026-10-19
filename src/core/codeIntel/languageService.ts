@@ -40,9 +40,9 @@ export interface CodeSymbol {
 export interface CallSite {
   readonly symbol: CodeSymbol
   /**
-   * Incoming: the calls, in the caller's file. Outgoing: the calls, in the
-   * file of the function asked about.
-   */
+  Incoming: the calls, in the caller's file. Outgoing: the calls, in the
+  file of the function asked about.
+  */
   readonly ranges: readonly CodeRange[]
 }
 
@@ -68,9 +68,9 @@ export interface FileEdits {
 }
 
 /**
- * Whether the edit also creates, renames or deletes files, which the tool
- * refuses; `unknown` when VS Code does not say, which it refuses too.
- */
+Whether the edit also creates, renames or deletes files, which the tool
+refuses; `unknown` when VS Code does not say, which it refuses too.
+*/
 export type FileOperations = 'none' | 'present' | 'unknown'
 
 export interface RenameEdits {
@@ -104,9 +104,9 @@ export interface LanguageServiceHost {
   /** Rejects with the provider's own reason when the position cannot be renamed. */
   rename(path: string, at: CodePosition, newName: string): Promise<RenameEdits>
   /**
-   * Folders outside the workspace whose declarations a hover may still
-   * describe: the editor's own installation and its extensions, where the
-   * languages' bundled libraries live (`lib.dom.d.ts`, typeshed).
-   */
+  Folders outside the workspace whose declarations a hover may still
+  describe: the editor's own installation and its extensions, where the
+  languages' bundled libraries live (`lib.dom.d.ts`, typeshed).
+  */
   libraryRoots(): readonly string[]
 }

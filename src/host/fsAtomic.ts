@@ -70,23 +70,23 @@ export interface AtomicWriteOptions {
   readonly expectedCanonicalPath?: string
   readonly platform?: NodeJS.Platform
   /**
-   * A checkpoint restore (M72): whether the file is executable. The file's
-   * own permissions are kept (a new file's are the default ones) and only
-   * the execute bits follow, set where the read bits are; unset: the
-   * permissions are kept as they are.
-   */
+  A checkpoint restore (M72): whether the file is executable. The file's
+  own permissions are kept (a new file's are the default ones) and only
+  the execute bits follow, set where the read bits are; unset: the
+  permissions are kept as they are.
+  */
   readonly executable?: boolean
   /**
-   * A conditional write's last word, asked right after the final comparison
-   * before each rename: false leaves the target alone (format on edit asks
-   * whether an editor now holds unsaved text for the file; Grok's review).
-   */
+  A conditional write's last word, asked right after the final comparison
+  before each rename: false leaves the target alone (format on edit asks
+  whether an editor now holds unsaved text for the file; Grok's review).
+  */
   readonly isReplaceable?: () => boolean
   /**
-   * Runs once the content is staged and closed, with the staged file's mode
-   * from its handle and the folder the write created, before the first
-   * rename attempt (M86: the recorder's intent). A throw leaves the target alone.
-   */
+  Runs once the content is staged and closed, with the staged file's mode
+  from its handle and the folder the write created, before the first
+  rename attempt (M86: the recorder's intent). A throw leaves the target alone.
+  */
   readonly staged?: (file: StagedFile) => Promise<void>
 }
 
@@ -197,10 +197,10 @@ async function assertBoundPath(
 }
 
 /**
- * Where a write of `target` lands: an existing file where it really is,
- * with its permission bits, refused when it is read-only (EACCES, or EPERM
- * on Windows); `target` itself for a new file or a link that leads nowhere.
- */
+Where a write of `target` lands: an existing file where it really is,
+with its permission bits, refused when it is read-only (EACCES, or EPERM
+on Windows); `target` itself for a new file or a link that leads nowhere.
+*/
 async function destinationOf(target: string, options: AtomicWriteOptions): Promise<Destination> {
   let real: string
   try {
@@ -217,10 +217,10 @@ async function destinationOf(target: string, options: AtomicWriteOptions): Promi
 }
 
 /**
- * How many folders, `folder` and up, a recursive `mkdir` of it made, from the
- * outermost one it names (undefined: none). Windows names it in its long-path
- * form (`\\?\C:\…`), so both are compared in that form.
- */
+How many folders, `folder` and up, a recursive `mkdir` of it made, from the
+outermost one it names (undefined: none). Windows names it in its long-path
+form (`\\?\C:\…`), so both are compared in that form.
+*/
 export function foldersMade(folder: string, outermost: string | undefined): number {
   if (outermost === undefined) {
     return 0
@@ -263,11 +263,11 @@ async function assertUnchanged(
 }
 
 /**
- * Replaces `target` with `content` (text as UTF-8, or bytes as they are:
- * a checkpoint restore, M72) in one step, its folder created. The
- * temporary file's name is unique, so two windows writing the same target
- * never share one; it ends in ATOMIC_TEMPORARY_SUFFIX for cleanups.
- */
+Replaces `target` with `content` (text as UTF-8, or bytes as they are:
+a checkpoint restore, M72) in one step, its folder created. The
+temporary file's name is unique, so two windows writing the same target
+never share one; it ends in ATOMIC_TEMPORARY_SUFFIX for cleanups.
+*/
 export async function writeFileAtomically(
   target: string,
   content: string | Uint8Array,
@@ -277,11 +277,11 @@ export async function writeFileAtomically(
 }
 
 /**
- * `writeFileAtomically`, only while `target` still holds the text whose
- * fingerprint is `expectedFingerprint` (`core/verify/fingerprint`): checked
- * immediately before each rename attempt. `changed`, and nothing written,
- * when it does not.
- */
+`writeFileAtomically`, only while `target` still holds the text whose
+fingerprint is `expectedFingerprint` (`core/verify/fingerprint`): checked
+immediately before each rename attempt. `changed`, and nothing written,
+when it does not.
+*/
 export async function writeFileIfUnchanged(
   target: string,
   expectedFingerprint: string | (() => Promise<boolean>),
@@ -312,15 +312,15 @@ interface ConditionalRemoveOptions {
 }
 
 /**
- * Removes `target` only while it is a regular file, at its expected canonical
- * path, that still holds the text whose fingerprint is `expectedFingerprint`:
- * `changed`, and nothing removed, when not. The bytes are compared, then the
- * path and the file's identity (device, inode, size and modification time)
- * again immediately before the removal, so a save or a replacement since the
- * comparison refuses it. As for the conditional write, no file system offers
- * a conditional removal: a change saved between that last check and the
- * removal goes with the file (to the trash, for a Revert).
- */
+Removes `target` only while it is a regular file, at its expected canonical
+path, that still holds the text whose fingerprint is `expectedFingerprint`:
+`changed`, and nothing removed, when not. The bytes are compared, then the
+path and the file's identity (device, inode, size and modification time)
+again immediately before the removal, so a save or a replacement since the
+comparison refuses it. As for the conditional write, no file system offers
+a conditional removal: a change saved between that last check and the
+removal goes with the file (to the trash, for a Revert).
+*/
 export async function deleteFileIfUnchanged(
   target: string,
   expectedFingerprint: string,
@@ -480,15 +480,15 @@ export interface NewFileOptions {
   /** The file's mode before the umask; the file keeps the stage's inode. */
   readonly mode: number
   /**
-   * The folder's canonical form, links resolved, that the file must land
-   * in: the checked one when the caller confined the path already, else the
-   * folder's form when the create starts.
-   */
+  The folder's canonical form, links resolved, that the file must land
+  in: the checked one when the caller confined the path already, else the
+  folder's form when the create starts.
+  */
   readonly expectedDirectory?: string
   /**
-   * A stage that could not be removed: `isPublished` says whether the file
-   * was published first (complete under its name) or the create failed.
-   */
+  A stage that could not be removed: `isPublished` says whether the file
+  was published first (complete under its name) or the create failed.
+  */
   readonly warn: (stage: string, isPublished: boolean, error: unknown) => void
   /** Replace the hard-link call in a deterministic publication test. */
   readonly publish?: (stage: string, target: string) => Promise<void>
@@ -513,9 +513,9 @@ function isNameTakenCode(code: string | undefined): boolean {
 const NOT_A_FOLDER_CODES: ReadonlySet<string> = new Set(['EEXIST', 'ENOTDIR'])
 
 /**
- * The target's name was taken when the file was to be published: nothing
- * was written. It keeps `code: 'EEXIST'`, as the link's own error had it.
- */
+The target's name was taken when the file was to be published: nothing
+was written. It keeps `code: 'EEXIST'`, as the link's own error had it.
+*/
 class NameTakenError extends Error {
   public readonly code = NAME_TAKEN_CODE
 
@@ -565,21 +565,21 @@ async function removeStage(
 }
 
 /**
- * Creates `absolutePath` with `content` (text as UTF-8, or bytes as they
- * are: a held pull request's files, M71), its folder made, and never
- * replaces a file already there: the content goes to a hidden stage beside
- * it, which a hard link then publishes under the target name. A taken name
- * is a `NameTakenError` (see `isNameTaken`), so a reader never sees half a
- * file and another writer's file is never replaced. File systems without
- * hard links fail closed; copy and rename cannot make both guarantees.
- *
- * The folder is checked against `expectedDirectory` before it is made,
- * after it is made and
- * again just before the link, so a folder swapped for a link or junction in
- * between is refused. Node cannot link relative to a held folder handle, so
- * a swap between that last check and the link itself stays outside the
- * guarantee, as for `writeFileAtomically`.
- */
+Creates `absolutePath` with `content` (text as UTF-8, or bytes as they
+are: a held pull request's files, M71), its folder made, and never
+replaces a file already there: the content goes to a hidden stage beside
+it, which a hard link then publishes under the target name. A taken name
+is a `NameTakenError` (see `isNameTaken`), so a reader never sees half a
+file and another writer's file is never replaced. File systems without
+hard links fail closed; copy and rename cannot make both guarantees.
+
+The folder is checked against `expectedDirectory` before it is made,
+after it is made and
+again just before the link, so a folder swapped for a link or junction in
+between is refused. Node cannot link relative to a held folder handle, so
+a swap between that last check and the link itself stays outside the
+guarantee, as for `writeFileAtomically`.
+*/
 export async function createFileExclusively(
   absolutePath: string,
   content: string | Uint8Array,

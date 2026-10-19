@@ -49,9 +49,9 @@ export interface CliFeatureDeps {
   readonly museSettingsPath: () => string
   readonly workspaceRoot: string | undefined
   /**
-   * Runs a write of `fsPath` (an export the user placed): inside the
-   * workspace folder under the checkpoint lease (M72), elsewhere as it is.
-   */
+  Runs a write of `fsPath` (an export the user placed): inside the
+  workspace folder under the checkpoint lease (M72), elsewhere as it is.
+  */
   readonly editFile: <T>(fsPath: string, work: () => Promise<T>) => Promise<T>
   /** What the import from other agents needs of the window (M83). */
   readonly agentImport: Omit<
@@ -63,18 +63,18 @@ export interface CliFeatureDeps {
   /** Stops the hosts; the next message starts them with the new settings (D25). */
   readonly restartBackend: () => Promise<void>
   /**
-   * The Model API backend's MCP servers, read for the view when this window
-   * runs on that backend (M50); undefined on Muse Code.
-   */
+  The Model API backend's MCP servers, read for the view when this window
+  runs on that backend (M50); undefined on Muse Code.
+  */
   readonly modelApiMcp: () => (() => McpPoolSnapshot | undefined) | undefined
   /** Undefined on Muse Code; current machine hook setting on Model API. */
   readonly modelApiHooks: () => boolean | undefined
   /** Shows the extension's log, where an MCP server's stderr goes. */
   readonly openLog: () => void
   /**
-   * VS Code trusts the workspace and the window is not held on someone
-   * else's pull request (M71): the project's skills and hooks may be read.
-   */
+  VS Code trusts the workspace and the window is not held on someone
+  else's pull request (M71): the project's skills and hooks may be read.
+  */
   readonly isProjectTrusted: () => boolean
   /** Whether this window is held on someone else's pull request (M71). */
   readonly isProjectHeld: () => boolean
@@ -196,10 +196,10 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
       filters: { [filterName]: [extension] },
     })
   /**
-   * Asks where to save an export and writes it there under the edit lease
-   * and action guard (M72), Markdown and portable JSON alike; undefined,
-   * with nothing written, when the dialog is dismissed.
-   */
+  Asks where to save an export and writes it there under the edit lease
+  and action guard (M72), Markdown and portable JSON alike; undefined,
+  with nothing written, when the dialog is dismissed.
+  */
   const saveExport = async (
     fileName: string,
     filterName: string,

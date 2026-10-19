@@ -16,8 +16,8 @@ const auditSchema = z.strictObject({
 })
 
 /** One owner per board/run. M96 supplies atomic live resource claims and
- * across-process idempotency. Returned IDs mean submitted, not completed.
- */
+across-process idempotency. Returned IDs mean submitted, not completed.
+*/
 export class EstimateWaveStarter {
   private readonly owner = new EstimateSerialOwner()
   private readonly submitted = new Set<string>()

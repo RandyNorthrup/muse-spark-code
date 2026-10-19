@@ -84,9 +84,9 @@ export type DeviceSignInOutcome = 'signedIn' | 'timedOut' | HostEnding
 const STOPPED = Symbol('device sign-in stopped')
 
 /**
- * A host that exits mid-flow fails the sign-in at once, instead of being
- * polled until the backstop (the review of PR #49).
- */
+A host that exits mid-flow fails the sign-in at once, instead of being
+polled until the backstop (the review of PR #49).
+*/
 function hostGone(): Error {
   return new Error('The Muse Code sign-in host exited during sign-in')
 }
@@ -137,10 +137,10 @@ function endingOf(outcome: string): HostEnding | undefined {
 }
 
 /**
- * Settles with `value` once `signal` aborts (at once if it already has);
- * `remove` stops listening. Not `Promise.withResolvers`: VS Code 1.99 and
- * 1.100 run Node 20 (PLAN.md M62).
- */
+Settles with `value` once `signal` aborts (at once if it already has);
+`remove` stops listening. Not `Promise.withResolvers`: VS Code 1.99 and
+1.100 run Node 20 (PLAN.md M62).
+*/
 function settleOnAbort<T>(
   signal: AbortSignal,
   value: T,

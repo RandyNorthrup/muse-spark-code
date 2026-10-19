@@ -52,7 +52,7 @@ interface AccountHomesDeps {
     readonly selection: readonly Configuration[]
   }) => Promise<void>
   /** Use a direct CLI executable/launcher and a replacement environment.
-   * Await the workspace startup fence, then assertCurrent just before opening. */
+  Await the workspace startup fence, then assertCurrent just before opening. */
   readonly openLoginTerminal: (request: {
     readonly command: string
     readonly args: readonly string[]
@@ -207,7 +207,7 @@ export class MuseCodeAccountHomes implements AccountLimitsReader {
     if (provider !== this.deps.provider) throw new Error(UI_TEXT.accounts.invalidAccount)
     const now = this.deps.now()
     if (!Number.isFinite(new Date(now).getTime()))
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      throw new TypeError(UI_TEXT.sessionBudgetStoreUnavailable)
     const usage = this.usage.get(account)
     if (usage === undefined) return {}
     const window = (value: SubscriptionUsage['weekly']) => ({
@@ -232,8 +232,8 @@ export class MuseCodeAccountHomes implements AccountLimitsReader {
 const recoveryChoiceSchema = z.enum(['upgrade', 'wait', 'payAsYouGo', 'cancel'])
 type RecoveryChoice = z.infer<typeof recoveryChoiceSchema>
 /** P handles policy confirmation after recovery; this port never selects a CLI key.
- * @unwired M108 CLI account recovery port
- */
+@unwired M108 CLI account recovery port
+*/
 export async function recoverMuseCodeAccount(deps: {
   readonly offer: (question: {
     readonly detail: string
@@ -247,7 +247,7 @@ export async function recoverMuseCodeAccount(deps: {
     /** Bind D48's three choices to this Model API account, price and shared budget. */
     readonly allows: (binding: PaidAccountBinding) => Promise<boolean>
     /** Existing daily AND conversation admission owns reservation/settlement and
-     * releases a claim if dispatch fails. It invokes start only after admission. */
+    releases a claim if dispatch fails. It invokes start only after admission. */
     readonly admit: (start: () => Promise<void>) => Promise<void>
     /** Model API path only, after consent/admission; owns its credential internally. */
     readonly start: (binding: PaidAccountBinding) => Promise<void>

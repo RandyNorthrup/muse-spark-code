@@ -42,10 +42,10 @@ import type {
 } from './launch'
 
 /**
- * Launchers without a profile (MCP, shell, team) and the portable contained and
- * probe profiles own a whole tree the registry binds; handoff, interactive and
- * bootstrap stop only what they own themselves.
- */
+Launchers without a profile (MCP, shell, team) and the portable contained and
+probe profiles own a whole tree the registry binds; handoff, interactive and
+bootstrap stop only what they own themselves.
+*/
 const TREE_BOUND: ReadonlySet<ResourceLaunchProfile | undefined> = new Set([
   undefined,
   'contained',
@@ -112,9 +112,9 @@ export interface ResourceLaunchHostOptions {
   readonly created?: Pick<CreatedRegistry, 'finish' | 'clean'> | undefined
   readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
   /**
-   * A history recorder drains `settled()` (M107-J-C1-T-accounting; the window's,
-   * POSTSPAWN). Without one, no attested row is kept: nothing would ever read it.
-   */
+  A history recorder drains `settled()` (M107-J-C1-T-accounting; the window's,
+  POSTSPAWN). Without one, no attested row is kept: nothing would ever read it.
+  */
   readonly isSettledRead?: boolean | undefined
 }
 
@@ -442,10 +442,10 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   /**
-   * The governor's checked status, cached: the same object until a reading,
-   * event, queue or settings change alters its content (React's external-store
-   * contract for the chip; the status item reads the same object).
-   */
+  The governor's checked status, cached: the same object until a reading,
+  event, queue or settings change alters its content (React's external-store
+  contract for the chip; the status item reads the same object).
+  */
   status(): ResourceStatus {
     if (this.snapshot !== undefined && !this.isSnapshotStale) return this.snapshot.status
     const status = this.options.governor.status(this.queue.counts())
@@ -470,9 +470,9 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   /**
-   * Resume now: the governor's own fifteen-minute override for this window.
-   * An explicitly disabled governor stays off, and nothing is approved or paid.
-   */
+  Resume now: the governor's own fifteen-minute override for this window.
+  An explicitly disabled governor stays off, and nothing is approved or paid.
+  */
   resume(): ResourceStatus {
     if (this.disposed) throw new Error('Resource launch host disposed')
     if (this.applySettings().enabled) this.options.governor.resumeNow()
@@ -704,11 +704,11 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   /**
-   * Settled attested trees since the last read, at most RESOURCE_SETTLED_ROWS_MAX
-   * (oldest dropped and counted), kept only with `isSettledRead`. The window's
-   * history recorder reads it with `treeUsage()` as its ResourceRecordWorkSource
-   * (POSTSPAWN); a window without history keeps no rows.
-   */
+  Settled attested trees since the last read, at most RESOURCE_SETTLED_ROWS_MAX
+  (oldest dropped and counted), kept only with `isSettledRead`. The window's
+  history recorder reads it with `treeUsage()` as its ResourceRecordWorkSource
+  (POSTSPAWN); a window without history keeps no rows.
+  */
   settled(): {
     readonly rows: readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[]
     readonly dropped: number
@@ -725,14 +725,14 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   /**
-   * J's history work source: each registered tree's last verified reading from
-   * the tree sampler, then retired trees' final readings once. No OS query.
-   */
+  J's history work source: each registered tree's last verified reading from
+  the tree sampler, then retired trees' final readings once. No OS query.
+  */
   treeUsage(): readonly ResourceTreeUsageRow[] {
     this.isUsageObserved = true
     const retired = this.retiredUsage.splice(0)
     const live = [...this.work].flatMap((work) =>
-      work.ticket === undefined ? [] : [{ ticket: work.ticket, usage: work.usage ?? null }],
+      work.ticket === undefined ? [] : { ticket: work.ticket, usage: work.usage ?? null },
     )
     return [...retired, ...live]
   }

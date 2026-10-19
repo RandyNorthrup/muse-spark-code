@@ -75,9 +75,9 @@ export interface ExtensionReportFactsDeps {
 }
 
 /**
- * The facts as the builder takes them. The CLI's version is passed as the
- * CLI wrote it; the builder drops it when it is not a version.
- */
+The facts as the builder takes them. The CLI's version is passed as the
+CLI wrote it; the builder drops it when it is not a version.
+*/
 export function extensionReportFacts(deps: ExtensionReportFactsDeps): unknown {
   const status =
     deps.serviceStatus === undefined ? undefined : modelApiStatusSchema.parse(deps.serviceStatus)
