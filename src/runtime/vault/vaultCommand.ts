@@ -414,11 +414,17 @@ async function setUpVault(port: VaultCommandPort, deps: VaultCommandDeps): Promi
  * A refused Delete (or any other refused management call) tells the true
  * reason on the terminal too: every named refusal keeps its own sentence,
  * and only an unnamed failure stays "No access" (RVAPP-CM1091D5 P2-3).
+ * The client's own broker sentences keep theirs as well: a broker that
+ * cannot start names its repair, and a switched-off build says so.
  * Exact match only: no foreign text can quote a full sentence.
  */
 export function vaultCommandFailure(error: unknown): string {
-  // Every named sentence, shared with the panel (RVAPP-CM1091D5 P2-3).
-  return error instanceof Error && vaultRefusalSentences().includes(error.message)
+  // Every named sentence, shared with the panel (RVAPP-CM1091D5 P2-3),
+  // plus the client's own broker sentences, terminal-only.
+  return error instanceof Error &&
+    (error.message === UI_TEXT.vault.brokerBlocked ||
+      error.message === UI_TEXT.vault.brokerDisabled ||
+      vaultRefusalSentences().includes(error.message))
     ? error.message
     : UI_TEXT.vault.noAccess
 }
@@ -523,10 +529,13 @@ export async function runVaultCommand(
       }
     }
   } catch (error: unknown) {
+    // An open failure already carries its own sentence (the loader wraps
+    // every one as brokerDisabled or brokerBlocked); keep it, and only an
+    // unnamed open failure stays the broker repair sentence.
+    const named = vaultCommandFailure(error)
+    const didOpenFail = port === undefined && !deps.signal.aborted
     deps.printError(
-      port === undefined && !deps.signal.aborted
-        ? UI_TEXT.vault.brokerBlocked
-        : vaultCommandFailure(error),
+      didOpenFail && named === UI_TEXT.vault.noAccess ? UI_TEXT.vault.brokerBlocked : named,
     )
     code = 1
   } finally {
