@@ -455,7 +455,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   `/playback` asks the agent to state its own understanding of the goal
   and instructions from working memory only, with no tools for the turn,
   so the person can compare it with what they asked and correct it; a
-  model turn, on both backends.
+  model turn on the Model API backend, refused on Muse Code, which has no
+  zero-tool turn.
   M115's `/schedule` (list, add, remove, run-now, pause, resume, fire and
   timeline; `run-due` and background maintenance are refused here), offered
   only with `--scheduled-prompts`.

@@ -158,8 +158,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ),
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
-  // D203: /playback runs on every surface and backend, answering from memory only.
-  ['playback', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // D203: /playback runs on every surface on the Model API backend, answering
+  // from memory only; on Muse Code it is refused, which has no zero-tool turn.
+  ['playback', ['vscode:modelApi', 'acp:modelApi']],
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   // M99: ACP answers /whatsnew locally with the same release notes.
   ['support', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
