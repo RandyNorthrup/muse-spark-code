@@ -39,10 +39,12 @@ import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
 import { loadJobAssembly, runProgram, windowsPowerShell } from '../processTree'
 import {
   guardedEnvironmentBlock,
+  isWorkspacePath,
   noWorkspaceChildEnvironment,
   resolveExecutable,
   workspaceChildEnvironment,
 } from '../../core/executables'
+import { isExistingFile, resolveServerCommand, spawnLine } from '../backend/mcpProcess'
 import { powerShellQuoted } from '../../core/shellQuote'
 import {
   MCP_JOB_HANDSHAKE_MAX_CHARS,
@@ -818,12 +820,13 @@ export async function createNativeTeamProcessDriver(options: {
 /**
  * The Windows team payload's whole environment, as the `string[]` block the
  * native helper hands `CreateProcessW`: the same guarded child environment
- * the POSIX launch uses for the same payload, so a bare `request.command`
- * (`npm`, `git`, `node`) never resolves to a program planted in the
- * workspace, and neither does a helper the payload starts by bare name
- * (`ssh`, `git-remote-https`). Only a guarded environment serializes
- * (`guardedEnvironmentBlock`), so a raw `request.env` does not type-check
- * here.
+ * the POSIX launch uses for the same payload, so a helper the payload
+ * starts by bare name (`ssh`, `git-remote-https`) never resolves to a
+ * program planted in the workspace. (The executable itself never comes from
+ * this block: `RunTeam` receives it as `lpApplicationName`, resolved
+ * outside the workspace by `resolveWindowsTeamCommand` below.) Only a
+ * guarded environment serializes (`guardedEnvironmentBlock`), so a raw
+ * `request.env` does not type-check here.
  */
 export function windowsTeamPayloadEnvironment(env: NodeJS.ProcessEnv, cwd: string): string[] {
   return guardedEnvironmentBlock(
@@ -832,6 +835,55 @@ export function windowsTeamPayloadEnvironment(env: NodeJS.ProcessEnv, cwd: strin
       realpath: realpathSync,
     }),
   )
+}
+
+export interface WindowsTeamCommandTarget {
+  /**
+   * The absolute file `RunTeam` starts: outside the workspace, so
+   * `CreateProcessW` (which completes a partial `lpApplicationName` from
+   * the helper's own working directory without a PATH search) can never
+   * complete it to a workspace planting. A `.cmd`/`.bat` hit is the
+   * absolute `cmd.exe` instead, which alone can start one.
+   */
+  readonly executable: string
+  /** The arguments for it (the pre-quoted `cmd.exe` line for a batch file). */
+  readonly args: readonly string[]
+  /** Whether the arguments reach `CreateProcessW` exactly as built. */
+  readonly isVerbatim: boolean
+}
+
+/**
+ * The `RunTeam` executable and arguments for a team launch, resolved before
+ * the helper runs. A bare `command` resolves on the absolute PATH entries
+ * outside the launch's own working directory (PATHEXT order included), the
+ * way the MCP servers resolve theirs; a missing name fails the launch
+ * closed instead of falling back to the workspace. A path the person named
+ * is the file it names, but one inside the workspace (links followed)
+ * fails the launch closed too: with the workspace as the helper's working
+ * directory, `CreateProcessW` would otherwise complete it there.
+ */
+export function resolveWindowsTeamCommand(
+  command: string,
+  args: readonly string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+  deps: {
+    readonly systemRoot: string | undefined
+    readonly isExistingFile: (filePath: string) => boolean
+    readonly realpath: (filePath: string) => string
+  },
+): WindowsTeamCommandTarget {
+  const scope = { workspaceRoot: cwd, realpath: deps.realpath }
+  const file = resolveServerCommand(
+    command,
+    cwd,
+    env,
+    { platform: 'win32', isExistingFile: deps.isExistingFile },
+    scope,
+  )
+  if (isWorkspacePath('win32', scope, file)) throw new Error('TEAM_COMMAND_IN_WORKSPACE')
+  const line = spawnLine(file, args, { platform: 'win32', systemRoot: deps.systemRoot })
+  return { executable: line.file, args: [...line.args], isVerbatim: line.isVerbatim }
 }
 
 function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDriver {
@@ -955,14 +1007,27 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
       const strings = (values: readonly string[]) =>
         `[string[]]@(${values.map((value) => powerShellQuoted(value)).join(',')})`
       // The payload's whole environment: the same guarded child environment
-      // the POSIX launch uses, so a bare `request.command` never resolves to
-      // a program planted in the workspace and neither does anything it
-      // starts by bare name.
+      // the POSIX launch uses, so nothing the payload starts by bare name
+      // resolves to a program planted in the workspace. The executable
+      // itself is resolved outside the workspace first: `RunTeam` passes it
+      // as `lpApplicationName`, which `CreateProcessW` would otherwise
+      // complete from the helper's working directory (the workspace).
       const environment = windowsTeamPayloadEnvironment(request.env, request.cwd)
+      const target = resolveWindowsTeamCommand(
+        request.command,
+        request.args,
+        request.cwd,
+        request.env,
+        {
+          systemRoot,
+          isExistingFile,
+          realpath: realpathSync,
+        },
+      )
       const powershell = windowsPowerShell(systemRoot, request.env)
       // .NET and quoted literals only: ConvertFrom-Json discovers PowerShell
       // modules on a cold runner before the native confirmation clock can fire.
-      const script = `${loadJobAssembly(assembly)}; exit [MuseSparkJob]::RunTeam(${powerShellQuoted(request.command)}, ${strings(request.args)}, ${powerShellQuoted(request.cwd)}, ${String(process.pid)}, ${strings(environment)}, ${powerShellQuoted(ownerPipe)}, ${powerShellQuoted(nonce)}, ${powerShellQuoted(statusPipe)}, ${powerShellQuoted(group)}, $${request.priority === 'belowNormal' ? 'true' : 'false'})`
+      const script = `${loadJobAssembly(assembly)}; exit [MuseSparkJob]::RunTeam(${powerShellQuoted(target.executable)}, ${strings(target.args)}, ${powerShellQuoted(request.cwd)}, ${String(process.pid)}, ${strings(environment)}, ${powerShellQuoted(ownerPipe)}, ${powerShellQuoted(nonce)}, ${powerShellQuoted(statusPipe)}, ${powerShellQuoted(group)}, $${request.priority === 'belowNormal' ? 'true' : 'false'}, $${target.isVerbatim ? 'true' : 'false'})`
       const child = spawnGuarded(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], {
         cwd: request.cwd,
         env: workspaceChildEnvironment('win32', powershell.env, {

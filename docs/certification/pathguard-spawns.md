@@ -73,7 +73,14 @@ banned, D4). Each start below names the guard the types enforce on it.
   and the `RunTeam` payload block (`windowsTeamPayloadEnvironment`)
   is the same guarded environment the POSIX launch uses — only a
   branded environment serializes, so the raw request env cannot reach
-  `CreateProcessW`.
+  `CreateProcessW`. The `RunTeam` executable itself never comes from
+  that block: `resolveWindowsTeamCommand` resolves `request.command`
+  to an absolute file outside the workspace first (a bare name on the
+  absolute `PATH` entries, PATHEXT included; a `.cmd`/`.bat` hit
+  through the absolute `cmd.exe`; fail closed when the name is missing
+  outside or a named path resolves inside), because `CreateProcessW`
+  completes a partial `lpApplicationName` from the helper's working
+  directory without a PATH search and assumes no extension.
 - Playbook git (`src/core/orchestration/playbook/outcomes.ts`,
   `modules.ts`): every effect's command is `processGitPath(workspace)`
   (links followed), admitted and spawned absolute, with the guarded child
