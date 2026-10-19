@@ -262,8 +262,9 @@ async function main() {
         entry.verdict = verdict.verdict
         entry.reason = verdict.reason
         entry.status = result.status
+        // Early setup failures validly carry no accounting: null spends nothing.
         entry.requests = result.usage.requests ?? 0
-        entry.costUsd = result.usage.costUsd.total
+        entry.costUsd = result.usage.costUsd?.total ?? '0'
         entry.finalMessage = kept.text
         entry.finalMessageTruncated = kept.truncated
         writeFileSync(path.join(stepDir, 'result.json'), `${JSON.stringify(result)}\n`)

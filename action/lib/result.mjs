@@ -107,6 +107,14 @@ export function exitCodeFor(status, signal) {
   return EXIT_CODES[status]
 }
 
+/** Whether `value` names an exec result status (SPEC §2.1). */
+export function isExecStatus(value) {
+  return typeof value === 'string' && STATUSES.has(value)
+}
+
+/** The product's own per-run wall clock ceiling in seconds (SPEC §6.5). */
+export const EXEC_TIMEOUT_MAX_SECONDS = MAX_TIMEOUT_SECONDS
+
 function isObject(value, keys, optional = []) {
   return (
     typeof value === 'object' &&

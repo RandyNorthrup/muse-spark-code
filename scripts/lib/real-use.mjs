@@ -8,8 +8,9 @@
 
 import { readdirSync, readFileSync, realpathSync } from 'node:fs'
 import path from 'node:path'
-import { isExecResult, microUsd } from '../../action/lib/result.mjs'
-import { MODEL_API_KEY_PATTERN } from '../../action/lib/run-exec.mjs'
+import { isExecResult, isExecStatus, microUsd } from '../../action/lib/result.mjs'
+
+export { EXEC_TIMEOUT_MAX_SECONDS as REAL_USE_STEP_TIMEOUT_SECONDS } from '../../action/lib/result.mjs'
 
 export const REAL_USE_MODEL = 'muse-spark-1.3-contributor'
 export const REAL_USE_BACKEND = 'modelApi'
@@ -22,8 +23,8 @@ const MAX_STEPS = 8
 const MAX_PROMPT_CHARS = 4000
 const MAX_EXPECT_CHARS = 4000
 const STEP_ID = /^[a-z0-9][a-z0-9-]{0,63}$/
-// One step's wall clock: the live Action's recipe timeout.
-export const REAL_USE_STEP_TIMEOUT_SECONDS = 600
+// One step's wall clock is the product CLI's own ceiling, never ours
+// (re-exported above as REAL_USE_STEP_TIMEOUT_SECONDS).
 const BUDGET_GRAMMAR = /^[0-9]+(?:\.[0-9]{1,6})?$/
 /** The CLI budget range in micro-USD: over 0 through 20. */
 export const MAX_BUDGET_MICRO_USD = 20_000_000n
@@ -109,10 +110,28 @@ function isRecord(value) {
 }
 
 /**
+ * A workspace file the product must report as changed: a relative path with
+ * no escape, as the result schema's own path list holds it (forward
+ * slashes; a steps file authored on Windows may use backslashes).
+ */
+function isStepPath(value) {
+  return (
+    typeof value === 'string' &&
+    value !== '' &&
+    !value.startsWith('/') &&
+    !value.includes(':') &&
+    value.split('/').every((part) => part !== '' && part !== '.' && part !== '..')
+  )
+}
+
+/**
  * The validated steps: version 1, 1-8 steps, each one `exec` prompt with a
  * plan/acceptEdits mode, an optional budget no looser than the CLI grammar,
- * an optional expected status (default completed) and optional text a person
- * must see in the released final message.
+ * an optional expected status (default completed, and always one the result
+ * schema names, so a typo fails before any key or money is involved), an
+ * optional expected text a person must see in the released final message,
+ * optional workspace files the result must list as changed, and an optional
+ * no-requests flag for pre-dispatch refusal probes.
  */
 export function parseStepsFile(text) {
   let document
@@ -165,11 +184,25 @@ export function parseStepsFile(text) {
     ) {
       throw new RealUseInputError(`${label} maxBudgetUsd is unsigned decimal over 0 through 20`)
     }
-    if (
-      step.expectStatus !== undefined &&
-      (typeof step.expectStatus !== 'string' || step.expectStatus === '')
-    ) {
+    if (step.expectStatus !== undefined && !isExecStatus(step.expectStatus)) {
       throw new RealUseInputError(`${label} expectStatus names an exec status`)
+    }
+    let expectFiles
+    if (step.expectFiles !== undefined) {
+      if (
+        !Array.isArray(step.expectFiles) ||
+        step.expectFiles.length === 0 ||
+        step.expectFiles.some((name) => typeof name !== 'string')
+      ) {
+        throw new RealUseInputError(`${label} expectFiles names workspace files`)
+      }
+      expectFiles = step.expectFiles.map((name) => name.replaceAll('\\', '/'))
+      if (expectFiles.some((name) => !isStepPath(name))) {
+        throw new RealUseInputError(`${label} expectFiles names workspace files`)
+      }
+    }
+    if (step.expectNoRequests !== undefined && typeof step.expectNoRequests !== 'boolean') {
+      throw new RealUseInputError(`${label} expectNoRequests is a boolean`)
     }
     return {
       id: step.id,
@@ -178,6 +211,8 @@ export function parseStepsFile(text) {
       expect: step.expect,
       expectStatus: step.expectStatus ?? COMPLETED_STATUS,
       maxBudgetUsd: step.maxBudgetUsd,
+      expectFiles,
+      expectNoRequests: step.expectNoRequests ?? false,
     }
   })
 }
@@ -227,8 +262,10 @@ export function buildExecArgs({
 /**
  * PASS is narrow on purpose: the validated result's own status equals the
  * step's expected status, completed means process exit 0 (anything else means
- * nonzero), and the expected text, when the step names one, appears in the
- * released final message. The full prose stays in the transcript so a person
+ * nonzero), the expected text, when the step names one, appears in the
+ * released final message, every expected file is in the result's changed
+ * list, and a no-requests probe sent nothing billable (zero requests and a
+ * zero or absent cost). The full prose stays in the transcript so a person
  * can overrule.
  */
 export function verdictForStep(step, result, exitCode) {
@@ -238,6 +275,19 @@ export function verdictForStep(step, result, exitCode) {
   }
   if (step.expectStatus === COMPLETED_STATUS ? exitCode !== 0 : exitCode === 0) {
     return { verdict: 'FAIL', reason: `exit ${String(exitCode)}` }
+  }
+  if (
+    step.expectFiles !== undefined &&
+    step.expectFiles.some((name) => !result.filesChanged.includes(name))
+  ) {
+    return { verdict: 'FAIL', reason: 'expected file absent' }
+  }
+  if (step.expectNoRequests === true) {
+    const requests = result.usage.requests ?? 0
+    const total = result.usage.costUsd === null ? 0n : microUsd(result.usage.costUsd.total)
+    if (requests !== 0 || total !== 0n) {
+      return { verdict: 'FAIL', reason: 'expected no requests' }
+    }
   }
   return step.expect === undefined || result.finalMessage.includes(step.expect)
     ? { verdict: 'PASS', reason: '' }
@@ -283,11 +333,16 @@ export function checkRealUseRun({ runDir, transcript, steps, stated }) {
     if (!isExecResult(result)) continue
     check(result.model === REAL_USE_MODEL, `${label} model is ${String(result.model)}`)
     check(result.backend === REAL_USE_BACKEND, `${label} backend is ${String(result.backend)}`)
-    check(result.ledger?.breach === false, `${label} ledger reports a breach`)
+    // A missing ledger is valid for early failures and reports no breach.
+    check(
+      result.ledger === null || result.ledger.breach === false,
+      `${label} ledger reports a breach`,
+    )
     const verdict = step === undefined ? undefined : verdictForStep(step, result, entry?.exitCode)
     check(entry?.verdict === 'PASS' && verdict?.verdict === 'PASS', `${label} is not PASS`)
     calls += BigInt(result.usage.requests ?? 0)
-    const total = microUsd(result.usage.costUsd.total)
+    // Early setup failures validly carry no accounting: null spends nothing.
+    const total = result.usage.costUsd === null ? undefined : microUsd(result.usage.costUsd.total)
     if (total !== undefined) spent += total
   }
   check(calls === BigInt(transcript.actual?.calls ?? -1), 'transcript calls do not sum')
@@ -344,14 +399,19 @@ export function checkTraps(trapsDir) {
   return names.map((name) => `startup trap fired: ${name}`)
 }
 
-/** No key-shaped string and no sentinel in any published file; names only. */
+/**
+ * No key-shaped string and no sentinel in any published file; names only.
+ * The shapes are the two Meta Model API key shapes as src/shared/redact.ts
+ * matches them: unanchored, so a key inside JSON or prose is caught, not
+ * only a file that is exactly the key.
+ */
+const KEY_SHAPE = /LLM_[\w-]{16,}|LLM\|\d+\|[\w+./=-]+/
 export function checkNoLeak(files, base, label, sentinel) {
   const failures = []
   for (const file of files) {
     const text = readFileSync(file, 'latin1')
     const name = path.relative(base, file)
-    if (MODEL_API_KEY_PATTERN.test(text))
-      failures.push(`${label}/${name} holds a key-shaped string`)
+    if (KEY_SHAPE.test(text)) failures.push(`${label}/${name} holds a key-shaped string`)
     if (sentinel !== '' && text.includes(sentinel))
       failures.push(`${label}/${name} holds the sentinel`)
   }
