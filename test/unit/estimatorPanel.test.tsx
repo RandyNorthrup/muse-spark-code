@@ -8,6 +8,7 @@ import { lookupEstimatePrices } from '../../src/core/estimator/prices'
 import { BASE_LOCALE, fill, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import { EN } from '../../src/shared/l10n/en'
 import EstimatorPanel, { type EstimatorPanelPort } from '../../src/webview/estimator/EstimatorPanel'
+import type { EstimateViewState } from '../../src/shared/estimateDiagnostic'
 import {
   ESTIMATE_AS_OF,
   estimateContractFailure,
@@ -28,9 +29,9 @@ function duplicateLookup() {
 
 /** The panel's section subscription, collected so the test owns its lifetime. */
 function collectSections() {
-  const listeners: ((section: unknown) => void)[] = []
+  const listeners: ((state: EstimateViewState) => void)[] = []
   return {
-    subscribe: (listener: (section: unknown) => void) => {
+    subscribe: (listener: (state: EstimateViewState) => void) => {
       listeners.push(listener)
       return () => {
         const index = listeners.indexOf(listener)

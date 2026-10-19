@@ -2,6 +2,7 @@ import { estimateFailureText, type EstimateViewState } from '../../shared/estima
 import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import {
   estimateRequestSchema,
+  isEstimateRefusal,
   parseEstimateGoal,
   type CatalogPrice,
   type EstimateRequest,
@@ -191,14 +192,14 @@ export default function EstimatorPanel({
           controller.signal,
         )
       } catch (error: unknown) {
-        // A cancelled run stays silent: a stillborn run reads failed. The
-        // typed failure keeps a refusal's detail in words on the panel, and
+        // A cancelled run stays silent: a stillborn run reads failed. A
+        // refusal said everything on the panel; only a foreign failure
         // keeps its kind past the panel through the port's report for the
         // host log (D119).
         if (controller.signal.aborted) return
         if (error instanceof DOMException && error.name === 'AbortError') return
         next = boundary.failedEstimate(error)
-        port.report(error)
+        if (!isEstimateRefusal(error)) port.report(error)
       }
     } catch {
       next = { status: 'failed', diagnostic: { estimateDiagnostic: 'source-unavailable' } }

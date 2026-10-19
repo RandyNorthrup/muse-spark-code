@@ -1,6 +1,8 @@
 import { EstimateDiagnosticError } from '../core/estimator/diagnostic'
 import { estimateRefusalDetail, isEstimateRefusal } from '../shared/estimate'
-import { fill, UI_TEXT } from '../shared/l10n/text'
+import { estimateDiagnostic } from '../shared/estimateDiagnostic'
+import { UI_TEXT } from '../shared/l10n/text'
+import { estimateFailureText as estimateFailureSentence } from '../shared/estimateView'
 import {
   collectEstimate,
   estimateFailureText,
@@ -55,9 +57,17 @@ export function createAcpEstimate(deps: {
         // estimator's own refusal stays its sentence for the agent; anything
         // else keeps its kind past the boundary (D119).
         if (signal.aborted) signal.throwIfAborted()
-        if (isEstimateRefusal(error)) {
-          const refusal = estimateRefusalDetail(error)
-          return fill(UI_TEXT.estimateFailed, { detail: refusal ?? 'estimate-unavailable' })
+        // The validated property first: a refusal with its own message
+        // (a cycle names its lanes) never matches a sentence template.
+        // Then the worded message form. Either way the code is the
+        // diagnostic, special sentences included, as on every surface.
+        const validated = estimateDiagnostic(error)
+        const refusal =
+          validated.estimateDiagnostic === 'estimate-unavailable'
+            ? (estimateRefusalDetail(error) ?? 'estimate-unavailable')
+            : validated.estimateDiagnostic
+        if (validated.estimateDiagnostic !== 'estimate-unavailable' || isEstimateRefusal(error)) {
+          return estimateFailureSentence({ estimateDiagnostic: refusal })
         }
         throw error
       }
