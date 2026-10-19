@@ -978,7 +978,10 @@ export const MACHINE_SCOPED_SETTINGS = [
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
 export const HOOK_STDIN_MAX_BYTES = 256 * 1024
 export const HOOK_OUTPUT_MAX_BYTES = 16 * 1024
-export const HOOK_DEFAULT_TIMEOUT_SECONDS = 600
+// D121 (owner 2026-10-16): no default hook deadline of ours — a hook runs
+// until it ends or the person stops it. Only an explicitly set per-hook
+// timeout still bounds it (validated against HOOK_MAX_TIMEOUT_SECONDS, which
+// stays as the bound on a value someone set).
 export const HOOK_MAX_TIMEOUT_SECONDS = 600
 export const HOOK_CONFIG_MAX_BYTES = 1024 * 1024
 export const HOOK_SYSTEM_MESSAGE_MAX_CHARS = 1000
@@ -1043,7 +1046,8 @@ export const HOOK_ON_FAILURE_MAX_DEPTH = 3
 export const HOOK_MANAGED_ENV_MAX_NAMES = 64
 export const HOOK_MANAGED_ENV_NAME_MAX_CHARS = 128
 export const HOOK_NOTIFICATION_DELAY_MS = 6000
-export const HOOK_SESSION_END_TIMEOUT_MS = 10_000
+// D121 (owner 2026-10-16): no deadline of ours on SessionEnd hooks — closing
+// waits until they end, saying so in plain words instead of hanging silently.
 // Cline v1 contextModification cap (M91 lane X; hooks-parity/raw-copilot-cline.md:25).
 export const CLINE_CONTEXT_MODIFICATION_MAX_CHARS = 50_000
 // M91 lane X: the plugin child runs one plugin per hook call under these bounds.
@@ -1063,7 +1067,9 @@ export const HOOK_IP_V6_FAMILY = 6
 export const HOOK_HTTP_REDIRECT_MIN_STATUS = 300
 // A prompt or agent handler's own model call: one attempt, no retry, with
 // the hook's answer parsed like a command's.
-export const HOOK_MODEL_TIMEOUT_MS = 60_000
+// D121 (owner 2026-10-16): no default deadline of ours on a hook's own
+// model call — it runs until it ends or the person stops it. No provider
+// documents such a timeout, so the product sets none.
 export const HOOK_MODEL_MAX_OUTPUT_TOKENS = 1024
 // An agent handler's read-only tool loop runs until the model stops calling
 // tools (D121: the removed 5-step ceiling was invented); a verdict resting
@@ -2516,7 +2522,10 @@ export const MODEL_API_PRICED_MODELS = {
   contributor: ['muse-spark-1.2-contributor', 'muse-spark-1.3-contributor'],
 } as const
 /** A consent grant covers actual child HTTP attempts, including all retries. */
-export const SUBAGENT_TASK_MAX_REQUESTS = 4
+// D121 (owner 2026-10-16): no request bound of ours on a child task — a
+// subagent runs until done or stopped. The paid-consent card prices from the
+// published rates with no cap, and every request is tallied as it goes.
+// No provider documents a per-task request count, so the product sets none.
 // Best-of-N parallel attempts (M77, PLAN.md D49, D121): the same prompt runs
 // in this many worktrees, each attempt stopping after this many model
 // requests. Both numbers are the person's own per-run choice: no provider
@@ -2531,7 +2540,7 @@ export const BEST_OF_N_BRANCH_PREFIX = 'best-of-n'
 export const BEST_OF_N_DIFF_MAX_CHARS = 32_000
 export const BEST_OF_N_MIN_GIT_MINOR = 36
 /** Bump when the accepted rates or child-task limit changes. */
-export const SUBAGENT_PRICE_ACCEPTANCE_VERSION = '2026-09-26:requests-4:v1'
+export const SUBAGENT_PRICE_ACCEPTANCE_VERSION = '2026-10-19:unbounded:v1'
 export const TOKENS_PER_MILLION = 1_000_000
 // dev.meta.ai/docs/models: every Muse Spark model has this window; the
 // output cap is well under the documented 131,072 maximum.
@@ -2582,14 +2591,19 @@ export const READ_FILE_CONTEXT_CHAR_FRACTION = 1 / 2
 // budget clamp. These defaults are fixed for the session, never cache inputs.
 export const MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS = 131_072
 export const MODEL_API_PARALLEL_READS = 4
-export const MODEL_API_CONTINUATIONS_MAX = 1
-export const TOOL_REPEAT_LIMIT = 3
+// D121 (owner 2026-10-16): no continuation bound of ours — a reply cut at
+// the output limit keeps going for as long as the model is mid-answer.
+// No provider documents a continuation count, so the product sets none.
+// D121: no repeat bound of ours either — the repeat guard only names a
+// repeat so the person is told in plain words, and the call always runs.
 export const TOOL_ARGUMENT_PREVIEW_MAX_CHARS = 16_000
 /** Incremental preview grammar stops before deeply nested untrusted arguments. */
 export const TOOL_ARGUMENT_PREVIEW_MAX_DEPTH = 32
 // Coalesce each call to ten display snapshots per second, plus final arguments.
 export const TOOL_ARGUMENT_PREVIEW_INTERVAL_MS = 100
-export const STRUCTURED_OUTPUT_REPAIRS_MAX = 1
+// D121 (owner 2026-10-16): no repair bound of ours — a structured side call
+// repairs until the answer validates or the person stops it, saying so every
+// round. No provider documents a repair count, so the product sets none.
 // D121: no search bound of ours — 0 (the default) sends no max and the
 // provider decides; a set value stays within 1–20.
 export const WEB_SEARCH_MAX_PER_REQUEST = 0
@@ -2798,8 +2812,12 @@ export const MODEL_API_EFFORT_OFF = 'minimal'
 // Context pressure thresholds (fraction of the window) for the indicator.
 export const CONTEXT_PRESSURE_MEDIUM = 0.7
 export const CONTEXT_PRESSURE_HIGH = 0.9
-// Default per-turn model-call allowance; an existing caller allowance replaces it.
-export const MODEL_API_MAX_TOOL_ROUNDS = 200
+// D121 (owner 2026-10-16): no round count of ours — a turn runs until the
+// model answers without a tool call, the person stops it, a hook stops it,
+// the provider refuses, or a limit the person set is spent. Only a caller's
+// own allowance (exec --max-requests, a best-of-N attempt ceiling) still
+// bounds its run. No provider publishes a round count, so the product sets
+// none.
 // Tool parameter schemas convert to a constrained-decoding grammar on
 // servers that take one (llama.cpp, SoL-Pi #59/#65; M101 item 24): nested
 // past this, a schema trips the check. Past the current toolset's nesting
@@ -4266,26 +4284,19 @@ export const MEMORY_INDEX_MAX_LINES = 200
 export const MEMORY_INDEX_MAX_BYTES = 32 * 1024
 export const MEMORY_TRUNCATED_MARKER = '[MEMORY.md truncated]'
 export const MUSE_MEMORY_DOCS_URL = 'https://dev.meta.ai/docs/muse-code/configuration#local-memory'
+// D121: display clipping only — what a row shows, never what the model
+// receives. The model gets the whole result unless the person's own guard
+// or the window share cuts it (with a spill and notices).
 export const TOOL_OUTPUT_MAX_CHARS = 64_000
 export const TOOL_OUTPUT_CLIP_MARKER = '\n[output clipped]'
 /* TOOLCAP (one tool result can never end a conversation): the single bound
  * every tool result passes through on its way into the conversation
- * (toolResultBound.ts). Three caps, each with its source:
- * - tokens: 16_000 estimated tokens is ~64_000 characters at the product's
- *   own 4-characters-per-token rule (OBS_PACK_CHARS_PER_TOKEN), so it keeps
- *   today's TOOL_OUTPUT_MAX_CHARS behaviour for ordinary results; it sits
- *   between Claude Code's 30_000-character Bash default (BASH_MAX_OUTPUT_LENGTH)
- *   and the 65_536 bytes third-party Muse Code adapters pass to
- *   `muse exec --max-tool-output-bytes`.
- * - line: 8_000 characters, the product's own OBS_PACK_THRESHOLD_CHARS: a
- *   line past it is already treated as oversized elsewhere. The measured
- *   failure was line length (megabyte one-line JSON captures), not count.
+ * (toolResultBound.ts). D121: no trimming of ours — no token cap, no line
+ * cap, no fallback byte guard. Two bounds remain, each with its source:
+ * - a byte guard the person set (the setting or the exec flag);
  * - window: a result may never take more than a quarter of the model's
  *   remaining window, so the same result that fits a 1M-token model is cut
- *   for a 200k-token one. The measured result took ~94% of the window.
- * Bytes are only the first cheap guard; tokens are what the provider counts. */
-export const TOOL_RESULT_MAX_TOKENS = 16_000
-export const TOOL_RESULT_MAX_LINE_CHARS = 8000
+ *   for a 200k-token one. The measured result took ~94% of the window. */
 export const TOOL_RESULT_WINDOW_SHARE = 1 / 4
 /* The floor under the byte guard: below this the kept head, tail and notice
  * stop being readable (Muse Code's flag likewise refuses below its floor;
@@ -4513,7 +4524,10 @@ export const LIST_FILES_DEFAULT_LIMIT = 500
 // Backstop waits owned by other rows (checks, the verify loop, the judge
 // harness, media conversion, the vault service default): the shell tool
 // itself no longer defaults or clamps (owner 2026-10-16).
-export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
+// D121 (owner 2026-10-16): no default command deadline of ours — a command
+// runs until it ends or the person stops it. Only a per-command timeout the
+// person or the model sets explicitly still bounds it. No provider documents
+// such a timeout, so the product sets none.
 // D107 §9.4: internal B1 boundary; F1b installs it only after certification.
 // The walk's bounds are deterministic counts, never wall-clock time, so a
 // slow machine cannot turn a walk into a refusal: entries cap the walk's
@@ -7343,8 +7357,8 @@ export const BYO_MODEL_REFERENCE_PATTERN = /^[a-z][a-z0-9-]{0,31}\/\S+$/
 export const MODEL_API_MODEL_TEXT = {
   // M106: only the Model API loop reads these, so keep them in its lazy
   // block rather than carrying new keys in activation's MODEL_TEXT (D6).
-  toolRepeatStopped:
-    'This tool call repeats the same arguments and unchanged result. It was not run again. Use a different approach or explain what is blocking the task.',
+  // D121: no repeat stop of ours — a repeated call runs again, so the model
+  // is never told to stop repeating.
   wrapUpReserved:
     'The remaining request is reserved for the final answer. The image was not generated.',
   // A count with its noun as slots: model text must stay literal strings
@@ -7390,16 +7404,15 @@ export const MODEL_API_MODEL_TEXT = {
     'offset for packed output "{id}" must be a whole number of characters from 0 to {last}, not inside a character',
   // TOOLCAP: the one line a cut tool result carries. It says how much there
   // was, which head and tail the model got with the omitted middle counted,
-  // the longest line's length when lines were cut, and the exact way to read
-  // more (the spill file, paged with read_file). Never silent: every cut
-  // ends with this line.
+  // and the exact way to read more (the spill file, paged with read_file).
+  // Never silent: every cut ends with this line. D121: lines are never cut,
+  // so there is no longest-line clause.
   toolResultCut:
-    'Tool result cut: {totalChars} characters (about {totalTokens} tokens) in {totalLines} lines; kept {keptChars} characters from the start and end ({headLines} whole lines at the start, {tailLines} at the end; {omittedChars} characters omitted){longest}. Full result in {spill}: page it back with recall_output id "{id}" (offset in characters) or read_file with offset and limit. The spill file is removed with the session.',
-  toolResultCutLongest: '; longest line {longestLine} characters, cut to {lineCap}',
+    'Tool result cut: {totalChars} characters (about {totalTokens} tokens) in {totalLines} lines; kept {keptChars} characters from the start and end ({headLines} whole lines at the start, {tailLines} at the end; {omittedChars} characters omitted). Full result in {spill}: page it back with recall_output id "{id}" (offset in characters) or read_file with offset and limit. The spill file is removed with the session.',
   // TOOLCAP: the same one line when the spill file could not be written (a
   // read-only workspace): it must never name a file that does not exist.
   toolResultCutNoSpill:
-    'Tool result cut: {totalChars} characters (about {totalTokens} tokens) in {totalLines} lines; kept {keptChars} characters from the start and end ({headLines} whole lines at the start, {tailLines} at the end; {omittedChars} characters omitted){longest}. The full result could not be kept, so only this cut text remains: re-run the tool with a narrower request to see more.',
+    'Tool result cut: {totalChars} characters (about {totalTokens} tokens) in {totalLines} lines; kept {keptChars} characters from the start and end ({headLines} whole lines at the start, {tailLines} at the end; {omittedChars} characters omitted). The full result could not be kept, so only this cut text remains: re-run the tool with a narrower request to see more.',
   // PLAN.md D27: what the Model API's file tools say when they will not write.
   fileChangedSinceRead:
     'has changed since you last read it, or you have not read it yet; read it with read_file first so nothing is overwritten unseen',
@@ -7522,8 +7535,6 @@ export const MODEL_API_MODEL_TEXT = {
   subagentNoReply: 'The subagent ended without a final reply.',
   subagentPaidOff: 'Paid subagents are off. The user must enable them and accept the price first.',
   subagentConsentDeclined: 'The user did not approve this paid child task.',
-  subagentRequestLimit:
-    'The child task reached its approved limit of {limit} requests, including retries.',
   subagentKeyChanged:
     'The Model API key changed after approval. New child-task consent is required.',
   subagentModelChanged: 'The model changed after approval. New child-task consent is required.',

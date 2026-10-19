@@ -15140,6 +15140,36 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   A23 above), so is the transcript item count (see A30 above), and so is
   the report reader's 16 MiB bound — report sources read at any size
   (row and text bounds elsewhere still refuse what they bound).
+- NOLIMITSRUN (this lane): `MODEL_API_MAX_TOOL_ROUNDS` (200/turn) and any
+  caller-allowance default removed — a turn runs until the model stops
+  calling tools or the person stops it, with the running round count shown.
+- NOLIMITSRUN: `MODEL_API_CONTINUATIONS_MAX` (1) removed — an output-limit
+  reply continues while the model is mid-answer, naming each part.
+- NOLIMITSRUN: `TOOL_REPEAT_LIMIT` (3) removed — a repeated identical tool
+  call never stops the turn; the person is told the model is repeating it.
+- NOLIMITSRUN: `STRUCTURED_OUTPUT_REPAIRS_MAX` (1) removed — a structured
+  answer repairs until valid, naming each repair round.
+- NOLIMITSRUN: `SUBAGENT_TASK_MAX_REQUESTS` (4) removed — a subagent task
+  runs until done or stopped; the paid-consent card prices each request as
+  it goes, never from a cap.
+- NOLIMITSRUN: `SHELL_DEFAULT_TIMEOUT_MS` and the hook timeout defaults
+  (`HOOK_DEFAULT_TIMEOUT_SECONDS`, `HOOK_MODEL_TIMEOUT_MS`,
+  `HOOK_SESSION_END_TIMEOUT_MS`) removed — a command or hook without a
+  timeout someone set runs until it ends or is stopped, showing its time.
+- NOLIMITSRUN: tool-result trimming removed (`TOOL_OUTPUT_MAX_CHARS`
+  64,000 fallback, `TOOL_RESULT_MAX_TOKENS` 16,000,
+  `TOOL_RESULT_MAX_LINE_CHARS` 8,000) — a result reaches the model whole;
+  only a byte guard the person set or the window share cuts, with a spill
+  file and a notice. Display clipping stays (it hides nothing from the
+  model or the saved record).
+- NOLIMITSRUN kept bounds, listed for the lead (outcome 4): the read/search/
+  list paging contracts (limits the model sets, honest continuation
+  notices), `readFileCharacterBudget` (window-derived when the record names
+  the window; its unknown-window 64 KiB branch is ours), the verify-note
+  budget `VERIFY_NOTE_MAX_CHARS` with per-check shares (M68/D27: beginning,
+  end and exit line kept), hook input preview bounds (hook contract, not the
+  model path), and every display/row clip. Record:
+  `docs/certification/nolimits-all.md` (this lane's section).
 
 ### D123 — The provider judges a key; no key is refused for its shape (lane PROVKEYS, 2026-10-12; numbered D108 until the 2026-10-17 merge with main, where D108 is the test overhaul)
 

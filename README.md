@@ -3875,11 +3875,12 @@ tokens, the background tasks, and each agent's own transcript.
   nothing: one asking for worktree isolation, or one reusing
   an earlier spawn's command id for a different task is refused first, and a
   retry of the same spawn under its command id answers with that child.
-  One approval allows at most four actual
-  response requests, including retries and tool rounds. A running note uses
-  that same allowance; a follow-up or reopen needs a new grant, asked for
+  One approval covers the task until it ends or is stopped: every actual
+  response request, including retries and tool rounds, is tallied as it goes
+  at the published rates the card names. A running note uses
+  that same grant; a follow-up or reopen needs a new grant, asked for
   unless subagents are allowed always in this workspace. This is
-  a request limit, not a dollar limit. Failed requests without a usage report
+  billed per request, not a dollar limit. Failed requests without a usage report
   appear as unknown cost in Account & usage. A resumed child whose queued
   notes survived a window restart shows those notes in its fresh approval
   before they run. Stopping a
@@ -4450,16 +4451,19 @@ failed with "Context window full: /compact or /handoff" instead, and anything
 the turn was holding (a goal wake, steered input) is re-queued for its own
 turn. ACP returns
 `max_turn_requests`; headless exec reports `request_cap` (exit 5) with the answer.
-The default is 200 model calls per turn. Existing caller request allowances
-replace that default with what remains: `exec --max-requests` (default 30,
-range 1–500) and best-of-N attempts (production ACP binds none). The turn's first
+No round count of ours ends a turn: with no caller allowance it runs until
+the model answers without a tool call, you press Stop, a hook stops it, the
+provider refuses it, or a limit you set is spent. A caller's own allowance
+still bounds its run: `exec --max-requests` (no default; a set value is any
+positive safe integer) and best-of-N attempt ceilings (production ACP binds
+none). The turn's first
 model call always runs with tools, even when it is also the last one allowed: an
 answer completes the turn (exec exit 0), while a tool request ends it at the
 request cap, said plainly. Stop hooks still run on a wrap-up turn; a hook
 asking for more work cannot be honoured past the limit, and the notice says so.
-A caller allowance above 200 remains usable. Paid child-task grants are the
-exception: all 4 attempts stay tool calls and exhaustion stays the child's
-typed request-limit stop. Retries spend calls; money caps
+A caller allowance of any size remains usable. Paid child-task grants work
+the same way: every attempt stays a tool call, and the task runs until done
+or stopped. Retries spend calls; money caps
 and compaction's own admission and accounting still apply.
 
 The table below describes Meta Muse. M95's provider core resolves capabilities
@@ -4488,14 +4492,13 @@ ACP configuration and CLI/exec flags currently expose no separate output-token
 cap; they share the provider entry and request validation.
 
 Tool results have their own bound on the Model API backend. One choke point
-cuts any result past 16,000 estimated tokens, any line past 8,000
-characters, or any result past a quarter of the model's remaining window, so
-one oversized result can never fill the window and end the conversation. A
-cut keeps the full text under `.muse-spark/tool-results/` (git-ignored) for
-paging and says what was cut and how to read more, to the model and on the
-row. The byte guard is `museSpark.modelApiMaxToolOutputBytes` (no limit
-unless you set one — 0, the default, keeps results whole within the model's
-window; machine-scoped; values below 1,024 bytes or past the model's window
+cuts a result past the byte guard you set, or past a quarter of the model's
+remaining window, so one oversized result can never fill the window and end
+the conversation. A cut keeps the full text under `.muse-spark/tool-results/`
+(git-ignored) for paging and says what was cut and how to read more, to the
+model and on the row. The byte guard is `museSpark.modelApiMaxToolOutputBytes`
+(no limit unless you set one — 0, the default, keeps results whole;
+machine-scoped; values below 1,024 bytes or past the model's window
 are refused with the reason); `exec --max-tool-output-bytes` raises it for
 one headless run.
 
@@ -4537,7 +4540,7 @@ source cannot elevate their priority. See [M95 N's record contract](docs/certifi
 | Model API replayed media         | No aggregate character budget; the provider's per-request image budget decides, newest first, with older media named when left out. The platform refuses what it cannot take.                                                                                                                                                         |
 | Picked UTF-8 text attachments    | No per-file size of ours from trusted and indexed workspace paths (reads bounded only by host memory); Model API also caps combined text and file-name wrappers at 768 KiB to leave context room.                                                                                                                                     |
 | A message to Muse Code           | 10 MiB. Attachment admission reserves 2 MiB for the prompt, context and frame; serialized text and base64 images count toward the rest. The exact outbound frame is checked at send.                                                                                                                                                  |
-| Model API: shell commands        | 2 minutes by default, 10 at most                                                                                                                                                                                                                                                                                                      |
+| Model API: shell commands        | Run until they end or are stopped; a set `timeout_ms` still bounds the run                                                                                                                                                                                                                                                            |
 | Model API: retries               | Retryable failures (429, 500, 502 and 503, and a reply stream the server shut down or overloaded) retry honouring `Retry-After` at any length, shown in the transcript; attempts end at Stop, never at a count, and quota never retries                                                                                               |
 | Model API: a silent reply stream | Waits until Stop, saying so while it lasts; a provider-named idle still ends silence at it                                                                                                                                                                                                                                            |
 | Model API: file tools            | Text up to 10 MiB through the file tools; images and PDFs read whole through the media reader (bounded only by host memory); the search tool skips files over 1 MiB                                                                                                                                                                   |
@@ -4864,7 +4867,7 @@ Bypass at once.
 | `modelApiImageGeneration`         | `true`                                                                                  | Image generation and editing ($0.01 per image). Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `modelApiVoice`                   | `true`                                                                                  | Offers Muse Voice ($0.18 per audio hour); free OS dictation remains the default. Muse Voice reserves bounded recordings against the daily budget and any conversation cap. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `modelApiPromptCacheRetention`    | `in_memory`                                                                             | How long Meta is asked to keep the cached start of Model API requests: `in_memory` by default, or up to `24h` when you choose it. Both have the same cached-input price; longer retention may improve cache hits after a pause. Meta may evict sooner. Machine-scoped, so a repository cannot extend it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `modelApiSubagents`               | `true`                                                                                  | Bounded paid child agents, with up to four requests per task including retries. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `modelApiSubagents`               | `true`                                                                                  | Paid child agents: a task runs until done or stopped, billed per request. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `subagentMaxConcurrent`           | `0`                                                                                     | How many subagents work at once on the Model API backend. No limit unless you set one: 0 (the default) starts every subagent at once, and a set value stays within 1–64. Later ones queue. Machine-scoped, read when a conversation starts.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `modelApiScheduledPrompts`        | `true`                                                                                  | Explicit scheduled Model API runs at the selected model’s token prices. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `modelApiHooks`                   | `true`                                                                                  | On by default; inert without a hooks file. Runs your configured commands outside the agent sandbox, only in trusted workspaces. Review them in Muse Spark: Hooks. Provider credentials are withheld.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -6592,10 +6595,13 @@ Model API strict tool declarations and safe parallel reads are on by default.
 machine-scoped switches; each conversation snapshots the choice. Strict
 schemas require the selected model's known support. Turning strict schemas
 off preserves the previous declarations. Safe reads run at most four at a
-time; writes and other tools retain their order. An output-limit continuation
-is bounded to one request for text-only replies. A cut-short reply containing
+time; writes and other tools retain their order. A reply cut at the output
+limit keeps going for as long as the model is mid-answer, saying so with its
+part count each round. A cut-short reply containing
 tool calls runs none of them and fails the turn; replay retains their error
-results. Repeated unchanged tool results stop the turn.
+results. A repeated unchanged tool result never stops the turn: the panel,
+terminal and ACP say which call is repeating with its count, the call runs
+again, and only Stop ends it.
 
 `museSpark.webSearchMaxPerRequest` sends no search bound of ours unless you
 set one (0, the default, leaves the count to the provider; a set value stays
@@ -6608,7 +6614,7 @@ retain liability.
 
 Argument previews use a separate lazy chunk and are available only with
 recorded streaming-argument support. Structured side calls prefer a captured
-schema format, allow one repair and retain the text fallback. Git commit and
+schema format, repair until the answer validates (saying so each round) and retain the text fallback. Git commit and
 pull-request drafts apply this contract to the user's own turn, with repairs
 under the session's hooks and budget. Judge uses the selected model's captured
 format. Compaction applies its own summary contract even when a headless final

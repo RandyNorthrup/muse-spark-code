@@ -31,9 +31,6 @@ import {
   OBS_PACK_THRESHOLD_CHARS,
   OBS_PACK_WHOLE_SENDS,
   SHELL_PACKED_MAX_CHARS,
-  TOOL_OUTPUT_MAX_CHARS,
-  TOOL_RESULT_MAX_LINE_CHARS,
-  TOOL_RESULT_MAX_TOKENS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
@@ -308,15 +305,12 @@ export class ObservationPack {
       return original
     }
     // TOOLCAP: the placeholder carries at most OBS_PACK_THRESHOLD_CHARS
-    // characters of lines the bound already cut to
-    // TOOL_RESULT_MAX_LINE_CHARS, so under the default caps it passes the
-    // bound uncut. When a smaller configured guard would cut it, the current
-    // text rides instead: it already passed the bound on entry, and the
-    // send-time recovery still cuts whatever exceeds the bound on refusal.
+    // characters, so under no trimming of ours it passes the bound uncut
+    // (D121). When a person's own guard would cut it, the current text rides
+    // instead: it already passed the bound on entry, and the send-time
+    // recovery still cuts whatever exceeds the bound on refusal.
     const branded = boundToolResultText(text, {
-      maxTokens: TOOL_RESULT_MAX_TOKENS,
-      maxLineChars: TOOL_RESULT_MAX_LINE_CHARS,
-      maxBytes: TOOL_OUTPUT_MAX_CHARS,
+      maxBytes: Infinity,
       windowTokens: undefined,
     })
     if (branded.cut !== undefined) return original

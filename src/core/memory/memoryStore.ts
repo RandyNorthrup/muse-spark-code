@@ -30,7 +30,6 @@ import {
   MEMORY_SNAPSHOT_MAX_NOTES,
   type MemoryScope,
   MODEL_TEXT,
-  TOOL_OUTPUT_MAX_CHARS,
 } from '../../shared/constants'
 import { resolveWorkspacePath } from '../workspacePath'
 import {
@@ -591,8 +590,9 @@ export class MemoryStore {
       return failed(MODEL_TEXT.memoryFileNotFound)
     }
     const lines = read.value.match(LINES_WITH_BREAKS) ?? []
+    // D121: no trimming of ours — the window the model asked for rides
+    // whole; only lines past it page, said by `truncated`.
     const shown = lines.slice(offset - 1, offset - 1 + limit).join('')
-    const isClipped = shown.length > TOOL_OUTPUT_MAX_CHARS
     return {
       ok: true,
       value: JSON.stringify({
@@ -600,8 +600,8 @@ export class MemoryStore {
         scope: place.scope,
         path: place.path,
         start_line_number: offset,
-        content: isClipped ? shown.slice(0, TOOL_OUTPUT_MAX_CHARS) : shown,
-        truncated: isClipped || offset - 1 + limit < lines.length,
+        content: shown,
+        truncated: offset - 1 + limit < lines.length,
       }),
     }
   }

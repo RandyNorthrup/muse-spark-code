@@ -618,7 +618,11 @@
       "backends": ["modelApi"],
       "paid": false,
       "surfaces": ["vscode:modelApi", "acp:modelApi"],
-      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
+      "details": [
+        { "ui": "structuredOutputRepair" },
+        { "ui": "structuredOutputRetry" },
+        { "ui": "structuredOutputFallback" }
+      ],
       "facts": {},
       "editors": ["vscode", "acp"]
     },
@@ -1272,7 +1276,11 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
-      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
+      "details": [
+        { "ui": "structuredOutputRepair" },
+        { "ui": "structuredOutputRetry" },
+        { "ui": "structuredOutputFallback" }
+      ],
       "facts": {},
       "editors": ["vscode"]
     },
@@ -1951,7 +1959,11 @@
       "backends": ["modelApi"],
       "paid": true,
       "surfaces": ["vscode:modelApi"],
-      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
+      "details": [
+        { "ui": "structuredOutputRepair" },
+        { "ui": "structuredOutputRetry" },
+        { "ui": "structuredOutputFallback" }
+      ],
       "facts": {
         "paidFeature": "judge",
         "paidSettings": ["museSpark.judge.engine"],
@@ -3193,7 +3205,7 @@
     {
       "id": "museSpark.modelApiSubagents",
       "name": "museSpark.modelApiSubagents",
-      "description": "Bounded paid child agents, with up to four requests per task including retries. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.",
+      "description": "Paid child agents: a task runs until done or stopped, billed per request. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.",
       "descriptionKey": "config.modelApiSubagents.description",
       "type": "boolean",
       "default": true,

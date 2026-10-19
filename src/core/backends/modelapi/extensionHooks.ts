@@ -132,7 +132,11 @@ export interface ExtensionHookDefinition {
   readonly event: ExtensionHookEvent
   readonly source: HookSource
   readonly command: string
-  readonly timeoutSeconds: number
+  /**
+   * D121: no default deadline of ours — absent runs until it ends or the
+   * caller stops it (the Tab request's own bound still applies).
+   */
+  readonly timeoutSeconds?: number | undefined
   readonly matcher: ExtensionHookMatcher | undefined
   readonly isAsync: boolean
   /** The group's own words, for the Run Hook pick (M91 lane E). */
@@ -1060,7 +1064,7 @@ export interface ExtensionHookRunIo {
     command: string,
     payload: string,
     cwd: string,
-    timeoutMs: number,
+    timeoutMs: number | undefined,
     signal?: AbortSignal,
     extraEnvNames?: readonly string[],
   ) => Promise<ShellResult>
@@ -1151,7 +1155,7 @@ async function runExtensionHandler(
       hook.command,
       serialized,
       cwd,
-      hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
+      hook.timeoutSeconds === undefined ? undefined : hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
       signal,
       undefined,
     )
