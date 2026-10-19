@@ -4,7 +4,6 @@ import { readFile, writeFile, rename, unlink } from 'node:fs/promises'
 import * as z from 'zod/mini'
 import { NodeVaultFiles, VaultStore, type VaultFilePort } from '../../../../src/core/vault/store'
 import { createRecoverySlot } from '../../../../src/core/vault/keyslots'
-import { UI_TEXT } from '../../../../src/shared/constants'
 import { startWindowsPipeFiles } from '../../../../src/runtime/vault/windowsPipeRelay'
 import type { WindowsVaultExecutable } from '../../../../src/runtime/vault/slots/windowsVaultTransport'
 
@@ -43,7 +42,7 @@ async function fixtureFiles(
 }
 import { createEncryptedBackup, restoreEncryptedBackup } from '../../../../src/core/vault/backup'
 import { VaultError } from '../../../../src/core/vault/crypto'
-import { VAULT_LIMITS, MILLISECONDS_PER_SECOND } from '../../../../src/shared/constants'
+import { UI_TEXT, VAULT_LIMITS, MILLISECONDS_PER_SECOND } from '../../../../src/shared/constants'
 import { type VaultAnchorPort } from '../../../../src/core/vault/broker/repository'
 
 const stateSchema = z.strictObject({
