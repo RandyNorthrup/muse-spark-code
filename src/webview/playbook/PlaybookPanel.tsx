@@ -2,11 +2,9 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import {
   PLAYBOOK_CONFIGURABLE_RULES,
-  PLAYBOOK_PATCH_ROUNDS_MAX,
   REVIEW_FINDING_TEXT_MAX_CHARS,
   UI_TEXT,
 } from '../../shared/constants'
-import { formatNumber } from '../../shared/l10n/text'
 import type { PlaybookConfigurableRule, PlaybookSettings } from '../../shared/playbook'
 import {
   playbookChangeSchema,
@@ -117,9 +115,11 @@ function Settings({
   const id = useId()
   const [limit, setLimit] = useState(snapshot.settings.patchRoundsMax)
   const [savedLimit, setSavedLimit] = useState(snapshot.settings.patchRoundsMax)
+  const [roundsError, setRoundsError] = useState(false)
   if (savedLimit !== snapshot.settings.patchRoundsMax) {
     setSavedLimit(snapshot.settings.patchRoundsMax)
     setLimit(snapshot.settings.patchRoundsMax)
+    setRoundsError(false)
   }
   return (
     <section aria-label={UI_TEXT.playbookSettings}>
@@ -143,31 +143,38 @@ function Settings({
       <form
         className="playbook-rule"
         aria-labelledby={`${id}-rounds-heading`}
+        noValidate
         onSubmit={(event) => {
           event.preventDefault()
-          if (!busy && limit !== snapshot.settings.patchRoundsMax)
-            void save({ patchRoundsMax: limit }, event.currentTarget)
+          if (busy || limit === snapshot.settings.patchRoundsMax) return
+          const parsed = playbookChangeSchema.safeParse({ patchRoundsMax: limit })
+          setRoundsError(!parsed.success)
+          if (parsed.success) void save(parsed.data, event.currentTarget)
         }}
       >
         <h3 id={`${id}-rounds-heading`} tabIndex={-1}>
           <label htmlFor={id}>{UI_TEXT.playbookPatchRoundsLabel}</label>
         </h3>
         <p id={`${id}-help`}>{UI_TEXT.playbookPatchRoundsHelp}</p>
-        <select
+        <input
           id={id}
-          aria-describedby={`${id}-help`}
+          type="number"
+          min={0}
+          step={1}
+          aria-describedby={roundsError ? `${id}-error` : `${id}-help`}
+          aria-invalid={roundsError}
           value={limit}
           disabled={busy}
           onChange={(event) => {
             setLimit(Number(event.target.value))
+            setRoundsError(false)
           }}
-        >
-          {[1, PLAYBOOK_PATCH_ROUNDS_MAX].map((value) => (
-            <option key={value} value={value}>
-              {formatNumber(value)}
-            </option>
-          ))}
-        </select>
+        />
+        {roundsError ? (
+          <p id={`${id}-error`} role="alert">
+            {UI_TEXT.playbookPatchRoundsInvalid}
+          </p>
+        ) : null}
         <button
           id={`${id}-rounds-save`}
           type="submit"

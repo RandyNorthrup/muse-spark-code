@@ -511,8 +511,8 @@
   "playbookDisabledDetail": "{actor}이(가) {date}에 끔: {reason}",
   "playbookSafetyAlwaysOn": "안전 검사는 항상 적용됩니다. 이 규칙은 끌 수 없습니다.",
   "playbookPatchRoundsLabel": "재설계 전 수정 라운드 수",
-  "playbookPatchRoundsHelp": "한도를 낮출 수 있습니다. 한도에 도달하면 설계 결정을 기록하고 재설계 작업 분기를 시작하세요.",
-  "playbookPatchRoundsInvalid": "수정 라운드를 한 번 또는 두 번으로 선택하세요. 상한을 높일 수 없습니다.",
+  "playbookPatchRoundsHelp": "0은 작업이 수렴하거나 사용자가 중단할 때까지 수정 라운드가 계속됨을 의미합니다. 숫자를 지정하면 해당 횟수의 수정 라운드 후에 설계 결정과 재설계 작업 분기가 필요합니다.",
+  "playbookPatchRoundsInvalid": "무제한 수정 라운드에는 0을, 1 이상의 정수를 입력하세요.",
   "playbookFallbackReviewer": "분류기에 차단된 검토의 대체 검토자: {reviewer}",
   "playbookFallbackNone": "지정된 대체 검토자 없음",
   "playbookResidualAccepted": "잔여 항목 승인됨",
@@ -539,7 +539,7 @@
     "other": "검토 {count}라운드"
   },
   "playbookRules": {
-    "threeStrikes": "세 번의 실패 후 재설계",
+    "threeStrikes": "수정 라운드 후 재설계",
     "onePassReview": "모든 분류를 한 번에 검토",
     "contractsFirst": "계약과 선행 조건부터 충족",
     "smallFirst": "의존성을 충족한 뒤 작은 작업부터 처리",

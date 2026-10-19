@@ -514,8 +514,8 @@
   "playbookDisabledDetail": "Wyłączono przez {actor} dnia {date}: {reason}",
   "playbookSafetyAlwaysOn": "Kontrole bezpieczeństwa obowiązują zawsze. Tej reguły nie można wyłączyć.",
   "playbookPatchRoundsLabel": "Rundy poprawek przed przeprojektowaniem",
-  "playbookPatchRoundsHelp": "Limit można obniżyć. Po jego osiągnięciu zapisz decyzję projektową i uruchom gałąź przeprojektowania.",
-  "playbookPatchRoundsInvalid": "Wybierz jedną lub dwie rundy poprawek; nie można podnieść limitu.",
+  "playbookPatchRoundsHelp": "0 oznacza, że rundy poprawek trwają, aż praca się zakończy lub ją zatrzymasz. Ustaw liczbę, aby po tylu rundach wymagać decyzji projektowej i gałęzi przeprojektowania.",
+  "playbookPatchRoundsInvalid": "Wpisz 0 dla nieograniczonych rund poprawek albo liczbę całkowitą 1 lub większą.",
   "playbookFallbackReviewer": "Recenzent zastępczy dla recenzji zablokowanych przez klasyfikator: {reviewer}",
   "playbookFallbackNone": "Nie wyznaczono recenzenta zastępczego",
   "playbookResidualAccepted": "Punkt szczątkowy zaakceptowany",
@@ -545,7 +545,7 @@
     "many": "{count} rund przeglądu"
   },
   "playbookRules": {
-    "threeStrikes": "Przeprojektuj po trzech nieudanych rundach",
+    "threeStrikes": "Przeprojektuj po rundach poprawek",
     "onePassReview": "Sprawdź wszystkie klasy w jednym przebiegu",
     "contractsFirst": "Najpierw kontrakty i wymagania wstępne",
     "smallFirst": "Najpierw małe zadania, po ich zależnościach",

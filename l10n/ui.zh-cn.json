@@ -511,8 +511,8 @@
   "playbookDisabledDetail": "{actor} 于 {date} 关闭：{reason}",
   "playbookSafetyAlwaysOn": "安全检查始终适用。此规则不能关闭。",
   "playbookPatchRoundsLabel": "重新设计前的修复轮数",
-  "playbookPatchRoundsHelp": "可以降低上限。达到上限后，请记录设计决策并启动重新设计工作分支。",
-  "playbookPatchRoundsInvalid": "请选择一轮或两轮修复；不能提高上限。",
+  "playbookPatchRoundsHelp": "0 表示修复轮次将持续到工作收敛或您手动停止为止。设置数字可在相应轮次后要求记录设计决策并启动重新设计工作分支。",
+  "playbookPatchRoundsInvalid": "请输入 0 表示无限制修复轮次，或输入 1 及以上的整数。",
   "playbookFallbackReviewer": "分类器阻止的评审的备选评审人：{reviewer}",
   "playbookFallbackNone": "未指定备选评审人",
   "playbookResidualAccepted": "遗留事项已接受",
@@ -539,7 +539,7 @@
     "other": "{count} 轮审查"
   },
   "playbookRules": {
-    "threeStrikes": "三次失败后重新设计",
+    "threeStrikes": "修复轮次后重新设计",
     "onePassReview": "一次审查所有类别",
     "contractsFirst": "先完成契约和前置条件",
     "smallFirst": "满足依赖后优先处理小任务",

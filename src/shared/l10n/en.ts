@@ -679,8 +679,8 @@ export const EN = {
   playbookSafetyAlwaysOn: 'Safety checks always apply. This rule cannot be turned off.',
   playbookPatchRoundsLabel: 'Fix Rounds Before Redesign',
   playbookPatchRoundsHelp:
-    'The limit can be lowered. After it is reached, write a design decision and dispatch a redesign lane.',
-  playbookPatchRoundsInvalid: 'Choose one or two fix rounds; the ceiling cannot be raised.',
+    '0 means fix rounds continue until the work converges or you stop it. Set a number to require a design decision and a redesign lane after that many fix rounds.',
+  playbookPatchRoundsInvalid: 'Enter 0 for unlimited fix rounds, or a whole number of 1 or more.',
   playbookFallbackReviewer: 'Fallback reviewer for classifier-blocked reviews: {reviewer}',
   playbookFallbackNone: 'No fallback reviewer named',
   playbookResidualAccepted: 'Residual Accepted',
@@ -708,7 +708,7 @@ export const EN = {
   playbookSaved: 'Playbook settings saved.',
   playbookStrikeBadge: forms({ one: '{count} review round', other: '{count} review rounds' }),
   playbookRules: {
-    threeStrikes: 'Redesign After Three Strikes',
+    threeStrikes: 'Redesign After Fix Rounds',
     onePassReview: 'Review Every Class in One Pass',
     contractsFirst: 'Contracts and Prerequisites First',
     smallFirst: 'Small Work First, After Dependencies',

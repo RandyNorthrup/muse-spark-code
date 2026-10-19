@@ -513,8 +513,8 @@
   "playbookDisabledDetail": "Desativada por {actor} em {date}: {reason}",
   "playbookSafetyAlwaysOn": "As verificações de segurança sempre se aplicam. Esta regra não pode ser desativada.",
   "playbookPatchRoundsLabel": "Rodadas de correção antes do redesenho",
-  "playbookPatchRoundsHelp": "O limite pode ser reduzido. Ao atingi-lo, escreva uma decisão de projeto e inicie uma ramificação de redesenho.",
-  "playbookPatchRoundsInvalid": "Escolha uma ou duas rodadas de correção; o limite máximo não pode ser aumentado.",
+  "playbookPatchRoundsHelp": "0 significa que as rodadas de correção continuam até o trabalho convergir ou você interrompê-lo. Defina um número para exigir uma decisão de projeto e uma ramificação de redesenho após essa quantidade de rodadas.",
+  "playbookPatchRoundsInvalid": "Digite 0 para rodadas de correção ilimitadas, ou um número inteiro de 1 para cima.",
   "playbookFallbackReviewer": "Revisor suplente para revisões bloqueadas pelo classificador: {reviewer}",
   "playbookFallbackNone": "Nenhum revisor suplente designado",
   "playbookResidualAccepted": "Item residual aceito",
@@ -543,7 +543,7 @@
     "many": "{count} rodadas de revisão"
   },
   "playbookRules": {
-    "threeStrikes": "Redesenhar após três tentativas malsucedidas",
+    "threeStrikes": "Redesenhar após as rodadas de correção",
     "onePassReview": "Revisar todas as classes em uma passagem",
     "contractsFirst": "Contratos e pré-requisitos primeiro",
     "smallFirst": "Trabalhos pequenos primeiro, após suas dependências",

@@ -511,8 +511,8 @@
   "playbookDisabledDetail": "{actor} が {date} に無効にしました: {reason}",
   "playbookSafetyAlwaysOn": "安全チェックは常に適用されます。このルールは無効にできません。",
   "playbookPatchRoundsLabel": "再設計までの修正ラウンド数",
-  "playbookPatchRoundsHelp": "上限は引き下げられます。上限に達したら設計判断を記録し、再設計レーンを開始してください。",
-  "playbookPatchRoundsInvalid": "修正ラウンドは一回または二回を選んでください。上限は引き上げられません。",
+  "playbookPatchRoundsHelp": "0 は修正ラウンドが作業の収束または停止まで続くことを意味します。回数を指定すると、その回数の修正ラウンド後に設計判断と再設計レーンが必要になります。",
+  "playbookPatchRoundsInvalid": "無制限の修正ラウンドには 0 を、1 以上の整数を指定してください。",
   "playbookFallbackReviewer": "分類器によりブロックされたレビューの代替担当: {reviewer}",
   "playbookFallbackNone": "代替レビュー担当は未指定です",
   "playbookResidualAccepted": "残存事項を承認しました",
@@ -539,7 +539,7 @@
     "other": "レビュー {count} ラウンド"
   },
   "playbookRules": {
-    "threeStrikes": "三回の不成功後に再設計する",
+    "threeStrikes": "修正ラウンド後に再設計する",
     "onePassReview": "すべての分類を一度にレビューする",
     "contractsFirst": "契約と前提条件を先に満たす",
     "smallFirst": "依存関係を満たしてから小さな作業を優先する",

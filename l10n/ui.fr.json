@@ -513,8 +513,8 @@
   "playbookDisabledDetail": "Désactivée par {actor} le {date} : {reason}",
   "playbookSafetyAlwaysOn": "Les contrôles de sécurité s’appliquent toujours. Cette règle ne peut pas être désactivée.",
   "playbookPatchRoundsLabel": "Cycles de correction avant refonte",
-  "playbookPatchRoundsHelp": "La limite peut être abaissée. Une fois atteinte, rédigez une décision de conception et lancez une branche de refonte.",
-  "playbookPatchRoundsInvalid": "Choisissez un ou deux cycles de correction ; le plafond ne peut pas être relevé.",
+  "playbookPatchRoundsHelp": "0 signifie que les cycles de correction continuent jusqu’à ce que le travail converge ou que vous l’arrêtiez. Fixez un nombre pour exiger une décision de conception et une branche de refonte après autant de cycles.",
+  "playbookPatchRoundsInvalid": "Saisissez 0 pour des cycles de correction illimités, ou un nombre entier de 1 ou plus.",
   "playbookFallbackReviewer": "Examinateur de repli pour les examens bloqués par le classificateur : {reviewer}",
   "playbookFallbackNone": "Aucun examinateur de repli désigné",
   "playbookResidualAccepted": "Point résiduel accepté",
@@ -543,7 +543,7 @@
     "many": "{count} cycles de revue"
   },
   "playbookRules": {
-    "threeStrikes": "Refondre après trois échecs",
+    "threeStrikes": "Refondre après les cycles de correction",
     "onePassReview": "Examiner toutes les classes en une passe",
     "contractsFirst": "Contrats et prérequis d’abord",
     "smallFirst": "Petites tâches d’abord, après leurs dépendances",
