@@ -3,19 +3,16 @@ import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import { initialUiState, uiReducer, type UiState } from '../../src/webview/state/uiState'
 
 const start: UiState = { ...initialUiState, sessionId: 'session-1' }
-function retry(
-  event: {
-    type: 'turnRetry'
-    turnId: string
-    attempt: number
-    maxAttempts?: number
-    retryDelayMs: number
-    reason: string
-  },
-  state = start,
-) {
+function retry(event: {
+  type: 'turnRetry'
+  turnId: string
+  attempt: number
+  maxAttempts?: number
+  retryDelayMs: number
+  reason: string
+}) {
   const message: HostToWebviewMessage = { type: 'agentEvent', event }
-  return uiReducer(state, { type: 'hostMessage', message, at: 1000 })
+  return uiReducer(start, { type: 'hostMessage', message, at: 1000 })
 }
 function noticeText(state: UiState): string {
   const entry = state.transcript.find((item) => item.kind === 'notice')

@@ -108,8 +108,8 @@ function harness(
   }
 }
 
-function noticesOf(surface: RecordingSurface, level: string): string[] {
-  return surface.notices.filter((notice) => notice.level === level).map((notice) => notice.text)
+function noticesOf(surface: RecordingSurface): string[] {
+  return surface.notices.filter((notice) => notice.level === 'warning').map((notice) => notice.text)
 }
 
 afterAll(() => {
@@ -122,7 +122,7 @@ describe('RuntimeGit form failures', () => {
     const { adapter, surface } = harness(repo, () => Promise.resolve(false))
     rmSync(repo, { recursive: true, force: true })
     await adapter.handleAction('openCommit')
-    expect(noticesOf(surface, 'warning')).toContain(UI_TEXT.gitOperationChanged)
+    expect(noticesOf(surface)).toContain(UI_TEXT.gitOperationChanged)
   })
 
   it('answers the commit as failed when the root is swept after the form opens', async () => {
@@ -133,7 +133,7 @@ describe('RuntimeGit form failures', () => {
     expect(surface.posts.some((post) => post.type === 'gitCommitForm')).toBe(true)
     rmSync(repo, { recursive: true, force: true })
     await adapter.commit('Swept root commit', false)
-    expect(noticesOf(surface, 'warning')).toContain(UI_TEXT.gitOperationChanged)
+    expect(noticesOf(surface)).toContain(UI_TEXT.gitOperationChanged)
     expect(surface.posts.some((post) => post.type === 'gitDone' && !post.ok)).toBe(true)
   })
 
@@ -142,7 +142,7 @@ describe('RuntimeGit form failures', () => {
     const { adapter, surface } = harness(repo, () => Promise.resolve(false))
     rmSync(repo, { recursive: true, force: true })
     await adapter.handleAction('push')
-    expect(noticesOf(surface, 'warning')).toContain(UI_TEXT.gitOperationChanged)
+    expect(noticesOf(surface)).toContain(UI_TEXT.gitOperationChanged)
   })
 })
 
@@ -215,7 +215,7 @@ describe('RuntimeGit push failures', () => {
     })
     box.revoke = built.revokeTrust
     await built.adapter.handleAction('push')
-    expect(noticesOf(built.surface, 'warning')).toContain(UI_TEXT.gitRestricted)
+    expect(noticesOf(built.surface)).toContain(UI_TEXT.gitRestricted)
     expect(built.terminals).toEqual([])
   })
 })

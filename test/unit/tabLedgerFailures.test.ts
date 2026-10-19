@@ -28,8 +28,7 @@ const ledgerWith = (root: string, log: Logger) =>
     log,
   })
 
-const ownFile = (root: string, windowId = 'window1') =>
-  path.join(root, tabLocalDate(Date.now()), `${windowId}.json`)
+const ownFile = (root: string) => path.join(root, tabLocalDate(Date.now()), 'window1.json')
 
 describe('createTabLedger failure words', () => {
   it('fails closed with a warn when its own file is unreadable', async () => {

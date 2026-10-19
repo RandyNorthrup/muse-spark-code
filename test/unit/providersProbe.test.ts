@@ -26,8 +26,8 @@ async function resolved(): Promise<ResolvedProvider> {
   return result.provider
 }
 
-function answer(body: string, status = 200): Promise<Response> {
-  return Promise.resolve(new Response(body, { status }))
+function answer(body: string): Promise<Response> {
+  return Promise.resolve(new Response(body, { status: 200 }))
 }
 
 describe('probeProvider failure rules', () => {

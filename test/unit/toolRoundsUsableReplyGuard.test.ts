@@ -10,8 +10,8 @@ import {
 const REPO = process.cwd()
 const SCRIPT = path.join(REPO, 'scripts', 'check-usable-reply.mjs')
 
-function run(args: readonly string[], cwd = REPO): { status: number; output: string } {
-  return runGuardProcess(SCRIPT, args, cwd, 120_000)
+function run(args: readonly string[]): { status: number; output: string } {
+  return runGuardProcess(SCRIPT, args, REPO, 120_000)
 }
 
 describe('usable-reply guard', () => {

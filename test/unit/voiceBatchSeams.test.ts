@@ -55,7 +55,7 @@ const wav: AudioSource = {
   info: { kind: 'audio', mediaType: 'audio/wav', sizeBytes: 640_044, durationSeconds: 20 },
 }
 
-function transcribe(seams: ReturnType<typeof voiceBatchSeams>, billedSeconds = 20) {
+function transcribe(seams: ReturnType<typeof voiceBatchSeams>) {
   const sends: true[] = []
   const send = () => {
     sends.push(true)
@@ -77,7 +77,7 @@ function transcribe(seams: ReturnType<typeof voiceBatchSeams>, billedSeconds = 2
           transcribe: (_source, _signal, admission) => {
             admission.dispatch()
             send()
-            return Promise.resolve({ text: 'Hello there.', billedSeconds })
+            return Promise.resolve({ text: 'Hello there.', billedSeconds: 20 })
           },
         },
         ...seams,

@@ -15,12 +15,12 @@ import { UI_TEXT, WHATS_NEW_CHANGELOG_URL } from '../../shared/constants'
 import { BASE_LOCALE, fill, uiLocale } from '../../shared/l10n/text'
 
 /**
- * Literal release-note text as Markdown source: every character that can
- * reshape the rendering carries a backslash, so an ACP client that renders
- * Markdown shows the characters (an escaped `\*`, a raw `<script>`) instead
- * of reinterpreting them (Codex on PR #212). The rest — `, ; : /` and kin —
- * stays bare, so terminal clients reading the raw text see it unchanged.
- */
+Literal release-note text as Markdown source: every character that can
+reshape the rendering carries a backslash, so an ACP client that renders
+Markdown shows the characters (an escaped `\*`, a raw `<script>`) instead
+of reinterpreting them (Codex on PR #212). The rest — `, ; : /` and kin —
+stays bare, so terminal clients reading the raw text see it unchanged.
+*/
 const MARKDOWN_SIGNIFICANT = /[\\`*_()[\]#+\-.!<>|~=]/gu
 
 function escapeText(value: string): string {
@@ -74,37 +74,30 @@ function inline(node: Inline): string {
 
 const LIST_MARKER = /^(-|\d+\.)\s/
 
-function blocks(nodes: readonly Block[], indent: string): string[] {
-  return nodes.flatMap((node, index) =>
-    index === 0 ? block(node, indent) : ['', ...block(node, indent)],
-  )
+function blocks(nodes: readonly Block[]): string[] {
+  return nodes.flatMap((node, index) => (index === 0 ? block(node) : ['', ...block(node)]))
 }
 
-function block(node: Block, indent: string): string[] {
+function block(node: Block): string[] {
   switch (node.t) {
     case 'p':
     case 'h': {
-      return [`${indent}${inlines(node.c)}`]
+      return [inlines(node.c)]
     }
     case 'pre': {
-      return node.v.split('\n').map((line) => `${indent}  ${line}`)
+      return node.v.split('\n').map((line) => `  ${line}`)
     }
     case 'quote': {
-      return blocks(node.c, '').map((line) => (line === '' ? '' : `${indent}> ${line}`))
+      return blocks(node.c).map((line) => (line === '' ? '' : `> ${line}`))
     }
     case 'list': {
       const lines: string[] = []
       for (const [index, item] of node.items.entries()) {
         if (index > 0) lines.push('')
         const marker = node.ordered ? `${String(node.start + index)}. ` : '- '
-        const [first, ...rest] = blocks(item, '')
-        const inner = (first ?? '').trimStart()
-        pushWrapped(
-          lines,
-          LIST_MARKER.test(inner) ? `${indent}${inner}` : `${indent}${marker}${inner}`,
-          rest,
-          `${indent}  `,
-        )
+        const [first = '', ...rest] = blocks(item)
+        const inner = first.trimStart()
+        pushWrapped(lines, LIST_MARKER.test(inner) ? inner : `${marker}${inner}`, rest)
       }
       return lines
     }
@@ -112,23 +105,18 @@ function block(node: Block, indent: string): string[] {
 }
 
 /** One logical line, wrapping its hard breaks under the continuation indent. */
-function pushWrapped(
-  target: string[],
-  head: string,
-  tail: readonly string[],
-  indent: string,
-): void {
-  const [first, ...rest] = [head, ...tail].flatMap((line) => line.split('\n'))
-  target.push(first ?? '')
-  for (const part of rest) target.push(part === '' ? '' : `${indent}${part.trimStart()}`)
+function pushWrapped(target: string[], head: string, tail: readonly string[]): void {
+  const [first = '', ...rest] = [head, ...tail].flatMap((line) => line.split('\n'))
+  target.push(first)
+  for (const part of rest) target.push(part === '' ? '' : `  ${part.trimStart()}`)
 }
 
 function highlight(entry: Highlight): string[] {
-  const [first, ...rest] = blocks(entry.c, '')
-  const head = (first ?? '').trimStart()
+  const [first = '', ...rest] = blocks(entry.c)
+  const head = first.trimStart()
   if (head === '' && rest.length === 0) return []
   const lines: string[] = []
-  pushWrapped(lines, LIST_MARKER.test(head) ? head : `- ${head}`, rest, '  ')
+  pushWrapped(lines, LIST_MARKER.test(head) ? head : `- ${head}`, rest)
   return [...lines, '']
 }
 
@@ -144,7 +132,7 @@ function release(release: ReleaseNotes): string[] {
   }
   for (const section of release.sections) {
     if (section.heading !== '') lines.push(`### ${escapeText(section.heading)}`, '')
-    lines.push(...blocks(section.blocks, ''), '')
+    lines.push(...blocks(section.blocks), '')
   }
   return lines
 }
@@ -173,11 +161,11 @@ export function formatWhatsNewText(options: WhatsNewTextOptions): string {
 }
 
 /**
- * The shipped content file's text, checked and rendered for the installed
- * version: the same selection the page makes for a manual open
- * (`releasesToShow` with no upgrade-from version), never every release the
- * content file ships.
- */
+The shipped content file's text, checked and rendered for the installed
+version: the same selection the page makes for a manual open
+(`releasesToShow` with no upgrade-from version), never every release the
+content file ships.
+*/
 export function whatsNewTextForContent(content: WhatsNewContent, current: string): string {
   return formatWhatsNewText({
     releases: releasesToShow(content.releases, undefined, current),

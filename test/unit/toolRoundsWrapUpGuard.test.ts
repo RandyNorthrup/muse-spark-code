@@ -11,8 +11,8 @@ const REPO = process.cwd()
 const SCRIPT = path.join(REPO, 'scripts', 'check-wrap-up-request.mjs')
 const HOST = path.join(REPO, 'src', 'core', 'backends', 'modelapi', 'ModelApiHost.ts')
 
-function run(args: readonly string[], cwd = REPO): { status: number; output: string } {
-  return runGuardProcess(SCRIPT, args, cwd, 60_000)
+function run(args: readonly string[]): { status: number; output: string } {
+  return runGuardProcess(SCRIPT, args, REPO, 60_000)
 }
 
 describe('wrap-up single-builder guard', () => {

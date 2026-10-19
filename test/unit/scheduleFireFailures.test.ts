@@ -150,7 +150,7 @@ function setup(state: {
   return { scheduler, fire, recorded, settlements }
 }
 
-function recoveredFire(outcome: 'ran', certainty: 'exact' | 'unknown'): ScheduleFireRecord {
+function recoveredFire(certainty: 'exact' | 'unknown'): ScheduleFireRecord {
   const stored = job()
   return scheduleFireRecordSchema.parse({
     runId,
@@ -160,7 +160,7 @@ function recoveredFire(outcome: 'ran', certainty: 'exact' | 'unknown'): Schedule
     observedAtMs: nowMs,
     target: stored.target,
     delivery: stored.delivery,
-    outcome,
+    outcome: 'ran',
     refusedActions: [],
     cost: { usd: '0', certainty, retainedLiabilityUsd: '0' },
     event: { source: 'manual', eventKey: requestId, kind: 'manual', fields: {}, observedAt: nowMs },
@@ -190,7 +190,7 @@ describe('schedule delivery failures', () => {
   })
 
   it('resolves a proven settlement with the recovered fire', async () => {
-    const recovered = recoveredFire('ran', 'exact')
+    const recovered = recoveredFire('exact')
     const { fire, recorded, settlements } = setup({
       deliver: () => Promise.reject(new Error('responseLost')),
       ledgers: [{ status: 'settled', fire: recovered }],
@@ -202,7 +202,7 @@ describe('schedule delivery failures', () => {
 
   it('settles an ambiguous recovery and still rejects with the delivery error', async () => {
     const deliveryError = new Error('ambiguousSend')
-    const recovered = recoveredFire('ran', 'unknown')
+    const recovered = recoveredFire('unknown')
     const { fire, recorded } = setup({
       deliver: () => Promise.reject(deliveryError),
       ledgers: [{ status: 'uncertain', fire: recovered }],
@@ -214,7 +214,7 @@ describe('schedule delivery failures', () => {
   it('settles a failed accounting and rejects when the recovered fire is foreign', async () => {
     const stored = job()
     const foreign = scheduleFireRecordSchema.parse({
-      ...recoveredFire('ran', 'unknown'),
+      ...recoveredFire('unknown'),
       scheduleId: 'schedule-other',
       target: stored.target,
     })
