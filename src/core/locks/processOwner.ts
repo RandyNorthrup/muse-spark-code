@@ -31,6 +31,11 @@ const LINUX_START_FIELD = 19
 const LINUX_BOOT_ID = '/proc/sys/kernel/random/boot_id'
 const DECIMAL = /^\d+$/u
 const BOOT_UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu
+// Integrity levels as `whoami /groups` prints them: the SID itself, which
+// unlike the level's name never localises. A host at High (elevated) or
+// System runs above a medium-integrity process of the same person.
+const HIGH_INTEGRITY_SID = 'S-1-16-12288'
+const SYSTEM_INTEGRITY_SID = 'S-1-16-16384'
 const WINDOWS_BIRTH_READER_STEM = 'MuseSparkBirth-'
 // `MuseSparkBirth-<process id>-<random UUID>.exe`: each process builds and
 // runs its own reader.
@@ -221,11 +226,55 @@ async function removeEndedBirthReaders(folder: string): Promise<void> {
 }
 
 /**
+ * Whether this host runs above a medium-integrity process of the same
+ * person (elevated or System): only then could a lower-integrity writer
+ * reach what this process builds and gain its token by swapping it.
+ * `whoami` is native (no PowerShell cold start) and its answer is the
+ * level's SID, which never localises. False when the probe itself fails:
+ * that probe cannot fail on a machine whose compiler runs.
+ */
+async function isHighIntegrityHost(systemRoot: string): Promise<boolean> {
+  try {
+    const groups = await run(path.win32.join(systemRoot, 'System32', 'whoami.exe'), ['/groups'], {
+      SystemRoot: systemRoot,
+    })
+    return groups.includes(HIGH_INTEGRITY_SID) || groups.includes(SYSTEM_INTEGRITY_SID)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Walls `file` above a lower-integrity writer: a High mandatory label, so
+ * a medium-integrity process of the same person can no longer write,
+ * replace or delete it (reading and running it stay allowed, so a later
+ * run at any level still runs and sweeps it). `icacls` is native and its
+ * exit, not its localised words, is the answer. There is no handle to
+ * hold from the check to the start: `execFile` opens the path again, so
+ * the file itself is made non-writable by the attacker for its whole life
+ * instead.
+ */
+async function wallAboveLowerIntegrity(file: string, systemRoot: string): Promise<void> {
+  await run(
+    path.win32.join(systemRoot, 'System32', 'icacls.exe'),
+    [file, '/setintegritylevel', 'H'],
+    {
+      SystemRoot: systemRoot,
+    },
+  )
+}
+
+/**
  * This process's birth reader: built by Windows' own C# compiler in the
  * user's data folder under a name of its own (this process's id and a
  * random part), and sealed: the digest of the bytes the compiler wrote is
  * kept in memory, and only those bytes are ever run. No file this process
- * did not build is run, whatever its name.
+ * did not build is run, whatever its name. When this host is elevated or
+ * System, what it writes (its source before the compile, its executable
+ * after the seal) is walled above a lower-integrity writer; a wall that
+ * cannot be set refuses the build, so an elevated host never builds or
+ * launches an unwalled helper. Any other host builds as before: with no
+ * higher token, a same-level writer gains nothing by swapping it.
  */
 async function buildWindowsBirthReader(systemRoot: string): Promise<BirthReader> {
   // Only an absolute folder is built in: a relative one would put the reader
@@ -243,8 +292,12 @@ async function buildWindowsBirthReader(systemRoot: string): Promise<BirthReader>
     `${WINDOWS_BIRTH_READER_STEM}${String(process.pid)}-${randomUUID()}`,
   )
   const file = `${stem}.exe`
+  const isHighIntegrity = await isHighIntegrityHost(systemRoot)
   try {
     await writeFile(`${stem}.cs`, WINDOWS_BIRTH_READER_SOURCE, 'utf8')
+    if (isHighIntegrity) {
+      await wallAboveLowerIntegrity(`${stem}.cs`, systemRoot)
+    }
     await run(
       path.win32.join(systemRoot, WINDOWS_FRAMEWORK_RELATIVE_PATH, 'csc.exe'),
       ['/nologo', '/noconfig', '/target:exe', `/out:${file}`, `${stem}.cs`],
@@ -258,7 +311,16 @@ async function buildWindowsBirthReader(systemRoot: string): Promise<BirthReader>
   }
   const digest = await fileDigest(file)
   if (digest === undefined) {
+    await removeQuietly(file)
     throw new Error('The birth reader the compiler wrote cannot be read')
+  }
+  if (isHighIntegrity) {
+    try {
+      await wallAboveLowerIntegrity(file, systemRoot)
+    } catch {
+      await removeQuietly(file)
+      throw new Error('The birth reader cannot be walled above a lower-integrity writer')
+    }
   }
   return { file, digest }
 }
