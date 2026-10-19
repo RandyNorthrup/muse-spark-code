@@ -1193,7 +1193,9 @@ const TEXT_BLOCKS = [
     readers: ['dist/codeIntel.js', BUNDLES.modelApi.output, 'dist/modelApiCodeIntel.js'],
   },
   // A picked text file's template (M54): the backends' bundles and the
-  // conversation carry it; activation reads it no longer (PR206).
+  // conversation carry it; activation reads it no longer (PR206). The
+  // runtime's media bundle formats ACP text attaches locally (M105 lane V),
+  // so it reads it too.
   {
     block: 'TEXT_ATTACHMENT_MODEL_TEXT',
     sentinels: ['attachedTextFile'],
@@ -1202,6 +1204,7 @@ const TEXT_BLOCKS = [
       'dist/museCode.js',
       'dist/conversation.js',
       'dist/runtimeEngine.js',
+      'dist/runtimeMedia.js',
     ],
   },
   {

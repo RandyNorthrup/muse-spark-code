@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The production build again emits `dist/reportInputs.js` and
+  `dist/playbookSchedulesInputs.js`: the join had dropped their build tasks
+  while the loaders, budgets and checks still demanded them.
+- The conversation bundle no longer carries the selected-fix preview store:
+  `LegalFixPreviews` rides `dist/legalScan.js` and is built from it on the
+  first legal command, bringing the bundle back under budget.
+- `dist/runtimeMedia.js` is a declared reader of the text-attachment
+  template it formats ACP text attaches with.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights

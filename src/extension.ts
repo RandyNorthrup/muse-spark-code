@@ -4060,6 +4060,11 @@ async function activateWindow(
             if (render === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
             return render(report)
           },
+          createLegalFixPreviews: () => {
+            const Previews = legalScanBundle().LegalFixPreviews
+            if (Previews === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+            return new Previews()
+          },
           legalFixApplier: createLegalFixApplier({
             prepare: async (findings) => {
               if (workspaceRoot === undefined || !vscode.workspace.isTrusted) return []
