@@ -12,6 +12,23 @@ import { writeFileAtomically } from '../../host/fsAtomic'
 
 const resetSchema = z.strictObject({ v: z.literal(1), resetAtMs: z.int().check(z.gte(0)) })
 
+const RESET_UNREADABLE_CODES: ReadonlySet<string> = new Set(['EACCES', 'EPERM'])
+
+/**
+ * An unreadable or corrupt boundary fails closed; anything else keeps its
+ * kind past this boundary.
+ */
+export function isResetReadError(error: unknown): boolean {
+  return (
+    error instanceof SyntaxError ||
+    (error instanceof Error && error.name === '$ZodError') ||
+    (error instanceof Error &&
+      'code' in error &&
+      typeof error.code === 'string' &&
+      RESET_UNREADABLE_CODES.has(error.code))
+  )
+}
+
 /** No delete yet is -1. An unreadable boundary is Infinity: nothing is written (fail closed). */
 export function readResourceReset(dataFolder: string): number {
   try {
@@ -19,7 +36,9 @@ export function readResourceReset(dataFolder: string): number {
       JSON.parse(readFileSync(path.join(dataFolder, RESOURCE_JOURNAL_RESET_FILE), 'utf8')),
     ).resetAtMs
   } catch (error) {
-    return error instanceof Error && 'code' in error && error.code === 'ENOENT' ? -1 : Infinity
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return -1
+    if (isResetReadError(error)) return Infinity
+    throw error
   }
 }
 

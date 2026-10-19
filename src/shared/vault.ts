@@ -39,8 +39,10 @@ export const vaultOriginSchema = text.check(
         u.username === '' &&
         u.password === ''
       )
-    } catch {
-      return false
+    } catch (error) {
+      // A malformed origin is invalid input. Anything else keeps its kind.
+      if (error instanceof TypeError) return false
+      throw error
     }
   }),
 )
@@ -55,8 +57,10 @@ const resource = text.check(
         u.password === '' &&
         u.hash === ''
       )
-    } catch {
-      return false
+    } catch (error) {
+      // A malformed resource is invalid input. Anything else keeps its kind.
+      if (error instanceof TypeError) return false
+      throw error
     }
   }),
 )

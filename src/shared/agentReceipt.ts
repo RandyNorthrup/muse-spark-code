@@ -29,8 +29,11 @@ export function agentCommandOf(item: ItemSnapshot): string | undefined {
   try {
     const raw: unknown = JSON.parse(item.args)
     return commandArgs.safeParse(raw).data?.command
-  } catch {
-    return undefined
+  } catch (error) {
+    // Tool arguments the model wrote are boundary input: malformed text
+    // carries no command. Anything else keeps its kind.
+    if (error instanceof SyntaxError) return undefined
+    throw error
   }
 }
 

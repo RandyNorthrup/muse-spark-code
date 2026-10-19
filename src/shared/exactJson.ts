@@ -28,10 +28,13 @@ function isSameDecimal(source: string, parsed: number): boolean {
       Math.abs(exponent) <= source.length + canonical.length &&
       canonicalUsd(source) === canonical
     )
-  } catch {
+  } catch (error) {
     // Exactness was not proved. A schema may accept the rounded value (even
     // underflowed zero), so it cannot decide whether the written money was lost.
-    return false
+    // Only the money canonicalization fails here, on text no double denotes;
+    // the name (not the constructor) names it, so split bundles agree on it.
+    if (error instanceof Error && error.name === '$ZodError') return false
+    throw error
   }
 }
 

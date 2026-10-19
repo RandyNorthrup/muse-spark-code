@@ -22,13 +22,13 @@
       "CLEANUP": 1
     },
     "runtime": {
-      "SWALLOW": 77,
-      "GENERIC": 289,
-      "CLEANUP": 98
+      "SWALLOW": 70,
+      "GENERIC": 279,
+      "CLEANUP": 99
     },
     "shared": {
-      "SWALLOW": 4,
-      "GENERIC": 10,
+      "SWALLOW": 0,
+      "GENERIC": 1,
       "CLEANUP": 2
     },
     "webview": {
@@ -8194,11 +8194,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/playbook/surface.ts",
-      "identity": "e4bb2722b6cd07bd528d280c26e78d00272e8d79a84d299c2d7e4ad30bacfebc",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/runtime/privateDirectory.ts",
       "identity": "8ac5120bd99653e619820e9c386c234e9c4756a57ff0ae26fb111488a840a8c6",
       "class": "GENERIC"
@@ -8249,11 +8244,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/providers/accountArgs.ts",
-      "identity": "c29aafcbddce771fcc9abda87bb8c823e2b8d3a3d29351879793f2d332e3cdfa",
-      "class": "SWALLOW"
-    },
-    {
       "file": "src/runtime/providers/accountsCommand.ts",
       "identity": "c2228588ad4e17aca429f741ac3f6d252d0100c967bd8ef450bfcb6a39c1db41",
       "class": "GENERIC"
@@ -8264,19 +8254,9 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/providers/providersFileStore.ts",
-      "identity": "ca1591280e606640aac66db1123155020f4e0596496aee785d7287e826ed6ac6",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/runtime/providers/runtimeServices.ts",
       "identity": "60174266217d40edbf639d856dfc8a51efbc7d0e5d07d2c1184699db23dc2524",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/providers/runtimeServices.ts",
-      "identity": "268e18862a417e2f71254e18318f2a1b63780e5568b50eb68ae60a03cb2a80d7",
-      "class": "SWALLOW"
     },
     {
       "file": "src/runtime/providersCommands.ts",
@@ -8355,23 +8335,13 @@
     },
     {
       "file": "src/runtime/questions/acpRegistry.ts",
+      "identity": "d00af73c445f0e494a22ed341bd13dbc0e25486962ae7a557e89a53451789366",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/questions/acpRegistry.ts",
       "identity": "1d56c2bd9f739148497bc70bf647b6213fd71c5afc427448b278cd3a073fe7a7",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/questions/acpRegistry.ts",
-      "identity": "6c693bd9c703281e4d0b3861fe94cf3fc1b08d3c2fe63079870d117b44f78e27",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/questions/acpRegistry.ts",
-      "identity": "85560ae8b5b0a6c7bc26dbf879e05d69acb9b8083528cea585cf3f4df0624d5f",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/questions/questionStore.ts",
-      "identity": "8c8ee0649b5ee08c755575bb8ef1b97033342873f943ce7bf41ae2d1c56fee05",
-      "class": "GENERIC"
     },
     {
       "file": "src/runtime/reportCommand.ts",
@@ -8575,8 +8545,8 @@
     },
     {
       "file": "src/runtime/resources/entry.ts",
-      "identity": "ee11a53b6ab4223bb557430d8172f30b7b7da7d656790be286bb002f66421b86",
-      "class": "SWALLOW"
+      "identity": "f39901d0ee6db00c71db8114cc59413fceb3c6faa69aabba577469f94dc80763",
+      "class": "GENERIC"
     },
     {
       "file": "src/runtime/resources/history.ts",
@@ -8606,16 +8576,6 @@
     {
       "file": "src/runtime/resources/host.ts",
       "identity": "67bf7329945d2281204dfa94f6baf2173695fec74eab45d24ea8688e989bbf68",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/resources/load.ts",
-      "identity": "58554a7dc2427282347b099a00d1d1f9506f4e956fe95467758513bf8caace9e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/resources/settings.ts",
-      "identity": "0d9ec68049882110fcbeca18fd7aff4b5809d304632e9dca22dc19fa203a0db7",
       "class": "GENERIC"
     },
     {
@@ -8744,18 +8704,8 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/sharing/confidential.ts",
-      "identity": "e2e23f08584b08a88368c9e4b1731f145f01525164eccf591c7d7b817075d08a",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/runtime/sharing/sharingEntry.ts",
       "identity": "3f71324ccc9d045ffba75ae265ae73ba4398154939d0f98ee730a3b329ff2e6b",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/sharing/sharingPorts.ts",
-      "identity": "8255cf29096464341890094e0d0c84c8f3e4338ed07304c19acd70afe462db0c",
       "class": "GENERIC"
     },
     {
@@ -8810,33 +8760,13 @@
     },
     {
       "file": "src/runtime/usage/nodeUsageFs.ts",
-      "identity": "dadc5f5aaf6dc0b5334b196b15279f7f6b527432a0eab19284b2d95288c7cea1",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/usage/nodeUsageFs.ts",
       "identity": "bee2ca71b0a54ab5d5940398df251513ac4c523f9b416ba4c234cb7462c13be9",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/usage/resourceResetFile.ts",
-      "identity": "420b8455af3d5949d26c9a06451e05efbbeb7f33577c92f354ef2c43e5c55a8c",
-      "class": "GENERIC"
     },
     {
       "file": "src/runtime/usage/traceLogs.ts",
       "identity": "ab63fe7c570e7bf58a0ae2e6a06dd1bb58d396d1565689d43ac9c3e1e2719fa4",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/usage/traceLogs.ts",
-      "identity": "a53ff8175d3f37d01b982e68e921c8073bce1125f94e035c03158d51a41f36f2",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/usage/traceLogs.ts",
-      "identity": "e95ed68fd354f065749e78dbc2534ce6352e46322d60d1625cb4a63c7e88de61",
-      "class": "SWALLOW"
     },
     {
       "file": "src/runtime/usage/usageAdapter.ts",
@@ -8855,18 +8785,8 @@
     },
     {
       "file": "src/runtime/usage/usageCli.ts",
-      "identity": "6493af460f3f05de27cb09bf51c5158c752e8e30c9d7292468236aa6808fde0a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/usage/usageCli.ts",
-      "identity": "5b15cf87162f0a958e9da64900e5f0a95625a4e2babf8f02d9df769332ba9bec",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/runtime/usage/usageCli.ts",
       "identity": "dbe4bc87998b6efbcb9b8de55280216708085b5d52aba99430926752d6981a69",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/runtime/usage/usageCompanionEntry.ts",
@@ -8875,8 +8795,8 @@
     },
     {
       "file": "src/runtime/usage/usageServiceEntry.ts",
-      "identity": "265e7dbcef45e4d34c8b3cd8f176aa68153c15e82fa954a8f8e81bde86fe5658",
-      "class": "SWALLOW"
+      "identity": "b2dcf4bdcd15aebf4aa66b1ddffb2c45c9aabe032c3eb8054b7a19768843c865",
+      "class": "GENERIC"
     },
     {
       "file": "src/runtime/vault/brokerBindings.ts",
@@ -9394,19 +9314,9 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/shared/agentReceipt.ts",
-      "identity": "38b9e96e021cb4eb2661d11dc2e7686a72025885edbb47c683be6540089f875a",
-      "class": "SWALLOW"
-    },
-    {
       "file": "src/shared/diffTally.ts",
       "identity": "7186ee0536315d985fec9b41d8e98f2e047ff72fd7c4e0124bc73b54c9f95d65",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/shared/estimate.ts",
-      "identity": "4e16df3a4614757db0c95f31ec0ef6ff9ed15bb85502c94158915d22d1aa9f66",
-      "class": "GENERIC"
     },
     {
       "file": "src/shared/estimateDiagnostic.ts",
@@ -9414,64 +9324,9 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/shared/exactJson.ts",
-      "identity": "8a3c18c597533e1a355c03315d70a763bb44f1a19434d76b10f3a6535565d74b",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/shared/hostApi/accounts.ts",
-      "identity": "6bb62b6037f30ed284c93efae75153e3e7fc45fac89405ad206a198131ba282f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/shared/l10n/usageTable.ts",
-      "identity": "ce48a06c57c3947c86d5d45ebb387b2fa75dbea809d0edd9fa202c462a8c67a1",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/shared/patchDocument.ts",
-      "identity": "e06b742a13f43b874334b37f0e898dc8df0824f18a9ebf26cdf813d2b5e1bffa",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/shared/providerRouting.ts",
-      "identity": "eac8e2a7462eae67d4229914915d169ecab1f5aba9e0e039b15020a7e1407168",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/shared/redact.ts",
       "identity": "e780a4c730a2fa520a983e40f87ebd2385b7c565db4f40dd3458e6d892f15ce9",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/shared/reference/referenceEntry.ts",
-      "identity": "769a429f0789f64450c431cd523c2b7beeaa4b0aae201e5cc25d6ebac0d29efa",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/shared/reviewFindings.ts",
-      "identity": "87e3ce904005eab4916c1ce785abf7044309086e85305990fb7606ad4c7827bb",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/shared/scheduleV2.ts",
-      "identity": "d178c708f2e07da09db9eacc124ddb9d87dd1fe1b214a747fd229841b336643e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/shared/textFileDisplay.ts",
-      "identity": "2648905ba4d78c9425e747d6a2b70633da792bef953bdf13368e0abfc9c19a9a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/shared/vault.ts",
-      "identity": "a0cea6ae1aac140d24eae6a76051b674f02a854eaa2f07a33b4abb025147395d",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/shared/vault.ts",
-      "identity": "b9918c6eea9ce164f2b536670e77722087f655b4a425f8a32238d77ef1ae6f05",
-      "class": "GENERIC"
     },
     {
       "file": "src/webview/App.tsx",

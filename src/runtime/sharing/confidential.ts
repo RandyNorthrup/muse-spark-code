@@ -6,6 +6,18 @@ import * as z from 'zod/mini'
 import { SETTING_DEFAULTS } from '../../shared/constants'
 
 const policySchema = z.object({ 'museSpark.confidentialWorkspace': z.optional(z.boolean()) })
+const POLICY_UNREADABLE_CODES: ReadonlySet<string> = new Set(['EACCES', 'EPERM'])
+/** An unreadable or corrupt policy refuses admission; anything else keeps its kind. */
+function isConfidentialPolicyError(error: unknown): boolean {
+  return (
+    error instanceof SyntaxError ||
+    (error instanceof Error && error.name === '$ZodError') ||
+    (error instanceof Error &&
+      'code' in error &&
+      typeof error.code === 'string' &&
+      POLICY_UNREADABLE_CODES.has(error.code))
+  )
+}
 
 /**
  * Settings files are JSONC: strip line and block comments and trailing
@@ -72,8 +84,11 @@ export function runtimeSharingConfidential(cwd: string): boolean | undefined {
       )['museSpark.confidentialWorkspace'] ?? SETTING_DEFAULTS.confidentialWorkspace
     )
   } catch (error: unknown) {
-    return error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      ? SETTING_DEFAULTS.confidentialWorkspace
-      : undefined
+    // A missing settings file reads the default; an unreadable or corrupt
+    // policy refuses admission. Anything else keeps its kind.
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      return SETTING_DEFAULTS.confidentialWorkspace
+    if (isConfidentialPolicyError(error)) return undefined
+    throw error
   }
 }

@@ -19,8 +19,10 @@ export const safePolicyUrl = z.url().check(
     try {
       const url = new URL(value)
       return url.protocol === 'https:' && url.username === '' && url.password === ''
-    } catch {
-      return false
+    } catch (error) {
+      // A malformed policy URL is invalid input. Anything else keeps its kind.
+      if (error instanceof TypeError) return false
+      throw error
     }
   }),
 )

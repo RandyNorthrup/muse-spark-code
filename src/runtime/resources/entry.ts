@@ -126,8 +126,10 @@ export async function createResources(
       stopEvents()
       host.dispose()
       // Best effort: the open minute is written if the process lives long enough.
-      void recorder.flush().catch(() => {
-        options.onError(new Error(UI_TEXT.resourceHistoryInvalid))
+      void recorder.flush().catch((error: unknown) => {
+        // A failed flush reaches the error port with its cause under fixed
+        // words; disposal itself never throws.
+        options.onError(new Error(UI_TEXT.resourceHistoryInvalid, { cause: error }))
       })
     },
   }

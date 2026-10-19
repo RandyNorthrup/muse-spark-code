@@ -39,8 +39,11 @@ export function parsePatchFiles(json: string): readonly PatchFile[] | undefined 
   let parsed: unknown
   try {
     parsed = JSON.parse(json)
-  } catch {
-    return undefined
+  } catch (error) {
+    // Stored patch text is boundary input: malformed text is no document.
+    // Anything else keeps its kind.
+    if (error instanceof SyntaxError) return undefined
+    throw error
   }
   const result = patchDocumentSchema.safeParse(parsed)
   return result.success ? result.data.files : undefined

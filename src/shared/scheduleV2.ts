@@ -68,8 +68,10 @@ export const scheduleZoneSchema = z.string().check(
       if (/^[+-]/.test(zone)) return false
       validatedScheduleZone.value = zone
       return true
-    } catch {
-      return false
+    } catch (error) {
+      // An unknown zone is invalid input. Anything else keeps its kind.
+      if (error instanceof RangeError) return false
+      throw error
     }
   }),
 )
