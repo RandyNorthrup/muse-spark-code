@@ -92,7 +92,6 @@ import {
   type EffortLevel,
   MSP_REQUESTED_CAPABILITIES,
   SCHEDULE_ACP_RELEASE_TIMEOUT_MS,
-  MAX_ATTACHMENTS_PER_MESSAGE,
   type PermissionMode,
   QUESTION_DEFER_DEFAULT_SECONDS,
   SANDBOX_CANNOT_START_MODEL_NOTE,
@@ -1016,8 +1015,8 @@ class AcpSession {
       if (isRecord) throw RequestError.invalidParams(undefined, UI_TEXT.media.recordingUserOnly)
       throw RequestError.invalidParams(undefined, UI_TEXT.media.attachHeadless)
     }
-    if (this.attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE)
-      throw RequestError.invalidParams(undefined, UI_TEXT.attachmentLimit)
+    // D121: no attach count of ours — any number of attachments is held;
+    // the transports' frame validity and the send path answer for the rest.
     const given = attach?.[1]?.trim()
     if (!isRecord && (given === undefined || given === ''))
       throw RequestError.invalidParams(undefined, UI_TEXT.attachmentUnreadable)

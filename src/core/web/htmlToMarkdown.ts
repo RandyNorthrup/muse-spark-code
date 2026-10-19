@@ -301,8 +301,12 @@ class MarkdownWriter {
 
   public constructor(
     private readonly base: URL,
-    /** Past this many characters the conversion stops: the model reads fewer. */
-    private readonly maxChars: number,
+    /**
+     * D121: past this many characters the conversion stops; undefined
+     * converts the page whole — the worker's own time and heap limits still
+     * stop a hostile page.
+     */
+    private readonly maxChars: number | undefined,
   ) {}
 
   /** The prefix of every line of a block: the quote marks, then the list indent. */
@@ -324,8 +328,10 @@ class MarkdownWriter {
    * size by its prefixes.
    */
   private emit(text: string): void {
-    const budget = this.maxChars - this.written
-    if (budget <= 0) {
+    // Without a bound the whole text is written: slice(0, undefined) keeps
+    // everything and no size check below can trip on undefined.
+    const budget = this.maxChars === undefined ? undefined : this.maxChars - this.written
+    if (budget !== undefined && budget <= 0) {
       return
     }
     const { first, rest } = this.linePrefixes()
@@ -335,7 +341,7 @@ class MarkdownWriter {
       const prefixed = `${lines.length === 0 ? first : rest}${line}`
       lines.push(prefixed)
       size += prefixed.length + LINE.length
-      if (size > budget) {
+      if (budget !== undefined && size > budget) {
         break
       }
     }
@@ -680,6 +686,7 @@ class MarkdownWriter {
 
   /** Whether the output has reached its bound; nothing more is converted then. */
   public get isFull(): boolean {
+    if (this.maxChars === undefined) return false
     const pending = this.inline.length + this.tableChars + (this.pre?.text.length ?? 0)
     return this.written + pending > this.maxChars
   }
@@ -914,7 +921,7 @@ function writePageText(document: ParentNode, writer: MarkdownWriter): void {
 }
 
 /** The page as Markdown from its tree, links resolved against its base URL. */
-function pageOf(document: ParentNode, pageUrl: URL, maxChars: number): MarkdownPage {
+function pageOf(document: ParentNode, pageUrl: URL, maxChars: number | undefined): MarkdownPage {
   const writer = new MarkdownWriter(baseOf(document, pageUrl), maxChars)
   writePageText(document, writer)
   const isTruncated = writer.isFull

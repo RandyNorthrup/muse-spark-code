@@ -6,15 +6,12 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { runtimeMediaPort, type RuntimeMediaPortDeps } from '../../src/acp/mediaPort'
 import type { AcpMediaContext } from '../../src/acp/media'
-import {
-  AttachedMedia,
-  isMediaAttachRefusal,
-  type AttachedSource,
-} from '../../src/core/media/attachedMedia'
+import { AttachedMedia, type AttachedSource } from '../../src/core/media/attachedMedia'
 import { attachedOrWorkspaceSource } from '../../src/core/media/productionMedia'
 import { sniffMediaBytes } from '../../src/core/media/limits'
-import { MEDIA_ATTACHED_MAX_ENTRIES, UI_TEXT } from '../../src/shared/constants'
+import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import { wavRecord } from './helpers/attachedRecords'
 import { videoFixture, wavFixture } from './helpers/media/fixtures'
 
 const signal = new AbortController().signal
@@ -129,12 +126,6 @@ function counted(bytes: Uint8Array | undefined) {
   return { source, reads }
 }
 
-function wavRecord(bytes: Uint8Array) {
-  const info = sniffMediaBytes(bytes)
-  if (info?.kind !== 'audio') throw new Error('fixture must sniff as audio')
-  return { name: 'clip.wav', info, sha256: createHash('sha256').update(bytes).digest('hex') }
-}
-
 describe('attached-media registrations: identity, ownership and bound (RVMEDIAV 5, 7)', () => {
   it('uploads from the current token, never an obsolete byte-identical registration (finding 5)', async () => {
     const bytes = wavFixture()
@@ -207,21 +198,22 @@ describe('attached-media registrations: identity, ownership and bound (RVMEDIAV 
     expect(attached.resolve(running)).toBeUndefined()
   })
 
-  it('holds a process-wide bound: the oldest idle registration makes room, in-use ones refuse (finding 7)', () => {
+  it('holds any number of registrations: idle ones stay, and held ones never refuse (D121)', () => {
     const bytes = wavFixture()
     const registry = new AttachedMedia()
-    const parts = Array.from({ length: MEDIA_ATTACHED_MAX_ENTRIES }, (_, index) =>
+    const parts = Array.from({ length: 64 }, (_, index) =>
       registry.register(`token-${String(index)}`, wavRecord(bytes), counted(bytes).source),
     )
     const [oldest, second] = parts
     if (oldest === undefined || second === undefined) throw new Error('expected parts')
+    // Past the removed 64-entry bound: nothing is evicted, everything resolves.
     registry.register('one-more', wavRecord(bytes), counted(bytes).source)
-    expect(registry.resolve(oldest)).toBeUndefined()
+    expect(registry.resolve(oldest)).toBeDefined()
     expect(registry.resolve(second)).toBeDefined()
     registry.claim([...parts.slice(1), { type: 'media', token: 'one-more', ...wavRecord(bytes) }])
-    expect(() => registry.register('refused', wavRecord(bytes), counted(bytes).source)).toThrow(
-      UI_TEXT.media.attachedLimit,
-    )
+    expect(
+      registry.resolve(registry.register('admitted', wavRecord(bytes), counted(bytes).source)),
+    ).toBeDefined()
   })
 })
 
@@ -274,10 +266,11 @@ describe('attached-media state machine (RVMEDIAV2, PLAN M105)', () => {
     seen.push(registry.state('t'))
     running.release()
     seen.push(registry.state('t'))
-    // Claimed again: discard, owner release and the bound still pass it by.
+    // Claimed again: discard and owner release still pass it by, whatever
+    // registers later.
     registry.release('t')
     registry.releaseOwner('composer')
-    for (let index = 0; index < MEDIA_ATTACHED_MAX_ENTRIES; index++)
+    for (let index = 0; index < 64; index++)
       registry.register(`later-${String(index)}`, record, counted(bytes).source)
     seen.push(registry.state('t'))
     queued.release()
@@ -323,30 +316,26 @@ describe('attached-media state machine (RVMEDIAV2, PLAN M105)', () => {
     ])
   })
 
-  it('never evicts a claimed (queued) token at the bound; refuses with the typed, translated reason', () => {
+  it('never evicts a claimed (queued) token, whatever registers later (D121)', () => {
     const bytes = wavFixture()
     const registry = new AttachedMedia()
     const record = wavRecord(bytes)
     const queued = registry.register('queued', record, counted(bytes).source)
     registry.claim([queued])
-    for (let index = 0; index < MEDIA_ATTACHED_MAX_ENTRIES; index++)
+    for (let index = 0; index < 64; index++)
       registry.register(`later-${String(index)}`, record, counted(bytes).source)
     expect(registry.state('queued')).toBe('claimed')
-    expect(registry.state('later-0')).toBeUndefined()
-    const all = Array.from({ length: MEDIA_ATTACHED_MAX_ENTRIES - 1 }, (_, index) => ({
+    expect(registry.state('later-0')).toBe('attached')
+    const all = Array.from({ length: 64 }, (_, index) => ({
       type: 'media' as const,
-      token: `later-${String(index + 1)}`,
+      token: `later-${String(index)}`,
       ...record,
     }))
     registry.claim(all)
-    let refusal: unknown
-    try {
-      registry.register('refused', record, counted(bytes).source)
-    } catch (error: unknown) {
-      refusal = error
-    }
-    expect(isMediaAttachRefusal(refusal)).toBe(true)
-    expect(refusal).toHaveProperty('message', UI_TEXT.media.attachedLimit)
+    // Past the removed bound: no refusal, everything resolves.
+    expect(
+      registry.resolve(registry.register('admitted', record, counted(bytes).source)),
+    ).toBeDefined()
     expect(registry.state('queued')).toBe('claimed')
   })
 

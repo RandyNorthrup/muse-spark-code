@@ -461,3 +461,124 @@ Removed above: the six. Everything else stays, for these reasons:
     paths have no runner in this sandbox (no `dist/`, no browser, and the
     host paths need a model): proven by the unit tests above, panel review
     by the lead. The scratch bundle and data were removed afterwards.
+
+## NOLIMITSINPUT (lane fix/0190-no-default-limits, 2026-10-19): attachments, media and fetch reach the model whole
+
+Resolves this record's "kept pending provider research" items: the
+20-attachment count, the 10 MiB image bound, the 1 MiB text bound, the 32 MB
+document bound, the 64-entry attached registry, the 50,000-char page slice
+and converter bound, and the 10-edit-source cap.
+
+Provider research (dev.meta.ai/docs, read 2026-10-19; captures kept under
+the lane's notes, pages refetched live for the fixture below):
+
+- image-understanding: "Max file size per image (inline image_url) 50 MB
+  (50,000,000 bytes)"; "You can include up to 50 images; more than 50
+  returns HTTP 400 ('request contains <n> images, exceeding the maximum of
+  50 allowed per request')".
+- file-handling: "Limited to the 50 MB inline limit"; PDFs contribute text
+  from the first 100 pages and at most the first 50 page-images toward the
+  50/request budget.
+- image-generation error catalog: "an edit needs 1–10 items".
+
+The old constants (10 MiB, 32 MB) refused what Meta documents it takes, so
+the record now carries Meta's documented numbers, each with its URL.
+
+| Limit removed                                                                                                                                   | What replaced it                                                                                                                                                                                                       | Proof                                                                                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `MAX_ATTACHMENTS_PER_MESSAGE` (20)                                                                                                              | Nothing: any number attaches; the transports' frame validity and the send path answer                                                                                                                                  | `noLimitsInput.test.ts` (21 attach), `attachArgs.test.ts` (21 parse), `attachments.test.ts` (updated) — red before, green after         |
+| `MAX_IMAGE_BYTES` (10 MiB)                                                                                                                      | `META_IMAGE_MAX_BYTES` (50,000,000) in the Meta capability record + `metaMediaCapabilities` + MCP/browser degradation, with the image-understanding URL; nothing local without a record                                | record test pins value + URL; 12 MB attach admits — red before, green after                                                             |
+| `MAX_TEXT_ATTACHMENT_BYTES` (1 MiB)                                                                                                             | Nothing: text attaches at any size; MSP frame budget (transport) and the model window budget decide; voice pipeline keeps `VOICE_TEXT_MAX_BYTES` (protocol, renamed, unchanged)                                        | 2 MB Muse Code attach admits — red before, green after                                                                                  |
+| `MAX_DOCUMENT_BYTES` (32 MB)                                                                                                                    | `META_DOCUMENT_MAX_BYTES` (50,000,000) in the record + captured capabilities, with the file-handling URL                                                                                                               | record test pins value + URL; 33 MB PDF admits — red before, green after                                                                |
+| `MEDIA_ATTACHED_MAX_ENTRIES` (64)                                                                                                               | Nothing: registrations are metadata-only and unbounded; discards, owner and turn releases still let go; refusal class deleted                                                                                          | 65 idle resolve + all-held admit — red before, green after                                                                              |
+| `WEB_FETCH_MAX_CONTENT_CHARS` (50,000)                                                                                                          | Nothing: the page reaches the tool-result path whole; past the model's real window the TOOLCAP spill carries it in a file the model pages through, with the cut notice                                                 | recorded 290,810-char Wikipedia page whole, no notice — red before, green after                                                         |
+| `WEB_FETCH_CONVERT_MAX_CHARS` (100,000)                                                                                                         | Nothing: `maxChars` optional through the converter worker; the 5 MiB buffer window (bomb guard) and worker time/heap stop a hostile page                                                                               | same fixture past 100k converts whole; explicit bound still truncates — red before, green after                                         |
+| `IMAGE_EDIT_SOURCE_MAX` (10)                                                                                                                    | `maxEditSources` on the record's image modality (Meta preset: 10, image-generation URL); `prepareImageCall` refuses from the record before any read or billing; without a record Meta's own refusal reaches the caller | record pins 10 + custom values; 11 refused pre-read with 0 reads, 3 prepared, 11 allowed with no stated count — red before, green after |
+| Composer/ACP/exec count + kind caps; ACP 200 MiB sniff cap; `readPickedFile` PDF default; `readVisual`/edit-source reads                        | `MEDIA_READ_MAX_BYTES` (512 MiB host-memory bound, Stop-abortable); ACP sniff takes no cap (lazy head/tail only)                                                                                                       | `acpTranslate.test.ts` (10 MB valid image admits), suites green                                                                         |
+| ACP `decodeAcpBlob`/postMessage sizing; `MAX_ENCODED_MEDIA_CHARS` 48M; ACP frame 64 MB; `MAX_ATTACHMENT_BASE64_CHARS` 42.7M; CDP message 32 MiB | Transports resized to the documented maxima: encoded budget 66,666,668 (one 50 MB file), ACP frame +16 MiB headroom, postMessage 66,666,668, CDP 80 MiB; the Composer enforces only the postMessage frame              | `acpSdkTransport.test.mjs` (one documented image fits) — red before, green after                                                        |
+
+Kept with reason (D121 outcome 4, listed for the lead): `MEDIA_READ_MAX_BYTES`
+(host-memory whole-read bound), `TOOL_IMAGE_PREVIEW_MAX_BYTES` (panel display),
+`IMAGE_RESIZE_MAX_QUEUED` (serial worker queue), `SETTLED_ATTACHMENT_REQUEST_IDS_KEPT`
+(UI state), `VOICE_TEXT_MAX_BYTES` (voice protocol), `WEB_FETCH_BUFFER_WINDOW_BYTES`
+
+- convert worker time/heap (bomb guard), `WEB_FETCH_DETAIL/TOKEN/URL_MAX_CHARS`
+  (display/wire), `LINK_FOLLOW_MAX_HOPS` (symlink loops), `WEB_FETCH_TIMEOUT_MS`
+  (liveness), send-path `MODEL_API_MEDIA_PER_REQUEST`/`MODEL_API_PDF_PAGE_IMAGES`
+  packing (Meta's documented per-request budget at the wire, with elision words),
+  `MAX_ATTACHMENT_BASE64_CHARS`/`MAX_ENCODED_MEDIA_CHARS`/`ACP_MAX_MESSAGE_BYTES`
+  (transport frames, resized), `MSP_*_BUDGET`/`MSP_FRAME_LIMIT_BYTES` (CLI transport),
+  `TOOL_FILE_MAX_*` (generic file tools), `MODEL_API_TEXT_BUDGET_TOKENS` (model window).
+
+Stop still ends every path: fetch rejects on abort (pinned), reads check the
+signal per chunk, conversions keep the 10 s worker timeout, image requests
+stay waited-on-until-stopped. No new progress UI was needed: a fetch is
+deadline-bounded and its outcome (page, notice, spill, refusal) already says
+in plain words what happened.
+
+Break-once drill (2026-10-19, repo's own timeout): the new
+`test/unit/noLimitsInput.test.ts` (16 tests) plus the rewritten
+`acpSdkTransport` bound test failed on the pre-change code (13 failed, 3
+passing guards: the abort-rejects fetch, the no-record edit count, and the
+3-source prepare) and all pass after. Pre-existing failure noted, not
+touched: `acpTranslate.test.ts` "refuses a media link when no confined reader
+is installed" fails identically on the untouched base (stale expectation from
+an earlier media change; media-link port routing, unrelated to sizes).
+
+Lane close (2026-10-19, rig linuxlt, worktree NOLIMITSINPUT):
+
+- `npm run check:catches` fails, identically with and without this lane's
+  diff (verified on clean HEAD `341a9424d3` via a scratch worktree:
+  13 flagged sites in files this lane never touched, SWALLOW 222 → 223).
+  Pre-existing baseline drift; the lead owns the re-baseline. This lane
+  adds and removes no `try`/`catch`.
+- PLAN.md takes no lines from this lane: D121's own rule says the other
+  NOLIMITS lanes add none, and `check:plan` warns the file is past 85% of
+  the reader bound (3,808,659 bytes). The two `MEDIA_ATTACHED_MAX_ENTRIES`
+  mentions left in PLAN.md are closed 2026-10-09 milestone history,
+  byte-for-byte. CHANGELOG `[0.19.0]` carries the lane's lines instead.
+- Help sweep: the README numbers left standing name kept bounds only —
+  the Muse Code 10 MiB message frame (transport validity), the 10 MiB
+  tool-image preview (panel display), `TOOL_FILE_MAX_*` file-tool rows —
+  each now says the model still reads the work whole. Closed certification
+  and design records keep their numbers as history.
+- Pre-existing failures left red, each verified identical on the untouched
+  base: the `acpTranslate` media-link test above and 2 `execExactCount`
+  remedy tests. This lane's `acpTranslate` padded-image expectation was
+  fixed (`toMatchObject`) and is green; 43/44 pass.
+- Final gates on the lane tree: `tsc --noEmit` 0, eslint 0 warnings on all
+  touched paths, prettier clean, `check:l10n` 0 problems, `check:reference`
+  current, cycles none, `check:plan` exit 0 with the size warning above.
+- Follow-up dedup (same day): the new suite first copied png/store/record
+  and fetch-deps setup from three older suites (jscpd 19 vs base 13). The
+  builders now live in `test/unit/helpers/` (`media/fixtures` gains
+  `pngFixture`; new `attachedRecords`, `webfetchRecord`) and the older
+  suites use the same copies: jscpd back to the base 13, none from this
+  lane (gate still red at threshold 0, pre-existing). All four suites
+  re-green after the move (52 + 3 tests).
+- `npm run typecheck`: host and webview clean; unit reports 19 errors in
+  estimate/pacing/pull-request files, byte-identical on the pre-lane base
+  (`341a9424d3`, same 19 in the same files) — pre-existing, none from this
+  lane. (An early lane note said only "`tsc --noEmit` 0": that was the host
+  project; the full run is the record above. e2e and integration run
+  separately (`run-s` stops after the unit failure): integration clean
+  (exit 0); e2e reports the same pre-existing `estimateFailures` error
+  counted in the unit 19.)
+- Related suites (every unit suite importing a changed module): noLimitsInput
+  16, attachments + acpMediaPort 36, webFetchBomb 3, noDefaultLimits +
+  companionWav 18, noticesInput + voiceBatchSeams + recordingLatest 55,
+  museCodeLatest + localServerCaptures + composerFocusOwnership 65,
+  elicitationHookSeam + pathGuardSpawns + startupWords 25,
+  vendorMediaCodecs + questionAttentionOwnership 42 — all green with the
+  repo's own timeout. (`vitest related` itself cannot run here: its set
+  pulls a production-build suite whose shared build fails on this rig;
+  each related file passes by direct run.)
+- SAST (`security:sast`): 533 rules on 3902 files, 0 findings, exit 0.
+  `security:audit`: exit 0 (2 advisories, 1 documented exception).
+- `npm run build` stops at the pre-existing What's New bound, as briefed:
+  `CHANGELOG.md 0.19.0` notes decode to 326,993 bytes over the 76,800-byte
+  bound. The base tree already carries ~269 KB of 0.19.0 notes; this lane
+  adds 10 lines (~1 KB). Not worked around; bundle-size budgets unverified
+  behind it. Deadcode exit 0, host-api 0 problems, cycles none,
+  `check:reference` current, `check:l10n` 0 problems, `check:plan` exit 0
+  with the size warning above, `check:catches` pre-existing red above.

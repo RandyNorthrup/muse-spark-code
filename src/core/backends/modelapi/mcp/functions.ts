@@ -20,14 +20,17 @@
 // Results: text, and pictures as `input_image` parts of the function's
 // output (the Responses schema's `FunctionCallOutputContentListParam`,
 // read 2026-09-25), each checked to be a PNG, JPEG, GIF or WebP within
-// MAX_IMAGE_BYTES first, since a picture Meta cannot read would fail every
-// later request of the conversation. Audio, links and binary resources are
-// described in words.
+// Meta's documented inline readability first, since a picture no provider
+// can read would fail every later request of the conversation. D121: no
+// size of ours — past it the picture is described in words instead, and
+// other providers' records elide at send (or their own refusal reaches the
+// caller in words). Audio, links and binary resources are described in
+// words.
 
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import {
-  MAX_IMAGE_BYTES,
+  META_IMAGE_MAX_BYTES,
   MCP_FUNCTION_HASH_CHARS,
   MCP_FUNCTION_NAME_MAX_CHARS,
   MCP_FUNCTION_PREFIX,
@@ -417,8 +420,8 @@ function imagePart(
     return { reason: 'its data is not base64' }
   }
   const bytes = Buffer.from(compact, 'base64')
-  if (bytes.length > MAX_IMAGE_BYTES) {
-    return { reason: `it is over ${String(MAX_IMAGE_BYTES)} bytes` }
+  if (bytes.length > META_IMAGE_MAX_BYTES) {
+    return { reason: `it is over ${String(META_IMAGE_MAX_BYTES)} bytes` }
   }
   const info = readImageInfo(bytes)
   if (info === undefined) {

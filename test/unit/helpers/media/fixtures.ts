@@ -89,3 +89,32 @@ export function ebmlFixture(docType: 'webm' | 'matroska' = 'webm'): Uint8Array {
     Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x80 | body.length]), body]),
   )
 }
+
+function dimension(value: number): number[] {
+  return [(value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff]
+}
+
+/** Minimal PNG header with the given dimensions and zero padding: sniffable bytes, never a picture. */
+export function pngFixture(width: number, height: number, padding = 0): Uint8Array {
+  return Uint8Array.from([
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a,
+    0,
+    0,
+    0,
+    13,
+    0x49,
+    0x48,
+    0x44,
+    0x52,
+    ...dimension(width),
+    ...dimension(height),
+    ...Array.from({ length: padding }, () => 0),
+  ])
+}

@@ -1143,8 +1143,6 @@ export const EN = {
     uploadFailed: 'Upload failed: {reason}',
     uploadExpired: 'The upload expired. Attach {name} again.',
     sourceChanged: '{name} changed since upload. Attach it again.',
-    attachedLimit:
-      'Too many video and audio attachments are in use. Wait for a reply to finish, then attach again.',
     uploadedFiles: 'Uploaded Files',
     filesOurs: 'Uploaded by This App',
     filesOtherApp: 'From Another App',
@@ -2610,14 +2608,11 @@ export const EN = {
   slashNoMatches: 'No matching commands; Enter sends the text as it is',
   attachmentsLabel: 'Attachments',
   removeAttachment: 'Remove',
-  attachmentTooLarge: 'Images must be 10 MB or smaller.',
   modelAttachmentUnsupported: 'This model does not support this attachment.',
   providerCapabilityUnsupported: 'Selected model does not support these request settings.',
   modelAttachmentOverLimit: "This attachment exceeds the model's limits.",
   attachmentUnsupported: 'Only PNG, JPEG, GIF and WebP images can be attached.',
-  attachmentLimit: 'At most 20 files per message.',
   attachmentUnreadable: 'The file could not be read.',
-  documentTooLarge: 'PDFs must be 32 MB or smaller.',
   documentsOverBudget: 'Files must total at most 50 images and PDF pages per message.',
   olderMediaOmitted:
     'Older images or PDFs were left out of this request to stay within media limits. They remain in local history.',

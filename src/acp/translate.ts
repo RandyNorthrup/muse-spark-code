@@ -5,14 +5,11 @@ import {
   MODEL_API_PRICED_MODELS,
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
-  BYTES_PER_MIB,
   FILE_EDIT_TOOLS,
   FILE_READ_TOOLS,
   IDE_CONTEXT_TAGS,
   IMAGE_MAKING_TOOLS,
-  MAX_IMAGE_BYTES,
-  MAX_DOCUMENT_BYTES,
-  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
+  MEDIA_READ_MAX_BYTES,
   PDF_MEDIA_TYPE,
   MODEL_API_WEB_SEARCH_TOOL,
   SHELL_TOOLS,
@@ -682,11 +679,14 @@ export function decodeAcpBlob(
 }
 
 function imagePart(base64Data: string, mime?: string): TurnPart | string {
+  // D121: an editor blob decodes whole, bounded only by host memory — no
+  // size of ours. Past it the file cannot be taken; the provider answers
+  // for the rest at send.
   const bytes = decodeAcpBlob(
     base64Data,
-    MAX_IMAGE_BYTES,
+    MEDIA_READ_MAX_BYTES,
     mime ?? 'image',
-    UI_TEXT.attachmentTooLarge,
+    UI_TEXT.attachmentUnreadable,
   )
   if (typeof bytes === 'string') return bytes
   const info = readImageInfo(bytes)
@@ -731,20 +731,22 @@ async function blockPart(
       const { resource } = block
       if ('text' in resource)
         return { type: 'text', text: attachedContext(resource.uri, resource.text) }
+      // D121: an embedded blob decodes whole, bounded only by host memory —
+      // no size of ours. A PDF the backend cannot take is refused as
+      // before; the provider answers for sizes at send.
       const bytes = decodeAcpBlob(
         resource.blob,
-        resource.mimeType === PDF_MEDIA_TYPE
-          ? MAX_DOCUMENT_BYTES
-          : MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
+        MEDIA_READ_MAX_BYTES,
         resource.mimeType ?? 'blob',
-        resource.mimeType === PDF_MEDIA_TYPE ? UI_TEXT.documentTooLarge : UI_TEXT.execFileTooLarge,
+        resource.mimeType === PDF_MEDIA_TYPE
+          ? UI_TEXT.attachmentUnreadable
+          : UI_TEXT.execFileTooLarge,
       )
       if (typeof bytes === 'string') return bytes
       if (isPdf(bytes)) {
         if (resource.mimeType != null && resource.mimeType !== PDF_MEDIA_TYPE)
           return fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType })
         if (!canAcceptDocuments) return UI_TEXT.pdfNeedsModelApi
-        if (bytes.length > MAX_DOCUMENT_BYTES) return UI_TEXT.documentTooLarge
         return {
           type: 'file',
           name: resourceName(resource.uri),
