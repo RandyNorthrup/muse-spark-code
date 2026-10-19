@@ -85,6 +85,8 @@ describe('the named lock under a race (R2)', () => {
     // Every process got the lock in every round: nobody starved or was refused.
     expect(summary.entered).toBe(PROCESSES * ROUNDS)
     expect(code).toBe(0)
+    // Six processes times eight rounds of lock handoff takes minutes, not
+    // seconds: the named timeout covers the genuinely long race, nothing else.
   }, 180_000)
 
   it.runIf(process.platform !== 'win32')(
