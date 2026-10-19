@@ -5972,6 +5972,16 @@ Press **F5** to launch the Extension Development Host with a fresh build.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a pull request;
 [SECURITY.md](SECURITY.md) the way to report a vulnerability.
 
+The real-life run (`npm run real-life -- --list` lists the routes and
+scenarios; [docs/testing/real-life.md](docs/testing/real-life.md) is the
+full reference) installs the packed product into a new empty folder and
+uses it for real, against real providers on their cheapest models. A full
+run spends real money: it prints the requests it may make and its dollar
+cap before the first one, needs real keys, and writes its record under
+`docs/testing/real-life/`. Request and dollar stops govern admission between
+scenarios, not in-flight ACP turns: ACP can exceed its declared requests
+within a running scenario, which then fails its request-count check.
+
 The macOS screen-recorder implementation can be checked without screen or
 microphone access. These commands build the signed, localized screen-helper
 bundle and exercise synthetic H.264/AAC media, bounds, sleep events,

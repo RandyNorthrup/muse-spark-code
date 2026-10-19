@@ -94,6 +94,16 @@ typechecks, then repair scoped gates with regression/red-control evidence.
 Headless only: browser, GUI, microphone and capture checks belong to the lead.
 No additional merge, push, rebase, dependency change or live/paid call.
 Resolution and final gate receipts: `docs/certification/m105-port.md`.
+**PRTH154 review fixes (2026-10-15, Windows).** Merge main `ac21f1d24`,
+then answer PR 154's ten open threads: fail closed on uncertain credential
+cleanup, setup failure and unread liability; isolate concurrent provider
+identities; reconcile terminal results with journal usage; describe ACP
+request admission honestly; remove Node preload controls; validate model
+overrides; fix the runner locale; and record observed fail-first drills for
+the real-module tests. No provider calls or credential access in this lane.
+Receipts: `docs/certification/prth154.md`; lead-owned real-life steps remain
+explicit where the credential store or a provider is required.
+
 **PRTH165 review repair (2026-10-15, Windows).** Merge `d842cad5d`
 with hooks, retaining main's deleted fake-driven tests. Resolve threads T1–T6
 in the existing ACP permission-answer cache, agent lifecycle and translated
@@ -922,6 +932,16 @@ component tests, and the real-editor integration run.
 - **Every test must be able to fail**: each new assertion is checked once
   against a deliberately broken implementation (recorded in the milestone
   certification checklist).
+- **The real-life run (2026-10-12, the owner: "test the app in real life
+  thats the tests")**: the product's test is the packed product used for
+  real. `scripts/real-life/run.mjs` installs the candidate into a new empty
+  folder with a new empty home and drives it by the terminal agent and the
+  editor protocol, against real providers on their cheapest models, under a
+  request cap and a dollar cap. A scenario observes what a person observes
+  (an answer, a file on disk, an exit code, a sentence, a cost, a session
+  that loads again). Its record is the release's gate and the proof behind
+  a claim (`docs/testing/real-life.md`); nothing is tested against fake
+  code.
 
 ### D6 — Bundle budgets (Phase 6)
 
@@ -39160,6 +39180,10 @@ No new escape hatch is introduced.
 | JOIN0190 location                                                                                                                                                                   | Escape hatch                                                                   | Reason                                                                                                                                                                                                                                                                                                         | Date       |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/unit/reportEngineBoundaries.test.ts` (prototype, length), `test/unit/reportInputBoundaries.test.ts` (record getters), `test/unit/reportJoinAccounts.test.ts` (vault snapshot) | `eslint-disable-next-line no-restricted-syntax` on each poisoned-input `Proxy` | Each Proxy is hostile input data (a throwing prototype, length getter or property getter) fed to a boundary reader that must survive it, never a stand-in for a module, provider or store. Only a Proxy trap can make these reads throw; the tests assert the readers isolate the failure with named problems. | 2026-10-19 |
+
+| Real-life diagnostic                                      | Escape hatch                                                            | Reason                                                                                                           |
+| --------------------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `docs/testing/real-life/0.18.2/diagnostics/fetch-tap.mjs` | `eslint-disable-next-line unicorn/no-global-object-property-assignment` | The diagnostic is that assignment: a recording pass-through for the process's own `fetch`. No scenario loads it. |
 
 ## 9. Security assumptions and accepted residual risk
 

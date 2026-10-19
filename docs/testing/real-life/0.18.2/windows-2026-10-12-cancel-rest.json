@@ -1,0 +1,277 @@
+{
+  "artefact": {
+    "name": "muse-spark-code-acp-0.18.2.tgz",
+    "sha256": "0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea",
+    "package": "muse-spark-code-acp",
+    "version": "0.18.2"
+  },
+  "os": "Windows_NT 10.0.26200 x64",
+  "node": "v24.20.0",
+  "startedAt": "2026-10-13T01:54:04.615Z",
+  "endedAt": "2026-10-13T01:55:07.050Z",
+  "caps": {
+    "uncertainUsd": "0.300000",
+    "requests": 8,
+    "usd": "0.050000"
+  },
+  "settings": [],
+  "totals": {
+    "passed": 5,
+    "failed": 0,
+    "notRun": 0,
+    "requests": 6,
+    "usd": "0.005429",
+    "uncertainUsd": "0.267359",
+    "productUsage": {
+      "requests": 6,
+      "usd": "0.272788"
+    },
+    "turnedAwayUnsentRuns": 0,
+    "ledgerUnsettled": {
+      "claims": 3,
+      "usd": "1.743466"
+    }
+  },
+  "routes": [
+    {
+      "id": "openai",
+      "wire": "OpenAI Responses",
+      "model": "gpt-5.6-luna",
+      "state": "added as rl-openai; Key works · 1 model."
+    },
+    {
+      "id": "meta",
+      "wire": "Meta Model API",
+      "model": "muse-spark-1.3-contributor",
+      "state": "the key goes to each terminal command on standard input; stored with auth set for the editor sessions, removed afterwards"
+    },
+    {
+      "id": "xai",
+      "wire": "OpenAI Responses (xAI)",
+      "model": "grok-4.3",
+      "state": "added as rl-xai; Key works · 14 models."
+    }
+  ],
+  "results": [
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com. | saw providers test says the key works: Key works · 1 model.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 2.5142544,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "openai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 1 model."
+        }
+      ]
+    },
+    {
+      "scenario": "cancel",
+      "claims": ["ref/feature/acp"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the answer is under way when the person stops it: 79 characters so far | saw the turn ends as cancelled: cancelled | saw the turn ends within 5 seconds of the stop: 0.0 s | saw the answer stopped before its end: 188 characters arrived | saw the conversation takes the next message and answers it: end_turn: OK | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000066",
+      "seconds": 5.3702793,
+      "title": "A turn is cancelled in the middle",
+      "vendor": "openai",
+      "uncertainUsd": "0.155206",
+      "seen": [
+        {
+          "what": "the answer is under way when the person stops it",
+          "ok": true,
+          "saw": "79 characters so far"
+        },
+        {
+          "what": "the turn ends as cancelled",
+          "ok": true,
+          "saw": "cancelled"
+        },
+        {
+          "what": "the turn ends within 5 seconds of the stop",
+          "ok": true,
+          "saw": "0.0 s"
+        },
+        {
+          "what": "the answer stopped before its end",
+          "ok": true,
+          "saw": "188 characters arrived"
+        },
+        {
+          "what": "the conversation takes the next message and answers it",
+          "ok": true,
+          "saw": "end_turn: OK"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.155272"
+      }
+    },
+    {
+      "scenario": "cancel",
+      "claims": ["ref/feature/acp"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the answer is under way when the person stops it: 86 characters so far | saw the turn ends as cancelled: cancelled | saw the turn ends within 5 seconds of the stop: 0.0 s | saw the answer stopped before its end: 188 characters arrived | saw the conversation takes the next message and answers it: end_turn: OK | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000207",
+      "seconds": 21.341905599999997,
+      "title": "A turn is cancelled in the middle",
+      "vendor": "meta",
+      "uncertainUsd": "0.027127",
+      "seen": [
+        {
+          "what": "the answer is under way when the person stops it",
+          "ok": true,
+          "saw": "86 characters so far"
+        },
+        {
+          "what": "the turn ends as cancelled",
+          "ok": true,
+          "saw": "cancelled"
+        },
+        {
+          "what": "the turn ends within 5 seconds of the stop",
+          "ok": true,
+          "saw": "0.0 s"
+        },
+        {
+          "what": "the answer stopped before its end",
+          "ok": true,
+          "saw": "188 characters arrived"
+        },
+        {
+          "what": "the conversation takes the next message and answers it",
+          "ok": true,
+          "saw": "end_turn: OK"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.027334"
+      }
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "grok-4.3 (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: xai Code goes to: https://api.x.ai Models: grok-4.3 Default model: suggested Added rl-xai; code goes to https://api.x.ai. | saw providers test says the key works: Key works · 14 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.4936214000000037,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "xai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: xai Code goes to: https://api.x.ai Models: grok-4.3 Default model: suggested Added rl-xai; code goes to https://api.x.ai."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 14 models."
+        }
+      ]
+    },
+    {
+      "scenario": "cancel",
+      "claims": ["ref/feature/acp"],
+      "route": "provider",
+      "model": "grok-4.3 (OpenAI Responses (xAI))",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the answer is under way when the person stops it: 75 characters so far | saw the turn ends as cancelled: cancelled | saw the turn ends within 5 seconds of the stop: 0.1 s | saw the answer stopped before its end: 209 characters arrived | saw the conversation takes the next message and answers it: end_turn: OK | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.005156",
+      "seconds": 22.095314700000003,
+      "title": "A turn is cancelled in the middle",
+      "vendor": "xai",
+      "uncertainUsd": "0.085026",
+      "seen": [
+        {
+          "what": "the answer is under way when the person stops it",
+          "ok": true,
+          "saw": "75 characters so far"
+        },
+        {
+          "what": "the turn ends as cancelled",
+          "ok": true,
+          "saw": "cancelled"
+        },
+        {
+          "what": "the turn ends within 5 seconds of the stop",
+          "ok": true,
+          "saw": "0.1 s"
+        },
+        {
+          "what": "the answer stopped before its end",
+          "ok": true,
+          "saw": "209 characters arrived"
+        },
+        {
+          "what": "the conversation takes the next message and answers it",
+          "ok": true,
+          "saw": "end_turn: OK"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.090182"
+      }
+    }
+  ],
+  "notRun": [],
+  "keysLeftInTheCredentialStore": [],
+  "corrections": [
+    "totals restated after the run: it had written heldUnsentUsd 1.476107 as \"turned away before sending\", a sum derived from the daily ledger's unsettled claims ($1.743466 in 3 claim(s)). Those claims are whole reservations of requests that were sent and came back with no usage. The run itself asked for 0 refusal(s) before sending (a Meta turn's read-back, which writes no claim)."
+  ]
+}

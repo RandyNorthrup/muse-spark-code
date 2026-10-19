@@ -1,0 +1,1547 @@
+{
+  "artefact": {
+    "name": "muse-spark-code-acp-0.18.1.tgz",
+    "sha256": "0bc828d09c75123c4bd5ea736b1cf31569201f209406cce1268683dd8c90a1cb",
+    "package": "muse-spark-code-acp",
+    "version": "0.18.1"
+  },
+  "os": "Windows_NT 10.0.26200 x64",
+  "node": "v24.20.0",
+  "startedAt": "2026-10-12T21:07:46.084Z",
+  "endedAt": "2026-10-12T21:11:29.761Z",
+  "caps": {
+    "requests": 70,
+    "usd": "1.000000"
+  },
+  "totals": {
+    "passed": 25,
+    "failed": 8,
+    "notRun": 0,
+    "requests": 46,
+    "usd": "0.008298",
+    "productUsage": {
+      "requests": 32,
+      "usd": "0.005642"
+    }
+  },
+  "routes": [
+    {
+      "id": "meta",
+      "wire": "Meta Model API",
+      "model": "muse-spark-1.3-contributor",
+      "state": "the key goes to each terminal command on standard input; stored with auth set for the editor sessions, removed afterwards"
+    },
+    {
+      "id": "zai",
+      "wire": "chat completions (Z.ai)",
+      "model": "glm-5.3-flash",
+      "state": "added as rl-zai; Key works · 11 models."
+    }
+  ],
+  "results": [
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-99FE86BD | saw the result names the model the person chose: muse-spark-1.3-contributor | saw one request was made and it cost more than nothing: 1 request(s), $0.000277 | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000277",
+      "seconds": 2.3051051999999994,
+      "title": "A plain turn completes",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-99FE86BD"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "muse-spark-1.3-contributor"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000277"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": ["ref/feature/acp", "ref/feature/chat"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the turn ends as a finished turn: end_turn | saw the answer carries the word that was asked for: Automatic compaction is awaiting evaluation and is inactive. RL-96660C11 | saw the session runs on the model the person chose: muse-spark-1.3-contributor | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000280",
+      "seconds": 3.6954795999999996,
+      "title": "A plain turn completes",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the turn ends as a finished turn",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "Automatic compaction is awaiting evaluation and is inactive. RL-96660C11"
+        },
+        {
+          "what": "the session runs on the model the person chose",
+          "ok": true,
+          "saw": "muse-spark-1.3-contributor"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.000280"
+      }
+    },
+    {
+      "scenario": "cancel",
+      "claims": ["ref/feature/acp"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the turn ends as cancelled: cancelled | saw the answer stopped before its end: 62 characters arrived | saw the conversation takes the next message and answers it: end_turn: OK | saw it made no more requests than it said it may: 2 of at most 2",
+      "requests": 2,
+      "usd": "0.000455",
+      "seconds": 7.579208699999999,
+      "title": "A turn is cancelled in the middle",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the turn ends as cancelled",
+          "ok": true,
+          "saw": "cancelled"
+        },
+        {
+          "what": "the answer stopped before its end",
+          "ok": true,
+          "saw": "62 characters arrived"
+        },
+        {
+          "what": "the conversation takes the next message and answers it",
+          "ok": true,
+          "saw": "end_turn: OK"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 2"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.000455"
+      }
+    },
+    {
+      "scenario": "capped-run",
+      "claims": ["ref/cli/exec/exec---max-requests-value", "ref/feature/budget"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw exactly one model request was made: 1 request(s) | saw the result says the request cap stopped it: status request_cap | saw the command ends with exit code 5: exit 5 | saw the person is told the cap was reached: The request cap of 1 attempt was reached. [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Usage history could not be recorded [info] Model API stream events of type response.content_part.added are ignored [info… | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000305",
+      "seconds": 4.020825699999998,
+      "title": "A capped run stops at its cap and says so",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "exactly one model request was made",
+          "ok": true,
+          "saw": "1 request(s)"
+        },
+        {
+          "what": "the result says the request cap stopped it",
+          "ok": true,
+          "saw": "status request_cap"
+        },
+        {
+          "what": "the command ends with exit code 5",
+          "ok": true,
+          "saw": "exit 5"
+        },
+        {
+          "what": "the person is told the cap was reached",
+          "ok": true,
+          "saw": "The request cap of 1 attempt was reached. [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Usage history could not be recorded [info] Model API stream events of type response.content_part.added are ignored [info…"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "compact",
+      "claims": ["ref/slash/compact"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw no model request was made: 0 request(s) | saw the result says there was nothing to compact: exit 8, status incomplete, no_compactable_history | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.3362469999999993,
+      "title": "/compact works",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "no model request was made",
+          "ok": true,
+          "saw": "0 request(s)"
+        },
+        {
+          "what": "the result says there was nothing to compact",
+          "ok": true,
+          "saw": "exit 8, status incomplete, no_compactable_history"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "compact",
+      "claims": ["ref/slash/compact", "ref/feature/compaction"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "acp",
+      "outcome": "fail",
+      "observed": "saw the first turn completed: end_turn | saw the second turn completed: end_turn | saw /compact ends as a finished turn: end_turn | MISSING the person is told what /compact did: nothing was shown | saw the conversation goes on after it: end_turn | saw and still knows what was said before: RL-41029C5E | saw it made no more requests than it said it may: 5 of at most 8",
+      "requests": 5,
+      "usd": "0.001020",
+      "seconds": 18.514606500000003,
+      "title": "/compact works",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the first turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the second turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "/compact ends as a finished turn",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the person is told what /compact did",
+          "ok": false,
+          "saw": "nothing was shown"
+        },
+        {
+          "what": "the conversation goes on after it",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "and still knows what was said before",
+          "ok": true,
+          "saw": "RL-41029C5E"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "5 of at most 8"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 5,
+        "usd": "0.001020"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] muse-spark-code-acp 0.18.1 serving ACP on stdio (modelApi)",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[info] Model API stream events of type response.content_part.added are ignored",
+        "[info] Model API stream events of type response.content_part.done are ignored",
+        "[info] Model API stream events of type response.reasoning_summary_part.added are ignored",
+        "[info] Model API stream events of type response.reasoning_summary_text.done are ignored",
+        "[info] Model API stream events of type response.reasoning_summary_part.done are ignored",
+        "[warn] Prompt cache missed 2,766 reusable input tokens."
+      ]
+    },
+    {
+      "scenario": "exec-help",
+      "claims": ["ref/cli/exec/exec---help---h"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw it names --max-requests: 158621 characters of help | saw it names --max-budget-usd: 158621 characters of help | saw it names --permission-mode: 158621 characters of help | saw it names --output: 158621 characters of help | MISSING it is short enough to read at a terminal (at most 80 lines): 1375 lines | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.3179748000000036,
+      "title": "exec --help says how exec is used",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "it names --max-requests",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it names --max-budget-usd",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it names --permission-mode",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it names --output",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it is short enough to read at a terminal (at most 80 lines)",
+          "ok": false,
+          "saw": "1375 lines"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": []
+    },
+    {
+      "scenario": "model-switch",
+      "claims": ["ref/slash/model", "ref/feature/providers", "ref/feature/acp"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the list offers the model of this route: muse-spark-1.3-contributor, muse-spark-1.3, muse-spark-1.2-contributor, muse-spark-1.2, muse-spark-1.1 | saw the session moves to another listed model: muse-spark-1.3 | saw the session moves to the model the person picks: muse-spark-1.3-contributor | saw a turn completes on it: Automatic compaction is awaiting evaluation and is inactive. RL-979AF5BD | saw the usage names that model for the turn: muse-spark-1.3-contributor | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000273",
+      "seconds": 2.317463799999998,
+      "title": "The model list and a model switch",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the list offers the model of this route",
+          "ok": true,
+          "saw": "muse-spark-1.3-contributor, muse-spark-1.3, muse-spark-1.2-contributor, muse-spark-1.2, muse-spark-1.1"
+        },
+        {
+          "what": "the session moves to another listed model",
+          "ok": true,
+          "saw": "muse-spark-1.3"
+        },
+        {
+          "what": "the session moves to the model the person picks",
+          "ok": true,
+          "saw": "muse-spark-1.3-contributor"
+        },
+        {
+          "what": "a turn completes on it",
+          "ok": true,
+          "saw": "Automatic compaction is awaiting evaluation and is inactive. RL-979AF5BD"
+        },
+        {
+          "what": "the usage names that model for the turn",
+          "ok": true,
+          "saw": "muse-spark-1.3-contributor"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.000273"
+      }
+    },
+    {
+      "scenario": "refused-approval",
+      "claims": ["ref/cli/exec/exec---permission-mode-value"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw no file was written: no file | saw the result lists no changed file: [] | saw the command ends with a result: exit 0, status completed | saw it made no more requests than it said it may: 2 of at most 3",
+      "requests": 2,
+      "usd": "0.000449",
+      "seconds": 9.659324,
+      "title": "A refused approval changes nothing",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "no file was written",
+          "ok": true,
+          "saw": "no file"
+        },
+        {
+          "what": "the result lists no changed file",
+          "ok": true,
+          "saw": "[]"
+        },
+        {
+          "what": "the command ends with a result",
+          "ok": true,
+          "saw": "exit 0, status completed"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 3"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "refused-approval",
+      "claims": ["ref/feature/permissions", "ref/feature/acp"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the agent asked before it wrote: Write: real-life-refused.txt | saw no file was written: no file | saw the turn still ends: end_turn: Automatic compaction is awaiting evaluation and is inactive. Creating your file now.Failed to create the file. - Tried `real-life-refused.txt` with content `RL-63CB286B` via file tool. - Tool returned: `write_file rejected by the user`. - No file was created or modified. Cannot verify crea… | saw it made no more requests than it said it may: 2 of at most 3",
+      "requests": 2,
+      "usd": "0.000643",
+      "seconds": 5.6848035999999995,
+      "title": "A refused approval changes nothing",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the agent asked before it wrote",
+          "ok": true,
+          "saw": "Write: real-life-refused.txt"
+        },
+        {
+          "what": "no file was written",
+          "ok": true,
+          "saw": "no file"
+        },
+        {
+          "what": "the turn still ends",
+          "ok": true,
+          "saw": "end_turn: Automatic compaction is awaiting evaluation and is inactive. Creating your file now.Failed to create the file. - Tried `real-life-refused.txt` with content `RL-63CB286B` via file tool. - Tool returned: `write_file rejected by the user`. - No file was created or modified. Cannot verify crea…"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 3"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.000643"
+      }
+    },
+    {
+      "scenario": "session-continues",
+      "claims": ["ref/feature/history", "ref/feature/acp"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the first turn completed: end_turn | saw the agent ends when the editor closes it: exit 0 | saw the new process lists the conversation: 1 listed | saw loading it shows what was said before: 2 updates replayed | saw the conversation goes on: end_turn | saw and knows what was said before the process ended: Automatic compaction is awaiting evaluation and is inactive. RL-AC8AD285 | saw it made no more requests than it said it may: 2 of at most 2",
+      "requests": 2,
+      "usd": "0.000383",
+      "seconds": 7.130321499999991,
+      "title": "A session is saved, the process ends, the session loads and continues",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the first turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the agent ends when the editor closes it",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the new process lists the conversation",
+          "ok": true,
+          "saw": "1 listed"
+        },
+        {
+          "what": "loading it shows what was said before",
+          "ok": true,
+          "saw": "2 updates replayed"
+        },
+        {
+          "what": "the conversation goes on",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "and knows what was said before the process ended",
+          "ok": true,
+          "saw": "Automatic compaction is awaiting evaluation and is inactive. RL-AC8AD285"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 2"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.000383"
+      }
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-20AAFA8D | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000342",
+      "seconds": 4.599646699999997,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-20AAFA8D"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/feature/permissions", "ref/feature/acp"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the agent asked before it wrote: Write: real-life-note.txt | saw the turn ends as a finished turn: end_turn | saw the file is on disk with the content asked for: RL-819262D6 | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000392",
+      "seconds": 4.228874500000005,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the agent asked before it wrote",
+          "ok": true,
+          "saw": "Write: real-life-note.txt"
+        },
+        {
+          "what": "the turn ends as a finished turn",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-819262D6"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.000392"
+      }
+    },
+    {
+      "scenario": "usage",
+      "claims": [
+        "ref/cli/usage/usage---json",
+        "ref/cli/usage/usage-summarydailymodelslimitsexportopenserve-options----usage---json",
+        "ref/feature/usage"
+      ],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the turn completed: exit 0 | MISSING the usage lists the request of that turn: 0 of 15 recorded request(s) belong to the turn | MISSING that request has a cost above zero: undefined | MISSING the text a person reads counts one request more than before the turn: 15 request(s) before, 15 after | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000273",
+      "seconds": 2.885947600000014,
+      "title": "/usage shows the requests and what they cost",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the turn completed",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the usage lists the request of that turn",
+          "ok": false,
+          "saw": "0 of 15 recorded request(s) belong to the turn"
+        },
+        {
+          "what": "that request has a cost above zero",
+          "ok": false,
+          "saw": "undefined"
+        },
+        {
+          "what": "the text a person reads counts one request more than before the turn",
+          "ok": false,
+          "saw": "15 request(s) before, 15 after"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Usage history could not be recorded",
+        "[info] Model API stream events of type response.content_part.added are ignored",
+        "[info] Model API stream events of type response.content_part.done are ignored",
+        "[info] Completed; requests 1; settled $0.000273; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0"
+      ]
+    },
+    {
+      "scenario": "usage",
+      "claims": ["ref/slash/usage", "ref/feature/usage"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the turn completed: end_turn | saw the answer counts at least one request: - Requests: 16 requests | saw the answer shows a cost above zero: - Total Cost: $0.0038 | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000276",
+      "seconds": 1.8676153000000049,
+      "title": "/usage shows the requests and what they cost",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the answer counts at least one request",
+          "ok": true,
+          "saw": "- Requests: 16 requests"
+        },
+        {
+          "what": "the answer shows a cost above zero",
+          "ok": true,
+          "saw": "- Total Cost: $0.0038"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.000276"
+      }
+    },
+    {
+      "scenario": "unknown-model",
+      "claims": ["ref/cli/exec/exec---model-value"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the command does not end with exit code 0: exit 2 | saw no model request was made: 0 request(s) | MISSING the refusal names the model that was asked for: [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run. | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.8729762999999948,
+      "title": "An unknown model is refused with its reason",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the command does not end with exit code 0",
+          "ok": true,
+          "saw": "exit 2"
+        },
+        {
+          "what": "no model request was made",
+          "ok": true,
+          "saw": "0 request(s)"
+        },
+        {
+          "what": "the refusal names the model that was asked for",
+          "ok": false,
+          "saw": "[info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run."
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[error] This model is not available for this run."
+      ]
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: zai Code goes to: https://api.z.ai Models: glm-5.3-flash Default model: suggested Added rl-zai; code goes to https://api.z.ai. | saw providers test says the key works: Key works · 11 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.4481181999999972,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: zai Code goes to: https://api.z.ai Models: glm-5.3-flash Default model: suggested Added rl-zai; code goes to https://api.z.ai."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 11 models."
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-15AFF875 | saw the result names the model the person chose: rl-zai/glm-5.3-flash | saw one request was made and it cost more than nothing: 1 request(s), $0.000305 | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000305",
+      "seconds": 5.458273499999995,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-15AFF875"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-5.3-flash"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000305"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": ["ref/feature/acp", "ref/feature/chat"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the turn ends as a finished turn: end_turn | saw the answer carries the word that was asked for: Automatic compaction is awaiting evaluation and is inactive. RL-9A302BF9 | saw the session runs on the model the person chose: rl-zai/glm-5.3-flash | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000306",
+      "seconds": 5.583522100000002,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the turn ends as a finished turn",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "Automatic compaction is awaiting evaluation and is inactive. RL-9A302BF9"
+        },
+        {
+          "what": "the session runs on the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-5.3-flash"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.000306"
+      }
+    },
+    {
+      "scenario": "cancel",
+      "claims": ["ref/feature/acp"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the turn ends as cancelled: cancelled | saw the answer stopped before its end: 62 characters arrived | saw the conversation takes the next message and answers it: end_turn: OK | saw it made no more requests than it said it may: 2 of at most 2",
+      "requests": 2,
+      "usd": "0.000120",
+      "seconds": 5.4456443,
+      "title": "A turn is cancelled in the middle",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the turn ends as cancelled",
+          "ok": true,
+          "saw": "cancelled"
+        },
+        {
+          "what": "the answer stopped before its end",
+          "ok": true,
+          "saw": "62 characters arrived"
+        },
+        {
+          "what": "the conversation takes the next message and answers it",
+          "ok": true,
+          "saw": "end_turn: OK"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 2"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.000120"
+      }
+    },
+    {
+      "scenario": "capped-run",
+      "claims": ["ref/cli/exec/exec---max-requests-value", "ref/feature/budget"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw exactly one model request was made: 1 request(s) | saw the result says the request cap stopped it: status request_cap | saw the command ends with exit code 5: exit 5 | saw the person is told the cap was reached: The request cap of 1 attempt was reached. [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Usage history could not be recorded [info] Request Cap Reached; requests 1; settled $0.000127; uncertain $0.000000; imag… | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000127",
+      "seconds": 5.442634099999996,
+      "title": "A capped run stops at its cap and says so",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "exactly one model request was made",
+          "ok": true,
+          "saw": "1 request(s)"
+        },
+        {
+          "what": "the result says the request cap stopped it",
+          "ok": true,
+          "saw": "status request_cap"
+        },
+        {
+          "what": "the command ends with exit code 5",
+          "ok": true,
+          "saw": "exit 5"
+        },
+        {
+          "what": "the person is told the cap was reached",
+          "ok": true,
+          "saw": "The request cap of 1 attempt was reached. [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Usage history could not be recorded [info] Request Cap Reached; requests 1; settled $0.000127; uncertain $0.000000; imag…"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "compact",
+      "claims": ["ref/slash/compact"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw no model request was made: 0 request(s) | saw the result says there was nothing to compact: exit 8, status incomplete, no_compactable_history | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.7128898000000045,
+      "title": "/compact works",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "no model request was made",
+          "ok": true,
+          "saw": "0 request(s)"
+        },
+        {
+          "what": "the result says there was nothing to compact",
+          "ok": true,
+          "saw": "exit 8, status incomplete, no_compactable_history"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "compact",
+      "claims": ["ref/slash/compact", "ref/feature/compaction"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "acp",
+      "outcome": "fail",
+      "observed": "saw the first turn completed: end_turn | saw the second turn completed: end_turn | saw /compact ends as a finished turn: end_turn | MISSING the person is told what /compact did: nothing was shown | saw the conversation goes on after it: end_turn | saw and still knows what was said before: RL-899BEF95 | saw it made no more requests than it said it may: 5 of at most 8",
+      "requests": 5,
+      "usd": "0.000624",
+      "seconds": 21.366651100000002,
+      "title": "/compact works",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the first turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the second turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "/compact ends as a finished turn",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the person is told what /compact did",
+          "ok": false,
+          "saw": "nothing was shown"
+        },
+        {
+          "what": "the conversation goes on after it",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "and still knows what was said before",
+          "ok": true,
+          "saw": "RL-899BEF95"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "5 of at most 8"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 5,
+        "usd": "0.000624"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] muse-spark-code-acp 0.18.1 serving ACP on stdio (modelApi)",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)"
+      ]
+    },
+    {
+      "scenario": "exec-help",
+      "claims": ["ref/cli/exec/exec---help---h"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw it names --max-requests: 158621 characters of help | saw it names --max-budget-usd: 158621 characters of help | saw it names --permission-mode: 158621 characters of help | saw it names --output: 158621 characters of help | MISSING it is short enough to read at a terminal (at most 80 lines): 1375 lines | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.3215154999999795,
+      "title": "exec --help says how exec is used",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "it names --max-requests",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it names --max-budget-usd",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it names --permission-mode",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it names --output",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it is short enough to read at a terminal (at most 80 lines)",
+          "ok": false,
+          "saw": "1375 lines"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": []
+    },
+    {
+      "scenario": "model-switch",
+      "claims": ["ref/slash/model", "ref/feature/providers", "ref/feature/acp"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the list offers the model of this route: muse-spark-1.3, muse-spark-1.2, muse-spark-1.1, rl-zai/glm-5.3-flash | saw the session moves to another listed model: muse-spark-1.3 | saw the session moves to the model the person picks: rl-zai/glm-5.3-flash | saw a turn completes on it: Automatic compaction is awaiting evaluation and is inactive. RL-0E28AA92 | saw the usage names that model for the turn: rl-zai/glm-5.3-flash | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000113",
+      "seconds": 5.631036999999982,
+      "title": "The model list and a model switch",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the list offers the model of this route",
+          "ok": true,
+          "saw": "muse-spark-1.3, muse-spark-1.2, muse-spark-1.1, rl-zai/glm-5.3-flash"
+        },
+        {
+          "what": "the session moves to another listed model",
+          "ok": true,
+          "saw": "muse-spark-1.3"
+        },
+        {
+          "what": "the session moves to the model the person picks",
+          "ok": true,
+          "saw": "rl-zai/glm-5.3-flash"
+        },
+        {
+          "what": "a turn completes on it",
+          "ok": true,
+          "saw": "Automatic compaction is awaiting evaluation and is inactive. RL-0E28AA92"
+        },
+        {
+          "what": "the usage names that model for the turn",
+          "ok": true,
+          "saw": "rl-zai/glm-5.3-flash"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.000113"
+      }
+    },
+    {
+      "scenario": "refused-approval",
+      "claims": ["ref/cli/exec/exec---permission-mode-value"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw no file was written: no file | saw the result lists no changed file: [] | saw the command ends with a result: exit 0, status completed | saw it made no more requests than it said it may: 2 of at most 3",
+      "requests": 2,
+      "usd": "0.000254",
+      "seconds": 10.596665700000012,
+      "title": "A refused approval changes nothing",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "no file was written",
+          "ok": true,
+          "saw": "no file"
+        },
+        {
+          "what": "the result lists no changed file",
+          "ok": true,
+          "saw": "[]"
+        },
+        {
+          "what": "the command ends with a result",
+          "ok": true,
+          "saw": "exit 0, status completed"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 3"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "refused-approval",
+      "claims": ["ref/feature/permissions", "ref/feature/acp"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the agent asked before it wrote: Write: real-life-refused.txt | saw no file was written: no file | saw the turn still ends: end_turn: Automatic compaction is awaiting evaluation and is inactive. The `write_file` call for `real-life-refused.txt` was rejected by the user, so the file was not created. I won't retry the refused action — let me know if you'd like me to try again or take a different approach. | saw it made no more requests than it said it may: 2 of at most 3",
+      "requests": 2,
+      "usd": "0.000233",
+      "seconds": 10.725381099999998,
+      "title": "A refused approval changes nothing",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the agent asked before it wrote",
+          "ok": true,
+          "saw": "Write: real-life-refused.txt"
+        },
+        {
+          "what": "no file was written",
+          "ok": true,
+          "saw": "no file"
+        },
+        {
+          "what": "the turn still ends",
+          "ok": true,
+          "saw": "end_turn: Automatic compaction is awaiting evaluation and is inactive. The `write_file` call for `real-life-refused.txt` was rejected by the user, so the file was not created. I won't retry the refused action — let me know if you'd like me to try again or take a different approach."
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 3"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.000233"
+      }
+    },
+    {
+      "scenario": "session-continues",
+      "claims": ["ref/feature/history", "ref/feature/acp"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the first turn completed: end_turn | saw the agent ends when the editor closes it: exit 0 | saw the new process lists the conversation: 1 listed | saw loading it shows what was said before: 3 updates replayed | saw the conversation goes on: end_turn | saw and knows what was said before the process ended: Automatic compaction is awaiting evaluation and is inactive. RL-5198FF18 | saw it made no more requests than it said it may: 2 of at most 2",
+      "requests": 2,
+      "usd": "0.000191",
+      "seconds": 11.4665778,
+      "title": "A session is saved, the process ends, the session loads and continues",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the first turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the agent ends when the editor closes it",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the new process lists the conversation",
+          "ok": true,
+          "saw": "1 listed"
+        },
+        {
+          "what": "loading it shows what was said before",
+          "ok": true,
+          "saw": "3 updates replayed"
+        },
+        {
+          "what": "the conversation goes on",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "and knows what was said before the process ended",
+          "ok": true,
+          "saw": "Automatic compaction is awaiting evaluation and is inactive. RL-5198FF18"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 2"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.000191"
+      }
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-B6059303 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000200",
+      "seconds": 9.627578600000009,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-B6059303"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/feature/permissions", "ref/feature/acp"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the agent asked before it wrote: Write: real-life-note.txt | saw the turn ends as a finished turn: end_turn | saw the file is on disk with the content asked for: RL-BF51A9D0 | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000198",
+      "seconds": 9.661097999999997,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the agent asked before it wrote",
+          "ok": true,
+          "saw": "Write: real-life-note.txt"
+        },
+        {
+          "what": "the turn ends as a finished turn",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-BF51A9D0"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.000198"
+      }
+    },
+    {
+      "scenario": "usage",
+      "claims": [
+        "ref/cli/usage/usage---json",
+        "ref/cli/usage/usage-summarydailymodelslimitsexportopenserve-options----usage---json",
+        "ref/feature/usage"
+      ],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the turn completed: exit 0 | MISSING the usage lists the request of that turn: 0 of 31 recorded request(s) belong to the turn | MISSING that request has a cost above zero: undefined | MISSING the text a person reads counts one request more than before the turn: 31 request(s) before, 31 after | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000124",
+      "seconds": 6.5789877999999735,
+      "title": "/usage shows the requests and what they cost",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the turn completed",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the usage lists the request of that turn",
+          "ok": false,
+          "saw": "0 of 31 recorded request(s) belong to the turn"
+        },
+        {
+          "what": "that request has a cost above zero",
+          "ok": false,
+          "saw": "undefined"
+        },
+        {
+          "what": "the text a person reads counts one request more than before the turn",
+          "ok": false,
+          "saw": "31 request(s) before, 31 after"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Usage history could not be recorded",
+        "[info] Completed; requests 1; settled $0.000124; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0"
+      ]
+    },
+    {
+      "scenario": "usage",
+      "claims": ["ref/slash/usage", "ref/feature/usage"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the turn completed: end_turn | saw the answer counts at least one request: - Requests: 32 requests | saw the answer shows a cost above zero: - Total Cost: $0.0057 | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000135",
+      "seconds": 6.198665299999993,
+      "title": "/usage shows the requests and what they cost",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the answer counts at least one request",
+          "ok": true,
+          "saw": "- Requests: 32 requests"
+        },
+        {
+          "what": "the answer shows a cost above zero",
+          "ok": true,
+          "saw": "- Total Cost: $0.0057"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.000135"
+      }
+    },
+    {
+      "scenario": "unknown-model",
+      "claims": ["ref/cli/exec/exec---model-value"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the command does not end with exit code 0: exit 2 | saw no model request was made: 0 request(s) | MISSING the refusal names the model that was asked for: [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run. | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.7549340000000084,
+      "title": "An unknown model is refused with its reason",
+      "vendor": "zai",
+      "seen": [
+        {
+          "what": "the command does not end with exit code 0",
+          "ok": true,
+          "saw": "exit 2"
+        },
+        {
+          "what": "no model request was made",
+          "ok": true,
+          "saw": "0 request(s)"
+        },
+        {
+          "what": "the refusal names the model that was asked for",
+          "ok": false,
+          "saw": "[info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run."
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[error] This model is not available for this run."
+      ]
+    }
+  ],
+  "notRun": [],
+  "keysLeftInTheCredentialStore": []
+}

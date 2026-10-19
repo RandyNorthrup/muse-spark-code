@@ -1,0 +1,192 @@
+{
+  "about": "What the real-life runs of 0.18.2 on 2026-10-12 read: the model matrix on the direct keys, each failure with the cause that was read, and what a job needs to replay a finding on its own build. Data for the jobs that own the fixes; nothing is fixed in this branch. Where something was not read, it says so.",
+  "artefact": {
+    "name": "muse-spark-code-acp-0.18.2.tgz",
+    "sha256": "0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea"
+  },
+  "matrix": {
+    "records": [
+      "windows-2026-10-12-matrix-smoke",
+      "windows-2026-10-12-matrix-direct",
+      "windows-2026-10-12-matrix-direct-rest",
+      "windows-2026-10-12-matrix-grok-4.7"
+    ],
+    "firstAttemptThatSentNothing": "windows-2026-10-12-matrix-direct-first-attempt",
+    "requests": 134,
+    "settledUsd": "0.562426",
+    "bookedForSentRequestsWithNoUsageUsd": "5.657612",
+    "sentRequestsWithNoUsage": 9,
+    "providers": [
+      { "route": "anthropic", "models": 12, "bothTurnsPassed": 12, "failed": 0 },
+      { "route": "openai", "models": 1, "bothTurnsPassed": 1, "failed": 0 },
+      { "route": "zai", "models": 11, "bothTurnsPassed": 11, "failed": 0 },
+      { "route": "deepseek", "models": 2, "bothTurnsPassed": 2, "failed": 0 },
+      {
+        "route": "meta",
+        "models": 1,
+        "bothTurnsPassed": 1,
+        "failed": 0,
+        "note": "muse-spark-1.3-contributor and no other model; before each turn the product named it under a budget that sends nothing"
+      },
+      {
+        "route": "xai",
+        "models": 7,
+        "bothTurnsPassed": 4,
+        "failed": 3,
+        "note": "grok-4.7 refused the first wording of the plain turn (\"No. I won't output an exact token on demand.\") and passed both turns when asked an ordinary connection check: the run's prompt, not the product"
+      },
+      { "route": "mistral", "models": 13, "bothTurnsPassed": 7, "failed": 6 }
+    ]
+  },
+  "whatThePersonIsShownForEveryFailure": "message withheld: the response did not complete; in the log: Models & Agents is not available in this build.",
+  "howTheProviderAnswersWereRead": "diagnostics/read-provider-answer.mjs: the packed product runs the turn with a tap on its own fetch (diagnostics/fetch-tap.mjs) that records the request it sent and the answer it got, changes neither, writes no credential and lets no retry out. The answers are in provider-answers/ (account ids zeroed).",
+  "failuresByCause": [
+    {
+      "cause": "the request carries a reasoning effort for a model that takes none",
+      "provider": "xai",
+      "models": ["grok-build-0.1", "grok-4.20-0309-non-reasoning", "grok-4.20-0309-reasoning"],
+      "request": "POST https://api.x.ai/v1/responses",
+      "status": 400,
+      "providerSays": "{\"code\":\"invalid-argument\",\"error\":\"Model <id> does not support parameter reasoningEffort.\"}",
+      "fieldOfOurRequest": "reasoning: {\"effort\":\"none\",\"summary\":\"auto\"}",
+      "charged": "a refusal: no charge is plausible; not read",
+      "answers": [
+        "provider-answers/xai-grok-build-0.1.json",
+        "provider-answers/xai-grok-4.20-0309-non-reasoning.json",
+        "provider-answers/xai-grok-4.20-0309-reasoning.json"
+      ]
+    },
+    {
+      "cause": "the provider answered 200 and streamed; the product ends the stream at the first chunk whose delta.content is a list (a thinking part), not a string",
+      "provider": "mistral",
+      "models": [
+        "mistral-medium-latest",
+        "mistral-medium-2604",
+        "mistral-small-2603",
+        "mistral-small-latest",
+        "zai-glm-5-2"
+      ],
+      "request": "POST https://api.mistral.ai/v1/chat/completions",
+      "status": 200,
+      "providerSays": "a stream of chat.completion.chunk; the chunk the product stopped at: delta.content = [{\"type\":\"thinking\",\"thinking\":[{\"type\":\"text\",\"text\":\"The\"}]}]",
+      "fieldOfOurRequest": "reasoning_effort: \"high\"",
+      "charged": "the request was accepted and was generating: a real charge of unknown, small size",
+      "note": "zai-glm-5-2: in the matrix its plain turn passed and its tool turn failed at the second request; when read, the tool turn's first request failed this way",
+      "answers": [
+        "provider-answers/mistral-mistral-medium-latest-stream.json",
+        "provider-answers/mistral-mistral-medium-latest.json",
+        "provider-answers/mistral-mistral-medium-2604.json",
+        "provider-answers/mistral-mistral-small-2603.json",
+        "provider-answers/mistral-mistral-small-latest.json",
+        "provider-answers/mistral-zai-glm-5-2-tool-turn.json"
+      ]
+    },
+    {
+      "cause": "the provider answered 200 with the whole answer and its usage; the product printed the answer and still ended with exit code 5, status budget_exceeded, nothing settled and the whole reservation booked. Why its ledger does that was not read.",
+      "provider": "mistral",
+      "models": ["voxtral-small-latest"],
+      "request": "POST https://api.mistral.ai/v1/chat/completions",
+      "status": 200,
+      "providerSays": "the answer, then in the last chunk: usage {\"prompt_tokens\":2068,\"completion_tokens\":17,\"total_tokens\":2085}",
+      "fieldOfOurRequest": "max_tokens: 32000",
+      "providerListSays": {
+        "completion_chat": true,
+        "function_calling": true,
+        "reasoning": false,
+        "audio": true,
+        "audio_transcription": false,
+        "max_context_length": 32768,
+        "description": "A small audio understanding model released in July 2025"
+      },
+      "productCatalogueSays": {
+        "limit": { "context": 32000, "output": 32000 },
+        "reasoning": false
+      },
+      "charged": "yes: the provider reported its usage",
+      "answers": ["provider-answers/mistral-voxtral-small-latest.json"]
+    }
+  ],
+  "otherProviderAnswersRead": [
+    {
+      "what": "an account with no credit",
+      "provider": "anthropic",
+      "status": 400,
+      "providerSays": "Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.",
+      "personIsShown": "Internal error: Models & Agents is not available in this build.",
+      "bookedUsd": "0.331072",
+      "answer": "provider-answers/anthropic-no-credit-claude-haiku-4-5-20251001.json"
+    },
+    {
+      "what": "OpenRouter, a model with no zero-data-retention endpoint (qwen/qwen3.7-flash)",
+      "provider": "openrouter",
+      "status": 404,
+      "providerSays": "No endpoints found matching your data policy (Zero data retention). Configure: https://openrouter.ai/settings/privacy",
+      "fieldOfOurRequest": "provider: {\"zdr\":true,\"allow_fallbacks\":true}",
+      "personIsShown": "message withheld: the response did not complete",
+      "bookedUsd": "0.033277",
+      "answer": "provider-answers/openrouter-qwen-qwen3.7-flash.json"
+    },
+    {
+      "what": "OpenRouter, a model listed at no price (inclusionai/ling-3.1-flash)",
+      "provider": "openrouter",
+      "status": 429,
+      "providerSays": "inclusionai/ling-3.1-flash is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate your rate limits",
+      "personIsShown": "exit code 5, message withheld: the response did not complete",
+      "answer": "provider-answers/openrouter-inclusionai-ling-3.1-flash.json"
+    }
+  ],
+  "findings": [
+    {
+      "id": "no-usage-shown-falsely-and-booked-whole",
+      "what": "A request that comes back with no usage is shown as \"the response did not complete\" with the log line \"Models & Agents is not available in this build.\", and booked at its whole reservation, whether the provider refused it (xAI 400, Anthropic 400, OpenRouter 404) or accepted it (Mistral 200)."
+    },
+    {
+      "id": "exec-reserves-the-whole-output-limit",
+      "what": "exec reserves the model's whole output limit and has no option that lowers it. A budget that is too small is refused with \"The next request exceeds the remaining budget.\", which does not say how much is needed.",
+      "numbers": "reservations-2026-10-12.json: the product's own reservation for 347 models, each read with a budget of one millionth of a dollar that the product turned away before sending (exit code 5, budget_exceeded, usage.requests 0, no last response); a 348th row is Meta's contributor model, whose refusal writes no claim. A hard budget of $3.00 does not admit 8 of the 46 direct models: claude-fable-5 and claude-fable-5-1 $11.31072; claude-opus-5, claude-opus-4-8, claude-opus-4-7 and claude-opus-4-6 $5.65536; claude-opus-5-5 $4.524288; claude-sonnet-4-6 $3.393216. Six of them are above the default daily budget of $5.00 by themselves. None of the 301 cheap reseller models read is above $3.00; the 88 dear reseller models were not read."
+    },
+    {
+      "id": "daily-ledger-holds-a-refused-run",
+      "what": "A run turned away for its budget sent nothing, and its reservation is left in the daily ledger with no settlement: it counts against the day. Two refusals of a dear model fill the default $5.00, and every later run that day is stopped before it sends; on a provider's route the person reads \"Internal error: Models & Agents is not available in this build.\", on the Meta route \"Stopped: the next request (about $0.1082) would pass the session budget of $5.00 ($4.96 used). It was not sent.\" (the daily budget, called the session budget).",
+      "replay": [
+        "Use a new, empty home, so that no real day's ledger is touched. Any Anthropic key; an account with no credit cannot be charged and shows the same.",
+        "muse-spark-code-acp providers add --preset anthropic --as demo --model claude-sonnet-5-5 --key-stdin   (the key on standard input)",
+        "muse-spark-code-acp exec --backend modelApi --provider demo --model demo/claude-sonnet-5-5 --max-requests 1 --max-budget-usd 0.25 --output jsonl \"Reply with the one word OK.\"",
+        "Seen: exit code 5; result status budget_exceeded, usage.requests 0, ledger.refusal budget, ledger.lastResponse null, error \"The next request exceeds the remaining budget.\"",
+        "Seen in <data folder>/paid-daily/budget-journal/<64 zeros>/<day>/claims/<claim id>/claim.json: version, scopeId, claimId, ownerId, sessionId (the day), accountId (64 zeros), reservedUsd \"2.262144\"; no settledUsd.",
+        "The same exec again: a second claim with the same fields. $4.524288 of the day's $5.00 is held; nothing was sent.",
+        "The same exec with --max-budget-usd 3.00, which is enough for this model: exit code 4, status failed, usage.requests 0, error \"Internal error: Models & Agents is not available in this build.\"; its claim has reservedUsd \"2.262144\", settledUsd \"0\", hasUnknownCost false.",
+        "In another new home the last command alone is sent to the provider (usage.requests 1)."
+      ]
+    },
+    {
+      "id": "sent-request-with-no-usage-leaves-its-claim-unsettled",
+      "what": "A request that was sent and came back with no usage also leaves its claim in the daily ledger with no settlement (windows-2026-10-12-matrix-direct: six such requests, six unsettled claims, $5.541720). The product's README describes that as intended for a request without verified usage."
+    },
+    {
+      "id": "meta-refusal-writes-no-claim",
+      "what": "A budget refusal on the Meta route writes no claim in the daily ledger; a refusal on a provider's route does."
+    },
+    {
+      "id": "openrouter-added-with-zdr-and-nobody-is-told",
+      "what": "providers add --preset openrouter prints the provider, where code goes, the models and \"Added …\", and nothing about privacy. Every request then carries provider: {zdr: true, allow_fallbacks: true}.",
+      "numbers": "openrouter-zdr-listing-2026-10-12.json: by OpenRouter's own listing of zero-data-retention endpoints (GET /api/v1/endpoints/zdr, 941 endpoints), 94 of the 306 models the product offers for the stored key have no such endpoint, matched by exact id: 13 \":free\" variants, 18 \"~\" aliases, 63 others."
+    },
+    {
+      "id": "offered-models-are-the-catalogue's",
+      "what": "The product offers the models its catalogue prices and hides the rest: of 1,036 ids the stored keys list, 457 are offered. The Anthropic key lists claude-haiku-5-5; the product does not offer it. The stored Gemini key is refused for its shape, so none of its models can be used. No command prints the models a key lists (providers test prints their number)."
+    }
+  ],
+  "seenAgainAsOn0.18.1": [
+    "exec --help prints 1,375 lines",
+    "a terminal turn is not in the usage history",
+    "/compact shows nothing in an editor session",
+    "an unknown model is refused without its name",
+    "a turn a person stops in the middle of its answer is booked at the whole reservation"
+  ],
+  "theRunsOwnMistakes": [
+    "Reading the reservations, the script dropped the mark of the models listed at no price. Such a model has a reservation of $0, so the product took the budget of one millionth of a dollar and sent: two requests left (zai-org/GLM-4.7-Flash through Hugging Face, completed, $0; inclusionai/ling-3.1-flash through OpenRouter, one request, answered 429, $0). The script stopped each route at once and no longer asks those models.",
+    "The first matrix attempt climbed a ladder of budgets, each refusal holding the model's reservation: it filled the day on the first model and sent nothing (windows-2026-10-12-matrix-direct-first-attempt).",
+    "The runner derived a sum \"turned away before sending\" from the daily ledger's unsettled claims; those claims are whole reservations of requests that were sent and came back with no usage. The four records written with that sum (matrix-direct, matrix-direct-rest, matrix-grok-4.7, cancel-rest) are restated and say so; the runner now records what the ledger holds and counts the refusals it asked for."
+  ]
+}
