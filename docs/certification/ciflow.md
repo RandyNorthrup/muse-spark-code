@@ -1043,3 +1043,57 @@ touches these paths)`, and the offloaded jobs run green.
   in-workflow incremental gate), as the removed push filter did.
 - No `relay` takes the no-run branch; if one ever does, it fails the run
   with `the push or Actions there failed`.
+
+### Review fixes (PR218W2, 2026-10-18, this rig)
+
+Three Codex threads on PR #218 (branch `ci/more-shards2`), first result —
+no hosted CI failure list follows the threads in this brief, so none to add:
+
+- browser-check.yml (cumulative PR paths on capacity updates, P1): ALREADY
+  FIXED by `70e829764` (HEAD) — the `ci/pr-*` push triggers carry no
+  `paths:` filter and each `route` job's `touches` output re-applies the
+  path list to the cumulative merge diff (`HEAD^1..HEAD`); answered, not redone.
+- hosts.yml:409 (appearance deadline from relay start, P1): ACCEPTED, fix in
+  this lane — each `relay` waits for the capacity push to land first, then
+  starts its ten-minute run-appearance clock from the push.
+- forks.yml:302 (relays must outlive healthy multi-stage runs, P2): ACCEPTED,
+  fix in this lane — each `relay`'s `timeout-minutes` goes 120 to 360, the
+  platform-scale bound build.yml's capacity waiter already uses.
+
+**Fixes (this rig, `c6fd0f11f`).** Both threads are fixed by one change to
+the `relay` job in hosts.yml, forks.yml and browser-check.yml (92
+insertions, 27 deletions). The wait is now two phases: first the
+`ci/pr-<number>` branch (from the new `PR_NUMBER` step env,
+`github.event.pull_request.number`) must reach the pushed commit — bounded
+only by the job timeout, so a pull request whose `org` producer is still
+queued never goes falsely red — then the run has ten minutes to appear from
+the landed push, as in build.yml's capacity waiter, and a landed push with
+no run still fails closed (`the push or Actions there failed`). An empty
+`PR_NUMBER` fails fast instead of waiting out the timeout. Each `relay`'s
+`timeout-minutes` is 360, GitHub's own hosted-runner job ceiling (the same
+figure the `org` wait cites), not our own cap: queue delays under
+contention across the offloaded suites' chained stages are waited out, and
+anything longer fails at the platform's limit.
+
+**Local proof (this rig, 2026-10-18).** `temp/pr218w2-drill.sh` (local only,
+not committed) extracts the `relay` wait step out of each committed workflow
+file and drives it under GitHub's `bash --noprofile --norc -eo pipefail`,
+with a stubbed `gh` and a `sleep` that advances the shell clock instantly:
+20/20 green. A push landing 11 virtual minutes after the relay starts still
+relays success on all three files (the reported failure); the same scenario
+against the pre-fix hosts.yml step exits 1 at 10 minutes (the bug,
+reproduced); a landed push with no run exits 1 at ~10 minutes after the
+push on all three (fail-closed kept); a failed capacity run exits 1 and a
+successful one exits 0; an empty PR number exits 1 with no wait. The drill
+also asserts `timeout-minutes: 360` and the `PR_NUMBER` env in all three
+relays, no `120` bound left, and `shellcheck -S warning` clean on all three
+extracted steps.
+
+**Hosted proof (lead's push; the real gate).** The push of this branch must
+show, recorded on the pull request: a routed pull request's home
+Hosts/Forks/Browser-check runs each link their capacity run in the relay
+summary and go green with it — including when the `org` producer queued
+longer than ten minutes before pushing; a capacity run that never appears
+after its push landed still fails its relay with `the push or Actions there
+failed`; and no relay cancels a healthy capacity run before the platform's
+own 6-hour ceiling.
