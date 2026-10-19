@@ -29,56 +29,51 @@ function realSlotState(): OrchestratorSlotState {
   }
 }
 
-async function clearSlot(state: OrchestratorSlotState): Promise<void> {
-  await resetOrchestratorSlot(state)
+async function storeOverride(state: OrchestratorSlotState): Promise<void> {
+  await state.update('museSpark.team.orchestrator', {
+    modelId: 'opus-5.5',
+    backend: 'modelApi',
+  })
+}
+
+async function withSlotState(work: (state: OrchestratorSlotState) => unknown): Promise<void> {
+  const state = realSlotState()
+  try {
+    await work(state)
+  } finally {
+    await resetOrchestratorSlot(state)
+  }
 }
 
 suite('orchestrator slot over the real store', () => {
   test('reads no override by default: the picker decides', async () => {
-    const state = realSlotState()
-    try {
-      await clearSlot(state)
+    await withSlotState((state) => {
       assert.equal(readOrchestratorOverride(state), undefined)
-    } finally {
-      await clearSlot(state)
-    }
+    })
   })
 
   test('reads a stored override', async () => {
-    const state = realSlotState()
-    try {
-      await state.update('museSpark.team.orchestrator', {
-        modelId: 'opus-5.5',
-        backend: 'modelApi',
-      })
+    await withSlotState(async (state) => {
+      await storeOverride(state)
       assert.deepEqual(readOrchestratorOverride(state), {
         modelId: 'opus-5.5',
         backend: 'modelApi',
       })
-    } finally {
-      await clearSlot(state)
-    }
+    })
   })
 
   test('reads anything else stored as none', async () => {
-    const state = realSlotState()
-    try {
+    await withSlotState(async (state) => {
       await state.update('museSpark.team.orchestrator', { model: 'x' })
       assert.equal(readOrchestratorOverride(state), undefined)
       await state.update('museSpark.team.orchestrator', 'opus')
       assert.equal(readOrchestratorOverride(state), undefined)
-    } finally {
-      await clearSlot(state)
-    }
+    })
   })
 
   test('reset clears the stored override, so the picker decides again', async () => {
-    const state = realSlotState()
-    try {
-      await state.update('museSpark.team.orchestrator', {
-        modelId: 'opus-5.5',
-        backend: 'modelApi',
-      })
+    await withSlotState(async (state) => {
+      await storeOverride(state)
       assert.deepEqual(readOrchestratorOverride(state), {
         modelId: 'opus-5.5',
         backend: 'modelApi',
@@ -88,8 +83,6 @@ suite('orchestrator slot over the real store', () => {
       // makes it read as none again.
       await resetOrchestratorSlot(state)
       assert.equal(readOrchestratorOverride(state), undefined)
-    } finally {
-      await clearSlot(state)
-    }
+    })
   })
 })

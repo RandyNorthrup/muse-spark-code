@@ -110,7 +110,9 @@ memorySource answered get/inspect/update from a Map, and two configs
 scripted their refusals (an InvalidError thrown by hand, a stored
 Error object). The apply paths now run over the real VS Code
 configuration in test/integration/sessionBudget.test.ts through the
-production adapter shape: a changed write at its effective scope,
+production adapter itself — extracted as vscodeSessionBudgetSource in
+modelsPanelEntry.ts and used by both the panel and the suite, so the
+duplication gate stays silent: a changed write at its effective scope,
 unchanged, a concurrent-change conflict, an invalid value with the
 store observably untouched, and a read-only workspace settings file as
 the real store failure (its filesystem error propagates with its kind,
