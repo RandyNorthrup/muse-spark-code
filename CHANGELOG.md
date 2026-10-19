@@ -38,7 +38,12 @@ happened, not what was planned; superseded entries are kept.
   own instead of rejected by that failure. The Modes menu (panel) and the
   editor (ACP) show the running mode with the error's own sentence; when no
   menu mode selects it, the panel refuses the send in flight instead. A torn
-  change says the running mode is unconfirmed; an unknown running
+  forward change says the named mode is running without its reviewer
+  installed; a torn rollback says the previous mode is restored with its
+  reviewer still installed, with turns refused until the mode is set again.
+  A refused schedule restore quarantines too, naming the mode the host still
+  runs. A quarantine keeps its sentence, which the next refused turn repeats
+  instead of the generic reviewer-missing words; an unknown running
   mode says so. Manual is never left running with the judge, and the menu
   always agrees with the host. A finished schedule puts its mode and
   reviewer back as one unit; when the reviewer cannot be put back the

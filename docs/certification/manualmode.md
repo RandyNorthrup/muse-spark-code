@@ -453,3 +453,84 @@ three catch sites),
 `test/e2e/sessionModes.live.e2e.test.ts` (new),
 `test/unit/sessionOwner.test.ts`, `test/unit/permissionModes.test.ts`,
 `CHANGELOG.md`, PLAN.md D123.
+
+## 2026-10-20 — Grok's third re-review corrections (lane PR251FIX4)
+
+GRV251E confirms the GRV251D findings fixed and finds two more failure paths
+whose words are not true; both are fixed at their cause below. Earlier
+sections stand except where this one corrects them: the torn sentence
+(`permissionReviewerTorn`, "the running mode is unconfirmed") is gone. A
+forward tear names the acknowledgement's mode and says its reviewer was not
+installed; a torn rollback names the previous mode and says it is restored
+with its reviewer still installed. A refused schedule restore command now
+quarantines (it did not), naming the admission mode the host still runs.
+
+1. A torn adoption says the acknowledgement's mode
+   (`src/core/backends/musecode/approvalModesEntry.ts`, `tornForwardError`
+   / `tornRollbackError`). A torn forward adoption quarantines with
+   `permissionReviewerNotInstalled` carrying `permissionReviewerTornReason`
+   ("the mode change tore while applying") and the ack's mode, so the Modes
+   menu and the ACP editor show that mode with a sentence that agrees with
+   it. A torn rollback is replaced at the rollback site with
+   `permissionReviewerRollbackTorn`: the previous mode is restored and its
+   reviewer is still installed (the failed profile step never changed it),
+   but the adoption could not be confirmed, so turns stay refused until the
+   mode is set again. The host no longer quarantines inside `applyModeEffect`
+   (`src/core/backends/musecode/MuseCodeHost.ts`): the deferred caller
+   quarantines with the cause, so each quarantine keeps its sentence.
+2. A refused schedule restore quarantines naming the mode the host still
+   runs. `restoreScheduleEffect` wraps a thrown mode command: the host never
+   changed, so it still runs the admission's mode with the admission's
+   reviewer while the panel still shows the conversation's mode. It
+   quarantines with `permissionRestoreRefused`, which names that mode, and
+   the schedule-restore warn log ("new turns are refused") now fires only on
+   a quarantined restore. `SessionOwner`
+   (`src/core/schedules/sessionOwner.ts`) keeps the quarantine's sentence
+   (`quarantineWith`, `quarantineCause`, both cleared with the quarantine);
+   the three quarantined turn refusals (`sendTurn`, `steer`, the scheduled
+   admission) repeat it instead of the generic reviewer-missing words.
+
+No new live drill: a torn adoption needs a turn to end mid-command (the
+previous run's race probe hit it once in 40 attempts — not a deterministic
+test), and a schedule restore needs a schedule admission whose grant context
+would be invented data. The committed proof is
+`test/unit/approvalModesFailurePaths.test.ts`: the real `SessionOwner` plus
+the real entry functions, with the wire side replaying the recorded 1.4.7
+refusals (`invalidParams`, `experimentalRequired`, 2026-10-19 above) and the
+recorded ack naming the applied mode; the tear itself comes from the real
+owner's turn tracking (`observedStart`, the host's own `turnStarted` call).
+Fail-before with the three pre-fix sources restored: the torn-forward test
+gets the old unconfirmed-mode sentence instead of the
+reviewer-not-installed one, the torn-rollback test gets it instead of the
+restored-mode one (and the later refusal says the reviewer is missing), and
+the restore test leaves turns live with the raw refusal escaping; green
+after: 4 passed with the repository's own timeout. The clean-rollback guard
+passes both ways.
+
+Activation (`test/unit/modelsActivationBudget.test.ts`, repo timeout, rig
+`linuxlt`): before baseline=561352 current=565147 growth=3795, after
+baseline=561352 current=565482 growth=4130 (+335 bytes for the owner's
+quarantine sentence and the three send-site fallbacks; the entry stays in
+`dist/approvalModes.js`). The branch was already over the 3 KiB budget
+before this lane; the release is making room elsewhere — nothing raised or
+weakened to get here.
+
+UNVERIFIED until real use (lead drills, VS Code, Manual, Muse Code ≥
+1.4.7): the Modes menu agreeing with the host on a torn change (force a
+turn to end mid-switch; the menu must show the ack's mode — the new mode on
+a forward tear, the previous one on a torn rollback — with the sentence
+above, and setting the mode again must recover), the ACP editor showing the
+same on a torn rollback, and a refused schedule restore arriving as the
+named-mode sentence on the next send. A quarantined session's refused turn
+must arrive as the quarantine's own sentence in the panel.
+
+Files: `src/core/backends/musecode/approvalModesEntry.ts`
+(`tornForwardError`, `tornRollbackError`, restore wrap, quarantine causes),
+`src/core/backends/musecode/MuseCodeHost.ts` (torn return without
+quarantine, send/steer/admission repeat the cause),
+`src/core/schedules/sessionOwner.ts` (`quarantineWith`, `quarantineCause`),
+`src/shared/l10n/en.ts` + all 14 `l10n/ui.*.json`
+(`permissionReviewerTornReason`, `permissionReviewerRollbackTorn`,
+`permissionRestoreRefused`; `permissionReviewerTorn` removed),
+`test/unit/approvalModesFailurePaths.test.ts` (new),
+`CHANGELOG.md`, PLAN.md D123.
