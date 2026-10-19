@@ -52,6 +52,9 @@ const port = (diagnostic: EstimateDiagnostic): EstimatorPanelPort => ({
   context: () => context,
   estimate: () => Promise.resolve(diagnostic),
   subscribe: () => unsubscribe,
+  // The host log's copy of a failure the card already said in words (D119);
+  // the run boundary pins its contents, the surfaces pin the sentences.
+  report: () => undefined,
   startExisting: () => Promise.resolve(diagnostic),
   price: () => 'test-price',
   provision: { state: 'waiting', dependency: 'test-provider' },
@@ -194,6 +197,10 @@ describe('M117 diagnostic × real surface replacement table', () => {
           ['/estimateDiagnostic.ts', '/estimateView.ts'].every(
             (suffix) => !file.replaceAll('\\', '/').endsWith(suffix),
           ) &&
+          // The refusal guard itself (isEstimateRefusal reads the failed
+          // template to match the estimator's own wording) renders no
+          // sentence to any person.
+          file.replaceAll('\\', '/') !== 'src/shared/estimate.ts' &&
           // M113's estimate source renders through the report's installed
           // table (reportText), not the global one.
           /\bestimateFailureText\(|\bUI_TEXT\.estimateFailed\b|\breportText\.estimateFailed\b/.test(
