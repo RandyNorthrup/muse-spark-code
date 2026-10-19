@@ -2,7 +2,11 @@
 // hand-off (M96 acceptance 21, PLAN.md D75 "Pipelines"). Rounds continue
 // until the change passes or the person stops the work (D121).
 
-import { describe, expect, it } from 'vitest'
+import { readdirSync, readFileSync } from 'node:fs'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import {
   approvalSteps,
   builtInPipelines,
@@ -86,23 +90,63 @@ function cleanHandoff(def: PipelineDefinition) {
   ])
 }
 
-function memoryFs(files: Readonly<Record<string, string>>): PipelineFileSystem {
+function isMissing(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
+}
+
+/** The loader over the real filesystem: real reads, real directory lists. */
+function nodePipelineFs(): PipelineFileSystem {
   return {
-    listFiles: (dir) =>
-      Object.keys(files)
-        .filter((path) => path.startsWith(`${dir}/`))
-        .map((path) => path.slice(dir.length + 1)),
-    readFile: (path) => files[path],
+    listFiles: (dir) => {
+      try {
+        return readdirSync(dir, { withFileTypes: true })
+          .filter((entry) => entry.isFile())
+          .map((entry) => entry.name)
+      } catch (error: unknown) {
+        // A folder the user never created loads as empty, as before; any
+        // other failure is real and reaches the caller.
+        if (isMissing(error)) return []
+        throw error
+      }
+    },
+    readFile: (file) => {
+      try {
+        return readFileSync(file, 'utf8')
+      } catch (error: unknown) {
+        if (isMissing(error)) return undefined
+        throw error
+      }
+    },
   }
 }
 
-function loadFiles(files: Readonly<Record<string, string>>, isTrusted = true) {
-  return loadPipelines({
-    personalDir: 'personal',
-    projectDir: 'project',
+/**
+The loader over real temp directories: every entry of `files` is written
+to disk (`personal/…` under the personal folder, `project/…` under the
+project folder) and refusals name the file relative to the temp root, so
+the assertions below read exactly as before on every platform.
+*/
+async function loadFromFiles(files: Readonly<Record<string, string>>, isTrusted = true) {
+  const root = await mkdtemp(path.join(tmpdir(), 'team-pipelines-'))
+  onTestFinished(() => rm(root, { recursive: true, force: true }))
+  for (const [name, text] of Object.entries(files)) {
+    const file = path.join(root, name)
+    await mkdir(path.dirname(file), { recursive: true })
+    await writeFile(file, text)
+  }
+  const loaded = loadPipelines({
+    personalDir: path.join(root, 'personal'),
+    projectDir: path.join(root, 'project'),
     trusted: isTrusted,
-    fs: memoryFs(files),
+    fs: nodePipelineFs(),
   })
+  return {
+    pipelines: loaded.pipelines,
+    refused: loaded.refused.map((refusal) => ({
+      ...refusal,
+      file: path.relative(root, refusal.file).split(path.sep).join('/'),
+    })),
+  }
 }
 
 function pipelineIds(pipelines: readonly PipelineDefinition[]) {
@@ -391,8 +435,8 @@ describe('approval', () => {
 })
 
 describe('loading', () => {
-  it('a personal pipeline loads beside the built-ins', () => {
-    const { pipelines, refused } = loadFiles(
+  it('a personal pipeline loads beside the built-ins', async () => {
+    const { pipelines, refused } = await loadFromFiles(
       {
         'personal/docs.json': JSON.stringify({
           id: 'docs-flow',
@@ -410,8 +454,8 @@ describe('loading', () => {
     expect(refused).toEqual([])
   })
 
-  it('an untrusted workspace never reads the project folder', () => {
-    const { pipelines, refused } = loadFiles(
+  it('an untrusted workspace never reads the project folder', async () => {
+    const { pipelines, refused } = await loadFromFiles(
       {
         'project/narrow.json': JSON.stringify({ id: 'change', removeSteps: [] }),
       },
@@ -421,8 +465,8 @@ describe('loading', () => {
     expect(refused).toEqual([])
   })
 
-  it('a project file may remove steps', () => {
-    const { pipelines, refused } = loadFiles({
+  it('a project file may remove steps', async () => {
+    const { pipelines, refused } = await loadFromFiles({
       'project/narrow.json': JSON.stringify({
         id: 'change',
         removeSteps: ['verify'],
@@ -433,8 +477,8 @@ describe('loading', () => {
     expect(narrowed?.steps.map((step) => step.id)).toEqual(['implement', 'review'])
   })
 
-  it('a project file for an unknown pipeline is refused whole', () => {
-    const { refused } = loadFiles({
+  it('a project file for an unknown pipeline is refused whole', async () => {
+    const { refused } = await loadFromFiles({
       'project/new.json': JSON.stringify({ id: 'nope', removeSteps: [] }),
     })
     expect(refused).toEqual([
@@ -442,8 +486,8 @@ describe('loading', () => {
     ])
   })
 
-  it('a project file that still names a round bound is refused whole', () => {
-    const { refused } = loadFiles({
+  it('a project file that still names a round bound is refused whole', async () => {
+    const { refused } = await loadFromFiles({
       'personal/quick.json': JSON.stringify(researchPipeline('quick')),
       'project/raise.json': JSON.stringify({ id: 'quick', maxRounds: 2 }),
     })
@@ -452,16 +496,16 @@ describe('loading', () => {
     ])
   })
 
-  it('a project file that removes an unknown step is refused whole', () => {
-    const { refused } = loadFiles({
+  it('a project file that removes an unknown step is refused whole', async () => {
+    const { refused } = await loadFromFiles({
       'project/remove.json': JSON.stringify({ id: 'change', removeSteps: ['deploy'] }),
     })
     expect(refused).toHaveLength(1)
     expect(refused[0]?.reason).toBe('widensSteps')
   })
 
-  it('an unknown key refuses the file whole', () => {
-    const { pipelines, refused } = loadFiles({
+  it('an unknown key refuses the file whole', async () => {
+    const { pipelines, refused } = await loadFromFiles({
       'personal/bad.json': JSON.stringify({
         ...researchPipeline('bad'),
         merge: true,
@@ -471,8 +515,8 @@ describe('loading', () => {
     expect(refused).toEqual([{ file: 'personal/bad.json', reason: 'unknownKey', detail: 'merge' }])
   })
 
-  it('a removed round bound refuses the file whole, naming the key', () => {
-    const { pipelines, refused } = loadFiles({
+  it('a removed round bound refuses the file whole, naming the key', async () => {
+    const { pipelines, refused } = await loadFromFiles({
       'personal/wide.json': JSON.stringify({ ...researchPipeline('wide'), maxRounds: 4 }),
     })
     expect(pipelineIds(pipelines)).toEqual(['change', 'spec'])
@@ -481,8 +525,8 @@ describe('loading', () => {
     ])
   })
 
-  it('a review before any work step is refused', () => {
-    const { refused } = loadFiles({
+  it('a review before any work step is refused', async () => {
+    const { refused } = await loadFromFiles({
       'personal/dangling.json': JSON.stringify({
         id: 'dangling',
         steps: [
@@ -506,8 +550,8 @@ describe('loading', () => {
     ).toBe('noWorkStep')
   })
 
-  it('a project file that removes no array of steps is refused whole', () => {
-    const { refused } = loadFiles({
+  it('a project file that removes no array of steps is refused whole', async () => {
+    const { refused } = await loadFromFiles({
       'project/fraction.json': JSON.stringify({ id: 'change', removeSteps: 'verify' }),
     })
     expect(refused).toEqual([
@@ -515,8 +559,8 @@ describe('loading', () => {
     ])
   })
 
-  it('unparseable files are refused, and other files still load', () => {
-    const { pipelines, refused } = loadFiles({
+  it('unparseable files are refused, and other files still load', async () => {
+    const { pipelines, refused } = await loadFromFiles({
       'personal/broken.json': '{ not json',
       'personal/notes.txt': 'ignored',
       'personal/ok.json': JSON.stringify(researchPipeline('ok')),

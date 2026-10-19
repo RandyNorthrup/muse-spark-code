@@ -28,7 +28,7 @@ import {
 } from './modelsPanel'
 import { decodeImportFile } from './providerImportText'
 import { runAddProviderQuickPick, type ProviderQuickPickOutcome } from './modelsQuickPick'
-import { createSessionBudgetConfig } from './sessionBudget'
+import { createSessionBudgetConfig, type SessionBudgetConfigSource } from './sessionBudget'
 import { createProvidersHost, type ProvidersHost } from '../providers/providersHost'
 import type { ModelScan, ScanStore } from '../providers/modelScans'
 import type { PendingRemoval, RemovalStore } from '../providers/providerRemoval'
@@ -290,6 +290,37 @@ function vaultBindingFactory(
     )
 }
 
+/**
+The live settings behind the budget config port: the single adapter both
+the panel and the wizard use, also shared with the integration suite so
+the store behaviour is proved against this exact wiring.
+*/
+export function vscodeSessionBudgetSource(): SessionBudgetConfigSource {
+  return {
+    get: (section) => vscode.workspace.getConfiguration(SETTINGS_SECTION).get(section),
+    inspect: (section) => {
+      const inspected = vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect(section)
+      return inspected === undefined
+        ? undefined
+        : {
+            workspaceValue: inspected.workspaceValue,
+            workspaceFolderValue: inspected.workspaceFolderValue,
+          }
+    },
+    update: async (section, value, scope): Promise<void> => {
+      await vscode.workspace
+        .getConfiguration(SETTINGS_SECTION)
+        .update(
+          section,
+          value,
+          scope === 'workspace'
+            ? vscode.ConfigurationTarget.Workspace
+            : vscode.ConfigurationTarget.Global,
+        )
+    },
+  }
+}
+
 export function createModelsPanelFeatures(
   host: ModelsPanelHostDeps,
   seam: ModelsPanelSeam,
@@ -379,32 +410,7 @@ export function createModelsPanelFeatures(
   // The wizard's spending limit IS the conversation spending limit
   // setting: both the panel and the quick pick read and write it through
   // this one configuration, at the scope it is effective from.
-  const sessionBudget = createSessionBudgetConfig(
-    {
-      get: (section) => vscode.workspace.getConfiguration(SETTINGS_SECTION).get(section),
-      inspect: (section) => {
-        const inspected = vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect(section)
-        return inspected === undefined
-          ? undefined
-          : {
-              workspaceValue: inspected.workspaceValue,
-              workspaceFolderValue: inspected.workspaceFolderValue,
-            }
-      },
-      update: async (section, value, scope): Promise<void> => {
-        await vscode.workspace
-          .getConfiguration(SETTINGS_SECTION)
-          .update(
-            section,
-            value,
-            scope === 'workspace'
-              ? vscode.ConfigurationTarget.Workspace
-              : vscode.ConfigurationTarget.Global,
-          )
-      },
-    },
-    host.log,
-  )
+  const sessionBudget = createSessionBudgetConfig(vscodeSessionBudgetSource(), host.log)
 
   let panel: ModelsPanel | undefined
   const openPanel = (navigate?: ModelsPanelNavigate): void => {
