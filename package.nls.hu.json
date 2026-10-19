@@ -185,7 +185,7 @@
   "config.resourceRelocate.enumDescriptions.off": "Elrejti a hiányzó útvonal értesítését az erőforrás miatti szüneteknél; a munka ezen a gépen marad.",
   "command.nextOpenQuestion.title": "Következő nyitott kérdés",
   "command.previousOpenQuestion.title": "Előző nyitott kérdés",
-  "config.questions.deferAfterSeconds.description": "Ennyi másodperc után halasztjuk el a megválaszolatlan kérdést, hogy Muse folytathassa a munkát. Alapérték: 60; a 0 jelentése soha; az 1–9 értékeket 10-ként kezeljük; maximum 3600. A kérdés nyitva marad, és később is megválaszolható. Csak ennek a gépnek a beállítását használjuk.",
+  "config.questions.deferAfterSeconds.description": "Ennyi másodperc után halasztjuk el a megválaszolatlan kérdést, hogy Muse folytathassa a munkát. Nincs korlát, amíg be nem állít egyet: 0 (az alapérték) jelentése soha; az 1–9 értékeket 10-ként kezeljük; maximum 3600. A kérdés nyitva marad, és később is megválaszolható. Csak ennek a gépnek a beállítását használjuk.",
   "command.startWithOwnModel.title": "Kezdés saját modellel",
   "command.modelsAndAgents.title": "Modellek és ügynökök",
   "command.addModelProvider.title": "Modellszolgáltató hozzáadása…",

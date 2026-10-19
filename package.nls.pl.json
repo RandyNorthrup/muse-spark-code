@@ -185,7 +185,7 @@
   "config.resourceRelocate.enumDescriptions.off": "Ukrywa komunikat o braku trasy przy wstrzymaniu z powodu zasobów; praca pozostaje na tym komputerze.",
   "command.nextOpenQuestion.title": "Następne otwarte pytanie",
   "command.previousOpenQuestion.title": "Poprzednie otwarte pytanie",
-  "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Domyślnie 60; 0 oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera.",
+  "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Brak limitu, dopóki go nie ustawisz: 0 (wartość domyślna) oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera.",
   "command.startWithOwnModel.title": "Zacznij od własnego modelu",
   "command.modelsAndAgents.title": "Modele i agenci",
   "command.addModelProvider.title": "Dodaj dostawcę modeli…",

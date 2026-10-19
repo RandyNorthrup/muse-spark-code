@@ -185,7 +185,7 @@
   "config.resourceRelocate.enumDescriptions.off": "Hide the missing-route note on resource pauses; work stays on this machine.",
   "command.nextOpenQuestion.title": "Next Open Question",
   "command.previousOpenQuestion.title": "Previous Open Question",
-  "config.questions.deferAfterSeconds.description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.",
+  "config.questions.deferAfterSeconds.description": "Seconds before an unanswered question is deferred so Muse can keep working. No limit unless you set one: 0 (the default) never defers; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.",
   "command.startWithOwnModel.title": "Start With Your Own Model",
   "command.modelsAndAgents.title": "Models & Agents",
   "command.addModelProvider.title": "Add Model Provider…",

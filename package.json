@@ -1495,7 +1495,7 @@
         },
         "museSpark.questions.deferAfterSeconds": {
           "type": "integer",
-          "default": 60,
+          "default": 0,
           "minimum": 0,
           "maximum": 3600,
           "description": "%config.questions.deferAfterSeconds.description%",

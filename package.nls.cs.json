@@ -185,7 +185,7 @@
   "config.resourceRelocate.enumDescriptions.off": "Skrýt oznámení o chybějící trase při pozastavení kvůli prostředkům; práce zůstává na tomto počítači.",
   "command.nextOpenQuestion.title": "Další otevřená otázka",
   "command.previousOpenQuestion.title": "Předchozí otevřená otázka",
-  "config.questions.deferAfterSeconds.description": "Počet sekund, po kterých se nezodpovězená otázka odloží, aby Muse mohl pokračovat v práci. Výchozí hodnota je 60; 0 znamená nikdy; 1–9 se čtou jako 10; maximum je 3 600. Otázka zůstává otevřená a můžete na ni odpovědět později. Použije se pouze nastavení tohoto počítače.",
+  "config.questions.deferAfterSeconds.description": "Počet sekund, po kterých se nezodpovězená otázka odloží, aby Muse mohl pokračovat v práci. Bez omezení, dokud si ho nenastavíte: 0 (výchozí) znamená nikdy; 1–9 se čtou jako 10; maximum je 3 600. Otázka zůstává otevřená a můžete na ni odpovědět později. Použije se pouze nastavení tohoto počítače.",
   "command.startWithOwnModel.title": "Začít s vlastním modelem",
   "command.modelsAndAgents.title": "Modely a agenti",
   "command.addModelProvider.title": "Přidat poskytovatele modelů…",
