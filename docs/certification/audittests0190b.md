@@ -262,6 +262,23 @@ in six executions (closed-pipes assertion, exit 0 but no `broker-*` dir
 observed once, green on the next four runs) is recorded UNMEASURED: no
 mechanism found, not reproduced since.
 
+NOSTANDINKEY2 update (rig `linuxlt`, 2026-10-19, same `XDG_RUNTIME_DIR`
+setup, repository's own timeout): 30 full-file `brokerSession` runs, 3
+failures in the first 10, all `expected 1 to be +0` at
+brokerSession.test.ts:182 — the exit-code assertion, not the exit-0-no-dir
+variant above, which never appeared in any of the 30 runs and stays open.
+Cause measured: the test destroys the broker child's stdout/stderr readers
+before readiness, so the `vault-broker-ready` / `vault-audit-refused`
+writes fail with EPIPE asynchronously; `runVaultBrokerEntry`'s stream
+guards come off in its `finally` after a fast SIGTERM close, and a late
+EPIPE with no listener left exits the child 1. The installed entry never
+hits this because `main()` installs permanent stream guards; the fixture
+child bypasses `main()` (its bundle defines `require.main` away) and had
+none. Fix: `guardBrokerProcessStreams()` exported from
+`src/runtime/vault/vaultBrokerEntry.ts`, installed once by `main()` and by
+`test/unit/helpers/vault/sessionBrokerChild.ts`. Runs 11–30 after the fix:
+20/20 green, per-run logs in the lane's gitignored `temp/pipes30/`.
+
 ## Per-file verdicts
 
 `R` = drives real code/input, no action. `W` = rewritten this lane.
@@ -470,7 +487,10 @@ tabled above (all J).
   fail-on-purpose proven (launch recheck, host cleanup ×2, stream guards,
   keyring fallback) with `git diff` clean after each revert.
   `slotProviders` (related, 9 tests) green. One closed-pipes transient in
-  six executions recorded UNMEASURED in §Open exception.
+  six executions recorded UNMEASURED in §Open exception — NOSTANDINKEY2
+  (2026-10-19) reproduced a sibling variant (exit 1, 3/10 runs), fixed it
+  with permanent fixture stream guards, and measured 20/20 green; the
+  exit-0-no-dir variant itself never reappeared and stays open.
 - Not re-run by this lane (untouched; the JOINB message records the same
   sandbox failures on the untouched tip): `writerCrashPosix` (17),
   `slotProviders` (6 — re-run green here as the related suite, 9 tests),

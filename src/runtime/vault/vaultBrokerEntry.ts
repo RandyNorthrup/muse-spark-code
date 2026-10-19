@@ -389,6 +389,19 @@ function streamError(): void {
   /* The socket, not these diagnostic streams, carries broker availability. */
 }
 
+/**
+ * Process-lifetime stream guards: readiness and diagnostic writes must stay
+ * harmless when the launcher closes its reading ends, through process exit.
+ * runVaultBrokerEntry's own guards come off when the entry settles, while a
+ * destroyed reader can still fail a pending write after that, so the entry
+ * process installs these once and never removes them. The installed entry
+ * does it in main; fixture children that bypass main do it themselves.
+ */
+export function guardBrokerProcessStreams(): void {
+  for (const stream of [process.stdin, process.stdout, process.stderr])
+    stream.on('error', streamError)
+}
+
 export async function runVaultBrokerEntry(
   start: () => Promise<VaultBrokerProcessHandle>,
   signals: NodeJS.EventEmitter = process,
@@ -513,10 +526,7 @@ async function main(): Promise<void> {
   }
 }
 if (require.main === module) {
-  for (const stream of [process.stdin, process.stdout, process.stderr])
-    stream.on('error', () => {
-      /* Fixed failure diagnostics cannot depend on a surviving launcher's pipes. */
-    })
+  guardBrokerProcessStreams()
   void main().catch(() => {
     process.stderr.write('vault-broker-refused\n')
     process.exitCode = 1
