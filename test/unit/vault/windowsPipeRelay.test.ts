@@ -1,12 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { build } from 'esbuild'
 import { windowsVaultPipeName } from '../../../src/runtime/vault/windowsPipeRelay'
+import {
+  awaitFixtureMessage,
+  bundleFixtureChild,
+  sweepFixtureChildren,
+  trackFixtureChild,
+} from '../helpers/vault/fixtureChildren'
 import {
   isVaultPipeServerTrusted,
   windowsVaultPipeNameSchema,
@@ -85,23 +90,7 @@ describe.skipIf(process.platform !== 'win32')('Windows pipe relay against the re
   beforeAll(async () => {
     fixture.root = await mkdtemp(path.join(tmpdir(), 'vs-piperelay-'))
     const bundle = path.join(fixture.root, 'pipeRelayChild.cjs')
-    await build({
-      entryPoints: ['test/unit/helpers/vault/windowsPipeRelayChild.ts'],
-      outfile: bundle,
-      bundle: true,
-      platform: 'node',
-      format: 'cjs',
-      plugins: [
-        {
-          name: 'generated-admission',
-          setup(builder) {
-            builder.onResolve({ filter: /admission(?:\.js)?$/ }, () => ({
-              path: path.resolve('test/unit/helpers/vault/sessionAdmission.ts'),
-            }))
-          },
-        },
-      ],
-    })
+    await bundleFixtureChild('test/unit/helpers/vault/windowsPipeRelayChild.ts', bundle)
     const systemRoot = process.env['SystemRoot']
     if (!systemRoot) throw new Error('SystemRoot names the Windows system root')
     const workDir = path.join(fixture.root, 'work')
@@ -121,39 +110,16 @@ describe.skipIf(process.platform !== 'win32')('Windows pipe relay against the re
       ],
       { stdio: ['ignore', 'pipe', 'pipe', 'ipc'] },
     )
-    children.add(child)
-    if (child.stdout === null || child.stderr === null)
-      throw new Error('missing fixture diagnostic pipes')
-    child.stdout.resume()
-    const errors: Buffer[] = []
-    child.stderr.on('data', (bytes: Buffer) => {
-      errors.push(bytes)
-    })
+    const errors = trackFixtureChild(children, child)
     // The C# compile is slow; the hook budget covers the build, never the
     // test. A child that dies building fails fast with its diagnostics.
-    const built = await Promise.race([
-      (async () => ({ kind: 'built', message: await once(child, 'message') }) as const)(),
-      (async () => {
-        await once(child, 'exit')
-        return {
-          kind: 'exited',
-          diagnostics: Buffer.concat(errors).toString('utf8'),
-        } as const
-      })(),
-    ])
-    if (built.kind === 'exited')
+    const built = await awaitFixtureMessage(child, errors)
+    if ('diagnostics' in built)
       throw new Error(`relay fixture exited while building: ${built.diagnostics}`)
     const report = builtSchema.parse(built.message[0])
     fixture.ownerSid = report.ownerSid
   })
-  afterAll(async () => {
-    for (const child of children) {
-      child.kill('SIGKILL')
-      if (child.exitCode === null && child.signalCode === null) await once(child, 'exit')
-    }
-    if (!fixture.root) return
-    await rm(fixture.root, { recursive: true, force: true })
-  })
+  afterAll(() => sweepFixtureChildren(children, fixture.root))
 
   it('relays a connection, echoes bytes and answers file and identity queries', async () => {
     const [child] = [...children]
@@ -165,17 +131,8 @@ describe.skipIf(process.platform !== 'win32')('Windows pipe relay against the re
       errors.push(bytes)
     })
     child.send('run')
-    const finished = await Promise.race([
-      (async () => ({ kind: 'results', message: await once(child, 'message') }) as const)(),
-      (async () => {
-        await once(child, 'exit')
-        return {
-          kind: 'exited',
-          diagnostics: Buffer.concat(errors).toString('utf8'),
-        } as const
-      })(),
-    ])
-    if (finished.kind === 'exited')
+    const finished = await awaitFixtureMessage(child, errors)
+    if ('diagnostics' in finished)
       throw new Error(`relay fixture exited during the run: ${finished.diagnostics}`)
     const report = resultsSchema.parse(finished.message[0])
     // Every value below comes from the helper or the OS: the echo round

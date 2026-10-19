@@ -5,23 +5,10 @@
 import { describe, expect, it } from 'vitest'
 import type { Logger } from '../../src/host/logger'
 import { readSettings, type SettingsSource } from '../../src/host/settings'
+import { recordingLogger } from './helpers/recordingLogger'
 
 function setup(stored: Readonly<Record<string, unknown>> = {}, explicit: readonly string[] = []) {
-  const logged: string[] = []
-  const log: Logger = {
-    trace: (message) => {
-      logged.push(`trace:${message}`)
-    },
-    info: (message) => {
-      logged.push(`info:${message}`)
-    },
-    warn: (message) => {
-      logged.push(`warn:${message}`)
-    },
-    error: (message) => {
-      logged.push(`error:${message}`)
-    },
-  }
+  const { log, logged } = recordingLogger()
   const source: SettingsSource = {
     get: (section) => stored[section],
     inspect: (section) => (explicit.includes(section) ? { globalValue: stored[section] } : {}),

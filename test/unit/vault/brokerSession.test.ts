@@ -1,14 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { execFileSync, fork, spawn, type ChildProcess } from 'node:child_process'
+import { fork, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import * as z from 'zod/mini'
 import { setTimeout as delay } from 'node:timers/promises'
-import { build } from 'esbuild'
 import { vaultBrokerLockSchema } from '../../../src/shared/vaultProtocol'
-import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
+import {
+  bundleFixtureChild,
+  compileVaultPeer,
+  shutdownFixtureChild,
+} from '../helpers/vault/fixtureChildren'
 
 const fixture = { root: '' }
 const children = new Set<ChildProcess>()
@@ -16,42 +19,18 @@ const brokers = new Set<number>()
 beforeAll(async () => {
   if (process.platform === 'win32') return
   fixture.root = await mkdtemp(path.join(os.tmpdir(), 'vs-'))
-  const helper = vaultPeerExecutable(fixture.root)
-  await mkdir(path.dirname(helper), { recursive: true })
+  await compileVaultPeer(fixture.root)
   await mkdir(path.join(fixture.root, 'dist'))
-  execFileSync('/usr/bin/cc', [
-    '-Os',
-    '-Wall',
-    '-Wextra',
-    '-Werror',
-    'native/posix/vaultPeer.c',
-    '-o',
-    helper,
-  ])
   for (const [entry, output] of [
     ['sessionClientChild', 'client.cjs'],
     ['sessionBrokerChild', 'vaultBroker.js'],
   ]) {
     if (!entry || !output) throw new Error('missing generated build pair')
-    await build({
-      entryPoints: [`test/unit/helpers/vault/${entry}.ts`],
-      outfile: path.join(fixture.root, 'dist', output),
-      bundle: true,
-      external: ['@napi-rs/keyring'],
-      define: { 'require.main': 'undefined' },
-      platform: 'node',
-      format: 'cjs',
-      plugins: [
-        {
-          name: 'generated-admission',
-          setup(builder) {
-            builder.onResolve({ filter: /admission(?:\.js)?$/ }, () => ({
-              path: path.resolve('test/unit/helpers/vault/sessionAdmission.ts'),
-            }))
-          },
-        },
-      ],
-    })
+    await bundleFixtureChild(
+      `test/unit/helpers/vault/${entry}.ts`,
+      path.join(fixture.root, 'dist', output),
+      { external: ['@napi-rs/keyring'], define: { 'require.main': 'undefined' } },
+    )
   }
 })
 afterAll(async () => {
@@ -201,11 +180,7 @@ describe.skipIf(process.platform === 'win32')('session-owned POSIX broker', () =
     child.stderr.destroy()
     const ready = await once(child, 'message')
     expect(ready[0]).toEqual({ ready: true })
-    const exited = once(child, 'exit')
-    child.kill('SIGTERM')
-    const [code] = await exited
-    children.delete(child)
-    expect(code).toBe(0)
+    await shutdownFixtureChild(children, child)
     const directories = await readdir(path.join(dataDir, 'run'))
     const broker = directories.find((name) => name.startsWith('broker-'))
     if (!broker) throw new Error('missing generated broker directory')
