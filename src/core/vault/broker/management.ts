@@ -127,26 +127,26 @@ function importRefusal(error: unknown): unknown {
   if (!(error instanceof VaultMigrationFault)) return error
   switch (error.code) {
     case 'conflict': {
-      return new VaultManagementError('conflict')
+      return new VaultManagementError('conflict', { cause: error })
     }
     case 'window': {
-      return new VaultManagementError('locked')
+      return new VaultManagementError('locked', { cause: error })
     }
     case 'storage': {
-      return new VaultManagementError('io')
+      return new VaultManagementError('io', { cause: error })
     }
     case 'orphaned': {
-      return new VaultManagementError('sourceGone')
+      return new VaultManagementError('sourceGone', { cause: error })
     }
     case 'unreadable': {
-      return new VaultManagementError('sourceUnreadable')
+      return new VaultManagementError('sourceUnreadable', { cause: error })
     }
     case 'unavailable': {
-      return new VaultManagementError('sourceUnavailable')
+      return new VaultManagementError('sourceUnavailable', { cause: error })
     }
     case 'invalid':
     case 'verification': {
-      return new VaultManagementError('invalid')
+      return new VaultManagementError('invalid', { cause: error })
     }
   }
 }
@@ -174,9 +174,10 @@ const newId = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
 function storeRefusal(error: unknown): VaultManagementError | VaultWriterError {
   if (error instanceof VaultWriterError) return error
   if (error instanceof VaultError && error.code === 'filesystemUnsupported')
-    return new VaultManagementError('filesystemUnsupported')
+    return new VaultManagementError('filesystemUnsupported', { cause: error })
   return new VaultManagementError(
     error instanceof VaultStoreUnavailableError ? 'storeUnavailable' : 'io',
+    { cause: error },
   )
 }
 /**
@@ -268,8 +269,12 @@ export class VaultManagement implements VaultManagementPort {
   private store(): VaultStore {
     try {
       return this.deps.repository.current()
-    } catch {
-      throw new VaultManagementError('locked')
+    } catch (error: unknown) {
+      // The repository names its own absence; management reports locked with
+      // that failure as its cause.
+      if (error instanceof VaultError && error.code === 'locked')
+        throw new VaultManagementError('locked', { cause: error })
+      throw error
     }
   }
   /** One setup step at a time; a second window's setup waits for the first. */
@@ -305,8 +310,11 @@ export class VaultManagement implements VaultManagementPort {
     let key: Buffer
     try {
       key = unlockRecoverySlot(slot, code)
-    } catch {
-      throw new VaultManagementError('invalid')
+    } catch (error: unknown) {
+      // A failed recovery unwrap reads invalid with the unwrap failure as
+      // its cause.
+      if (error instanceof VaultManagementError) throw error
+      throw new VaultManagementError('invalid', { cause: error })
     }
     this.deps.unlock.offerRecovery(slot.id, key)
     try {
@@ -377,8 +385,12 @@ export class VaultManagement implements VaultManagementPort {
         path: entry.path,
         items: [...entry.items],
       }))
-    } catch {
-      return []
+    } catch (error: unknown) {
+      // A sweep a Lock overtook lists nothing this time; the receipts stay
+      // for the next snapshot. Any other failure rejects so its caller
+      // reports it.
+      if (error instanceof VaultMigrationFault && error.code === 'window') return []
+      throw error
     }
   }
   noteApproval(request: VaultApprovalRequest): void {
@@ -540,7 +552,7 @@ export class VaultManagement implements VaultManagementPort {
             )
           } catch (error: unknown) {
             return Promise.reject(
-              error instanceof Error ? error : new VaultMigrationFault('invalid'),
+              error instanceof Error ? error : new VaultMigrationFault('invalid', { cause: error }),
             )
           }
         },
@@ -666,7 +678,7 @@ export class VaultManagement implements VaultManagementPort {
         // A filesystem that cannot publish keeps its cause (RVAPP-LEASE2 P2-5).
         if (error instanceof VaultError && error.code === 'filesystemUnsupported') throw error
         // Not lost any more (a vault reappeared) or the files refused: nothing reset.
-        throw new VaultManagementError('invalid')
+        throw new VaultManagementError('invalid', { cause: error })
       }
       this.assertSameLock(generation)
     })
@@ -865,9 +877,9 @@ export class VaultManagement implements VaultManagementPort {
       this.assertSameLock(generation)
       try {
         await this.deps.broker.unlock(null)
-      } catch {
+      } catch (error: unknown) {
         // The vault exists; the snapshot shows it locked with the slot's reason.
-        throw new VaultManagementError('locked')
+        throw new VaultManagementError('locked', { cause: error })
       }
     } finally {
       // Until first unlock settles, snapshots must not compete with its writer.

@@ -637,8 +637,10 @@ export class VaultChannelServer {
         try {
           message = vaultChannelRequestSchema.parse(JSON.parse(line.toString('utf8')))
         } catch {
+          // No frame is decoded before native authentication: the connection
+          // closes and the requester reports its own failure.
           close()
-          return /* No frame is decoded before native authentication. */
+          return
         } finally {
           line.fill(0)
         }
@@ -649,7 +651,9 @@ export class VaultChannelServer {
             queuedBytes -= line.length
             if (!socket.destroyed) await authorize(message, peer)
           } catch {
-            close() /* Refuse without returning private diagnostics. */
+            // Refuse without returning private diagnostics: the connection
+            // closes and the requester reports its own failure.
+            close()
           }
         })()
         end = buffer.indexOf('\n')
@@ -677,7 +681,9 @@ export class VaultChannelServer {
         drain()
         socket.resume()
       } catch {
-        close() /* Native authentication failure closes before any frame is decoded. */
+        // Native authentication failure closes before any frame is decoded;
+        // the requester reports its own failure.
+        close()
       }
     })()
   }

@@ -363,13 +363,15 @@ export class VaultRemoteOwner {
         hasSent = true
         channel.send(response)
       } else throw new Error(UI_TEXT.vault.noAccess)
-    } catch {
-      if (hasSent) throw new Error(UI_TEXT.vault.noAccess)
+    } catch (error: unknown) {
+      // A failure after the response went out rejects with its cause; a live
+      // operation answers the peer with a denial, and a stale one ends quiet.
+      if (hasSent) throw new Error(UI_TEXT.vault.noAccess, { cause: error })
       if (this.current(operation)) {
         try {
           channel.send({ v: VAULT_PROTOCOL_VERSION, id: remote.id, result: { kind: 'denied' } })
-        } catch {
-          throw new Error(UI_TEXT.vault.noAccess)
+        } catch (error_: unknown) {
+          throw new Error(UI_TEXT.vault.noAccess, { cause: error_ })
         }
       }
     } finally {
