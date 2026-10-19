@@ -44,16 +44,6 @@ const ACCEPTED_MEDIA_TYPES = `${JSON_MEDIA_TYPE}, ${EVENT_STREAM_MEDIA_TYPE}`
 const WWW_AUTHENTICATE = 'www-authenticate'
 const AUTH_SCHEME = /^[A-Za-z][A-Za-z0-9_-]*$/
 
-function describe(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return String(error)
-  }
-  // `fetch failed` says little; its cause (a refused connection, a
-  // redirect, a certificate) says what.
-  const { cause } = error
-  return cause instanceof Error ? `${error.message}: ${cause.message}` : error.message
-}
-
 function tooLarge(): McpError {
   return new McpError(
     `the server's reply is over ${String(MCP_MESSAGE_MAX_BYTES / BYTES_PER_MIB)} MiB`,
@@ -200,7 +190,8 @@ export class McpHttpTransport implements McpTransport {
     let message: unknown
     try {
       message = JSON.parse(text)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       throw new McpError('the server answered with JSON that does not parse')
     }
     this.emit(message)
@@ -224,7 +215,10 @@ export class McpHttpTransport implements McpTransport {
       if (signal.aborted) {
         throw error
       }
-      throw new McpError(`the server could not be reached: ${describe(error)}`)
+      // A failed fetch rejects with TypeError; anything else is not the
+      // server's fault. The record names the server, never the failure text.
+      if (!(error instanceof TypeError)) throw error
+      throw new McpError('the server could not be reached')
     }
     const session = response.headers.get(SESSION_HEADER)
     if (session !== null && session !== '') {
@@ -270,10 +264,9 @@ export class McpHttpTransport implements McpTransport {
         redirect: 'error',
       })
       await response.body?.cancel()
-    } catch (error: unknown) {
-      this.options.log.info(
-        `MCP server ${this.options.name}'s session was not ended: ${describe(error)}`,
-      )
+    } catch {
+      // The record names the unended session, never the failure's text.
+      this.options.log.info(`MCP server ${this.options.name}'s session was not ended`)
     }
   }
 }

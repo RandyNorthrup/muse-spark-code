@@ -218,7 +218,8 @@ export function isExtensionMatch(
   return matcher.patterns.some((pattern) => {
     try {
       return compileGlob(pattern)(value)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof RangeError)) throw error
       warn(`hook matcher glob ${pattern} is invalid`)
       return false
     }
@@ -343,13 +344,18 @@ export function parseSparkHooksConfig(
   if (text === undefined) {
     return { hooks: [], warnings: [] }
   }
-  let document: z.infer<typeof sparkDocumentSchema>
+  let raw: unknown
   try {
-    document = sparkDocumentSchema.parse(JSON.parse(text))
+    raw = JSON.parse(text)
   } catch (error: unknown) {
-    const reason = error instanceof SyntaxError ? 'invalid JSON' : 'missing hooks object'
-    return { hooks: [], warnings: [`${source} spark-hooks.json: ${reason}`] }
+    if (!(error instanceof SyntaxError)) throw error
+    return { hooks: [], warnings: [`${source} spark-hooks.json: invalid JSON`] }
   }
+  const parsed = sparkDocumentSchema.safeParse(raw)
+  if (!parsed.success) {
+    return { hooks: [], warnings: [`${source} spark-hooks.json: missing hooks object`] }
+  }
+  const document: z.infer<typeof sparkDocumentSchema> = parsed.data
   const warnings: string[] = []
   const hooks: ExtensionHookDefinition[] = []
   for (const [name, groups] of Object.entries(document.hooks)) {
@@ -474,8 +480,9 @@ async function readSparkText(
       return SPARK_UNREADABLE
     }
     return { kind: 'text', text: decoded.text }
-  } catch (error: unknown) {
-    warn(`${path.basename(file)}: ${error instanceof Error ? error.message : String(error)}`)
+  } catch {
+    // The record names the unreadable file, never the failure's text.
+    warn(`${path.basename(file)}: hook configuration could not be read`)
     return SPARK_UNREADABLE
   }
 }
@@ -946,7 +953,8 @@ export function parseExtensionHookAnswer(
   let value: unknown
   try {
     value = JSON.parse(trimmed)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return { status: 'failed', reason: 'hook output is not valid JSON', hasAnswer: false, output }
   }
   if (!isAnswerRecord(value) || Object.keys(value).some((key) => !ANSWER_FIELDS.has(key))) {

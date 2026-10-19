@@ -309,8 +309,9 @@ async function readHookText(
       return undefined
     }
     return decoded.text
-  } catch (error: unknown) {
-    deps.warn(`${path.basename(file)}: ${error instanceof Error ? error.message : String(error)}`)
+  } catch {
+    // The record names the unreadable file, never the failure's text.
+    deps.warn(`${path.basename(file)}: hook configuration could not be read`)
     return undefined
   }
 }
@@ -624,7 +625,8 @@ function handler(
       let scheme: string
       try {
         scheme = new URL(value.url).protocol
-      } catch {
+      } catch (error: unknown) {
+        if (!(error instanceof TypeError)) throw error
         return 'http handler url is invalid'
       }
       if (scheme !== 'https:') {
@@ -703,7 +705,8 @@ function hooksObjectOf(text: string | undefined): HooksObject {
   let document: unknown
   try {
     document = JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return { ok: false, fault: 'json' }
   }
   return isRecord(document) && isRecord(document.hooks)
@@ -1874,7 +1877,8 @@ export function parseHookAnswer(
   let value: unknown
   try {
     value = JSON.parse(trimmed)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return { status: 'failed', reason: 'hook output is not valid JSON' }
   }
   if (!isRecord(value) || Object.keys(value).some((key) => !OUTPUT_FIELDS.has(key))) {

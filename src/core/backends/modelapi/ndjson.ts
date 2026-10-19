@@ -24,7 +24,8 @@ export async function* parseNdjson(
     }
     try {
       return JSON.parse(line)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       throw streamLimitError('malformed_ndjson')
     }
   }

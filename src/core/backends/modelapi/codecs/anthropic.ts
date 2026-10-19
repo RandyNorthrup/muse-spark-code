@@ -291,7 +291,8 @@ function envelopeOf(item: ReasoningItem): ThinkingEnvelope | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(item.encrypted_content)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   const checked = thinkingEnvelopeSchema.safeParse(parsed)
@@ -434,7 +435,8 @@ function toolUseBlock(
   let parsed: unknown
   try {
     parsed = cleanJsonStrings(JSON.parse(cleanWireText(call.arguments)))
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     parsed = {}
   }
   const cleaned = isRecord(parsed) ? parsed : {}
@@ -1221,7 +1223,8 @@ export async function* decodeAnthropicStream(
     let data: unknown
     try {
       data = JSON.parse(frame.data)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       throw codecError('non_json_frame')
     }
     const kind = frameTypeSchema.safeParse(data)

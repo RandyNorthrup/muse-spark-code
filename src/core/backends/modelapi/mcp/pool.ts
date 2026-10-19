@@ -428,10 +428,9 @@ export class McpServerPool implements McpToolSource {
     const cleanup = (async () => {
       try {
         await connection.close()
-      } catch (error: unknown) {
-        this.deps.log.warn(
-          `MCP server ${server.spec.name} could not finish closing: ${describe(error)}`,
-        )
+      } catch {
+        // The record names the unclosed server, never the close failure's text.
+        this.deps.log.warn(`MCP server ${server.spec.name} could not finish closing`)
       }
     })()
     this.closing.add(cleanup)
@@ -492,9 +491,10 @@ export class McpServerPool implements McpToolSource {
           `MCP server ${server.spec.name} changed its tools: ${String(server.tools.length)} offered`,
         )
       }
-    } catch (error: unknown) {
+    } catch {
+      // The record names the server, never the relist failure's text.
       this.deps.log.warn(
-        `MCP server ${server.spec.name} changed its tools, and they could not be listed again: ${describe(error)}`,
+        `MCP server ${server.spec.name} changed its tools, and they could not be listed again`,
       )
     }
   }
@@ -503,7 +503,8 @@ export class McpServerPool implements McpToolSource {
     let args: unknown
     try {
       args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       args = undefined
     }
     if (typeof args !== 'object' || args === null || Array.isArray(args)) {

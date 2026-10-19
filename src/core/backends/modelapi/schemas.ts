@@ -513,7 +513,8 @@ export function restoreOptionalToolArguments(json: string, tool: FunctionToolDef
   let value: unknown
   try {
     value = JSON.parse(json)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return json
   }
   const restore = (input: unknown, schema: Record<string, unknown>): unknown => {

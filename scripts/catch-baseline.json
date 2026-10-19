@@ -7,9 +7,9 @@
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 222,
-      "GENERIC": 505,
-      "CLEANUP": 152
+      "SWALLOW": 206,
+      "GENERIC": 450,
+      "CLEANUP": 153
     },
     "host": {
       "SWALLOW": 77,
@@ -219,16 +219,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/core/backends/modelapi/argumentPreview.ts",
-      "identity": "0fb6da94e59ebe01b4b4116f71bb69b78fa770ce459d685921b40ee9726f486c",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/argumentPreview.ts",
-      "identity": "c707245458f79e758a09564a8e3e9525eed083159e58500cba226cb94a412a7d",
-      "class": "SWALLOW"
-    },
-    {
       "file": "src/core/backends/modelapi/autoCompactionAdmission.ts",
       "identity": "9f21e14350320556f8fae992ec8f5e046327bbc5a698d37b1e9d4281c58e1aa8",
       "class": "SWALLOW"
@@ -249,94 +239,14 @@
       "class": "SWALLOW"
     },
     {
-      "file": "src/core/backends/modelapi/client.ts",
-      "identity": "9186e12614fd3391cb6ffb0aa59462a579f8de722717a64e529ff5907ade8b41",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/client.ts",
-      "identity": "90fef1e4a56fdbda78c79cba40578089bc9d5c5218d9016f1ad7864f9bbc6281",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/client.ts",
-      "identity": "be844210e5aae35fcacb2f40cc328ab05ba8d12a19bbf1308c1168d545fff16e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/codecs/anthropic.ts",
-      "identity": "9c70380f2b4382d3ce004dec43f2a6db554f89edcd479883d90e123a6accd0c1",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/codecs/anthropic.ts",
-      "identity": "658643edd9fe1b0f49e67c0fddb077dc4c3aef61826a4dfad0934b1b2bfdeed3",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/codecs/anthropic.ts",
-      "identity": "ddf793d4b81eb6b1611cf114845d5ff89c9e0d85e5509fed9b7229958f8513f1",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/codecs/chat.ts",
-      "identity": "8f18c5434890af2a6a3ffbbb8279468a73864a69e5b5958d90961380776dc9fd",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/codecs/chat.ts",
-      "identity": "0cff62e6bf9e6dfd847a1f4420c3ead3ccefbc81d6ceca42d019b36ccf08913a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/codecs/chat.ts",
-      "identity": "b9fdf2233891baefc476b9a3f1b89fb6a3c8e6738bbc5ecf481a116e75fc070b",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/core/backends/modelapi/codecs/gemini.ts",
       "identity": "6d2efe71a2a4bb6f1e1c77bf79c77fcce48909960c038f17b454ce701609a4e3",
       "class": "CLEANUP"
     },
     {
-      "file": "src/core/backends/modelapi/codecs/gemini.ts",
-      "identity": "ff9b34bc1a966bd1bd8b700592282392f0cfcda780542badc0bede9653471dc4",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/codecs/gemini.ts",
-      "identity": "3511113f1b62a28002282f4cb57c3b035e9a129a57a224c4a0b1d476a57fc30e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/codecs/ollama.ts",
-      "identity": "af37f4b198402faf8d87eabcd6864207d3bf4203d2f7a7a90ae02438a0d19988",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/codecs/ollama.ts",
-      "identity": "11f77146080d7a6eae00595420659542c8e7a0d3132ceaae2105ded6e2c40325",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/codecs/ollama.ts",
-      "identity": "6c6dc02dc092fe3917a2ad54df51f526104de16d9ce89531273822b1ecc03e84",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/core/backends/modelapi/codecs/ollama.ts",
       "identity": "9be9540c0e788066f9f81cc6d76da7cff5deb4019b1430e2f1ca29137c9fa947",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/backends/modelapi/codecs/responses.ts",
-      "identity": "a96eb98357812cc358fd64eeb0e4a35aac56dc90c128799487be2446b0ed6959",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/codeIntelCalls.ts",
-      "identity": "a3986faccc5364e50aab0156b319a4efce265225e7e6708fee5948f1a6604c06",
-      "class": "SWALLOW"
     },
     {
       "file": "src/core/backends/modelapi/codeIntelCalls.ts",
@@ -345,22 +255,7 @@
     },
     {
       "file": "src/core/backends/modelapi/extensionHooks.ts",
-      "identity": "e4cfcb178143ad682afacad70a9ed09447258fdff435ae8dc65abb84cdd53e99",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/extensionHooks.ts",
-      "identity": "8aae3a13179a6a5fc191b4a563ab8d63609ad8fef4a0c520751c692eb1c472b2",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/extensionHooks.ts",
-      "identity": "149a1034213c65f997b0c259b45c5ea9df2f84d90f14f2ff54dae94058260554",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/extensionHooks.ts",
-      "identity": "ebdf0e78676e11096119357c7fd90c9d42a95705adfb0b09baebcd293be98c0b",
+      "identity": "b6694cb4aa916e742932fe29d6b6f411aa6bdd1872d242b1d12c6fd246df2047",
       "class": "GENERIC"
     },
     {
@@ -394,11 +289,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/core/backends/modelapi/goals.ts",
-      "identity": "2bbd84f38c385117a368fcab0cb83c31bd30e31b11ae1761e27c0a68a1e5438e",
-      "class": "SWALLOW"
-    },
-    {
       "file": "src/core/backends/modelapi/hookFormats/clineDiscover.ts",
       "identity": "afa150f4a092815a681cef7a67c0d086a5903c4fa88fba9768e39b86c8d5e600",
       "class": "GENERIC"
@@ -417,16 +307,6 @@
       "file": "src/core/backends/modelapi/hookFormats/clineDiscover.ts",
       "identity": "7c9807a52538a818f36238b995d1e60795e173b793aeaaede6411e2f1b1e1640",
       "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/hookFormats/core.ts",
-      "identity": "c213122010e8182f14d4cdb6deea80a1a118b18b2857b3bd16e76740fea63ef3",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/hookHandlers.ts",
-      "identity": "928facc246ca5a7e85c6d6f1cc32aedafeecbbad908df85ad57bbd0281e344f6",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/backends/modelapi/hookHandlers.ts",
@@ -450,27 +330,12 @@
     },
     {
       "file": "src/core/backends/modelapi/hooks.ts",
-      "identity": "325e6e3e5c1f5b796462e735e829bfa11511aee21a7f3ad475c4927e5c664f08",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/hooks.ts",
       "identity": "07a5ce02212f3249649f87bf2f1b75f5c091f097bd3ac770c3468da552488aa7",
       "class": "GENERIC"
     },
     {
       "file": "src/core/backends/modelapi/hooks.ts",
       "identity": "37900f435173e08dc0da28ce593b85fea1d64976c2b5ff411520821d0cbeb6d7",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/hooks.ts",
-      "identity": "25f2016e1bdefd0bcdc87ae492d2e9321481c16b1f05e79a2363dee4e3798d37",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/hooks.ts",
-      "identity": "b5e33cf8b62a2c5ff8080ab20e22554d5f9d5d60fac027ab0d7ea45423bc57b1",
       "class": "GENERIC"
     },
     {
@@ -514,11 +379,6 @@
       "class": "SWALLOW"
     },
     {
-      "file": "src/core/backends/modelapi/hooks.ts",
-      "identity": "d64b81c67f8be757b0176abd2dcc375430b953cdc2eaa9af1a6ffeb1e438e7eb",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/core/backends/modelapi/imageGeneration.ts",
       "identity": "c7e665f2683ce902d53adad61e54edad30170f921f3dc282b8c38cb8d8fda0c9",
       "class": "GENERIC"
@@ -529,34 +389,9 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/core/backends/modelapi/mcp/connection.ts",
-      "identity": "e24ffce06402f31b76189f863a2eae1d137dd17e0769ddd4da01dde1fb4c48d8",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/mcp/functions.ts",
-      "identity": "f3e66bc5517b36255154abbdb893d9e5e0f1f0d50c83df83d0d7a6ff1d43f8e5",
-      "class": "SWALLOW"
-    },
-    {
       "file": "src/core/backends/modelapi/mcp/http.ts",
       "identity": "9936da088dca287ad22178368e17df9e71e8037eb50b9b546f68c66a3f243253",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/backends/modelapi/mcp/http.ts",
-      "identity": "3a8ef92bfb83eeae3c9c45fef6259c6b8509198c70a852c5fbef599552cadafb",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/mcp/http.ts",
-      "identity": "1a5f56b305822e7cb4cccb71adff3309b9e3bec859a16da5bfbf3d93ae1d0d71",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/mcp/http.ts",
-      "identity": "e321bef1abf018da098588f39a49d0edef8a36fa8492e3d23f4b490553024705",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/backends/modelapi/mcp/pool.ts",
@@ -566,41 +401,6 @@
     {
       "file": "src/core/backends/modelapi/mcp/pool.ts",
       "identity": "a358a9b0415f4fc7fdf7a9d08dd7e52e6334518c4276db0d10a392de94ead75c",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/mcp/pool.ts",
-      "identity": "14d40b23185aad9192b9f785b805b9341ef704044cf39a9519f665c3ed58cac6",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/mcp/pool.ts",
-      "identity": "c6c2a4d82e1eb91e9060262106d19bcec166bf5022ff1482b7563d38e621b3d0",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/mcp/pool.ts",
-      "identity": "279b9dcab1f5784adf21d26460062724666363d0c35cb5dbf1e2313941a89530",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/mcp/servers.ts",
-      "identity": "6b3848990cd91ec7ccca54ad8eac46f6cedf944386c567389fbaa84137439ec9",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/memoryTools.ts",
-      "identity": "9cfb6eb6d3781a549d7b3bb0ced0ecfbdd5c461af36d8c31c1b4946fcf6fac8b",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "10e388d34b0c116ef9ab41656cf221afecdc58fd64db975a7f6842c09de7d37a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "e368d47cd2e1201d261def76a38a9ac1cf4aef2ee4be60b20217fef68fb79abd",
       "class": "GENERIC"
     },
     {
@@ -625,12 +425,7 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "5126a4296f1488e20d81c78e96f824c18bbed3ef50e69d97e47da5b3b098bec0",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "112445321b5bd7bf0da2c3c92014a1dbfe477f09f1187dfd879c9c086cebd428",
+      "identity": "e19623c68afc0848e58ee99071e10ed540424d52de8cb9c2f6713015a3c939aa",
       "class": "GENERIC"
     },
     {
@@ -650,11 +445,6 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "840b0f8e5bf7899d8976b5db7eba47f8a4c6a057189b8e7647954b9728529416",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
       "identity": "82b9ca17b5d5444bee3bb35dff04fb6ac1f82b60496a82c2810e93c93b9004b4",
       "class": "GENERIC"
     },
@@ -670,18 +460,8 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "0735192ac981dc9720cf3654add47de147ae721a8d89ac592994b2ac9833f165",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
       "identity": "e24c5408db9c431598a5eb50b14489c53428cd8d42b928eb6367bd6405a3ed48",
       "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "6bf2de748e66bb25159bf5bf6566c488ea9f4cd7549c64b7732c3569f20969e5",
-      "class": "SWALLOW"
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
@@ -705,12 +485,7 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "29ad6e9a577d86f422713b0161b328e339e879aa098a60ead2be6fe59d0d71cd",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "bdde5c3c5ab95403740fc26c4127600244b5322c636ee316449788ce58b31858",
+      "identity": "e0e9c2191315da08d911fb3716a0781dfd8e44c378117b979c1d4b51df4a07d7",
       "class": "GENERIC"
     },
     {
@@ -730,18 +505,13 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "1c58a1cb224d1aade0c795c9febf35df14f9b339a28d3ab94967865be864d5f7",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
       "identity": "6e225fd407739323b4c85b2a396986f72bc2ec9630921ae7e5ec8eded1039ce5",
       "class": "SWALLOW"
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "85a4a3bc099171c5999c0efa5568e97258039c2854f648d6e5863030ed3cd3f1",
-      "class": "GENERIC"
+      "identity": "4656da44cf9ccafc85705705659315df5b417d2a455236149abc4d48ee6590cf",
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
@@ -750,12 +520,12 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "e9951d44f5a8c598ef56bae4425b9f08313fe1c24fbb8886b58f683dbb9b8eaa",
+      "identity": "6c12fdcd8e0bcbaf18ccb61c0d28bd4eb1a18cdf1636f52a6da408fc053b1213",
       "class": "GENERIC"
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "0549ccbac00c3e550a9ac0631224c93a467a673737a7ac9445c669f6b9b9c037",
+      "identity": "7a0249c8d5d1fe15ab3276924524df091e7dceb49158d8ee21f577c91c088458",
       "class": "GENERIC"
     },
     {
@@ -765,12 +535,7 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "527ee294c68a2bafc4e31e9e8bc8178e7e53b7a6d76a1312a01e7a9be918e534",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "2fc1e0e8dd38f4e5eb2169a92a754772a039263e52cc09bf0842036ff80103be",
+      "identity": "2cc5311fdc2552b4bf85d4d64b6c46c544a1edf551a985fbcf2ce553669aa8e8",
       "class": "GENERIC"
     },
     {
@@ -805,23 +570,8 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "d504d94bee3a0b042f7ec5340b72e55c9298788ac52033c8a2b0a763c7325b9a",
+      "identity": "5ed0ee03abf01044982ba82a8d5f041cfc4b342ec0cd1f6b45dba00dd4128702",
       "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "e25ba6b08092d17c80fc6ec1056027a3a308970a11c24c2732217245360d40be",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "33f548bdb630b307ae206406cd9727bf2cd9a76af6e776d6752bd4a43eaf8555",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "14bff0f1a14163410cb58a20f75a290d423e07ca73d403ca51f9cd6633b29cd5",
-      "class": "SWALLOW"
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
@@ -840,17 +590,7 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "98e599ab02b8d4d190a017f389676c3cffada9437d39adc70a1d69b81ee18325",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
       "identity": "bf59f11013f4a9a6754caeb92b36baeefee9ca688a45baf197302c629f0c2511",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "014112ca8c758bbd2664d8f2c19229347997e2dc98c33015bad8edd87c042321",
       "class": "GENERIC"
     },
     {
@@ -875,48 +615,18 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "c03ffb4d1909014c59ff53607bc0696ab69dd4b1d4e8dfaa44dadb68f1b82242",
+      "identity": "e5d6cfd432ff464190525b4882bf7d1baaf750f762b81a64fc3961141eee37f5",
       "class": "GENERIC"
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "ad2f409eb91cd8f4e116aa24b810580ef07420611a4bf4ee9ba79872ebf1b823",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "bfc004dd24ac730ad6c24ff061152e3abb3b023ba5854228f2452c9b6004d01c",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "f21eed7fed8b0015a12d4e1ee8310727cdd4344cc49dbc9aa2617f0100ea918b",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "c99b34de1f58fd5b89df2cb004fbdeaa938ff3b3910205a50bc84a2d287da299",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "5e882f55b194521e8f0c76dd166b8146087aebca4e613f328ed1f595c88b01be",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ndjson.ts",
-      "identity": "923a76970c305316cfa7e2fdfc098e2b8400b9de994f534e16cc4cfd619ca7ef",
+      "identity": "af42f56bf4ecc6261f4a455e719098c207381c8c6e22140fa585b1d2e56acba4",
       "class": "GENERIC"
     },
     {
       "file": "src/core/backends/modelapi/observationPack.ts",
       "identity": "ffcee64ccaa63454bb4955b26e29d38a277aacf715ba7ddea1f69099995a35f9",
       "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/permissionPolicy.ts",
-      "identity": "e866f4b1beee90097966c6a6c52bad8ef256700755e78496eed9e9fca74c4bc3",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/backends/modelapi/pluginHost.ts",
@@ -942,11 +652,6 @@
       "file": "src/core/backends/modelapi/pluginHost.ts",
       "identity": "0a8fb0d20d5737f0da342f40408d8000bb603f0ef37b31384033e2c398fa608e",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/backends/modelapi/pluginHost.ts",
-      "identity": "6244624269e4d2df52db2914e11dfcc90c40bbad0a9d873434914e46ed8aaf47",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/backends/modelapi/pluginHost.ts",
@@ -980,33 +685,8 @@
     },
     {
       "file": "src/core/backends/modelapi/schedulesEntry.ts",
-      "identity": "488f918a7bb62037810efb7db23c51d7a60911b735873a6600407cd4bd11fc38",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/schedulesEntry.ts",
-      "identity": "f49c1cdada74a558a46907f152e3f680cbfe2e57c443037c25c5e9108c9dde9e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/schedulesEntry.ts",
-      "identity": "0d4943f5576047fcd16fab1a1223c03543fa27a2a3bc2bc64ef66fa4304f1733",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/schedulesEntry.ts",
       "identity": "eac04e49c0f81eead64fde4290ed52ae0a8a0a764899f2801e34ba76e10b19ba",
       "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/schemas.ts",
-      "identity": "71bea9dcdd22aa9e8a5ecad4d0f12b3534826dfebc61877fdb07fafb40061820",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/structuredOutput.ts",
-      "identity": "706e934aa41c43eb7cf442c4832f3ea65d2772461894f13e101c628f88521b9d",
-      "class": "SWALLOW"
     },
     {
       "file": "src/core/backends/modelapi/structuredOutput.ts",
@@ -1020,12 +700,12 @@
     },
     {
       "file": "src/core/backends/modelapi/tools.ts",
-      "identity": "0f8c40bc1487b9aba3e1e8a84e2e308e81d2261a63d0940414ba4f320bd55a50",
+      "identity": "7154e42fbcd28fd4e90b6eb15de2b512d2b870a2fd0947962f93ac646f070dbe",
       "class": "GENERIC"
     },
     {
       "file": "src/core/backends/modelapi/tools.ts",
-      "identity": "7e63d29556c79a1639d3d21aadb6d89ff8196e24516ba9ca7d630c7632294fc0",
+      "identity": "f62e8b1741d34697cc3b7ee2fa1d165afab025375c55b34c8f79fcc1c4eabed9",
       "class": "GENERIC"
     },
     {
@@ -1060,22 +740,7 @@
     },
     {
       "file": "src/core/backends/modelapi/tools.ts",
-      "identity": "38896068db5f243abc06b1db0d701f7a8785424408f34836e99f53473fe75e1b",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/tools.ts",
       "identity": "f56c1cb12f0b83fcbaf061cbd288394b4b8756b6d330ee712b1870d25c17592a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/tools.ts",
-      "identity": "a8aae68795195ea886cec2f1aaabcfadfd075d330d999c4129147e3e338a131d",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/transport.ts",
-      "identity": "87c5de2a8716846af7403f2cc995b505d9a5ab7a37148bc33fe4ea7895a4c1e6",
       "class": "GENERIC"
     },
     {
@@ -1100,22 +765,7 @@
     },
     {
       "file": "src/core/backends/modelapi/transport.ts",
-      "identity": "899a400479c94b4d630e1c97cc44f82329f97e871e1f475a9f47475a4aab4d43",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/transport.ts",
       "identity": "a372d149b37276c90d55a89a451aaf3535e03696304dc5d5aff605d6d42ba20f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/verifyTools.ts",
-      "identity": "5f4095c6f8d98beb89991f49e6613aadf75b6394b9f3f8cb950b1ae3090db94e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/verifyTools.ts",
-      "identity": "256b495b888854baf66aa0f39e4f3310f5790e40063ce9ae06fda47822c463b0",
       "class": "GENERIC"
     },
     {
