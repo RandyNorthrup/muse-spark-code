@@ -133,8 +133,8 @@ export const EN = {
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
   toolArgumentPreviewPreparing: 'Preparing arguments…',
   modelApiContinuing: 'The output limit was reached. Continuing (part {count})…',
-  modelApiToolStuck:
-    'The turn stopped because the same tool call kept returning an unchanged result. Send a message to try another approach.',
+  modelApiToolRepeating:
+    'The model is repeating the same {tool} call with an unchanged result ({count} in a row). The call runs again — Stop ends the turn.',
   structuredOutputRepair:
     'The structured answer was not valid. Repairing it again (repair {count})…',
   structuredOutputRetry: 'The structured request failed. Trying again (attempt {count})…',

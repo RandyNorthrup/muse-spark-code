@@ -90,7 +90,7 @@
   "toolArgumentPreviewPending": "Esperando los argumentos completos…",
   "toolArgumentPreviewPreparing": "Preparando argumentos…",
   "modelApiContinuing": "Se alcanzó el límite de salida. Continuando (parte {count})…",
-  "modelApiToolStuck": "El turno se detuvo porque la misma llamada a herramienta devolvía un resultado sin cambios. Envía un mensaje para probar otro enfoque.",
+  "modelApiToolRepeating": "El modelo está repitiendo la misma llamada a {tool} con un resultado sin cambios ({count} seguidas). La llamada se ejecuta de nuevo — Detener termina el turno.",
   "structuredOutputRepair": "La respuesta estructurada no era válida. Reparándola de nuevo (reparación {count})…",
   "structuredOutputRetry": "La solicitud estructurada falló. Intentando de nuevo (intento {count})…",
   "structuredOutputFallback": "No se pudo validar la respuesta estructurada. Se usará la respuesta de texto.",

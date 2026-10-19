@@ -90,7 +90,7 @@
   "toolArgumentPreviewPending": "En attente des arguments complets…",
   "toolArgumentPreviewPreparing": "Préparation des arguments…",
   "modelApiContinuing": "La limite de sortie a été atteinte. Suite (partie {count})…",
-  "modelApiToolStuck": "Le tour a été arrêté car le même appel d’outil renvoyait un résultat inchangé. Envoyez un message pour essayer une autre approche.",
+  "modelApiToolRepeating": "Le modèle répète le même appel d’outil {tool} avec un résultat inchangé ({count} de suite). L’appel est relancé — Arrêter met fin au tour.",
   "structuredOutputRepair": "La réponse structurée n’était pas valide. Nouvelle réparation (réparation {count})…",
   "structuredOutputRetry": "La demande structurée a échoué. Nouvel essai (essai {count})…",
   "structuredOutputFallback": "La réponse structurée n’a pas pu être validée. La réponse textuelle sera utilisée.",

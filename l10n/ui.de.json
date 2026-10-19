@@ -90,7 +90,7 @@
   "toolArgumentPreviewPending": "Warten auf vollständige Argumente…",
   "toolArgumentPreviewPreparing": "Argumente werden vorbereitet…",
   "modelApiContinuing": "Das Ausgabelimit wurde erreicht. Fortsetzung (Teil {count})…",
-  "modelApiToolStuck": "Der Durchlauf wurde gestoppt, weil derselbe Werkzeugaufruf wiederholt ein unverändertes Ergebnis lieferte. Senden Sie eine Nachricht, um einen anderen Ansatz zu versuchen.",
+  "modelApiToolRepeating": "Das Modell wiederholt denselben {tool}-Aufruf mit unverändertem Ergebnis ({count}. Mal in Folge). Der Aufruf läuft erneut — Stop beendet den Durchlauf.",
   "structuredOutputRepair": "Die strukturierte Antwort war nicht gültig. Sie wird erneut repariert (Reparatur {count})…",
   "structuredOutputRetry": "Die strukturierte Anfrage ist fehlgeschlagen. Erneuter Versuch (Versuch {count})…",
   "structuredOutputFallback": "Die strukturierte Antwort konnte nicht validiert werden. Die Textantwort wird verwendet.",

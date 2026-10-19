@@ -90,7 +90,7 @@
   "toolArgumentPreviewPending": "Tam bağımsız değişkenler bekleniyor…",
   "toolArgumentPreviewPreparing": "Bağımsız değişkenler hazırlanıyor…",
   "modelApiContinuing": "Çıktı sınırına ulaşıldı. Devam ediliyor (bölüm {count})…",
-  "modelApiToolStuck": "Aynı araç çağrısı sürekli değişmeyen bir sonuç döndürdüğü için tur durduruldu. Başka bir yaklaşım denemek için mesaj gönderin.",
+  "modelApiToolRepeating": "Model, aynı {tool} çağrısını değişmeyen bir sonuçla tekrarlıyor (üst üste {count}). Çağrı yeniden çalışır — Durdur, turu bitirir.",
   "structuredOutputRepair": "Yapılandırılmış yanıt geçerli değildi. Yeniden onarılıyor (onarım {count})…",
   "structuredOutputRetry": "Yapılandırılmış istek başarısız oldu. Yeniden deneniyor (deneme {count})…",
   "structuredOutputFallback": "Yapılandırılmış yanıt doğrulanamadı. Metin yanıtı kullanılacak.",

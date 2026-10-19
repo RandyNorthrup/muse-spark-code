@@ -2552,7 +2552,8 @@ export const MODEL_API_PARALLEL_READS = 4
 // D121 (owner 2026-10-16): no continuation bound of ours — a reply cut at
 // the output limit keeps going for as long as the model is mid-answer.
 // No provider documents a continuation count, so the product sets none.
-export const TOOL_REPEAT_LIMIT = 3
+// D121: no repeat bound of ours either — the repeat guard only names a
+// repeat so the person is told in plain words, and the call always runs.
 export const TOOL_ARGUMENT_PREVIEW_MAX_CHARS = 16_000
 /** Incremental preview grammar stops before deeply nested untrusted arguments. */
 export const TOOL_ARGUMENT_PREVIEW_MAX_DEPTH = 32
@@ -7301,8 +7302,8 @@ export const BYO_MODEL_REFERENCE_PATTERN = /^[a-z][a-z0-9-]{0,31}\/\S+$/
 export const MODEL_API_MODEL_TEXT = {
   // M106: only the Model API loop reads these, so keep them in its lazy
   // block rather than carrying new keys in activation's MODEL_TEXT (D6).
-  toolRepeatStopped:
-    'This tool call repeats the same arguments and unchanged result. It was not run again. Use a different approach or explain what is blocking the task.',
+  // D121: no repeat stop of ours — a repeated call runs again, so the model
+  // is never told to stop repeating.
   wrapUpReserved:
     'The remaining request is reserved for the final answer. The image was not generated.',
   // A count with its noun as slots: model text must stay literal strings
