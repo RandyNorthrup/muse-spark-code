@@ -3,7 +3,6 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
 import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import {
-  EXEC_MAX_REQUESTS,
   EXEC_MIN_OUTPUT_TOKENS,
   EXEC_USD_DECIMALS,
   EXEC_USD_UNITS,
@@ -257,9 +256,7 @@ export function createRunLedger(input: {
   if (
     cap <= ZERO ||
     (input.maxRequests !== undefined &&
-      (!Number.isSafeInteger(input.maxRequests) ||
-        input.maxRequests < 1 ||
-        input.maxRequests > EXEC_MAX_REQUESTS))
+      (!Number.isSafeInteger(input.maxRequests) || input.maxRequests < 1))
   )
     throw new UserRefusalError(UI_TEXT.execNumberInvalid, 'accounting_invalid')
   let requests = 0

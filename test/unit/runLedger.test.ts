@@ -80,6 +80,15 @@ describe('M80 ledger integer admission and retained liability', () => {
   it.each([0, 0.5, NaN, Infinity])('rejects invalid request cap %s', (maxRequests) => {
     expect(() => createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests })).toThrow()
   })
+  it('accepts a set request cap past 500 with no maximum', () => {
+    // No provider publishes a request-count maximum, so the product sets none.
+    for (const maxRequests of [501, 1_000_000]) {
+      const l = createRunLedger({ capUsd: Usd.from(20).toAmount(), maxRequests })
+      const ticket = response(l)
+      l.settleResponse(ticket, eof())
+      expect(l.totals().requests).toBe(1)
+    }
+  })
   it('admits past any count when the person set no request cap', () => {
     // NOLIMITS5: without `--max-requests` there is no request limit. Forty
     // sequential admissions (past the old default of 30) settle tiny usage

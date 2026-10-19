@@ -10,7 +10,6 @@ import {
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
   EXEC_DEFAULT_TIMEOUT_SECONDS,
-  EXEC_MAX_REQUESTS,
   EXEC_MAX_TIMEOUT_SECONDS,
   EXEC_MIN_TIMEOUT_SECONDS,
   MODEL_API_MAX_OUTPUT_TOKENS,
@@ -253,11 +252,11 @@ export function parseExec(
   // The six-decimal sentence is true only of the budget; a wrong timeout
   // or request count names its own flag instead (D119).
   // No default: without `--max-requests` the run has no request limit. A set
-  // value stays within 1–EXEC_MAX_REQUESTS, like the budget grammar below.
+  // value is any positive safe integer; no provider publishes a maximum.
   const maxRequests =
     values['max-requests'] === undefined
       ? undefined
-      : integer(values['max-requests'], 0, 1, EXEC_MAX_REQUESTS)
+      : integer(values['max-requests'], 0, 1, Number.MAX_SAFE_INTEGER)
   // TOOLCAP: absent keeps the setting default; the floor is the readable one
   // (no 0-disables: one tool result can never end a conversation); the window
   // fit is refused at runtime with its reason, where the model's window is known.

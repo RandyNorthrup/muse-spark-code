@@ -5418,8 +5418,8 @@ lists what they covered); the first live receipt with a real key (LA, on a candi
 **not certified yet**. The Action installs the agent from npm and checks its
 provenance (0.12.0 is the first npm release with `exec`), or a candidate
 tarball you pin (`agent-package` with `agent-package-sha256`). With no
-`max-requests` input the Action sets no request limit; a set value allows 1–500
-billable HTTP attempts, retries included.
+`max-requests` input the Action sets no request limit; a set value allows any
+positive number of billable HTTP attempts, retries included.
 [The CI guide](docs/ci.md) lists every option, exit code, bound and recipe.
 
 ```text
