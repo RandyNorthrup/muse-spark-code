@@ -107,13 +107,65 @@ the test). Referred to the lead for a tree-wide pass.
 
 ## Noted, not fixed (pre-existing sinks outside JOINC, with why)
 
-- DNS-rebinding TOCTOU in `pinProviderFetch`
-  (`src/runtime/exec/providerExec.ts:383-385`): answers re-checked
-  before `fetch`, but `fetch` re-resolves by hostname. Fixing needs
-  dial-level IP pinning; predates JOINC, leaving the check/export
-  behavior unchanged.
 - `resetDurationMs('999999h')` -> 3.6e12 ms feeds derived pacing
   windows with no ceiling (`pacing.ts:104`). Only background classes
   wait on windows, every wait is Stop-abortable, and legitimate
   day-long windows (Groq) exist; capping would change real pacing
   math. Left as is.
+
+## Follow-up (2026-10-18, lane AUDITSEC2FIX): the owner's way
+
+### F1 replaced: the provider's wait is honoured whole, told, and stoppable
+
+The `MODEL_API_RETRY_MAX_MS` cap above contradicts the owner's limits
+rule (AGENTS.md: the only hard-coded limits are each provider's own),
+so the silent cap is gone: `backoffMs` returns a named wait whole
+(`src/core/backends/modelapi/transport.ts`), and `observe` pauses
+background dispatch for the whole named wait
+(`src/core/backends/modelapi/pacing.ts`). Only our own exponential
+fallback (no provider value to honour) keeps a ceiling. In its place
+the truth: the retry notice names the provider's wait and when it ends
+in absolute time and plain words
+(`UI_TEXT.modelApiProviderRetryWait`, filled with
+`formatDateTime(now + delay)`, in all 14 tables), fired at once before
+the pause, and the pause stays Stop-abortable (`pause` races the turn's
+signal). The `HTTP 429:` reason prefix is unchanged, so the
+rate-limited retry readers match as before.
+
+Proof: `test/unit/providerPacing.test.ts` (`provider waits are
+honoured whole`: the exact negation of the cap assertions, failing on
+the capped code and passing on this tree, 15/15) and the new
+`test/unit/providerRetryWait.test.ts` driving the real
+`RequestTransport.request` against a real loopback socket with real
+timers and a real `AbortSignal`: a hostile `retry-after-ms:
+99999999999999` yields four uncapped-wait notices carrying the
+absolute-time sentence (5 socket hits: 1 + 4 retries), and a
+`Retry-After: 120` wait ends at once on Stop (1 notice, 1 hit,
+`cancelled`, milliseconds not minutes). Both suites fail on the capped
+code (the notice suite hits the repo's own 5 s timeout on the 60 s
+capped sleep — the silent stall, observed).
+
+### DNS-rebinding TOCTOU in `pinProviderFetch`: pinned at the dial
+
+`pinProviderFetch` (`src/runtime/exec/providerExec.ts`) no longer
+hands the name to `fetch` after checking: it resolves once per request,
+checks every answer against the saved network (`rebinding` before
+anything is sent, as before), and dials the checked address through
+Node's `lookup` answering that address only — the address checked is
+the address dialled even when DNS changes in between. TLS still sends
+and verifies the original name (`servername` defaults to it) and the
+`Host` header carries it, as web fetch's pinned transport does
+(`src/host/web/pinnedRequest.ts`); redirects stay refused
+(`redirect: 'error'` parity via `HTTP_REDIRECT_STATUSES`). The unused
+`fetch` parameter is gone from the pin, `probeProvider`,
+`ProviderRunInput`, and `ProvidersDeps` (with its `main.ts` supplier).
+`lookup` needs the address family beside it (measured on Node 24:
+family in the callback alone fails with `Invalid IP address`).
+
+Proof: `test/unit/providerPinDial.test.ts` with a real resolver
+function returning a fixed address list and a real loopback server
+under the unresolvable name `probe.invalid` (RFC 2606: no machine
+resolves it, so an answer proves the dial used the checked address):
+the request reaches `127.0.0.1` with `Host: probe.invalid:<port>`
+after exactly one resolution; answers moved to `169.254.169.254`, or
+mixed with it, send nothing (`rebinding`, zero socket hits).
