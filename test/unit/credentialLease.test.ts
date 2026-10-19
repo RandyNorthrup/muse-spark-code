@@ -4,6 +4,7 @@
 // lock never wedges the next command, and a contender that already lost a
 // takeover race never deletes the winner's live lock. All on real files,
 // with real process-liveness checks.
+import { randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -14,32 +15,23 @@ import {
   currentProcessStartTime,
 } from '../../src/core/credentialLease'
 import { credentialLeaseSecrets } from '../../src/host/models/credentialLeaseSecrets'
-import type { SecretStore } from '../../src/host/auth/credentialStore'
 import { UI_TEXT } from '../../src/shared/constants'
+import { keyringSecretStore } from '../../src/runtime/keyStore'
 import { userFileIo } from '../../src/runtime/providersCommands'
+import { memoryKeyring } from './helpers/keyring'
 
 /** A pid the liveness check really reports dead (past any real pid). */
 const DEAD_PID = 2_147_483_647
 
-function mapSecrets(): { store: SecretStore; writes: string[] } {
-  const data = new Map<string, string>()
-  const writes: string[] = []
-  return {
-    writes,
-    store: {
-      get: (key) => Promise.resolve(data.get(key)),
-      store: (key, value) => {
-        writes.push(key)
-        data.set(key, value)
-        return Promise.resolve()
-      },
-      delete: (key) => {
-        writes.push(key)
-        data.delete(key)
-        return Promise.resolve()
-      },
-    },
-  }
+/**
+ * The runtime's real secret store: the keyring logic (parts, reclaim,
+ * per-account named locks) with the native entry behind a map, the seam the
+ * store itself sanctions for tests. VS Code's SecretStorage needs the
+ * editor, so nothing here can cover it; the guard is store-agnostic.
+ */
+function testSecrets() {
+  const { openEntry } = memoryKeyring()
+  return keyringSecretStore(openEntry, { lockScope: randomUUID() })
 }
 
 describe('acquireCredentialLock', () => {
@@ -141,11 +133,10 @@ describe('acquireCredentialLock', () => {
     it('runs panel credential writes inside the shared lease', async () => {
       const base = await freshDir()
       const lockDir = path.join(base, 'providers.json.lock')
-      const { store, writes } = mapSecrets()
-      const guarded = credentialLeaseSecrets(store, lockDir)
+      const secrets = testSecrets()
+      const guarded = credentialLeaseSecrets(secrets, lockDir)
       await guarded.store('key', 'value')
       expect(await guarded.get('key')).toBe('value')
-      expect(writes).toEqual(['key'])
       // No residue: each guarded write acquires and releases.
       await expect(readFile(path.join(lockDir, 'owner.json'), 'utf8')).rejects.toThrow()
       await guarded.delete('key')
@@ -155,12 +146,12 @@ describe('acquireCredentialLock', () => {
     it('refuses a panel write while a Connect transaction holds the lease', async () => {
       const base = await freshDir()
       const lockDir = path.join(base, 'providers.json.lock')
-      const { store } = mapSecrets()
-      const guarded = credentialLeaseSecrets(store, lockDir)
+      const secrets = testSecrets()
+      const guarded = credentialLeaseSecrets(secrets, lockDir)
       const release = await acquireCredentialLock(lockDir)
       try {
         await expect(guarded.store('key', 'value')).rejects.toThrow(UI_TEXT.providerConnectBusy)
-        expect(await store.get('key')).toBeUndefined()
+        expect(await secrets.get('key')).toBeUndefined()
       } finally {
         await release()
       }
