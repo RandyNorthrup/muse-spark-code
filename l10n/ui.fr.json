@@ -4078,6 +4078,7 @@
   "turnFailed": "Le tour a échoué.",
   "turnRetrying": "La tentative {attempt}/{maxAttempts} a échoué ({reason}) ; nouvelle tentative dans {seconds} s.",
   "turnRetryingUncapped": "La tentative {attempt} a échoué ({reason}) ; nouvelle tentative dans {seconds} s (aucune limite de tentatives définie).",
+  "modelApiProviderRetryWait": "{reason} ; le fournisseur a demandé d’attendre jusqu’à {time}. Vous pouvez arrêter le tour à tout moment.",
   "usageWindowHours": {
     "one": "fenêtre de {count} heure",
     "other": "fenêtre de {count} heures",

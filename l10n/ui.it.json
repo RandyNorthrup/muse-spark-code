@@ -4078,6 +4078,7 @@
   "turnFailed": "Il turno non è riuscito.",
   "turnRetrying": "Tentativo {attempt}/{maxAttempts} non riuscito ({reason}); nuovo tentativo tra {seconds} s.",
   "turnRetryingUncapped": "Tentativo {attempt} non riuscito ({reason}); nuovo tentativo tra {seconds} s (nessun limite di tentativi impostato).",
+  "modelApiProviderRetryWait": "{reason}; il provider ha chiesto di attendere fino a {time}. Puoi interrompere il turno in qualsiasi momento.",
   "usageWindowHours": {
     "one": "finestra di {count} ora",
     "other": "finestra di {count} ore",

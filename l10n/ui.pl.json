@@ -4165,6 +4165,7 @@
   "turnFailed": "Tura nie powiodła się.",
   "turnRetrying": "Próba {attempt}/{maxAttempts} nie powiodła się ({reason}); ponowienie za {seconds} s.",
   "turnRetryingUncapped": "Próba {attempt} nie powiodła się ({reason}); ponowienie za {seconds} s (nie ustawiono limitu ponowień).",
+  "modelApiProviderRetryWait": "{reason}; dostawca poprosił o odczekanie do {time}. Turę możesz zatrzymać w dowolnym momencie.",
   "usageWindowHours": {
     "one": "Okno {count}-godzinne",
     "other": "Okno {count}-godzinne",

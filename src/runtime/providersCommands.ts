@@ -619,8 +619,38 @@ function pinRefusedCause(error: unknown): unknown {
  * Azure's `paid-token` test has no free check and stays in the panel, where
  * its cost is asked first.
  */
-export async function probeProvider(
+type ProbeProviderSeamArgs = [
   fetch: typeof globalThis.fetch,
+  provider: ResolvedProvider,
+  key: string | undefined,
+  resolveHost: ProvidersDeps['resolveHost'],
+]
+
+type ProbeProviderDialArgs = [
+  provider: ResolvedProvider,
+  key: string | undefined,
+  resolveHost: ProvidersDeps['resolveHost'],
+]
+
+export async function probeProvider(...args: ProbeProviderSeamArgs): Promise<ProbeOutcome>
+export async function probeProvider(...args: ProbeProviderDialArgs): Promise<ProbeOutcome>
+export async function probeProvider(
+  ...args: ProbeProviderSeamArgs | ProbeProviderDialArgs
+): Promise<ProbeOutcome> {
+  // The key test keeps its fetch seam for the refusal suites and dials the
+  // checked address everywhere else. The first argument tells the shapes
+  // apart; each tuple casts exactly once below because positional typing
+  // cannot follow it.
+  if (typeof args[0] === 'function') {
+    const [fetch, provider, key, resolveHost] = args as ProbeProviderSeamArgs
+    return await probeWithTransport(fetch, provider, key, resolveHost)
+  }
+  const [provider, key, resolveHost] = args as ProbeProviderDialArgs
+  return await probeWithTransport(undefined, provider, key, resolveHost)
+}
+
+async function probeWithTransport(
+  fetch: typeof globalThis.fetch | undefined,
   provider: ResolvedProvider,
   key: string | undefined,
   resolveHost: ProvidersDeps['resolveHost'],
@@ -637,7 +667,10 @@ export async function probeProvider(
   const auth = await import('../host/backend/configuredProvidersEntry')
   shared.setUiText(UI_TEXT, uiLocale())
   auth.setUiText(UI_TEXT, uiLocale())
-  const pinned = pinProviderFetch(fetch, provider, allowedProviderPaths(provider), resolveHost)
+  const pinned =
+    fetch === undefined
+      ? pinProviderFetch(provider, allowedProviderPaths(provider), resolveHost)
+      : pinProviderFetch(fetch, provider, allowedProviderPaths(provider), resolveHost)
   // Lane PROVERRORS: an answer reads with the provider's own format parser
   // and refusal sentence, a send with no answer with the network codes and
   // its unknown fate — the configured path's one reader, never a bare status.
@@ -678,15 +711,20 @@ export async function probeProvider(
     test,
     provider.origin,
     async (base, path) => {
-      const keyFetch =
-        base === provider.origin
-          ? pinned
-          : pinProviderFetch(
-              fetch,
-              { ...provider, origin: base, network: 'public', request: undefined },
-              [{ kind: 'exact', path }],
-              resolveHost,
-            )
+      const keyed: ResolvedProvider = {
+        ...provider,
+        origin: base,
+        network: 'public',
+        request: undefined,
+      }
+      let keyFetch: typeof pinned
+      if (base === provider.origin) {
+        keyFetch = pinned
+      } else if (fetch === undefined) {
+        keyFetch = pinProviderFetch(keyed, [{ kind: 'exact', path }], resolveHost)
+      } else {
+        keyFetch = pinProviderFetch(fetch, keyed, [{ kind: 'exact', path }], resolveHost)
+      }
       const checked = await get(`${base}${path}`, keyFetch)
       if (checked === undefined) return { ok: false, paid: false, reason: failureReason }
       return checked.status === HTTP_STATUS.ok
@@ -936,7 +974,7 @@ export async function providersAdd(
         : fill(UI_TEXT.providerEndpointRefused, { reason: UI_TEXT.providerProbeRebinding }),
     )
   }
-  const probe = await probeProvider(deps.fetch, resolved.provider, key, deps.resolveHost)
+  const probe = await probeProvider(resolved.provider, key, deps.resolveHost)
   if (!probe.ok) {
     return failed(
       deps,
@@ -1159,7 +1197,7 @@ export async function providersTest(deps: ProvidersDeps, providerId: string): Pr
       fill(UI_TEXT.providerEndpointRefused, { reason: UI_TEXT.providerProbeRebinding }),
     )
   }
-  const probe = await probeProvider(deps.fetch, provider, key, deps.resolveHost)
+  const probe = await probeProvider(provider, key, deps.resolveHost)
   if (!probe.ok) {
     return failed(
       deps,

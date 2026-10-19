@@ -16,6 +16,10 @@
 // request path and refuses to run until its capture is recorded (rule 13).
 
 import * as z from 'zod/mini'
+import { Buffer } from 'node:buffer'
+import { request as httpRequest } from 'node:http'
+import { request as httpsRequest, type RequestOptions } from 'node:https'
+import { isIP } from 'node:net'
 import type { CredentialRecord } from '../../core/providers/credentialRecord'
 const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl, originOf, verifyRequestAnswers } = endpointPolicy
@@ -39,7 +43,12 @@ import {
   setUiText as setProvidersUiText,
 } from '../../host/backend/providersEntry'
 import type { SecretStore } from '../../host/auth/credentialStore'
-import { CREDENTIAL_RECORD_VERSION, UI_TEXT } from '../../shared/constants'
+import {
+  ADDRESS_FAMILIES,
+  CREDENTIAL_RECORD_VERSION,
+  HTTP_REDIRECT_STATUSES,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill, uiLocale } from '../../shared/l10n/text'
 import {
   formatStoredProviderSecret,
@@ -377,67 +386,213 @@ export async function readProviderKey(
     : { ok: false, error: 'origin-mismatch', record: parsed.record }
 }
 
+/** A streamed upload forwarded chunk by chunk; anything else is sent whole. */
+function endPinnedBody(
+  outgoing: {
+    write(chunk: Uint8Array, callback: () => void): void
+    end(body?: Uint8Array | string): void
+  },
+  body: RequestInit['body'],
+  reject: (error: unknown) => void,
+): void {
+  if (body === undefined || body === null) {
+    outgoing.end()
+    return
+  }
+  if (typeof body === 'string' || body instanceof Uint8Array) {
+    outgoing.end(body)
+    return
+  }
+  if (body instanceof ArrayBuffer) {
+    outgoing.end(new Uint8Array(body))
+    return
+  }
+  if (body instanceof ReadableStream) {
+    const reader = body.getReader()
+    const pump = (): void => {
+      void reader
+        .read()
+        .then(({ done, value }) => {
+          if (done) {
+            reader.releaseLock()
+            outgoing.end()
+            return
+          }
+          if (!(value instanceof Uint8Array)) {
+            reader.releaseLock()
+            reject(new TypeError('refused'))
+            return
+          }
+          outgoing.write(value, pump)
+        })
+        .catch((error: unknown) => {
+          reader.releaseLock()
+          reject(error)
+        })
+    }
+    pump()
+    return
+  }
+  reject(new TypeError('refused'))
+}
+
 /**
- * The origin pin in front of `fetch`: only `https:` (or `http:` to the
- * pinned loopback origin) on the resolved origin, with no userinfo, query
- * (except the codec's own) or fragment, and only an allowlisted path. A
- * refusal throws before anything is sent.
+ * Whether an answer's status refuses the request instead of being
+ * followed: redirects are refused like `redirect: 'error'`, never
+ * followed. Pure — `sendPinned` calls this on every answer's status — so
+ * the refusal is provable with statuses as plain input and nothing
+ * answering; the end-to-end behaviour is proven by the real-life run
+ * through the packed product (docs/certification/auditsec0190b.md).
  */
-export function pinProviderFetch(
+export function isRedirectRefusal(statusCode: number | undefined): boolean {
+  return statusCode !== undefined && HTTP_REDIRECT_STATUSES.has(statusCode)
+}
+
+/**
+ * One request to the checked address: Node's HTTP stack dials it through a
+ * `lookup` that answers that address only, so the address checked is the
+ * address dialled even when DNS changes in between (DNS rebinding). TLS
+ * still sends and verifies the original name (`servername` defaults to it)
+ * and the `Host` header carries it, as web fetch's pinned transport does
+ * (`src/host/web/pinnedRequest.ts`). Answers a fetch `Response`; redirects
+ * are refused like `redirect: 'error'`.
+ */
+function sendPinned(url: URL, init: RequestInit | undefined, address: string): Promise<Response> {
+  const isTls = url.protocol === 'https:'
+  const headers = new Headers(init?.headers ?? {})
+  headers.set('host', url.host)
+  const payload = init?.body
+  if (typeof payload === 'string') headers.set('content-length', String(Buffer.byteLength(payload)))
+  else if (payload instanceof Uint8Array || payload instanceof ArrayBuffer)
+    headers.set('content-length', String(payload.byteLength))
+  const family =
+    isIP(address) === ADDRESS_FAMILIES.ipv6 ? ADDRESS_FAMILIES.ipv6 : ADDRESS_FAMILIES.ipv4
+  const options: RequestOptions = {
+    method: init?.method ?? 'GET',
+    host: url.hostname,
+    port: url.port === '' ? undefined : Number(url.port),
+    path: `${url.pathname}${url.search}`,
+    headers: Object.fromEntries(headers.entries()),
+    family,
+    lookup: (_hostname, _lookupOptions, callback) => {
+      callback(null, address, family)
+    },
+    signal: init?.signal ?? undefined,
+  }
+  return new Promise<Response>((resolve, reject) => {
+    const outgoing = (isTls ? httpsRequest : httpRequest)(options, (incoming) => {
+      if (isRedirectRefusal(incoming.statusCode)) {
+        incoming.destroy()
+        outgoing.destroy()
+        reject(new TypeError('fetch failed'))
+        return
+      }
+      const responseHeaders = new Headers()
+      for (const [name, value] of Object.entries(incoming.headers)) {
+        if (value === undefined) continue
+        const items = Array.isArray(value) ? value : [value]
+        for (const item of items) responseHeaders.append(name, item)
+      }
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          incoming.on('data', (chunk: Buffer) => {
+            controller.enqueue(new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength))
+          })
+          incoming.on('end', () => {
+            controller.close()
+          })
+          incoming.on('error', (error: unknown) => {
+            controller.error(error)
+          })
+        },
+        cancel() {
+          incoming.destroy()
+        },
+      })
+      resolve(
+        new Response(body, {
+          status: incoming.statusCode ?? 0,
+          statusText: incoming.statusMessage ?? '',
+          headers: responseHeaders,
+        }),
+      )
+    })
+    outgoing.on('error', reject)
+    endPinnedBody(outgoing, payload ?? undefined, reject)
+  })
+}
+
+/**
+ * The origin pin in front of the provider: only `https:` (or `http:` to the
+ * pinned loopback origin) on the resolved origin, with no userinfo, query
+ * (except the codec's own) or fragment, and only an allowlisted path. The
+ * name is resolved once per request, the answers are checked against the
+ * saved network, and the request dials the checked address itself — never a
+ * name looked up again at connect time. A refusal throws before anything is
+ * sent.
+ */
+function bareOriginOf(url: URL): string | undefined {
+  // `originOf` refuses any URL with a query or fragment, but the codec's
+  // own query (list filters, Gemini's `alt=sse`) is ruled per path below;
+  // compare origins with the query and fragment set aside first.
+  const bare = new URL(url.href)
+  bare.search = ''
+  bare.hash = ''
+  return originOf(bare.href)
+}
+
+/**
+ * A provider request URL through the origin pin and path allowlist, or
+ * undefined when it fails the pin: a non-string, an unparsable address,
+ * userinfo, a foreign origin, a scheme other than `https:` (`http:` only
+ * to the pinned loopback origin), a fragment, or a path outside the
+ * allowlist. Shared by both pin shapes below; each names the refusal its
+ * own way.
+ */
+function parsePinnedUrl(
+  provider: ResolvedProvider,
+  rules: readonly ProviderPathRule[],
+  url: unknown,
+): URL | undefined {
+  if (typeof url !== 'string') return undefined
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch (error) {
+    // Only an invalid address fails here; anything else is not this pin's answer.
+    if (!(error instanceof TypeError)) throw error
+    return undefined
+  }
+  if (parsed.username !== '' || parsed.password !== '') return undefined
+  const origin = bareOriginOf(parsed)
+  if (origin === undefined || origin !== originOf(provider.origin)) return undefined
+  const isLoopback = provider.network === 'local'
+  if (parsed.protocol !== 'https:' && !(isLoopback && parsed.protocol === 'http:')) return undefined
+  if (parsed.hash !== '') return undefined
+  const requestRule = provider.request?.rule
+  if (requestRule !== undefined && isPathAllowed(requestRule, parsed)) {
+    // The family rule already bounds the query to the codec's own; an
+    // exact request path carries none.
+    if (requestRule.kind === 'exact' && parsed.search !== '') return undefined
+  } else if (rules.every((rule) => !(rule.kind === 'exact' && rule.path === parsed.pathname))) {
+    // List and key-test paths may carry the provider's own query
+    // (`limit`, `zdr`, `supported_parameters`); nothing else passes.
+    return undefined
+  }
+  return parsed
+}
+
+/** The pin over an injected fetch (the exec tests' seam): typed refusals, abortable resolve, mapped connect failures. */
+function pinProviderFetchViaFetch(
   fetch: typeof globalThis.fetch,
   provider: ResolvedProvider,
   rules: readonly ProviderPathRule[],
   resolveHost: (hostname: string) => Promise<readonly string[]>,
   onDispatch?: () => void,
 ): typeof globalThis.fetch {
-  const pinned = originOf(provider.origin)
-  const isLoopback = provider.network === 'local'
-  // `originOf` refuses any URL with a query or fragment, but the codec's
-  // own query (list filters, Gemini's `alt=sse`) is ruled per path below;
-  // compare origins with the query and fragment set aside first.
-  const bareOriginOf = (url: URL): string | undefined => {
-    const bare = new URL(url.href)
-    bare.search = ''
-    bare.hash = ''
-    return originOf(bare.href)
-  }
   return async (url, init) => {
-    if (typeof url !== 'string') {
-      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
-    }
-    let parsed: URL
-    try {
-      parsed = new URL(url)
-    } catch (error) {
-      // Only an invalid address fails here; anything else is not this pin's answer.
-      if (!(error instanceof TypeError)) throw error
-      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
-    }
-    if (parsed.username !== '' || parsed.password !== '') {
-      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
-    }
-    const origin = bareOriginOf(parsed)
-    if (origin === undefined || origin !== pinned) {
-      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
-    }
-    if (parsed.protocol !== 'https:' && !(isLoopback && parsed.protocol === 'http:')) {
-      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
-    }
-    if (parsed.hash !== '') {
-      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
-    }
-    const requestRule = provider.request?.rule
-    if (requestRule !== undefined && isPathAllowed(requestRule, parsed)) {
-      // The family rule already bounds the query to the codec's own; an
-      // exact request path carries none.
-      if (requestRule.kind === 'exact' && parsed.search !== '') {
-        throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
-      }
-    } else if (rules.every((rule) => !(rule.kind === 'exact' && rule.path === parsed.pathname))) {
-      // List and key-test paths may carry the provider's own query
-      // (`limit`, `zdr`, `supported_parameters`); nothing else passes.
-      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
-    }
+    const parsed = parsePinnedUrl(provider, rules, url)
+    if (parsed === undefined) throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     let answers: readonly string[]
     try {
       answers =
@@ -471,6 +626,55 @@ export function pinProviderFetch(
   }
 }
 
+/** The pin over the checked address itself (the audit's DNS-rebinding dial): refused answers and redirects never connect. */
+function pinProviderFetchViaDial(
+  provider: ResolvedProvider,
+  rules: readonly ProviderPathRule[],
+  resolveHost: (hostname: string) => Promise<readonly string[]>,
+  onDispatch?: () => void,
+): typeof globalThis.fetch {
+  return async (url, init) => {
+    const parsed = parsePinnedUrl(provider, rules, url)
+    if (parsed === undefined) throw new Error('refused')
+    // Resolved once here, and dialled as resolved below: the address
+    // checked is the address dialled, so a forbidden answer that arrives
+    // after the check cannot be connected to.
+    const answers = await resolveHost(parsed.hostname)
+    if (!isEndpointBindingCurrent(provider, answers)) throw new Error('rebinding')
+    const address = answers[0]
+    if (address === undefined) throw new Error('rebinding')
+    onDispatch?.()
+    return await sendPinned(parsed, init, address)
+  }
+}
+
+type FetchSeamArgs = [
+  fetch: typeof globalThis.fetch,
+  provider: ResolvedProvider,
+  rules: readonly ProviderPathRule[],
+  resolveHost: (hostname: string) => Promise<readonly string[]>,
+  onDispatch?: () => void,
+]
+
+type PinnedDialArgs = [
+  provider: ResolvedProvider,
+  rules: readonly ProviderPathRule[],
+  resolveHost: (hostname: string) => Promise<readonly string[]>,
+  onDispatch?: () => void,
+]
+
+export function pinProviderFetch(...args: FetchSeamArgs): typeof globalThis.fetch
+export function pinProviderFetch(...args: PinnedDialArgs): typeof globalThis.fetch
+export function pinProviderFetch(...args: FetchSeamArgs | PinnedDialArgs): typeof globalThis.fetch {
+  // Two contracts share this name: the fetch seam names a fetch first (the
+  // exec tests), the pinned dial names the provider first (the audit proof
+  // and production). The first argument tells them apart; each tuple casts
+  // exactly once below because positional typing cannot follow it.
+  return typeof args[0] === 'function'
+    ? pinProviderFetchViaFetch(...(args as FetchSeamArgs))
+    : pinProviderFetchViaDial(...(args as PinnedDialArgs))
+}
+
 /** Everything a provider run needs, resolved and checked before it starts. */
 export interface AssembledProviderRun {
   readonly resolveHost: (hostname: string) => Promise<readonly string[]>
@@ -501,7 +705,6 @@ export interface ProviderRunInput {
   /** The qualified model ref (`parseExec` qualifies a bare id). */
   readonly model: string | undefined
   readonly keyFromStdin: boolean
-  readonly baseFetch: typeof fetch
 }
 
 export type ProviderAssemblyFailure =
@@ -652,12 +855,8 @@ export async function assembleProviderRun(input: ProviderRunInput): Promise<
       resolveHost: input.resolveHost,
       provider,
       modelRef,
-      fetch: pinProviderFetch(
-        input.baseFetch,
-        provider,
-        allowedProviderPaths(provider),
-        input.resolveHost,
-        () => dispatch.onRequestStarted?.(),
+      fetch: pinProviderFetch(provider, allowedProviderPaths(provider), input.resolveHost, () =>
+        dispatch.onRequestStarted?.(),
       ),
       secrets: memory ?? input.secrets,
       literals: key === undefined ? [] : [key],

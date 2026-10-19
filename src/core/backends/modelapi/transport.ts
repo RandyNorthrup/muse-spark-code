@@ -30,7 +30,7 @@ import { createHash } from 'node:crypto'
 
 import type { SpendClaim } from '../../paid/spendClaim'
 import type { MediaRequestAccounting } from '../../media/mediaCost'
-import { fill } from '../../../shared/l10n/text'
+import { fill, formatDateTime } from '../../../shared/l10n/text'
 import {
   classifyRetry,
   effectiveMaxRetries,
@@ -423,7 +423,8 @@ export function retryAfterMs(header: string | null, now: number): number | undef
  * The wait an answer names, in every form a provider uses: `retry-after-ms`
  * (milliseconds; Azure OpenAI, read before `Retry-After` per research
  * azure-openai.md ZB2), then `Retry-After` (seconds or an HTTP date).
- * Honoured as given: no wait of ours shortens or refuses it.
+ * Read whole here; the retry loop honours it whole, tells the person when it
+ * ends, and the turn's Stop ends it at once.
  */
 export function providerWaitMs(headers: Headers, now: number): number | undefined {
   const milliseconds = headers.get(RETRY_AFTER_MS_HEADER)
@@ -437,6 +438,27 @@ export function providerWaitMs(headers: Headers, now: number): number | undefine
 /** One transport's documented retry bounds: Meta's own when unset. */
 function documentedLimits(deps: TransportDeps): RetryLimits {
   return deps.retryLimits ?? META_DOCUMENTED_RETRY_LIMITS
+}
+
+/**
+ * What one retry tells the person: the plain `HTTP …` reason, or, for a
+ * wait the provider named, that wait's sentence with when it ends in
+ * absolute time and plain words. Pure — the request loop calls this per
+ * retry — so the telling is provable with header values as plain input
+ * and no provider answering.
+ */
+export function providerRetryReason(
+  status: number,
+  message: string,
+  delayMs: number | undefined,
+  now: number,
+): string {
+  const reason = `HTTP ${String(status)}: ${message}`
+  if (delayMs === undefined) return reason
+  return fill(UI_TEXT.modelApiProviderRetryWait, {
+    reason,
+    time: formatDateTime(now + delayMs),
+  })
 }
 
 /**
@@ -1548,6 +1570,16 @@ export class RequestTransport {
       this.deps.log.warn(
         `Model API answered ${String(response.status)} (${scrubRefusalLeak(failure.message)}); retrying in ${String(delay)} ms`,
       )
+      // A wait the provider named is told at once with when it ends, in
+      // absolute time and plain words, so a long provider wait never stalls
+      // silently; the pause after it stays Stop-abortable. The `HTTP …`
+      // prefix stays first, as the rate-limited retry readers match on it.
+      const reason = providerRetryReason(
+        response.status,
+        failure.message,
+        waitMs === undefined ? undefined : delay,
+        this.deps.now(),
+      )
       if (
         response.status === PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout &&
         admitAttempt?.prepareRetry !== undefined
@@ -1556,7 +1588,7 @@ export class RequestTransport {
           credentials.keyDigest,
           signal ?? new AbortController().signal,
         )
-      await retry(attempt, delay, `HTTP ${String(response.status)}: ${failure.message}`, failure)
+      await retry(attempt, delay, reason, failure)
     }
   }
 }

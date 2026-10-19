@@ -20,9 +20,6 @@ const PLACEHOLDER_KEY = 'test-key'
 // Built, not typed: a committed key-like literal trips the secret scanner.
 const PLAIN_KEY = `sk-test-${'0'.repeat(16)}`
 
-/** Assembly never sends: a call here is the bug, reported as a failure. */
-const noFetch: typeof fetch = () => Promise.reject(new Error('assembly performs no fetch'))
-
 function assemblyInput(key: string): ProviderRunInput {
   const result: KeyLineResult = { ok: true, key }
   const file: ProvidersFile = {
@@ -46,7 +43,6 @@ function assemblyInput(key: string): ProviderRunInput {
     providerId: 'groq',
     model: 'groq/m1',
     keyFromStdin: true,
-    baseFetch: noFetch,
   }
 }
 

@@ -3991,6 +3991,7 @@
   "turnFailed": "Tur başarısız oldu.",
   "turnRetrying": "Deneme {attempt}/{maxAttempts} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor.",
   "turnRetryingUncapped": "Deneme {attempt} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor (yeniden deneme sınırı yok).",
+  "modelApiProviderRetryWait": "{reason}; sağlayıcı {time} tarihine kadar beklemeyi istedi. Turu istediğiniz zaman durdurabilirsiniz.",
   "usageWindowHours": {
     "one": "{count} saatlik pencere",
     "other": "{count} saatlik pencere"
