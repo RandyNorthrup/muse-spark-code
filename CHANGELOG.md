@@ -879,29 +879,16 @@ happened, not what was planned; superseded entries are kept.
   commands in the README have not been run against a real client. See
   `docs/mcp.md`.
 
-- **Evaluated automatic compaction** (M101 CM1013R9, certified by the
-  second counted run in CM1013R10). The first binding run passed on
-  2026-10-12: verdict `pass` on the full frozen set (sixteen tasks across
-  all four arms, 274 attempts / 276 requests of the 588 ceiling, $0.06285), every arm above both
-  0.75 floors, packing engaged on both long-output tasks and a settled
-  D78 admission on both long-context tasks (receipts in
-  `docs/certification/m101-binding-report.json` and
-  `docs/certification/m101-binding-report.md`).
-  `IS_AUTO_COMPACTION_EVALUATED` is now `true`: automatic compaction is on
-  by default on the Model API backend (one setting turns it off) and is
-  published in Help, the ACP/CLI usage and the generated reference; its
-  first charge still asks once in the paid-use popup naming the price and
-  daily budget. `modelApiStrictTools` stays on: its arm held both floors in
-  the same run. The second counted run on the flipped head passed too
-  (265 attempts / 267 requests, $0.059742, all eight floors held; receipts in
-  `docs/certification/m101-binding-report-2026-10-12-28686235d.json`/`.md`
-  and the run log beside them), so the shipped digest `a59c8448…` is
-  certified: certified equals computed equals the frozen pin. In that run
-  the auto-compaction arm reached 7 of 9 on accept (one long-context task
-  completed after compaction but wrote no answer file) and 7 of 7 on
-  heldout. Every automatic attempt reserves its projected cost from the
-  daily ledger before dispatch, rechecks the claim at send, and settles
-  once per attempt at its exact cost; a refused or missing ledger sends
+- **Evaluated automatic compaction** (M101 CM1013R9, certified by two
+  counted runs on 2026-10-12: `pass` on the full frozen set, every arm
+  above both 0.75 floors; receipts in `docs/certification/`).
+  Automatic compaction is on by default on the Model API backend (one
+  setting turns it off) and is published in Help, the ACP/CLI usage and
+  the generated reference; its first charge still asks once in the
+  paid-use popup naming the price and daily budget. Every automatic
+  attempt reserves its projected cost from the daily ledger before
+  dispatch, rechecks the claim at send, and settles once per attempt at
+  its exact cost; a refused or missing ledger sends
   nothing. <!-- try: setting museSpark.modelApiAutoCompaction -->
 
 - **Execution-bound M75 freeze and private tool evidence** (CM1013R4,
@@ -2229,14 +2216,11 @@ happened, not what was planned; superseded entries are kept.
   `htmlToMarkdown` had no callers (both backends convert through
   `convertHtmlJob` on the page worker), so it was removed. No behaviour
   change.
-- Paid-use consent audit: the four unused consent helpers for scheduled
-  runs and per-account consent stay unwired until their owning milestones
-  land (M115 Lane U's per-schedule consent; M108 lane P's per-account
-  consent). Meanwhile a paid schedule draft from the panel is refused
-  (its caller carries no paid flag or budget) and every reachable paid
-  use still asks the popup; a unit suite now tests that surface refusal
-  through the real surface, separately from the unwired helpers' logic
-  (RVMSM58M69). No behaviour change.
+- Paid-use consent audit (RVMSM58M69): the four unused consent helpers
+  for scheduled runs and per-account consent stay unwired until their
+  owning milestones land, while a paid schedule draft from the panel is
+  refused and every reachable paid use still asks the popup.
+  No behaviour change.
 - On VS Code 1.101 to 1.111 with `http.proxy` set, Muse Voice recorded audio
   and then failed, because those versions do not route an extension's
   WebSocket through the proxy. The microphone now stays unavailable with the
@@ -2481,35 +2465,19 @@ happened, not what was planned; superseded entries are kept.
   it, never a silent skip. Recorded in
   `docs/certification/train-older-fixes.md`.
 
-- A confirmed run on a ChatGPT or Copilot plan model (hook model, review,
-  scheduled prompt) no longer fails with "the model changed" before it is
-  sent. The subscription client proceeds while the confirmation is still
-  allowed and refuses with the run's own guidance only once it has lapsed,
-  like the other clients (M106, RVCM1062F).
+- The 0.19.0 notes no longer repeat entries already shipped in 0.18.x.
+  The release-train merges had carried 23 of them in a second time,
+  pushing the What's New page over its size bound and failing the build;
+  each claim stays recorded once, under the version that shipped it.
 
-- Fixed the RVCM1062G findings on that plan-model success path. A confirmed
-  scheduled run now records its start receipt and scheduled-prompt tally,
-  and a paid-gate lapse during ChatGPT sign-in or Copilot token counting
-  still refuses before anything is sent — through the same
-  confirmed-dispatch helper the other branches use. A lapsed confirmation
-  names the hook, schedule or review instead of the generic plan retry
-  sentence, and a catalogue request id is accepted against a session
-  confirmation id (M106, RVCM1062G;
-  `docs/certification/m106-capability-binding.md`).
-
-- Fixed the RVCM1062H findings: the last two confirmed-dispatch paths that
-  decided by themselves now route through the shared helper. A still-allowed
-  scheduled or hook confirmation on a configured provider (which carries no
-  origin) dispatches instead of refusing with "Models & Agents is not
-  available in this build", and a lapsed confirmation there keeps the run's
-  own guidance instead of that sentence. An inventory test fails if any site
-  but the helper ever refuses a confirmed dispatch again (M106, RVCM1062H;
-  `docs/certification/m106-capability-binding.md`).
-
-- Reviewing Git changes now works on machines and repositories with no Git
-  filters configured (for example without Git LFS installed). Broken since
-  0.15.0, it refused every native review there with "Git could not read the
-  changes to review" (lane REVIEWEXIT).
+- `exec --effort none` (Thinking off) died at the terminal's own option
+  check although the runner takes it. The help table lists `none` beside
+  the tiers now, so the option parses and the model's record decides:
+  it rides for a configured-provider id and is refused before dispatch
+  where the model does not take it (lane REASONSHAPESR2).
+- `exec --max-tool-output-bytes` was missing from `exec --help` although
+  the runner takes it. It is listed now, with its per-run byte-guard
+  description (lane TOOLCAP).
 
 
 - RVPORTM105: cancellation after a Files receipt permits bounded provider
@@ -2912,26 +2880,6 @@ happened, not what was planned; superseded entries are kept.
 - The ACP package ships the sessions bundle its backend requires.
 
 ### Documentation
-
-- PLAN.md had grown to 4,157,477 bytes, 36,827 short of the 4 MiB bound at
-  which `check:plan`, `check:roadmap` and `/report` refuse it. Closed history
-  moved to `docs/plan-archive/`, byte for byte: the design record of 50
-  decisions (`decisions.md`; PLAN.md §2 keeps each heading, a paragraph that
-  states the rule in force and a link), 140 gate records dated 2026-10-08 or
-  earlier (`gates.md`) and 7 closed 0.17.0 sections (`milestones.md`).
-  PLAN.md is 3,472,457 bytes. Passages that open branches touch, passages
-  tests cite and live tables stayed in place; every parsed fact is unchanged
-  and ROADMAP.md regenerates identical. `check:plan` now fails when PLAN.md
-  passes 85% of the bound and names the archive procedure in CONTRIBUTING.md,
-  and `test/unit/planArchive.test.ts` hashes every archived passage.
-
-- `npm run plan:archive` (repository only) moves passages of PLAN.md into
-  `docs/plan-archive/` and proves each move before writing: the old file is
-  rebuilt byte for byte from the result, and the plan reader must parse the
-  same facts. `status` shows the plan's size against the bound and the gate
-  and checks every archived block's hash. A design record now goes to the
-  archive in the change that adds it; PLAN.md keeps the rule in force and
-  the link (AGENTS.md, CONTRIBUTING.md).
 
 - Headless `exec` runs reported every result sentence in English whatever the
   run language, because the language table was installed into the entry
