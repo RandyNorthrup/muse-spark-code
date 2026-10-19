@@ -428,6 +428,10 @@ export function parseCommandLine<T>(
   const flags = divider === -1 ? argv : argv.slice(0, divider)
   if (flags.includes('--help') || flags.includes('-h')) {
     if (argv[0] === 'vault') return { command: 'vaultHelp' }
+    // Bare `report --help` is the report command's own help, not the help
+    // topic (RVMSM113 F34): the reports command prints its usage with the
+    // working kinds. Longer report forms keep the topic route below.
+    if (argv[0] === 'report' && argv.length === 2) return parseReport(argv.slice(1), true)
     const routes: Readonly<Record<string, string>> = {
       exec: 'exec',
       'scan-secrets': 'scan-secrets',

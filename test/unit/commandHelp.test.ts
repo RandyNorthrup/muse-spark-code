@@ -11,10 +11,12 @@ describe('EXECPROV command-local help', () => {
     expect(help).toContain('muse-spark-code-acp')
     expect(help).toContain('--help')
   })
+  // Bare `report --help` is not here: it reaches the reports command,
+  // which prints its usage with the working kinds (RVMSM113 F34,
+  // pinned in cx1r4Truth), instead of the help topic.
   it.each([
     'exec',
     'scan-secrets',
-    'report',
     'usage',
     'legal',
     'resources',
