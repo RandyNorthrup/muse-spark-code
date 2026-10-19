@@ -487,7 +487,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   cancelled and stops that turn, and an answer you give it afterwards
   decides nothing.
 - **Prompts**: text, files as @mentions, attached excerpts, and PNG, JPEG,
-  GIF and WebP images up to 10 MB.
+  GIF and WebP images at any size (reads bounded only by host memory; the
+  selected model's capability record and the provider answer for the rest).
 - **MCP servers** the editor offers (Zed's context servers, Jupyter AI's
   notebook tools): passed to Muse Code for the session, over stdio or
   HTTP, and optional, so one that fails to start does not stop the
