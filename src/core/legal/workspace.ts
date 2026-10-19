@@ -17,13 +17,11 @@ import {
   type BigIntStats,
 } from 'node:fs'
 import path from 'node:path'
-import { setImmediate as yieldToHost } from 'node:timers/promises'
 import {
   LEGAL_DIRECTORY_ENTRIES_MAX,
   LEGAL_FILE_MAX_BYTES,
   LEGAL_HASH_FILE_MAX_BYTES,
   LEGAL_HASH_TOTAL_MAX_BYTES,
-  LEGAL_SCAN_YIELD_EVERY,
   LEGAL_TOTAL_MAX_BYTES,
 } from '../../shared/constants'
 import { sameFile } from '../fs/fileIdentity'
@@ -34,6 +32,7 @@ import {
   LegalScanError,
   type LegalFileSnapshot,
 } from './files'
+import { createYieldCheck } from './scanYield'
 
 /**
  * The pinned SPDX template data shipped beside the scanner (M97
@@ -259,17 +258,10 @@ export async function createLegalSnapshot(
       for (const name of filesIn(directory))
         if (PACKAGE_EVIDENCE_FILE.test(name)) admitFile(`${directory}/${name}`)
   }
-  let sinceYield = 0
-  const checkYield = async (): Promise<void> => {
-    sinceYield += 1
-    if (sinceYield < LEGAL_SCAN_YIELD_EVERY) return
-    sinceYield = 0
-    // Let a Stop/SIGINT abort land mid-walk (PR #214 review): synchronous
-    // syscalls block the event loop, so without a yield the abort these
-    // checks read could only have arrived before the walk started.
-    await yieldToHost()
-    checkCancellation()
-  }
+  // Let a Stop/SIGINT abort land mid-walk (PR #214 review): synchronous
+  // syscalls block the event loop, so without a yield the abort these
+  // checks read could only have arrived before the walk started.
+  const checkYield = createYieldCheck(checkCancellation)
   const visit = async (directory: string, localDirectory: string): Promise<void> => {
     checkCancellation()
     if (!isWithinTime()) return

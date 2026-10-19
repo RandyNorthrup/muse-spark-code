@@ -20,6 +20,7 @@
 !dist/providers.js
 !dist/providerPolicy.js
 !dist/legalScan.js
+!dist/legalFix.js
 !dist/legal-data/**
 !dist/subscriptions.js
 !dist/configuredProviders.js

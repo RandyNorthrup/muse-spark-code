@@ -329,6 +329,14 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'legalFix.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/core/legal/entry.ts', symbol: 'prepareLegalFixes', side: ['acp', 'vscode'] },
+      { importer: 'src/core/legal/scan.ts', symbol: 'scanLegal', side: ['acp', 'vscode'] },
+    ],
+  },
+  {
     file: 'legalScan.js',
     side: 'both',
     requestedBy: [

@@ -1128,42 +1128,38 @@ happened, not what was planned; superseded entries are kept.
 
 
 - **GitHub sign-in from three sources, and the GitHub card in the panel**
-  (PLAN.md D104). Every GitHub call (a pull request, its status and checks,
-  someone else's pull request) takes its sign-in from, in order: your
-  editor's own GitHub sign-in (VS Code and the forks that ship it,
-  unchanged); Muse Spark's own sign-in with GitHub's device flow through the
-  project's OAuth App "Muse Spark Code (Unofficial)" (public client id, no
-  secret, `repo` scope only); and your `gh` login, only after you turn on
-  the new machine-scoped setting `museSpark.github.useGhLogin` (off; a
-  repository's value is ignored), read for one call at a time. Where the
-  editor has no GitHub sign-in of its own (Arduino IDE 2, some forks),
-  **Sign In to GitHub** starts the device flow; anywhere, the palette's
-  **Sign In to GitHub With a Code** (`/github-login`) does. A card above the
-  composer shows the code with **Copy Code**, **Open GitHub** (only
-  github.com/login/device is ever opened) and **Cancel**; then a line names
-  the account and the sign-in in use, with **Sign Out** for Muse Spark's
-  own (`/github-logout`): the token is deleted from the editor's secret
-  storage and the app's page on GitHub opens, where you revoke the grant.
-  A token GitHub refuses is dropped, and you sign in again.
+  (PLAN.md D104). Every GitHub call takes its sign-in from, in order: your
+  editor's own GitHub sign-in (VS Code and the forks that ship it); Muse
+  Spark's own device-flow sign-in through the project's OAuth App
+  "Muse Spark Code (Unofficial)" (public client id, no secret, `repo`
+  scope); and your `gh` login, only after you turn on the machine-scoped
+  `museSpark.github.useGhLogin` (off). Where the editor has no GitHub
+  sign-in of its own, **Sign In to GitHub** starts the device flow;
+  anywhere, **Sign In to GitHub With a Code** (`/github-login`) does. A
+  card above the composer shows the code with **Copy Code**, **Open
+  GitHub** and **Cancel**, then names the account and sign-in in use, with
+  **Sign Out** for Muse Spark's own (`/github-logout`): the token is
+  deleted from secret storage and the app's page opens for revoking the
+  grant. A refused token is dropped, and you sign in again.
 - **In a terminal: `muse-spark-code-acp auth github login | logout | status`.**
   `login` prints the code and GitHub's address and keeps the token in this
-  computer's credential store, renewing it before it expires; `status`
-  says whether one is stored (never the token); `logout` deletes it and
-  prints the app's page on GitHub. Signing out in one window also ends
-  sign-ins and renewals still running in others: once the sign-out has
-  written its new sign-in generation, none that began before it keeps or
-  returns a token (a call already overlapping the sign-out may still return
-  its earlier token).
-- **Git and pull requests without VS Code's Git extension.** An editor built
-  on VS Code that does not ship it (Arduino IDE 2, some forks) now gets
-  commit, push, pull requests and Write with Muse for both, through your own
-  `git` on PATH: the same forms and confirmations, the same refusals (never
-  a force-push), the push confirmation naming every URL Git will push to,
+  computer's credential store, renewed before it expires; `status` says
+  whether one is stored (never the token); `logout` deletes it and prints
+  the app's page. Signing out in one window also ends sign-ins and
+  renewals still running in others: none that began before the sign-out
+  keeps or returns a token (an overlapping call may still return its
+  earlier token).
+- **Git and pull requests without VS Code's Git extension.** An editor
+  built on VS Code that does not ship it now gets commit, push, pull
+  requests and Write with Muse for both, through your own `git` on PATH:
+  the same forms and confirmations, the same refusals (never a
+  force-push), the push confirmation naming every URL Git will push to,
   and each change checked again after every wait under one lock per
   repository shared by every window. Creating a pull request signs in
   first, pushes the branch after its confirmation, then asks once more
-  with what goes out before opening it. This route ships in its own bundle
-  (`dist/nativeGit.js`), so VS Code with its Git extension never loads it.
+  with what goes out before opening it. This route ships in its own
+  bundle (`dist/nativeGit.js`), so VS Code with its Git extension never
+  loads it.
 - In an ACP editor (Zed, Neovim, Emacs and the other ACP clients),
   `/whatsnew` reads this version's release highlights and full notes as
   text, answered locally with no model turn.
@@ -1181,20 +1177,13 @@ happened, not what was planned; superseded entries are kept.
   are granted in your own terminal (`mcp grant`, with workspaces, families
   and an optional content flag) and stopped with `mcp revoke` or `mcp
   kill`; paid authority stays zero. Revoking, narrowing, switching off or
-  disconnecting stops at once every call that has not started its effect,
-  an approved save included; the connector notices those changes as they
-  happen and reads them again right before every effect. Results are
-  scrubbed; every call leaves one audit line per step, written before the
-  step, and exactly one that says how it ended, refused
-  frames and your own grant, revoke, kill and resume commands leave theirs
-  too; frames, results, rates, polls and pending approvals are bounded,
-  and the limits are shared by every process of a connection. The
-  connector loads from its own `connector.js` (99.9 KiB, budget 100 KiB);
-  activation is unchanged and `acp.js` gains only the 1.3 KiB loader. The
-  hosted connector for ChatGPT and claude.ai (OAuth over HTTPS) is planned,
-  not built; no client has been qualified yet, and the client setup
-  commands in the README have not been run against a real client. See
-  `docs/mcp.md`.
+  disconnecting stops at once every call that has not started its effect;
+  the connector re-reads grants right before every effect. Results are
+  scrubbed; every call leaves one audit line per step and one that says
+  how it ended. The connector loads from its own `connector.js`
+  (99.9 KiB, budget 100 KiB); activation is unchanged. The hosted
+  connector for ChatGPT and claude.ai (OAuth over HTTPS) is planned, not
+  built; no client has been qualified yet. See `docs/mcp.md`.
 
 - **Evaluated automatic compaction** (M101 CM1013R9, certified by two
   counted runs on 2026-10-12: `pass` on the full frozen set, every arm
@@ -1209,109 +1198,48 @@ happened, not what was planned; superseded entries are kept.
   nothing. <!-- try: setting museSpark.modelApiAutoCompaction -->
 
 - **Execution-bound M75 freeze and private tool evidence** (CM1013R4,
-  RVCM1013C findings 2–3). The freeze binds the actual runner configuration,
-  setup/alias closure, compiler/package inputs and launch policy, including
-  source read as data by global setup. The live runner executes a freshly
-  frozen search worker instead of trusting a pre-existing build and refuses
-  mismatched task snapshots before sending. Unknown returned tool names are
-  counted as `other`; private text cannot enter tool-name evidence even when
-  the task recovers and passes. Production automatic compaction stays off.
-
+  RVCM1013C findings 2–3). The freeze binds the actual runner
+  configuration, setup/alias closure, compiler/package inputs and launch
+  policy. The live runner executes a freshly frozen search worker and
+  refuses mismatched task snapshots before sending. Unknown returned tool
+  names count as `other`; private text cannot enter tool-name evidence.
 - **Completed M75 verifier assertions** (CM1013R4, RVCM1013C finding 1).
-  Every frozen task declares its assertion count. A verifier passes only
-  after its last assertion reports a fresh private-input token and that count
-  with a zero exit. Premature exits, fake completion output, caught failures
-  and timed-out solutions fail; all 64 bare-exit outputs fail the full paired
-  verdict. Production automatic compaction stays unevaluated.
-
-- **Evidence-first M75 harness repair** (CM1013B). Both compaction and packing
+  Every frozen task declares its assertion count; a verifier passes only
+  after its last assertion reports a fresh private-input token and that
+  count with a zero exit. Premature exits, fake completion output, caught
+  failures and timed-out solutions fail.
+- **Evidence-first M75 harness repair** (CM1013B). Compaction and packing
   evidence tasks run before small tasks, each task/arm has an independent
-  measured allowance, and a local overrun cannot starve another task. Applied
-  history replacement and settled admission establish compaction engagement;
-  rejected attempts do not. Narrowed selections and global stops remain
-  incomplete through both verdict wrappers. The live launcher checks the
-  expanded source-graph freeze before credentials are opened; smoke mode
-  expects incomplete. Receipts retain exact ledger reservations, settlements
-  and unknown liability, plus request hashes and explicit module-fact visibility
-  for investigating the first run's CommonJS failures. Production automatic
-  compaction stays unevaluated.
-
+  measured allowance, and a local overrun cannot starve another task.
+  Receipts retain exact ledger reservations, settlements and unknown
+  liability, plus request hashes.
 - **Frozen M75 evaluation arms and long-context tasks** (M101 C-M101-2).
-  The paired harness now freezes four arms (baseline, observation packing,
+  The paired harness freezes four arms (baseline, observation packing,
   automatic compaction, strict tool schemas) and sixteen tasks: the twelve
-  previous fixtures plus, per split, one long-context compaction task whose
-  prompt-filled window compacts at the first settled boundary and one
-  two-defect multi-edit task. A SHA-256 digest pins the frozen bytes for the
-  counted run; fake baseline/mechanism pairs hold both 0.75 floors.
+  previous fixtures plus, per split, one long-context compaction task and
+  one two-defect multi-edit task. A SHA-256 digest pins the frozen bytes.
   (The live evaluation has since passed twice; see the
   evaluated-automatic-compaction entry above.)
-- **Repaired M75 evaluation freeze** (M101 CM1012R2, review RVCM1012).
-  Each arm now differs from its pair in one mechanism only: the context
-  window is harness condition shared by both arms (per task, resolved by the
-  runner), and a mechanism that moves the window, the memory store, the
-  client, the workspace or a paid-use hook does not run. The frozen digest
-  now covers each arm's implementation source, each task's resolved window,
-  the verifier prelude, the window rule, the held-deps list and the frozen
-  defaults. The memory evidence drives the real automatic flush through a
-  fake store — snapshot written when allowed, nothing written and the turn
-  still compacting when refused. No user-facing change; production stays
-  off.
-- **Frozen-digest source closure** (M101 CM1012R3, review RVCM1012B).
-  The frozen digest is now computed over the transitive static-import
-  closure of the arm modules instead of a hand-kept list: every
-  harness-owned file the arms reach contributes its bytes (covering arm
-  helpers such as the admission's `noop`), and every outside binding they
-  draw contributes its canonical value; anything uncoverable fails closed.
-  The held-deps list moved to its own module so the digest need not depend
-  on the driver that drives the production host. The two dependency-key
-  test assertions are recorded in PLAN.md §8. No user-facing change;
-  production stays off.
-- **Frozen-digest resolver redesign** (M101 CM1012R4, review RVCM1012C).
-  The frozen digest no longer walks imports with a pattern scanner or
-  hashes outside bindings by their current values: each arm root is
-  bundled by the real resolver (esbuild, already a build dependency) and
-  every input file it reports contributes its exact bytes, so accessor
-  implementations, comment-quoted edges, literal dynamic imports and
-  directory indexes are all covered exactly as the build resolves them.
-  A non-literal dynamic `import()` or `require()` fails the digest
-  instead of freezing around it, and canonical JSON keeps an own
-  `__proto__` field. No user-facing change; production stays off.
-- **Frozen-digest refusal parsing** (M101 CM1012R5, review RVCM1012D).
-  The remaining pattern-based refusal scanner is replaced with the
-  TypeScript compiler API: every file in the resolver's closure is
-  parsed, so interpolated and concatenated dynamic specifiers fail the
-  digest with file and line, as does every indirect loader spelling
-  (`module.require`, optional `require?.()`, require aliases,
-  `createRequire(…)(…)` and `require.call/apply/bind`) and every `new
-  Worker(…)` load, literal or not — none of which the bundler follows.
-  No user-facing change; production stays off.
-- **Frozen-digest load-closure rule** (M101 CM1012R6, review RVCM1012E).
-  The shape list becomes one rule: every runtime load the walk finds
-  (dynamic `import()` including `import.defer`, every `require`
-  spelling, every `new Worker(…)` spelling, two-argument `new URL`,
-  `import.meta.resolve`, module-relative file reads, dynamic
-  evaluation) is refused with file and line unless the bundler's own
-  metafile placed its target in the closure. Re-frozen digest
-  `9cfc4744…786278`. No user-facing change; production stays off.
-- **Frozen evaluation executes what it hashes** (M101 CM1012R7,
-  review RVCM1012F). Each arm is one self-contained esbuild Node bundle;
-  its emitted bytes and declared fixture snapshots determine the digest.
-  The runner executes that exact snapshot under Node's permission model,
-  granting reads only to its bundle and fixture files, with workers and
-  child processes denied. Undeclared loads and reads fail the task before
-  model dispatch, regardless of loader spelling. Validated declarative
-  options replace parent arm callbacks for frozen runs; their JSON reports
-  retain the receipt. The static scanner and resolver comparison are gone,
-  literal `.jsx` and absolute `.js` resolution work, and temporary paths are
-  canonical on macOS, Windows and Linux. No user-facing feature change;
-  production automatic compaction stays off.
+- **M75 evaluation freeze and digest repairs** (M101 CM1012R2–R7, reviews
+  RVCM1012–RVCM1012F; harness only, no user-facing change, production
+  automatic compaction stays off). Each arm differs from its pair in one
+  mechanism only. The frozen digest covers each arm's implementation
+  source, each task's resolved window, the verifier prelude, the window
+  rule, the held-deps list and the frozen defaults. The digest is computed
+  over the transitive import closure (each arm root bundled by the real
+  resolver), parsed with the TypeScript compiler API so every indirect
+  loader spelling fails the digest with file and line, under one
+  load-closure rule: every runtime load the walk finds is refused unless
+  the bundler's own metafile placed its target in the closure (re-frozen
+  digest `9cfc4744…786278`). Each arm runs as one self-contained esbuild
+  Node bundle; the runner executes that exact snapshot under Node's
+  permission model. Temporary paths are canonical on macOS, Windows and
+  Linux.
 - **M75 evaluation with production compaction admission** (M101 C-M101-3,
-  part A, no user-facing change). The frozen auto-compaction arm now
-  admits through the real shared D78 gate and settles every extra attempt
-  against the run's own hard budget instead of a test double, and the
-  counted-run launcher prints its call plan (206 planned, 300 hard
-  ceiling) before anything sends. All four frozen arms run behind the
-  live switch with both mechanism engagements recorded. (The counted
+  part A, no user-facing change). The frozen auto-compaction arm admits
+  through the real shared D78 gate and settles every extra attempt
+  against the run's own hard budget; the launcher prints its call plan
+  (206 planned, 300 hard ceiling) before anything sends. (The counted
   live runs have since passed; see the evaluated-automatic-compaction
   entry above.)
 - **M75 evaluation review repairs** (M101 CM1013AR2, review RVCM1013A, no
@@ -1488,30 +1416,23 @@ happened, not what was planned; superseded entries are kept.
 
 
 - Legal scans recognize the literal affiliate and `et al.` notice suffixes,
-  terminal periods after holder names, and paired email/URL contacts found in
-  shipped vendor licences, while keeping restrictive holder text under review.
-  Optional workspace-root `licence-review.json` receipts bind a reviewed text
-  to its package, exact version, SHA-256 and SPDX id and appear visibly as
-  **Reviewed by receipt** in all formats; changed bytes or versions need review
-  again. The restriction vocabulary moves unchanged beside the pinned templates,
-  preserving the legal bundle cap.
-
-- Legal scans reject restrictive holder/party text in pinned SPDX templates,
-  including Title Case, camelCase and multilingual variants, while recognizing
-  ordinary names such as Profit Inc. Coverage follows shipped dependencies,
-  exact license-text disagreements remain conflicts, build evidence survives
-  alphabetically earlier file-cap noise, and package versions remain visible
-  after email scrubbing. Exit documentation now agrees with blocker-only exit 1.
-
-- The activity-bar icon is now the extension's own mark: the squiggled "m"
-  from the Marketplace icon as a single-colour mask, replacing the Meta logo
-  silhouette. The Marketplace icon, banner and social preview already used
-  the "m"; the activity-bar icon was missed.
+  terminal periods after holder names, and paired email/URL contacts in
+  shipped vendor licences, while keeping restrictive holder text under
+  review. Optional workspace-root `licence-review.json` receipts bind a
+  reviewed text to its package, version, SHA-256 and SPDX id and read
+  **Reviewed by receipt** in all formats; changed bytes or versions need
+  review again.
+- Legal scans reject restrictive holder/party text in pinned SPDX
+  templates, including Title Case, camelCase and multilingual variants,
+  while recognizing ordinary names. Coverage follows shipped dependencies;
+  exact license-text disagreements remain conflicts, package versions stay
+  visible after email scrubbing, and exit documentation agrees with
+  blocker-only exit 1.
 - Each provider's own retry limit, nothing global (lane RETRYLIMITS, the
   owner's binding rule). The single 4-retries/1 s-to-60 s default is
-  replaced by the documented values — Anthropic 2, OpenAI 2, Gemini 4 (about 1 s to
-  60 s), Azure 10, xAI 4, Meta 4 — and a provider that documents no maximum
-  retries until its own wait or stop answer ends the exchange. The new
+  replaced by the documented values (Anthropic 2, OpenAI 2, Gemini 4,
+  Azure 10, xAI 4, Meta 4); a provider that documents no maximum retries
+  until its own wait or stop answer ends the exchange. The new
   machine-scoped `museSpark.modelApiMaxRetries` setting caps every
   provider's retries when set (`0` never retries); unset, the providers'
   documented maxima govern. Record:
@@ -2277,22 +2198,18 @@ happened, not what was planned; superseded entries are kept.
   change.
 - Paid-use consent audit: the four unused consent helpers for scheduled
   runs and per-account consent stay unwired until their owning milestones
-  land (M115 Lane U's per-schedule consent; M108 lane P's per-account
-  consent). Meanwhile a paid schedule draft from the panel is refused
-  (its caller carries no paid flag or budget) and every reachable paid
-  use still asks the popup; a unit suite now tests that surface refusal
-  through the real surface, separately from the unwired helpers' logic
+  land (M115 Lane U; M108 lane P). Meanwhile a paid schedule draft from
+  the panel is refused and every reachable paid use still asks the popup
   (RVMSM58M69). No behaviour change.
-- On VS Code 1.101 to 1.111 with `http.proxy` set, Muse Voice recorded audio
-  and then failed, because those versions do not route an extension's
-  WebSocket through the proxy. The microphone now stays unavailable with the
-  reason while a proxy is set there, instead of recording audio that cannot
-  be sent.
+- On VS Code 1.101 to 1.111 with `http.proxy` set, Muse Voice recorded
+  audio and then failed, because those versions do not route an
+  extension's WebSocket through the proxy. The microphone now stays
+  unavailable with the reason while a proxy is set there.
 - Behind a proxy on VS Code 1.112 or later, a Muse Voice refusal caused by
   the person's own settings (`http.proxySupport` off, or
   `http.webSocketAdditionalSupport` off) wrongly blamed the VS Code
   version. The microphone now names the setting that is off and what to
-  change; the version text stays only for VS Code before 1.112.
+  change.
 - The production build no longer starts every bundle at once through one
   esbuild service, which could fail under machine load with an error that
   named no bundle and then hang. Bundles now run through a bounded pool
@@ -3178,33 +3095,25 @@ happened, not what was planned; superseded entries are kept.
   The default is now 200 calls; an existing caller request allowance wins,
   including `exec --max-requests` above 200 (production ACP binds none).
   Money caps remain enforced.
-- A request that declares no tools (the wrap-up, compaction without
-  reused tools, the Git drafts, the reviewer and hook-model calls with no
-  tools) omits both the tools list and the tool choice on every wire
-  format. That omitted shape is the only one every provider accepts:
-  xAI answers 400 to a tool choice with no tools, which broke `/compact`,
-  automatic compaction, the Git drafts and the wrap-up on xAI — a person
-  on xAI can compact again. The instructions stay byte-identical
-  (golden `10-turn-limit-wrap-up`, re-recorded for the omitted shape).
-  The turn's first model call always runs with tools, even when it is also
-  the last one allowed: an answer completes the turn (exec exit 0), while a
-  tool request ends it at the request cap. A wrap-up answer always completes
-  with `max_turn_requests` (exec `request_cap`, exit 5), whatever ended the
-  wrap-up: a plain or truncated answer, a Stop hook blocking or answering
-  `continue: false`, or a hook cancelling the turn. Stop hooks still run on
-  a wrap-up turn; a hook asking for more work is answered with a notice.
-  Steering, scheduled-prompt steers and goal wakes arriving before the
-  wrap-up keep their own turn with tools, and never feed the wrap-up; the
-  wrap-up is never measured as the turn body, and compaction after a limit
-  stop reuses the last ordinary body. A hook-model call that would take the
-  turn's last call fails instead, before any paid popup or tally, so the
-  hook's own on-failure rule decides. Call-limit and
-  output-limit stops carry their own evidence stop reason instead of the
-  money stop, and the reference names the turn behavior on the Conversation
-  entry instead of the paid budget. `setModelCallAllowance` is required on
-  the attempt session surface, so best-of-N attempts reserve the wrap-up
-  through it. (Team-task ceilings return with the teams wiring lane: that
-  lane binds team tasks through the same member.)
+- A request that declares no tools (the wrap-up, tool-less compaction, Git
+  drafts, reviewer and hook-model calls) omits the tools list and tool
+  choice on every wire format — the only shape every provider accepts
+  (xAI answers 400 to a tool choice with no tools, which broke `/compact`,
+  automatic compaction, Git drafts and the wrap-up there). The instructions
+  stay byte-identical (golden `10-turn-limit-wrap-up`, re-recorded). The
+  turn's first model call always runs with tools: an answer completes the
+  turn (exec exit 0), a tool request ends it at the request cap. A wrap-up
+  answer always completes with `max_turn_requests` (exec `request_cap`,
+  exit 5), whatever ended it; Stop hooks still run, and one asking for more
+  work is answered with a notice. Late steering, steers and goal wakes keep
+  their own turn with tools and never feed the wrap-up; compaction after a
+  limit stop reuses the last ordinary body. A hook-model call that would
+  take the last call fails instead, before any paid popup or tally. Limit
+  stops carry their own evidence stop reason, and the reference names the
+  turn behavior on the Conversation entry. `setModelCallAllowance` is
+  required on the attempt session surface, so best-of-N attempts reserve the
+  wrap-up through it. (Team-task ceilings return with the teams wiring
+  lane.)
 - One `usableReply` rule decides whether a turn's reply may answer what was
   asked: only a turn that completed without a limit yields it. The
   same-model judge, the playbook review, both Git drafts, the reviewer, the
@@ -3225,31 +3134,28 @@ happened, not what was planned; superseded entries are kept.
   turn was holding is still re-queued for its own turn. Image generation refuses
   on the same reserved slot as every other caller-ledger side call.
 - D121 (owner 2026-10-16: limits only on models): best-of-N no longer caps
-  attempts or requests per attempt at 2–5 and 5–50 — both numbers are your
-  own per-run choice (defaults 3 × 20 stay); headless exec no longer caps
-  `--max-requests` at 500 or `--max-budget-usd` at $20 — your flags stay
-  with no ceiling of ours; `rename_symbol` no longer refuses a rename that
-  touches more than 200 files; a hook agent handler loops over its
-  read-only tools until the model stops calling them instead of stopping
-  after 5 steps; a goal objective of any length stands instead of refusing
-  past 4000 characters; a plan keeps every step past 50 and saves and reads
-  back at any size instead of refusing past 256 KB (handoff briefs too);
-  a saved prompt keeps any title, body and per-scope count past 200, 80
-  and 10000 characters;
-  the proposal Action's same $20 and 500-request caps went too; image generation takes a prompt of any length and
-  any number of edit sources past 4000 characters and 4 (Meta documents no
-  prompt length and 1–10 edit items — its own refusal answers oversize calls);
-  a provider holds any number of accounts past 64 per provider; check
-  commands no longer refuse a 9th check and a check names any positive
-  `timeoutSeconds` past 600 (300 unless set); a conversation spawns
-  subagents past 64 per conversation (paid consent still asks per spawn);
-  a team `delegate` starts past 6 tasks and engines run past the 20-worker
-  hard ceiling (the provider's documented limits, live 429 adaptation and
-  the machine bound the rest); exports and shares write and read back past
-  16 MiB (transcripts of any item count; report sources read at any size);
-  a held pull request checks
-  out past 20000 entries and 250 MB (an unreadable listing still refuses;
-  unsafe and colliding paths still refuse before anything is written).
+  attempts or requests per attempt at 2–5 and 5–50 (defaults 3 × 20 stay);
+  headless exec no longer caps `--max-requests` at 500 or `--max-budget-usd`
+  at $20; `rename_symbol` no longer refuses a rename past 200 files; a hook
+  agent handler loops over its read-only tools until the model stops calling
+  them instead of stopping after 5 steps; a goal objective of any length
+  stands instead of refusing past 4000 characters; a plan keeps every step
+  past 50 and saves and reads back at any size instead of refusing past
+  256 KB (handoff briefs too); a saved prompt keeps any title, body and
+  per-scope count past 200, 80 and 10000 characters; the proposal Action's
+  same $20 and 500-request caps went too; image generation takes a prompt
+  of any length and any number of edit sources past 4000 characters and 4
+  (Meta documents no prompt length and 1–10 edit items); a provider holds
+  any number of accounts past 64 per provider; check commands no longer
+  refuse a 9th check and a check names any positive `timeoutSeconds` past
+  600 (300 unless set); a conversation spawns subagents past 64 per
+  conversation (paid consent still asks per spawn); a team `delegate`
+  starts past 6 tasks and engines run past the 20-worker hard ceiling (the
+  provider's documented limits, live 429 adaptation and the machine bound
+  the rest); exports and shares write and read back past 16 MiB; a held
+  pull request checks out past 20000 entries and 250 MB (an unreadable
+  listing still refuses; unsafe and colliding paths still refuse before
+  anything is written).
 - NOLIMITS1FIX (same owner rule: the review's kept bounds go too): a saved
   prompt file reads, imports and shares at any size instead of refusing past
   128 KiB — only a blank title still refuses ("A title is required."); a link
@@ -3529,28 +3435,20 @@ happened, not what was planned; superseded entries are kept.
   License List 3.28.0 templates under the SPDX matching guidelines (M97
   CM971-R3, reviews RVCM971 and RVCM971B). A text is an exact match only
   when every fixed word of a template is present in order and only the
-  template's variable and optional parts vary, each variable holding just
-  what it stands for (a copyright notice, a list marker, a name); a
-  sentence, a condition or prose in any language never vanishes into a
-  match. Anything else is reported as differing from the template at a
-  quoted span, for human review. The 21 templates ship beside the scanner,
-  byte-identical and verified by SHA-256 before use. GPL-family texts match
-  their version stem; `-only`/`-or-later` comes only from the project's own
-  grant (manifest, README, source `SPDX-License-Identifier` headers, GNU
-  "any later version" notices, a trailing `+`). Every licence text a
-  dependency names (Cargo `license-file`, `SEE LICENSE IN`, Python
-  `License-File`) and every vendored licence below the root keeps its
-  human-review limitation unless it matches exactly. Artifact freshness is
-  proven per bundle from SHA-256 hashes the production build captures from
-  the exact bytes it compiles; every listed output must exist and match,
+  template's variable and optional parts vary; anything else is reported
+  as differing at a quoted span, for human review. The 21 templates ship
+  beside the scanner, byte-identical and SHA-256-verified before use.
+  GPL-family texts match their version stem; `-only`/`-or-later` comes
+  only from the project's own grant (manifest, README, source license
+  headers, GNU "any later version" notices, a trailing `+`). Every
+  licence text a dependency names and every vendored licence below the
+  root keeps its human-review limitation unless it matches exactly.
+  Artifact freshness is proven per bundle from SHA-256 hashes the
+  production build captures; every listed output must exist and match,
   conflicting records fail, and inputs outside the workspace are named.
-  Plugin-generated modules, binary inputs and esbuild's disabled stand-ins
-  are hashed where the build hands them over, and `npm run build` now ends
-  by scanning this repository's own build records with the production
-  scanner (`scripts/check-legal-build-records.mjs`), failing on any
-  unverified input. Restriction words (noncommercial, nonprofit,
-  educational, only, personal, no, …) are never read as part of a
-  copyright holder's name, so such a notice keeps human review.
+  `npm run build` now ends by scanning this repository's own build
+  records with the production scanner, failing on any unverified input.
+  Restriction words are never read as part of a copyright holder's name.
 
 - A `/legal` scan now judges what the workspace distributes (M97 scan-scope
   ruling). Distribution is read from the build records first (inputs the

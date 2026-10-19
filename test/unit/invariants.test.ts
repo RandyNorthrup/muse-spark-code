@@ -44,10 +44,8 @@ import { parseSkillFile, type SkillDefinition } from '../../src/core/context/ski
 import { buildStableRosterSection } from '../../src/core/team/roster'
 import { TEAM_TOOL_DEFINITIONS } from '../../src/core/team/teamTools'
 import { webSearchPriceUsd } from '../../src/core/paid/paidFeatures'
-import {
-  ObservationPack,
-  estimatePackTokens,
-} from '../../src/core/backends/modelapi/observationPack'
+import { estimatePackTokens } from '../../src/core/backends/modelapi/observationPack'
+import { ObservationPack } from '../../src/core/backends/modelapi/observationPacking'
 import {
   functionCallItemSchema,
   withStrictTools,

@@ -1,7 +1,7 @@
-import { setImmediate as yieldToHost } from 'node:timers/promises'
 import { fill, plural } from '../../shared/l10n/text'
 import { fingerprint } from '../verify/fingerprint'
 import { compareLegalText } from './files'
+import { createYieldCheck } from './scanYield'
 // The deterministic scan (M97, PLAN.md D76): every reader over one
 // bounded snapshot, findings sorted before stable ids are assigned, and
 // the lane 0 result schema validating the envelope. Changing only the
@@ -19,7 +19,6 @@ import {
   LEGAL_INCOMPLETE_MAX,
   LEGAL_RESULT_VERSION,
   LEGAL_SCAN_PATHS_MAX,
-  LEGAL_SCAN_YIELD_EVERY,
   LEGAL_TEXT_MAX_CHARS,
   LEGAL_EVIDENCE_EXCERPT_MAX_CHARS,
   LEGAL_FINDING_ID_MAX_CHARS,
@@ -30,7 +29,7 @@ import {
   type LegalHeaderPolicy,
 } from '../../shared/constants'
 import { legalScanResultSchema, type LegalScanResult } from '../../shared/legal'
-import { prepareLegalHeaderPatches } from './headerFix'
+
 import { evaluateCompatibility } from './compat'
 import { SPDX_DATA_VERSION } from './data'
 import { evaluateDependencyLicenses, readLicenceReviews } from './depLicenses'
@@ -59,6 +58,8 @@ import { readNpm } from './ecosystems/npm'
 import { readNuGet } from './ecosystems/nuget'
 import { readPython } from './ecosystems/python'
 import type { LegalFindingDraft } from './finding'
+import type * as LegalFix from './legalFixEntry'
+import type { LegalPreparedPatch } from '../../shared/legalScanEntry'
 import {
   assertWorkspaceRelative,
   baseNameOf,
@@ -411,17 +412,12 @@ export async function scanLegal(
   if (!LEGAL_HEADER_POLICIES.includes(options.headerPolicy)) {
     throw new LegalScanError(UI_TEXT.legalScanner.m108)
   }
-  let sinceYield = 0
-  const checkYield = async (): Promise<void> => {
-    sinceYield += 1
-    if (sinceYield < LEGAL_SCAN_YIELD_EVERY) return
-    sinceYield = 0
-    // Let a Stop/SIGINT abort land mid-scan (PR #214 review): the scan is
-    // CPU-bound over thousands of files on one thread, so without a yield
-    // the abort below could only have arrived before the scan started.
-    await yieldToHost()
+  // Let a Stop/SIGINT abort land mid-scan (PR #214 review): the scan is
+  // CPU-bound over thousands of files on one thread, so without a yield
+  // the abort below could only have arrived before the scan started.
+  const checkYield = createYieldCheck(() => {
     if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
-  }
+  })
   const listed2 = snapshot.files
   for (const file of listed2) {
     assertWorkspaceRelative(file)
@@ -824,12 +820,27 @@ export async function scanLegal(
   })
   results.sort((a, b) => compareLegalText(a.id, b.id))
 
-  const repairable = new Set(
-    prepareLegalHeaderPatches(
-      bounded,
-      results.filter((finding) => finding.fixable),
-    ).map((entry) => entry.patch.path),
-  )
+  // The header-fix planner loads with the fix chunk (dist/legalFix.js,
+  // D6): a scan with nothing fixable never loads it. A scan that needs it
+  // and cannot load it is refused, never silently unfixable.
+  const fixable = results.filter((finding) => finding.fixable)
+  let patched: readonly LegalPreparedPatch[] = []
+  if (fixable.length > 0) {
+    let prepare: typeof LegalFix.prepareLegalHeaderPatches
+    try {
+      const fix = await import('./legalFixEntry.js')
+      prepare = fix.prepareLegalHeaderPatches
+    } catch (error) {
+      throw new LegalScanError(
+        fill(UI_TEXT.legalScanFailed, {
+          reason: error instanceof Error ? error.message : String(error),
+        }),
+        { cause: error },
+      )
+    }
+    patched = prepare(bounded, fixable)
+  }
+  const repairable = new Set(patched.map((entry) => entry.patch.path))
   for (const finding of results) {
     if (finding.fixable && (finding.file === undefined || !repairable.has(finding.file)))
       finding.fixable = false

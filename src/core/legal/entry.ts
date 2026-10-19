@@ -1,5 +1,6 @@
 // Production legalScan.js entry: local reads only, shared by both loaders.
-import { SETTING_DEFAULTS } from '../../shared/constants'
+import { SETTING_DEFAULTS, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { legalScanInputSchema } from '../../shared/legal'
 import type {
   LegalScanRequest,
@@ -7,8 +8,9 @@ import type {
   LegalRegistryTarget,
 } from '../../shared/legalScanEntry'
 import type { LegalFinding } from '../../shared/legal'
+import type * as LegalFix from './legalFixEntry'
 import type { LegalPreparedPatch } from '../../shared/legalScanEntry'
-import { prepareLegalHeaderPatches } from './headerFix'
+import { LegalScanError } from './files'
 import { readNpm } from './ecosystems/npm'
 import { readPython } from './ecosystems/python'
 import { buildRecordProblems, scanLegal } from './scan'
@@ -63,7 +65,23 @@ export async function prepareLegalFixes(
   workspaceRoot: string,
   findings: readonly LegalFinding[],
 ): Promise<readonly LegalPreparedPatch[]> {
-  return prepareLegalHeaderPatches(await createLegalSnapshot(workspaceRoot), findings)
+  // The header-fix planner loads with the fix chunk (dist/legalFix.js, D6):
+  // a fix request with nothing to fix never loads it. A request that needs
+  // it and cannot load it is refused, never silently unpatched.
+  if (findings.length === 0) return []
+  let prepare: typeof LegalFix.prepareLegalHeaderPatches
+  try {
+    const fix = await import('./legalFixEntry.js')
+    prepare = fix.prepareLegalHeaderPatches
+  } catch (error) {
+    throw new LegalScanError(
+      fill(UI_TEXT.legalScanFailed, {
+        reason: error instanceof Error ? error.message : String(error),
+      }),
+      { cause: error },
+    )
+  }
+  return prepare(await createLegalSnapshot(workspaceRoot), findings)
 }
 
 export { renderLegalMarkdown } from './markdown'

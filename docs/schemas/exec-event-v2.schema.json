@@ -31,10 +31,7 @@
               ]
             },
             "maxRequests": {
-              "anyOf": [
-                { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
-                { "type": "null" }
-              ]
+              "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 500 }, { "type": "null" }]
             },
             "timeoutSeconds": {
               "anyOf": [
@@ -675,10 +672,7 @@
                   ]
                 },
                 "maxRequests": {
-                  "anyOf": [
-                    { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
-                    { "type": "null" }
-                  ]
+                  "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 500 }, { "type": "null" }]
                 },
                 "timeoutSeconds": {
                   "anyOf": [
