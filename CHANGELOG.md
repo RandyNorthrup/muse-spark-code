@@ -768,6 +768,16 @@ happened, not what was planned; superseded entries are kept.
   0.15.0, it refused every native review there with "Git could not read the
   changes to review" (lane REVIEWEXIT).
 
+- Muse Code now starts when the panel first opens. Opening the panel while
+  the sign-in check was still running left the pill on "Starting Muse Code…"
+  for good: the first-open warm-up stood down for the check and nothing
+  re-ran it once the sign-in landed, so only Restart Muse Code or the first
+  turn started the host. A sign-in now starts the host on every panel that
+  opened cold. The host's own start is foreground work the person waits for,
+  so the resource governor's pause no longer holds it (it waited out the
+  twenty-second foreground bypass with no word); background work still
+  pauses as before.
+
 ### Documentation
 
 - PLAN.md had grown to 4,157,477 bytes, 36,827 short of the 4 MiB bound at
