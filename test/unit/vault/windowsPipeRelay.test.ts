@@ -66,6 +66,9 @@ const resultsSchema = z.strictObject({
     echo: z.string(),
     serverResult: z.string(),
     serverOwnerSid: z.string(),
+    // The helper's whole server answer: the trust predicate runs against
+    // what the helper really reported, never a weakened reading of it.
+    server: windowsVaultPipeServerResultSchema,
     processResult: z.string(),
     processId: z.union([z.number(), z.null()]),
     processUserId: z.union([z.string(), z.null()]),
@@ -176,11 +179,14 @@ describe.skipIf(process.platform !== 'win32')('Windows pipe relay against the re
       throw new Error(`relay fixture exited during the run: ${finished.diagnostics}`)
     const report = resultsSchema.parse(finished.message[0])
     // Every value below comes from the helper or the OS: the echo round
-    // trip, the server's own owner SID against the relay's, and the
-    // examined process against this fixture child.
+    // trip, the server's own owner SID against the relay's, the trust
+    // predicate against the helper's real server answer (an `ok` with
+    // `ownerOnlyDacl: false` fails here, as the dial would refuse it),
+    // and the examined process against this fixture child.
     expect(report.results.echo).toBe('hello-relay')
     expect(report.results.serverResult).toBe('ok')
     expect(report.results.serverOwnerSid).toBe(fixture.ownerSid)
+    expect(isVaultPipeServerTrusted(report.results.server, fixture.ownerSid)).toBe(true)
     expect(report.results.processResult).toBe('ok')
     expect(report.results.processId).toBe(child.pid)
     expect(report.results.processUserId).toBe(fixture.ownerSid)

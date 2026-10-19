@@ -40,6 +40,7 @@ export function macVaultTransport(helper: string, signal?: AbortSignal): MacVaul
             const failure = hasNativeFailure ? macVaultFailure(output) : undefined
             output.fill(0)
             void stop().catch(() => {
+              // The exchange already failed; the stop is best-effort and the fixed refusal rejects.
               reject(new Error(UI_TEXT.vault.noAccess))
             })
             reject(failure ?? new Error(UI_TEXT.vault.noAccess))

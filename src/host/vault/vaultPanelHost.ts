@@ -12,7 +12,9 @@ import {
   vaultItemMetadataSchema,
 } from '../../shared/vault'
 import { UI_TEXT, VAULT_VIEW_RETRY_BUDGET, VAULT_VIEW_RETRY_MS } from '../../shared/constants'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { vaultRefusalSentences } from '../../shared/vaultRefusals'
+import type { Logger } from '../logger'
 import type { VaultImportReport } from '../../core/vault/broker/ports'
 import { VaultChannelError } from '../../core/vault/broker/client'
 import {
@@ -54,6 +56,8 @@ export interface VaultPanelService {
 }
 export interface VaultPanelHostDeps {
   readonly service: VaultPanelService
+  /** The record keeps each failure's kind in fixed words; the person hears fixed sentences. */
+  readonly log: Logger
   readonly now: () => number
   /** VS Code's native password box, or an IDE terminal; never a webview form. */
   readonly editItem: (
@@ -326,6 +330,8 @@ export class VaultPanelHost {
     try {
       await this.load(this.generation, seq)
     } catch (reloadError: unknown) {
+      // The record keeps the reload failure's kind; the view below says fixed words.
+      this.deps.log.warn(`Vault reload failed: ${failureForLog(reloadError)}`)
       if (isVeto(reloadError)) {
         // The change landed; the current view republishes and the real
         // failure is still shown.
@@ -357,6 +363,7 @@ export class VaultPanelHost {
     const generation = this.generation
     const seq = this.beginReload()
     void this.load(generation, seq).catch((error: unknown) => {
+      this.deps.log.warn(`Vault refresh failed: ${failureForLog(error)}`)
       void this.settleFailure(error, generation)
     })
   }
@@ -381,6 +388,7 @@ export class VaultPanelHost {
     try {
       await this.deps.service.deleteImport(receipt, authorize, signal)
     } catch (error: unknown) {
+      this.deps.log.warn(`Vault delete of an import failed: ${failureForLog(error)}`)
       if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone) {
         try {
           await this.deps.service.keepImport(receipt)
@@ -417,6 +425,7 @@ export class VaultPanelHost {
         this.authorize(generation)
         await task(generation)
       } catch (error: unknown) {
+        this.deps.log.warn(`Vault operation failed: ${failureForLog(error)}`)
         await this.settleFailure(error, generation)
       }
     })()
@@ -469,6 +478,7 @@ export class VaultPanelHost {
       // one failure path, so the real snapshot (with any change that
       // arrived meanwhile) is published and the real failure is reported
       // even after an intervening retire (RVCM1091E P2/P3).
+      this.deps.log.warn(`Vault lock failed: ${failureForLog(error)}`)
       await this.settleFailure(error, this.generation)
     }
   }
@@ -533,6 +543,8 @@ export class VaultPanelHost {
             } catch (error: unknown) {
               // A refused confirmation never leaves this setup waiting out its
               // window: it is withdrawn, so Set Up Vault can start again.
+              // The record keeps the confirmation failure's kind.
+              this.deps.log.warn(`Vault setup confirmation failed: ${failureForLog(error)}`)
               try {
                 await this.deps.service.cancelSetup(shown.setupId)
               } catch {

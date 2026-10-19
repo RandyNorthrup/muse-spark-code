@@ -67,6 +67,7 @@ async function defaultRun(
           reject(error)
         })
         .catch(() => {
+          // The seal already failed; the stop is best-effort and the original error still rejects.
           reject(error)
         })
     }
@@ -106,6 +107,7 @@ async function defaultRun(
       child.stdin.write(owned)
       child.stdin.end()
     } catch {
+      // A broken tool stdin fails the seal run with the fixed repair; fail carries it to the caller.
       fail(new VaultStoreUnavailableError())
     }
   })
@@ -238,7 +240,9 @@ export class LinuxTpm2Slot implements VaultSlotPort {
     let raw: unknown
     try {
       raw = JSON.parse(Buffer.from(wrappedKey, 'base64').toString('utf8'))
-    } catch {
+    } catch (error: unknown) {
+      // JSON.parse fails only as SyntaxError: a damaged container is invalid, never unsealed.
+      if (!(error instanceof SyntaxError)) throw error
       throw new VaultError('invalid')
     }
     const candidate: {
@@ -310,8 +314,10 @@ export class LinuxTpm2Slot implements VaultSlotPort {
         let decoded: unknown
         try {
           decoded = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'))
-        } catch {
-          throw new Error(UI_TEXT.vault.useChanged)
+        } catch (error: unknown) {
+          // JSON.parse fails only as SyntaxError: a damaged seal record is unusable, never adopted.
+          if (!(error instanceof SyntaxError)) throw error
+          throw new Error(UI_TEXT.vault.useChanged, { cause: error })
         }
         if (
           typeof decoded !== 'object' ||

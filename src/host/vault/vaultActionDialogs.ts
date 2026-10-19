@@ -17,6 +17,16 @@ export interface VaultActionDialogDeps {
 }
 
 type SshKeyResult = Awaited<ReturnType<VaultNativeInput['sshKey']>>
+
+/**
+ * The key module's own fixed refusal (an unreadable or unusable key file).
+ * Exact match only: anything else keeps its cause instead of asking for a
+ * passphrase over an unrelated failure.
+ */
+function isSshRefusal(error: unknown): boolean {
+  return error instanceof Error && error.message === UI_TEXT.vault.noAccess
+}
+
 /** S owns generation and import; this VS Code side only picks the source. */
 async function vscodeSshKey(): Promise<SshKeyResult> {
   const picked = await vscode.window.showQuickPick(
@@ -45,7 +55,9 @@ async function vscodeSshKey(): Promise<SshKeyResult> {
   let raw: Uint8Array | undefined
   try {
     raw = await vscode.workspace.fs.readFile(target)
-  } catch {
+  } catch (error: unknown) {
+    // Only a filesystem failure names the key file; anything else keeps its cause.
+    if (!(error instanceof vscode.FileSystemError)) throw error
     throw sshFailure()
   }
   const fileBytes = Buffer.from(raw)
@@ -53,8 +65,10 @@ async function vscodeSshKey(): Promise<SshKeyResult> {
   try {
     try {
       return toMaterial(importSshKey(Buffer.from(fileBytes)))
-    } catch {
+    } catch (error: unknown) {
       // An encrypted file fails without its passphrase: ask once, then stop.
+      // Anything but the key module's own refusal keeps its cause.
+      if (!isSshRefusal(error)) throw error
       const entered = await vscode.window.showInputBox({
         prompt: UI_TEXT.vault.sshKeyPassphrase,
         password: true,
@@ -64,7 +78,8 @@ async function vscodeSshKey(): Promise<SshKeyResult> {
       const passphrase = Buffer.from(entered, 'utf8')
       try {
         return toMaterial(importSshKey(Buffer.from(fileBytes), passphrase))
-      } catch {
+      } catch (retryError: unknown) {
+        if (!isSshRefusal(retryError)) throw retryError
         throw sshFailure()
       } finally {
         passphrase.fill(0)

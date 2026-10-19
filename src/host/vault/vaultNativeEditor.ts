@@ -269,10 +269,11 @@ export async function editVaultItem(
     checkCancellation()
     isTransferred = true
     return item
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof Cancelled) return null
+    // A refused edit keeps the fixed sentence with its cause for the caller.
+    throw new Error(UI_TEXT.vault.operationFailed, { cause: error })
   } finally {
     if (!isTransferred) for (const buffer of buffers) buffer.fill(0)
   }
-  throw new Error(UI_TEXT.vault.operationFailed)
 }

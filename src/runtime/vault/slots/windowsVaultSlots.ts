@@ -66,6 +66,7 @@ export class WindowsVaultSlots implements VaultSlotProvider {
         this.transport,
       )
     } catch {
+      // Without protection facts there is no CNG tier; Credential Manager still serves.
       return null
     }
   }
@@ -95,6 +96,7 @@ export class WindowsVaultSlots implements VaultSlotProvider {
         try {
           await windowsVaultScreenLock(windowsVaultTransport(this.helper, controller.signal))
         } catch {
+          // Disposal aborts the wait and a broken wait ends it; either way the watch stops.
           return
         }
         if (!isActive) return

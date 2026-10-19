@@ -41,6 +41,7 @@ export function readVaultLine(
         try {
           cleanup()
         } catch {
+          // A failed cleanup already rejects below; its kind cannot change the outcome.
           canReturn = false
         }
       }
@@ -53,6 +54,7 @@ export function readVaultLine(
           resolve(owned)
         } else reject(new Error(UI_TEXT.vault.noAccess))
       } catch {
+        // Echo restoration already failed; the line still rejects with the fixed refusal.
         reject(new Error(UI_TEXT.vault.noAccess))
       } finally {
         bytes.fill(0)
@@ -110,6 +112,7 @@ export function readVaultLine(
       }
       input.resume()
     } catch {
+      // Setup failed before any byte arrived; finish refuses with nothing to return.
       finish(false)
     }
   })

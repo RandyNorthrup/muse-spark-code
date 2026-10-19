@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
@@ -13,7 +14,15 @@ import { windowsVaultPipeNameSchema } from '../../../src/core/vault/broker/windo
 // as the packages lay it out), dials its pipe and reads a real status.
 // Nothing is invented: the pipe name, the trust and the status all come
 // from the helper and the broker. Skipped elsewhere with this reason.
-const fixture = { root: '', platform: undefined as VaultClientPlatform | undefined }
+// The host ids are 32 hex characters, minted the way the panel mints them
+// (randomBytes(16).toString('hex')): the registrar parses them as such,
+// and shorter names throw before connect.
+const fixture = {
+  root: '',
+  platform: undefined as VaultClientPlatform | undefined,
+  hostId: randomBytes(16).toString('hex'),
+  hostSession: randomBytes(16).toString('hex'),
+}
 describe.skipIf(process.platform !== 'win32')('Windows vault broker end to end', () => {
   beforeAll(async () => {
     fixture.root = await mkdtemp(path.join(tmpdir(), 'vs-wbroker-'))
@@ -43,8 +52,8 @@ describe.skipIf(process.platform !== 'win32')('Windows vault broker end to end',
     fixture.platform = await vaultClientPlatform({
       dataDir: path.join(fixture.root, 'data'),
       distDir: dist,
-      hostId: 'test-host',
-      hostSession: 'test-session',
+      hostId: fixture.hostId,
+      hostSession: fixture.hostSession,
     })
   })
   afterAll(async () => {
@@ -56,10 +65,13 @@ describe.skipIf(process.platform !== 'win32')('Windows vault broker end to end',
   it('builds, launches, dials and reads status through the real broker', async () => {
     const platform = fixture.platform
     if (!platform) throw new Error('the client platform did not build')
-    const hostId = 'test-host'
-    const hostSession = 'test-session'
     const broker = new VaultBrokerProcess(platform.discovery, platform.process)
-    const client = await broker.connect(hostId, hostSession, platform.peers, platform.dial)
+    const client = await broker.connect(
+      fixture.hostId,
+      fixture.hostSession,
+      platform.peers,
+      platform.dial,
+    )
     try {
       const location = await broker.get()
       // The claim publishes a pipe name, never a socket path.
