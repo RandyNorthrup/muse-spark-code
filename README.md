@@ -6580,8 +6580,9 @@ Model API strict tool declarations and safe parallel reads are on by default.
 machine-scoped switches; each conversation snapshots the choice. Strict
 schemas require the selected model's known support. Turning strict schemas
 off preserves the previous declarations. Safe reads run at most four at a
-time; writes and other tools retain their order. An output-limit continuation
-is bounded to one request for text-only replies. A cut-short reply containing
+time; writes and other tools retain their order. A reply cut at the output
+limit keeps going for as long as the model is mid-answer, saying so with its
+part count each round. A cut-short reply containing
 tool calls runs none of them and fails the turn; replay retains their error
 results. Repeated unchanged tool results stop the turn.
 

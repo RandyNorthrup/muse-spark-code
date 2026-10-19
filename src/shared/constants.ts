@@ -2549,7 +2549,9 @@ export const READ_FILE_CONTEXT_CHAR_FRACTION = 1 / 2
 // budget clamp. These defaults are fixed for the session, never cache inputs.
 export const MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS = 131_072
 export const MODEL_API_PARALLEL_READS = 4
-export const MODEL_API_CONTINUATIONS_MAX = 1
+// D121 (owner 2026-10-16): no continuation bound of ours — a reply cut at
+// the output limit keeps going for as long as the model is mid-answer.
+// No provider documents a continuation count, so the product sets none.
 export const TOOL_REPEAT_LIMIT = 3
 export const TOOL_ARGUMENT_PREVIEW_MAX_CHARS = 16_000
 /** Incremental preview grammar stops before deeply nested untrusted arguments. */

@@ -132,8 +132,7 @@ export const EN = {
   toolArgumentPreviewTruncated: 'Preview truncated.',
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
   toolArgumentPreviewPreparing: 'Preparing arguments…',
-  modelApiContinuing: 'The output limit was reached. Continuing once…',
-  modelApiContinuationLimit: 'The output limit was reached again. Send a message to continue.',
+  modelApiContinuing: 'The output limit was reached. Continuing (part {count})…',
   modelApiToolStuck:
     'The turn stopped because the same tool call kept returning an unchanged result. Send a message to try another approach.',
   structuredOutputRepair:
