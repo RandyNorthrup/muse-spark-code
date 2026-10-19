@@ -151,9 +151,10 @@ export async function invokeWindowsVault(
     const unwrapped = Buffer.alloc(expected)
     unwrapped.set(frame.subarray(start + length))
     return { probe, container: wrapped?.container, key: unwrapped }
-  } catch {
-    // OS, JSON, Zod and transport messages may contain secret/caller text.
-    throw new Error(UI_TEXT.vault.noAccess)
+  } catch (error: unknown) {
+    // OS, JSON, Zod and transport messages may contain secret/caller text:
+    // the fixed sentence crosses with its cause for the local record.
+    throw new Error(UI_TEXT.vault.noAccess, { cause: error })
   } finally {
     owned.fill(0)
     output?.fill(0)

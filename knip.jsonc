@@ -590,8 +590,18 @@
   // M9 uses the installed CMake/strip toolchain for prebuilt native artifacts;
   // cc/c++ compile only the fake-engine and hostile-plugin test fixtures.
   // readelf checks the actual packaged loader search paths in real-engine tests.
+  // The vault suites drive the installed ssh-keygen probe binary for real.
   // These are system programs, not npm dependencies.
-  "ignoreBinaries": ["gitleaks", "mkfifo", "cmake", "strip", "readelf", "cc", "^c\\+\\+$"],
+  "ignoreBinaries": [
+    "gitleaks",
+    "mkfifo",
+    "cmake",
+    "strip",
+    "readelf",
+    "cc",
+    "^c\\+\\+$",
+    "ssh-keygen"
+  ],
 
   "ignoreExportsUsedInFile": true,
 

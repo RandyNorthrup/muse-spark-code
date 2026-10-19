@@ -144,7 +144,6 @@ export async function invokeMacVault(
   const ownedKey = Buffer.alloc(key.length)
   ownedKey.set(key)
   let output: Uint8Array | undefined
-  const inaccessible = new Error(UI_TEXT.vault.noAccess)
   try {
     output = await transport.exchange(header, ownedKey)
     const { metadata, privateBytes } = readFrame(output)
@@ -161,10 +160,12 @@ export async function invokeMacVault(
     const unwrapped = Buffer.alloc(expected)
     unwrapped.set(privateBytes)
     return { probe, container: wrapped?.container, key: unwrapped }
-  } catch (error) {
+  } catch (error: unknown) {
     // JSON, Zod, transport and OS diagnostics can contain caller text. Only
-    // the validated fixed error class may cross the broker boundary.
-    throw error instanceof MacVaultError ? error : inaccessible
+    // the validated fixed error class may cross the broker boundary; anything
+    // else keeps the fixed sentence with its cause for the local record.
+    if (error instanceof MacVaultError) throw error
+    throw new Error(UI_TEXT.vault.noAccess, { cause: error })
   } finally {
     ownedKey.fill(0)
     output?.fill(0)

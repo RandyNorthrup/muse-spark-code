@@ -65,11 +65,15 @@ void (async () => {
   await guard.protect(context.workDir, 'directory')
   const server = await inspectWindowsPipeServer(serve.relay, context.pipe)
   const examined = await inspectWindowsProcess(serve.relay, process.pid)
+  // The server answer goes over whole: the parent asserts the trust
+  // predicate against what the helper really reported, so a helper that
+  // answers `ownerOnlyDacl: false` fails the suite instead of passing it.
   process.send({
     results: {
       echo: echoed.subarray(0, echo.length).toString('utf8'),
       serverResult: server.result,
       serverOwnerSid: server.ownerSid,
+      server,
       processResult: examined.result,
       processId: examined.process?.processId ?? null,
       processUserId: examined.process?.userId ?? null,

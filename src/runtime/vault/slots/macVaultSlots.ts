@@ -66,6 +66,7 @@ export class MacVaultSlots implements VaultSlotProvider {
         this.transport,
       )
     } catch {
+      // Without protection facts there is no Enclave tier; the Keychain tier still serves.
       return null
     }
   }

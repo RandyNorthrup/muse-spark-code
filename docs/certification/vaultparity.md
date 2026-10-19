@@ -287,3 +287,82 @@ the lane base, green after). Full record, tests and gates:
 `docs/certification/msm109.md` §VAULTMIGFIX5. Parity-surface change: a
 retried or unlock-healed sign-out now removes the key it was asked to
 remove, instead of resolving with both copies still present.
+
+## Grok re-review response (lane PR247FIX2, 2026-10-18, rig `linuxlt`)
+
+One line per finding, each fixed at its cause. No test timeout raised
+anywhere; no check weakened to pass; no stand-in kept.
+
+- F1 (pipe-server trust always fails): fix at cause —
+  `native/windows/MuseSparkVaultPipe.cs` `OnServer` now sets
+  `ownerOnlyDacl` from `IsOwnerOnlyPipe(handle)` on the opened server
+  handle, the same predicate the pipe creation asserts at
+  `MuseSparkVaultPipe.cs:421` (and faults `integrity` on when false, so
+  the predicate is proven on pipe handles on Windows). The client check
+  (`isVaultPipeServerTrusted`) is unchanged: it still requires the SID
+  match, non-remote peer and `ownerOnlyDacl: true`. The relay suite now
+  asserts the predicate against the helper's whole real server answer
+  (`windowsPipeRelay.test.ts`), so an `ok` with `ownerOnlyDacl: false`
+  fails Windows CI instead of passing it. Gate-fire: the pre-existing
+  contract case in the same suite already asserts the predicate is false
+  for `ownerOnlyDacl: false`, so the old helper shape fails the new
+  assertion by that same rule.
+- F2 (Windows end-to-end test cannot start): fix at cause — the suite
+  mints `hostId`/`hostSession` with `randomBytes(16).toString('hex')`,
+  the way the panel does (`vaultPanelEntry.ts:36-37`), instead of
+  `'test-host'`/`'test-session'` which `hostSchema` rejects in
+  `beforeAll` on Windows.
+- F3 (Windows empty-idle is the 5 s startup budget): fix at cause —
+  `windowsBrokerProcess.ts` defaults `idleMs` to
+  `VAULT_BROKER_EMPTY_IDLE_MS` (30 s), the same idle the POSIX broker
+  uses, never `VAULT_BROKER_NATIVE_TIMEOUT_MS`. Provenance of that
+  value: it arrived with the POSIX broker (`65caa2cbf0`) as our own
+  chosen idle — no OS rule publishes a broker idle lifetime, on Windows
+  or POSIX — and this lane shares it rather than inventing a second one.
+  No suite times a 30 s idle on any platform (fake timers are forbidden);
+  the mechanism stays covered by the POSIX lifecycle suite and the
+  default by the shared constant; Windows CI's end-to-end exercises the
+  fixed path indirectly (dial plus status inside one broker lifetime).
+
+## POSIX-assumption audit (same lane, Windows vault path)
+
+- `0o600`/`0o700` modes (`fileAnchor.ts`): Node ignores `mode` on
+  Windows; the Windows bindings pass the pipe-helper guard, which sets
+  the owner-only DACL after each write (`brokerBindings.ts:360-362`).
+  No change needed.
+- Socket-only checks: `VaultBrokerClient.open` verifies the socket file
+  only off win32 and dial-verifies the pipe on win32 (`client.ts:50-59`);
+  the channel's POSIX listen refuses win32 and Windows injects its own
+  relay listener (`channel.ts`, `windowsBrokerProcess.ts:196-211`).
+- Startup-vs-idle timeouts: every remaining `VAULT_BROKER_NATIVE_TIMEOUT_MS`
+  use on the Windows path is a startup/dial budget (discovery deadline,
+  launch wait, relay query timeout) — correct as is. The single misuse
+  was the empty-socket default, fixed above (F3).
+
+## Proofs, lane PR247FIX2 (linuxlt rig, repo-default timeout, `--maxWorkers=3`)
+
+- `windowsPipeRelay.test.ts`, `windowsBrokerClient.test.ts`,
+  `migrationCodecRoundTrip.test.ts` — 8 passed, 2 skipped (the win32
+  suites: relay integration and broker end to end; no Windows host on
+  this rig).
+- Which suite proves which fix on hosted Windows CI: `windowsPipeRelay`
+  real-helper suite proves F1 (trust predicate over the real answer);
+  `windowsBrokerClient` end to end proves F1's dial path plus F2 (it
+  starts at all); F3 is proven by the shared-constant default in code —
+  no timing suite exists on any platform.
+- `tsc` root project clean; `eslint --max-warnings=0` clean on all five
+  touched files; `prettier --check` clean on the touched TS files (no
+  Prettier parser exists for `.cs`; the one-line C# edit follows the
+  file's own style).
+- Pre-existing, not this lane: `npm run check:reference` fails with
+  `Catalogue asserts conditional state: museSpark.vault.enabled`, measured
+  identical on the pristine base (`f44f54120d`, separate worktree, same
+  command) and on this lane's tree — none of this lane's files feeds the
+  catalogue. Left red for the lead; weakening the gate is forbidden and a
+  catalogue fix is outside this lane's three findings.
+- Pre-existing, not this lane: `npm run duplication` reports 37 clones
+  (0.11%) over its 0.0% threshold, but no reported clone range intersects
+  any line this lane added or changed (relay-test hunks at 66-74 and
+  179-192 vs clones at 91-104, 122-156, 169-178; broker-process hunk at
+  220-229 vs clones at 116-185; no clones in the other touched files).
+  This lane adds zero clones; the red predates it.

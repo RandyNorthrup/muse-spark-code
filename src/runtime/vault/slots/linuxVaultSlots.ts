@@ -48,6 +48,7 @@ export class LinuxVaultSlots implements VaultSlotProvider {
       const capabilities = await linuxTpm2Capabilities(this.deps.runner)
       return capabilities.canSeal ? this.hardware(vaultId, slotId) : null
     } catch {
+      // A failed probe offers no hardware tier; the OS-store tier still serves.
       return null
     }
   }

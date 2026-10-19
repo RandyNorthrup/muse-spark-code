@@ -133,6 +133,7 @@ export function windowsVaultTransport(
             resolve(output)
           } else {
             void stop().catch(() => {
+              // The exchange already failed; the stop is best-effort and the fixed refusal rejects.
               reject(new Error(UI_TEXT.vault.noAccess))
             })
             reject(new Error(UI_TEXT.vault.noAccess))
@@ -164,6 +165,7 @@ export function windowsVaultTransport(
               child.stdin.write(header)
               child.stdin.end(key)
             } catch {
+              // A broken helper stdin fails the exchange; the chunk is still erased.
               chunk.fill(0)
               finish(false)
               return
@@ -187,6 +189,7 @@ export function windowsVaultTransport(
             try {
               rebuilding = helper.rebuild()
             } catch {
+              // A refused rebuild fails the exchange outright.
               finish(false)
               return
             }
@@ -195,6 +198,7 @@ export function windowsVaultTransport(
                 finish(false)
               })
               .catch(() => {
+                // A failed rebuild fails the exchange; the refusal below still holds.
                 finish(false)
               })
           } else finish(code === 0 && isReady)
@@ -202,6 +206,7 @@ export function windowsVaultTransport(
         try {
           child.stdin.write(Buffer.from(helper.guardSource, 'utf8').toString('base64') + '\n')
         } catch {
+          // The guard source never reached the helper; the exchange fails.
           finish(false)
         }
         if (signal?.aborted) abort()
