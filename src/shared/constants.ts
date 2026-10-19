@@ -747,7 +747,9 @@ export const SETTING_DEFAULTS = {
   modelApiAutoCompaction: true,
   modelApiStrictTools: true,
   modelApiParallelReads: true,
-  webSearchMaxPerRequest: 5,
+  // D121: no search bound of ours — 0 sends no max of ours and the provider
+  // decides how many hosted searches run; a set value stays within 1–20.
+  webSearchMaxPerRequest: 0,
   // Lane RETRYLIMITS (owner's binding rule): the person's retry limit, unset
   // by default (null). Set, it caps every provider's retries; unset, each
   // provider's documented maximum governs, and a provider that documents
@@ -2553,9 +2555,24 @@ export const TOOL_ARGUMENT_PREVIEW_MAX_DEPTH = 32
 // Coalesce each call to ten display snapshots per second, plus final arguments.
 export const TOOL_ARGUMENT_PREVIEW_INTERVAL_MS = 100
 export const STRUCTURED_OUTPUT_REPAIRS_MAX = 1
-export const WEB_SEARCH_MAX_PER_REQUEST = 5
+// D121: no search bound of ours — 0 (the default) sends no max and the
+// provider decides; a set value stays within 1–20.
+export const WEB_SEARCH_MAX_PER_REQUEST = 0
 export const WEB_SEARCH_MIN_PER_REQUEST = 1
 export const WEB_SEARCH_MAX_PER_REQUEST_LIMIT = 20
+/**
+ * A set hosted-search bound as the request's max (D121): 0 sends no max of
+ * ours and the provider decides how many hosted searches run; anything else
+ * stays within the 1–20 set range, and out-of-range offers nothing.
+ */
+export function webSearchMaxCallsFor(value: number): number | undefined {
+  return value !== 0 &&
+    Number.isSafeInteger(value) &&
+    value >= WEB_SEARCH_MIN_PER_REQUEST &&
+    value <= WEB_SEARCH_MAX_PER_REQUEST_LIMIT
+    ? value
+    : undefined
+}
 // U12 captured no reset header: Meta documents a one-minute window.
 // Captured headers replace the empty initial bucket, never a hard-coded
 // account limit; unobserved buckets admit freely and 429 pauses hold

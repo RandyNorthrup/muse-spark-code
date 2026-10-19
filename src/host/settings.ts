@@ -298,9 +298,11 @@ const settingSchemas = {
   modelApiAutoCompaction: z.boolean(),
   modelApiStrictTools: z.boolean(),
   modelApiParallelReads: z.boolean(),
+  // D121: 0 is no search bound of ours (the default); a set value stays
+  // within 1–20.
   webSearchMaxPerRequest: z
     .number()
-    .check(z.int(), z.gte(1), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
+    .check(z.int(), z.gte(0), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
   // Lane RETRYLIMITS: null (unset) is the default; 0 never retries.
   modelApiMaxRetries: z.nullable(z.int().check(z.gte(0))),
   // Capped at Muse Code's own bound: machine settings are writable by a

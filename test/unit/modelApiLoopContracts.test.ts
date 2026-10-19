@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
-import { MODEL_API_MAX_OUTPUT_TOKENS, WEB_SEARCH_MAX_PER_REQUEST } from '../../src/shared/constants'
+import { MODEL_API_MAX_OUTPUT_TOKENS } from '../../src/shared/constants'
 import { reviewerAnswerSchema } from '../../src/shared/sideCallSchemas'
 
 describe('M106 loop contracts', () => {
@@ -22,7 +22,8 @@ describe('M106 loop contracts', () => {
     }
     const enhanced: CreateResponseBody = {
       ...base,
-      max_tool_calls: WEB_SEARCH_MAX_PER_REQUEST,
+      // A person-set hosted bound, e.g. 5 (the default sends no max).
+      max_tool_calls: 5,
       text: {
         format: {
           type: 'json_schema',
@@ -34,7 +35,7 @@ describe('M106 loop contracts', () => {
     }
     const { max_tool_calls: bound, text, ...off } = enhanced
     expect(JSON.stringify(off)).toBe(JSON.stringify(base))
-    expect(bound).toBe(WEB_SEARCH_MAX_PER_REQUEST)
+    expect(bound).toBe(5)
     expect(text?.format.strict).toBe(true)
     expect(enhanced.instructions).toBe(base.instructions)
     expect(enhanced.tools).toBe(base.tools)

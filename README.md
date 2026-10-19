@@ -6584,8 +6584,9 @@ is bounded to one request for text-only replies. A cut-short reply containing
 tool calls runs none of them and fails the turn; replay retains their error
 results. Repeated unchanged tool results stop the turn.
 
-`museSpark.webSearchMaxPerRequest` bounds hosted searches to 1–20 (default 5)
-where the selected model supports that bound. The first paid use presents the
+`museSpark.webSearchMaxPerRequest` sends no search bound of ours unless you
+set one (0, the default, leaves the count to the provider; a set value stays
+within 1–20) where the selected model supports hosted search. The first paid use presents the
 existing Allow once / Always in this workspace / Deny choices, its price and
 `museSpark.paidDailyBudgetUsd`. Allow once covers hosted search in this window;
 Always remains revocable. Unknown prices cannot spend under a dollar cap.

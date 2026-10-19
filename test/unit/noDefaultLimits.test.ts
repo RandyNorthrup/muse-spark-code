@@ -17,7 +17,11 @@ import {
   limitsForByteGuard,
   validateToolResultCap,
 } from '../../src/core/backends/modelapi/toolResultBound'
-import { TOOL_OUTPUT_MAX_CHARS } from '../../src/shared/constants'
+import {
+  TOOL_OUTPUT_MAX_CHARS,
+  WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
+  webSearchMaxCallsFor,
+} from '../../src/shared/constants'
 
 const properties = manifest.contributes.configuration.properties as Record<
   string,
@@ -132,5 +136,36 @@ describe('no default limits: tool-output byte guard', () => {
     expect(validated).toEqual({ bytes: 64_000 })
     const limits = 'bytes' in validated ? limitsForByteGuard(validated.bytes, undefined) : undefined
     expect(boundToolResultText(hundredKilobyte, limits!).cut).toBeDefined()
+  })
+})
+
+describe('no default limits: hosted searches per response', () => {
+  it('defaults to no search bound of our own', () => {
+    expect(SETTING_DEFAULTS.webSearchMaxPerRequest).toBe(0)
+    expect(properties['museSpark.webSearchMaxPerRequest'].default).toBe(0)
+  })
+
+  it('sends no max of ours with nothing set', () => {
+    const warnings: string[] = []
+    expect(
+      readSettings(settingSource({ webSearchMaxPerRequest: 0 }), silentLog(warnings))
+        .webSearchMaxPerRequest,
+    ).toBe(0)
+    expect(warnings).toHaveLength(0)
+    expect(webSearchMaxCallsFor(0)).toBeUndefined()
+  })
+
+  it('still applies a person-set bound within the provider range', () => {
+    const warnings: string[] = []
+    expect(
+      readSettings(settingSource({ webSearchMaxPerRequest: 5 }), silentLog(warnings))
+        .webSearchMaxPerRequest,
+    ).toBe(5)
+    expect(warnings).toHaveLength(0)
+    expect(webSearchMaxCallsFor(5)).toBe(5)
+    expect(webSearchMaxCallsFor(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)).toBe(
+      WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
+    )
+    expect(webSearchMaxCallsFor(21)).toBeUndefined()
   })
 })
