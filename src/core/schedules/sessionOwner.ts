@@ -27,6 +27,12 @@ export class SessionOwner {
   private mode: string | undefined
   private modePending: SessionEffect | undefined
   private isQuarantined = false
+  /**
+   * The quarantine's own sentence (it names the wire mode the host still
+   * runs), so a later refused turn repeats it instead of the generic
+   * reviewer-missing words. Cleared with the quarantine.
+   */
+  private quarantineNote: string | undefined
   private restoring = false
   private sequence = 0
   private readonly liveTurns = new Map<string, number>()
@@ -57,10 +63,10 @@ export class SessionOwner {
 
   /**
    * The approval mode the host was last told to run (the constructor's, the
-   * last applied effect's, or an idle external change): `undefined` while a
-   * failed change left the session quarantined. Lets a caller put the
-   * previous mode back when a follow-up step fails, so the mode the person
-   * sees stays the mode the host runs.
+   * last applied effect's, an idle external change, or the running mode a
+   * quarantine named): `undefined` while a failed change quarantined without
+   * naming one. Lets a caller put the previous mode back when a follow-up
+   * step fails, so the mode the person sees stays the mode the host runs.
    */
   public get currentMode(): string | undefined {
     return this.mode
@@ -80,6 +86,24 @@ export class SessionOwner {
   public quarantine(): void {
     this.mode = undefined
     this.isQuarantined = true
+    this.quarantineNote = undefined
+  }
+
+  /**
+   * Quarantine naming the wire mode the host still runs (a torn ack or a
+   * refused restore named it) with the sentence that says so: the later
+   * refused turn repeats that sentence instead of saying the reviewer is
+   * missing. Without a mode the sentence stands but no mode is kept.
+   */
+  public quarantineWith(message: string, mode?: string): void {
+    this.quarantine()
+    this.quarantineNote = message
+    if (mode !== undefined) this.mode = mode
+  }
+
+  /** The sentence a refused turn repeats while quarantined, when one was named. */
+  public get quarantineCause(): string | undefined {
+    return this.isQuarantined ? this.quarantineNote : undefined
   }
 
   public token(): SessionToken {
@@ -164,6 +188,7 @@ export class SessionOwner {
     if (didSucceed) {
       this.mode = effect.mode
       this.isQuarantined = false
+      this.quarantineNote = undefined
     }
     return didSucceed
   }
@@ -171,7 +196,11 @@ export class SessionOwner {
   public observeMode(mode: string): void {
     // Session-wide notifications have no generation. Only an idle external
     // change can be adopted; owned commands use their tagged acknowledgement.
-    if (this.fire === undefined && !this.modePending && !this.restoring) this.mode = mode
+    // An adoption while quarantined drops the quarantine's sentence (it named
+    // another mode), so the later refusal falls back to the generic words.
+    if (this.fire !== undefined || this.modePending || this.restoring) return
+    this.mode = mode
+    if (this.isQuarantined) this.quarantineNote = undefined
   }
 
   public start(token: SessionToken, run?: UnattendedRun): boolean {

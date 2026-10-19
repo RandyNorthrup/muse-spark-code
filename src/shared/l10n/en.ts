@@ -4082,15 +4082,27 @@ export const EN = {
   // {reason}: the reviewer's own refusal, such as a managed exclusion.
   permissionReviewerNotInstalled:
     'The permission mode was applied, but its reviewer could not be installed ({reason}). New turns are refused until the mode is set again.',
+  // The tear that kept a forward mode change's reviewer from being confirmed,
+  // as {reason} for the sentence above: the acknowledgement named the mode,
+  // so the mode is known and only the reviewer is missing.
+  permissionReviewerTornReason: 'the mode change tore while applying',
   permissionReviewerMissing:
     'New turns are refused: the permission reviewer could not be installed. Set the permission mode again to recover.',
-  permissionReviewerTorn:
-    'The permission mode change tore while applying; the running mode is unconfirmed. New turns are refused until the mode is set again.',
+  // {mode}: the previous wire mode the torn rollback restored. The profile
+  // never changed, so that mode's reviewer is still installed; the adoption
+  // itself could not be confirmed, so turns stay refused until a reset.
+  permissionReviewerRollbackTorn:
+    'The permission mode change tore while applying; the previous mode ({mode}) is restored and its reviewer is still installed, but the adoption could not be confirmed. New turns are refused until the mode is set again.',
   permissionReviewerUnknown:
     'The permission mode could not be changed and the mode the host runs is unknown. New turns are refused until the mode is set again.',
   // {reason}: the refusal that stopped the change, in its own words.
   permissionModeKept:
     'The permission mode change did not take ({reason}); the host keeps running its mode.',
+  // {reason}: the refusal that stopped the restore, in its own words;
+  // {mode}: the wire mode the host still runs (the admission's, with its
+  // reviewer), because the conversation's mode never came back.
+  permissionRestoreRefused:
+    "The conversation's permission mode could not be put back ({reason}); the host still runs {mode}. New turns are refused until the mode is set again.",
   // {action}: the panel's id for a host command, such as `openSettings`.
   hostActionFailed: '{action} failed',
   backendListenerFailed:
