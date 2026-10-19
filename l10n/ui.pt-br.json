@@ -951,6 +951,7 @@
     "attachRecording": "Anexar gravação de tela…",
     "attachLatestRecording": "Anexar a última gravação de tela",
     "recordingCountdown": "Gravando: restam {remaining}",
+    "recordingElapsed": "Gravando: decorridos {elapsed}",
     "recordingMicrophone": "Microfone",
     "recordingSystemAudio": "Áudio do sistema",
     "recordingPreview": "Prévia da gravação de tela",

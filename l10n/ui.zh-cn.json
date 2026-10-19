@@ -941,6 +941,7 @@
     "attachRecording": "附加屏幕录制…",
     "attachLatestRecording": "附加最新的屏幕录制",
     "recordingCountdown": "正在录制：剩余 {remaining}",
+    "recordingElapsed": "正在录制：已录制 {elapsed}",
     "recordingMicrophone": "麦克风",
     "recordingSystemAudio": "系统音频",
     "recordingPreview": "预览屏幕录制",

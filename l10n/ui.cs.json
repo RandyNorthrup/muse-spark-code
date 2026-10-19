@@ -956,6 +956,7 @@
     "attachRecording": "Přiložit záznam obrazovky…",
     "attachLatestRecording": "Přiložit poslední záznam obrazovky",
     "recordingCountdown": "Nahrávání: zbývá {remaining}",
+    "recordingElapsed": "Nahrávání: uplynulo {elapsed}",
     "recordingMicrophone": "Mikrofon",
     "recordingSystemAudio": "Systémový zvuk",
     "recordingPreview": "Náhled záznamu obrazovky",

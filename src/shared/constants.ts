@@ -795,10 +795,11 @@ export const SETTING_DEFAULTS = {
   modelApiSessionBudgetUsd: 0,
   // M105 (PLAN.md D85): multimodal input caps (literals: this map runs
   // before the media block below); machine scoped, since a repository must
-  // not set what is uploaded, kept or billed on the key.
-  mediaMaxUploadMiB: 200,
+  // not set what is uploaded, kept or billed on the key. D121: no cap of
+  // ours — 0 opens any size and records until stopped; a set value applies.
+  mediaMaxUploadMiB: 0,
   mediaUploadExpiryDays: 7,
-  screenRecordingMaxSeconds: 120,
+  screenRecordingMaxSeconds: 0,
   mediaAudioAction: 'transcribe',
   mediaConverterPath: '',
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): in Auto on the Muse
@@ -1645,7 +1646,8 @@ export const MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS = 7
 export const MEDIA_AUDIO_ACTION_OPTIONS = ['transcribe', 'sendAudio'] as const
 /** @unwired M105 read only by tests deleted 2026-10-17 (no fakes) */
 export const MEDIA_AUDIO_ACTION_DEFAULT = 'transcribe'
-export const SCREEN_RECORDING_DEFAULT_MAX_SECONDS = 120
+// D121: the companion records until stopped unless the host passes a bound.
+export const SCREEN_RECORDING_DEFAULT_MAX_SECONDS = 0
 export const SCREEN_RECORDING_MIN_SECONDS = 10
 export const SCREEN_RECORDING_MAX_SECONDS = 600
 export const SCREEN_RECORDING_RECENT_MAX_AGE_MS = 10 * 60 * 1000

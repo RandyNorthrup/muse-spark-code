@@ -946,6 +946,7 @@
     "attachRecording": "Bildschirmaufnahme anhängen…",
     "attachLatestRecording": "Neueste Bildschirmaufnahme anhängen",
     "recordingCountdown": "Aufnahme: noch {remaining}",
+    "recordingElapsed": "Aufnahme: {elapsed} vergangen",
     "recordingMicrophone": "Mikrofon",
     "recordingSystemAudio": "Systemaudio",
     "recordingPreview": "Bildschirmaufnahme ansehen",

@@ -1162,6 +1162,7 @@ export const EN = {
     attachRecording: 'Attach Screen Recording…',
     attachLatestRecording: 'Attach Latest Screen Recording',
     recordingCountdown: 'Recording: {remaining} remaining',
+    recordingElapsed: 'Recording: {elapsed} elapsed',
     recordingMicrophone: 'Microphone',
     recordingSystemAudio: 'System Audio',
     recordingPreview: 'Preview Screen Recording',

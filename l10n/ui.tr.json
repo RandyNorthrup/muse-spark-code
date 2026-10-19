@@ -946,6 +946,7 @@
     "attachRecording": "Ekran kaydı ekle…",
     "attachLatestRecording": "En son ekran kaydını ekle",
     "recordingCountdown": "Kayıt: {remaining} kaldı",
+    "recordingElapsed": "Kayıt: geçen {elapsed}",
     "recordingMicrophone": "Mikrofon",
     "recordingSystemAudio": "Sistem sesi",
     "recordingPreview": "Ekran kaydını önizle",
