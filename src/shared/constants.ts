@@ -16,9 +16,7 @@ export const RESOURCE_NS_PER_MS = 1_000_000
 // D87.14: free-space policy and owned-tree retention.
 export const RESOURCE_DISK_SAMPLE_MS = 30_000
 export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000
-export const RESOURCE_DISK_DEFAULT_FREE_GIB = 10
 export const RESOURCE_DISK_MIN_FREE_GIB = 2
-export const RESOURCE_DISK_FLOOR_FRACTION = 0.1
 export const RESOURCE_DISK_CRITICAL_GIB = 1
 export const RESOURCE_DISK_CRITICAL_FRACTION = 0.01
 export const RESOURCE_DISK_HYSTERESIS_GIB = 2
@@ -96,12 +94,9 @@ export const RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS = 50
 export const RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS = 200
 // A closing window or agent waits at most this long for its open minute's write.
 export const RESOURCE_HISTORY_FLUSH_TIMEOUT_MS = 2000
-export const RESOURCE_CPU_DEFAULT_PERCENT = 85
 export const RESOURCE_CPU_MIN_PERCENT = 30
-export const RESOURCE_MEMORY_DEFAULT_PERCENT = 90
 export const RESOURCE_MEMORY_MIN_PERCENT = 40
 export const RESOURCE_MEMORY_MAX_PERCENT = 98
-export const RESOURCE_MEMORY_DEFAULT_FREE_GIB = 2
 export const RESOURCE_MEMORY_MIN_FREE_GIB = 0.5
 export const RESOURCE_MEMORY_MAX_FREE_GIB = 64
 export const RESOURCE_OPTIONAL_MIN_PERCENT = 1
