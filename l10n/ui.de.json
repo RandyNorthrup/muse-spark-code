@@ -1520,6 +1520,7 @@
     "other": "{count} Hooks in {file}"
   },
   "hooksSparkAbout": "Muse Code liest diese Datei nie. Sie enthält die Ereignisse, die nur diese Erweiterung ausführt, sowie aus anderen Agents importierte Hooks.",
+  "hooksFileUnreadable": "Diese Datei konnte nicht gelesen werden:",
   "hooksBackendMuseCode": "Von Muse Code ausgeführt",
   "hooksBackendBoth": "Von Muse Code ausgeführt und auf dem Model-API-Backend von diesem Fenster",
   "hooksBackendSpark": "Von diesem Fenster ausgeführt: auf dem Model-API-Backend und für die Ereignisse, die die Erweiterung selbst verarbeitet, auf beiden Backends",

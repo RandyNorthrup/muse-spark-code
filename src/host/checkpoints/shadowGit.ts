@@ -296,7 +296,12 @@ export class ShadowGit {
       try {
         await rename(initializing, this.shadowDir)
       } catch (error: unknown) {
+        // The rename lost a race another window won: its HEAD is there,
+        // and this window uses its shadow. Anything else keeps its failure.
         if (!(await isPresent(path.join(this.shadowDir, 'HEAD')))) {
+          throw error
+        }
+        if (!isRenameRace(error)) {
           throw error
         }
       }
@@ -510,6 +515,21 @@ async function modifiedAt(filePath: string): Promise<number | undefined> {
 
 async function isPresent(filePath: string): Promise<boolean> {
   return (await modifiedAt(filePath)) !== undefined
+}
+
+/**
+ * A rename's lost-race vocabulary: the target exists (EEXIST, ENOTEMPTY,
+ * EPERM on Windows). Anything else is the rename's own failure.
+ */
+const RENAME_RACE_CODES: ReadonlySet<string> = new Set(['EEXIST', 'ENOTEMPTY', 'EPERM'])
+
+function isRenameRace(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    RENAME_RACE_CODES.has(error.code)
+  )
 }
 
 /** A text file's content, or undefined when there is no such file. */

@@ -206,6 +206,93 @@ Designed baselines with reasons (accepted, not forgotten):
   propagates.
 - `src/core/imageResizeWorker.ts`: CLEANUP; the worker always answers so
   the parent never hangs.
+- `src/host/providers/providerRemoval.ts` finish catch: the window end's
+  failure keeps the pending for the next start's completePending (which
+  throws naming the ids); it never rejects into the timer. Evidence:
+  `test/unit/providerRemoval.test.ts` ("keeps a secret the window end
+  cannot delete for the next start").
+- `src/host/providers/providerRemoval.ts` completePending catch: every
+  pending secret is attempted, then the throw names the ids that
+  survived; the per-secret store failures are intentionally not carried
+  (the person acts on ids). Evidence:
+  `test/unit/providerRemoval.test.ts` ("attempts every pending secret
+  and throws naming the survivors").
+- `src/host/providers/wizardSave.ts` partial-save catch: the notice
+  intentionally reports per-step fixed words with the secret-scrubbed
+  reason (no record channel exists without out-of-area ripple); nothing
+  is hidden (notice + failedStep reach the panel). Evidence:
+  `test/unit/wizardSave.test.ts` ("reports a failed credential save step
+  by step").
+- `src/host/checkpoints/checkpointHost.ts` run-guard catch: a thrown
+  guard is the refusal (toolIo's proven no-entry idiom); the fixed
+  refused entry is the designed outcome, and the finish failure still
+  throws with its cause. Evidence:
+  `test/unit/checkpointStorageGuard.test.ts` ("returns a refused entry
+  when the run guard throws").
+- `src/host/git/conversationGit.ts` fetch-fallback catch: the fetch ran
+  only after the log failed, so its own failure carries no new signal;
+  the outer handler reports the outcome. Evidence: the outer base-commit
+  handler is NARROW (typed rethrow plus the recorded kind).
+- `src/host/git/conversationGit.ts` post-success ownership catch: the
+  post completed, so success stands; only the linking reads stop.
+- `src/host/skills/bundledSkillsInstall.ts` install, outer-install and
+  remove tails: install and remove always return result data, never
+  throw — the activation side never catches and words `result.failure`
+  itself (`runBundledSkillsInstall`), and the outer install compensates
+  (undo) before returning. Evidence:
+  `test/unit/bundledSkillsInstall.test.ts` ("returns failure data, never
+  a throw, when the vendor record is missing", "undoes the copy and
+  returns failure data when the skills folder is blocked").
+- `src/host/browser/browserProcess.ts` `isRunning` catch: unknown counts
+  as running — a maybe-live owner's folder is never removed; the sweep
+  retries. Evidence: `test/unit/browserProcess.test.ts` ("sweeps a dead
+  owner folder and keeps a live one").
+- `src/host/browser/runtime/runtimeStore.ts` stage-owner kill catch: only
+  ESRCH (the owner is gone) removes the stage; any other kill failure
+  keeps it for a later sweep, since the owner may live.
+- `src/host/browser/browserProcess.ts` group-kill fallback catch: the
+  pipes' setup already failed, so ending the direct child stays
+  best-effort with nothing further to report.
+- `src/host/browser/browserProcess.ts` half-made removal catch: a later
+  sweep retries what stays.
+- `src/host/providers/chatgptSignIn.ts` loopback-listen catch: every
+  listen failure becomes the closed `local-failed` code carrying the
+  operating system's code, which the hosts word themselves; the raw
+  error never crosses (the class lives out of area, so no cause slot
+  can be added here).
+- `src/host/providers/chatgptSignIn.ts` callback-request catch: request
+  bytes must never enter a failure, so a non-typed parser failure reads
+  as `invalid-callback` by privacy design.
+- `src/host/providers/chatgptSignIn.ts` lock-owner kill catch:
+  permission and unrecognised OS failures mean uncertainty, not death —
+  the lock is kept. Fail-closed toward keeping.
+- `src/host/providers/chatgptSignIn.ts` credential-store catch: a
+  refusal is the editor's store and is said as such, never as a ChatGPT
+  outage (F14); the foreign error is deliberately not carried.
+- `src/host/providers/chatgptSignIn.ts` factory-outer catch: a typed
+  failure keeps its own sentence; anything else is a local file problem
+  said with the operating system's code on the closed `local-failed`
+  error the hosts word themselves.
+- `src/host/providers/chatgptSignIn.ts` callback-wait and
+  `src/host/providers/copilotClient.ts` tokenizer-race `.catch(() => null)`
+  marks: the waiter (respectively the race) below receives the outcome;
+  the mark only silences the handled rejection.
+- `src/host/review/reviewCollector.ts` identity catch (REVCATCHD): a folder
+  that cannot be read at all (a permission error, a link loop) keeps the
+  review closed as a refused git failure with the code for the log, never as
+  cancelled and never thrown — the collector's typed return channel is the
+  report, which the classifier cannot see (GENERIC by shape, narrowed and
+  reported by meaning). Evidence: `test/unit/reviewCollector.test.ts`
+  ("refuses a looped folder as git failing, never thrown", observed failing
+  on the throwing handler).
+- `src/host/commands/museConfigCommands.ts` hook-file catch (REVCATCHD): a
+  hooks file that cannot be read stays visible as an unreadable row with
+  fixed words and its code, and the panel still lists every other source —
+  the row's typed return channel is the report, which the classifier cannot
+  see (GENERIC by shape, narrowed and reported by meaning). Evidence:
+  `test/unit/museConfigCommands.test.ts` ("lists an unreadable hooks file
+  as unreadable instead of failing the panel", "opens over a real
+  unreadable hooks file", both observed failing on the throwing handler).
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 - `src/host` root + `src/host/backend` keeps, 0.19.0 lane (each read in
   full; the failure either reaches the caller as data or is proven moot):
@@ -472,13 +559,14 @@ fail-closed words proven by a real-failure test unless noted):
 
 | Folder                 | GENERIC | SWALLOW |
 | ---------------------- | ------- | ------- |
-| src                    | 840     | 291     |
+| src                    | 759     | 265     |
 | src/acp                | 18      | 0       |
 | src/core               | 369     | 169     |
 | src/core/backends      | 79      | 14      |
 | src/core/bestOfN       | 3       | 0       |
 | src/core/browser       | 9       | 8       |
 | src/core/codeIntel     | 2       | 0       |
+| src/core/connector     | 5       | 1       |
 | src/core/context       | 0       | 0       |
 | src/core/developer     | 1       | 0       |
 | src/core/estimator     | 4       | 0       |
@@ -508,42 +596,46 @@ fail-closed words proven by a real-failure test unless noted):
 | src/core/vault         | 65      | 41      |
 | src/core/voice         | 7       | 3       |
 | src/core/web           | 2       | 0       |
-| src/host               | 204     | 49      |
+| src/host               | 123     | 23      |
 | src/host/auth          | 5       | 0       |
 | src/host/backend       | 15      | 6       |
 | src/host/bestOfN       | 0       | 0       |
-| src/host/browser       | 10      | 6       |
-| src/host/checkpoints   | 14      | 6       |
-| src/host/commands      | 17      | 2       |
+| src/host/browser       | 2       | 0       |
+| src/host/checkpoints   | 1       | 0       |
+| src/host/commands      | 1       | 0       |
 | src/host/conversation  | 6       | 0       |
 | src/host/editor        | 2       | 0       |
 | src/host/estimator     | 2       | 3       |
-| src/host/git           | 22      | 5       |
+| src/host/git           | 2       | 0       |
 | src/host/ide           | 0       | 0       |
 | src/host/judge         | 1       | 0       |
 | src/host/media         | 1       | 1       |
 | src/host/mention       | 0       | 0       |
-| src/host/models        | 1       | 1       |
+| src/host/models        | 1       | 0       |
+| src/host/paid          | 8       | 0       |
 | src/host/prompts       | 3       | 0       |
-| src/host/providers     | 14      | 14      |
+| src/host/providers     | 8       | 9       |
 | src/host/resources     | 0       | 0       |
-| src/host/review        | 11      | 1       |
+| src/host/review        | 1       | 0       |
 | src/host/runners       | 4       | 0       |
-| src/host/skills        | 10      | 1       |
+| src/host/schedules     | 2       | 0       |
+| src/host/skills        | 3       | 1       |
 | src/host/support       | 19      | 0       |
 | src/host/tab           | 2       | 0       |
 | src/host/team          | 6       | 0       |
 | src/host/usage         | 0       | 0       |
 | src/host/vault         | 18      | 2       |
-| src/host/views         | 1       | 0       |
+| src/host/views         | 0       | 0       |
 | src/host/voice         | 2       | 0       |
 | src/host/web           | 2       | 0       |
 | src/host/whatsNew      | 0       | 0       |
 | src/runtime            | 215     | 63      |
 | src/runtime/companion  | 2       | 6       |
+| src/runtime/connector  | 5       | 2       |
 | src/runtime/estimator  | 3       | 0       |
 | src/runtime/exec       | 6       | 2       |
 | src/runtime/fonts      | 2       | 0       |
+| src/runtime/github     | 2       | 2       |
 | src/runtime/legal      | 8       | 1       |
 | src/runtime/panel      | 19      | 6       |
 | src/runtime/playbook   | 1       | 0       |
@@ -561,6 +653,7 @@ fail-closed words proven by a real-failure test unless noted):
 | src/shared/reference   | 0       | 0       |
 | src/webview            | 33      | 9       |
 | src/webview/components | 4       | 0       |
+| src/webview/estimator  | 0       | 1       |
 | src/webview/media      | 7       | 0       |
 | src/webview/models     | 1       | 0       |
 | src/webview/playbook   | 3       | 0       |
@@ -568,3 +661,5 @@ fail-closed words proven by a real-failure test unless noted):
 | src/webview/schedules  | 3       | 0       |
 | src/webview/sharing    | 3       | 0       |
 | src/webview/state      | 1       | 0       |
+| src/webview/usage      | 1       | 0       |
+| src/webview/voice      | 0       | 8       |

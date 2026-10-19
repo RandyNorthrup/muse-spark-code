@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { chmod, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   type McpAction,
@@ -7,6 +10,7 @@ import {
 } from '../../src/host/commands/museConfigCommands'
 import type { PickItem } from '../../src/host/commands/pickItem'
 import type { McpPoolSnapshot } from '../../src/core/backends/modelapi/mcp/pool'
+import { usingTempDir } from './helpers/temporaryFolders'
 
 const SETTINGS = '/home/u/.config/muse/settings.json'
 const HOOKS = '/ws/.muse/hooks.json'
@@ -29,8 +33,8 @@ interface HarnessOptions {
   /** The window runs the Model API backend (M50): its servers' snapshot, undefined before they start. */
   readonly modelApi?: { readonly snapshot: McpPoolSnapshot | undefined }
   readonly modelApiHooks?: boolean | undefined
-  /** The hook files' texts by path, read for the spark-hooks.json rows (M91). */
-  readonly files?: Readonly<Record<string, string>>
+  /** The hook files' texts by path, read for the spark-hooks.json rows (M91); an Error throws on read. */
+  readonly files?: Readonly<Record<string, string | Error>>
 }
 
 function harness(options: HarnessOptions = {}) {
@@ -58,7 +62,13 @@ function harness(options: HarnessOptions = {}) {
     ...(options.files !== undefined && {
       sparkProjectPath: SPARK_PROJECT,
       sparkUserPath: SPARK_USER,
-      readTextFile: (fsPath: string) => options.files?.[fsPath],
+      readTextFile: (fsPath: string) => {
+        const text = options.files?.[fsPath]
+        if (text instanceof Error) {
+          throw text
+        }
+        return text
+      },
     }),
     fileExists: (fsPath) => existing.has(fsPath),
     isWorkspaceTrusted: () => options.isTrusted ?? true,
@@ -241,11 +251,18 @@ describe('showMcpServers', () => {
     const garbled = harness({ settings: '{ nope' })
     await showMcpServers(garbled.deps)
     expect(garbled.picks[0]?.placeholder).toMatch(/^Muse Code’s settings file could not be read: /)
-    const denied = harness({ settings: new Error('EACCES: permission denied') })
+    const denied = harness({
+      settings: Object.assign(new Error('EACCES: permission denied, open /secret/settings.json'), {
+        code: 'EACCES',
+      }),
+    })
     await showMcpServers(denied.deps)
-    expect(denied.picks[0]?.placeholder).toBe(
-      'Muse Code’s settings file could not be read: EACCES: permission denied',
-    )
+    expect(denied.picks[0]?.placeholder).toBe('Muse Code’s settings file could not be read: EACCES')
+  })
+
+  it('does not hide a settings failure it cannot name', async () => {
+    const foreign = harness({ settings: new Error('settings store blew up') })
+    await expect(showMcpServers(foreign.deps)).rejects.toThrow('settings store blew up')
   })
 })
 
@@ -587,11 +604,82 @@ describe('showHooks', () => {
   })
 
   it('warns when the settings file cannot be read and still lists the project file', async () => {
-    const t = harness({ settings: new Error('EISDIR: illegal operation on a directory') })
+    const t = harness({
+      settings: Object.assign(new Error('EISDIR: illegal operation on a directory, read'), {
+        code: 'EISDIR',
+      }),
+    })
     await showHooks(t.deps)
-    expect(t.warnings).toEqual([
-      'Muse Code’s settings file could not be read: EISDIR: illegal operation on a directory',
-    ])
+    expect(t.warnings).toEqual(['Muse Code’s settings file could not be read: EISDIR'])
     expect(t.picks[0]?.items).toHaveLength(4)
+  })
+
+  it('still opens a hooks file that vanished mid-read', async () => {
+    const vanished = Object.assign(new Error('ENOENT: no such file, open it'), { code: 'ENOENT' })
+    const t = harness({
+      settings: '{}',
+      existing: [SETTINGS, HOOKS],
+      files: { [HOOKS]: vanished },
+      answers: ['hooks:project'],
+    })
+    await showHooks(t.deps)
+    expect(t.opened).toEqual([HOOKS])
+  })
+
+  it('lists an unreadable hooks file as unreadable instead of failing the panel', async () => {
+    const denied = Object.assign(new Error('EACCES: permission denied, open it'), {
+      code: 'EACCES',
+    })
+    const t = harness({ settings: '{}', existing: [SETTINGS, HOOKS], files: { [HOOKS]: denied } })
+    await showHooks(t.deps)
+    const project = t.picks[0]?.items.find((item) => item.id === 'hooks:project')
+    expect(project?.detail).toBe('This file could not be read: EACCES')
+    expect(t.picks[0]?.items.map((item) => item.id)).toEqual([
+      'hooks:project',
+      'hooks:sparkProject',
+      'hooks:user',
+      'hooks:sparkUser',
+      'hooks:managed',
+      'action:docs',
+    ])
+  })
+
+  // A real permission-denied hooks file on disk (src/host/commands/museConfigCommands.ts):
+  // the panel still opens and names the file unreadable with its code, never
+  // the operating system's text. POSIX-only: Windows read-only files stay readable.
+  it.skipIf(process.platform === 'win32')('opens over a real unreadable hooks file', async () => {
+    await usingTempDir('hooks-unreadable-', async (folder) => {
+      const spark = path.join(folder, 'spark-hooks.json')
+      await writeFile(spark, JSON.stringify({ hooks: {} }), 'utf8')
+      await chmod(spark, 0)
+      try {
+        const picks: { items: readonly PickItem[] }[] = []
+        const deps: MuseConfigDeps = {
+          settingsPath: path.join(folder, 'settings.json'),
+          readSettings: () => '{}',
+          projectHooksPath: undefined,
+          sparkProjectPath: spark,
+          sparkUserPath: undefined,
+          readTextFile: (fsPath) => readFileSync(fsPath, 'utf8'),
+          fileExists: existsSync,
+          isWorkspaceTrusted: () => true,
+          pick: (items) => {
+            picks.push({ items })
+            return Promise.resolve(undefined)
+          },
+          openFile: () => Promise.resolve(),
+          openDocs: () => undefined,
+          runMcpCommand: () => true,
+          restart: () => Promise.resolve(),
+          showInformation: () => undefined,
+          showWarning: () => undefined,
+        }
+        await showHooks(deps)
+        const row = picks[0]?.items.find((item) => item.id === 'hooks:sparkProject')
+        expect(row?.detail).toBe('This file could not be read: EACCES')
+      } finally {
+        await chmod(spark, 0o644)
+      }
+    })
   })
 })

@@ -61,6 +61,7 @@ import {
   type GitDraftOutputPort,
 } from '../../core/git/gitText'
 import type { SideCallFormats } from '../../core/backends/modelapi/structuredOutput'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { isPlainRefName, isPlainRefspec, planPush, type PushPlan } from '../../core/git/pushPlan'
 import { replyIfUsable } from '../../core/turns/usableReply'
 import { wireWordForLog } from '../../core/logging'
@@ -439,8 +440,9 @@ export class ConversationGit implements ConversationGitPort {
       this.checkOperation = owned.check
       return owned.repository
     } catch (error: unknown) {
+      const code = gitFailureCode(error)
       this.window.log.warn(
-        `The git extension could not open the repository (${gitFailureCode(error)})`,
+        `The git extension could not open the repository (${code}): ${failureForLog(error)}`,
       )
       if (this.canPost()) {
         this.surface.say('warning', `${UI_TEXT.gitUnavailable}: ${gitFailureText(error)}`)
@@ -563,7 +565,8 @@ export class ConversationGit implements ConversationGitPort {
         await repository.push(plan.remote, plan.refspec, plan.setUpstream)
       })
     } catch (error: unknown) {
-      this.window.log.warn(`Push failed (${gitFailureCode(error)})`)
+      const code = gitFailureCode(error)
+      this.window.log.warn(`Push failed (${code}): ${failureForLog(error)}`)
       if (this.canPost()) {
         this.surface.say('error', `${UI_TEXT.gitPushFailed}: ${gitFailureText(error)}`)
       }
@@ -775,6 +778,7 @@ export class ConversationGit implements ConversationGitPort {
         return
       }
     } catch (error: unknown) {
+      this.window.log.warn(`Linking the pull request failed: ${failureForLog(error)}`)
       this.githubFailure(error, token)
       return
     }
@@ -871,6 +875,7 @@ export class ConversationGit implements ConversationGitPort {
         checkedAt: this.window.now(),
       })
     } catch (error: unknown) {
+      this.window.log.warn(`A pull request's checks could not be read: ${failureForLog(error)}`)
       this.dropRejected(error, token)
       settle({
         ...base,
@@ -937,7 +942,8 @@ export class ConversationGit implements ConversationGitPort {
         }
       }
     } catch (error: unknown) {
-      this.window.log.warn(`A draft's diff could not be read (${gitFailureCode(error)})`)
+      const code = gitFailureCode(error)
+      this.window.log.warn(`A draft's diff could not be read (${code}): ${failureForLog(error)}`)
       throw new Error(UI_TEXT.gitUnavailable, { cause: error })
     }
     return commitMessagePrompt({
@@ -979,6 +985,8 @@ export class ConversationGit implements ConversationGitPort {
       try {
         commits = await repository.log({ range: `${baseRef}..${HEAD_REF}` })
       } catch {
+        // The fetch was only a fallback after the log failed; its own
+        // failure carries no new signal, and the outer handler reports it.
         check()
         await this.window.admit(async () => {
           check()
@@ -1004,7 +1012,10 @@ export class ConversationGit implements ConversationGitPort {
       if (error instanceof this.errorTypes.GitUnavailableError) {
         throw error
       }
-      this.window.log.warn(`The branch's commits could not be listed (${gitFailureCode(error)})`)
+      const code = gitFailureCode(error)
+      this.window.log.warn(
+        `The branch's commits could not be listed (${code}): ${failureForLog(error)}`,
+      )
       throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitDestinationBaseUnavailable)
     }
   }
@@ -1084,7 +1095,8 @@ export class ConversationGit implements ConversationGitPort {
         this.generationFailed(generation.id)
         this.surface.notice('warning', UI_TEXT.gitDraftFailed)
       }
-    } catch {
+    } catch (error: unknown) {
+      this.window.log.warn(`A draft could not be generated: ${failureForLog(error)}`)
       if (this.isGenerationCurrent(generation.id)) this.generationFailed(generation.id)
     } finally {
       if (this.generation === generation) {
@@ -1113,8 +1125,9 @@ export class ConversationGit implements ConversationGitPort {
       this.checkCurrent()
       await operation()
     } catch (error: unknown) {
+      const code = gitFailureCode(error)
+      this.window.log.warn(`Git operation stopped (${code}): ${failureForLog(error)}`)
       if (this.canPost()) {
-        this.window.log.warn(`Git operation stopped (${gitFailureCode(error)})`)
         this.surface.say('warning', gitFailureText(error))
         if (form !== undefined) {
           this.surface.post({ type: 'gitDone', form, ok: false })
@@ -1204,7 +1217,8 @@ export class ConversationGit implements ConversationGitPort {
         })
         return true
       } catch (error: unknown) {
-        this.window.log.warn(`Commit failed (${gitFailureCode(error)})`)
+        const code = gitFailureCode(error)
+        this.window.log.warn(`Commit failed (${code}): ${failureForLog(error)}`)
         if (this.canPost()) {
           this.surface.say('error', `${UI_TEXT.gitCommitFailed}: ${gitFailureText(error)}`)
         }
@@ -1277,6 +1291,9 @@ export class ConversationGit implements ConversationGitPort {
       destination = await this.destinationOf(token, target)
       this.checkCurrent(repository, stamp)
     } catch (error: unknown) {
+      this.window.log.warn(
+        `The pull request destination could not be read: ${failureForLog(error)}`,
+      )
       this.githubFailure(error, token)
       done(false)
       return
@@ -1320,6 +1337,7 @@ export class ConversationGit implements ConversationGitPort {
         isDraft: request.isDraft,
       })
     } catch (error: unknown) {
+      this.window.log.warn(`The pull request could not be opened: ${failureForLog(error)}`)
       this.githubFailure(error, token)
       done(false)
       return
@@ -1346,6 +1364,8 @@ export class ConversationGit implements ConversationGitPort {
     try {
       this.checkCurrent()
     } catch {
+      // Ownership or lifetime loss after a completed post stops only the
+      // linking reads; success already stands, so there is nothing to report.
       return
     }
     await this.linkPullRequest({
@@ -1401,7 +1421,10 @@ export class ConversationGit implements ConversationGitPort {
     if (sessionId !== undefined && pending !== undefined) {
       this.pendingLink = undefined
       void this.window.links.set(sessionId, pending).catch((error: unknown) => {
-        this.window.log.warn(`The pull request link could not be kept (${gitFailureCode(error)})`)
+        const code = gitFailureCode(error)
+        this.window.log.warn(
+          `The pull request link could not be kept (${code}): ${failureForLog(error)}`,
+        )
       })
     }
     const link = sessionId === undefined ? undefined : this.window.links.get(sessionId)
@@ -1419,7 +1442,10 @@ export class ConversationGit implements ConversationGitPort {
     this.postState()
     if (this.link !== undefined) {
       void this.refreshStatus('silent').catch((error: unknown) => {
-        this.window.log.warn(`The pull request status could not be read (${gitFailureCode(error)})`)
+        const code = gitFailureCode(error)
+        this.window.log.warn(
+          `The pull request status could not be read (${code}): ${failureForLog(error)}`,
+        )
       })
     }
   }
@@ -1503,7 +1529,10 @@ export class ConversationGit implements ConversationGitPort {
       checkOwned = owned.check
     } catch (error: unknown) {
       // The card says it in fixed words; git's own may name a path, so the log gets its code.
-      this.window.log.warn(`A draft's repository could not be read (${gitFailureCode(error)})`)
+      const code = gitFailureCode(error)
+      this.window.log.warn(
+        `A draft's repository could not be read (${code}): ${failureForLog(error)}`,
+      )
       throw new Error(UI_TEXT.gitUnavailable, { cause: error })
     }
     const stamp = repositoryStamp(repository)

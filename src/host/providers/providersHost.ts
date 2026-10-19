@@ -192,12 +192,11 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       await previous
       return await run()
     })()
+    // A failure already reached the caller through `next`: the chain only
+    // sequences later mutations, so observing its settlement (never its
+    // rejection) keeps every later one running.
     mutations = (async () => {
-      try {
-        await next
-      } catch {
-        return
-      }
+      await Promise.allSettled([next])
     })()
     return next
   }

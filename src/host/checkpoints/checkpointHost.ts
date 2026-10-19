@@ -407,6 +407,18 @@ export async function withCheckpointEditAt<T>(
  * writes (`writeRecorder`), and what else writes through this one (Muse
  * Code's image tools, the extension for the user) is never recorded.
  */
+/**
+ * Best-effort close of a mark no work started under: an uncertain mark
+ * remains closed to restores whether this lands or not.
+ */
+async function closeUncertainMark(checkpoints: CheckpointPort, key: string): Promise<void> {
+  try {
+    await checkpoints.markTurn(key, false)
+  } catch {
+    // No work started; an uncertain mark remains closed to restores.
+  }
+}
+
 export function withCheckpointStorageGuard(io: ToolIo, checkpoints: CheckpointPort): ToolIo {
   const finishActivity = async (key: string, isProven: boolean): Promise<void> => {
     try {
@@ -426,16 +438,14 @@ export function withCheckpointStorageGuard(io: ToolIo, checkpoints: CheckpointPo
     try {
       await checkpoints.markTurn(key, true)
     } catch (error: unknown) {
-      try {
-        await checkpoints.markTurn(key, false)
-      } catch {
-        // No work started; an uncertain mark remains closed to restores.
-      }
+      await closeUncertainMark(checkpoints, key)
       throw new ShellEntryError(UI_TEXT.checkpointFailed, { cause: error })
     }
     try {
       assertCanRun?.()
     } catch {
+      // A thrown guard is the refusal (toolIo's proven no-entry idiom):
+      // no workspace process has started.
       await finishActivity(key, true)
       return refusedShellEntry()
     }

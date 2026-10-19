@@ -27,7 +27,8 @@ import {
 } from '../../shared/constants'
 import type { ReviewRequest } from '../../shared/reviewCommand'
 import type { PickOne } from '../commands/pickItem'
-import { gitExitCode, gitFilterOptions } from '../git'
+import { errnoCode, isMissingPath } from '../canonicalPath'
+import { gitExitCode, gitFilterOptions, isGitExitError } from '../git'
 import { captureWorkspaceIdentity, type WorkspaceIdentity } from '../workspaceIdentity'
 
 // A failed git call that carried no exit code (git was not found, say).
@@ -154,6 +155,11 @@ function exitOf(error: unknown): string {
   return code === undefined ? UNKNOWN_EXIT : String(code)
 }
 
+/** How an unreadable workspace folder reads in the log: its code, never its text, which names a path. */
+function identityFailure(error: unknown): string {
+  return `workspace identity unreadable (${errnoCode(error) ?? 'error'})`
+}
+
 /** The collector the conversation asks: git's material for a request, the pickers included. */
 export function createReviewCollector(
   deps: ReviewCollectorDeps,
@@ -165,8 +171,14 @@ export function createReviewCollector(
     let root: WorkspaceIdentity | undefined
     try {
       root = await captureWorkspaceIdentity(deps.workspaceRoot)
-    } catch {
-      return { kind: 'cancelled' }
+    } catch (error: unknown) {
+      // A folder that vanished mid-review reviews nothing; a folder that
+      // cannot be read at all (a permission error, a link loop) keeps the
+      // review closed as a git failure, never as cancelled and never with
+      // git's or the operating system's own words.
+      return isMissingPath(error)
+        ? { kind: 'cancelled' }
+        : { kind: 'refused', refusal: 'gitFailed', failure: identityFailure(error) }
     }
     if (root === undefined) {
       return { kind: 'cancelled' }
@@ -211,7 +223,9 @@ export function createReviewCollector(
       } catch (error: unknown) {
         // `--get-regexp` exits 1 only when no matching names exist. Every
         // other failure keeps review closed, never as an empty inventory.
-        if (gitExitCode(error) !== 1) {
+        // Only git's own exit says "no names": a foreign failure with a
+        // numeric code is not this inventory's to empty.
+        if (!isGitExitError(error) || gitExitCode(error) !== 1) {
           throw error
         }
         output = ''

@@ -1535,6 +1535,7 @@
     "many": "{count} di hook nel file {file}"
   },
   "hooksSparkAbout": "Muse Code non legge mai questo file. Contiene gli eventi che solo questa estensione esegue e gli hook importati da altri agenti.",
+  "hooksFileUnreadable": "Impossibile leggere questo file:",
   "hooksBackendMuseCode": "Eseguiti da Muse Code",
   "hooksBackendBoth": "Eseguiti da Muse Code e, sul back-end Model API, da questa finestra",
   "hooksBackendSpark": "Eseguiti da questa finestra: sul back-end Model API e, per gli eventi gestiti dall’estensione stessa, su entrambi i back-end",

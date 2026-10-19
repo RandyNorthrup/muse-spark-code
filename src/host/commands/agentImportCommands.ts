@@ -385,6 +385,15 @@ function previewMarkdown(
 /** Where a project destination stands: inside the planned folder, outside it by a link, or the folder changed. */
 type ProjectStanding = 'inside' | 'outside' | 'changed'
 
+/**
+ * Whether the failure carries an import error code (a refused path or a
+ * file failure, never a foreign value). Only coded failures read as a
+ * standing; anything else is not the import's to place.
+ */
+function isImportFailure(error: unknown): boolean {
+  return importErrorCode(error) !== 'error'
+}
+
 /** Whether a project destination stays in the planned workspace folder once links and junctions are followed. */
 async function projectStanding(
   deps: AgentImportDeps,
@@ -402,6 +411,9 @@ async function projectStanding(
     await deps.writer.assertSafePath(absolutePath, project)
     return 'inside'
   } catch (error: unknown) {
+    if (!isImportFailure(error)) {
+      throw error
+    }
     const code = importErrorCode(error)
     deps.log.warn(`${LOG_PREFIX}  could not be resolved (failed)`)
     return code === AGENT_IMPORT_ROOT_CHANGED_CODE ? 'changed' : 'outside'
@@ -436,7 +448,10 @@ async function readPlanFile(
           break
         }
       }
-    } catch {
+    } catch (error: unknown) {
+      if (!isImportFailure(error)) {
+        throw error
+      }
       deps.log.warn(`${LOG_PREFIX}  could not be resolved (failed)`)
       return { status: 'unreadable' }
     }
@@ -454,7 +469,10 @@ async function readPlanFile(
   let read: ImportRead
   try {
     read = await deps.io.readFile(absolutePath, maxBytes, isProjectFile ? project?.path : undefined)
-  } catch {
+  } catch (error: unknown) {
+    if (!isImportFailure(error)) {
+      throw error
+    }
     deps.log.warn(`${LOG_PREFIX}  could not be read (failed)`)
     return { status: 'unreadable' }
   }
@@ -562,7 +580,10 @@ async function isCopyTargetSafe(
         deps.log.warn(`${LOG_PREFIX} config edit refused (${reason})`)
         return false
       }
-    } catch {
+    } catch (error: unknown) {
+      if (!isImportFailure(error)) {
+        throw error
+      }
       deps.showWarning(UI_TEXT.agentImportSkippedUnreadable)
       return false
     }
@@ -614,7 +635,10 @@ async function isRootCurrent(deps: AgentImportDeps, project: ImportProjectRoot):
       isSamePath(now.canonical, project.identity.canonical, deps.platform) &&
       now.fileId === project.identity.fileId
     )
-  } catch {
+  } catch (error: unknown) {
+    if (!isImportFailure(error)) {
+      throw error
+    }
     deps.log.warn(`${LOG_PREFIX} the workspace folder could not be resolved (failed)`)
     return false
   }

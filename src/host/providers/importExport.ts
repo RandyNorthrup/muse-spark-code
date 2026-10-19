@@ -61,8 +61,13 @@ function parseDocumentText(
   let raw: unknown
   try {
     raw = JSON.parse(text)
-  } catch {
-    throw new Error('The providers file is not valid JSON')
+  } catch (error: unknown) {
+    // Without a reviver only malformed text fails here, always as a
+    // SyntaxError; anything else is not this parse's to refuse.
+    if (!(error instanceof SyntaxError)) {
+      throw error
+    }
+    throw new Error('The providers file is not valid JSON', { cause: error })
   }
   return parseProvidersDocument(raw, presetAddress)
 }
