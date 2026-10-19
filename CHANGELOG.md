@@ -1626,6 +1626,21 @@ happened, not what was planned; superseded entries are kept.
   and cleanup; elapsed-time admission measures vendor/bootstrap starts.
   Azure's timing policy is superseded by CM80CIR6 above. Fake-tested only;
   hosted/live receipts remain open.
+- **Other-CI review threads** (RVPR231W2): Azure `BatchedCI` builds are
+  refused, since Azure names no pre-batch revision and first-parent would
+  review only the batch head. The Azure key arrives only through the
+  `muse-spark-secrets` variable group, whose branch-control check (defined
+  outside the repository) decides which branches may bind it; the job
+  condition stays a second layer. GitLab and Bitbucket copy the five fixed
+  publisher filenames into a fresh `muse-spark-out/` in the clone for their
+  artifact uploaders, and the run summary names the published output
+  directory. Bootstrap cleanup is one bounded removal with the `timeout`
+  probe up front, and the proxy/CA inputs reach the bootstrap download
+  itself. The ACP package ships exactly the launcher's dependency closure
+  (`ci-entry.mjs` and what it reaches, plus the CI prompts) instead of the
+  whole `action/lib` and `action/prompts` directories. The README claims no
+  credential, execution or publication behavior until a hosted receipt
+  exists. Fake-tested only; hosted/live receipts remain open.
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

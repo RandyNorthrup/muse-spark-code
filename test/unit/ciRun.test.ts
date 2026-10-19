@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { azureBoolean, ciFacts, decideCi } from '../../action/lib/ci-adapters.mjs'
+import { summaryFor } from '../../action/lib/run-exec.mjs'
 import {
   bootstrapStartMs,
   checkJobDeadline,
@@ -146,6 +147,36 @@ describe('adapters: each system’s facts and trust', () => {
     expect(decideCi(facts({}), { ...trusted, imageGeneration: true })).toMatchObject({
       reason: 'image-generation needs fix mode',
     })
+  })
+
+  it('names the published output directory in the run summary', () => {
+    // The templates that cannot upload external temp (GitLab, Bitbucket)
+    // copy from the directory the summary names, so the summary must repeat
+    // the publisher's output directory verbatim.
+    const report = { execCode: 0, wrapperFailed: false, patchWithheld: '' }
+    expect(summaryFor(report, { status: 'completed', 'out-dir': '/w/muse-spark-out' })).toContain(
+      '- output directory: /w/muse-spark-out',
+    )
+    expect(summaryFor(report, { status: 'completed' })).toContain('- output directory: n/a')
+  })
+
+  it('refuses Azure BatchedCI: the batch head alone cannot cover the batch', () => {
+    const head = 'a'.repeat(40)
+    const batched = ciFacts('azure', {
+      BUILD_SOURCESDIRECTORY: '/w',
+      BUILD_BUILDID: '1',
+      BUILD_REASON: 'BatchedCI',
+      BUILD_SOURCEVERSION: head,
+      BUILD_SOURCEBRANCHNAME: 'main',
+    })
+    expect(batched.event).toBe('unsupported')
+    expect(
+      decideCi(batched, {
+        trustPullRequests: true,
+        imageGeneration: false,
+        mode: 'review' as const,
+      }),
+    ).toEqual({ allowed: false, reason: 'this pipeline event cannot start a run' })
   })
 })
 

@@ -34,7 +34,26 @@ export const LINUX_HELPERS = ['x64', 'arm64'].flatMap((arch) =>
 export const VOICE_WINDOWS_HELPERS = [path.join('native', 'windows', 'dictate.ps1')]
 // The governed runner's helper scripts, copied as a folder.
 export const RUNNER_HELPERS = path.join('native', 'runner')
-// The other CI systems' launcher (lane CM80CI-R2): the GitHub Action's own
-// Node-only scripts and prompt templates, shipped as ci/lib and ci/prompts and
-// run by ci-templates/ from the digest-pinned tarball as ci/lib/ci-run.mjs.
-export const CI_LAUNCHER_SOURCES = [path.join('action', 'lib'), path.join('action', 'prompts')]
+// The other CI systems' launcher (lane CM80CI-R2): the exact dependency
+// closure of ci-entry.mjs (static and dynamic relative imports, resolved
+// from action/lib) and the CI prompt directory it renders from, shipped as
+// ci/lib and ci/prompts and run by ci-templates/ from the digest-pinned
+// tarball as ci/lib/ci-entry.mjs. Unrelated Action entry points
+// (checkout.mjs, gate.mjs, gate-cli.mjs, post.mjs) and the non-CI prompt
+// pair (review.md, fix.md) stay out of the package. Each entry is an
+// action/-rooted path; the packager preserves that relative path under ci/.
+export const CI_LAUNCHER_SOURCES = [
+  path.join('action', 'lib', 'ci-adapters.mjs'),
+  path.join('action', 'lib', 'ci-entry.mjs'),
+  path.join('action', 'lib', 'ci-files.mjs'),
+  path.join('action', 'lib', 'ci-key.mjs'),
+  path.join('action', 'lib', 'ci-run.mjs'),
+  path.join('action', 'lib', 'git.mjs'),
+  path.join('action', 'lib', 'inputs.mjs'),
+  path.join('action', 'lib', 'install.mjs'),
+  path.join('action', 'lib', 'lifecycle.mjs'),
+  path.join('action', 'lib', 'result.mjs'),
+  path.join('action', 'lib', 'run-exec.mjs'),
+  path.join('action', 'lib', 'tools.mjs'),
+  path.join('action', 'prompts', 'ci'),
+]

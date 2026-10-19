@@ -655,7 +655,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Other CI systems
 
-system: Digest-pinned headless review/fix templates for GitLab, Azure, Jenkins and Bitbucket. Node reads the key and publishes outside the checkout; Azure/Jenkins upload those files. GitLab/Bitbucket artifact transport and Bitbucket process isolation remain unqualified. Declare extra key binding names in MUSE_CI_KEY_ALIASES. Fake tests only; see docs/ci-other-systems.md.
+system: Digest-pinned headless review/fix templates for GitLab, Azure, Jenkins and Bitbucket. Node reads the key and publishes outside the checkout; every template uploads those files. GitLab/Bitbucket external-temp copies and Bitbucket process isolation remain unqualified. Declare extra key binding names in MUSE_CI_KEY_ALIASES. Fake tests only; see docs/ci-other-systems.md.
 
 Surfaces: acp:modelApi. Paid: no extra feature charge; model usage still applies.
 

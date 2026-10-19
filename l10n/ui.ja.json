@@ -456,7 +456,7 @@
   "referencePaidContexts": "対話型の Model API 追加機能は支出前に確認し、日次予算を共有します。Muse Code の画像には保存済み Model API キーと明示的な有効化が必要で、その支出はこの日次台帳の対象外です。Muse Voice は両バックエンドで共有日次予算を予約します。ACP の有料機能は既定でオフになり、Model API フラグとエディターの許可が必要です。ACP とヘッドレスの Model API リクエストはランタイムの日次予算を予約し、ヘッドレスでは実行ごとの厳格な予算も必要です。ヘッドレスの画像には acceptEdits と画像フラグが必要です。アカウントと使用量でワークスペースの有料利用許可を取り消せます。",
   "referenceAcp": "インストール済みスキルは動的なスラッシュコマンドを追加しますが、この静的な資料には一覧がありません。ACP がローカルで処理するのは /help、/compact、/legal、/playback、/usage、/resources, /resources resume, /usage resources, /questions、/answer, /prompt, /share, /whatsnew, /agents とスキルだけです。リンク先のパネルコマンド、設定、ダイアログは拡張機能の操作です。",
   "referenceCiOtherTitle": "その他の CI システム",
-  "referenceCiOther": "パッケージのダイジェストを固定した GitLab、Azure、Jenkins、Bitbucket 向けヘッドレスレビュー・修正テンプレート。Node がキーを読み、チェックアウト外に結果を公開し、Azure/Jenkins がそのファイルをアップロードします。GitLab/Bitbucket の成果物転送と Bitbucket のプロセス分離は未検証です。追加のキー変数名は MUSE_CI_KEY_ALIASES に指定してください。模擬テストのみ。docs/ci-other-systems.md を参照。",
+  "referenceCiOther": "パッケージのダイジェストを固定した GitLab、Azure、Jenkins、Bitbucket 向けヘッドレスレビュー・修正テンプレート。Node がキーを読み、チェックアウト外に結果を公開し、すべてのテンプレートがそのファイルをアップロードします。GitLab/Bitbucket の外部一時コピーと Bitbucket のプロセス分離は未検証です。追加のキー変数名は MUSE_CI_KEY_ALIASES に指定してください。模擬テストのみ。docs/ci-other-systems.md を参照。",
   "referenceWebFetchTitle": "ウェブ取得",
   "referenceWebFetchDetail": "権限とネットワークを確認し、公開ウェブページを読みやすいテキストとして取得します。",
   "referenceCodeIntelTitle": "コードインテリジェンス",

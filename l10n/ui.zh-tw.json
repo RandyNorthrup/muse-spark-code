@@ -456,7 +456,7 @@
   "referencePaidContexts": "互動式 Model API 附加功能在消費前詢問，並共用每日預算。Muse Code 圖像需要已儲存的 Model API 金鑰及明確啟用；其支出不計入此每日帳本。Muse Voice 在兩個後端上預留共用每日預算。ACP 付費功能預設關閉，需要 Model API 旗標和編輯器許可。ACP 和無介面的 Model API 要求會預留執行階段每日預算；無介面執行還需要嚴格的單次執行預算。無介面圖像需要 acceptEdits 和圖像旗標。帳戶與用量可以忘記工作區的付費使用許可。",
   "referenceAcp": "已安裝技能會新增動態斜線命令，此靜態參考不列出它們。ACP 僅處理本機 /help、/compact、/legal、/playback、/usage、/resources, /resources resume, /usage resources, /questions、/answer, /prompt, /share, /whatsnew, /agents 和已安裝技能；連結參考中的面板命令、設定和編輯器對話方塊屬於擴充功能流程。",
   "referenceCiOtherTitle": "其他 CI 系統",
-  "referenceCiOther": "為 GitLab、Azure、Jenkins 和 Bitbucket 固定套件摘要的無介面審查/修正範本。Node 讀取金鑰並在工作副本外發布結果；Azure/Jenkins 上傳這些檔案。GitLab/Bitbucket 的成品傳輸和 Bitbucket 的程序隔離尚未驗證。請在 MUSE_CI_KEY_ALIASES 中宣告額外的金鑰變數名稱。僅執行模擬測試；參見 docs/ci-other-systems.md。",
+  "referenceCiOther": "為 GitLab、Azure、Jenkins 和 Bitbucket 固定套件摘要的無介面審查/修正範本。Node 讀取金鑰並在工作副本外發布結果；每個範本都會上傳這些檔案。GitLab/Bitbucket 的外部暫存副本和 Bitbucket 的程序隔離尚未驗證。請在 MUSE_CI_KEY_ALIASES 中宣告額外的金鑰變數名稱。僅執行模擬測試；參見 docs/ci-other-systems.md。",
   "referenceWebFetchTitle": "網頁擷取",
   "referenceWebFetchDetail": "將公開網頁擷取為可讀文字，並檢查權限和網路。",
   "referenceCodeIntelTitle": "程式碼智慧",
