@@ -188,7 +188,6 @@ import {
   LEGAL_MARKDOWN_EXPORT_FILE,
   UI_TEXT,
   QUESTION_DEFER_DEFAULT_SECONDS,
-  SCHEDULE_PROTOCOL_VERSION,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
   TEAM_MCP_SERVER_NAME,
@@ -211,11 +210,11 @@ import { backendLabel } from '../../shared/paletteFormatting'
 
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import type { SchedulesBridge } from '../schedules/schedulesBridge'
-import type { ScheduleEditorDeliveryPorts } from '../schedules/deliveryBinding'
+import type * as ScheduleSurfaces from './scheduleSurfacesEntry'
+import type { ScheduleSnapshot } from './scheduleSurfacesEntry'
 import type { BackendSession } from '../schedules/backgroundTarget'
 import type { UnattendedRun } from '../../core/schedules/unattended'
-import type { ScheduleRunContext, ScheduleV2 } from '../../shared/scheduleV2'
-import { parseScheduleHostMessage } from '../../shared/scheduleProtocol'
+import type { ScheduleRunContext } from '../../shared/scheduleV2'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import {
   approvalModeFor,
@@ -8657,207 +8656,44 @@ export class ConversationController {
     }
   }
 
-  private async scheduleSession(): Promise<AgentSession | undefined> {
-    const generation = this.sendInvalidationEpoch
-    const session = await this.sessionForAction()
-    if (!this.isCurrentSessionAction(session, generation)) {
-      return undefined
-    }
-    if (session.schedules === undefined) {
-      this.notice('warning', UI_TEXT.scheduleModelApiOnly)
-    }
-    return session.schedules === undefined ? undefined : session
+  /**
+   * The deferred schedule surfaces (dist/scheduleSurfaces.js, D6): the
+   * delivery target readout, the scheduled-question settlement and the
+   * schedules panel commands, loaded on the first one that runs.
+   */
+  private scheduleSurfaces(): Promise<typeof ScheduleSurfaces> {
+    return import('./scheduleSurfacesEntry.js')
   }
 
   private async createSchedule(cadence: ScheduleCadence, prompt: string): Promise<void> {
-    try {
-      const session = await this.scheduleSession()
-      const job = await session?.schedules?.create(cadence, prompt)
-      if (job !== undefined) {
-        this.say('info', fill(UI_TEXT.scheduleCreated, { id: job.id }))
-      }
-    } catch (error: unknown) {
-      this.deps.log.warn(`A schedule could not be created: ${failureForLog(error)}`)
-      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
-    }
+    const surfaces = await this.scheduleSurfaces()
+    await surfaces.createScheduleOf(this.scheduleSnapshot(), cadence, prompt)
   }
 
   private async listSchedules(): Promise<void> {
-    try {
-      const session = await this.scheduleSession()
-      const jobs = await session?.schedules?.list()
-      if (jobs?.length === 0) {
-        this.say('info', UI_TEXT.scheduleNone)
-      }
-    } catch (error: unknown) {
-      this.deps.log.warn(`The schedules could not be listed: ${failureForLog(error)}`)
-      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
-    }
+    const surfaces = await this.scheduleSurfaces()
+    await surfaces.listSchedulesOf(this.scheduleSnapshot())
   }
 
   private async cancelSchedule(id: string): Promise<void> {
-    try {
-      const session = await this.scheduleSession()
-      if (session?.schedules === undefined) {
-        return
-      }
-      const isRemoved = await session.schedules.cancel(id)
-      this.say(
-        isRemoved ? 'info' : 'warning',
-        fill(isRemoved ? UI_TEXT.scheduleCancelled : UI_TEXT.scheduleUnknown, { id }),
-      )
-    } catch (error: unknown) {
-      this.deps.log.warn(`A schedule could not be cancelled: ${failureForLog(error)}`)
-      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
-    }
+    const surfaces = await this.scheduleSurfaces()
+    await surfaces.cancelScheduleOf(this.scheduleSnapshot(), id)
   }
 
   private async answerSchedules(input: unknown): Promise<void> {
-    const bridge = this.deps.schedulesBridge
-    const workspaceRoot = this.deps.workspaceRoot
-    if (bridge === undefined || workspaceRoot === undefined) return
-    try {
-      const answer = await bridge.message(input, workspaceRoot)
-      const parsed = parseScheduleHostMessage(answer)
-      if (!parsed.ok) return
-      this.post({ type: 'schedulesMessage', message: parsed.message })
-      if (
-        parsed.message.type === 'schedulesResponse' &&
-        parsed.message.response.kind === 'accepted'
-      ) {
-        this.schedulesRevision += 1
-        this.post({
-          type: 'schedulesMessage',
-          message: {
-            type: 'scheduleChanged',
-            version: SCHEDULE_PROTOCOL_VERSION,
-            workspaceKey: bridge.keyFor(workspaceRoot),
-            revision: this.schedulesRevision,
-          },
-        })
-      }
-    } catch (error: unknown) {
-      this.deps.log.warn(`A schedules message could not be answered: ${failureForLog(error)}`)
-      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
-    }
+    const surfaces = await this.scheduleSurfaces()
+    await surfaces.answerSchedulesOf(this.scheduleSnapshot(), input)
   }
 
   /** A schedule command's panel: the v2 surface over this workspace. */
-  private openSchedules(initialView: 'list' | 'timeline' | 'editor'): void {
-    const bridge = this.deps.schedulesBridge
-    const workspaceRoot = this.deps.workspaceRoot
-    if (bridge === undefined || workspaceRoot === undefined) {
-      this.notice('warning', UI_TEXT.noWorkspaceReason)
-      return
-    }
-    const session =
-      this.session === undefined || this.sessionKind === undefined
-        ? undefined
-        : {
-            sessionId: this.session.sessionId,
-            backend: this.sessionKind,
-            label: UI_TEXT.scheduleV2.targets.conversation,
-          }
-    const nowMs = this.deps.now()
-    this.post({
-      type: 'schedulesSurface',
-      workspaceKey: bridge.keyFor(workspaceRoot),
-      targets: [...bridge.targets(session)],
-      // The session's backend first; 'modelApi' only before any session, for
-      // the fallback target the draft needs when no conversation is open.
-      defaultDraft: bridge.defaultDraft(
-        nowMs,
-        session,
-        this.sessionKind ?? this.deps.auth.current.backend ?? 'modelApi',
-      ),
-      nowMs,
-      initialView,
-    })
-  }
-
-  private scheduleRunChanged(): void {
-    this.notice(
-      'warning',
-      this.deps.isScheduledPaidOn?.() === true
-        ? UI_TEXT.scheduleConfirmationExpired
-        : UI_TEXT.schedulePaidOff,
-    )
+  private async openSchedules(initialView: 'list' | 'timeline' | 'editor'): Promise<void> {
+    const surfaces = await this.scheduleSurfaces()
+    surfaces.openSchedulesOf(this.scheduleSnapshot(), initialView)
   }
 
   private async runSchedule(id: string, occurrenceMs: number): Promise<void> {
-    const generation = this.sendInvalidationEpoch
-    try {
-      if (this.deps.runScheduledOccurrence !== undefined) {
-        await this.deps.runScheduledOccurrence(id, occurrenceMs)
-        return
-      }
-      const session = await this.scheduleSession()
-      if (!this.isCurrentSessionAction(session, generation) || session.schedules === undefined) {
-        return
-      }
-      if (this.deps.isScheduledPaidOn?.() !== true) {
-        this.notice('warning', UI_TEXT.schedulePaidOff)
-        return
-      }
-      const jobs = await session.schedules.list()
-      if (!this.isCurrentSessionAction(session, generation)) {
-        return
-      }
-      const job = jobs.find((entry) => entry.id === id)
-      if (job?.nextFireAtMs !== occurrenceMs || occurrenceMs > this.deps.now()) {
-        this.notice('warning', UI_TEXT.scheduleNotDue)
-        return
-      }
-      if (this.deps.confirmScheduledRun === undefined) {
-        return
-      }
-      const confirmed = {
-        sessionId: session.sessionId,
-        modelId: session.modelId,
-        backend: this.deps.auth.current.backend,
-        prompt: job.prompt,
-      }
-      if (!(await this.deps.confirmScheduledRun(job, confirmed.modelId))) {
-        return
-      }
-      const isContextChanged = () =>
-        !this.isCurrentSessionAction(session, generation) ||
-        session.sessionId !== confirmed.sessionId ||
-        this.sessionKind !== 'modelApi' ||
-        this.deps.auth.current.backend !== confirmed.backend ||
-        session.modelId !== confirmed.modelId ||
-        this.deps.isScheduledPaidOn?.() !== true
-      if (isContextChanged()) {
-        if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
-          this.scheduleRunChanged()
-        }
-        return
-      }
-      const currentJobs = await session.schedules.list()
-      const current = currentJobs.find((entry) => entry.id === id)
-      if (
-        isContextChanged() ||
-        current?.nextFireAtMs !== occurrenceMs ||
-        current.prompt !== confirmed.prompt
-      ) {
-        if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
-          this.scheduleRunChanged()
-        }
-        return
-      }
-      this.requireNonConfidentialModel(session.modelId)
-      await session.schedules.run(id, occurrenceMs, confirmed)
-    } catch (error: unknown) {
-      this.deps.log.warn(`A scheduled run could not start: ${failureForLog(error)}`)
-      if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
-        this.notice(
-          'error',
-          `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`,
-          undefined,
-          error,
-        )
-      }
-    }
+    const surfaces = await this.scheduleSurfaces()
+    await surfaces.runScheduleOf(this.scheduleSnapshot(), id, occurrenceMs)
   }
 
   private async cancel(): Promise<void> {
@@ -11230,7 +11066,7 @@ export class ConversationController {
         break
       }
       case 'openSchedules': {
-        this.openSchedules(message.view)
+        await this.openSchedules(message.view)
         break
       }
       case 'exportConversation': {
@@ -11872,6 +11708,53 @@ export class ConversationController {
     }
   }
 
+  /** Everything the deferred schedule surfaces read: data plus bound closures. */
+  public scheduleSnapshot(): ScheduleSnapshot {
+    return {
+      isDisposed: this.isDisposed,
+      admitted: this.isAuthAdmitted(),
+      trusted: this.deps.isWorkspaceTrusted(),
+      workspaceRoot: this.deps.workspaceRoot,
+      bridge: this.deps.schedulesBridge,
+      sessionKind: this.sessionKind,
+      session: this.session,
+      activeTurnId: this.activeTurnId,
+      signal: this.scheduleSessionStop.signal,
+      epoch: this.sendInvalidationEpoch,
+      isSettled: (generation) =>
+        generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0,
+      authBackend: this.deps.auth.current.backend,
+      now: () => this.deps.now(),
+      revision: () => this.schedulesRevision,
+      registries: sessionQuestions,
+      runScheduledOccurrence: this.deps.runScheduledOccurrence,
+      confirmScheduledRun: this.deps.confirmScheduledRun,
+      isScheduledPaid: this.deps.isScheduledPaidOn,
+      say: (level, text, redoRestoreId) => {
+        this.say(level, text, redoRestoreId)
+      },
+      notice: (level, text, redoRestoreId, error) => {
+        this.notice(level, text, redoRestoreId, error)
+      },
+      report: (text, error) => {
+        this.notice('error', text, undefined, error)
+      },
+      post: (message) => {
+        this.post(message)
+      },
+      attach: (session, backend) => this.attachQuestions(session, backend),
+      forAction: () => this.sessionForAction(),
+      isCurrent: (session, generation) => this.isCurrentSessionAction(session, generation),
+      describeError: (error) => describe(error),
+      requireModel: (modelId) => {
+        this.requireNonConfidentialModel(modelId)
+      },
+      setRevision: (revision: number) => {
+        this.schedulesRevision = revision
+      },
+    }
+  }
+
   public scheduleWorkspaceChanged(): void {
     if (
       this.isDisposed ||
@@ -11890,24 +11773,6 @@ export class ConversationController {
       if (this.scheduleWorkspaceRelease === pending) this.scheduleWorkspaceRelease = undefined
       this.deps.log.warn('Scheduled workspace could not be held')
     })
-  }
-
-  public scheduleTarget(schedule: ScheduleV2): ReturnType<ScheduleEditorDeliveryPorts['findLive']> {
-    if (
-      this.isDisposed ||
-      !this.isAuthAdmitted() ||
-      !this.deps.isWorkspaceTrusted() ||
-      schedule.target.kind !== 'conversation' ||
-      this.sessionKind !== schedule.target.backend ||
-      this.session?.sessionId !== schedule.target.sessionId
-    )
-      return undefined
-    return {
-      agent: this.session,
-      status: this.activeTurnId === undefined ? 'idle' : 'running',
-      ...(this.activeTurnId !== undefined && { activeTurnId: this.activeTurnId }),
-      signal: this.scheduleSessionStop.signal,
-    }
   }
 
   public scheduleModelId(): string {
@@ -11930,29 +11795,6 @@ export class ConversationController {
   public scheduleNotice(session: BackendSession | undefined, text: string): void {
     if (!this.isDisposed && (session === undefined || this.session === session))
       this.say('info', text)
-  }
-
-  public async scheduledQuestion(
-    session: BackendSession,
-    backend: BackendKind,
-    event: Extract<AgentEvent, { type: 'questionRequested' }>,
-    context: ScheduleRunContext,
-  ): Promise<void> {
-    await this.attachQuestions(session, backend)
-    const registry = sessionQuestions.get(session)
-    if (registry === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
-    await registry.register(
-      {
-        userInputId: event.userInputId,
-        itemId: event.itemId,
-        questions: event.questions,
-        turnId: context.runId,
-      },
-      0,
-    )
-    // The backend performs its captured clarification once. The registry keeps
-    // this question open for a later answer without sending a second withdrawal.
-    await registry.settle(event.userInputId, 'deferred')
   }
 
   public revealBoardSession(sessionId: string, backend: BackendKind): boolean {

@@ -372,6 +372,22 @@ export const DEFERRED = [
     ],
   },
   {
+    // SCHEDULEDELIVERY: the schedules' editor-delivery binding, loaded by
+    // dist/schedules.js on the first delivery. Only the entry and the
+    // host-owned binding are pinned here; the shared grant, unattended-run
+    // and shell-syntax machinery it also carries stays unlisted (only files
+    // owned by the schedules feature are pinned above, and modelApi.js
+    // carries those shared sources itself).
+    output: 'dist/scheduleDelivery.js',
+    metafile: 'dist/meta/scheduleDelivery.json',
+    use: 'the first schedule delivery',
+    files: [
+      'src/host/schedules/scheduleDeliveryEntry.ts',
+      'src/host/schedules/deliveryBinding.ts',
+      'src/host/schedules/backgroundTarget.ts',
+    ],
+  },
+  {
     output: 'dist/scheduleBackground.js',
     metafile: 'dist/meta/scheduleBackground.json',
     use: 'the first native schedule wake or maintenance',
@@ -702,6 +718,18 @@ export const ON_FIRST_USE = [
       'src/host/conversation/sessionImport.ts',
       'src/core/export/sessionTransfer.ts',
       'src/core/export/transcriptMarkdown.ts',
+    ],
+  },
+  {
+    // SCHEDULESURFACES: the conversation's schedule surfaces, loaded by
+    // dist/conversation.js and dist/extension.js on the first schedule
+    // delivery, panel command or scheduled question.
+    output: 'dist/scheduleSurfaces.js',
+    metafile: 'dist/meta/scheduleSurfaces.json',
+    use: 'the first schedule surface',
+    files: [
+      'src/host/conversation/scheduleSurfacesEntry.ts',
+      'src/host/conversation/scheduleSurfaces.ts',
     ],
   },
   {
@@ -1290,6 +1318,8 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
   [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
   [path.resolve('src/core/backends/modelapi/schedulesEntry.ts'), 'dist/schedules.js'],
+  [path.resolve('src/host/schedules/scheduleDeliveryEntry.ts'), 'dist/scheduleDelivery.js'],
+  [path.resolve('src/host/conversation/scheduleSurfacesEntry.ts'), 'dist/scheduleSurfaces.js'],
   [path.resolve('src/core/backends/modelapi/reviewerEntry.ts'), 'dist/reviewer.js'],
   [path.resolve('src/core/backends/modelapi/foreignHooksEntry.ts'), 'dist/foreignHooks.js'],
   [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
@@ -1349,7 +1379,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

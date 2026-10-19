@@ -3216,12 +3216,15 @@ bootstrap's refusal and the parent trap's cleanup with a missing Node
 
 `src/host/paid/paidDailyBudget.ts` imports the `vscode` module, so no unit
 test can load it with real code only (the hand-written `vscode` stand-in was
-deleted as a fake on 2026-10-17). The runtime-family half of the claim below
-is proven by `test/unit/runtimeDailyBudget.test.ts` over the real journal;
-the host half leaves the suite here until a real-use run proves it.
+deleted as a fake on 2026-10-17). The runtime-family half of the claim is
+proven by `test/unit/runtimeDailyBudget.test.ts` over the real settings file
+and data folder; the host half leaves the suite here until a real-use run
+proves it.
 
-### test/unit/scheduleLegacyDailyBudget.test.ts
+### test/unit/scheduleLegacyDailyBudget.test.ts (withdrawn with the journal, D121)
 
-- carries earlier window spend and retained liability once into an already opened common day
-- migrates the legacy window directory exactly once across repeated reads
-- shares the remaining cap with the runtime family against the one ledger
+The journal-backed migration suite was deleted with the reservation journal
+it measured; nothing in the merged tree replaces its migration claims. The
+schedule own-cap check (`assertScheduleOwnCap`) likewise stays here: no paid
+fire could run while delivery is uncertified
+(`docs/real-life/pr207-2026-10-18.md`).

@@ -1058,6 +1058,30 @@ from `verifyTools.ts`, and activation keeps the shared `checkCommands.ts`,
 `codeFiles.ts` and `workspaceEdits.ts`. A bundle that cannot load fails
 the turn or check run that needed it, never a silent skip and never a
 default. Evidence: `docs/certification/train-older-fixes.md`.
+**SCHEDULEDELIVERY (2026-10-18, macbook rig).** The #207 merge put
+`dist/schedules.js` 0.5 KiB over its unchanged 200 KiB cap; the terminal CLI
+never binds editor delivery, so the editor path rode every schedule
+invocation. `runtimeEntry.ts` loads the new deferred
+**`dist/scheduleDelivery.js`** (37,105 B; new 50 KiB budget, 36.2 KiB +15%
+rounded up to 25 KiB) on the first delivery with the same memoized loader
+and fail-closed chunk-named refusal as the billing path beside it:
+`schedules.js` 205,304 → 176,256 B. The schedule billing popup reaches
+`askPaidUse` through the paid entry for the same reason (activation may not
+carry `paidHost.ts`/`paidConsent.ts`). Evidence:
+`docs/certification/schedule-delivery-diet.md`.
+
+**SCHEDULESURFACES (2026-10-18, macbook rig).** The same merge put
+`dist/conversation.js` 1.3 KiB over its unchanged 250 KiB cap. The delivery
+target readout, the scheduled-question settlement and the schedules panel
+commands move byte-identical behind one controller snapshot (plain data plus
+bound closures, built after the chunk loads; `revision` and `now` stay live
+so the lost-update and due-check timing match): `conversation.js`
+257,360 → 254,707 B under a new deferred **`dist/scheduleSurfaces.js`**
+(9,344 B; new 25 KiB budget, 9.1 KiB +15% rounded up to 25 KiB). No port
+type changes; the dispatch, billing and lease paths are untouched; extension
+warms the chunk while the schedule wiring builds and `liveSchedule` falls
+back to the unattended path only inside the load window. Evidence:
+`docs/certification/schedule-surfaces-diet.md`.
 
 **HOTFIX0181, cross-bundle members (2026-10-12, kubuntu).** The build points
 every import of `transport.ts`, `sse.ts` and `ndjson.ts` outside

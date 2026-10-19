@@ -753,9 +753,20 @@ export class ModelApiClient implements TransportProviderClient {
                     outputTokens: usage.output_tokens,
                     cachedTokens: cached,
                   }
-                  tokenCostUsd = hasSearch
-                    ? this.knownSearchTokenCostUsd(billable, body.model)
-                    : estimateCostUsd(billable, body.model)
+                  // A schedule's price policy settles its own reported cost;
+                  // without one the reported cost is estimated as usual, and
+                  // an unsettled policy leaves the cost unknown (D121).
+                  const scheduled =
+                    this.scheduledPrice === undefined
+                      ? undefined
+                      : this.scheduledPrice.settle(
+                          { ...modelPricedUsage(usage), images: requestImageCount(body) },
+                          { cost: usage.provider_cost_usd },
+                        )
+                  if (this.scheduledPrice !== undefined) tokenCostUsd = scheduled
+                  else if (hasSearch)
+                    tokenCostUsd = this.knownSearchTokenCostUsd(billable, body.model)
+                  else tokenCostUsd = estimateCostUsd(billable, body.model)
                 }
                 // A scheduled run settles at its pinned price even when the
                 // usage is uncounted; otherwise the reported cost settles,

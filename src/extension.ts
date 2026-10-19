@@ -1,4 +1,5 @@
 import { SpendLedgerError } from './core/paid/spendLedgerError'
+import { failureForLog } from './core/backends/musecode/logText'
 import {
   checkScheduleOwnCap,
   paidExtraAdmission,
@@ -378,7 +379,6 @@ import type { ScreenRecordingPreview } from './core/media/record/driver'
 import { registerVaultCommands, vaultBundleLoader } from './host/vault/vaultPanelBundle'
 import { createMigrationShell, type MigrationShell } from './host/vault/migrationShell'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
-import { askPaidUse } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
 import {
   modelsPanelLoader,
@@ -390,6 +390,8 @@ import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 import { paidBundleLoader } from './host/paid/paidBundle'
 import type { PaidFeatures } from './host/paid/paidHost'
+import type { askPaidUse as askPaidUseFn } from './host/paid/paidEntry'
+import type * as ScheduleSurfaces from './host/conversation/scheduleSurfacesEntry'
 import { authBundleLoader } from './host/auth/authBundle'
 import type { AuthPort, AuthService } from './host/auth/authService'
 
@@ -3866,9 +3868,33 @@ async function activateWindow(
     StartSessionOptions,
     { agent?: BackendSession | undefined; readonly dispose: () => void }
   >()
+  /**
+   * The deferred conversation schedule surfaces (dist/scheduleSurfaces.js,
+   * D6): the delivery target readout, the scheduled-question settlement and
+   * the schedules panel commands. Warmed when the schedule wiring builds so
+   * the first delivery finds them; every caller past liveSchedule awaits the
+   * load, while liveSchedule reads the cache synchronously and falls back to
+   * the unattended path only inside the load window, so a first fire still
+   * runs. A bundle that cannot load refuses the run that needed it.
+   */
+  let loadedScheduleSurfaces: typeof ScheduleSurfaces | undefined
+  const loadScheduleSurfaces = async (): Promise<typeof ScheduleSurfaces> => {
+    if (loadedScheduleSurfaces !== undefined) return loadedScheduleSurfaces
+    try {
+      loadedScheduleSurfaces = await import('./host/conversation/scheduleSurfacesEntry.js')
+      return loadedScheduleSurfaces
+    } catch (error: unknown) {
+      throw new Error(
+        'the scheduleSurfaces.js bundle could not be loaded; schedule surfaces are unavailable',
+        { cause: error },
+      )
+    }
+  }
   const liveSchedule = (schedule: ScheduleV2) => {
+    const surfaces = loadedScheduleSurfaces
     for (const controller of controllers.values()) {
-      const live = controller.scheduleTarget(schedule)
+      if (surfaces === undefined) break
+      const live = surfaces.scheduleTargetOf(controller.scheduleSnapshot(), schedule)
       if (live !== undefined) return live
     }
     if (schedule.target.kind !== 'conversation') return
@@ -4029,7 +4055,10 @@ async function activateWindow(
                 }
               }
             if (kind === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
-            await controller.scheduledQuestion(agent, kind, event, run)
+            const snapshot = controller.scheduleSnapshot()
+            await snapshot.attach(agent, kind)
+            const surfaces = await loadScheduleSurfaces()
+            await surfaces.settleScheduledQuestion(snapshot, agent, event, run)
           },
           safety: (action, requester) => {
             return !isScheduleActive() ||
@@ -4052,7 +4081,18 @@ async function activateWindow(
             capUsd: () => dailyPaid.capUsd(),
             isActive: isScheduleActive,
             isOn: (feature) => paid.gate.isOn(feature),
-            ask: ({ request }) => askPaidUse(request, vscode.workspace.isTrusted),
+            ask: async ({ request }) => {
+              let entry: { readonly askPaidUse: typeof askPaidUseFn }
+              try {
+                entry = await import('./host/paid/paidEntry.js')
+              } catch (error: unknown) {
+                throw new Error(
+                  'the paid.js bundle could not be loaded; paid consent is unavailable',
+                  { cause: error },
+                )
+              }
+              return await entry.askPaidUse(request, vscode.workspace.isTrusted)
+            },
             reserve: async (schedule, amount, signal) => {
               signal.throwIfAborted()
               // The shared daily cap first: over it the stop sentence refuses.
@@ -4089,6 +4129,12 @@ async function activateWindow(
     defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
     ...(scheduleDelivery !== undefined && { delivery: scheduleDelivery }),
     ...(scheduleMigration !== undefined && { migration: scheduleMigration }),
+  })
+  // Warm the deferred schedule surfaces while the wiring builds, so the
+  // first delivery finds them; liveSchedule still falls back to the
+  // unattended path inside the load window.
+  void loadScheduleSurfaces().catch((error: unknown) => {
+    log.warn(`schedule surfaces preload failed: ${failureForLog(error)}`)
   })
   scheduleWorkspace.value = scheduleWindowWorkspace(
     schedulesBridge,

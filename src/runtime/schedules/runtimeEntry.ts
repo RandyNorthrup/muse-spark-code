@@ -9,10 +9,8 @@ import { carryLegacyScheduleStore } from './storeRoot'
 import { createNodeScheduleFs, createNodeScheduleQueue } from './nodeScheduleFs'
 import type { RuntimeSchedulesBinding } from './binding'
 import { createScheduleEngine } from './engine'
-import {
-  createScheduleDeliveryBinding,
-  type ScheduleEditorDeliveryPorts,
-} from '../../host/schedules/deliveryBinding'
+import type * as ScheduleDelivery from '../../host/schedules/scheduleDeliveryEntry'
+import type { ScheduleEditorDeliveryPorts } from '../../host/schedules/scheduleDeliveryEntry'
 import { agentFileBeside, createVerifyWake } from './wake'
 import type { createScheduleBilling } from '../../host/schedules/paidBinding'
 import type { ScheduleMigrationSource } from '../../core/schedules/migrate'
@@ -70,7 +68,33 @@ export async function createRuntimeSchedules(
             return await billing.paid(...args)
           },
         }
-  const { runtime } = createScheduleEngine({
+  /**
+   * The deferred editor delivery (dist/scheduleDelivery.js, D6): the
+   * workspace targets, run dispatch and grant checks, loaded on the first
+   * delivery. Each caller fails its own safe way: a bundle that cannot load
+   * refuses the run with the chunk named, never an undelivered run and never
+   * a default target.
+   */
+  let pendingDelivery: Promise<typeof ScheduleDelivery> | undefined
+  const loadDelivery = async () => {
+    pendingDelivery ??= (async () => {
+      try {
+        return await import('../../host/schedules/scheduleDeliveryEntry.js')
+      } catch (error: unknown) {
+        throw new Error(
+          'the scheduleDelivery.js bundle could not be loaded; schedule delivery is unavailable',
+          { cause: error },
+        )
+      }
+    })()
+    try {
+      return await pendingDelivery
+    } catch (error: unknown) {
+      pendingDelivery = undefined
+      throw error
+    }
+  }
+  const { runtime } = await createScheduleEngine({
     fs: createNodeScheduleFs(root),
     ...(delivery !== undefined && { signal: delivery.signal }),
     queue: createNodeScheduleQueue(root),
@@ -89,7 +113,10 @@ export async function createRuntimeSchedules(
         runtimeDeliveryFactory: scheduleEngine.createRuntimeScheduleDelivery,
       }),
     ...(delivery !== undefined && {
-      delivery: (authority) => createScheduleDeliveryBinding(delivery, authority, billing),
+      delivery: async (authority) => {
+        const module = await loadDelivery()
+        return module.createScheduleDeliveryBinding(delivery, authority, billing)
+      },
     }),
     ...(migration !== undefined && { migration }),
   })
