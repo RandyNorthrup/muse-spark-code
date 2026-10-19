@@ -70,10 +70,10 @@ export function createHostRegistrations(): HostRegistrations {
 }
 
 /**
- * Track one published host file for exit cleanup. The remover unlinks only
- * while the file is still the record this call published (same device and
- * inode); a replaced file is left alone.
- */
+Track one published host file for exit cleanup. The remover unlinks only
+while the file is still the record this call published (same device and
+inode); a replaced file is left alone.
+*/
 export function trackHostFile(registrations: HostRegistrations, file: string): () => void {
   const registered: FileIdentity = lstatIdentitySync(file)
   const remove = (): void => {
@@ -115,9 +115,9 @@ export async function pruneDeadHosts(options: {
 }
 
 /**
- * Publish one host record under `directory/hostId`, pruning dead hosts
- * first so a reused name never shadows a live record.
- */
+Publish one host record under `directory/hostId`, pruning dead hosts
+first so a reused name never shadows a live record.
+*/
 export async function publishHostRecord(
   files: Pick<VaultPrivateFilesPort, 'directory' | 'replace'>,
   directory: string,
@@ -146,10 +146,10 @@ export function parseHostId(hostId: string): string {
 }
 
 /**
- * Recheck birth and image against the native identity before granting
- * manage authority. Any failure (missing file, unparsable record, mismatch)
- * refuses; only an exact match grants.
- */
+Recheck birth and image against the native identity before granting
+manage authority. Any failure (missing file, unparsable record, mismatch)
+refuses; only an exact match grants.
+*/
 export async function isVaultHost(
   files: Pick<VaultPrivateFilesPort, 'read'>,
   runDirectory: string,

@@ -72,11 +72,11 @@ export const RECALL_TOOL_DEFINITION: FunctionToolDefinition = {
 }
 
 /**
- * What a `recall_output` call returns; the host reports it as the tool
- * outcome. `output` is the model's (English, MODEL_API_MODEL_TEXT); `visibleOutput`
- * and `failureReason` are the row's, in the display language, with the
- * recalled text itself shown as it was.
- */
+What a `recall_output` call returns; the host reports it as the tool
+outcome. `output` is the model's (English, MODEL_API_MODEL_TEXT); `visibleOutput`
+and `failureReason` are the row's, in the display language, with the
+recalled text itself shown as it was.
+*/
 export interface RecallOutcome {
   readonly output: string
   readonly visibleOutput: string
@@ -103,9 +103,9 @@ interface ParsedRecall {
 }
 
 /**
- * The recall arguments, validated exactly as offered. Undefined when the
- * arguments are not JSON; an `outcome` when they parse but are invalid.
- */
+The recall arguments, validated exactly as offered. Undefined when the
+arguments are not JSON; an `outcome` when they parse but are invalid.
+*/
 function parseRecallArgs(
   argsJson: string,
 ): ParsedRecall | { readonly outcome: RecallOutcome } | undefined {
@@ -128,11 +128,11 @@ function parseRecallArgs(
 }
 
 /**
- * TOOLCAP: one character page of a full result, framed exactly as a packed
- * page. The host serves spill files through this when the pack store holds
- * only the cut text (or nothing): every bounded piece stays reachable,
- * including inside megabyte lines that line-paged file reads cannot reach.
- */
+TOOLCAP: one character page of a full result, framed exactly as a packed
+page. The host serves spill files through this when the pack store holds
+only the cut text (or nothing): every bounded piece stays reachable,
+including inside megabyte lines that line-paged file reads cannot reach.
+*/
 export function pageRecalledText(
   text: string,
   tool: string | undefined,
@@ -195,10 +195,10 @@ export function pageRecalledText(
 /** Estimated tokens for `chars` characters (the ledger's rule of thumb; lives in toolResultBound.ts, beside the bound). */
 
 /**
- * TOOLCAP: a background completion note's recall id for its text. The host
- * registers cut notes under this id too, so their spills page back under
- * the same id the placeholder names.
- */
+TOOLCAP: a background completion note's recall id for its text. The host
+registers cut notes under this id too, so their spills page back under
+the same id the placeholder names.
+*/
 export function backgroundNoteId(text: string): string {
   return `background-${createHash('sha256').update(text).digest('hex')}`
 }
@@ -234,17 +234,17 @@ interface PackedOutput {
 export class ObservationPack {
   private readonly outputs = new Map<string, PackedOutput>()
   /**
-   * The outputs' ids in arrival order, for the unknown-id error: a list of
-   * its own, as the Map's key iterator has no `toArray` on Node 20 (VS Code
-   * 1.99's host).
-   */
+  The outputs' ids in arrival order, for the unknown-id error: a list of
+  its own, as the Map's key iterator has no `toArray` on Node 20 (VS Code
+  1.99's host).
+  */
   private readonly ids: string[] = []
   private readonly placeholders = new WeakMap<InputItem, PackedOutput>()
   private readonly wholeNotes = new WeakMap<InputItem, PackedOutput>()
   /**
-   * The requests already counted: an HTTP retry sends the same input again,
-   * and is still one request, so an output is not packed a request early.
-   */
+  The requests already counted: an HTTP retry sends the same input again,
+  and is still one request, so an output is not packed a request early.
+  */
   private readonly counted = new WeakSet<readonly InputItem[]>()
   private tokensAvoided = 0
 
@@ -338,10 +338,10 @@ export class ObservationPack {
   }
 
   /**
-   * The request's input with packable outputs projected: whole while an
-   * output is still new, a placeholder once it packed. Registers outputs it
-   * has not seen; counting happens in `noteSent`, once per request sent.
-   */
+  The request's input with packable outputs projected: whole while an
+  output is still new, a placeholder once it packed. Registers outputs it
+  has not seen; counting happens in `noteSent`, once per request sent.
+  */
   public project(input: readonly InputItem[]): InputItem[] {
     // Each output's tool, named by its call in the same request.
     const tools = new Map<string, string>()
@@ -403,12 +403,12 @@ export class ObservationPack {
   }
 
   /**
-   * Accounts one request actually sent, at the client's final send boundary:
-   * whole sends count toward the swap, packed sends add what they left out
-   * to the ledger. The ledger counts what the placeholder still costs out,
-   * so it matches the tokens left out of the request. A retried attempt of
-   * the same request is not counted again.
-   */
+  Accounts one request actually sent, at the client's final send boundary:
+  whole sends count toward the swap, packed sends add what they left out
+  to the ledger. The ledger counts what the placeholder still costs out,
+  so it matches the tokens left out of the request. A retried attempt of
+  the same request is not counted again.
+  */
   public noteSent(input: readonly InputItem[]): void {
     if (this.counted.has(input)) {
       return
@@ -448,9 +448,9 @@ export class ObservationPack {
   }
 
   /**
-   * A resumed session's ledger (its stored total) carried on. Sticky ids
-   * restore independently from the originals in its replay (M101).
-   */
+  A resumed session's ledger (its stored total) carried on. Sticky ids
+  restore independently from the originals in its replay (M101).
+  */
   public restoreSavings(total: number): void {
     this.tokensAvoided = total
   }

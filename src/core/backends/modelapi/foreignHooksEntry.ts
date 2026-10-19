@@ -67,10 +67,10 @@ export interface PluginHostDeps {
   /** M51's allowlisted hook environment (the host's `hookEnvironment`). */
   readonly env: NodeJS.ProcessEnv
   /**
-   * What children run in: a kill-on-close job on Windows, a process group
-   * elsewhere, or a notice in the user's language saying why neither, and
-   * the hook then fails by its fail-closed rule.
-   */
+  What children run in: a kill-on-close job on Windows, a process group
+  elsewhere, or a notice in the user's language saying why neither, and
+  the hook then fails by its fail-closed rule.
+  */
   readonly containment: () => Promise<PluginContainment>
   /** Fixed-text notes for the log (refused registrations). */
   readonly warn: (message: string) => void
@@ -91,9 +91,9 @@ export interface ForeignHookAdapterDeps {
   /** Plugin hooks' host side; without it they are refused. */
   readonly plugins?: PluginHostDeps | undefined
   /**
-   * A regular-expression match's deadline for Cursor's command pattern.
-   * Tests only: production keeps HOOK_MATCHER_TIMEOUT_MS.
-   */
+  A regular-expression match's deadline for Cursor's command pattern.
+  Tests only: production keeps HOOK_MATCHER_TIMEOUT_MS.
+  */
   readonly matcherTimeoutMs?: number | undefined
 }
 
@@ -127,11 +127,11 @@ function commandOf(payload: Readonly<Record<string, unknown>>): string | undefin
 }
 
 /**
- * Whether Cursor's command pattern selects this command. Cursor tests the
- * full command (CH:745); here the hook sees a bounded preview, so a clipped
- * command, an unreadable one, or a pattern the bounded engine cannot finish
- * runs the guard: running it more often is never weaker than its source.
- */
+Whether Cursor's command pattern selects this command. Cursor tests the
+full command (CH:745); here the hook sees a bounded preview, so a clipped
+command, an unreadable one, or a pattern the bounded engine cannot finish
+runs the guard: running it more often is never weaker than its source.
+*/
 function isCommandSelected(
   pattern: string,
   payload: Readonly<Record<string, unknown>>,
@@ -165,17 +165,17 @@ function isCommandSelected(
 }
 
 /**
- * The command line a Windows source runs in PowerShell, or undefined to keep
- * the hook's own. Copilot CLI runs `powershell`, and `command` copied to it,
- * in PowerShell (gh/copilot_reference_hooks-configuration.md:124,128);
- * Windsurf runs both through `powershell -Command` (devin
- * cascade_hooks_md.out:104-119); Cline runs its `<HookName>.ps1` with
- * PowerShell (cline-hooks-901d1b5c97.md:157,169). A hook here runs through
- * cmd.exe, as Muse Code's do, so a guard written for PowerShell would fail
- * there and, where its source fails open, let the call through. It goes to
- * Windows PowerShell as an encoded command instead: nothing in it crosses
- * cmd's quoting, and its output is UTF-8.
- */
+The command line a Windows source runs in PowerShell, or undefined to keep
+the hook's own. Copilot CLI runs `powershell`, and `command` copied to it,
+in PowerShell (gh/copilot_reference_hooks-configuration.md:124,128);
+Windsurf runs both through `powershell -Command` (devin
+cascade_hooks_md.out:104-119); Cline runs its `<HookName>.ps1` with
+PowerShell (cline-hooks-901d1b5c97.md:157,169). A hook here runs through
+cmd.exe, as Muse Code's do, so a guard written for PowerShell would fail
+there and, where its source fails open, let the call through. It goes to
+Windows PowerShell as an encoded command instead: nothing in it crosses
+cmd's quoting, and its output is UTF-8.
+*/
 function powerShellCommand(
   hook: HookDefinition,
   spec: ForeignHookSpec,

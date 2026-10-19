@@ -40,7 +40,9 @@ const RELEASE_BASE_URL = `https://github.com/RandyNorthrup/muse-spark-code/relea
 function filePin(
   asset: string,
   file: string,
+  // eslint-disable-next-line unicorn/no-unnecessary-parameters -- the release stamper (scripts/build-linux-helper-pins.mjs) rewrites these two slots per asset between the GENERATED markers below, and scripts/check-linux-helper-pins.mjs validates the shape; dropping them breaks release stamping.
   bytes: number,
+  // eslint-disable-next-line unicorn/no-unnecessary-parameters -- same stamper-owned slot as bytes above.
   sha256: string,
   isExecutable: boolean,
 ): LinuxHelperFilePin {
@@ -48,11 +50,11 @@ function filePin(
 }
 
 /**
- * Every helper file one architecture downloads, in install order: the
- * binary, whisper, ggml, and every CPU backend variant the
- * `GGML_CPU_ALL_VARIANTS` build emits, so `ggml_backend_load_all` finds
- * the optimized backend for the machine, not only the portable baseline.
- */
+Every helper file one architecture downloads, in install order: the
+binary, whisper, ggml, and every CPU backend variant the
+`GGML_CPU_ALL_VARIANTS` build emits, so `ggml_backend_load_all` finds
+the optimized backend for the machine, not only the portable baseline.
+*/
 export const LINUX_HELPER_PINS: Record<LinuxHelperArch, readonly LinuxHelperFilePin[]> = {
   // BEGIN GENERATED PINS (scripts/build-linux-helper-pins.mjs rewrites the
   // bytes/sha256 fields between these markers; keep the assets and order).

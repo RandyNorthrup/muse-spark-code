@@ -20,9 +20,9 @@ export function VerifyBody({
 }
 
 /**
- * An edit's `then_run`: the command (as it ran, when a hook rewrote it),
- * what it printed, and how it ended.
- */
+An edit's `then_run`: the command (as it ran, when a hook rewrote it),
+what it printed, and how it ended.
+*/
 export function ThenRunBlock({ result }: { readonly result: ThenRunResult }) {
   return (
     <div className="shell then-run">

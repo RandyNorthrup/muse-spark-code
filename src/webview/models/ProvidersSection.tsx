@@ -233,9 +233,9 @@ function EditForm({
 }
 
 /**
- * The pick step before the host's draft arrives: local only, with nothing
- * to save. Cancelling here writes nothing anywhere.
- */
+The pick step before the host's draft arrives: local only, with nothing
+to save. Cancelling here writes nothing anywhere.
+*/
 const PICK_DRAFT: PanelDraft = {
   step: 'pick-provider',
   auth: 'apiKey',

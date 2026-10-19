@@ -167,10 +167,10 @@ export type BackendReadiness =
       readonly state: 'signedOut'
       readonly message: string
       /**
-       * The credential store itself cannot be read, so no stored key could
-       * be checked. A session may still open: only a step that needs a
-       * stored key refuses, in this message's words.
-       */
+      The credential store itself cannot be read, so no stored key could
+      be checked. A session may still open: only a step that needs a
+      stored key refuses, in this message's words.
+      */
       readonly storeDown?: true
     }
   | { readonly state: 'unavailable'; readonly message: string }
@@ -183,9 +183,9 @@ export interface AcpBackend {
   /** The host for a folder, started on first use. */
   readonly hostFor: (cwd: string) => Promise<AgentHost>
   /**
-   * What the Linux capability probe measured (F91); absent where it does
-   * not apply, while no host has started, or where the backend predates it.
-   */
+  What the Linux capability probe measured (F91); absent where it does
+  not apply, while no host has started, or where the backend predates it.
+  */
   readonly shellSandboxReadiness?: (cwd: string) => LinuxSandboxReadiness | undefined
 }
 
@@ -193,10 +193,10 @@ export interface AcpAgentOptions {
   /** Bypass permissions is offered (`--allow-dangerously-skip-permissions`). */
   readonly canBypass: boolean
   /**
-   * Contributor-tier models are listed, and a named contributor-tier id is
-   * attempted even when the CLI's catalogue omits it
-   * (`--allow-contributor-models`).
-   */
+  Contributor-tier models are listed, and a named contributor-tier id is
+  attempted even when the CLI's catalogue omits it
+  (`--allow-contributor-models`).
+  */
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
   readonly initialModelId?: string
@@ -268,15 +268,15 @@ export interface AcpAgentDeps {
   /** W's lazy runtime binding; absent media entry points refuse before dispatch. */
   readonly media?: AcpMediaFactory
   /**
-   * Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
-   * for the standalone report's journal. The runtime wires this to its local
-   * recorder adapter in ACP mode; the report subcommand reads it back. The
-   * observer receives a fixed event kind and a fixed short code per failure
-   * site — never a message, stack, path, prompt or session id — so observing
-   * cannot leak what the scrub would remove. It runs after the log call,
-   * never touches ACP stdout, and a throwing observer never breaks the
-   * session. Absent, the agent behaves exactly as before.
-   */
+  Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
+  for the standalone report's journal. The runtime wires this to its local
+  recorder adapter in ACP mode; the report subcommand reads it back. The
+  observer receives a fixed event kind and a fixed short code per failure
+  site — never a message, stack, path, prompt or session id — so observing
+  cannot leak what the scrub would remove. It runs after the log call,
+  never touches ACP stdout, and a throwing observer never breaks the
+  session. Absent, the agent behaves exactly as before.
+  */
   readonly reportError?: (fact: AcpErrorFact) => void
   /** M113's lazy deterministic engine, scoped to this session's workspace. */
   readonly reports?: AcpReportsPort
@@ -344,9 +344,9 @@ function isContributorModel(modelId: string): boolean {
 }
 
 /**
- * The bundle loader's refusal: the legal scanner that could not load (its
- * cause stays in the log). Only this failure says the scan could not run.
- */
+The bundle loader's refusal: the legal scanner that could not load (its
+cause stays in the log). Only this failure says the scan could not run.
+*/
 export function isLegalScanUnavailable(error: unknown): boolean {
   return error instanceof Error && error.message === UI_TEXT.legalScanUnavailable
 }
@@ -363,12 +363,12 @@ function accountRequestError(error: unknown): RequestError {
 }
 
 /**
- * Configured provider defaults never fall through to another model. The
- * default is the backend's, else the first listed — among models that can
- * run the coding agent (F83). A limited model starts a session only when
- * nothing usable is listed, where its first turn is refused with the
- * limit's own sentence.
- */
+Configured provider defaults never fall through to another model. The
+default is the backend's, else the first listed — among models that can
+run the coding agent (F83). A limited model starts a session only when
+nothing usable is listed, where its first turn is refused with the
+limit's own sentence.
+*/
 function startingModel(
   models: readonly ModelSummary[],
   requested?: string,
@@ -417,19 +417,19 @@ export function modelEffortLevels(
 }
 
 /**
- * The refusal an editor reads for a level the model does not serve: the
- * sentence plus the levels it does serve, the same words headless `exec`
- * refuses with, so both surfaces name the choice.
- */
+The refusal an editor reads for a level the model does not serve: the
+sentence plus the levels it does serve, the same words headless `exec`
+refuses with, so both surfaces name the choice.
+*/
 export function effortRefusalData(models: readonly ModelSummary[], modelId: string): string {
   return `${UI_TEXT.execEffortUnavailable} --effort: ${modelEffortLevels(models, modelId).join(', ')}`
 }
 
 /**
- * The level a new session selects: the model's own default where the
- * backend knows it and serves it, else the standing default (a chosen
- * level still wins: applyEffort keeps every tier the model serves).
- */
+The level a new session selects: the model's own default where the
+backend knows it and serves it, else the standing default (a chosen
+level still wins: applyEffort keeps every tier the model serves).
+*/
 export function defaultEffortFor(
   models: readonly ModelSummary[],
   modelId: string,
@@ -446,12 +446,12 @@ export function defaultEffortFor(
 }
 
 /**
- * One announced command per skill. The CLI lists a plugin's lone skill
- * twice (the bare plugin name and the self-qualified `name:name` selector
- * with the same text), and may repeat a selector. Keep the first entry
- * for each exact selector; collapse a self-qualified alias only when its
- * bare form reads the same. Distinct selectors with different text stay.
- */
+One announced command per skill. The CLI lists a plugin's lone skill
+twice (the bare plugin name and the self-qualified `name:name` selector
+with the same text), and may repeat a selector. Keep the first entry
+for each exact selector; collapse a self-qualified alias only when its
+bare form reads the same. Distinct selectors with different text stay.
+*/
 export function dedupeSkillSelectors(skills: readonly SkillSummary[]): readonly SkillSummary[] {
   const kept: SkillSummary[] = []
   const seen = new Set<string>()
@@ -494,9 +494,9 @@ class AcpSession {
   private outbox: Promise<void> = Promise.resolve()
   private pending: PendingPrompt | undefined
   /**
-   * A prompt before its turn starts, while the session's skills are first
-   * announced: the session is busy, and a cancel ends the prompt there.
-   */
+  A prompt before its turn starts, while the session's skills are first
+  announced: the session is busy, and a cancel ends the prompt there.
+  */
   private legalStop: AbortController | undefined
   private preparing: PreparingPrompt | undefined
   private skills: readonly SkillSummary[] = []
@@ -685,10 +685,10 @@ class AcpSession {
   }
 
   /**
-   * `/playback` answered as usage (D203): with anything after it, or
-   * anything beside it — a playback takes no arguments, and nothing it
-   * came with may run as an ordinary turn with tools.
-   */
+  `/playback` answered as usage (D203): with anything after it, or
+  anything beside it — a playback takes no arguments, and nothing it
+  came with may run as an ordinary turn with tools.
+  */
   private async answerPlaybackUsage(preparing: PreparingPrompt): Promise<'cancelled' | 'end_turn'> {
     await this.announceCommands()
     if ('error' in preparing) throw preparing.error
@@ -702,12 +702,12 @@ class AcpSession {
   }
 
   /**
-   * A `/playback` turn (D203): the backend's own no-tools turn, which
-   * refuses every call in code. A backend with none (Muse Code: MSP is
-   * select-never-create, and no approval mode denies reads, let alone the
-   * file tools' edits) cannot run one, so the playback is refused instead
-   * of sent as an ordinary turn a reactive stop might reach too late.
-   */
+  A `/playback` turn (D203): the backend's own no-tools turn, which
+  refuses every call in code. A backend with none (Muse Code: MSP is
+  select-never-create, and no approval mode denies reads, let alone the
+  file tools' edits) cannot run one, so the playback is refused instead
+  of sent as an ordinary turn a reactive stop might reach too late.
+  */
   private startPlaybackTurn(): Promise<TurnSubmission> {
     // Refused while a turn runs (one a resumed session carries, say), as the
     // panel refuses it.
@@ -723,11 +723,11 @@ class AcpSession {
   }
 
   /**
-   * One backend mode command, run after the ones queued before it: the
-   * Plan hold, its restore and the client's `session/set_mode` never
-   * overlap, so a restore cannot land after a newer selection, and it reads
-   * the mode to put back when it runs. The latest explicit choice stays.
-   */
+  One backend mode command, run after the ones queued before it: the
+  Plan hold, its restore and the client's `session/set_mode` never
+  overlap, so a restore cannot land after a newer selection, and it reads
+  the mode to put back when it runs. The latest explicit choice stays.
+  */
   private async inModeOrder<T>(command: () => Promise<T>): Promise<T> {
     const previous = this.modeOrder
     const next = (async () => {
@@ -964,10 +964,10 @@ class AcpSession {
   }
 
   /**
-   * A foreign file's confirmation (PLAN D85.2): the ACP permission request
-   * exactly where VS Code asks with its modal dialog. Refused, failed or
-   * cancelled keeps the file.
-   */
+  A foreign file's confirmation (PLAN D85.2): the ACP permission request
+  exactly where VS Code asks with its modal dialog. Refused, failed or
+  cancelled keeps the file.
+  */
   private async confirmUploadForeignDeletion(name: string, signal: AbortSignal): Promise<boolean> {
     try {
       const response = permissionResponse(
@@ -1389,9 +1389,9 @@ class AcpSession {
   }
 
   /**
-   * Cancels a failed form when the turn still owns it; an already-settled
-   * form stays settled, never surfacing the client's error text.
-   */
+  Cancels a failed form when the turn still owns it; an already-settled
+  form stays settled, never surfacing the client's error text.
+  */
   private async cancelElicitation(
     pending: PendingPrompt | undefined,
     elicitationId: string,
@@ -1408,12 +1408,12 @@ class AcpSession {
   }
 
   /**
-   * An MCP server's elicitation form (M91 lane M) through the client's own
-   * form path: the client's answer settles the session's form, validated
-   * against the server's schema there. Without forms the turn carries on
-   * and the request is cancelled; a failed form cancels it too, never
-   * answering by a guess.
-   */
+  An MCP server's elicitation form (M91 lane M) through the client's own
+  form path: the client's answer settles the session's form, validated
+  against the server's schema there. Without forms the turn carries on
+  and the request is cancelled; a failed form cancels it too, never
+  answering by a guess.
+  */
   private async askElicitation(event: ElicitationRequest): Promise<void> {
     const pending = this.pending
     const settle = this.session.settleElicitation
@@ -1515,13 +1515,13 @@ class AcpSession {
   }
 
   /**
-   * F91: the model hears it once, at the tail, so a failing read-only
-   * command never reads as a dead shell. Earlier request bytes are
-   * untouched: this part is appended, never spliced into what came before.
-   * The told-flag flips only after an accepted submission at the call site:
-   * a send that fails or is cancelled before reaching Muse Code must not
-   * silence every later turn.
-   */
+  F91: the model hears it once, at the tail, so a failing read-only
+  command never reads as a dead shell. Earlier request bytes are
+  untouched: this part is appended, never spliced into what came before.
+  The told-flag flips only after an accepted submission at the call site:
+  a send that fails or is cancelled before reaching Muse Code must not
+  silence every later turn.
+  */
   private sandboxModelNote(): readonly TurnPart[] {
     return this.hasToldModelSandboxCannotStart || !this.sandboxCannotStart()
       ? []
@@ -1533,9 +1533,9 @@ class AcpSession {
   }
 
   /**
-   * A session let go changes nothing more on the backend, which a newer
-   * load may now hold, and replays nothing: the request fails instead.
-   */
+  A session let go changes nothing more on the backend, which a newer
+  load may now hold, and replays nothing: the request fails instead.
+  */
   private ensureHeld(): void {
     if (this.isDisposed) {
       throw RequestError.resourceNotFound(this.sessionId)
@@ -1543,10 +1543,10 @@ class AcpSession {
   }
 
   /**
-   * Show the wire mode a refused mode change names (GRV251D): the editor is
-   * told the mode the host runs. Nothing is published when no editor mode
-   * selects it; the throw still carries the error's own true sentence.
-   */
+  Show the wire mode a refused mode change names (GRV251D): the editor is
+  told the mode the host runs. Nothing is published when no editor mode
+  selects it; the throw still carries the error's own true sentence.
+  */
   private async showRunningMode(
     error: { actualMode: string },
     preferred: PermissionMode,
@@ -1653,11 +1653,11 @@ class AcpSession {
   }
 
   /**
-   * What's New in another editor (M99): this version's release notes as
-   * text, read from the package's own content file beside the agent bundle
-   * and checked before use. A missing or unreadable file is logged with its
-   * path and answered with the generic failure, never an empty success.
-   */
+  What's New in another editor (M99): this version's release notes as
+  text, read from the package's own content file beside the agent bundle
+  and checked before use. A missing or unreadable file is logged with its
+  path and answered with the generic failure, never an empty success.
+  */
   private whatsNewText(): string {
     const file = path.join(__dirname, WHATS_NEW_CONTENT_FILE)
     try {
@@ -1781,10 +1781,10 @@ class AcpSession {
   }
 
   /**
-   * The question before a paid use (M58, PLAN.md D48): a row naming what is
-   * about to be billed and its price, and a permission prompt on it with the
-   * popup's answers. Anything but Allow once or Allow always is Deny.
-   */
+  The question before a paid use (M58, PLAN.md D48): a row naming what is
+  about to be billed and its price, and a permission prompt on it with the
+  popup's answers. Anything but Allow once or Allow always is Deny.
+  */
   private async agentCommand(line: string, preparing: PreparingPrompt): Promise<string> {
     const isCancelled = () => preparing.isCancelled
     const [, action, id, ...extra] = line.split(/\s+/)
@@ -1898,10 +1898,10 @@ class AcpSession {
   }
 
   /**
-   * The conversation's Fast switch: the model's priority tier where the
-   * catalogue lists one. Off by default; the description says so and names
-   * the tier's own words.
-   */
+  The conversation's Fast switch: the model's priority tier where the
+  catalogue lists one. Off by default; the description says so and names
+  the tier's own words.
+  */
   private fastOption(): SessionConfigOption[] {
     const tier = this.models.find((model) => model.modelId === this.modelId)?.fastTier
     if (tier === undefined) return []
@@ -1918,9 +1918,9 @@ class AcpSession {
   }
 
   /**
-   * The effort the model runs: the wanted tier where it serves it, else
-   * the model's own default, else the highest tier it serves.
-   */
+  The effort the model runs: the wanted tier where it serves it, else
+  the model's own default, else the highest tier it serves.
+  */
   private servedEffort(wanted: EffortLevel): EffortLevel {
     const levels = modelEffortLevels(this.models, this.modelId)
     if (levels.includes(wanted)) return wanted
@@ -2010,9 +2010,9 @@ class AcpSession {
   }
 
   /**
-   * An "always" the session's answer gave but the store could not keep: said
-   * in the session, after the allowed use, so being asked again is expected.
-   */
+  An "always" the session's answer gave but the store could not keep: said
+  in the session, after the allowed use, so being asked again is expected.
+  */
   public notePaidNotKept(text: string): void {
     this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
   }
@@ -2153,14 +2153,14 @@ class AcpSession {
   }
 
   /**
-   * A loaded or resumed session made to run as the agent advertises it.
-   * Everything shown comes from the backend's answer or an explicit set,
-   * never from what the handle holds: Muse Code's resumed handle holds the
-   * model the agent asked for, while the CLI keeps the one the session last
-   * ran on. The permission mode shown is set; the model is the one the
-   * backend reports active where the agent lists it, else the default, set
-   * (a contributor model the agent hides is left); the effort shown is set.
-   */
+  A loaded or resumed session made to run as the agent advertises it.
+  Everything shown comes from the backend's answer or an explicit set,
+  never from what the handle holds: Muse Code's resumed handle holds the
+  model the agent asked for, while the CLI keeps the one the session last
+  ran on. The permission mode shown is set; the model is the one the
+  backend reports active where the agent lists it, else the default, set
+  (a contributor model the agent hides is left); the effort shown is set.
+  */
   public async matchAdvertised(): Promise<void> {
     this.ensureHeld()
     await this.inModeOrder(() => this.syncRememberedMode())
@@ -2208,13 +2208,13 @@ class AcpSession {
   }
 
   /**
-   * A loaded session made to run on the remembered choice (restart
-   * recovery): `session/resume` takes no model, so the choice is applied
-   * with `session/setModel` and read back with `model/list` before anything
-   * is replayed or run. What the editor is shown comes from the backend's
-   * answer: on a mismatch the load fails instead, so nothing runs on a
-   * model the editor was not told.
-   */
+  A loaded session made to run on the remembered choice (restart
+  recovery): `session/resume` takes no model, so the choice is applied
+  with `session/setModel` and read back with `model/list` before anything
+  is replayed or run. What the editor is shown comes from the backend's
+  answer: on a mismatch the load fails instead, so nothing runs on a
+  model the editor was not told.
+  */
   public async restoreChoice(
     modelId: string,
     effort: EffortLevel,
@@ -2372,18 +2372,18 @@ class AcpSession {
   }
 
   /**
-   * F91: the editor hears once per session, in words, that Muse Code's
-   * Linux sandbox cannot start on this machine. The host start already said
-   * it on stderr; the posture stands until the person turns it off.
-   *
-   * This is the harness speaking, never the model (that confusion is F82).
-   * Where the client advertises its session-notices capability
-   * (`ClientSessionCapabilities::notices`), it goes as that branch's
-   * separate notice update; otherwise it stays an `agent_message_chunk`
-   * carrying a `_meta` marker (the accountNotice precedent) a client can
-   * tell apart from model speech, which the schema prescribes when notices
-   * are not advertised.
-   */
+  F91: the editor hears once per session, in words, that Muse Code's
+  Linux sandbox cannot start on this machine. The host start already said
+  it on stderr; the posture stands until the person turns it off.
+  
+  This is the harness speaking, never the model (that confusion is F82).
+  Where the client advertises its session-notices capability
+  (`ClientSessionCapabilities::notices`), it goes as that branch's
+  separate notice update; otherwise it stays an `agent_message_chunk`
+  carrying a `_meta` marker (the accountNotice precedent) a client can
+  tell apart from model speech, which the schema prescribes when notices
+  are not advertised.
+  */
   public noteSandboxCannotStart(): void {
     if (this.hasSaidSandboxCannotStart || !this.sandboxCannotStart()) {
       return
@@ -2534,7 +2534,7 @@ class AcpSession {
         parsePlaybackPrompt(
           slashCommandText(
             blocks
-              .flatMap((block) => (block.type === 'text' ? [block.text] : []))
+              .flatMap((block) => (block.type === 'text' ? block.text : []))
               .join(PART_SEPARATOR),
           ),
         ) !== undefined
@@ -2990,14 +2990,14 @@ class AcpSession {
   }
 
   /**
-   * Let go (closed, loaded again, or never set up). At once it stops
-   * following the backend, the editor's late answers decide nothing, and a
-   * prompt it was running ends cancelled. That turn is then stopped on the
-   * backend too, once it has started, as the editor was told; a turn left
-   * running would go on editing and billing with no one watching, and a
-   * session loaded again shares the backend session, so nothing else would
-   * stop it. Then the backend session is let go.
-   */
+  Let go (closed, loaded again, or never set up). At once it stops
+  following the backend, the editor's late answers decide nothing, and a
+  prompt it was running ends cancelled. That turn is then stopped on the
+  backend too, once it has started, as the editor was told; a turn left
+  running would go on editing and billing with no one watching, and a
+  session loaded again shares the backend session, so nothing else would
+  stop it. Then the backend session is let go.
+  */
   public async release(): Promise<void> {
     if (this.isDisposed) {
       return
@@ -3078,10 +3078,10 @@ class AcpSession {
 class AgentState {
   private readonly sessions = new Map<string, AcpSession>()
   /**
-   * The model and effort the editor chose per session: a load after the
-   * backend restarted re-applies them and reads them back, so the session
-   * keeps running on the chosen model instead of the CLI's default.
-   */
+  The model and effort the editor chose per session: a load after the
+  backend restarted re-applies them and reads them back, so the session
+  keeps running on the chosen model instead of the CLI's default.
+  */
   private readonly choices = new Map<string, ReturnType<AcpSession['currentChoice']>>()
   /** Sessions being set up (`adopt`), by id: a newer load or a close lets them go too. */
   private readonly adopting = new Map<string, AcpSession>()
@@ -3097,10 +3097,10 @@ class AgentState {
   public constructor(private readonly deps: AcpAgentDeps) {}
 
   /**
-   * The sign-in: run by the client in a terminal where it can (the spec
-   * allows a terminal method only then), otherwise by the user, whose
-   * `authenticate` this checks.
-   */
+  The sign-in: run by the client in a terminal where it can (the spec
+  allows a terminal method only then), otherwise by the user, whose
+  `authenticate` this checks.
+  */
   private authMethod(method: SignInMethod): AuthMethod {
     const { id, name, description, args, command } = method
     // Registry clients may announce terminal support with the older `_meta`
@@ -3162,11 +3162,11 @@ class AgentState {
   }
 
   /**
-   * A backend session the agent now owns (new, loaded or resumed), held only
-   * once `prepare` has set what the editor is shown: until then no request
-   * finds it, and if anything fails the backend session is let go and the
-   * request fails, so no session outlives a request that returned no id.
-   */
+  A backend session the agent now owns (new, loaded or resumed), held only
+  once `prepare` has set what the editor is shown: until then no request
+  finds it, and if anything fails the backend session is let go and the
+  request fails, so no session outlives a request that returned no id.
+  */
   private async adopt(
     host: AgentHost,
     session: AgentSession,
@@ -3258,10 +3258,10 @@ class AgentState {
   }
 
   /**
-   * Lets go of the session held for `sessionId` and one being set up, so no
-   * request finds either; resolves once each has stopped its turn and let
-   * its backend session go. False when there was neither.
-   */
+  Lets go of the session held for `sessionId` and one being set up, so no
+  request finds either; resolves once each has stopped its turn and let
+  its backend session go. False when there was neither.
+  */
   private async releaseAll(sessionId: string): Promise<boolean> {
     const found = [this.sessions.get(sessionId), this.adopting.get(sessionId)].filter(
       (acp) => acp !== undefined,
@@ -3304,10 +3304,10 @@ class AgentState {
   }
 
   /**
-   * The editor's MCP servers for a session (M63c): passed to Muse Code when
-   * it granted `sessionMcp`; the Model API backend runs none. Only their
-   * names are logged, as headers and environments can hold secrets.
-   */
+  The editor's MCP servers for a session (M63c): passed to Muse Code when
+  it granted `sessionMcp`; the Model API backend runs none. Only their
+  names are logged, as headers and environments can hold secrets.
+  */
   private forwardedMcp(
     host: AgentHost,
     requested: readonly McpServer[] | undefined,
@@ -3547,11 +3547,11 @@ class AgentState {
   }
 
   /**
-   * The editor deletes a listed session for good: a held copy is released
-   * first, so a running turn settles before the store goes, then the
-   * backend removes it through `AgentHost.deleteSession`. A host that
-   * cannot delete, and any failure, answers with the real cause.
-   */
+  The editor deletes a listed session for good: a held copy is released
+  first, so a running turn settles before the store goes, then the
+  backend removes it through `AgentHost.deleteSession`. A host that
+  cannot delete, and any failure, answers with the real cause.
+  */
   public async deleteSession(sessionId: string): Promise<void> {
     const held = this.sessions.get(sessionId) ?? this.adopting.get(sessionId)
     let host: AgentHost | undefined = held?.host

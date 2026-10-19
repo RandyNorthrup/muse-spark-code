@@ -6,10 +6,10 @@ import { sameFile, statIdentity } from '../core/fs/fileIdentity'
 import type { TrustedPathVerifier } from './trustedPathPort'
 
 /** OpenSSH safe_path/StrictModes, with Windows replacement rights and SID owners.
- * https://github.com/openssh/openssh-portable/blob/master/misc.c (safe_path).
- * InheritOnly does not apply here. Only the drive root may grant folder-only
- * CreateDirectories/AppendData: it creates siblings, never replaces our child.
- * Scheduler objects further restrict trusted SIDs to user/SYSTEM/Administrators. */
+https://github.com/openssh/openssh-portable/blob/master/misc.c (safe_path).
+InheritOnly does not apply here. Only the drive root may grant folder-only
+CreateDirectories/AppendData: it creates siblings, never replaces our child.
+Scheduler objects further restrict trusted SIDs to user/SYSTEM/Administrators. */
 export const WINDOWS_TRUSTED_ACL_SCRIPT = `function Test-TrustedAcl($acl, [bool]$isRoot, [bool]$isDirectory, [bool]$isTask = $false) {
   $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
   $trusted = @($identity.User.Value, 'S-1-5-18', 'S-1-5-32-544')
@@ -32,10 +32,10 @@ interface Refusal {
 }
 
 /**
- * The components below `root` down to `file`, in order; undefined when `file`
- * is not under it. Only `..` itself or a leading `..\` leaves the root: an
- * ordinary name that merely starts with two dots (`..foo`, `...`) stays.
- */
+The components below `root` down to `file`, in order; undefined when `file`
+is not under it. Only `..` itself or a leading `..\` leaves the root: an
+ordinary name that merely starts with two dots (`..foo`, `...`) stays.
+*/
 export function stepsBelow(root: string, file: string): string[] | undefined {
   const relative = path.win32.relative(root, file)
   if (relative === '') return []
@@ -44,19 +44,19 @@ export function stepsBelow(root: string, file: string): string[] | undefined {
 }
 
 /**
- * Windows trusted-path verification against a trusted root (owner rule,
- * 2026-10-08: profile folders may be junctions, symlinks or redirected to
- * another drive). The root is the folder the caller owns; without one it is
- * the leaf's own folder (a file) or the leaf itself (a directory).
- * - At and above the root, links and redirection are normal: the root is
- *   resolved once and accepted by its resolved identity (volume serial and
- *   file id), never by a string prefix, on any drive.
- * - Below the root, every component must be a real file or folder: a link,
- *   junction or other reparse point is refused at the first such component,
- *   whether or not its target stays inside the tree (today's policy).
- * - Owner and ACL checks apply to the resolved root and everything below it;
- *   nothing above the root is checked beyond what the OS enforces.
- */
+Windows trusted-path verification against a trusted root (owner rule,
+2026-10-08: profile folders may be junctions, symlinks or redirected to
+another drive). The root is the folder the caller owns; without one it is
+the leaf's own folder (a file) or the leaf itself (a directory).
+- At and above the root, links and redirection are normal: the root is
+  resolved once and accepted by its resolved identity (volume serial and
+  file id), never by a string prefix, on any drive.
+- Below the root, every component must be a real file or folder: a link,
+  junction or other reparse point is refused at the first such component,
+  whether or not its target stays inside the tree (today's policy).
+- Owner and ACL checks apply to the resolved root and everything below it;
+  nothing above the root is checked beyond what the OS enforces.
+*/
 export function windowsTrustedPathVerifier(
   run: (file: string, args: readonly string[]) => Promise<{ exitCode: number; stdout: string }>,
   io?: {

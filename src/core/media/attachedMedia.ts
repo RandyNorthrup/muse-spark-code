@@ -20,11 +20,11 @@ export interface AttachedSource {
 }
 
 /**
- * A registration's state (RVMEDIAV2, PLAN M105's table): `attached` is a
- * chip only its owner holds; `claimed` is held by an accepted turn still
- * waiting (queued or steered); `inFlight` by a turn that started. D121: no
- * bound evicts `attached` — discards and owner releases let them go.
- */
+A registration's state (RVMEDIAV2, PLAN M105's table): `attached` is a
+chip only its owner holds; `claimed` is held by an accepted turn still
+waiting (queued or steered); `inFlight` by a turn that started. D121: no
+bound evicts `attached` — discards and owner releases let them go.
+*/
 export type AttachedState = 'attached' | 'claimed' | 'inFlight'
 
 /** One accepted turn's hold on the media parts it carries. */
@@ -55,10 +55,10 @@ function stateOf(entry: Entry): AttachedState {
 }
 
 /**
- * Streams the source, holding one chunk back until the whole file is read:
- * a changed size or digest throws before the last byte goes, so an upload
- * never completes from a file that is not the one attached.
- */
+Streams the source, holding one chunk back until the whole file is read:
+a changed size or digest throws before the last byte goes, so an upload
+never completes from a file that is not the one attached.
+*/
 async function* verified(
   chunks: AsyncIterable<Uint8Array>,
   media: StoredMediaPart,
@@ -79,13 +79,13 @@ async function* verified(
 }
 
 /**
- * One per host: the attach port writes, the media service and audio seam
- * read. Every registration has one owner and one set of turn holders, and
- * moves attached -> claimed -> in flight -> released (RVMEDIAV2). Its
- * source is fixed per token: lookups go by token, never by digest, so no
- * session can redirect another's upload. D121: registrations are metadata
- * only and unbounded — no eviction, no refusal.
- */
+One per host: the attach port writes, the media service and audio seam
+read. Every registration has one owner and one set of turn holders, and
+moves attached -> claimed -> in flight -> released (RVMEDIAV2). Its
+source is fixed per token: lookups go by token, never by digest, so no
+session can redirect another's upload. D121: registrations are metadata
+only and unbounded — no eviction, no refusal.
+*/
 export class AttachedMedia {
   private readonly entries = new Map<string, Entry>()
 
@@ -100,10 +100,10 @@ export class AttachedMedia {
   }
 
   /**
-   * Registers a sniffed, hashed file under its one-use token. D121: any
-   * number of registrations — entries hold metadata only, and discards,
-   * owner releases and turn releases still let them go.
-   */
+  Registers a sniffed, hashed file under its one-use token. D121: any
+  number of registrations — entries hold metadata only, and discards,
+  owner releases and turn releases still let them go.
+  */
   public register(
     token: string,
     media: StoredMediaPart,
@@ -131,10 +131,10 @@ export class AttachedMedia {
   }
 
   /**
-   * An accepted turn (queued, steered or started) takes the media parts it
-   * carries: from here discards and owner releases pass them by. The last
-   * holder's release ends the token (one-use).
-   */
+  An accepted turn (queued, steered or started) takes the media parts it
+  carries: from here discards and owner releases pass them by. The last
+  holder's release ends the token (one-use).
+  */
   public claim(parts: readonly TurnPart[]): MediaClaim {
     const holder: Holder = { isInFlight: false }
     const held = parts.flatMap((part) => {
@@ -186,10 +186,10 @@ export class AttachedMedia {
   }
 
   /**
-   * The upload source for the record a token resolved to (RVMEDIAV2): that
-   * token's own registration, and only while it still carries this digest,
-   * name and size. Another registration of the same bytes never stands in.
-   */
+  The upload source for the record a token resolved to (RVMEDIAV2): that
+  token's own registration, and only while it still carries this digest,
+  name and size. Another registration of the same bytes never stands in.
+  */
   public source(token: string, media: StoredMediaPart): UploadSource | undefined {
     const entry = this.entries.get(token)
     if (
@@ -219,9 +219,9 @@ export type AttachedMediaPort = Pick<
 >
 
 /**
- * An attached source over a host open hook that rechecks confinement and
- * identity on every open: each read streams one fresh handle, closed after.
- */
+An attached source over a host open hook that rechecks confinement and
+identity on every open: each read streams one fresh handle, closed after.
+*/
 export function reopeningSource(
   open: () => Promise<
     | {

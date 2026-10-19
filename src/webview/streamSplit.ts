@@ -65,10 +65,10 @@ function step(open: Fence | undefined, line: string, start: number): Fence | und
 }
 
 /**
- * Walk the text line by line, calling `visit` with each line's start offset
- * and whether that line begins outside a fence. Returns the fence open at
- * the end, if any.
- */
+Walk the text line by line, calling `visit` with each line's start offset
+and whether that line begins outside a fence. Returns the fence open at
+the end, if any.
+*/
 function scan(
   text: string,
   visit?: (lineStart: number, isOutside: boolean) => void,

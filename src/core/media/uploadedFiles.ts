@@ -61,12 +61,12 @@ export function emptyUploadedFilesReport(): UploadedFilesReport {
 }
 
 /**
- * The ledger behind `ConversationDeps.uploadedFiles`, whichever host binds
- * it. The list belongs to an account (PLAN D85.2): the last account's ledger
- * is retained, so removing the key keeps the retained list readable
- * read-only instead of reading empty. A delete through the retained ledger
- * refuses honestly through the ledger's own account check.
- */
+The ledger behind `ConversationDeps.uploadedFiles`, whichever host binds
+it. The list belongs to an account (PLAN D85.2): the last account's ledger
+is retained, so removing the key keeps the retained list readable
+read-only instead of reading empty. A delete through the retained ledger
+refuses honestly through the ledger's own account check.
+*/
 export function createUploadedFilesPort(deps: UploadedFilesPortDeps): UploadedFilesPort {
   let retained: UploadedFilesLedger | undefined
   const current = async (): Promise<UploadedFilesLedger | undefined> => {

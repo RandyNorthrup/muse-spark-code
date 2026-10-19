@@ -11,12 +11,12 @@ export type ResourceTreeRun = (
 ) => Promise<string>
 
 /**
- * The guarded environment for a fixed absolute probe (`/bin/ps`,
- * `/usr/bin/getconf`, the compiled tree helpers, SystemRoot PowerShell):
- * absolute PATH entries only, links followed — never a PATH search, so a
- * planted program never runs. The call sites name this form explicitly
- * instead of leaving the environment unguarded.
- */
+The guarded environment for a fixed absolute probe (`/bin/ps`,
+`/usr/bin/getconf`, the compiled tree helpers, SystemRoot PowerShell):
+absolute PATH entries only, links followed — never a PATH search, so a
+planted program never runs. The call sites name this form explicitly
+instead of leaving the environment unguarded.
+*/
 export function probeChildEnvironment(env: NodeJS.ProcessEnv): GuardedChildEnv {
   return noWorkspaceChildEnvironment(process.platform, env, realpathSync)
 }

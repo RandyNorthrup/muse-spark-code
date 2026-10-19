@@ -321,9 +321,9 @@ function floorFor(split: EvalSplit): number {
 }
 
 /**
- * The frozen full arm set, by name: a run that covered anything else (a
- * missing arm, an extra arm) decided nothing, whatever its floors say.
- */
+The frozen full arm set, by name: a run that covered anything else (a
+missing arm, an extra arm) decided nothing, whatever its floors say.
+*/
 function isFrozenArmSet(arms: readonly EvalArm[]): boolean {
   return (
     arms.length === EVAL_ARMS.length &&

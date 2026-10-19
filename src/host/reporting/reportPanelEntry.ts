@@ -47,26 +47,26 @@ export interface ReportingWindowDeps extends Pick<
   readonly generatorVersion: string
   readonly questions?: ReportingContext['questions']
   /**
-   * M113 C-M113-2: this surface's live conversation (null when it has none)
-   * and the stored-session fallback directory for --session ids from other
-   * surfaces (undefined when nothing is persisted). The usage journal folder
-   * is always available: it is the shared agent data folder, not storage.
-   */
+  M113 C-M113-2: this surface's live conversation (null when it has none)
+  and the stored-session fallback directory for --session ids from other
+  surfaces (undefined when nothing is persisted). The usage journal folder
+  is always available: it is the shared agent data folder, not storage.
+  */
   readonly reportSessionHistory?: () => Promise<SessionHistoryInput | null>
   readonly reportStoredSessionDir?: string | undefined
   /**
-   * M113 C-M113-4: M117's run for the estimate kind, through the extension's
-   * lazy estimator bundle. Absent until the estimator binds it; the kind
-   * then reports unavailable, never a guess.
-   */
+  M113 C-M113-4: M117's run for the estimate kind, through the extension's
+  lazy estimator bundle. Absent until the estimator binds it; the kind
+  then reports unavailable, never a guess.
+  */
   readonly reportEstimateRun?: (request: EstimateRequest, signal: AbortSignal) => Promise<unknown>
   readonly reportBeforeRead: () => Promise<void>
   readonly reportReadBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly reportUsageDataFolder: string
   /**
-   * C-M113-3: M108's use and swaps adapters. Unbound until the owning lane
-   * binds them here; until then those accounts facets stay empty and named.
-   */
+  C-M113-3: M108's use and swaps adapters. Unbound until the owning lane
+  binds them here; until then those accounts facets stay empty and named.
+  */
   readonly reportAccountsUsage?: (
     context: SourceReadContext,
   ) => Promise<AccountsFacts['usage'] | null>
@@ -74,10 +74,10 @@ export interface ReportingWindowDeps extends Pick<
     context: SourceReadContext,
   ) => Promise<Pick<AccountsFacts, 'events' | 'confirmations'> | null>
   /**
-   * C-M113-3: an unlock-capable vault view for the security kind. Unbound
-   * until the vault lane binds it here; until then the vault facets stay
-   * empty and named, and the developer audit still reports.
-   */
+  C-M113-3: an unlock-capable vault view for the security kind. Unbound
+  until the vault lane binds it here; until then the vault facets stay
+  empty and named, and the developer audit still reports.
+  */
   readonly reportVaultSnapshot?: (
     context: SourceReadContext,
   ) => Promise<SecurityVaultSnapshot | null>

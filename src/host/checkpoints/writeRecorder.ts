@@ -66,10 +66,10 @@ const EMPTY = Buffer.alloc(0)
 const EMPTY_OID = gitBlobOid(EMPTY)
 
 /**
- * One instance's order and locks, shared by every owner it records for
- * (turns, child turns, restore batches): a write's place in the order, and
- * one write at a time to a path.
- */
+One instance's order and locks, shared by every owner it records for
+(turns, child turns, restore batches): a write's place in the order, and
+one write at a time to a path.
+*/
 export class WriteLanes {
   private seq = 0
   private readonly tails = new Map<string, Promise<void>>()
@@ -120,10 +120,10 @@ export interface OwnerIo extends ToolIo {
   /** Admits no new write, and resolves once the writes under way have settled. */
   drain(): Promise<void>
   /**
-   * A new file `publish` creates only where there is none (a memory note,
-   * `createFileExclusively`), recorded: its intent journaled before
-   * `publish` runs, its outcome after.
-   */
+  A new file `publish` creates only where there is none (a memory note,
+  `createFileExclusively`), recorded: its intent journaled before
+  `publish` runs, its outcome after.
+  */
   recordNew(
     absolutePath: string,
     content: string,
@@ -174,9 +174,9 @@ function isNameTaken(error: unknown): boolean {
 }
 
 /**
- * Telling whether anything is at the path failed for one of the lookup's
- * own reasons. Anything else is not this probe's to answer.
- */
+Telling whether anything is at the path failed for one of the lookup's
+own reasons. Anything else is not this probe's to answer.
+*/
 const UNTELLABLE_CODES: ReadonlySet<string> = new Set([
   'EACCES',
   'EPERM',
@@ -326,10 +326,10 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
   }
 
   /**
-   * The file now, read from the handle it was opened by, and only while the
-   * path names that file inside the folder before and after the read: a
-   * folder swapped for a link meanwhile keeps nothing of where it led.
-   */
+  The file now, read from the handle it was opened by, and only while the
+  path names that file inside the folder before and after the read: a
+  folder swapped for a link meanwhile keeps nothing of where it led.
+  */
   const copyOf = async (target: Target): Promise<Copy> => {
     const seen = await assertWritable(target)
     if (seen === undefined) {
@@ -385,9 +385,9 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
   }
 
   /**
-   * Keeps what a write needs (spec 9): every blob, or none, and the write is
-   * then recorded with its oids only (not kept). Every unit's bytes are kept.
-   */
+  Keeps what a write needs (spec 9): every blob, or none, and the write is
+  then recorded with its oids only (not kept). Every unit's bytes are kept.
+  */
   const hasKept = async (target: Target, blobs: readonly KeptBytes[]): Promise<boolean> => {
     const fresh = new Map<string, Uint8Array>()
     for (const blob of blobs) {
@@ -427,10 +427,10 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
   }
 
   /**
-   * The write's outcome. One that cannot be journaled leaves it unsettled
-   * (the journal keeps no line that may not be durable), which a restore
-   * resolves by the file's bytes or refuses: never a wrong restore.
-   */
+  The write's outcome. One that cannot be journaled leaves it unsettled
+  (the journal keeps no line that may not be durable), which a restore
+  resolves by the file's bytes or refuses: never a wrong restore.
+  */
   const settle = async (target: Target, id: string, outcome: 'done' | 'aborted'): Promise<void> => {
     try {
       await (outcome === 'done' ? deps.journal.appendDone(id) : deps.journal.appendAborted(id))
@@ -454,11 +454,11 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
   }
 
   /**
-   * `content` published over the file only while it is still as copied (and
-   * as `isExpected` says), its intent journaled once the content is staged
-   * beside it: the staged file's mode and the folders the write made are
-   * known by then, and nothing is replaced yet.
-   */
+  `content` published over the file only while it is still as copied (and
+  as `isExpected` says), its intent journaled once the content is staged
+  beside it: the staged file's mode and the folders the write made are
+  known by then, and nothing is replaced yet.
+  */
   const publishRecorded = async (
     target: Target,
     copy: Copy,
@@ -676,9 +676,9 @@ export interface TurnRecorderDeps extends Omit<OwnerIoDeps, 'owner'> {
 }
 
 /**
- * The window's turns' own writes (spec 5.1): one owner io for each turn
- * (child turns included) from its start until its end, which drains it.
- */
+The window's turns' own writes (spec 5.1): one owner io for each turn
+(child turns included) from its start until its end, which drains it.
+*/
 export class TurnRecorder {
   private readonly running = new Map<string, OwnerIo>()
 
@@ -712,10 +712,10 @@ export interface TurnRecordingDeps {
 }
 
 /**
- * The window's recording (spec 5.1, 8): one instance, its journal, and the
- * order and locks every owner of it shares, the store's restores and Redos
- * as well as the turns' tools.
- */
+The window's recording (spec 5.1, 8): one instance, its journal, and the
+order and locks every owner of it shares, the store's restores and Redos
+as well as the turns' tools.
+*/
 export interface WindowRecording {
   readonly instance: string
   readonly journal: WriteJournal
@@ -725,11 +725,11 @@ export interface WindowRecording {
 }
 
 /**
- * The window's recording, made once at activation: the store takes its
- * journal and lanes, and the turns' recorder is made from it once the
- * window's tool io exists. Built by the checkpoint bundle, which loads with
- * the store (PLAN.md D6).
- */
+The window's recording, made once at activation: the store takes its
+journal and lanes, and the turns' recorder is made from it once the
+window's tool io exists. Built by the checkpoint bundle, which loads with
+the store (PLAN.md D6).
+*/
 export function createTurnRecording(deps: TurnRecordingDeps): WindowRecording {
   const { instance, platform } = deps
   const journal = new WriteJournal({ storageDir: deps.storageDir, instance, platform, fs: deps.fs })

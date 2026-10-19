@@ -12,7 +12,7 @@ async function readPrivatePipe(pipe: Readable, limit: number): Promise<Buffer> {
   let joined: Buffer | undefined
   try {
     for await (const chunk of pipe) {
-      if (!(chunk instanceof Buffer)) throw new Error(UI_TEXT.vault.noAccess)
+      if (!(chunk instanceof Buffer)) throw new TypeError(UI_TEXT.vault.noAccess)
       total += chunk.length
       if (total > limit) {
         chunk.fill(0)

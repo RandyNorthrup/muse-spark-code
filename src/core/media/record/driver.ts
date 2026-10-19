@@ -36,10 +36,10 @@ export interface ScreenRecordingDriver {
     { readonly ok: true } | { readonly ok: false; readonly reason: string }
   >
   /**
-   * Called only by an interactive user entry point, after its options UI.
-   * The tick reports seconds remaining while capped, seconds recorded while
-   * uncapped (maxSeconds 0); only the person stops an uncapped recording.
-   */
+  Called only by an interactive user entry point, after its options UI.
+  The tick reports seconds remaining while capped, seconds recorded while
+  uncapped (maxSeconds 0); only the person stops an uncapped recording.
+  */
   readonly start: (
     options: ScreenRecordingOptions,
     onCountdown: (remainingSeconds: number) => void,

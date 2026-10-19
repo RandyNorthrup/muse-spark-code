@@ -22,9 +22,9 @@ function bareDescription(text: string): string {
 }
 
 /**
- * A row's hover tip, unless it only repeats the visible detail (F69): the
- * same sentence twice, once seen and once through the description.
- */
+A row's hover tip, unless it only repeats the visible detail (F69): the
+same sentence twice, once seen and once through the description.
+*/
 function slashTip(detail: string | undefined, tip: string | undefined): string | undefined {
   if (tip === undefined) {
     return undefined

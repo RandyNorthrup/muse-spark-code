@@ -18,11 +18,11 @@ const INTERRUPT = '\u{3}'
 const END_OF_INPUT = '\u{4}'
 
 /**
- * Piped standard input was not UTF-8 text, so no key line could be read
- * from it. The message is the shared not-text sentence, read when thrown;
- * callers match it with {@link isNonTextStdin} (never `instanceof`, which
- * breaks across the split bundles that carry this module).
- */
+Piped standard input was not UTF-8 text, so no key line could be read
+from it. The message is the shared not-text sentence, read when thrown;
+callers match it with {@link isNonTextStdin} (never `instanceof`, which
+breaks across the split bundles that carry this module).
+*/
 export class NonTextStdinError extends Error {
   readonly code = 'stdin-not-text'
   constructor() {

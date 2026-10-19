@@ -102,9 +102,9 @@ export function builtinRoles(): BuiltinRole[] {
 }
 
 /**
- * A built-in role as an AGENT.md file: front matter with the role keys,
- * then the body. What "Copy Built-in Role to Project" writes (lane U1).
- */
+A built-in role as an AGENT.md file: front matter with the role keys,
+then the body. What "Copy Built-in Role to Project" writes (lane U1).
+*/
 export function builtinRoleFile(id: string): string {
   const role = builtinRoles().find((candidate) => candidate.id === id)
   if (role === undefined) {

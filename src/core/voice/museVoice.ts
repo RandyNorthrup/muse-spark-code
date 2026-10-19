@@ -435,9 +435,9 @@ export interface MuseVoiceDeps {
   readonly onSeconds: (seconds: number) => void
   /** Durable D78 admission on either backend, before opening the socket. */
   /**
-   * D78's exact daily admission, or `undefined` when the person set no
-   * daily limit: with no limit there is nothing to admit against (D121).
-   */
+  D78's exact daily admission, or `undefined` when the person set no
+  daily limit: with no limit there is nothing to admit against (D121).
+  */
   readonly reserveDaily: (costUsd: UsdAmount) => Promise<VoiceDailyClaim | undefined>
   readonly log: CoreLogger
 }
@@ -458,13 +458,13 @@ interface VoiceBudgetState {
 }
 
 /**
- * One microphone press's paid admission (RVCM352B P1-a): the parent budget
- * scope, the consent/context fence and the key read, all captured
- * synchronously when Start is pressed. A press that waits behind another
- * dictation carries this object with it; the preparation that runs when its
- * turn comes reads nothing else, so a cleared controller slot cannot widen
- * it into an unreserved, unfenced recording.
- */
+One microphone press's paid admission (RVCM352B P1-a): the parent budget
+scope, the consent/context fence and the key read, all captured
+synchronously when Start is pressed. A press that waits behind another
+dictation carries this object with it; the preparation that runs when its
+turn comes reads nothing else, so a cleared controller slot cannot widen
+it into an unreserved, unfenced recording.
+*/
 interface VoiceAdmission {
   readonly scope: Promise<OwnedSessionBudgetScope | undefined>
   readonly fence: VoiceConsentFence | undefined
@@ -472,30 +472,30 @@ interface VoiceAdmission {
 }
 
 /**
- * The microphone on the paid engine: the capture helper records, each
- * recording is streamed as it is made, and its transcript is the listener's
- * text. A stop acknowledgement retires its helper before the next capture;
- * its socket may continue finishing while the next recording begins.
- */
+The microphone on the paid engine: the capture helper records, each
+recording is streamed as it is made, and its transcript is the listener's
+text. A stop acknowledgement retires its helper before the next capture;
+its socket may continue finishing while the next recording begins.
+*/
 export class MuseVoiceDictation implements DictationHandle {
   /** Each helper instance and callback belongs to exactly one recording. */
   private readonly captures = new Map<MuseVoiceStream, DictationHandle>()
   private current: { readonly id: number; readonly stream: MuseVoiceStream } | undefined
   private nextRecordingId = 0
   /**
-   * The latest settlement write: the next preparation waits for it before
-   * reserving (RVCM352B P1-b). Settling runs in the background so an end
-   * never waits on the filesystem, but two recordings' journal writes must
-   * not interleave: a readdir landing between another writer's claim
-   * directory and its claim file reads as missing storage.
-   */
+  The latest settlement write: the next preparation waits for it before
+  reserving (RVCM352B P1-b). Settling runs in the background so an end
+  never waits on the filesystem, but two recordings' journal writes must
+  not interleave: a readdir landing between another writer's claim
+  directory and its claim file reads as missing storage.
+  */
   private lastSettlement: Promise<unknown> = Promise.resolve()
   private isStopping = false
   /**
-   * The press waiting behind a stopping or draining recording, with the
-   * admission it was pressed under. A newer press replaces it (its press
-   * was superseded); `stop` and `dispose` drop it unreserved.
-   */
+  The press waiting behind a stopping or draining recording, with the
+  admission it was pressed under. A newer press replaces it (its press
+  was superseded); `stop` and `dispose` drop it unreserved.
+  */
   private pendingAdmission: VoiceAdmission | undefined
   /** Every stream still open, the finishing ones included (a dispose ends them). */
   private readonly open = new Set<MuseVoiceStream>()
@@ -544,12 +544,12 @@ export class MuseVoiceDictation implements DictationHandle {
   }
 
   /**
-   * The recording's capture is gone when this resolves: its helper process
-   * exit is observed (bounded; then it is killed and that is said) before
-   * the stream finishes or settles. Ownership clears only then, so a Stop
-   * never reports ended — and the next Start never runs — while a recorder
-   * process still exists.
-   */
+  The recording's capture is gone when this resolves: its helper process
+  exit is observed (bounded; then it is killed and that is said) before
+  the stream finishes or settles. Ownership clears only then, so a Stop
+  never reports ended — and the next Start never runs — while a recorder
+  process still exists.
+  */
   private releaseCapture(stream: MuseVoiceStream): Promise<void> {
     const capture = this.captures.get(stream)
     this.captures.delete(stream)
@@ -671,11 +671,11 @@ export class MuseVoiceDictation implements DictationHandle {
   }
 
   /**
-   * A recording that reached Meta joins the conversation's running total as
-   * cost unknown: Muse Voice reports no billed duration, and a local
-   * estimate is never counted as spent (D121). Its seconds are tallied
-   * apart. A recording that never started refunds instead.
-   */
+  A recording that reached Meta joins the conversation's running total as
+  cost unknown: Muse Voice reports no billed duration, and a local
+  estimate is never counted as spent (D121). Its seconds are tallied
+  apart. A recording that never started refunds instead.
+  */
   private async settleBudget(state: VoiceBudgetState, stream: MuseVoiceStream): Promise<void> {
     if (state.isPreparing || state.isSettled) return
     state.isSettled = true
@@ -894,10 +894,10 @@ export class MuseVoiceDictation implements DictationHandle {
   }
 
   /**
-   * The admission this press runs under, read synchronously: the scope and
-   * fence the controller admitted before calling, and the key. A queued
-   * press keeps this object; nothing later re-reads the listener.
-   */
+  The admission this press runs under, read synchronously: the scope and
+  fence the controller admitted before calling, and the key. A queued
+  press keeps this object; nothing later re-reads the listener.
+  */
   private captureAdmission(): VoiceAdmission {
     return {
       scope: this.listener.ownedBudgetScope?.() ?? Promise.resolve(undefined),

@@ -25,10 +25,10 @@ function claimFiles(folder) {
 }
 
 /**
- * The reservations the product's daily ledger holds with no settlement.
- * @param {string} home the run's own home
- * @returns {{ claims: number, micro: number, unread: string[] }} `unread` names amounts that could not be read
- */
+The reservations the product's daily ledger holds with no settlement.
+@param {string} home the run's own home
+@returns {{ claims: number, micro: number, unread: string[] }} `unread` names amounts that could not be read
+*/
 export function heldUnsettled(home) {
   const held = { claims: 0, micro: 0, unread: [] }
   const files = claimFiles(path.join(dataFolderOf(home), 'paid-daily'))

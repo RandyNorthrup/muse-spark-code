@@ -173,9 +173,9 @@ function tokensOf(reply: z.infer<typeof tokenReplySchema>, now: number): DeviceF
 }
 
 /**
- * Sign in: ask for a device code, show it through `present`, and poll until
- * the user approves, denies, the code expires or `signal` aborts.
- */
+Sign in: ask for a device code, show it through `present`, and poll until
+the user approves, denies, the code expires or `signal` aborts.
+*/
 export async function signInWithDeviceFlow(
   deps: DeviceFlowDeps,
   scopes: readonly string[],
@@ -258,10 +258,10 @@ export async function refreshDeviceFlowToken(
 }
 
 /**
- * A sign-in that did not finish, in the user's words: the fixed sentence
- * for its reason, never GitHub's text or a token. Undefined for anything
- * that is not a sign-in failure (the caller says that its own way).
- */
+A sign-in that did not finish, in the user's words: the fixed sentence
+for its reason, never GitHub's text or a token. Undefined for anything
+that is not a sign-in failure (the caller says that its own way).
+*/
 export function signInFailureText(error: unknown): string | undefined {
   if (error instanceof DeviceFlowFailure) return UI_TEXT.githubSignIn.failures[error.reason]
   return error instanceof GitHubTokenSourceError && error.reason === 'clientIdUnset'

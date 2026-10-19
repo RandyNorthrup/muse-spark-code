@@ -63,7 +63,7 @@ async function runDrill(workspaceRoot: string): Promise<{ sessionId: string; tex
     expect(await done).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
     return {
       sessionId: session.sessionId,
-      text: events.flatMap((event) => (event.type === 'textDelta' ? [event.delta] : [])).join(''),
+      text: events.flatMap((event) => (event.type === 'textDelta' ? event.delta : [])).join(''),
     }
   } finally {
     await backend.dispose()
@@ -170,8 +170,8 @@ async function runReviewDrill(workspaceRoot: string) {
     }
     return {
       sessionId: session.sessionId,
-      text: events.flatMap((event) => (event.type === 'textDelta' ? [event.delta] : [])).join(''),
-      modes: events.flatMap((event) => (event.type === 'approvalModeChanged' ? [event.mode] : [])),
+      text: events.flatMap((event) => (event.type === 'textDelta' ? event.delta : [])).join(''),
+      modes: events.flatMap((event) => (event.type === 'approvalModeChanged' ? event.mode : [])),
       restored,
     }
   } finally {

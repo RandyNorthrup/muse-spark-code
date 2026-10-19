@@ -291,10 +291,10 @@ export function createUsageFeatures(
 }
 
 /**
- * One NDJSON line's replies. Malformed lines refuse as invalid; a failing
- * read reports readFailed so one backend blip never kills the stdio
- * session. Anything else keeps its kind.
- */
+One NDJSON line's replies. Malformed lines refuse as invalid; a failing
+read reports readFailed so one backend blip never kills the stdio
+session. Anything else keeps its kind.
+*/
 async function repliesForUsageLine(
   service: UsageService,
   line: string,

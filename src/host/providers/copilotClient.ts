@@ -142,10 +142,10 @@ function failureCode(error: unknown): CopilotFailure {
 }
 
 /**
- * Copilot's model tolerance for the shared confirmed-dispatch gate: the
- * session stores `copilot/<id>` while a request may carry the catalogue
- * `<id>`, and both name this adapter's model.
- */
+Copilot's model tolerance for the shared confirmed-dispatch gate: the
+session stores `copilot/<id>` while a request may carry the catalogue
+`<id>`, and both name this adapter's model.
+*/
 function withoutCopilotPrefix(id: string): string {
   return id.startsWith('copilot/') ? id.slice('copilot/'.length) : id
 }
@@ -170,11 +170,11 @@ class CopilotClient implements ProviderClient {
     return new CopilotFailureError(this.deps.failureText(code), options)
   }
   /**
-   * The pre-dispatch gate with Copilot's model tolerance: the session stores
-   * `copilot/<id>` while a request may carry the catalogue `<id>`, and both
-   * name this adapter's model. A lapse here keeps the adapter's refusal,
-   * like every direct call before it.
-   */
+  The pre-dispatch gate with Copilot's model tolerance: the session stores
+  `copilot/<id>` while a request may carry the catalogue `<id>`, and both
+  name this adapter's model. A lapse here keeps the adapter's refusal,
+  like every direct call before it.
+  */
   private assertConfirmed(
     body: CreateResponseBody,
     confirmed: ConfirmedModelRequest | undefined,
@@ -266,12 +266,12 @@ class CopilotClient implements ProviderClient {
     return messages
   }
   /**
-   * Drops what the vscode language-model API cannot carry: reasoning
-   * (this API has no thinking part) and hosted search calls (acceptance
-   * 11: never declared to a BYO model; the reply that used them replays
-   * as text). Anything else fails the turn loudly instead of running on
-   * silently dropped content.
-   */
+  Drops what the vscode language-model API cannot carry: reasoning
+  (this API has no thinking part) and hosted search calls (acceptance
+  11: never declared to a BYO model; the reply that used them replays
+  as text). Anything else fails the turn loudly instead of running on
+  silently dropped content.
+  */
   private skipUnsendable(item: InputItem): void {
     if (item.type === 'reasoning' || item.type === 'web_search_call') {
       return

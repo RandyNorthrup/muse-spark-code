@@ -21,7 +21,7 @@ describe('estimate composer binding', () => {
       open: () => {
         throw refusal
       },
-      notice: (text) => {
+      notice: (text: string) => {
         notices.push(text)
       },
     })
@@ -40,7 +40,7 @@ describe('estimate composer binding', () => {
         open: () => {
           throw foreign
         },
-        notice: (text) => {
+        notice: (text: string) => {
           notices.push(text)
         },
       })

@@ -122,7 +122,7 @@ export function resolveMcpVaultCommand(
   return { executable: realpathSync(file), argv: [...launch.args], cwd: realpathSync(cwd) }
 }
 
-function exitDescription(code: number | null, signal: NodeJS.Signals | null): string {
+function exitDescription(code: number | null, signal: NodeJS.Signals | null = null): string {
   return code === null
     ? `it was ended by ${signal ?? 'a signal'}`
     : `it exited with code ${String(code)}`

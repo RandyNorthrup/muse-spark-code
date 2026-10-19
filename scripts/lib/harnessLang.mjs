@@ -87,9 +87,9 @@ function pseudoTable(table, isPluralForms, kept, prefix = '') {
 }
 
 /**
- * Writes the pseudo-locale tables from the English ones (the UI table and,
- * for the usage page, the usage table); returns their paths.
- */
+Writes the pseudo-locale tables from the English ones (the UI table and,
+for the usage page, the usage table); returns their paths.
+*/
 export async function writePseudoTable(repoRoot) {
   const { EN, USAGE_EN, isPluralForms, tableProblems } = await loadL10n(repoRoot)
   const untranslated = JSON.parse(readFileSync(path.join(repoRoot, UNTRANSLATED_FILE), 'utf8'))

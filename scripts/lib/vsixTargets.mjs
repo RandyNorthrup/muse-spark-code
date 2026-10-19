@@ -67,10 +67,10 @@ function archOf(target) {
 }
 
 /**
- * Whether the target's package keeps a repo-relative file. `file` is a
- * VSCE inventory path with any separator; comparison normalises to `/` so
- * the check holds on Windows checkouts too.
- */
+Whether the target's package keeps a repo-relative file. `file` is a
+VSCE inventory path with any separator; comparison normalises to `/` so
+the check holds on Windows checkouts too.
+*/
 export function isVsixTargetFile(target, file) {
   if (!VSIX_TARGETS.includes(target)) throw new Error(`Unknown VSIX target: ${target}`)
   const normalized = file.replaceAll('\\', '/')

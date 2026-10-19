@@ -189,9 +189,9 @@ async function decideOnPage(launchUrl: string, isApproved: boolean): Promise<voi
 }
 
 /** Starts a save and answers its awaitingApproval reply; the page's URL was handed to `opened`. */
-async function saveAwaiting(server: Serving, id: number): Promise<string> {
-  call(server, id, 'muse_prompt_save', SAVE)
-  const answer = structured(await server.reply(id))
+async function saveAwaiting(server: Serving): Promise<string> {
+  call(server, 1, 'muse_prompt_save', SAVE)
+  const answer = structured(await server.reply(1))
   expect(answer['status']).toBe('awaitingApproval')
   return (answer['data'] as { operationId: string }).operationId
 }
@@ -207,7 +207,7 @@ async function decidedSave(isApproved: boolean) {
       return Promise.resolve()
     })
     try {
-      const operationId = await saveAwaiting(server, 1)
+      const operationId = await saveAwaiting(server)
       expect(await new PromptStore(data, undefined).list('user')).toEqual([])
       await decideOnPage(launch, isApproved)
       await sleep(250)
@@ -279,7 +279,7 @@ describe('M124 connector serving (real store, page and pipes)', () => {
       await granted(data, ['prompts:write', 'prompts:read'])
       const server = serve(data, () => Promise.resolve())
       try {
-        const operationId = await saveAwaiting(server, 1)
+        const operationId = await saveAwaiting(server)
         // The owner's `mcp kill` in another process: the same store file.
         await new ConnectorStore(data).setKilled(true, new Date().toISOString())
         call(server, 2, 'muse_prompt_list', { scope: 'user' })

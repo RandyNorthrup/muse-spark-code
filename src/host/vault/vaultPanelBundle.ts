@@ -45,16 +45,16 @@ export function registerVaultCommands(
 }
 
 /**
- * What dist/vault.js exports: the window and panel factories. Only types
- * come from the panel's side here: a value imported from there would carry
- * the host, the editor and the broker client back into dist/extension.js,
- * which the bundle-split gate refuses.
- */
+What dist/vault.js exports: the window and panel factories. Only types
+come from the panel's side here: a value imported from there would carry
+the host, the editor and the broker client back into dist/extension.js,
+which the bundle-split gate refuses.
+*/
 export interface VaultBundle {
   /**
-   * The window commands without a second host: open reveals the panel's
-   * vault section, lock works through one broker-backed service alone.
-   */
+  The window commands without a second host: open reveals the panel's
+  vault section, lock works through one broker-backed service alone.
+  */
   readonly createWindowVaultControls: (
     deps: WindowVaultControlsDeps,
     table: UiText,
@@ -89,12 +89,12 @@ export interface VaultBundleLoaderDeps {
 }
 
 /**
- * The bundle, required the first time it is asked for and kept from then on.
- * A missing or corrupt bundle throws `vault.brokerBlocked` and is tried again
- * on the next call (the log has the cause, never a credential). The bundle's
- * factories resolve README's legacy vault switch themselves, so a
- * switched-off vault refuses on every call and re-enabling needs no restart.
- */
+The bundle, required the first time it is asked for and kept from then on.
+A missing or corrupt bundle throws `vault.brokerBlocked` and is tried again
+on the next call (the log has the cause, never a credential). The bundle's
+factories resolve README's legacy vault switch themselves, so a
+switched-off vault refuses on every call and re-enabling needs no restart.
+*/
 export function vaultBundleLoader(deps: VaultBundleLoaderDeps): () => VaultBundle {
   return lazyBundleLoader({
     ...deps,

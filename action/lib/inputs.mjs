@@ -34,9 +34,9 @@ export function truncateUtf8(text, maxBytes) {
 }
 
 /**
- * The PR metadata resource (pr.md): head, base and truncation notices, then
- * the untrusted title and body; the whole file at most ACTION_META_MAX_BYTES.
- */
+The PR metadata resource (pr.md): head, base and truncation notices, then
+the untrusted title and body; the whole file at most ACTION_META_MAX_BYTES.
+*/
 export function metadataResource(gate) {
   const resource = (titleText, bodyText, truncated) =>
     [
@@ -97,10 +97,10 @@ export async function stageInputs({ paths, inputs }) {
 }
 
 /**
- * The review diff (merge base to head) through safeGit into a private file,
- * then cut to `maxDiffBytes` at a code point boundary. Returns whether it
- * was cut and its full size.
- */
+The review diff (merge base to head) through safeGit into a private file,
+then cut to `maxDiffBytes` at a code point boundary. Returns whether it
+was cut and its full size.
+*/
 export async function generateDiff({ owner, git, paths, baseEnv, staged }) {
   const outcome = requireGit(
     await safeGit({

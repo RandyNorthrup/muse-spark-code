@@ -50,14 +50,14 @@ export interface LeaseRecoveryLog {
 }
 
 /**
- * Surface a crashed terminal Connect without opening a Models tab
- * (RVCM952D R5). Runs inside the one credential lease, so it never deletes
- * a live attempt's journal: a held lease skips silently. A committed
- * journal reports the key in use (never a removal notice); a discarded one
- * reports the created key with its label and removal page. Loads with this
- * bundle, never at activation, and never the OAuth flow: the notice is
- * composed here from the journal binding's label and removal page.
- */
+Surface a crashed terminal Connect without opening a Models tab
+(RVCM952D R5). Runs inside the one credential lease, so it never deletes
+a live attempt's journal: a held lease skips silently. A committed
+journal reports the key in use (never a removal notice); a discarded one
+reports the created key with its label and removal page. Loads with this
+bundle, never at activation, and never the OAuth flow: the notice is
+composed here from the journal binding's label and removal page.
+*/
 export async function recoverOpenRouterConnect(
   secrets: SecretStore,
   showWarning: (message: string) => void,

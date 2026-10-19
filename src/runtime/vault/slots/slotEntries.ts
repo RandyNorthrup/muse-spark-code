@@ -71,10 +71,10 @@ export function freshOsStoreSlot(
 }
 
 /**
- * Open the hardware slot where the helper reports it, else null. The
- * capability probe runs for real on every call; any failure (no device,
- * failing probe, refused build) reads as absent, never as an error.
- */
+Open the hardware slot where the helper reports it, else null. The
+capability probe runs for real on every call; any failure (no device,
+failing probe, refused build) reads as absent, never as an error.
+*/
 export async function hardwareSlotIfAvailable<Slot>(
   isPlatform: boolean,
   readFacts: () => Promise<{ hardwareAvailable: boolean }>,
@@ -90,18 +90,18 @@ export async function hardwareSlotIfAvailable<Slot>(
 }
 
 /**
- * Prove presence through the platform's presence-tier slot: find this
- * platform's presence record, run one fresh unwrap over it (the helper
- * prompts, naming the exact use), and fail closed without it. The broker's
- * nonce scopes the operation; the prompt's freshness is what proves
- * presence.
- */
+Prove presence through the platform's presence-tier slot: find this
+platform's presence record, run one fresh unwrap over it (the helper
+prompts, naming the exact use), and fail closed without it. The broker's
+nonce scopes the operation; the prompt's freshness is what proves
+presence.
+*/
 /**
- * The provider's presence gate bound to one platform's slot: the returned
- * check finds that platform's presence record and runs one fresh unwrap
- * over it. The helper prompts, naming the exact use; the broker's nonce
- * scopes the operation.
- */
+The provider's presence gate bound to one platform's slot: the returned
+check finds that platform's presence record and runs one fresh unwrap
+over it. The helper prompts, naming the exact use; the broker's nonce
+scopes the operation.
+*/
 export function presenceGate(
   loadRecords: () => PresenceRecords | undefined,
   provider: VaultSlotRecord['provider'],

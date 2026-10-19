@@ -78,21 +78,21 @@ function decoded(text: string): string {
 }
 
 /**
- * Text with every credential shape the redactor knows masked, judged on
- * its percent-decoded form too (RVM123G2 R11): an encoded secret is shown
- * decoded and masked, never passed through in a spelling the redactor
- * cannot read.
- */
+Text with every credential shape the redactor knows masked, judged on
+its percent-decoded form too (RVM123G2 R11): an encoded secret is shown
+decoded and masked, never passed through in a spelling the redactor
+cannot read.
+*/
 function redactedEither(text: string): string {
   const plain = decoded(text)
   return redactSecrets(plain !== text && redactSecrets(plain) !== plain ? plain : text)
 }
 
 /**
- * A URL's query as a confirmation shows it: each parameter's name with its
- * value masked, whatever the name or its spelling (`%74oken`). Where a
- * push goes never needs a query value.
- */
+A URL's query as a confirmation shows it: each parameter's name with its
+value masked, whatever the name or its spelling (`%74oken`). Where a
+push goes never needs a query value.
+*/
 function maskedQuery(search: string): string {
   if (search === '') {
     return ''
@@ -107,11 +107,11 @@ function maskedQuery(search: string): string {
 }
 
 /**
- * A remote URL as a confirmation shows it: an `https://` user-info part
- * (a token or a user name, which a remote may carry) masked, every query
- * value and any fragment masked, and any other credential shape the log
- * redactor knows masked too, plain or percent-encoded.
- */
+A remote URL as a confirmation shows it: an `https://` user-info part
+(a token or a user name, which a remote may carry) masked, every query
+value and any fragment masked, and any other credential shape the log
+redactor knows masked too, plain or percent-encoded.
+*/
 export function maskRemoteUrl(remoteUrl: string): string {
   const url = parsedUrl(remoteUrl)
   if (url === undefined) {

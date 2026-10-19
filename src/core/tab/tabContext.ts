@@ -46,10 +46,10 @@ export interface TabModeInput {
 }
 
 /**
- * D73's mode rules: Invoke is always multi-line; `never` and `onInvoke`
- * keep Automatic fast; `auto` goes multi-line on a blank line or a block
- * opener with nothing after the cursor.
- */
+D73's mode rules: Invoke is always multi-line; `never` and `onInvoke`
+keep Automatic fast; `auto` goes multi-line on a blank line or a block
+opener with nothing after the cursor.
+*/
 export function selectMode(input: TabModeInput): TabMode {
   if (input.trigger === 'onInvoke') {
     return 'multiline'
@@ -92,12 +92,12 @@ function lineStartAt(text: string, line: number): number {
 }
 
 /**
- * The request's window: the prefix runs back at most the mode's allowance,
- * then back to the nearest line starting a `TAB_PREFIX_ANCHOR_LINES` block
- * (0-based, so the first line anchors), so its start stays put while the
- * user types forward and consecutive requests share a cached prefix. The
- * suffix runs forward from the cursor, unanchored.
- */
+The request's window: the prefix runs back at most the mode's allowance,
+then back to the nearest line starting a `TAB_PREFIX_ANCHOR_LINES` block
+(0-based, so the first line anchors), so its start stays put while the
+user types forward and consecutive requests share a cached prefix. The
+suffix runs forward from the cursor, unanchored.
+*/
 export function contextWindow(text: string, offset: number, mode: TabMode): TabWindow {
   const at = Math.min(Math.max(offset, 0), text.length)
   const maxPrefix = mode === 'fast' ? TAB_FAST_PREFIX_CHARS : TAB_MULTILINE_PREFIX_CHARS
@@ -129,11 +129,11 @@ function compareSnippetPath(a: TabSnippet, b: TabSnippet): number {
 }
 
 /**
- * The snippets fenced in path order (D73's request order: instructions,
- * snippets sorted by path, header, prefix, marker, suffix), each kept whole
- * while it fits in `TAB_CONTEXT_CHARS`. Sorted and whole, so the request
- * head stays byte-stable while the user types.
- */
+The snippets fenced in path order (D73's request order: instructions,
+snippets sorted by path, header, prefix, marker, suffix), each kept whole
+while it fits in `TAB_CONTEXT_CHARS`. Sorted and whole, so the request
+head stays byte-stable while the user types.
+*/
 export function orderSnippets(snippets: readonly TabSnippet[]): string {
   const ordered = snippets.toSorted(compareSnippetPath)
   const kept: string[] = []

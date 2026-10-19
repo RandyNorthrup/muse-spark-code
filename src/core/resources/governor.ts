@@ -51,10 +51,10 @@ export interface ResourceGovernorOptions {
   settings: ResourceSettings
   events: ResourceEvents
   /**
-   * R binds approved paired-device/runner availability; off never calls it.
-   * null declares that this host has no relocation route at all: pressure goes
-   * from throttle to pause and status reports `noRoute` for the UI to explain.
-   */
+  R binds approved paired-device/runner availability; off never calls it.
+  null declares that this host has no relocation route at all: pressure goes
+  from throttle to pause and status reports `noRoute` for the UI to explain.
+  */
   hasRelocationTarget: (() => boolean) | null
   onError: (error: unknown) => void
 }
@@ -145,8 +145,8 @@ export class ResourceGovernor {
   }
 
   /** A trip needs a limit the person set behind it. Metrics the person left
-   * unset contribute no reading; the transport and OS-service signals trip
-   * only while at least one person-set threshold is governing. */
+  unset contribute no reading; the transport and OS-service signals trip
+  only while at least one person-set threshold is governing. */
   private hasPersonLimits(): boolean {
     const settings = this.settings
     return (
@@ -452,10 +452,10 @@ export class ResourceGovernor {
   }
 
   /**
-   * The caller's signal ends only the caller's wait. The sample is shared and
-   * bounded by RESOURCE_SAMPLE_MS; aborting it would record an all-unknown
-   * reading for every waiter.
-   */
+  The caller's signal ends only the caller's wait. The sample is shared and
+  bounded by RESOURCE_SAMPLE_MS; aborting it would record an all-unknown
+  reading for every waiter.
+  */
   refresh(signal?: AbortSignal): Promise<void> {
     if (this.disposed) return Promise.reject(new Error('Resource governor disposed'))
     const reason = () =>

@@ -47,11 +47,11 @@ export interface TeamCeilingSource {
 }
 
 /**
- * The ceiling for one agent: the lowest of the provider's limit, our hard
- * ceiling (none for engines, D121) and the machine's, including zero. Where
- * the provider documents none (Gemini), 429s decide: the provider side
- * drops out until throttling halves the entry below it.
- */
+The ceiling for one agent: the lowest of the provider's limit, our hard
+ceiling (none for engines, D121) and the machine's, including zero. Where
+the provider documents none (Gemini), 429s decide: the provider side
+drops out until throttling halves the entry below it.
+*/
 export function computeTeamCeiling(source: TeamCeilingSource): number {
   return Math.max(
     0,
@@ -88,12 +88,12 @@ function providerCeilingSide(source: TeamCeilingSource): number {
 }
 
 /**
- * Our hard ceiling for the kind: no level and no edit passes it. Engines
- * carry none of ours (D121): the provider's documented limits and live
- * throttling bound them, then the machine's. Muse Code documents its own
- * bound per release, so both sides read the served version (M127): there
- * is no ceiling of ours on a `muse serve`.
- */
+Our hard ceiling for the kind: no level and no edit passes it. Engines
+carry none of ours (D121): the provider's documented limits and live
+throttling bound them, then the machine's. Muse Code documents its own
+bound per release, so both sides read the served version (M127): there
+is no ceiling of ours on a `muse serve`.
+*/
 function hardCeilingSide(kind: TeamAgentKind, source: TeamCeilingSource): number {
   switch (kind) {
     case 'engine': {
@@ -109,9 +109,9 @@ function hardCeilingSide(kind: TeamAgentKind, source: TeamCeilingSource): number
 }
 
 /**
- * Whether a remaining header is low enough to throttle: under 10% of the
- * limit it names (D75).
- */
+Whether a remaining header is low enough to throttle: under 10% of the
+limit it names (D75).
+*/
 export function isLowRemainingHeader(remaining: number, limit: number): boolean {
   return (
     Number.isFinite(remaining) &&
@@ -122,19 +122,19 @@ export function isLowRemainingHeader(remaining: number, limit: number): boolean 
 }
 
 /**
- * The live running cap per entry: the configured cap, halved on every
- * throttle signal down to 1, recovering one step per quiet interval.
- * Throttling is per entry; the rate-limit mark that skips an agent is
- * teamPool's (a plan or key is shared, a running cap is not).
- */
+The live running cap per entry: the configured cap, halved on every
+throttle signal down to 1, recovering one step per quiet interval.
+Throttling is per entry; the rate-limit mark that skips an agent is
+teamPool's (a plan or key is shared, a running cap is not).
+*/
 export class TeamThrottleTracker {
   private readonly state = new Map<string, { current: number; changedMs: number }>()
 
   /**
-   * @param configuredCap The entry's running cap: the level's, or a custom value.
-   * @param recoverMs Quiet time per step back (TEAM_THROTTLE_RECOVER_MS).
-   * @param now The clock, injectable so tests skip the wait.
-   */
+  @param configuredCap The entry's running cap: the level's, or a custom value.
+  @param recoverMs Quiet time per step back (TEAM_THROTTLE_RECOVER_MS).
+  @param now The clock, injectable so tests skip the wait.
+  */
   public constructor(
     private readonly configuredCap: (entryId: string) => number,
     private readonly recoverMs: number,

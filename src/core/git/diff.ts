@@ -31,10 +31,10 @@ export interface TruncatedDiff {
 }
 
 /**
- * At most `maxBytes` of `output`, cut back to the last whole line. A
- * single line longer than the cap is cut hard (its tail decodes with
- * replacements); an empty output is never "truncated".
- */
+At most `maxBytes` of `output`, cut back to the last whole line. A
+single line longer than the cap is cut hard (its tail decodes with
+replacements); an empty output is never "truncated".
+*/
 export function truncateDiffBytes(output: Buffer, maxBytes: number): TruncatedDiff {
   if (output.length <= maxBytes) {
     return { bytes: output, truncated: false }
@@ -71,11 +71,11 @@ export function remoteBaseRef(remote: string, base: string): string {
 }
 
 /**
- * Whether `name` may stand in a pull request's base range: a plain ref
- * name (no option, force mark, `:` or whitespace) that git cannot read as
- * a range or a reflog step either, each `/` segment a name git takes as
- * one (not empty, not starting with `-` or `.`).
- */
+Whether `name` may stand in a pull request's base range: a plain ref
+name (no option, force mark, `:` or whitespace) that git cannot read as
+a range or a reflog step either, each `/` segment a name git takes as
+one (not empty, not starting with `-` or `.`).
+*/
 export function isRangeSafeRefName(name: string): boolean {
   return (
     isPlainRefName(name) &&
@@ -86,10 +86,10 @@ export function isRangeSafeRefName(name: string): boolean {
 }
 
 /**
- * The subjects of the commits a pull request would carry (M71's draft
- * prompt), newest first and at most `GIT_PROMPT_COMMITS_MAX`. Fixed flags;
- * the only names are the remote and the base, checked plain.
- */
+The subjects of the commits a pull request would carry (M71's draft
+prompt), newest first and at most `GIT_PROMPT_COMMITS_MAX`. Fixed flags;
+the only names are the remote and the base, checked plain.
+*/
 export function nativeBranchLogArgs(remote: string, base: string): readonly string[] {
   return [
     'log',

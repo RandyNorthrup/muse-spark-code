@@ -91,9 +91,9 @@ export interface PinnedResponse {
 }
 
 /**
- * What NAT64 discovery (RFC 7050) learned: the network's prefixes (none where
- * no DNS64 answers), or that it could not tell, and why.
- */
+What NAT64 discovery (RFC 7050) learned: the network's prefixes (none where
+no DNS64 answers), or that it could not tell, and why.
+*/
 export type Nat64Discovery =
   | { readonly isKnown: true; readonly prefixes: readonly Nat64Prefix[] }
   | { readonly isKnown: false; readonly detail: string }
@@ -107,9 +107,9 @@ export interface WebFetchDeps {
   /** The network's NAT64 prefixes (RFC 7050), asked only when an answer is IPv6. */
   readonly nat64: () => Promise<Nat64Discovery>
   /**
-   * One GET to the pinned address; `onConnected` once its TLS connection is
-   * up. Rejects when it cannot be made or `signal` aborts.
-   */
+  One GET to the pinned address; `onConnected` once its TLS connection is
+  up. Rejects when it cannot be made or `signal` aborts.
+  */
   readonly request: (
     target: PinnedTarget,
     signal: AbortSignal,
@@ -152,9 +152,9 @@ export type WebFetchResult =
   | { readonly kind: 'failed'; readonly failure: WebFetchFailure }
 
 /**
- * The host's fetch: one URL, stopped by the turn's signal; `isStillAllowed`
- * is asked before each request goes out.
- */
+The host's fetch: one URL, stopped by the turn's signal; `isStillAllowed`
+is asked before each request goes out.
+*/
 export type WebFetcher = (
   url: string,
   signal: AbortSignal,
@@ -231,9 +231,9 @@ async function answersFor(
 }
 
 /**
- * The addresses a checked URL's request may be pinned to, in the resolver's
- * order, once every answer is checked; the name is never looked up again.
- */
+The addresses a checked URL's request may be pinned to, in the resolver's
+order, once every answer is checked; the name is never looked up again.
+*/
 async function pin(
   checked: CheckedPageUrl,
   deps: WebFetchDeps,
@@ -260,7 +260,7 @@ async function pin(
   }
   const targets = usable.flatMap((address) => {
     const family = addressFamily(address)
-    return family === undefined ? [] : [{ url, host, address, family }]
+    return family === undefined ? [] : { url, host, address, family }
   })
   if (targets.length === 0) {
     refuse('unresolved', { host })
@@ -280,11 +280,11 @@ class ConnectFailed extends Error {
 }
 
 /**
- * The first pinned address to connect, as RFC 8305 races them: an attempt
- * starts when the one before has not connected within the attempt delay, or
- * at once when it failed; the first to connect wins and the others are
- * stopped. An attempt that connected is the answer, whatever it says.
- */
+The first pinned address to connect, as RFC 8305 races them: an attempt
+starts when the one before has not connected within the attempt delay, or
+at once when it failed; the first to connect wins and the others are
+stopped. An attempt that connected is the answer, whatever it says.
+*/
 function requestPinned(
   targets: readonly PinnedTarget[],
   deps: WebFetchDeps,
@@ -479,11 +479,11 @@ function mediaTypeOf(contentType: string): string {
 }
 
 /**
- * A text body as text: a byte order mark, else the header's charset, else
- * UTF-8 (a label nobody knows counts as none); an encoding this runtime
- * cannot decode refuses the page, never reads it as UTF-8. An HTML page is
- * decoded by its converter, as HTML decodes it (htmlCharset.ts).
- */
+A text body as text: a byte order mark, else the header's charset, else
+UTF-8 (a label nobody knows counts as none); an encoding this runtime
+cannot decode refuses the page, never reads it as UTF-8. An HTML page is
+decoded by its converter, as HTML decodes it (htmlCharset.ts).
+*/
 function decodeText(bytes: Uint8Array, contentType: string): string {
   const label = mimeParameter(contentType, CHARSET)
   const encoding = (label === undefined ? undefined : encodingOf(label)) ?? UTF_8
@@ -504,10 +504,10 @@ interface Decoded {
 }
 
 /**
- * The body through a decompressor. `pipeline` destroys the decompressor with
- * the body's error (an abort, a reset), so reading it fails rather than
- * waiting forever; its callback has nothing left to do.
- */
+The body through a decompressor. `pipeline` destroys the decompressor with
+the body's error (an abort, a reset), so reading it fails rather than
+waiting forever; its callback has nothing left to do.
+*/
 function through(body: AsyncIterable<Uint8Array>, decompressor: Transform): Decoded {
   let hasFailed = false
   const source = Readable.from(body)
@@ -542,9 +542,9 @@ function decoded(body: AsyncIterable<Uint8Array>, coding: string): Decoded {
 }
 
 /**
- * Every chunk, refused as soon as the total passes the caller-named cap.
- * Only the M118 raw path names one; the ordinary path streams instead.
- */
+Every chunk, refused as soon as the total passes the caller-named cap.
+Only the M118 raw path names one; the ordinary path streams instead.
+*/
 async function collect(chunks: AsyncIterable<Uint8Array>, maxBytes: number): Promise<Uint8Array> {
   const parts: Uint8Array[] = []
   let total = 0
@@ -565,11 +565,11 @@ interface BodyRead {
 }
 
 /**
- * The head window of the stream, stopping it past the window: breaking the
- * iteration destroys the source, and the fetch still releases the
- * connection. Memory never holds more than the window, however far a
- * decompressor expands or a stream runs.
- */
+The head window of the stream, stopping it past the window: breaking the
+iteration destroys the source, and the fetch still releases the
+connection. Memory never holds more than the window, however far a
+decompressor expands or a stream runs.
+*/
 async function collectHead(chunks: AsyncIterable<Uint8Array>, window: number): Promise<BodyRead> {
   const parts: Uint8Array[] = []
   let total = 0
@@ -592,10 +592,10 @@ async function collectHead(chunks: AsyncIterable<Uint8Array>, window: number): P
 const HEAD_CUT_MAX_BYTES = 4
 
 /**
- * The head whole to a character: when the window cut a final multi-byte
- * sequence, the head shortens past it. A genuinely undecodable head comes
- * back whole and refuses downstream as today.
- */
+The head whole to a character: when the window cut a final multi-byte
+sequence, the head shortens past it. A genuinely undecodable head comes
+back whole and refuses downstream as today.
+*/
 function wholeHead(bytes: Uint8Array, contentType: string): Uint8Array {
   const label = mimeParameter(contentType, CHARSET)
   const encoding = (label === undefined ? undefined : encodingOf(label)) ?? UTF_8
@@ -612,11 +612,11 @@ function wholeHead(bytes: Uint8Array, contentType: string): Uint8Array {
 }
 
 /**
- * The body within the caller-named cap (M118 raw files: refused past it),
- * else the head window with the stream stopped past it (truncated, never
- * refused). Damaged compressed data is refused as the coding's, not
- * reported as a network failure.
- */
+The body within the caller-named cap (M118 raw files: refused past it),
+else the head window with the stream stopped past it (truncated, never
+refused). Damaged compressed data is refused as the coding's, not
+reported as a network failure.
+*/
 async function readCapped(
   response: PinnedResponse,
   headers: ReadHeaders,
@@ -650,12 +650,12 @@ async function readCapped(
 }
 
 /**
- * The facts line, the notice and the marked content, as the model receives
- * them. D121: the page reaches the model whole — no char slice of ours.
- * The truncation notice names only a genuinely truncated page (past the
- * buffer window, or a conversion the worker stopped); past the model's real
- * context window the TOOLCAP spill carries the full text instead.
- */
+The facts line, the notice and the marked content, as the model receives
+them. D121: the page reaches the model whole — no char slice of ours.
+The truncation notice names only a genuinely truncated page (past the
+buffer window, or a conversion the worker stopped); past the model's real
+context window the TOOLCAP spill carries the full text instead.
+*/
 function pageText(
   page: WebPage,
   content: string,
@@ -692,10 +692,10 @@ const CONVERSION_FAILURES: Readonly<Record<HtmlConversionFailure, WebFetchFailur
 }
 
 /**
- * The page's text, HTML as Markdown by the converter (on its worker): the
- * final URL and the title go inside the markers. A page the converter could
- * not convert in time or memory is refused with that reason.
- */
+The page's text, HTML as Markdown by the converter (on its worker): the
+final URL and the title go inside the markers. A page the converter could
+not convert in time or memory is refused with that reason.
+*/
 async function contentOf(
   body: {
     readonly bytes: Uint8Array
@@ -911,10 +911,10 @@ function isAlwaysAllowed(): boolean {
 }
 
 /**
- * Fetches one page. Resolves with the page, a redirect to another host, or
- * the reason nothing was read; rejects only when `turn` aborts (Stop).
- * `isStillAllowed` is asked before each hop's lookup and connection.
- */
+Fetches one page. Resolves with the page, a redirect to another host, or
+the reason nothing was read; rejects only when `turn` aborts (Stop).
+`isStillAllowed` is asked before each hop's lookup and connection.
+*/
 export async function fetchWebPage(
   rawUrl: string,
   deps: WebFetchDeps,

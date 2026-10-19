@@ -22,11 +22,11 @@ const DRIVE_RELATIVE = /^[a-z]:(?!\/)/iu
 const LOCAL_VERBATIM = /^\\\\\?\\([a-z]:\\)/iu
 
 /**
- * Muse Code names local files `\\?\X:\…`: the same file as `X:\…`, the
- * prefix only turning off Win32 normalization, so the segment rules still
- * apply after it. `\\?\UNC\`, `\\?\Volume{…}`, `\\?\GLOBALROOT`, `\\.\` and
- * `\??\` keep their prefix and stay refused.
- */
+Muse Code names local files `\\?\X:\…`: the same file as `X:\…`, the
+prefix only turning off Win32 normalization, so the segment rules still
+apply after it. `\\?\UNC\`, `\\?\Volume{…}`, `\\?\GLOBALROOT`, `\\.\` and
+`\??\` keep their prefix and stay refused.
+*/
 export function normalWindowsPath(given: string): string {
   return given.replace(LOCAL_VERBATIM, '$1')
 }

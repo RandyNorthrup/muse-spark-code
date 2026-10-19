@@ -51,11 +51,11 @@ try {
 }
 
 /**
- * Spawn the guarded helper: the packaged guard script through the absolute
- * system PowerShell, without inheriting credentials, a shell, or a visible
- * console window. Shared by the slot exchanges and the pipe relay, which
- * launch the same binary the same way.
- */
+Spawn the guarded helper: the packaged guard script through the absolute
+system PowerShell, without inheriting credentials, a shell, or a visible
+console window. Shared by the slot exchanges and the pipe relay, which
+launch the same binary the same way.
+*/
 export async function spawnGuardedVaultHelper(
   helper: WindowsVaultExecutable,
 ): Promise<Awaited<ReturnType<typeof spawnResourceProcess>>> {

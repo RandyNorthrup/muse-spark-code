@@ -51,10 +51,10 @@ export function runOf(value) {
 }
 
 /**
- * One entry of the commits/pulls answer, checked. Anything the gate cannot
- * read fails closed: an entry that claims this merge but names no head to
- * check would otherwise drop that pull request out of the release door.
- */
+One entry of the commits/pulls answer, checked. Anything the gate cannot
+read fails closed: an entry that claims this merge but names no head to
+check would otherwise drop that pull request out of the release door.
+*/
 export function pullOf(value) {
   if (!isRecord(value) || typeof value['number'] !== 'number')
     throw new GateError("a pull request in GitHub's answer lacks a field the gate reads")

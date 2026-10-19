@@ -48,9 +48,9 @@ export interface MacosScreenRecordingDeps {
   readonly environment: NodeJS.ProcessEnv
   readonly fileExists: (file: string) => boolean
   /** REDM104L3's installed-root/link verifier, bound at integration. Absence refuses.
-   * The requirement comes from trusted release metadata: expected Team ID and
-   * designated requirement, or the exact ad-hoc CDHash; never workspace settings.
-   */
+  The requirement comes from trusted release metadata: expected Team ID and
+  designated requirement, or the exact ad-hoc CDHash; never workspace settings.
+  */
   readonly verifyTrustedHelper?: (file: string) => Promise<
     | {
         readonly path: string
@@ -62,10 +62,10 @@ export interface MacosScreenRecordingDeps {
   /** Host power-suspend subscription. Unsubscribe when the run settles. */
   readonly onSuspend?: (listener: () => void) => () => void
   /**
-   * Spawn directly with this exact argument array and environment; no shell.
-   * The driver hands it only the guarded recorder environment below, so a
-   * raw environment does not type-check here.
-   */
+  Spawn directly with this exact argument array and environment; no shell.
+  The driver hands it only the guarded recorder environment below, so a
+  raw environment does not type-check here.
+  */
   readonly spawn: (command: string, args: readonly string[], env: GuardedChildEnv) => HelperChild
   /** M1's bounded sniffer, injected until its lane is integrated. */
   readonly inspect: (file: string) => Promise<MediaInfo>
@@ -106,8 +106,8 @@ const probeSchema = z.strictObject({
 })
 
 /** Called only from the recovery action the user chose.
- * @unwired M105 macOS recording permission recovery
- */
+@unwired M105 macOS recording permission recovery
+*/
 export async function openMacosRecordingPermissions(
   permission: Permission,
   openExternal: (uri: string) => Promise<void>,
@@ -120,11 +120,11 @@ function unavailable(reason: string): ScreenRecordingResult & { readonly ok: fal
 }
 
 /**
- * No credential of any shape, or inherited disclaim marker, reaches the
- * helper/converters — and the recorder helpers run fixed absolute commands
- * with the host working directory, never a workspace: absolute PATH entries
- * only, links followed.
- */
+No credential of any shape, or inherited disclaim marker, reaches the
+helper/converters — and the recorder helpers run fixed absolute commands
+with the host working directory, never a workspace: absolute PATH entries
+only, links followed.
+*/
 function childEnvironment(base: NodeJS.ProcessEnv): GuardedChildEnv {
   const filtered = Object.fromEntries(
     Object.entries(base).filter(

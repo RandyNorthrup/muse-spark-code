@@ -30,7 +30,7 @@ export class ScheduleBackgroundCoordinator {
     else await this.deps.entry.register(next, consent)
   }
   /** Mutators must refuse a live marker without waiting while holding this lock.
-   * Never hold the consent lock across a turn or wait forever to acquire it. */
+  Never hold the consent lock across a turn or wait forever to acquire it. */
   async wakeBarrier(): Promise<void> {
     let timer: ReturnType<typeof setTimeout> | undefined
     try {

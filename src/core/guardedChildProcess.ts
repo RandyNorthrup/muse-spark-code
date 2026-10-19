@@ -24,12 +24,12 @@ export type GuardedSpawnOptions = Omit<SpawnOptions, 'env'> & {
 }
 
 /**
- * Starts `file` with the guarded child environment for its working
- * directory: a bare name still resolves, but never to a program planted in
- * the workspace, and nothing it starts by bare name does either. The
- * overloads mirror `spawn`'s own: an all-pipe stdio array keeps the
- * non-null pipes.
- */
+Starts `file` with the guarded child environment for its working
+directory: a bare name still resolves, but never to a program planted in
+the workspace, and nothing it starts by bare name does either. The
+overloads mirror `spawn`'s own: an all-pipe stdio array keeps the
+non-null pipes.
+*/
 export function spawnGuarded(
   file: string,
   args: readonly string[],
@@ -49,10 +49,10 @@ export function spawnGuarded(
 }
 
 /**
- * `execFile` options with the guarded child environment. Only string
- * encodings: every call site reads text, so a buffer encoding does not
- * type-check here.
- */
+`execFile` options with the guarded child environment. Only string
+encodings: every call site reads text, so a buffer encoding does not
+type-check here.
+*/
 export type GuardedExecFileOptions = Omit<ExecFileOptions, 'env' | 'encoding'> & {
   readonly env: GuardedChildEnv
   readonly encoding?: BufferEncoding | undefined
@@ -66,10 +66,10 @@ export type GuardedExecFileCallback = (
 ) => void
 
 /**
- * Runs `file` to its end with the guarded child environment for its cwd.
- * Like `execFile`, the callback may be omitted for a fire-and-forget start
- * whose errors surface on the child.
- */
+Runs `file` to its end with the guarded child environment for its cwd.
+Like `execFile`, the callback may be omitted for a fire-and-forget start
+whose errors surface on the child.
+*/
 export function execFileGuarded(
   file: string,
   args: readonly string[],

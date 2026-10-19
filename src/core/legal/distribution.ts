@@ -17,11 +17,11 @@ import { excerpt, isLegalGlobMatch } from './files'
 import { LEGAL_PATH_MAX_CHARS, LEGAL_FINDINGS_MAX } from '../../shared/constants'
 
 /**
- * One bundle's build record (M97 CM971-R3): what its metafile lists and
- * the SHA-256 the build captured for the exact bytes it compiled and
- * wrote. Each bundle is proven on its own, so one bundle's record never
- * vouches for another's.
- */
+One bundle's build record (M97 CM971-R3): what its metafile lists and
+the SHA-256 the build captured for the exact bytes it compiled and
+wrote. Each bundle is proven on its own, so one bundle's record never
+vouches for another's.
+*/
 export interface BundleEvidence {
   /** The bundle's name (its metafile stem), for named reasons. */
   readonly name: string
@@ -32,9 +32,9 @@ export interface BundleEvidence {
   /** Listed inputs or outputs outside the workspace, by name. */
   readonly outside: readonly string[]
   /**
-   * Modules a build plugin generated (`namespace:name`): attributed only
-   * by the hash the build recorded for the contents it handed esbuild.
-   */
+  Modules a build plugin generated (`namespace:name`): attributed only
+  by the hash the build recorded for the contents it handed esbuild.
+  */
   readonly generated?: readonly string[]
   readonly generatedHashes?: Readonly<Record<string, string>>
   /** Build-captured SHA-256 per path; absent when no build record exists. */
@@ -47,9 +47,9 @@ export interface DistributionEvidence {
   /** Exact bundle inputs (an esbuild metafile's input list), when known. */
   readonly bundleInputs?: readonly string[]
   /**
-   * Per-bundle build records proving those inputs fresh (M97 CM971-R3):
-   * file names alone, or hashes without their bundle, never do.
-   */
+  Per-bundle build records proving those inputs fresh (M97 CM971-R3):
+  file names alone, or hashes without their bundle, never do.
+  */
   readonly bundles?: readonly BundleEvidence[]
   /** A package manifest's shipped-file allowlist (`files`, PEP 639). */
   readonly packageFiles?: readonly string[]
@@ -68,9 +68,9 @@ export interface ShippedSet {
   /** Production dependencies with no material or no distribution evidence. */
   readonly unknownNames: readonly string[]
   /**
-   * Root-level files the package carries beside its bundles (a notice
-   * file): every root file the packaging ignore rules do not exclude.
-   */
+  Root-level files the package carries beside its bundles (a notice
+  file): every root file the packaging ignore rules do not exclude.
+  */
   readonly packagedRoot: ReadonlySet<string>
   /** One sentence naming what the obligations were read against. */
   readonly summary: string
@@ -217,20 +217,20 @@ function noticesMention(
 }
 
 /**
- * Evidence paths use forward slashes (M97 CM971R2): Windows separators
- * are normalized before any comparison, so the same evidence matches on
- * every platform.
- */
+Evidence paths use forward slashes (M97 CM971R2): Windows separators
+are normalized before any comparison, so the same evidence matches on
+every platform.
+*/
 export function normalizeEvidencePath(entry: string): string {
   return entry.replaceAll('\\', '/').replace(/^\.\//, '')
 }
 
 /**
- * The SHA-256 of a snapshot member's exact bytes (M97 CM971-R3). A
- * snapshot that admits bytes (the native reader) answers from those
- * bytes, byte-order mark included, exactly as the build hashes them; an
- * in-memory snapshot's text is its bytes. `undefined` when unreadable.
- */
+The SHA-256 of a snapshot member's exact bytes (M97 CM971-R3). A
+snapshot that admits bytes (the native reader) answers from those
+bytes, byte-order mark included, exactly as the build hashes them; an
+in-memory snapshot's text is its bytes. `undefined` when unreadable.
+*/
 function currentContentHash(snapshot: LegalFileSnapshot, file: string): string | undefined {
   if (snapshot.readFileHash !== undefined) return snapshot.readFileHash(file)
   const text = snapshot.readFile(file)
@@ -248,13 +248,13 @@ function digestOf(
 }
 
 /**
- * Named reasons a set of bundle records does not prove the shipped
- * artifacts fresh (M97 CM971-R3); empty only when every bundle lists at
- * least one input and one output, nothing outside the workspace, every
- * listed input matches its build-captured hash, every listed output
- * exists and matches its hash, and no two records disagree about one
- * input.
- */
+Named reasons a set of bundle records does not prove the shipped
+artifacts fresh (M97 CM971-R3); empty only when every bundle lists at
+least one input and one output, nothing outside the workspace, every
+listed input matches its build-captured hash, every listed output
+exists and matches its hash, and no two records disagree about one
+input.
+*/
 export function bundleFreshnessProblems(
   snapshot: LegalFileSnapshot,
   fileSet: ReadonlySet<string>,
@@ -323,10 +323,10 @@ function packagedRootFiles(
 }
 
 /**
- * Work out what ships: the distributed file set from existing bundle
- * inputs or package inventories. Only material in the shipped set counts;
- * scope alone never decides, and a dev dependency can still ship.
- */
+Work out what ships: the distributed file set from existing bundle
+inputs or package inventories. Only material in the shipped set counts;
+scope alone never decides, and a dev dependency can still ship.
+*/
 export function computeShipped(
   snapshot: LegalFileSnapshot,
   dependencies: readonly LegalDependency[],
@@ -441,11 +441,11 @@ export function computeShipped(
 }
 
 /**
- * Check the shipped set's notice obligations. `evaluated` carries
- * canonical license ids per dependency; Apache-2.0 entries with a present
- * upstream NOTICE need attribution, and every shipped dependency needs a
- * notices entry.
- */
+Check the shipped set's notice obligations. `evaluated` carries
+canonical license ids per dependency; Apache-2.0 entries with a present
+upstream NOTICE need attribution, and every shipped dependency needs a
+notices entry.
+*/
 export function checkNotices(
   snapshot: LegalFileSnapshot,
   evaluated: readonly EvaluatedDependency[],

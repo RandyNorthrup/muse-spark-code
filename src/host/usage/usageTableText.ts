@@ -8,10 +8,10 @@ import { readUsageTableFile } from '../../runtime/usage/usageTableFile'
 import type { Logger } from '../logger'
 
 /**
- * The usage table's text: the workspace read first, the installed disk
- * copy when that read fails. The fallback is logged with the failure's
- * kind, and the disk read's own failure still throws with its cause.
- */
+The usage table's text: the workspace read first, the installed disk
+copy when that read fails. The fallback is logged with the failure's
+kind, and the disk read's own failure still throws with its cause.
+*/
 export async function readHostUsageTableText(
   readPrimary: () => Promise<Uint8Array>,
   fsPath: string,

@@ -5,17 +5,17 @@ import { VaultStoreUnavailableError } from '../../core/vault/broker/ports'
 import { KeyringVaultAnchor } from './keyringAnchor'
 
 /**
- * The anchor file beside the vault files it protects, owner-only like
- * them. Only used when the OS keyring binding is not installed (a staged
- * package carries no node_modules): the record and every rollback rule are
- * the keyring anchor's, inherited whole, so the two anchors never disagree
- * on what history is valid. The OS store stays preferred wherever its
- * binding is installed; a vault anchored in one place never silently adopts
- * the other's state, and switching places without carrying the record fails
- * closed as a rollback, never as fresh. Owner-only means modes on POSIX;
- * on Windows the bindings pass the pipe-helper guard, which sets the
- * owner-only DACL on the directory and the file after each write.
- */
+The anchor file beside the vault files it protects, owner-only like
+them. Only used when the OS keyring binding is not installed (a staged
+package carries no node_modules): the record and every rollback rule are
+the keyring anchor's, inherited whole, so the two anchors never disagree
+on what history is valid. The OS store stays preferred wherever its
+binding is installed; a vault anchored in one place never silently adopts
+the other's state, and switching places without carrying the record fails
+closed as a rollback, never as fresh. Owner-only means modes on POSIX;
+on Windows the bindings pass the pipe-helper guard, which sets the
+owner-only DACL on the directory and the file after each write.
+*/
 export function vaultAnchorFile(dataDir: string): string {
   return path.join(dataDir, 'anchor', 'anchor.v1.json')
 }

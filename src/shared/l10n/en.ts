@@ -2836,10 +2836,10 @@ export const EN = {
   /** A web fetch on the Model API backend (M69): {action} is the URL, shown as code. */
   approvalFetch: 'Muse wants to fetch {action}',
   /**
-   * A browser check on the Model API backend (M81): {action} is the URL. The
-   * second when its host is beyond loopback and the setting: allowing it
-   * widens the check to that host.
-   */
+  A browser check on the Model API backend (M81): {action} is the URL. The
+  second when its host is beyond loopback and the setting: allowing it
+  widens the check to that host.
+  */
   approvalBrowserCheck: 'Muse wants to open {action} in a headless browser',
   approvalBrowserCheckWiden:
     'Muse wants to open {action} in a headless browser, beyond this computer',

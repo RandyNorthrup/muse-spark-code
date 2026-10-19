@@ -28,9 +28,9 @@ function renderEditor(onSave: (thresholds: AccountThresholds) => void) {
   )
 }
 
-function setInput(name: string, text: string) {
-  const input = document.querySelector(`input[name="${CSS.escape(name)}"]`)
-  if (input === null) throw new Error(`missing input ${name}`)
+function setInput(text: string) {
+  const input = document.querySelector('input[name="requests.day"]')
+  if (input === null) throw new Error('missing input requests.day')
   fireEvent.change(input, { target: { value: text } })
 }
 
@@ -42,7 +42,7 @@ describe('threshold editor validation', () => {
     })
     // A counts field takes whole numbers: 1e2 passes the input's native
     // checks but fails the shape, exactly as a typed exponent would.
-    setInput('requests.day', '1e2')
+    setInput('1e2')
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.goalEditSave }))
     expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.accounts.invalidAccount)
     expect(saved).toEqual([])
@@ -53,7 +53,7 @@ describe('threshold editor validation', () => {
     renderEditor((thresholds) => {
       saved.push(thresholds)
     })
-    setInput('requests.day', '12')
+    setInput('12')
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.goalEditSave }))
     expect(screen.queryByRole('alert')).toBeNull()
     expect(saved).toHaveLength(1)

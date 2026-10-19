@@ -28,11 +28,11 @@ const MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 const MILLISECONDS_PER_WEEK = MILLISECONDS_PER_DAY * DAYS_PER_WEEK
 
 /**
- * A finished (or interrupted) team task, as the ledger stores it. `done` is
- * a success that needed no merge (research, review, a question answered);
- * `merged` is a success whose changes reached the checkout. The two are
- * counted separately, never equated.
- */
+A finished (or interrupted) team task, as the ledger stores it. `done` is
+a success that needed no merge (research, review, a question answered);
+`merged` is a success whose changes reached the checkout. The two are
+counted separately, never equated.
+*/
 export type TeamHistoryOutcome =
   'done' | 'merged' | 'discarded' | 'failed' | 'stopped' | 'capped' | 'cancelled' | 'interrupted'
 
@@ -91,9 +91,9 @@ export interface HistoryFilter {
 export type HistorySortKey = 'cost' | 'duration' | 'tokens'
 
 /**
- * Which window a totals figure covers. `day` is the caller's local calendar
- * day holding `now` in the injected `timeZone`; `week` is trailing 7 days.
- */
+Which window a totals figure covers. `day` is the caller's local calendar
+day holding `now` in the injected `timeZone`; `week` is trailing 7 days.
+*/
 export type HistoryPeriod = 'day' | 'week' | 'all'
 
 export interface HistoryTotals {
@@ -132,10 +132,10 @@ export interface EntryFigures {
 }
 
 /**
- * Tokens in and out, summed. Cached input is a subset of input and reasoning
- * is a subset of output (D75's accounting definition), so neither is ever
- * added again. Hook-added tokens stay a line of their own.
- */
+Tokens in and out, summed. Cached input is a subset of input and reasoning
+is a subset of output (D75's accounting definition), so neither is ever
+added again. Hook-added tokens stay a line of their own.
+*/
 export function totalTokens(row: Pick<TeamHistoryRow, 'tokens'>): number {
   return row.tokens.input + row.tokens.output
 }
@@ -187,9 +187,9 @@ function sortValue(row: TeamHistoryRow, key: HistorySortKey): number | UsdAmount
 }
 
 /**
- * Rows ordered by cost, duration or tokens, stable. Rows without a value
- * (unpriced cost, open duration) sort last in both directions.
- */
+Rows ordered by cost, duration or tokens, stable. Rows without a value
+(unpriced cost, open duration) sort last in both directions.
+*/
 export function sortHistory(
   rows: readonly TeamHistoryRow[],
   sort: { readonly key: HistorySortKey; readonly direction: 'asc' | 'desc' },
@@ -213,9 +213,9 @@ export function sortHistory(
 }
 
 /**
- * The wall-clock fields of one instant in `timeZone`, read through
- * `formatToParts` so no locale's field order can move them.
- */
+The wall-clock fields of one instant in `timeZone`, read through
+`formatToParts` so no locale's field order can move them.
+*/
 function wallFields(
   ms: number,
   timeZone: string,
@@ -255,12 +255,12 @@ function wallFields(
 const WALL_SOLVE_PASSES = 3
 
 /**
- * The UTC instant whose wall clock in `timeZone` reads `wallUtcMs` (a wall
- * reading expressed as UTC milliseconds). Solved iteratively: each pass
- * measures how far the guess's wall clock overshoots and shifts back.
- * Converges in two passes except across a DST jump, where three suffice;
- * an unknown zone throws the `Intl` `RangeError`.
- */
+The UTC instant whose wall clock in `timeZone` reads `wallUtcMs` (a wall
+reading expressed as UTC milliseconds). Solved iteratively: each pass
+measures how far the guess's wall clock overshoots and shifts back.
+Converges in two passes except across a DST jump, where three suffice;
+an unknown zone throws the `Intl` `RangeError`.
+*/
 function utcFromWallClock(wallUtcMs: number, timeZone: string): number {
   let guess = wallUtcMs
   for (let pass = 0; pass < WALL_SOLVE_PASSES; pass += 1) {
@@ -283,9 +283,9 @@ function utcFromWallClock(wallUtcMs: number, timeZone: string): number {
 }
 
 /**
- * The UTC bounds of the local calendar day holding `now` in `timeZone`:
- * local midnight to the next local midnight, DST jumps included.
- */
+The UTC bounds of the local calendar day holding `now` in `timeZone`:
+local midnight to the next local midnight, DST jumps included.
+*/
 function localDayWindow(
   now: number,
   timeZone: string,
@@ -348,12 +348,12 @@ function compareTotals(groupBy: HistoryGroupBy, left: HistoryTotals, right: Hist
 }
 
 /**
- * Totals grouped by role, by entry (per agent slot) or by agent, over one
- * period. `day` is the local calendar day holding `now` in `timeZone` (an
- * IANA name such as `America/Los_Angeles`; unknown names throw the `Intl`
- * `RangeError`). Figures the provider reported and our own estimates stay
- * apart; unpriced tasks are counted, never costed.
- */
+Totals grouped by role, by entry (per agent slot) or by agent, over one
+period. `day` is the local calendar day holding `now` in `timeZone` (an
+IANA name such as `America/Los_Angeles`; unknown names throw the `Intl`
+`RangeError`). Figures the provider reported and our own estimates stay
+apart; unpriced tasks are counted, never costed.
+*/
 export function historyTotals(
   rows: readonly TeamHistoryRow[],
   args: {
@@ -422,14 +422,14 @@ function averageCost(values: readonly UsdAmount[]): UsdAmount | undefined {
 }
 
 /**
- * The record's figures for exactly the pool's entries, in the pool's order:
- * tasks done (outcome `done`), capped, failed and cancelled; changes merged
- * and discarded (`merged` counts merges only, never other successes);
- * review findings by severity; rounds needed to pass review; average tokens,
- * cost and minutes. Rows for entries no longer in the pool are ignored here
- * (history totals above still count them). The pool order array is never
- * mutated; the figures follow it.
- */
+The record's figures for exactly the pool's entries, in the pool's order:
+tasks done (outcome `done`), capped, failed and cancelled; changes merged
+and discarded (`merged` counts merges only, never other successes);
+review findings by severity; rounds needed to pass review; average tokens,
+cost and minutes. Rows for entries no longer in the pool are ignored here
+(history totals above still count them). The pool order array is never
+mutated; the figures follow it.
+*/
 export function entryFigures(
   rows: readonly TeamHistoryRow[],
   poolOrder: readonly { readonly roleId: string; readonly entryId: string }[],
@@ -459,17 +459,13 @@ export function entryFigures(
       discarded: scoped.filter((row) => row.outcome === 'discarded').length,
       interrupted: scoped.filter((row) => row.outcome === 'interrupted').length,
       findingsBySeverity,
-      roundsToPassAvg: average(
-        scoped.flatMap((row) => (row.roundsUsed === undefined ? [] : [row.roundsUsed])),
-      ),
+      roundsToPassAvg: average(scoped.flatMap((row) => row.roundsUsed ?? [])),
       avgTokens: average(scoped.map((row) => totalTokens(row))),
-      avgCostUsd: averageCost(
-        scoped.flatMap((row) => (row.costUsd === undefined ? [] : [row.costUsd])),
-      ),
+      avgCostUsd: averageCost(scoped.flatMap((row) => row.costUsd ?? [])),
       avgMinutes: average(
         scoped.flatMap((row) => {
           const duration = durationMs(row)
-          return duration === undefined ? [] : [duration / MILLISECONDS_PER_MINUTE]
+          return duration === undefined ? [] : duration / MILLISECONDS_PER_MINUTE
         }),
       ),
     }
@@ -477,9 +473,9 @@ export function entryFigures(
 }
 
 /**
- * Rows the retention keeps: everything when `cleanupPeriodDays` is 0, else
- * rows started within the last `cleanupPeriodDays` days.
- */
+Rows the retention keeps: everything when `cleanupPeriodDays` is 0, else
+rows started within the last `cleanupPeriodDays` days.
+*/
 export function selectRetained(
   rows: readonly TeamHistoryRow[],
   now: number,
@@ -509,9 +505,9 @@ function exportTranscript(row: TeamHistoryRow, options: HistoryExportOptions): s
 }
 
 /**
- * Cell-opening characters a spreadsheet reads as a formula (the OWASP CSV
- * injection rule): equals, plus, minus, at, tab and carriage return.
- */
+Cell-opening characters a spreadsheet reads as a formula (the OWASP CSV
+injection rule): equals, plus, minus, at, tab and carriage return.
+*/
 const CSV_FORMULA_PREFIXES = '=+-@\t\r'
 
 function csvCell(value: string | number): string {

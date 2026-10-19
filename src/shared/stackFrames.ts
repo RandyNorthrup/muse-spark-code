@@ -43,10 +43,10 @@ function frameLocation(line: string): string | undefined {
 }
 
 /**
- * The package frames of a stack, most recent call first, capped at
- * REPORT_STACK_MAX_FRAMES. `packagePath` maps a frame's file or URL to its
- * package-relative path, or undefined for anything outside the package.
- */
+The package frames of a stack, most recent call first, capped at
+REPORT_STACK_MAX_FRAMES. `packagePath` maps a frame's file or URL to its
+package-relative path, or undefined for anything outside the package.
+*/
 export function packageFramesOf(
   stack: string,
   packagePath: (location: string) => string | undefined,

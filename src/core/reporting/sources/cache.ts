@@ -64,10 +64,10 @@ export const reportCacheEntrySchema = z.strictObject({
 type CacheEntry = z.infer<typeof reportCacheEntrySchema>
 
 /**
- * Shared host/runtime storage binding: owner-only, bounded reads and atomic
- * writes of reports/v1/cache/index.json outside the workspace. It must refuse
- * links and check confinement. No credential or raw response is passed to it.
- */
+Shared host/runtime storage binding: owner-only, bounded reads and atomic
+writes of reports/v1/cache/index.json outside the workspace. It must refuse
+links and check confinement. No credential or raw response is passed to it.
+*/
 export interface ReportCacheStorage {
   read(signal: AbortSignal): Promise<unknown>
   write(entries: readonly CacheEntry[], signal: AbortSignal): Promise<void>

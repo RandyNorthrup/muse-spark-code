@@ -75,11 +75,11 @@ export function importPromptFile(file: string, scope: SavedPrompt['scope']) {
 }
 
 /**
- * User lane resolves agentDataFolder()/prompts/<slug>.md, independent of
- * workspace/editor. Workspace lane resolves .muse/prompts/<slug>.md.
- * Adapters validate files with parsePromptFile, enforce unique ids per scope,
- * and use checked, atomic writes. They never execute stored text.
- */
+User lane resolves agentDataFolder()/prompts/<slug>.md, independent of
+workspace/editor. Workspace lane resolves .muse/prompts/<slug>.md.
+Adapters validate files with parsePromptFile, enforce unique ids per scope,
+and use checked, atomic writes. They never execute stored text.
+*/
 export interface PromptStoragePort {
   list(scope: SavedPrompt['scope']): Promise<readonly SavedPrompt[]>
   write(prompt: SavedPrompt, shouldKeepNewer?: boolean): Promise<void>
@@ -158,11 +158,11 @@ export function promptExportName(slug: string): string {
 }
 
 /**
- * The Share → File save dialog's suggested name for a prompt title. The
- * title itself stays unlimited; only this one filename component is cut to
- * the platform's supported limit, on a UTF-8 boundary, so a long first line
- * never hands the dialog an ENAMETOOLONG default.
- */
+The Share → File save dialog's suggested name for a prompt title. The
+title itself stays unlimited; only this one filename component is cut to
+the platform's supported limit, on a UTF-8 boundary, so a long first line
+never hands the dialog an ENAMETOOLONG default.
+*/
 export function promptShareFilename(title: string): string {
   const cleaned = title.replaceAll(/[^\p{L}\p{N}_-]/gu, '-')
   const encoded = new TextEncoder().encode(cleaned)

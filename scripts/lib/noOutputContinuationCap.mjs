@@ -5,10 +5,10 @@
 import { readFileSync } from 'node:fs'
 
 /**
- * Check the no-cap rule over one source file (ModelApiHost.ts).
- * Fails on missing, empty or unreadable input: no input is never a pass.
- * Returns `{ ok: true }` or `{ ok: false, problem }`.
- */
+Check the no-cap rule over one source file (ModelApiHost.ts).
+Fails on missing, empty or unreadable input: no input is never a pass.
+Returns `{ ok: true }` or `{ ok: false, problem }`.
+*/
 export function checkNoOutputContinuationCap(filePath) {
   if (typeof filePath !== 'string' || filePath.length === 0) {
     return {

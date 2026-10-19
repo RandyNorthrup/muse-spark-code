@@ -90,10 +90,10 @@ export function searchSettlement(
 export type PaidUseDecision = boolean | PaidQuote | undefined
 
 /**
- * Why the paid-choice store could not be read or written, as a closed kind:
- * the person is told its translated word (`paidStoreReasonText`), never an
- * errno or an error's name.
- */
+Why the paid-choice store could not be read or written, as a closed kind:
+the person is told its translated word (`paidStoreReasonText`), never an
+errno or an error's name.
+*/
 export type PaidStoreFailureKind = 'denied' | 'diskFull' | 'unknown'
 
 /** Maps a store throw onto the closed kind, from its errno code only. */
@@ -122,10 +122,10 @@ export function paidStoreReasonText(kind: PaidStoreFailureKind): string {
 }
 
 /**
- * Saved "always" choices the quote store could not list when the question
- * was asked: the store failure's closed kind, never its message. The surface
- * shows its word with the question, so asking again never looks unexplained.
- */
+Saved "always" choices the quote store could not list when the question
+was asked: the store failure's closed kind, never its message. The surface
+shows its word with the question, so asking again never looks unexplained.
+*/
 export interface PaidQuoteNotice {
   readonly kind: PaidStoreFailureKind
 }
@@ -229,10 +229,10 @@ export function paidWindowOnceFeatures(): ReadonlySet<PaidFeature> {
 }
 
 /**
- * Exact published rates, in the installed locale. D121: no request cap of
- * ours — the card prices the task from the rates, and every request is
- * tallied as it goes until the task ends or is stopped.
- */
+Exact published rates, in the installed locale. D121: no request cap of
+ours — the card prices the task from the rates, and every request is
+tallied as it goes until the task ends or is stopped.
+*/
 export function subagentTaskPrice(modelId: string): string {
   const tier = modelApiPaidTier(modelId)
   if (tier === undefined) {
@@ -248,11 +248,11 @@ export function subagentTaskPrice(modelId: string): string {
 }
 
 /**
- * One paid use the user is asked about (M58, PLAN.md D48): what the popup
- * names before anything is billed. Interactive web search Once covers the window
- * under the same model and price binding; each response still carries its own
- * validated quote and bounded search reservation.
- */
+One paid use the user is asked about (M58, PLAN.md D48): what the popup
+names before anything is billed. Interactive web search Once covers the window
+under the same model and price binding; each response still carries its own
+validated quote and bounded search reservation.
+*/
 export type PaidUseRequest =
   | {
       readonly feature: 'autoCompaction'
@@ -339,10 +339,10 @@ export type PaidUseRequest =
 export { paidFeatureName, usablePaidFeatures } from './paidBoundary'
 
 /**
- * The paid features Account & usage lists (the review of PR #30): the ones
- * this backend can use, and any this window has already used, whatever the
- * backend now, so its total is the sum of the rows it shows.
- */
+The paid features Account & usage lists (the review of PR #30): the ones
+this backend can use, and any this window has already used, whatever the
+backend now, so its total is the sum of the rows it shows.
+*/
 export function listedPaidFeatures(
   usable: readonly PaidFeature[],
   tally: PaidTally,
@@ -383,10 +383,10 @@ function tokenRatesByTier(): string {
 }
 
 /**
- * What a best-of-N run may bill (M77, PLAN.md D49): the per-token rates of
- * the model, the attempt count and the request ceiling per attempt. The
- * total cannot be known in advance, so the popup quotes exactly these.
- */
+What a best-of-N run may bill (M77, PLAN.md D49): the per-token rates of
+the model, the attempt count and the request ceiling per attempt. The
+total cannot be known in advance, so the popup quotes exactly these.
+*/
 export function bestOfNPrice(
   modelId: string,
   attempts: number,
@@ -408,10 +408,10 @@ export function bestOfNPrice(
 }
 
 /**
- * What one prompt/agent hook run may bill (M91, PLAN.md D70): the per-token
- * rates of the model. The total cannot be known in advance, so the popup
- * quotes exactly these; unknown models cannot authorize a hook run.
- */
+What one prompt/agent hook run may bill (M91, PLAN.md D70): the per-token
+rates of the model. The total cannot be known in advance, so the popup
+quotes exactly these; unknown models cannot authorize a hook run.
+*/
 export function hookModelPrice(modelId: string): string {
   const tier = modelApiPaidTier(modelId)
   return tier === undefined ? UI_TEXT.subagentTariffUnknown : tokenRatePrice(tier)

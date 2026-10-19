@@ -17,19 +17,19 @@ import { windowsVaultTransport } from './windowsVaultTransport'
 import type { PresenceRecords } from './slotIdentity'
 
 /**
- * Windows slots: DPAPI for the current user (the OS store), a non-exportable
- * RSA-2048 decrypt key on the TPM through CNG's Platform Crypto Provider for
- * hardware, and the same key with a fresh Windows Hello signature over the
- * broker's challenge as the presence gate. Every tier runs through the
- * trusted helper executable the host builds and hands to the broker.
- */
+Windows slots: DPAPI for the current user (the OS store), a non-exportable
+RSA-2048 decrypt key on the TPM through CNG's Platform Crypto Provider for
+hardware, and the same key with a fresh Windows Hello signature over the
+broker's challenge as the presence gate. Every tier runs through the
+trusted helper executable the host builds and hands to the broker.
+*/
 export class WindowsVaultSlots implements VaultSlotProvider {
   private readonly transport: ReturnType<typeof windowsVaultTransport>
   /**
-   * A fresh Windows Hello signature over a new challenge: the helper prompts
-   * (naming this exact use) and the signature is verified against the
-   * presence slot's key before the operation proceeds.
-   */
+  A fresh Windows Hello signature over a new challenge: the helper prompts
+  (naming this exact use) and the signature is verified against the
+  presence slot's key before the operation proceeds.
+  */
   readonly presence: VaultSlotProvider['presence'] = presenceGate(
     () => this.deps.presenceRecords,
     'windowsTpm',

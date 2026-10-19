@@ -251,10 +251,10 @@ export const resourceEventSchema = /* @__PURE__ */ z.discriminatedUnion('type', 
 ])
 export type ResourceEvent = z.infer<typeof resourceEventSchema>
 /**
- * Whether pressure can reach the relocate level. `noRoute`: this host binds no
- * paired-device or runner route, so work stays here; `noTarget`: a bound route
- * has no approved target with room now. Older producers omit the field.
- */
+Whether pressure can reach the relocate level. `noRoute`: this host binds no
+paired-device or runner route, so work stays here; `noTarget`: a bound route
+has no approved target with room now. Older producers omit the field.
+*/
 const resourceRelocationSchema = /* @__PURE__ */ z.enum(['off', 'available', 'noTarget', 'noRoute'])
 export type ResourceRelocation = z.infer<typeof resourceRelocationSchema>
 // Pure factory: status rows ride only with status readers, never exec sinks.

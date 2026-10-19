@@ -29,12 +29,12 @@ import type { ShellResult } from '../../src/core/shellResult'
 const SERVER = 'calendar'
 
 /**
- * A minimal real process runner: /bin/sh runs the hook command with the
- * payload on stdin and bounded time, and the observed exit code and streams
- * come back. It stands in only for process entry (the production runner in
- * toolIo adds resource admission and credential fencing); selection,
- * serialization, the answer protocol and verdicts are all production code.
- */
+A minimal real process runner: /bin/sh runs the hook command with the
+payload on stdin and bounded time, and the observed exit code and streams
+come back. It stands in only for process entry (the production runner in
+toolIo adds resource admission and credential fencing); selection,
+serialization, the answer protocol and verdicts are all production code.
+*/
 function spawnHookResult(
   command: string,
   payload: string,
@@ -151,10 +151,10 @@ async function dispatchFor(
 }
 
 /**
- * The session's fire binding, as data: one scope group of the combined hook
- * list through the real dispatch. The grouping itself — which scopes run,
- * in which order, with which fields — is the production helper under test.
- */
+The session's fire binding, as data: one scope group of the combined hook
+list through the real dispatch. The grouping itself — which scopes run,
+in which order, with which fields — is the production helper under test.
+*/
 function fireFor(
   hooks: readonly ExtensionHookDefinition[],
   dir: string,

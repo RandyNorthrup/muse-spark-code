@@ -5,11 +5,11 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /**
- * One runner for the source-guard drills: `node <script> <args>` as a
- * process, resolving the exit status and both streams instead of throwing.
- * The tool-rounds guards (`check-wrap-up-request`, `check-usable-reply`)
- * share it so the drill harness itself is not a duplication-clone pair.
- */
+One runner for the source-guard drills: `node <script> <args>` as a
+process, resolving the exit status and both streams instead of throwing.
+The tool-rounds guards (`check-wrap-up-request`, `check-usable-reply`)
+share it so the drill harness itself is not a duplication-clone pair.
+*/
 export function runGuardProcess(
   script: string,
   args: readonly string[],
@@ -52,10 +52,10 @@ function childStatus(error: unknown): number {
 }
 
 /**
- * Runs `body` with a fresh pid-scoped scratch directory, removed
- * afterwards. The guard drills share it so the scratch skeleton is written
- * once.
- */
+Runs `body` with a fresh pid-scoped scratch directory, removed
+afterwards. The guard drills share it so the scratch skeleton is written
+once.
+*/
 export function withGuardScratch<T>(tag: string, body: (dir: string) => T): T {
   const dir = path.join(osTmpdir(), `${tag}-${String(process.pid)}`)
   mkdirSync(dir, { recursive: true })
@@ -67,17 +67,17 @@ export function withGuardScratch<T>(tag: string, body: (dir: string) => T): T {
 }
 
 /**
- * Runs a guard script through a symlinked `scripts` directory, proving the
- * guard follows the link instead of reading its own location. Returns the
- * guard's stdout; removes the scratch directory afterwards.
- */
+Runs a guard script through a symlinked `scripts` directory, proving the
+guard follows the link instead of reading its own location. Returns the
+guard's stdout; removes the scratch directory afterwards.
+*/
 /**
- * One drill for the source-guard scripts (`check-no-round-cap`,
- * `check-no-output-continuation-cap`, `check-wrap-up-request`): the guard
- * passes on the shipped source, fails a planted trip with the line that
- * names the problem, never passes on missing input, and follows a symlinked
- * `scripts` directory. Shared so the guard suites are not a clone pair.
- */
+One drill for the source-guard scripts (`check-no-round-cap`,
+`check-no-output-continuation-cap`, `check-wrap-up-request`): the guard
+passes on the shipped source, fails a planted trip with the line that
+names the problem, never passes on missing input, and follows a symlinked
+`scripts` directory. Shared so the guard suites are not a clone pair.
+*/
 export interface SourceGuardDrill {
   /** The suite title. */
   readonly title: string
@@ -99,8 +99,8 @@ export function describeSourceGuard(drill: SourceGuardDrill): void {
   const repo = process.cwd()
   const script = path.join(repo, 'scripts', drill.scriptName)
   const source = path.join(repo, ...drill.sourceRel.split('/'))
-  const run = (args: readonly string[], cwd: string = repo): { status: number; output: string } =>
-    runGuardProcess(script, args, cwd, 60_000)
+  const run = (args: readonly string[]): { status: number; output: string } =>
+    runGuardProcess(script, args, repo, 60_000)
   describe(drill.title, () => {
     it('passes on the shipped source', () => {
       const result = run([source])

@@ -29,11 +29,11 @@ export interface SectionProps {
   readonly importOpen: boolean
   readonly highlightedItem: string | undefined
   /**
-   * The vault section's own channel (C-M109-1 P1): the host's latest vault
-   * envelope and the vault post port. Both stay undefined until the host
-   * offers the vault (`vaultOffered`); other sections never read them. The
-   * mount validates the envelope before use, inside the lazy surface.
-   */
+  The vault section's own channel (C-M109-1 P1): the host's latest vault
+  envelope and the vault post port. Both stay undefined until the host
+  offers the vault (`vaultOffered`); other sections never read them. The
+  mount validates the envelope before use, inside the lazy surface.
+  */
   readonly vaultRaw?: unknown
   readonly vaultPost?: ((message: VaultClientMessage) => void) | undefined
 }
@@ -44,19 +44,19 @@ export interface PanelSectionDef {
   readonly getTitle: () => string
   readonly icon: ComponentType<object>
   /**
-   * Whether the host offers this section in the given state. Absent means
-   * always offered; the vault (C-M109-1 P1) is offered only while
-   * `vaultOffered` is true, so its navigation stays hidden until the
-   * broker binds.
-   */
+  Whether the host offers this section in the given state. Absent means
+  always offered; the vault (C-M109-1 P1) is offered only while
+  `vaultOffered` is true, so its navigation stays hidden until the
+  broker binds.
+  */
   readonly isOffered?: ((panelState: ModelsPanelState | undefined) => boolean) | undefined
   readonly Component: ComponentType<SectionProps>
   /**
-   * The section's own fold of a panel action. Every section sees every
-   * action and handles only its own overlay kinds; the host-owned slices
-   * close an overlay the host cleared (a gone wizard draft cannot stay
-   * open, since the host owns the draft).
-   */
+  The section's own fold of a panel action. Every section sees every
+  action and handles only its own overlay kinds; the host-owned slices
+  close an overlay the host cleared (a gone wizard draft cannot stay
+  open, since the host owns the draft).
+  */
   readonly reduceSection: (state: PanelUiState, action: PanelUiAction) => PanelUiState
 }
 

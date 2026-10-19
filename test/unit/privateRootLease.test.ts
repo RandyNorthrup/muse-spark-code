@@ -83,9 +83,9 @@ async function linuxLine(pid: number): Promise<string> {
 }
 
 /**
- * The lease of an owner that is gone: on Windows and macOS a lease nobody
- * holds open; on Linux one naming a process that has exited.
- */
+The lease of an owner that is gone: on Windows and macOS a lease nobody
+holds open; on Linux one naming a process that has exited.
+*/
 async function goneLease(root: string, owner: string): Promise<string> {
   const file = path.join(root, `${PREFIX}${owner}.lease`)
   if (process.platform !== 'linux') {
@@ -211,10 +211,14 @@ describe('other windows in other processes, through the same lease code', () => 
   })
 })
 
-async function fakeRoot(owner = token('a')): Promise<PrivateRoot> {
+async function fakeRoot(): Promise<PrivateRoot> {
   const directory = path.join(await area(), 'media')
   await fs.mkdir(directory)
-  return { path: directory, identity: identityOf(await lstatIdentity(directory)), owner }
+  return {
+    path: directory,
+    identity: identityOf(await lstatIdentity(directory)),
+    owner: token('a'),
+  }
 }
 
 /** A fake root holding one other owner's folder, whose lease reads `text`. */

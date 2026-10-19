@@ -138,10 +138,10 @@ export async function windowsVaultExecutable(deps: {
 }
 
 /**
- * The pipe helper: the shared guard region plus the pipe program, compiled
- * as one source. The digest names the composed bytes, so a slot helper and
- * a pipe helper never share a file.
- */
+The pipe helper: the shared guard region plus the pipe program, compiled
+as one source. The digest names the composed bytes, so a slot helper and
+a pipe helper never share a file.
+*/
 export async function windowsPipeExecutable(deps: {
   readonly storageDir: string
   readonly systemRoot: string

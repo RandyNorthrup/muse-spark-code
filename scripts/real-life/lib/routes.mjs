@@ -141,12 +141,12 @@ export const providerIdOf = (routeId, runId) =>
     : `rl-${runId}-${String(Object.keys(ROUTES).indexOf(routeId))}`
 
 /**
- * Why a route whose provider name is already in the credential store is not
- * run: the entry is not this run's (another run's, a diagnostic's, or the
- * person's), and the run never removes or replaces a key it did not store
- * itself. It names the entry and how to remove it with the product.
- * @param {{ provider: string }} route the route as lib/routes.mjs gives it
- */
+Why a route whose provider name is already in the credential store is not
+run: the entry is not this run's (another run's, a diagnostic's, or the
+person's), and the run never removes or replaces a key it did not store
+itself. It names the entry and how to remove it with the product.
+@param {{ provider: string }} route the route as lib/routes.mjs gives it
+*/
 export function takenProviderReason(route) {
   return `not run: ${route.provider} is already in the credential store (left by an earlier run or diagnostic, or stored outside any run). This run never removes or replaces a stored key: remove it with the product (auth clear --provider ${route.provider}) and run again`
 }
@@ -158,18 +158,18 @@ export const DIAGNOSTIC_PREFIX = 'rlq-'
 const META_FAMILY = /muse|wonder/iu
 
 /**
- * Why a route may not run on a model; nothing when it may. This is the one
- * place that decides it, for a model named on the command line and for
- * every model of a matrix.
- *
- * A model of Meta's is asked on a Meta route's contributor model and nowhere
- * else: a Meta route runs on the model it names and on no other (not
- * another Muse model, not another contributor model), and a configured
- * provider's route takes any model but one of Meta's.
- * @param {string} id the route
- * @param {string | undefined} model the model asked for (the route's own when none is)
- * @returns {string | undefined}
- */
+Why a route may not run on a model; nothing when it may. This is the one
+place that decides it, for a model named on the command line and for
+every model of a matrix.
+
+A model of Meta's is asked on a Meta route's contributor model and nowhere
+else: a Meta route runs on the model it names and on no other (not
+another Muse model, not another contributor model), and a configured
+provider's route takes any model but one of Meta's.
+@param {string} id the route
+@param {string | undefined} model the model asked for (the route's own when none is)
+@returns {string | undefined}
+*/
 export function routeRefusal(id, model) {
   const route = ROUTES[id]
   if (route === undefined) return `not a route: ${id} (--list prints them)`
@@ -186,11 +186,11 @@ export function routeRefusal(id, model) {
 }
 
 /**
- * The route as the run uses it: its model (an override wins) and how the
- * product is told to use it.
- * @param {string} id
- * @param {ReadonlyMap<string, string>} models `--model <route>=<model>` overrides
- */
+The route as the run uses it: its model (an override wins) and how the
+product is told to use it.
+@param {string} id
+@param {ReadonlyMap<string, string>} models `--model <route>=<model>` overrides
+*/
 export function routeFor(id, models = new Map(), runId) {
   const route = ROUTES[id]
   const refusal = route === undefined ? undefined : routeRefusal(id, models.get(id))

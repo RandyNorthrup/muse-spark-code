@@ -76,9 +76,9 @@ async function leaseEnv(overrides: Partial<FileLeaseEnv> = {}): Promise<FileLeas
 }
 
 /**
- * Another holder's note, readable by every version: the renewal count this
- * one keeps and the wall-clock lease an earlier one did are both there.
- */
+Another holder's note, readable by every version: the renewal count this
+one keeps and the wall-clock lease an earlier one did are both there.
+*/
 function lockNote(owner: ProcessOwner, leaseMs: number, id = 'someone-else') {
   const now = Date.now()
   return JSON.stringify({
@@ -218,10 +218,10 @@ async function readersNamedFor(folder: string, pid: number): Promise<string[]> {
 }
 
 /**
- * Windows: this process's own birth reader. Its build swept any reader an
- * earlier process with this id left, so the one reader named with this id
- * is this process's own.
- */
+Windows: this process's own birth reader. Its build swept any reader an
+earlier process with this id left, so the one reader named with this id
+is this process's own.
+*/
 async function ownBirthReader(): Promise<{
   readonly born: number | undefined
   readonly reader: string
@@ -235,11 +235,11 @@ async function ownBirthReader(): Promise<{
 }
 
 /**
- * Windows: whether this host runs elevated, so its birth reader is walled
- * above a lower-integrity writer. Windows' own well-known SIDs (also named
- * in `src/core/locks/processOwner.ts`); the level's name would localise,
- * the SID never does.
- */
+Windows: whether this host runs elevated, so its birth reader is walled
+above a lower-integrity writer. Windows' own well-known SIDs (also named
+in `src/core/locks/processOwner.ts`); the level's name would localise,
+the SID never does.
+*/
 function isElevatedHost(): boolean {
   const systemRoot = process.env['SystemRoot'] ?? ''
   try {
@@ -349,9 +349,9 @@ async function movingTaker(lockPath: string, window: ReturnType<typeof pausingPo
 }
 
 /**
- * B resumed: it put A's fresh lock back, so A still holds and B waits; once
- * A releases, B holds. B's lease.
- */
+B resumed: it put A's fresh lock back, so A still holds and B waits; once
+A releases, B holds. B's lease.
+*/
 async function takerWaitsForRelease(
   beforeMove: { readonly resume: () => void },
   a: FileLease,
@@ -599,10 +599,10 @@ describe('file lease: fences (M123 LOCKLIB)', () => {
 })
 
 /**
- * A holder whose renewal passed its own check and then waits, at the
- * open, for the test; and a taker that, meanwhile, watches the holder's
- * instance run out and takes the lock over with a fence of its own.
- */
+A holder whose renewal passed its own check and then waits, at the
+open, for the test; and a taker that, meanwhile, watches the holder's
+instance run out and takes the lock over with a fence of its own.
+*/
 async function renewalOvertaken(port: LeasePort) {
   const { lockPath } = await lockFolder()
   let elapsed = 0

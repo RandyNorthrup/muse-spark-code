@@ -23,10 +23,10 @@ interface MuseResourceCommand {
   readonly command: string
   readonly args: readonly string[]
   /**
-   * The child's whole environment: the guarded serve environment, so a raw
-   * environment (or a silent `process.env` fallback) never reaches the
-   * spawn — the compiler lists every construction site.
-   */
+  The child's whole environment: the guarded serve environment, so a raw
+  environment (or a silent `process.env` fallback) never reaches the
+  spawn — the compiler lists every construction site.
+  */
   readonly env: GuardedChildEnv
   readonly cwd?: string | undefined
 }
@@ -130,10 +130,10 @@ async function museResourceLaunch(
 }
 
 /**
- * Closes a half-started launch while its failure crosses: the close runs
- * first and the launch always completes as failed. A close that fails too
- * still throws, so the failure always crosses with its cause.
- */
+Closes a half-started launch while its failure crosses: the close runs
+first and the launch always completes as failed. A close that fails too
+still throws, so the failure always crosses with its cause.
+*/
 async function settleLaunchClose(
   handshake: ResourceHandshake,
   launch: Awaited<ReturnType<typeof museResourceLaunch>> | undefined,
@@ -285,13 +285,13 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
 }
 
 /**
- * Ordinary and account-owned transports use the same containment boundary.
- * The SDK spawn paths come from the Muse Code backend's bundle
- * (dist/museCode.js), so this module — and the activation bundle holding
- * it — never carries the SDK or the host: the caller hands in the spawner
- * its loaded bundle exports. The environment is always the guarded serve
- * environment for its cwd, so a raw environment does not type-check here.
- */
+Ordinary and account-owned transports use the same containment boundary.
+The SDK spawn paths come from the Muse Code backend's bundle
+(dist/museCode.js), so this module — and the activation bundle holding
+it — never carries the SDK or the host: the caller hands in the spawner
+its loaded bundle exports. The environment is always the guarded serve
+environment for its cwd, so a raw environment does not type-check here.
+*/
 export type GovernedMuseConnectionOptions = Parameters<typeof spawnMspConnection>[0] & {
   readonly env: GuardedChildEnv
 }

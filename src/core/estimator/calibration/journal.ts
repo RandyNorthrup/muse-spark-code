@@ -46,18 +46,18 @@ function hasCode(error: unknown, code: string): boolean {
 }
 
 /**
- * The catch-gate-visible form of the expected history condition: `is`-named
- * so the inventory reads it as the one handled case, with exactly the same
- * answer as `hasCode` on every input.
- */
+The catch-gate-visible form of the expected history condition: `is`-named
+so the inventory reads it as the one handled case, with exactly the same
+answer as `hasCode` on every input.
+*/
 function isHistoryErrorCode(error: unknown, code: string): boolean {
   return hasCode(error, code)
 }
 
 /** Durable immutable files, one per lane/basis. Readers never observe a partial publication.
- * A no-clobber hard link makes independent windows/processes safe without a clock or stale lock.
- * The caller supplies private application storage, never a workspace or a credential directory.
- */
+A no-clobber hard link makes independent windows/processes safe without a clock or stale lock.
+The caller supplies private application storage, never a workspace or a credential directory.
+*/
 export class EstimateHistoryJournal implements EstimateHistoryPort {
   private skipped: { recordId: string; code: string }[] = []
 

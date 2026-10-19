@@ -52,7 +52,7 @@ export interface WindowsRecorderDeps {
   /** Direct spawn, argument array, credential-free environment, no shell. */
   readonly launch: (executable: string, args: readonly string[]) => WindowsRecorderProcess
   /** Reserves a unique, absent absolute path under the host's trusted temp root.
-   * The helper atomically creates it with an owner-only Windows DACL. */
+  The helper atomically creates it with an owner-only Windows DACL. */
   readonly reserveDirectory: () => Promise<string>
   /** Confines deletion to this reserved path; removes only our private copy. */
   readonly removeDirectory: (directory: string) => Promise<void>
@@ -65,7 +65,7 @@ export interface WindowsRecorderDeps {
 
 export interface WindowsScreenRecorder extends ScreenRecordingDriver {
   /** Copies the newest recent Snipping Tool mp4 into a private preview.
-   * Its original is never deleted, modified, or uploaded by this driver. */
+  Its original is never deleted, modified, or uploaded by this driver. */
   readonly attachLatest: () => Promise<ScreenRecordingResult>
 }
 
@@ -82,9 +82,9 @@ function unavailable(): string {
 }
 
 /**
- * Whether the removal failure is a lock a scanner may still hold: busy,
- * denied, or not yet empty. Anything else is not worth the bounded wait.
- */
+Whether the removal failure is a lock a scanner may still hold: busy,
+denied, or not yet empty. Anything else is not worth the bounded wait.
+*/
 function isRemoveRetriable(error: unknown): boolean {
   return (
     isErrno(error, 'EBUSY') ||

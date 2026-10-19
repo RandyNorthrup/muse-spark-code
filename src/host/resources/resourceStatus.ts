@@ -26,17 +26,17 @@ export interface ResourceStatusDeps {
   readonly invalidStatus: () => void
   readonly createItem: () => ResourceStatusItem
   /**
-   * For a host that registers Show resources only once the governor loads (MHP).
-   * VS Code contributes and registers it at activation, so it omits this.
-   */
+  For a host that registers Show resources only once the governor loads (MHP).
+  VS Code contributes and registers it at activation, so it omits this.
+  */
   readonly registerShow?: (run: () => void) => { dispose(): void }
 }
 
 /**
- * The slice of VS Code's namespace the item uses. The window injects the real
- * namespace; this module loads with the portable governor, so it never
- * imports `vscode`, even as a type.
- */
+The slice of VS Code's namespace the item uses. The window injects the real
+namespace; this module loads with the portable governor, so it never
+imports `vscode`, even as a type.
+*/
 export interface VsCodeStatusBar<Alignment> {
   readonly window: {
     createStatusBarItem(alignment: Alignment): {

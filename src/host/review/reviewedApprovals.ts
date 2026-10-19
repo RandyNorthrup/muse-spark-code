@@ -73,9 +73,9 @@ interface Allowance {
 const APPROVED_DECISION = 'approved'
 
 /**
- * A verdict covers this action, not a replacement: every field that says what
- * the action is must match (`stages` only tracks progress through it).
- */
+A verdict covers this action, not a replacement: every field that says what
+the action is must match (`stages` only tracks progress through it).
+*/
 function isSameSubject(left: ApprovalSubject, right: ApprovalSubject): boolean {
   return (
     left.kind === right.kind &&
@@ -224,10 +224,10 @@ export class ReviewedApprovals {
   }
 
   /**
-   * A stage update: a held approval takes it for its answer, and a line the
-   * reviewer allowed gets the stage allowed once too (while the line is the
-   * same and still the reviewer's). False for an approval it never had.
-   */
+  A stage update: a held approval takes it for its answer, and a line the
+  reviewer allowed gets the stage allowed once too (while the line is the
+  same and still the reviewer's). False for an approval it never had.
+  */
   public updated(event: Extract<AgentEvent, { type: 'approvalUpdated' }>): boolean {
     const stage = {
       requirementId: event.requirementId,
@@ -261,9 +261,9 @@ export class ReviewedApprovals {
   }
 
   /**
-   * The approval settled: a review still running for it stops, and the
-   * transcript's reason when the reviewer allowed it, else undefined.
-   */
+  The approval settled: a review still running for it stops, and the
+  transcript's reason when the reviewer allowed it, else undefined.
+  */
   public resolved(event: Extract<AgentEvent, { type: 'approvalResolved' }>): string | undefined {
     this.held.get(event.approvalId)?.caution?.discard()
     this.held.get(event.approvalId)?.stop.abort()

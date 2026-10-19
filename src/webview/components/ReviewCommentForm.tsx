@@ -64,7 +64,7 @@ export function ReviewCommentForm({
 }) {
   const lineId = useId()
   const textId = useId()
-  const lines = rows.flatMap((row, index) => (row.kind === 'hunk' ? [] : [{ row, index }]))
+  const lines = rows.flatMap((row, index) => (row.kind === 'hunk' ? [] : { row, index }))
   const [chosen, setChosen] = useState(firstCommentLine(lines)?.index ?? 0)
   const [text, setText] = useState('')
   const send = () => {

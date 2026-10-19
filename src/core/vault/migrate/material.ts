@@ -46,10 +46,10 @@ export function areSameBytes(left: Uint8Array, right: Uint8Array | null): boolea
   )
 }
 /**
- * A migrated credential's item: first-party, hidden, never usable by an
- * agent, bound to the legacy record's origin. Owner codecs share this so a
- * migrated record cannot drift into an exposed or rebound shape.
- */
+A migrated credential's item: first-party, hidden, never usable by an
+agent, bound to the legacy record's origin. Owner codecs share this so a
+migrated record cannot drift into an exposed or rebound shape.
+*/
 export function migrationItem(
   itemId: string,
   name: string,
@@ -85,10 +85,10 @@ export function migrationItem(
 }
 
 /**
- * Canonical bytes of an installed full account record, in the installed
- * writer's key order (`secretStorageAccountVault.write`). Shared so the
- * provider codec's overlay branch cannot drift from the account codec.
- */
+Canonical bytes of an installed full account record, in the installed
+writer's key order (`secretStorageAccountVault.write`). Shared so the
+provider codec's overlay branch cannot drift from the account codec.
+*/
 export function accountRecordCanonicalJson(record: AccountCredential): string {
   return JSON.stringify({
     provider: record.provider,
@@ -101,27 +101,27 @@ export function accountRecordCanonicalJson(record: AccountCredential): string {
 }
 
 /**
- * The closed kinds of migrated vault item names. No kind is another kind
- * followed by `-`, so names of different kinds can never meet.
- */
+The closed kinds of migrated vault item names. No kind is another kind
+followed by `-`, so names of different kinds can never meet.
+*/
 export type MigrationItemKind = 'provider' | 'account'
 const MIGRATION_ITEM_KINDS = new Set<MigrationItemKind>(['provider', 'account'])
 
 /**
- * Deterministic, one-to-one vault item name that always fits the vault
- * handle (`secret://` plus at most 48 lowercase alphanumerics and dashes).
- * One id stays `provider-<id>`. Two or more ids write every id except the
- * last as `<decimal length>-<id>` with the last id bare, so the reading is
- * unambiguous even though ids may hold `-`: a one-id name starts with a
- * letter after the kind and a multi-id name starts with a digit, so the two
- * shapes cannot meet. A readable name past the limit becomes
- * `<kind>-<hex>`, the SHA-256 over the canonical JSON array
- * `[kind, id1, id2, ...]` (never over a joined string) cut to the room that
- * is left: a readable multi-id name carries a `-` within three characters
- * after the kind and a hash carries none, so the two forms cannot meet.
- * Every id is validated against its own pattern first; an invalid id is
- * refused, never normalised. Deterministic across platforms and versions.
- */
+Deterministic, one-to-one vault item name that always fits the vault
+handle (`secret://` plus at most 48 lowercase alphanumerics and dashes).
+One id stays `provider-<id>`. Two or more ids write every id except the
+last as `<decimal length>-<id>` with the last id bare, so the reading is
+unambiguous even though ids may hold `-`: a one-id name starts with a
+letter after the kind and a multi-id name starts with a digit, so the two
+shapes cannot meet. A readable name past the limit becomes
+`<kind>-<hex>`, the SHA-256 over the canonical JSON array
+`[kind, id1, id2, ...]` (never over a joined string) cut to the room that
+is left: a readable multi-id name carries a `-` within three characters
+after the kind and a hash carries none, so the two forms cannot meet.
+Every id is validated against its own pattern first; an invalid id is
+refused, never normalised. Deterministic across platforms and versions.
+*/
 export function migrationItemName(kind: MigrationItemKind, ...ids: string[]): string {
   if (!MIGRATION_ITEM_KINDS.has(kind)) throw new VaultMigrationFault('invalid')
   if (ids.length === 0) throw new VaultMigrationFault('invalid')
@@ -141,10 +141,10 @@ export function migrationItemName(kind: MigrationItemKind, ...ids: string[]): st
 }
 
 /**
- * An installed store's legacy shape, supplied by its owner codec. `parse`
- * accepts exactly what the installed reader accepts; `apiKeyJson` rebuilds
- * an `apiKey` record so encode reproduces the installed bytes.
- */
+An installed store's legacy shape, supplied by its owner codec. `parse`
+accepts exactly what the installed reader accepts; `apiKeyJson` rebuilds
+an `apiKey` record so encode reproduces the installed bytes.
+*/
 export interface LegacyRecordShape<T> {
   parse(text: string): T
   originOf(record: T): string
@@ -155,12 +155,12 @@ export interface LegacyRecordShape<T> {
 }
 
 /**
- * One migration codec shell shared by every credential store, so a store
- * cannot drift into an exposed or rebound shape. `apiKey` records become
- * vault `apiKey` items; opaque records become `secret` items holding the
- * canonical record; both bind the record's origin. The owner's API consumes
- * the structured record, not a key, so `request` is null.
- */
+One migration codec shell shared by every credential store, so a store
+cannot drift into an exposed or rebound shape. `apiKey` records become
+vault `apiKey` items; opaque records become `secret` items holding the
+canonical record; both bind the record's origin. The owner's API consumes
+the structured record, not a key, so `request` is null.
+*/
 function utf8(value: Uint8Array): string {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(value)

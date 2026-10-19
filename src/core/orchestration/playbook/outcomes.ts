@@ -31,7 +31,7 @@ import { redactSecrets } from '../../../shared/redact'
 import { withoutCredentials } from '../../credentialEnvironment'
 
 /** Tagged effects go through the harness's ordinary tool policy. Hooks receive
- * their real arguments/stdin, never an altered script or a substitute command. */
+their real arguments/stdin, never an altered script or a substitute command. */
 export interface PlaybookHookEffect {
   readonly kind: 'git' | 'hook'
   readonly cwd: string
@@ -41,8 +41,8 @@ export interface PlaybookHookEffect {
 export interface PlaybookHookAdmission {
   admit(effect: PlaybookHookEffect): boolean
   /** The harness's preprepared job/tree registry executes the
-   * original effect with these options and returns only after its entire
-   * tree is ended. Required on Windows; preferred for Linux cgroups/scopes. */
+  original effect with these options and returns only after its entire
+  tree is ended. Required on Windows; preferred for Linux cgroups/scopes. */
   readonly runContained?: (
     effect: PlaybookHookEffect,
     options: SpawnSyncOptions,
@@ -52,7 +52,7 @@ type Work = Extract<PlaybookRecord, { kind: 'work' }>['value']
 type Receipt = Extract<PlaybookRecord, { kind: 'verification' }>['value']
 
 /** Synchronous state transition: missing receipts never emit push/done. The
- * owner publishes every returned record with journal CAS before admission. */
+owner publishes every returned record with journal CAS before admission. */
 export function hasOutcomeReceipts(
   commits: readonly string[],
   digest: string,
@@ -86,10 +86,10 @@ export class PlaybookOutcomes {
   ) {}
 
   /**
-   * git resolved outside the workspace (links followed): a `git` planted in
-   * the repository never runs (D24). Every effect spawns this command, so
-   * the admission sees the absolute path it approves.
-   */
+  git resolved outside the workspace (links followed): a `git` planted in
+  the repository never runs (D24). Every effect spawns this command, so
+  the admission sees the absolute path it approves.
+  */
   private gitCommand(): string {
     const git = processGitPath(this.workspace)
     if (git === undefined) throw new Error(UI_TEXT.playbookUnavailable)
@@ -241,7 +241,7 @@ export class PlaybookOutcomes {
   }
 
   /** G17: the shared-config facts the hook digest covers, for drift reports.
-   * The effective hooks-path source line plus the sorted hook file list. */
+  The effective hooks-path source line plus the sorted hook file list. */
   configSnapshot(): PlaybookConfigSnapshot {
     const hookDir = this.git(['rev-parse', '--path-format=absolute', '--git-path', 'hooks'])
     const hooksPath = this.run(
@@ -266,7 +266,7 @@ export class PlaybookOutcomes {
   }
 
   /** Bind receipts to the exact configured hook bytes and exact push range.
-   * Symlinks cannot silently replace the configured hook set. */
+  Symlinks cannot silently replace the configured hook set. */
   digest(range?: PlaybookPushRange): string {
     const hookDir = this.git(['rev-parse', '--path-format=absolute', '--git-path', 'hooks'])
     const config = this.run(

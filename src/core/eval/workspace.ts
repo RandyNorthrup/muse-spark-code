@@ -42,9 +42,9 @@ export interface EvalVerdict {
 }
 
 /**
- * A fresh folder under `parent` (the system's temporary folder) holding the
- * task's fixture files, and nothing else.
- */
+A fresh folder under `parent` (the system's temporary folder) holding the
+task's fixture files, and nothing else.
+*/
 export async function createEvalWorkspace(task: EvalTask, parent = tmpdir()): Promise<EvalFolders> {
   // The canonical path: the host confines the tools to it (D24), and on
   // macOS the temporary folder is reached through a link.

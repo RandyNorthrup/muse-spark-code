@@ -52,11 +52,11 @@ const ABSENT = 'absent'
 const KILLED_EXIT_CODE = 1
 
 /**
- * Runs a program to its end: its stdout, or a rejection on a failure exit.
- * The environment is always a guarded child environment (only
- * `workspaceChildEnvironment` / `noWorkspaceChildEnvironment` can produce
- * one), so a raw `process.env` does not type-check here.
- */
+Runs a program to its end: its stdout, or a rejection on a failure exit.
+The environment is always a guarded child environment (only
+`workspaceChildEnvironment` / `noWorkspaceChildEnvironment` can produce
+one), so a raw `process.env` does not type-check here.
+*/
 export type RunProgram = (
   file: string,
   args: readonly string[],
@@ -144,10 +144,10 @@ function processTableScript(parents: Iterable<number>): string {
 }
 
 /**
- * Kills each process that still is the one the table showed (same id, same
- * creation time, checked in the same run just before), printing the ids it
- * killed; one that has gone, or whose id another process now holds, is left.
- */
+Kills each process that still is the one the table showed (same id, same
+creation time, checked in the same run just before), printing the ids it
+killed; one that has gone, or whose id another process now holds, is left.
+*/
 function identityKillScript(rows: readonly ProcessRow[]): string {
   // Nested @() arrays flatten in PowerShell's pipeline, turning a FILETIME
   // into the next PID. Hashtable records keep each identity pair together.
@@ -156,10 +156,10 @@ function identityKillScript(rows: readonly ProcessRow[]): string {
 }
 
 /**
- * The rows that are orphans of `ancestors` (each id with the time it died):
- * created after the shell started and before the parent died, so never a
- * child of a later process that took a dead parent's id.
- */
+The rows that are orphans of `ancestors` (each id with the time it died):
+created after the shell started and before the parent died, so never a
+child of a later process that took a dead parent's id.
+*/
 function orphansIn(
   rows: readonly ProcessRow[],
   ancestors: ReadonlyMap<number, number>,
@@ -234,12 +234,12 @@ async function sweepOrphans(
 }
 
 /**
- * A stdio server may exit before its child does (M50). On POSIX, a child that
- * stayed in the server's process group keeps that group alive after its leader
- * exits; signal it before close resolves. On Windows, the parent is gone, so
- * taskkill has no tree to enumerate; the checked orphan sweep uses its PID and
- * exit time. Neither path contains a child that deliberately detaches itself.
- */
+A stdio server may exit before its child does (M50). On POSIX, a child that
+stayed in the server's process group keeps that group alive after its leader
+exits; signal it before close resolves. On Windows, the parent is gone, so
+taskkill has no tree to enumerate; the checked orphan sweep uses its PID and
+exit time. Neither path contains a child that deliberately detaches itself.
+*/
 export async function sweepExitedTree(
   pid: number | undefined,
   startedAt: number,
@@ -280,11 +280,11 @@ export async function sweepExitedTree(
 }
 
 /**
- * The statement that loads the job helper's assembly, through .NET rather
- * than `Add-Type`: a cmdlet is found by module auto-loading, which without
- * a module analysis cache analyses every module on the module path before
- * the statement can run (20 s and more on GitHub's Windows runner, M51).
- */
+The statement that loads the job helper's assembly, through .NET rather
+than `Add-Type`: a cmdlet is found by module auto-loading, which without
+a module analysis cache analyses every module on the module path before
+the statement can run (20 s and more on GitHub's Windows runner, M51).
+*/
 export function loadJobAssembly(assemblyPath: string): string {
   return `[void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(assemblyPath)})`
 }
@@ -374,10 +374,10 @@ async function waitForPosixGroup(pid: number, deps: ProcessTreeDeps): Promise<vo
 }
 
 /**
- * Kills `root` and its descendants; resolves once they are gone, as far as
- * can be seen. `startedAt` is when the shell was spawned; `job` the job
- * object it joined, on Windows.
- */
+Kills `root` and its descendants; resolves once they are gone, as far as
+can be seen. `startedAt` is when the shell was spawned; `job` the job
+object it joined, on Windows.
+*/
 export async function killTree(
   root: TreeRoot,
   deps: ProcessTreeDeps,
@@ -555,11 +555,11 @@ deadline = setTimeout(() => {
 `
 
 /**
- * POSIX synchronous caller, asynchronous tree supervision. The supplied
- * environment is always the guarded child environment for the effect's
- * working directory (only `workspaceChildEnvironment` can produce one), and
- * `cwd` is required; no shell parses the effect.
- */
+POSIX synchronous caller, asynchronous tree supervision. The supplied
+environment is always the guarded child environment for the effect's
+working directory (only `workspaceChildEnvironment` can produce one), and
+`cwd` is required; no shell parses the effect.
+*/
 export function runTreeSync(
   command: string,
   args: readonly string[],

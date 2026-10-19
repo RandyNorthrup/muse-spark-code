@@ -49,10 +49,10 @@ function compareVersions(left, right) {
 }
 
 /**
- * Every version PLAN §10 has a preparation record for and no other record
- * (such as `X.Y.Z released (…)`) is still being prepared, oldest first. A
- * changelog version without any §10 record has shipped.
- */
+Every version PLAN §10 has a preparation record for and no other record
+(such as `X.Y.Z released (…)`) is still being prepared, oldest first. A
+changelog version without any §10 record has shipped.
+*/
 function pendingVersions(facts, versions, problems) {
   const kinds = new Map()
   for (const { version, text } of facts.releases)
@@ -90,10 +90,10 @@ function readEntries(text, problems) {
 const WORD_CHARACTER = /[\p{L}\p{N}]/u
 
 /**
- * One case-insensitive matcher for every milestone and working id PLAN.md
- * and entries.json know (M19, m19, SECWINPATH, M26-follow-up), matched as a
- * whole word, as milestone selection matches ids.
- */
+One case-insensitive matcher for every milestone and working id PLAN.md
+and entries.json know (M19, m19, SECWINPATH, M26-follow-up), matched as a
+whole word, as milestone selection matches ids.
+*/
 function knownIdMatcher(ids) {
   if (ids.size === 0) return null
   // A plain search, never a RegExp built from data (semgrep detect-non-literal-regexp).
@@ -118,11 +118,11 @@ function knownIdMatcher(ids) {
 }
 
 /**
- * A digest of every fact the roadmap is built from, so `--check` fails when
- * one changes even where the listing would read the same: each milestone's
- * id, heading (with its date) and current status and date, each §10 record's
- * version, date and kind, each changelog heading and every entry.
- */
+A digest of every fact the roadmap is built from, so `--check` fails when
+one changes even where the listing would read the same: each milestone's
+id, heading (with its date) and current status and date, each §10 record's
+version, date and kind, each changelog heading and every entry.
+*/
 function fingerprint(facts, releases, entries) {
   const sources = {
     milestones: facts.milestones.map(({ id, title, status, date }) => [id, title, status, date]),
@@ -385,11 +385,11 @@ function placeEntries(facts, entries, versions, pending, plan, problems, notes) 
 }
 
 /**
- * ROADMAP.md's text from its three inputs. `plan` carries the PLAN reader
- * (`readPlan`, `findMilestone`, the `generatedCode` exit code and the
- * reader's `maxBytes`); `format` turns the Markdown into the committed form.
- * `content` is empty whenever `problems` is not.
- */
+ROADMAP.md's text from its three inputs. `plan` carries the PLAN reader
+(`readPlan`, `findMilestone`, the `generatedCode` exit code and the
+reader's `maxBytes`); `format` turns the Markdown into the committed form.
+`content` is empty whenever `problems` is not.
+*/
 export async function generateRoadmap({ planText, changelogText, entriesText, plan, format }) {
   const problems = []
   const notes = []

@@ -68,15 +68,15 @@ export interface HelperInvocation {
   readonly command: string
   readonly args: readonly string[]
   /**
-   * Variables set for the helper on top of the extension host's environment,
-   * replacing an inherited variable of the same name (`helperEnvironment`).
-   */
+  Variables set for the helper on top of the extension host's environment,
+  replacing an inherited variable of the same name (`helperEnvironment`).
+  */
   readonly environment?: Readonly<Record<string, string>>
   /**
-   * Said after the exit report when the helper ends before its "ready" line
-   * without being asked to: the operating system refused to run it or
-   * stopped it at a permission check (M26, PLAN.md D29).
-   */
+  Said after the exit report when the helper ends before its "ready" line
+  without being asked to: the operating system refused to run it or
+  stopped it at a permission check (M26, PLAN.md D29).
+  */
   readonly earlyExitHint?: string
 }
 
@@ -91,18 +91,18 @@ export interface HelperChild {
   /** Writes one command line to the helper's stdin. */
   send(line: string): void
   /**
-   * Fires once, when no process exists for the helper any more: it exited,
-   * it could not be started, or a quit was answered with no process
-   * running. Never fires for a refused kill: that stays on `onStopFailed`,
-   * so waiting for the exit cannot mistake a live microphone for a gone one.
-   */
+  Fires once, when no process exists for the helper any more: it exited,
+  it could not be started, or a quit was answered with no process
+  running. Never fires for a refused kill: that stays on `onStopFailed`,
+  so waiting for the exit cannot mistake a live microphone for a gone one.
+  */
   onExit(listener: (description: string) => void): void
   kill(): void
   /**
-   * Fires when an explicit kill of a live helper is refused (the process
-   * may still hold the microphone). Absent on helpers whose kill cannot be
-   * refused; those report every failure through `onExit` or an error line.
-   */
+  Fires when an explicit kill of a live helper is refused (the process
+  may still hold the microphone). Absent on helpers whose kill cannot be
+  refused; those report every failure through `onExit` or an error line.
+  */
   onStopFailed?(listener: (description: string) => void): void
 }
 
@@ -153,11 +153,11 @@ interface RunningHelper {
   /** "stop" was sent; the recording ends when its process is observed gone. */
   isStopping: boolean
   /**
-   * A "start" pressed while the previous recording's process is still
-   * winding down: it spawns only after that process is observed gone, so
-   * at most one recorder process exists and trailing events keep their
-   * owner (M35, the restart race).
-   */
+  A "start" pressed while the previous recording's process is still
+  winding down: it spawns only after that process is observed gone, so
+  at most one recorder process exists and trailing events keep their
+  owner (M35, the restart race).
+  */
   isStartPending: boolean
   /** "quit" was sent: an exit is expected and not an error. */
   isQuitting: boolean
@@ -174,9 +174,9 @@ interface RunningHelper {
 }
 
 /**
- * What the conversation controller drives: the two calls, plus a dispose
- * that drains admission and settlement (awaitable on the paid engine).
- */
+What the conversation controller drives: the two calls, plus a dispose
+that drains admission and settlement (awaitable on the paid engine).
+*/
 export interface DictationHandle {
   start(): void
   stop(): void
@@ -194,9 +194,9 @@ export type DictationSetup =
 export class Dictation {
   private helper: RunningHelper | undefined
   /**
-   * The helper whose process is winding down after its recording was
-   * retired: a press meanwhile queues behind its observed exit.
-   */
+  The helper whose process is winding down after its recording was
+  retired: a press meanwhile queues behind its observed exit.
+  */
   private reaping: RunningHelper | undefined
   /** Every recording end still waiting on its helper's process. */
   private readonly pendingReaps = new Set<Promise<unknown>>()
@@ -317,9 +317,9 @@ export class Dictation {
   }
 
   /**
-   * The helper is unusable: drop it at once, and tell the listener once its
-   * process is observed gone (bounded; then it is killed and that is said).
-   */
+  The helper is unusable: drop it at once, and tell the listener once its
+  process is observed gone (bounded; then it is killed and that is said).
+  */
   private fail(helper: RunningHelper, reason: string): void {
     // A start queued behind the dying recording dies with the helper: the
     // error says the microphone failed, and the next press starts afresh.
@@ -344,10 +344,10 @@ export class Dictation {
   }
 
   /**
-   * Resolves true once no process exists for the helper: its exit was
-   * observed, or it never had one. Otherwise kills after the grace, waits
-   * once more, and resolves false, so the caller says so. Never rejects.
-   */
+  Resolves true once no process exists for the helper: its exit was
+  observed, or it never had one. Otherwise kills after the grace, waits
+  once more, and resolves false, so the caller says so. Never rejects.
+  */
   private awaitHelperExit(helper: RunningHelper, hasKilled: boolean): Promise<boolean> {
     if (helper.hasExited) {
       return Promise.resolve(true)
@@ -396,10 +396,10 @@ export class Dictation {
   }
 
   /**
-   * A retired recording's end: the helper is asked to quit, and idle (with
-   * the queued press, if any) is reported only after its process is
-   * observed gone. A kill that was needed is said, and the end still lands.
-   */
+  A retired recording's end: the helper is asked to quit, and idle (with
+  the queued press, if any) is reported only after its process is
+  observed gone. A kill that was needed is said, and the end still lands.
+  */
   private async finishStop(helper: RunningHelper): Promise<void> {
     this.forget(helper)
     this.reaping = helper
@@ -484,12 +484,12 @@ export class Dictation {
   }
 
   /**
-   * A refused kill's aftermath: the kill is retried until the helper's
-   * process is observed gone (or the driver is disposed). Only then is
-   * the reaping released, idle reported, and a queued press spawned, so
-   * at most one recorder process ever exists. The optional end reports a
-   * retired recording's stop once its process is gone.
-   */
+  A refused kill's aftermath: the kill is retried until the helper's
+  process is observed gone (or the driver is disposed). Only then is
+  the reaping released, idle reported, and a queued press spawned, so
+  at most one recorder process ever exists. The optional end reports a
+  retired recording's stop once its process is gone.
+  */
   private async retainUntilExit(helper: RunningHelper, then?: () => void): Promise<void> {
     for (;;) {
       this.killHelper(helper)
@@ -606,11 +606,11 @@ export class Dictation {
   }
 
   /**
-   * The window, the backend or the recording is going away: the helper is
-   * asked to quit, and this resolves only after its process is observed
-   * gone (bounded; then it is killed and that is said). Never rejects, so
-   * the drain waiting on it cannot fail a shutdown.
-   */
+  The window, the backend or the recording is going away: the helper is
+  asked to quit, and this resolves only after its process is observed
+  gone (bounded; then it is killed and that is said). Never rejects, so
+  the drain waiting on it cannot fail a shutdown.
+  */
   public async dispose(): Promise<void> {
     this.isDisposed = true
     const helper = this.helper

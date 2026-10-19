@@ -33,10 +33,10 @@ export interface AuthCommandDeps {
   /** One line from the user, not echoed when it comes from a terminal. */
   readonly readSecret: (prompt: string) => Promise<string>
   /**
-   * Whether to use a key that looks like the wrong thing (a URL, a path,
-   * placeholder text, inner whitespace). A pipe cannot answer, so it names
-   * the value and proceeds; a terminal asks and waits for the answer.
-   */
+  Whether to use a key that looks like the wrong thing (a URL, a path,
+  placeholder text, inner whitespace). A pipe cannot answer, so it names
+  the value and proceeds; a terminal asks and waits for the answer.
+  */
   readonly confirmKeyUse: (message: string) => Promise<boolean>
   readonly print: (line: string) => void
   readonly printError: (line: string) => void
@@ -99,10 +99,10 @@ function storeDown(deps: AuthCommandDeps, error: unknown): number | undefined {
 }
 
 /**
- * D6: bare `auth status` answers every credential, not only the Meta key.
- * Exits 0 when any key is stored (Meta or provider), 1 when none is or the
- * store cannot be read. A missing providers file is the first-run state.
- */
+D6: bare `auth status` answers every credential, not only the Meta key.
+Exits 0 when any key is stored (Meta or provider), 1 when none is or the
+store cannot be read. A missing providers file is the first-run state.
+*/
 export async function authStatusAll(
   deps: AuthCommandDeps,
   readUserFile: () => Promise<ProvidersFileRead>,
@@ -189,12 +189,12 @@ export async function authClear(deps: AuthCommandDeps): Promise<number> {
 }
 
 /**
- * `auth set --provider <id>`: the key comes from standard input only (the
- * reader hides terminal typing and takes a pipe's first line), is never
- * refused for its shape (the provider judges it), and is stored bound to
- * the exact origin it was entered for. Never an argument, a setting, a
- * file or the environment.
- */
+`auth set --provider <id>`: the key comes from standard input only (the
+reader hides terminal typing and takes a pipe's first line), is never
+refused for its shape (the provider judges it), and is stored bound to
+the exact origin it was entered for. Never an argument, a setting, a
+file or the environment.
+*/
 export async function authSetProvider(
   deps: AuthCommandDeps,
   providerId: string,
@@ -347,14 +347,14 @@ export interface ExitingProcess {
 export interface LoginDeps {
   readonly resolveLaunch: () => LaunchResolution
   /**
-   * The guarded serve environment for `cwd` below: only a guarded child
-   * environment flows into the login spawn.
-   */
+  The guarded serve environment for `cwd` below: only a guarded child
+  environment flows into the login spawn.
+  */
   readonly environment: () => GuardedChildEnv
   /**
-   * The directory the login child runs in: the same directory the
-   * environment is guarded for, so no workspace program resolves from PATH.
-   */
+  The directory the login child runs in: the same directory the
+  environment is guarded for, so no workspace program resolves from PATH.
+  */
   readonly cwd: string
   /** Governed launch with terminal streams forwarded after admission. */
   readonly spawnInTerminal: (
@@ -410,10 +410,10 @@ export interface GitHubAuthDeps {
 }
 
 /**
- * `auth github login|logout|status` (M123, PLAN.md D104 source b): the
- * device flow in this terminal, its code printed here; the token goes only
- * into the credential store and is never printed.
- */
+`auth github login|logout|status` (M123, PLAN.md D104 source b): the
+device flow in this terminal, its code printed here; the token goes only
+into the credential store and is never printed.
+*/
 export async function authGitHub(action: GitHubAuthAction, deps: GitHubAuthDeps): Promise<number> {
   const text = UI_TEXT.githubSignIn
   try {

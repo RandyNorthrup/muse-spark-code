@@ -94,8 +94,8 @@ function attestedChannel() {
     const [event] = z.tuple([z.object({ detail: z.nullable(jobRecordSchema) })]).parse(events)
     return event.detail ?? undefined
   })()
-  const answer = (name: 'root' | 'record', detail: unknown): void => {
-    answers.dispatchEvent(new CustomEvent(name, { detail: detail ?? null }))
+  const answer = (name: 'root' | 'record', detail: unknown = null): void => {
+    answers.dispatchEvent(new CustomEvent(name, { detail }))
   }
   let socket: Socket | undefined
   let pending = ''
@@ -178,10 +178,10 @@ export interface McpJobLaunch {
   readonly isVerbatim: boolean
   readonly cwd: string
   /**
-   * Only the allowlisted and explicitly configured variables reach the
-   * server — and the native helper serializes this environment into the
-   * payload's own, so only a guarded child environment type-checks here.
-   */
+  Only the allowlisted and explicitly configured variables reach the
+  server — and the native helper serializes this environment into the
+  payload's own, so only a guarded child environment type-checks here.
+  */
   readonly env: GuardedChildEnv
   readonly log: (message: string) => void
   /** The whole job's memory in bytes (M91b, plugin children); absent sets no limit. */
@@ -189,10 +189,10 @@ export interface McpJobLaunch {
   /** SPAWN017C portable launches: an unnamed job that attests its own tree. */
   readonly attestation?: JobAttestationLimits | undefined
   /**
-   * The payload's own last check (M123, RVM123G2 R1): run synchronously
-   * when the helper is READY, before GO lets it create the payload process.
-   * A throw withholds GO and closes the pipe, so the payload never starts.
-   */
+  The payload's own last check (M123, RVM123G2 R1): run synchronously
+  when the helper is READY, before GO lets it create the payload process.
+  A throw withholds GO and closes the pipe, so the payload never starts.
+  */
   readonly authorize?: (() => void) | undefined
 }
 
@@ -356,12 +356,12 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
 }
 
 /**
- * SPAWN017C: a portable contained or probe launch. Only the helper's record
- * saying it drained the job (`emptied: true`) proves the tree gone; a killed
- * helper's job is ended by the kernel, but that end is not observed. The record
- * also carries the final usage and any limit the kernel enforced. The caller
- * registers and completes the lease.
- */
+SPAWN017C: a portable contained or probe launch. Only the helper's record
+saying it drained the job (`emptied: true`) proves the tree gone; a killed
+helper's job is ended by the kernel, but that end is not observed. The record
+also carries the final usage and any limit the kernel enforced. The caller
+registers and completes the lease.
+*/
 export function spawnAttestedJob(
   launch: McpJobLaunch & { readonly attestation: JobAttestationLimits },
 ): { child: ResourcePipedProcess['child']; control: AttestedJobControl } {

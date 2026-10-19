@@ -36,9 +36,9 @@ export interface ProjectLicenseResult {
   readonly licenses: readonly string[]
   readonly incomplete: readonly string[]
   /**
-   * A license text (root or vendored below it) did not match its template
-   * exactly, so its terms need human review (M97 CM971-R3).
-   */
+  A license text (root or vendored below it) did not match its template
+  exactly, so its terms need human review (M97 CM971-R3).
+  */
   readonly requiresReview: boolean
 }
 
@@ -47,18 +47,18 @@ export interface LicenseTextMatch {
   readonly id: string
   readonly confidence: number
   /**
-   * True only when the text matches a pinned SPDX template (M97
-   * CM971-R3): every fixed token present in order, nothing after its end,
-   * and only the template's variable and optional parts varying, each
-   * variable holding just what it stands for. Heuristic readings keep
-   * `false` and the named full-matching incomplete reason.
-   */
+  True only when the text matches a pinned SPDX template (M97
+  CM971-R3): every fixed token present in order, nothing after its end,
+  and only the template's variable and optional parts varying, each
+  variable holding just what it stands for. Heuristic readings keep
+  `false` and the named full-matching incomplete reason.
+  */
   readonly exact: boolean
   /**
-   * Set when the text reads closest to a pinned template without
-   * matching it: the template and the first differing span, for human
-   * review.
-   */
+  Set when the text reads closest to a pinned template without
+  matching it: the template and the first differing span, for human
+  review.
+  */
   readonly differs?: {
     readonly canonicalId: string
     readonly span: string
@@ -94,22 +94,22 @@ const BSD_SOURCE_BINARY = /\bredistribution and use in source and binary forms\b
 const CONFIDENCE_STEPS = 1000
 
 /**
- * The version stems whose `-only`/`-or-later` variant is read from the
- * project's own grant (manifests, README, source headers and GNU
- * notices), never from the license body (M97 CM971R2): identical bodies
- * cannot establish which variant the project grants.
- */
+The version stems whose `-only`/`-or-later` variant is read from the
+project's own grant (manifests, README, source headers and GNU
+notices), never from the license body (M97 CM971R2): identical bodies
+cannot establish which variant the project grants.
+*/
 export function gplTextStems(set: LicenseTemplateSet = licenseTemplateSet()): ReadonlySet<string> {
   return gplTemplateStems(set)
 }
 
 /**
- * Whether a dependency's declared license agrees with its vendored text
- * reading (M97 CM971R2): an exact string match, or a GPL-family stem
- * reading against the declared `-only`, `-or-later` or `+` variant.
- * Anything else is relabelled from the text evidence, never silently
- * adopted.
- */
+Whether a dependency's declared license agrees with its vendored text
+reading (M97 CM971R2): an exact string match, or a GPL-family stem
+reading against the declared `-only`, `-or-later` or `+` variant.
+Anything else is relabelled from the text evidence, never silently
+adopted.
+*/
 export function hasLicenseTextAgreement(
   declaredRaw: string | undefined,
   matchId: string,
@@ -124,11 +124,11 @@ export function hasLicenseTextAgreement(
 }
 
 /**
- * Resolve one file-read license id against the project's own grant
- * (M97 CM971R2): a GPL-family stem becomes the single claimed variant
- * (`-only` or `-or-later`) when the grants claim exactly one, and
- * conservative `-only` otherwise. Non-stems pass through.
- */
+Resolve one file-read license id against the project's own grant
+(M97 CM971R2): a GPL-family stem becomes the single claimed variant
+(`-only` or `-or-later`) when the grants claim exactly one, and
+conservative `-only` otherwise. Non-stems pass through.
+*/
 export function resolveGplStemVariant(
   id: string,
   grantIds: ReadonlySet<string>,
@@ -140,12 +140,12 @@ export function resolveGplStemVariant(
 }
 
 /**
- * The license a file's text reads as. Shared with the ecosystem readers,
- * which meet the same prose inside vendored packages. A text matching a
- * pinned SPDX template is exact; a text close to one reads as that
- * license with its first differing span; anything else falls through the
- * historical title and clause heuristics, never exact.
- */
+The license a file's text reads as. Shared with the ecosystem readers,
+which meet the same prose inside vendored packages. A text matching a
+pinned SPDX template is exact; a text close to one reads as that
+license with its first differing span; anything else falls through the
+historical title and clause heuristics, never exact.
+*/
 export function identifyLicenseText(
   text: string,
   set: LicenseTemplateSet = licenseTemplateSet(),
@@ -275,10 +275,10 @@ function readmeLicense(
 
 /** Canonical ids in an expression: recognized ids plus custom references. */
 /**
- * A license entry as the grant it makes (M97 CM971-R3): the GPL family's
- * trailing `+` and `-or-later` read as `<stem>-or-later`, its bare
- * (deprecated) stem and `-only` as `<stem>-only`; other ids as listed.
- */
+A license entry as the grant it makes (M97 CM971-R3): the GPL family's
+trailing `+` and `-or-later` read as `<stem>-or-later`, its bare
+(deprecated) stem and `-only` as `<stem>-only`; other ids as listed.
+*/
 function grantIdOf(license: SpdxLicenseNode, stems: ReadonlySet<string>): string | undefined {
   const canonical = license.canonicalId ?? (license.custom ? license.id : undefined)
   if (canonical === undefined) return undefined
@@ -287,7 +287,8 @@ function grantIdOf(license: SpdxLicenseNode, stems: ReadonlySet<string>): string
   return license.plus || canonical.endsWith('-or-later') ? `${stem}-or-later` : `${stem}-only`
 }
 
-function canonicalIdsOf(raw: string, stems: ReadonlySet<string> = gplTextStems()): string[] {
+function canonicalIdsOf(raw: string): string[] {
+  const stems = gplTextStems()
   const parsed = parseSpdxExpression(raw)
   if (!parsed.ok) {
     return []
@@ -355,11 +356,11 @@ interface ManifestAssessment {
 }
 
 /**
- * Read the project's license declarations. `manifests` carries the license
- * fields the ecosystem readers already parsed (one per manifest), so no
- * manifest is read twice. `snapshot.files` must already be sorted and
- * workspace-confined.
- */
+Read the project's license declarations. `manifests` carries the license
+fields the ecosystem readers already parsed (one per manifest), so no
+manifest is read twice. `snapshot.files` must already be sorted and
+workspace-confined.
+*/
 export function scanProjectLicense(
   snapshot: LegalFileSnapshot,
   manifests: readonly ManifestLicenseDeclaration[] = [],

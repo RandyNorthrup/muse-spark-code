@@ -82,10 +82,10 @@ const MAC_START_TIME = /^[A-Z][a-z]{2} [A-Z][a-z]{2} [ \d]\d \d{2}:\d{2}:\d{2} \
 const MAC_PROCESS_WITH_START = /^(\s*\d+\s+\d+\s+\d+\s+\S+\s+\S+\s+\d+)\s+(\S.*\S)\s*$/
 
 /**
- * One process's row and start time: the table's ps columns and parser, for
- * one PID, plus `lstart` so a reused PID is told apart (M105 RSS). Null for
- * anything but exactly one well-formed row.
- */
+One process's row and start time: the table's ps columns and parser, for
+one PID, plus `lstart` so a reused PID is told apart (M105 RSS). Null for
+anything but exactly one well-formed row.
+*/
 export async function readMacProcess(
   pid: number,
   run: ResourceTreeRun,

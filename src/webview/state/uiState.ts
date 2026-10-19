@@ -147,9 +147,9 @@ export interface UsageReport {
 }
 
 /**
- * The last sentence for the screen-reader live region (M8). `sequence`
- * grows on every announcement so the same text twice is still read twice.
- */
+The last sentence for the screen-reader live region (M8). `sequence`
+grows on every announcement so the same text twice is still read twice.
+*/
 export interface Announcement {
   readonly text: string
   readonly sequence: number
@@ -224,9 +224,9 @@ export type ToolImageState =
   | { readonly kind: 'failed'; readonly reason: string }
 
 /**
- * The review pane (M70): the conversation's changes as the host listed them
- * for the pane's last request; `files` is undefined while it reads them.
- */
+The review pane (M70): the conversation's changes as the host listed them
+for the pane's last request; `files` is undefined while it reads them.
+*/
 export interface ReviewPaneState {
   readonly requestId: string
   readonly files: readonly ReviewFile[] | undefined
@@ -243,10 +243,10 @@ export type ReviewHunkState =
   | { readonly kind: 'failed'; readonly reason: string }
 
 /**
- * A conversation the panel brought back from its saved state (M25), waiting
- * for the host to say which session is live: kept when it is the same one,
- * dropped otherwise (a window reload restarts every host).
- */
+A conversation the panel brought back from its saved state (M25), waiting
+for the host to say which session is live: kept when it is the same one,
+dropped otherwise (a window reload restarts every host).
+*/
 export interface PendingRestore {
   readonly sessionId: string | undefined
   /** The transcript was too long to save; only a notice can come back. */
@@ -268,10 +268,10 @@ export interface UiState {
     { readonly requestId: string; readonly draftRevision: number } | undefined
   readonly judge: JudgeStatus | undefined
   /**
-   * M107 U–C1: this window governor's status as the host sent it (bounded
-   * JSON text; the deferred chip checks its schema); null when the current
-   * status was refused. Machine-wide, never saved.
-   */
+  M107 U–C1: this window governor's status as the host sent it (bounded
+  JSON text; the deferred chip checks its schema); null when the current
+  status was refused. Machine-wide, never saved.
+  */
   readonly resourceStatus: string | null | undefined
   /** The latest Show resources open the host offered, and the document it named. */
   readonly resourceOffer: { readonly seq: number; readonly nonce: string } | undefined
@@ -335,13 +335,13 @@ export interface UiState {
       }
     | undefined
   /**
-   * Recorded focus requests (tokened host `focusInput`, `init`, inserts,
-   * restores and the composer's own actions). Recording is not landing: the
-   * composer focuses only through `landFocusRequest` while this surface
-   * holds the keyboard and only within the delivery window after the ask;
-   * afterwards the request is gone, so a late request is dropped instead of
-   * taking the keyboard from whatever holds it.
-   */
+  Recorded focus requests (tokened host `focusInput`, `init`, inserts,
+  restores and the composer's own actions). Recording is not landing: the
+  composer focuses only through `landFocusRequest` while this surface
+  holds the keyboard and only within the delivery window after the ask;
+  afterwards the request is gone, so a late request is dropped instead of
+  taking the keyboard from whatever holds it.
+  */
   readonly focusRequests: number
   /** Incremented per host `openUsage`; Account & usage opens when it changes (M94). */
   readonly usageRequests: number
@@ -397,9 +397,9 @@ export interface UiState {
   /** Promoted-steer turn corrections received before their local card is accepted. */
   readonly pendingReplayTurns: Readonly<Record<string, string>>
   /**
-   * User items a request read before their card was accepted (M87): the late
-   * acceptance marks the card sent, never queued. At most one per pending card.
-   */
+  User items a request read before their card was accepted (M87): the late
+  acceptance marks the card sent, never queued. At most one per pending card.
+  */
   readonly admittedMessageIds: readonly string[]
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
@@ -412,10 +412,10 @@ export interface UiState {
   readonly uploadedFilesAccountId: string | undefined
   readonly uploadedFilesGeneration: number
   /**
-   * The Agent map's team tree (M96 lane U2); undefined where the team
-   * cannot run (off, Solo, single-model mode, no runnable role): the map,
-   * the pill and the dialog are today's.
-   */
+  The Agent map's team tree (M96 lane U2); undefined where the team
+  cannot run (off, Solo, single-model mode, no runnable role): the map,
+  the pill and the dialog are today's.
+  */
   readonly teamTree: TeamTreeData | undefined
   /** What the next message replies to or quotes (M17); the composer chip. */
   readonly reference: ChatReference | undefined
@@ -424,11 +424,11 @@ export interface UiState {
   /** Which child transcript holds an item (M25), so a delta finds it without a scan. */
   readonly childOwners: Readonly<Record<string, string>>
   /**
-   * Conversation rows that arrived for a turn the conversation was not known
-   * to run, by turn (M25): a subagent's items can reach the parent stream
-   * before the row that names its child session, and move to its transcript
-   * once that row arrives.
-   */
+  Conversation rows that arrived for a turn the conversation was not known
+  to run, by turn (M25): a subagent's items can reach the parent stream
+  before the row that names its child session, and move to its transcript
+  once that row arrives.
+  */
   readonly strayItems: Readonly<Record<string, readonly string[]>>
   /** The chips a pending message took from the composer, by local id (M25). */
   readonly unsentAttachments: Readonly<Record<string, readonly AttachmentSummary[]>>
@@ -452,11 +452,11 @@ export interface UiState {
     >
   >
   /**
-   * A held prompt's Send anyway arm (M92e, PLAN.md D71): the refused draft
-   * and its redacted text, attachments and reference. Only the dialog's
-   * explicit resend carries `secretAccepted`; a newer composer draft stays
-   * independent and receives its own scan.
-   */
+  A held prompt's Send anyway arm (M92e, PLAN.md D71): the refused draft
+  and its redacted text, attachments and reference. Only the dialog's
+  explicit resend carries `secretAccepted`; a newer composer draft stays
+  independent and receives its own scan.
+  */
   readonly secretPrompt:
     | {
         readonly localId: string
@@ -470,10 +470,10 @@ export interface UiState {
   /** Delayed holds are shown in arrival order, each with its own payload. */
   readonly secretPromptQueue: readonly NonNullable<UiState['secretPrompt']>[]
   /**
-   * Images of a refused message the host may still hold but the composer no
-   * longer shows (M25): the app asks the host to drop them, so none linger
-   * unseen and come back as chips after a reload.
-   */
+  Images of a refused message the host may still hold but the composer no
+  longer shows (M25): the app asks the host to drop them, so none linger
+  unseen and come back as chips after a reload.
+  */
   readonly attachmentsToRelease: readonly string[]
   /** The composer banner (M14): an unsupported upload, until dismissed. */
   readonly banner: string | undefined
@@ -526,20 +526,20 @@ export interface UiState {
   /** Monotonic counter behind locally generated transcript ids. */
   readonly localSequence: number
   /**
-   * Monotonic arrival counter over every item the reducer takes in (M20):
-   * user messages take it as `seq`, tool rows as `completedSeq` when they
-   * complete, so the rewind can order edits across agents.
-   */
+  Monotonic arrival counter over every item the reducer takes in (M20):
+  user messages take it as `seq`, tool rows as `completedSeq` when they
+  complete, so the rewind can order edits across agents.
+  */
   readonly sequence: number
   /** The active editor as the host last reported it (M5). */
   readonly editorContext: EditorContextSummary | undefined
   /** The file whose chip the user closed; forgotten when another file is active. */
   readonly dismissedEditorPath: string | undefined
   /**
-   * The session a restored panel stored (D15), kept in the webview state
-   * until a session is live here or the user clears (M25), so a failed
-   * resume can be tried again on the next reload.
-   */
+  The session a restored panel stored (D15), kept in the webview state
+  until a session is live here or the user clears (M25), so a failed
+  resume can be tried again on the next reload.
+  */
   readonly restoredSessionId: string | undefined
   /** A restored conversation waiting for the host's `surfaceState` (M25). */
   readonly pendingRestore: PendingRestore | undefined
@@ -548,26 +548,26 @@ export interface UiState {
   /** A local share file open read-only (M84); undefined when none is open. */
   readonly share: SharePreview | undefined
   /**
-   * The finished provider setup (M95): the wizard saved a provider and set
-   * the composer's model. Shown once above the composer, until dismissed.
-   */
+  The finished provider setup (M95): the wizard saved a provider and set
+  the composer's model. Shown once above the composer, until dismissed.
+  */
   readonly setupComplete: { readonly provider: string; readonly model: string } | undefined
   /**
-   * The report-a-problem preview (M93 lane W): lane P's sealed draft as the
-   * host built it, with the removable items it contains. Undefined while
-   * the dialog is closed; never saved (the journal outlives the panel, and
-   * the command reads it again after a reload).
-   */
+  The report-a-problem preview (M93 lane W): lane P's sealed draft as the
+  host built it, with the removable items it contains. Undefined while
+  the dialog is closed; never saved (the journal outlives the panel, and
+  the command reads it again after a reload).
+  */
   readonly report: ReportDialogState | undefined
   /**
-   * The newest report session the user closed (0 for none): a draft still on
-   * its way for it, or for an older one, never reopens the dialog.
-   */
+  The newest report session the user closed (0 for none): a draft still on
+  its way for it, or for an older one, never reopens the dialog.
+  */
   readonly closedReportSession: number
   /**
-   * The conversation in the transcript holds imported history (M84, the
-   * host's `historyLoaded`): its code blocks offer Copy, never Insert or Apply.
-   */
+  The conversation in the transcript holds imported history (M84, the
+  host's `historyLoaded`): its code blocks offer Copy, never Insert or Apply.
+  */
   readonly isImported: boolean
 }
 
@@ -650,16 +650,16 @@ export type UiAction =
   /** Commit or Create pressed: the form waits for the host's `gitDone`. */
   | { readonly type: 'gitFormBusy' }
   /**
-   * "Write With Muse" pressed: the user's own message asking for the draft
-   * goes in the transcript (the composer's draft stays as it is), and the
-   * form waits for the reply.
-   */
+  "Write With Muse" pressed: the user's own message asking for the draft
+  goes in the transcript (the composer's draft stays as it is), and the
+  form waits for the reply.
+  */
   | { readonly type: 'gitDraftRequested'; readonly localId: string; readonly text: string }
   /**
-   * A card that did not come from the composer (M70): a review a palette row
-   * started, or a comment from the review pane. The draft, its chips and its
-   * reference chip stay as they are.
-   */
+  A card that did not come from the composer (M70): a review a palette row
+  started, or a comment from the review pane. The draft, its chips and its
+  reference chip stay as they are.
+  */
   | {
       readonly type: 'cardSubmitted'
       readonly localId: string
@@ -860,10 +860,10 @@ function announce(state: UiState, text: string | undefined): UiState {
 }
 
 /**
- * What the live region says when a turn ends. It is the only live region
- * (M25): the rows themselves carry no alert roles, so a failure's reason is
- * read out here.
- */
+What the live region says when a turn ends. It is the only live region
+(M25): the rows themselves carry no alert roles, so a failure's reason is
+read out here.
+*/
 function turnAnnouncement(terminal: string, reason: string | undefined): string | undefined {
   switch (terminal) {
     case COMPLETED: {
@@ -884,9 +884,9 @@ function turnAnnouncement(terminal: string, reason: string | undefined): string 
 }
 
 /**
- * What the live region says when the goal changes (M45): its new status in
- * words, or that it was cleared; nothing when only its progress moved.
- */
+What the live region says when the goal changes (M45): its new status in
+words, or that it was cleared; nothing when only its progress moved.
+*/
 function goalAnnouncement(
   previous: SessionGoal | undefined,
   next: SessionGoal | undefined,
@@ -911,10 +911,10 @@ function dictationAnnouncement(
 }
 
 /**
- * Whether a tool row's edits are on disk: a completed row with a patch, or
- * a rename stopped partway (M67), whose failed row carries the patch of the
- * files it did write. Review, revert and rewind cover both.
- */
+Whether a tool row's edits are on disk: a completed row with a patch, or
+a rename stopped partway (M67), whose failed row carries the patch of the
+files it did write. Review, revert and rewind cover both.
+*/
 export function hasLandedEdits(entry: {
   readonly status: string
   readonly tool: string
@@ -940,9 +940,9 @@ export function failedOutcomeText(status: string): string {
 }
 
 /**
- * "PowerShell: Failed" when a row turns failed, rejected or stopped (M25),
- * and "Your command: Failed" for the user's own (M46); nothing otherwise.
- */
+"PowerShell: Failed" when a row turns failed, rejected or stopped (M25),
+and "Your command: Failed" for the user's own (M46); nothing otherwise.
+*/
 function toolFailureAnnouncement(
   previous: TranscriptEntry | undefined,
   next: TranscriptEntry | undefined,
@@ -990,7 +990,7 @@ export function toolImageKey(itemId: string, path: string): string {
 function reportedImages(item: ItemSnapshot): readonly string[] | undefined {
   const paths = (item.modelVisibleContent ?? []).flatMap((content) => {
     const parsed = visibleImageSchema.safeParse(content)
-    return parsed.success ? [parsed.data.path] : []
+    return parsed.success ? parsed.data.path : []
   })
   return paths.length === 0 ? undefined : paths
 }
@@ -1027,10 +1027,10 @@ function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefi
 }
 
 /**
- * One agent told again (live 2026-09-25): Muse Code drops a field once the
- * agent moves on, so what it said stays. The UI keeps the label across a
- * new attempt; outcome, duration and tokens belong to that attempt.
- */
+One agent told again (live 2026-09-25): Muse Code drops a field once the
+agent moves on, so what it said stays. The UI keeps the label across a
+new attempt; outcome, duration and tokens belong to that attempt.
+*/
 function mergeChild(before: WorkflowChild, after: WorkflowChild): WorkflowChild {
   const isSameAttempt = after.attempt === before.attempt
   return {
@@ -1057,10 +1057,10 @@ function mergeChildren(
 }
 
 /**
- * A tool the turn went on without (M14): flagged by the host, or a shell
- * call Muse Code moved to the background, whose result says so (M43, live
- * 2026-09-25); either way its turn ending does not cut it off.
- */
+A tool the turn went on without (M14): flagged by the host, or a shell
+call Muse Code moved to the background, whose result says so (M43, live
+2026-09-25); either way its turn ending does not cut it off.
+*/
 function isBackgrounded(item: ItemSnapshot): boolean | undefined {
   if (item.background !== undefined) {
     return item.background
@@ -1071,10 +1071,10 @@ function isBackgrounded(item: ItemSnapshot): boolean | undefined {
 }
 
 /**
- * Replace one entry. Rows that change are almost always the newest (a
- * streaming reply, a running tool), so the search runs from the end (M25);
- * an unchanged entry leaves the array as it was.
- */
+Replace one entry. Rows that change are almost always the newest (a
+streaming reply, a running tool), so the search runs from the end (M25);
+an unchanged entry leaves the array as it was.
+*/
 function updateEntry(
   transcript: readonly TranscriptEntry[],
   id: string,
@@ -1130,13 +1130,13 @@ function trailingRepeatIndex(
 }
 
 /**
- * A notice at the end of the transcript. One said again among the notices
- * that end it (the same level and text, D26: a busy Muse Code fails the same
- * way many times) replaces the earlier row rather than stacking: that row
- * goes, and this one, at the end, counts how many times it was said. A new
- * id, so a spent button comes back for the new failure. A notice before the
- * last message or tool row stays where it was said.
- */
+A notice at the end of the transcript. One said again among the notices
+that end it (the same level and text, D26: a busy Muse Code fails the same
+way many times) replaces the earlier row rather than stacking: that row
+goes, and this one, at the end, counts how many times it was said. A new
+id, so a spent button comes back for the new failure. A notice before the
+last message or tool row stays where it was said.
+*/
 function withNotice(
   state: UiState,
   level: NoticeLevel,
@@ -1436,12 +1436,12 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
 }
 
 /**
- * A row whose turn ended (M25): a reply stops streaming, a thought stops
- * the clock, and a tool still running is marked interrupted with its card
- * gone, since nothing can answer it any more. A backgrounded tool runs on
- * past its turn (M14) and keeps its status. A later item update from the
- * host still overrides all of this.
- */
+A row whose turn ended (M25): a reply stops streaming, a thought stops
+the clock, and a tool still running is marked interrupted with its card
+gone, since nothing can answer it any more. A backgrounded tool runs on
+past its turn (M14) and keeps its status. A later item update from the
+host still overrides all of this.
+*/
 function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
   switch (entry.kind) {
     case 'assistant': {
@@ -1532,10 +1532,10 @@ function settleAll(
 }
 
 /**
- * A user card rebuilt from a stored `userMessage` item (M6 replay); sent
- * in Plan mode when the host says its turn was (M79), which the item does
- * not record.
- */
+A user card rebuilt from a stored `userMessage` item (M6 replay); sent
+in Plan mode when the host says its turn was (M79), which the item does
+not record.
+*/
 function replayedUserEntry(item: ItemSnapshot, seq: number, isPlanTurn = false): TranscriptEntry {
   const atMs = recordedAtMs(item.recordedAt)
   return {
@@ -1569,10 +1569,10 @@ function withPendingResolutions(state: UiState, at: number): UiState {
 }
 
 /**
- * Rebuild the transcript from a session's stored items (`historyLoaded`):
- * user messages become cards (the live path hides them, its own echo being
- * the card). Same-session workflow rows keep details their final items omit.
- */
+Rebuild the transcript from a session's stored items (`historyLoaded`):
+user messages become cards (the live path hides them, its own echo being
+the card). Same-session workflow rows keep details their final items omit.
+*/
 function replayHistory(
   items: readonly ItemSnapshot[],
   at: number,
@@ -1625,17 +1625,17 @@ function replayHistory(
 }
 
 /**
- * A subagent's transcript read from its own session (M25, fixing M20's
- * replay): nothing in the read says when a row landed, so a row the panel
- * never saw arrive takes a number just after the last thing known to come
- * before it: the agent's own row (`anchor`), or a row of this transcript the
- * panel did see complete earlier in the session's order. That keeps it after
- * the messages sent before the agent started and before the next one. Rows
- * the panel already had live keep their own numbers and state; live rows the
- * read did not include yet stay at the end. Without an anchor (no agent row
- * names this session) the read rows take no completion number and stay out
- * of any rewind.
- */
+A subagent's transcript read from its own session (M25, fixing M20's
+replay): nothing in the read says when a row landed, so a row the panel
+never saw arrive takes a number just after the last thing known to come
+before it: the agent's own row (`anchor`), or a row of this transcript the
+panel did see complete earlier in the session's order. That keeps it after
+the messages sent before the agent started and before the next one. Rows
+the panel already had live keep their own numbers and state; live rows the
+read did not include yet stay at the end. Without an anchor (no agent row
+names this session) the read rows take no completion number and stay out
+of any rewind.
+*/
 function replayChild(
   items: readonly ItemSnapshot[],
   at: number,
@@ -1673,10 +1673,10 @@ function replayChild(
 }
 
 /**
- * A tool row that has completed takes the arrival number it completed at
- * (M20): the order its edit landed on disk. Stamped once; a later snapshot
- * of the same row keeps it.
- */
+A tool row that has completed takes the arrival number it completed at
+(M20): the order its edit landed on disk. Stamped once; a later snapshot
+of the same row keeps it.
+*/
 function stampCompletion(entry: TranscriptEntry, seq: number): TranscriptEntry {
   return entry.kind === 'tool' &&
     (entry.status === COMPLETED || hasLandedEdits(entry)) &&
@@ -1686,11 +1686,11 @@ function stampCompletion(entry: TranscriptEntry, seq: number): TranscriptEntry {
 }
 
 /**
- * The subagent whose child session a turn belongs to (M18). Seen live
- * 2026-09-23: a child's own items (its reply, its tool calls) reach the
- * parent stream with `turnId` equal to the child session id. Model API
- * children (M48) prefix each of their turn ids with their child session id.
- */
+The subagent whose child session a turn belongs to (M18). Seen live
+2026-09-23: a child's own items (its reply, its tool calls) reach the
+parent stream with `turnId` equal to the child session id. Model API
+children (M48) prefix each of their turn ids with their child session id.
+*/
 function childOwnerOf(state: UiState, turnId: string | undefined): SubagentEntry | undefined {
   return turnId === undefined
     ? undefined
@@ -1703,10 +1703,10 @@ function childOwnerOf(state: UiState, turnId: string | undefined): SubagentEntry
 }
 
 /**
- * A reply that arrives live shows the moment it began arriving until the
- * backend's recorded time comes with its completion (M87). A row read back
- * from history takes only the recorded time: no other time stands in.
- */
+A reply that arrives live shows the moment it began arriving until the
+backend's recorded time comes with its completion (M87). A row read back
+from history takes only the recorded time: no other time stands in.
+*/
 function withArrivalTime(entry: TranscriptEntry, at: number): TranscriptEntry {
   return entry.kind === 'assistant' && entry.atMs === undefined ? { ...entry, atMs: at } : entry
 }
@@ -1727,15 +1727,15 @@ function upsertEntry(
 }
 
 /**
- * Muse Code's own record of a message sent from this panel (M87): the live
- * path shows the card, not the item, so the card takes the item's recorded
- * time. The card is the one the item names exactly (its replay id, or the
- * item it took a time from before); failing that, the first card of the
- * item's turn with its text that no item has named yet, which then keeps
- * the item's id. One item stamps one card: two equal messages in a turn
- * keep their own times (the review of lane C). A time that does not parse
- * changes nothing.
- */
+Muse Code's own record of a message sent from this panel (M87): the live
+path shows the card, not the item, so the card takes the item's recorded
+time. The card is the one the item names exactly (its replay id, or the
+item it took a time from before); failing that, the first card of the
+item's turn with its text that no item has named yet, which then keeps
+the item's id. One item stamps one card: two equal messages in a turn
+keep their own times (the review of lane C). A time that does not parse
+changes nothing.
+*/
 function withRecordedUserTime(state: UiState, item: ItemSnapshot): UiState {
   const atMs = recordedAtMs(item.recordedAt)
   if (atMs === undefined) {
@@ -1802,12 +1802,12 @@ function applyChildItem(
 }
 
 /**
- * Remember a conversation row whose turn is neither the running one nor the
- * last finished one (M25): it may be a subagent's, arrived before the row
- * naming its child session. A workflow run is never one: it outlives the
- * turn that launched it (M47, live 2026-09-25), so its updates keep coming
- * under that turn after others have started.
- */
+Remember a conversation row whose turn is neither the running one nor the
+last finished one (M25): it may be a subagent's, arrived before the row
+naming its child session. A workflow run is never one: it outlives the
+turn that launched it (M47, live 2026-09-25), so its updates keep coming
+under that turn after others have started.
+*/
 function noteStray(state: UiState, item: ItemSnapshot): UiState['strayItems'] {
   const { turnId } = item
   if (
@@ -1926,10 +1926,10 @@ function withToolEntry(
 type UserEntry = Extract<TranscriptEntry, { kind: 'user' }>
 
 /**
- * Queued cards the model now has (M87, PLAN.md D66): their turn started, the
- * message reached a request, or the turn it joined ended. They read as sent,
- * and Edit is no longer offered.
- */
+Queued cards the model now has (M87, PLAN.md D66): their turn started, the
+message reached a request, or the turn it joined ended. They read as sent,
+and Edit is no longer offered.
+*/
 function admitQueued(
   transcript: readonly TranscriptEntry[],
   isAdmitted: (entry: UserEntry) => boolean,
@@ -2426,10 +2426,10 @@ function reviewHunkSettled(
 }
 
 /**
- * A pending user card at the end of the transcript, its chips kept until
- * the host accepts or refuses it: the composer's Send, or a message the host
- * sent itself (M79).
- */
+A pending user card at the end of the transcript, its chips kept until
+the host accepts or refuses it: the composer's Send, or a message the host
+sent itself (M79).
+*/
 function withPendingCard(
   state: UiState,
   card: {
@@ -2468,12 +2468,12 @@ function withPendingCard(
 }
 
 /**
- * The reply that "Save Plan" and "Implement in a Fresh Conversation" sit
- * under (M79): the conversation's latest reply, in Plan mode, once no turn
- * runs and nothing was sent after it, answering a message this panel sent
- * in Plan mode. Neither backend marks a plan or its approval on the wire,
- * so the panel offers its own action here; the host checks it all again.
- */
+The reply that "Save Plan" and "Implement in a Fresh Conversation" sit
+under (M79): the conversation's latest reply, in Plan mode, once no turn
+runs and nothing was sent after it, answering a message this panel sent
+in Plan mode. Neither backend marks a plan or its approval on the wire,
+so the panel offers its own action here; the host checks it all again.
+*/
 export function planReplyIdOf(state: UiState): string | undefined {
   if (
     state.permissionMode !== 'plan' ||
@@ -2596,10 +2596,10 @@ function clearedAccountView(state: UiState): UiState {
 }
 
 /**
- * The goal after a history load (M45): the history's, or, when it cannot
- * say (Muse Code's inline history carries none), the one the panel already
- * showed for the same session.
- */
+The goal after a history load (M45): the history's, or, when it cannot
+say (Muse Code's inline history carries none), the one the panel already
+showed for the same session.
+*/
 function loadedGoal(
   state: UiState,
   message: Extract<HostToWebviewMessage, { type: 'historyLoaded' }>,
@@ -2638,11 +2638,11 @@ function goalEditorFor(
 }
 
 /**
- * The host's word on this surface after a (re)load (M25). A restored
- * conversation stays only when its session is the one the host holds live;
- * the host's running turn (or none) replaces whatever the saved state said,
- * and rows left running by a turn that ended while the panel was away settle.
- */
+The host's word on this surface after a (re)load (M25). A restored
+conversation stays only when its session is the one the host holds live;
+the host's running turn (or none) replaces whatever the saved state said,
+and rows left running by a turn that ended while the panel was away settle.
+*/
 function reconcile(
   state: UiState,
   message: Extract<HostToWebviewMessage, { type: 'surfaceState' }>,
@@ -3761,11 +3761,11 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
 }
 
 /**
- * Whether a host `focusInput` carries its owner's token and arrives within
- * the delivery window (panel-focus F3): the host's gate mints `token` and
- * `issuedAt` and drops the ask when its panel is not active, so a tokenless
- * or stale ask is recorded nowhere and held nowhere.
- */
+Whether a host `focusInput` carries its owner's token and arrives within
+the delivery window (panel-focus F3): the host's gate mints `token` and
+`issuedAt` and drops the ask when its panel is not active, so a tokenless
+or stale ask is recorded nowhere and held nowhere.
+*/
 export function isHostOwnedFocusInput(
   message: Extract<HostToWebviewMessage, { type: 'focusInput' }>,
   at: number,
@@ -3778,16 +3778,16 @@ export function isHostOwnedFocusInput(
 }
 
 /**
- * The panel-focus ownership rule, as the composer's landed count after one
- * landing check: a recorded request lands (the count advances to `requested`)
- * only while this surface already holds the keyboard (`document.hasFocus()`
- * in the composer) and only within the delivery window after it was asked
- * (`requestedAt`). Afterwards the request is gone — an unowned check spends
- * nothing and accrues nothing, so a `reveal()` whose focus arrives within
- * the window still lands, while a load that finishes behind a just-opened
- * file, or an ask from an hour ago, can never take the keyboard. There is
- * one landing site (the composer's focus effect), never a check per sender.
- */
+The panel-focus ownership rule, as the composer's landed count after one
+landing check: a recorded request lands (the count advances to `requested`)
+only while this surface already holds the keyboard (`document.hasFocus()`
+in the composer) and only within the delivery window after it was asked
+(`requestedAt`). Afterwards the request is gone — an unowned check spends
+nothing and accrues nothing, so a `reveal()` whose focus arrives within
+the window still lands, while a load that finishes behind a just-opened
+file, or an ask from an hour ago, can never take the keyboard. There is
+one landing site (the composer's focus effect), never a check per sender.
+*/
 export function landFocusRequest(
   requested: number,
   landed: number,
@@ -4182,9 +4182,9 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
 }
 
 /**
- * The command a `!` prompt runs (M46, the TUI's shell escape), or undefined
- * for an ordinary message.
- */
+The command a `!` prompt runs (M46, the TUI's shell escape), or undefined
+for an ordinary message.
+*/
 export function userShellCommandOf(draft: string): string | undefined {
   const trimmed = draft.trim()
   return trimmed.startsWith(USER_SHELL_PREFIX)
@@ -4220,11 +4220,11 @@ export type ForkCut =
   { readonly type: 'afterTurn'; readonly lastTurnId: string } | { readonly type: 'fresh' }
 
 /**
- * The cut point for forking before the given user card: the last turn of
- * an earlier distinct turn, or a fresh conversation when it is the first.
- * A later message steered into the first turn has no completed-turn boundary.
- * Undefined when the id is not a sent user card or has no safe cut.
- */
+The cut point for forking before the given user card: the last turn of
+an earlier distinct turn, or a fresh conversation when it is the first.
+A later message steered into the first turn has no completed-turn boundary.
+Undefined when the id is not a sent user card or has no safe cut.
+*/
 export function forkCutBefore(
   transcript: readonly TranscriptEntry[],
   entryId: string,
@@ -4249,13 +4249,13 @@ export function forkCutBefore(
 }
 
 /**
- * The edits that landed after a user message, newest first: what "Rewind
- * code to here" reverts. The conversation's own edits and every subagent's
- * (their rows live in the child transcripts, M18), ordered by the arrival
- * number their completion took (M20), so edits that overlap unwind in the
- * reverse of the order they were applied. Only completed edit rows carry a
- * patch document.
- */
+The edits that landed after a user message, newest first: what "Rewind
+code to here" reverts. The conversation's own edits and every subagent's
+(their rows live in the child transcripts, M18), ordered by the arrival
+number their completion took (M20), so edits that overlap unwind in the
+reverse of the order they were applied. Only completed edit rows carry a
+patch document.
+*/
 export function editsAfter(state: UiState, entryId: string): readonly EditRef[] {
   const message = state.transcript.find((entry) => entry.id === entryId)
   return message?.kind === 'user'
@@ -4267,9 +4267,9 @@ export function editsAfter(state: UiState, entryId: string): readonly EditRef[] 
 }
 
 /**
- * Every edit of the conversation and its agents with a patch document, in
- * the order it landed on disk (M20): what the review pane lists (M70).
- */
+Every edit of the conversation and its agents with a patch document, in
+the order it landed on disk (M20): what the review pane lists (M70).
+*/
 export function conversationEdits(state: UiState): readonly EditRef[] {
   return landedEdits(state).map((entry) => ({ itemId: entry.id, outputRef: entry.patchRef.id }))
 }

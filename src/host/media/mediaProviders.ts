@@ -24,9 +24,9 @@ export interface MediaHostSettings {
 }
 
 /**
- * The attach admission from the person's settings (D121): 0 is no cap of
- * ours, so it is left absent and the provider decides; a set value applies.
- */
+The attach admission from the person's settings (D121): 0 is no cap of
+ours, so it is left absent and the provider decides; a set value applies.
+*/
 export function mediaLimitsFromSettings(settings: MediaHostSettings): MediaLimits {
   return {
     ...(settings.mediaMaxUploadMiB > 0 && {
@@ -43,15 +43,15 @@ const INLINE_IMAGE_FORMATS = ['image/png', 'image/jpeg', 'image/gif', 'image/web
 const INLINE_DOCUMENT_FORMATS = ['application/pdf']
 
 /**
- * Project the selected model from established behavior, never a guess: image
- * and document formats are what the request builder encodes today. Video,
- * audio and Files stay unknown here; the attach bundle overlays the captured
- * record (`mediaEntry.ts`), which activation never carries. D121: no inline
- * byte bound of ours — no provider documents one for models in general, so
- * none is enforced locally and each provider answers for its own sizes at
- * send (Meta's documented maxima live in its capability record and its
- * captured capabilities, enforced where a record is held).
- */
+Project the selected model from established behavior, never a guess: image
+and document formats are what the request builder encodes today. Video,
+audio and Files stay unknown here; the attach bundle overlays the captured
+record (`mediaEntry.ts`), which activation never carries. D121: no inline
+byte bound of ours — no provider documents one for models in general, so
+none is enforced locally and each provider answers for its own sizes at
+send (Meta's documented maxima live in its capability record and its
+captured capabilities, enforced where a record is held).
+*/
 export function projectMediaCapabilities(modelId: string): MediaModelCapabilities {
   return {
     modelId,
@@ -78,15 +78,15 @@ export interface MediaHostOpen {
 }
 
 /**
- * Wire the attach port from the host settings. The open hook (confinement,
- * approval, identity) stays with the caller because it owns the dialogs and
- * the session; capabilities project established behavior and the captured
- * record, and limits read the settings. Images and documents keep their
- * established pipeline; this port sniffs video and audio only. Binding
- * registers the approved source, its digest and a fresh token with the
- * window's attached-media registry, which the session's media service
- * resolves (lane V seam 1); every later read reopens through `open`.
- */
+Wire the attach port from the host settings. The open hook (confinement,
+approval, identity) stays with the caller because it owns the dialogs and
+the session; capabilities project established behavior and the captured
+record, and limits read the settings. Images and documents keep their
+established pipeline; this port sniffs video and audio only. Binding
+registers the approved source, its digest and a fresh token with the
+window's attached-media registry, which the session's media service
+resolves (lane V seam 1); every later read reopens through `open`.
+*/
 export function createMediaAttachDeps(
   settings: () => MediaHostSettings,
   open: MediaHostOpen['open'],
@@ -139,18 +139,18 @@ export interface MediaSourceOpenDeps {
     fsPath: string,
   ) => Promise<{ readonly canonical: string; readonly checkedAbsolute: string } | undefined>
   /**
-   * The host's recording temp root. Recorder-produced files under it skip
-   * workspace confinement (the driver made them); everything else is
-   * confined. Windows separators normalize before the prefix check.
-   */
+  The host's recording temp root. Recorder-produced files under it skip
+  workspace confinement (the driver made them); everything else is
+  confined. Windows separators normalize before the prefix check.
+  */
   readonly recordingTempRoot: string
 }
 
 /**
- * The attach port's source opener: confinement, protected/private recheck
- * and file identity on every open. No handle is a refusal; an IO failure
- * throws the read failure. The fd pins the file between the sniff reads.
- */
+The attach port's source opener: confinement, protected/private recheck
+and file identity on every open. No handle is a refusal; an IO failure
+throws the read failure. The fd pins the file between the sniff reads.
+*/
 export function createMediaSourceOpen(deps: MediaSourceOpenDeps): MediaAttachDeps['open'] {
   return async (file) => {
     let absolute: string

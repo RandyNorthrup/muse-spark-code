@@ -11,10 +11,10 @@
 import { UI_TEXT } from '../../shared/l10n/text'
 
 /**
- * Why a pasted value is worth a question before it is sent. Each notice
- * is true for every provider and protects against pasting the wrong
- * thing; each is answered ("use it anyway?"), never a dead end.
- */
+Why a pasted value is worth a question before it is sent. Each notice
+is true for every provider and protects against pasting the wrong
+thing; each is answered ("use it anyway?"), never a dead end.
+*/
 export type ProviderKeyNotice = 'whitespace' | 'url' | 'path' | 'placeholder'
 
 /** A pasted key: fine, blank, or carrying one question for the person. */
@@ -29,10 +29,10 @@ const KEY_PLACEHOLDER_PATTERN =
   /^(?:your[_\s-]*api[_\s-]*key|your[_\s-]*key|my[_\s-]*key|test[_\s-]*key|example(?:[_\s-]*key)?|sample(?:[_\s-]*key)?|demo(?:[_\s-]*key)?|placeholder|changeme|paste[_\s-]*key[_\s-]*here|insert[_\s-]*key[_\s-]*here|enter[_\s-]*key[_\s-]*here|your[_\s-]*key[_\s-]*here|x{3,}|\*{2,}|<[^<>]+>)$/i
 
 /**
- * The three universal checks on a pasted provider key (pure): blank is
- * refused (nothing can be sent); inner whitespace, a URL, a file path
- * or placeholder text each raises a question the person answers.
- */
+The three universal checks on a pasted provider key (pure): blank is
+refused (nothing can be sent); inner whitespace, a URL, a file path
+or placeholder text each raises a question the person answers.
+*/
 export function inspectProviderKey(candidate: string): ProviderKeyInspection {
   const trimmed = candidate.trim()
   if (trimmed === '') {
@@ -51,9 +51,9 @@ export function inspectProviderKey(candidate: string): ProviderKeyInspection {
 }
 
 /**
- * The question for one inspection notice ("use it anyway?"), read at use
- * time so the installed language is the one shown.
- */
+The question for one inspection notice ("use it anyway?"), read at use
+time so the installed language is the one shown.
+*/
 export function providerKeyNoticeText(notice: ProviderKeyNotice): string {
   switch (notice) {
     case 'whitespace': {

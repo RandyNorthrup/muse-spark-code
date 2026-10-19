@@ -125,10 +125,10 @@ export const teamModelSettingsSchema = /* @__PURE__ */ z.object({
 export type TeamModelSettings = z.infer<typeof teamModelSettingsSchema>
 
 /**
- * One pool entry: an agent with its own limits. An entry without an agent
- * is Default: whatever the orchestrator slot resolves to when the task
- * starts. Default alone never turns the team on (acceptance 47).
- */
+One pool entry: an agent with its own limits. An entry without an agent
+is Default: whatever the orchestrator slot resolves to when the task
+starts. Default alone never turns the team on (acceptance 47).
+*/
 export const teamPoolEntrySchema = /* @__PURE__ */ z
   .object({
     id: z.string().check(z.minLength(1)),
@@ -307,12 +307,12 @@ export const teamUsageSchema = /* @__PURE__ */ z.object({
 export type TeamUsage = z.infer<typeof teamUsageSchema>
 
 /**
- * One ledger row per delegation (D75): who and how, the bounded brief
- * through `redactSecrets` (no other prompt text or code), when, the
- * outcome, what it cost, and its links. Resets and per-window totals are
- * rows of their own, so a spent `lifetime` cap never refills when old task
- * rows age out.
- */
+One ledger row per delegation (D75): who and how, the bounded brief
+through `redactSecrets` (no other prompt text or code), when, the
+outcome, what it cost, and its links. Resets and per-window totals are
+rows of their own, so a spent `lifetime` cap never refills when old task
+rows age out.
+*/
 export const teamLedgerTaskRowSchema = /* @__PURE__ */ z.object({
   kind: z.literal('task'),
   taskId: z.string().check(z.minLength(1)),
@@ -391,11 +391,11 @@ export const teamTreeRoleSchema = /* @__PURE__ */ z.object({
 export type TeamTreeRole = z.infer<typeof teamTreeRoleSchema>
 
 /**
- * The Agent map's tree (D75): the orchestrator at the root, then roles
- * with their pools and workers. Queued, unmerged and interrupted tasks
- * have nodes of their own. In single-model mode the panel shows today's
- * map instead: no role node, no pool, no Traffic tab.
- */
+The Agent map's tree (D75): the orchestrator at the root, then roles
+with their pools and workers. Queued, unmerged and interrupted tasks
+have nodes of their own. In single-model mode the panel shows today's
+map instead: no role node, no pool, no Traffic tab.
+*/
 export const teamTreeSchema = /* @__PURE__ */ z.object({
   orchestrator: z.object({
     model: z.string().check(z.minLength(1)),

@@ -23,10 +23,10 @@ export interface PullRequestLinkRecord {
 }
 
 /**
- * The runtime's per-user link store, keyed by the canonical repository root
- * and the session id. It keeps the newest PULL_REQUEST_LINKS_KEPT links of
- * each root; session export and import carry a link through it.
- */
+The runtime's per-user link store, keyed by the canonical repository root
+and the session id. It keeps the newest PULL_REQUEST_LINKS_KEPT links of
+each root; session export and import carry a link through it.
+*/
 export interface PullRequestLinkStore {
   get(repositoryRoot: string, sessionId: string): Promise<PullRequestLinkRecord | undefined>
   set(repositoryRoot: string, sessionId: string, link: PullRequestLinkRecord): Promise<void>
@@ -46,58 +46,58 @@ export interface RuntimePushConfirmation {
 
 export interface RuntimeGitDeps {
   /**
-   * The repository's root as the host approved it (canonical: realpath,
-   * `/` separators). The service binds to this directory's identity when
-   * it is made and refuses a replacement at the same path.
-   */
+  The repository's root as the host approved it (canonical: realpath,
+  `/` separators). The service binds to this directory's identity when
+  it is made and refuses a replacement at the same path.
+  */
   readonly repositoryRoot: string
   /**
-   * The user's own `git`, an absolute path resolved as `resolveExecutable`
-   * does; every native git and the terminal command run this one.
-   */
+  The user's own `git`, an absolute path resolved as `resolveExecutable`
+  does; every native git and the terminal command run this one.
+  */
   readonly gitPath: string
   /**
-   * The window's GitHub sign-in over D104's sources: each call's
-   * credential (in D104's order), the panel card, Cancel and Sign out.
-   */
+  The window's GitHub sign-in over D104's sources: each call's
+  credential (in D104's order), the panel card, Cancel and Sign out.
+  */
   readonly github: GitHubSignIn
   readonly links: PullRequestLinkStore
   /** The editor's trust (MHP `workspace/trust`, or the runtime's record); checked after every await. */
   readonly isTrusted: () => boolean
   /**
-   * The hold on someone else's pull request and the worktree the window is
-   * on, as the panel's card and worktree line show them (D104 §3: held by
-   * location in every host); empty when neither.
-   */
+  The hold on someone else's pull request and the worktree the window is
+  on, as the panel's card and worktree line show them (D104 §3: held by
+  location in every host); empty when neither.
+  */
   readonly worktreeState: () => Pick<GitState, 'hold' | 'worktree'>
   /** The held card's "Trust This Worktree…": asks, and lets the hold go on a yes. */
   readonly confirmWorktreeTrust: () => Promise<void>
   /**
-   * The push modal: the remote and its (masked) URL, the branch and its
-   * target, the commit count, never a force, and that hooks and credential
-   * helpers run. True only for an explicit yes; nothing is pushed before it.
-   */
+  The push modal: the remote and its (masked) URL, the branch and its
+  target, the commit count, never a force, and that hooks and credential
+  helpers run. True only for an explicit yes; nothing is pushed before it.
+  */
   readonly confirmPush: (confirmation: RuntimePushConfirmation) => Promise<boolean>
   /**
-   * An explicit confirmation (MHP `ui/confirm`; VS Code's modal): true only
-   * for an explicit yes. Opening a pull request asks with what goes out.
-   */
+  An explicit confirmation (MHP `ui/confirm`; VS Code's modal): true only
+  for an explicit yes. Opening a pull request asks with what goes out.
+  */
   readonly confirm: (message: string, detail: string, action: string) => Promise<boolean>
   /** M71's remote pick for a first push when git cannot tell; undefined when dismissed. */
   readonly pickRemote: (names: readonly string[]) => Promise<string | undefined>
   /**
-   * D104's named exception: the user's own environment for the confirmed
-   * push and the pull request fetch only (credential helpers, SSH agent,
-   * token variables, as a terminal would). The standalone runtime returns
-   * what it captured at start, before it took credentials out of its own
-   * environment (`runtimeGitUserEnvironment`); an editor host its process
-   * environment. Every other git keeps the quiet environment.
-   */
+  D104's named exception: the user's own environment for the confirmed
+  push and the pull request fetch only (credential helpers, SSH agent,
+  token variables, as a terminal would). The standalone runtime returns
+  what it captured at start, before it took credentials out of its own
+  environment (`runtimeGitUserEnvironment`); an editor host its process
+  environment. Every other git keeps the quiet environment.
+  */
   readonly userEnvironment: () => NodeJS.ProcessEnv
   /**
-   * A host whose checkpoints must learn of a command that may write the
-   * workspace (VS Code's M72 admission): commit and push run hooks.
-   */
+  A host whose checkpoints must learn of a command that may write the
+  workspace (VS Code's M72 admission): commit and push run hooks.
+  */
   readonly admitWorkspaceCommand?: (<T>(start: () => Promise<T>) => Promise<T>) | undefined
   /** A push that needs typed credentials: the same command in the editor's terminal (MHP `terminal/create`). */
   readonly openInTerminal: (command: readonly string[], cwd: string) => Promise<void>

@@ -55,12 +55,12 @@ export type PluginFinding =
   | { readonly kind: 'outside'; readonly label: string; readonly file: string }
 
 /**
- * Source hooks the mapping knows but this version cannot fire or refuses, by
- * format, with the reason the preview gives (PLAN.md M91, lane X tables).
- * The extension events (UserPromptExpansion, TaskCreated and TaskCompleted,
- * PermissionDenied, FileChanged, MessageDisplay) have no imported-hook
- * dispatch yet, so their hooks are listed, not converted.
- */
+Source hooks the mapping knows but this version cannot fire or refuses, by
+format, with the reason the preview gives (PLAN.md M91, lane X tables).
+The extension events (UserPromptExpansion, TaskCreated and TaskCompleted,
+PermissionDenied, FileChanged, MessageDisplay) have no imported-hook
+dispatch yet, so their hooks are listed, not converted.
+*/
 const REFUSED_HOOKS: Readonly<Record<PluginFormat, Readonly<Record<string, ConversionRefusal>>>> = {
   amp: { 'changes.prompt': 'unmapped' },
   opencode: {
@@ -87,9 +87,9 @@ const KEY_MARKS: ReadonlySet<string> = new Set([':', '('])
 const SPACE = /\s/
 
 /**
- * What follows each quoted mention of `name`, whitespace skipped: a plain
- * string search, so no pattern is built from the names.
- */
+What follows each quoted mention of `name`, whitespace skipped: a plain
+string search, so no pattern is built from the names.
+*/
 function followersOf(text: string, name: string): readonly string[] {
   const followers: string[] = []
   for (const quote of QUOTE_MARKS) {
@@ -132,10 +132,10 @@ function ampHooks(text: string): { readonly names: ReadonlySet<string>; readonly
 }
 
 /**
- * OpenCode: the hooks object's keys, quoted (`"tool.execute.before": …`) or
- * bare (`event: …`, `event(…)`); bus types as literals in an `event`
- * handler. A computed key (`[name]: …`) is unknown.
- */
+OpenCode: the hooks object's keys, quoted (`"tool.execute.before": …`) or
+bare (`event: …`, `event(…)`); bus types as literals in an `event`
+handler. A computed key (`[name]: …`) is unknown.
+*/
 function openCodeHooks(text: string): {
   readonly names: ReadonlySet<string>
   readonly isOpen: boolean
@@ -247,10 +247,10 @@ async function pluginFile(
 }
 
 /**
- * One plugin folder's findings. A file plugin is converted; a directory
- * plugin is refused (only single files run here); other files are not
- * plugins and are passed over.
- */
+One plugin folder's findings. A file plugin is converted; a directory
+plugin is refused (only single files run here); other files are not
+plugins and are passed over.
+*/
 export async function pluginFolder(
   format: PluginFormat,
   origin: 'user' | 'project',
@@ -275,9 +275,9 @@ export async function pluginFolder(
 }
 
 /**
- * OpenCode's npm plugins (`plugin` in opencode.json, oc_plugins.mdx:31-36),
- * each refused; undefined when the file is not JSON.
- */
+OpenCode's npm plugins (`plugin` in opencode.json, oc_plugins.mdx:31-36),
+each refused; undefined when the file is not JSON.
+*/
 export function openCodeNpmPlugins(text: string): readonly string[] | undefined {
   let document: unknown
   try {

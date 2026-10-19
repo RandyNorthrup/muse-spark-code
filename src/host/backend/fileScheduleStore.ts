@@ -257,8 +257,8 @@ async function isMigrationSealed(directory: string, id: string): Promise<boolean
 }
 
 /** M52 stays a readable migration source; a seal prevents its old scheduler
- * admitting work while the shared store verifies its copy. Seals survive
- * failures and removal, so a stale v1 object cannot revive an old job. */
+admitting work while the shared store verifies its copy. Seals survive
+failures and removal, so a stale v1 object cannot revive an old job. */
 export function createFileScheduleMigrationSource(directory: string): ScheduleMigrationSource {
   const snapshot = async (id: string): Promise<ScheduleMigrationEntry> => {
     assertId(id)

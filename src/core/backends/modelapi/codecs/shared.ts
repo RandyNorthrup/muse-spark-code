@@ -20,19 +20,19 @@ const LONE_SURROGATE_MIN = 0xd8_00
 const LONE_SURROGATE_MAX = 0xdf_ff
 
 /**
- * BYO 13 (Pi `sanitize-unicode.ts`): remove lone surrogates. Iterating by
- * symbol keeps valid pairs whole (one astral symbol, untouched) while a
- * lone half iterates alone and becomes U+FFFD. Applied to free text
- * crossing into native request bytes (instructions, message text, tool
- * output text, tool argument strings). Ids, names and other structural
- * fields are constrained to safe charsets elsewhere and never cleaned, so
- * call pairing cannot shift under a replacement.
- */
+BYO 13 (Pi `sanitize-unicode.ts`): remove lone surrogates. Iterating by
+symbol keeps valid pairs whole (one astral symbol, untouched) while a
+lone half iterates alone and becomes U+FFFD. Applied to free text
+crossing into native request bytes (instructions, message text, tool
+output text, tool argument strings). Ids, names and other structural
+fields are constrained to safe charsets elsewhere and never cleaned, so
+call pairing cannot shift under a replacement.
+*/
 /**
- * TOOLCAP: the lone-surrogate swap replaces one character with one
- * character (and one UTF-8 sequence with another of the same length), so
- * bounded text stays within the caps it passed: the brand is preserved.
- */
+TOOLCAP: the lone-surrogate swap replaces one character with one
+character (and one UTF-8 sequence with another of the same length), so
+bounded text stays within the caps it passed: the brand is preserved.
+*/
 export function cleanWireText(text: BoundedToolText): BoundedToolText
 export function cleanWireText(text: string): string
 export function cleanWireText(text: string): string {
@@ -53,11 +53,11 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * BYO 13 for parsed tool arguments: the same replacement applied to every
- * string value of a parsed JSON payload. Keys are structural and stay as
- * the model wrote them; the host's own zod parsing of the arguments stays
- * the backstop for anything else a loosened payload carries.
- */
+BYO 13 for parsed tool arguments: the same replacement applied to every
+string value of a parsed JSON payload. Keys are structural and stay as
+the model wrote them; the host's own zod parsing of the arguments stays
+the backstop for anything else a loosened payload carries.
+*/
 export function cleanJsonStrings(value: unknown): unknown {
   if (typeof value === 'string') {
     return cleanWireText(value)
@@ -90,12 +90,12 @@ export type CallIdFormat = 'anthropic' | 'chat' | 'mistral'
 /** Anthropic `tool_use` ids (the capture replays `toolu_…`). */
 const ANTHROPIC_CALL_ID_PATTERN = /^[A-Za-z0-9_-]+$/
 /**
- * Chat `tool_calls[].id`: OpenAI-shaped. Pi caps these at 40, but our own
- * Together capture replays a 41-character server id verbatim
- * (`call_01a10910-…`, `04-tool-call-stream-gpt-oss-120b.json`), so proven
- * wire ids must pass through. The cap stays well above anything captured
- * (64) and only catches pathological ids no format was seen to accept.
- */
+Chat `tool_calls[].id`: OpenAI-shaped. Pi caps these at 40, but our own
+Together capture replays a 41-character server id verbatim
+(`call_01a10910-…`, `04-tool-call-stream-gpt-oss-120b.json`), so proven
+wire ids must pass through. The cap stays well above anything captured
+(64) and only catches pathological ids no format was seen to accept.
+*/
 const CHAT_CALL_ID_PATTERN = /^[A-Za-z0-9_-]+$/
 const CHAT_CALL_ID_MAX_LENGTH = 64
 /** Mistral `tool_calls[].id`: exactly 9 alphanumerics (capture `TFgpitTpa`). */
@@ -125,9 +125,9 @@ function toHex8(hash: number): string {
 }
 
 /**
- * A Mistral-shaped id for any call id: 9 base-62 digits drawn alternately
- * from two FNV-1a streams, so distinct calls stay distinct.
- */
+A Mistral-shaped id for any call id: 9 base-62 digits drawn alternately
+from two FNV-1a streams, so distinct calls stay distinct.
+*/
 function mistralCallId(callId: string): string {
   let first = fnv1a32(callId, FNV_OFFSET_BASIS)
   let second = fnv1a32(callId, FNV_PRIME)
@@ -145,12 +145,12 @@ function mistralCallId(callId: string): string {
 }
 
 /**
- * BYO 3: the call id to send on a target format. Ids the format already
- * accepts go back byte-identical (goldens only move where the old bytes
- * would have been rejected); anything else is rewritten deterministically,
- * so the call and its result still pair: both sides map the same canonical
- * `call_id` through this function.
- */
+BYO 3: the call id to send on a target format. Ids the format already
+accepts go back byte-identical (goldens only move where the old bytes
+would have been rejected); anything else is rewritten deterministically,
+so the call and its result still pair: both sides map the same canonical
+`call_id` through this function.
+*/
 export function nativeCallId(callId: string, format: CallIdFormat): string {
   switch (format) {
     case 'anthropic': {
@@ -172,23 +172,23 @@ export function nativeCallId(callId: string, format: CallIdFormat): string {
 }
 
 /**
- * M105 lane V (RVCM1054 finding 1): the one refusal path for uncaptured
- * media at the codec stage. Every request encoder throws this (never a
- * plain Error) for a video part with no vendor capture behind it, and the
- * configured production client rethrows it by name, so the sentence the
- * user reads is the refusal's own translated reason. Re-exported from the
- * leaf module so bundles that must not carry the codecs (the Models panel,
- * the subscriptions bundle) import it there instead (RVCM1054D P2).
- */
+M105 lane V (RVCM1054 finding 1): the one refusal path for uncaptured
+media at the codec stage. Every request encoder throws this (never a
+plain Error) for a video part with no vendor capture behind it, and the
+configured production client rethrows it by name, so the sentence the
+user reads is the refusal's own translated reason. Re-exported from the
+leaf module so bundles that must not carry the codecs (the Models panel,
+the subscriptions bundle) import it there instead (RVCM1054D P2).
+*/
 export { ChatCodecError, isChatCodecError } from '../../../media/codecRefusal'
 import type { CreateResponseBody } from '../schemas'
 
 /**
- * M105 lane V R2 (RVCM1054 finding 2): a held video has no shape on a vendor
- * route without a vendor capture behind it, so the codec refuses it before
- * any other validation instead of dropping it while the rest sends. Each
- * codec throws its own sentence; this only answers whether one is held.
- */
+M105 lane V R2 (RVCM1054 finding 2): a held video has no shape on a vendor
+route without a vendor capture behind it, so the codec refuses it before
+any other validation instead of dropping it while the rest sends. Each
+codec throws its own sentence; this only answers whether one is held.
+*/
 export function hasHeldVideo(body: Pick<CreateResponseBody, 'input'>): boolean {
   return body.input.some(
     (item) => item.type === 'message' && item.content.some((part) => part.type === 'input_video'),

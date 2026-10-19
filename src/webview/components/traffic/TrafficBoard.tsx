@@ -23,28 +23,6 @@ export function TrafficBoard({ state, postMessage }: TrafficProps) {
             (row) => row.taskId === task.id && row.attempt === task.currentAttempt,
           )
           const attempt = task.attempts.at(-1)
-          const send = (
-            availability: NonNullable<typeof actions>,
-            action: NonNullable<typeof actions>['actions'][number],
-            extra = {},
-          ) => {
-            postMessage({
-              type: 'traffic/task',
-              ...trafficScope(state),
-              taskId: task.id,
-              attempt: task.currentAttempt,
-              expected: {
-                task,
-                availability,
-                destination:
-                  'entryId' in extra
-                    ? state.entries.find((entry) => entry.id === extra.entryId)
-                    : undefined,
-              },
-              action,
-              ...extra,
-            })
-          }
           return (
             <li
               key={task.id}
@@ -76,70 +54,110 @@ export function TrafficBoard({ state, postMessage }: TrafficProps) {
                 <p>{UI_TEXT.teamTrafficNotices.userDecision}</p>
               )}
               {actions && (
-                <>
-                  <TrafficActions
-                    actions={actions.actions.filter(
-                      (action) => action !== 'priority' && action !== 'reassign',
-                    )}
-                    label={(action) =>
-                      action === 'raiseLimit'
-                        ? UI_TEXT.teamTrafficDetails.raiseLimit
-                        : UI_TEXT.teamTraffic[action]
-                    }
-                    onAction={(action) => {
-                      send(actions, action)
-                    }}
-                  />
-                  {actions.actions.includes('priority') && (
-                    <label htmlFor={`${id}-${task.id}-priority`}>
-                      {UI_TEXT.teamTraffic.priority}
-                      <select
-                        id={`${id}-${task.id}-priority`}
-                        value={task.priority}
-                        onChange={(event) => {
-                          const priority = teamPrioritySchema.safeParse(event.target.value)
-                          if (priority.success)
-                            send(actions, 'priority', { priority: priority.data })
-                        }}
-                      >
-                        {teamPrioritySchema.options.map((priority) => (
-                          <option key={priority} value={priority}>
-                            {UI_TEXT.teamPriorities[priority]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  {actions.actions.includes('reassign') && (
-                    <label htmlFor={`${id}-${task.id}-entry`}>
-                      {UI_TEXT.teamTraffic.reassign}
-                      <select
-                        id={`${id}-${task.id}-entry`}
-                        value=""
-                        onChange={(event) => {
-                          if (event.target.value)
-                            send(actions, 'reassign', { entryId: event.target.value })
-                        }}
-                      >
-                        <option value="" disabled>
-                          {UI_TEXT.teamTraffic.reassign}
-                        </option>
-                        {state.entries
-                          .filter((entry) => entry.roleId === task.roleId)
-                          .map((entry) => (
-                            <option key={entry.id} value={entry.id}>
-                              {entry.label}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                  )}
-                </>
+                <TaskControls
+                  state={state}
+                  postMessage={postMessage}
+                  task={task}
+                  actions={actions}
+                  id={id}
+                />
               )}
             </li>
           )
         })}
       </ol>
     </TrafficSection>
+  )
+}
+
+type TrafficTask = TrafficProps['state']['board']['tasks'][number]
+type TrafficTaskActions = TrafficProps['state']['taskActions'][number]
+
+/** The actions a task offers now, each sent with the availability it was offered under. */
+function TaskControls({
+  state,
+  postMessage,
+  task,
+  actions,
+  id,
+}: TrafficProps & {
+  readonly task: TrafficTask
+  readonly actions: TrafficTaskActions
+  readonly id: string
+}) {
+  const send = (action: TrafficTaskActions['actions'][number], extra = {}) => {
+    postMessage({
+      type: 'traffic/task',
+      ...trafficScope(state),
+      taskId: task.id,
+      attempt: task.currentAttempt,
+      expected: {
+        task,
+        availability: actions,
+        destination:
+          'entryId' in extra
+            ? state.entries.find((entry) => entry.id === extra.entryId)
+            : undefined,
+      },
+      action,
+      ...extra,
+    })
+  }
+  return (
+    <>
+      <TrafficActions
+        actions={actions.actions.filter((action) => action !== 'priority' && action !== 'reassign')}
+        label={(action) =>
+          action === 'raiseLimit'
+            ? UI_TEXT.teamTrafficDetails.raiseLimit
+            : UI_TEXT.teamTraffic[action]
+        }
+        onAction={(action) => {
+          send(action)
+        }}
+      />
+      {actions.actions.includes('priority') && (
+        <label htmlFor={`${id}-${task.id}-priority`}>
+          {UI_TEXT.teamTraffic.priority}
+          <select
+            id={`${id}-${task.id}-priority`}
+            value={task.priority}
+            onChange={(event) => {
+              const priority = teamPrioritySchema.safeParse(event.target.value)
+              if (priority.success) send('priority', { priority: priority.data })
+            }}
+          >
+            {teamPrioritySchema.options.map((priority) => (
+              <option key={priority} value={priority}>
+                {UI_TEXT.teamPriorities[priority]}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {actions.actions.includes('reassign') && (
+        <label htmlFor={`${id}-${task.id}-entry`}>
+          {UI_TEXT.teamTraffic.reassign}
+          <select
+            id={`${id}-${task.id}-entry`}
+            value=""
+            onChange={(event) => {
+              if (event.target.value) send('reassign', { entryId: event.target.value })
+            }}
+          >
+            <option value="" disabled>
+              {UI_TEXT.teamTraffic.reassign}
+            </option>
+            {state.entries
+              .filter((entry) => entry.roleId === task.roleId)
+              .map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.label}
+                </option>
+              ))}
+          </select>
+        </label>
+      )}
+    </>
   )
 }

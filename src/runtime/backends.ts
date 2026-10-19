@@ -169,22 +169,22 @@ export interface RuntimeBackend {
   /** The flagged paid features and their questions, shared with the agent (M63c, M58). */
   readonly paid: AcpPaidUse
   /**
-   * At start: "always" lapses for a paid feature the Model API agent was
-   * started without. A Muse Code agent has no paid flags, so it leaves the
-   * grants to the Model API agent, which a user may run beside it.
-   */
+  At start: "always" lapses for a paid feature the Model API agent was
+  started without. A Muse Code agent has no paid flags, so it leaves the
+  grants to the Model API agent, which a user may run beside it.
+  */
   readonly forgetUnflaggedGrants: () => Promise<void>
   /**
-   * Lane V seam 5: ACP serve's and exec's media port on the Model API
-   * backend, over the runtime's attached-media registry. Absent on Muse
-   * Code, which refuses media with its own reason.
-   */
+  Lane V seam 5: ACP serve's and exec's media port on the Model API
+  backend, over the runtime's attached-media registry. Absent on Muse
+  Code, which refuses media with its own reason.
+  */
   readonly media?: AcpMediaFactory
   /**
-   * M105 lane F: ACP serve's uploaded-files port on the Model API backend,
-   * over the same account ledger the session store cleans. Absent without
-   * upload storage (ephemeral runs say so and delete nothing).
-   */
+  M105 lane F: ACP serve's uploaded-files port on the Model API backend,
+  over the same account ledger the session store cleans. Absent without
+  upload storage (ephemeral runs say so and delete nothing).
+  */
   readonly uploads?: AcpUploadsPort
   readonly close: () => Promise<void>
 }
@@ -268,21 +268,21 @@ interface MuseHomes {
 }
 
 /**
- * The last Meta-key probe's outcome, shared by the session gate (which
- * probes) and the workspace managers (which list and dispatch). The gate
- * runs before the model list, so a dead store is known before anything
- * dials, and a step that needs the stored key can name the store instead
- * of claiming that no key is stored.
- */
+The last Meta-key probe's outcome, shared by the session gate (which
+probes) and the workspace managers (which list and dispatch). The gate
+runs before the model list, so a dead store is known before anything
+dials, and a step that needs the stored key can name the store instead
+of claiming that no key is stored.
+*/
 interface MetaKeyProbe {
   state: 'key' | 'absent' | 'storeDown' | undefined
 }
 
 /**
- * A Files-capable client over the pinned transport: the stored key, read
- * per use and never handed to a child process. Shared by the session
- * store's upload binding and the /uploads port.
- */
+A Files-capable client over the pinned transport: the stored key, read
+per use and never handed to a child process. Shared by the session
+store's upload binding and the /uploads port.
+*/
 function newFilesClient(input: {
   readonly fetch: typeof fetch
   readonly apiKey: () => Promise<string | undefined>
@@ -877,18 +877,18 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   })
 
   /**
-   * Muse Code's readiness, as the panel's sign-in gate counts it (D26):
-   * `META_API_KEY` in the CLI's environment (with it `muse serve` starts
-   * whatever the file says), or the CLI's own sign-in from the file's
-   * structure, asked of the CLI where only it can say. `authenticate`, the
-   * user saying they signed in, is the agent's user action, as the panel's
-   * Check again is: it forgets what the CLI said before and may ask on
-   * macOS, where a question can read the Keychain. A session or a list is
-   * not: on macOS it takes the file's word or the panel's passive estimate
-   * (a turn's `authRequired` corrects it) rather than start `muse serve`
-   * each time. A macOS file on Windows or Linux stops `muse serve`, so it is
-   * said as such.
-   */
+  Muse Code's readiness, as the panel's sign-in gate counts it (D26):
+  `META_API_KEY` in the CLI's environment (with it `muse serve` starts
+  whatever the file says), or the CLI's own sign-in from the file's
+  structure, asked of the CLI where only it can say. `authenticate`, the
+  user saying they signed in, is the agent's user action, as the panel's
+  Check again is: it forgets what the CLI said before and may ask on
+  macOS, where a question can read the Keychain. A session or a list is
+  not: on macOS it takes the file's word or the panel's passive estimate
+  (a turn's `authRequired` corrects it) rather than start `muse serve`
+  each time. A macOS file on Windows or Linux stops `muse serve`, so it is
+  said as such.
+  */
   const museCodeReadiness = async (isRecheck: boolean): Promise<BackendReadiness> => {
     const resolution = museCode.resolveLaunch()
     if (!resolution.ok) {

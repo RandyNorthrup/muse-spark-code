@@ -24,12 +24,12 @@ export interface ScheduleFsPort {
   ): Promise<T>
 }
 /**
- * A waiting lock acquisition stops, never abandons. The deadline binds
- * first: a lease still held by a valid writer past the waiter's deadline is
- * busy (`scheduleLeaseBusy`), never a silent abandon; an explicit abort ends
- * the wait at once. Past acquisition only the abort binds. A NaN deadline
- * disables the bound and leaves a pure signal wait.
- */
+A waiting lock acquisition stops, never abandons. The deadline binds
+first: a lease still held by a valid writer past the waiter's deadline is
+busy (`scheduleLeaseBusy`), never a silent abandon; an explicit abort ends
+the wait at once. Past acquisition only the abort binds. A NaN deadline
+disables the bound and leaves a pure signal wait.
+*/
 export interface ScheduleLockOptions {
   readonly signal?: AbortSignal
   readonly deadlineMs?: number
@@ -39,9 +39,9 @@ export interface ScheduleLeaseGuard {
   readonly fencingToken?: number
 }
 /** A held OS handle refuses the pointer-hint replace with a lock-coded
- * failure while read-only fencing still holds authority through the epoch
- * CAS. Only this shape is a tolerable hint miss; every other failure keeps
- * its kind and fails the takeover. */
+failure while read-only fencing still holds authority through the epoch
+CAS. Only this shape is a tolerable hint miss; every other failure keeps
+its kind and fails the takeover. */
 export function isHintBlockedError(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -67,19 +67,16 @@ export const SCHEDULE_LEGACY_MONEY_KEYS: ReadonlySet<string> = new Set([
 ])
 
 /**
- * Stored corruption must not quote private prompts or event contents. A
- * version 1 dollar whose written digits a double cannot carry is refused
- * here, never rounded: the written digits come from `parseJsonWithExactNumbers`,
- * never the reviver's source text, so the refusal holds on Node 20 as well
- * as newer runtimes (M121 P2-1). Version 2 writes decimal text, so the check
- * is a no-op there.
- */
-export function parseScheduleStoredJson(content: string | undefined): unknown {
+Stored corruption must not quote private prompts or event contents. A
+version 1 dollar whose written digits a double cannot carry is refused
+here, never rounded: the written digits come from `parseJsonWithExactNumbers`,
+never the reviver's source text, so the refusal holds on Node 20 as well
+as newer runtimes (M121 P2-1). Version 2 writes decimal text, so the check
+is a no-op there.
+*/
+export function parseScheduleStoredJson(content: string | undefined = 'null'): unknown {
   try {
-    const { value, isExact } = parseJsonWithExactNumbers(
-      content ?? 'null',
-      SCHEDULE_LEGACY_MONEY_KEYS,
-    )
+    const { value, isExact } = parseJsonWithExactNumbers(content, SCHEDULE_LEGACY_MONEY_KEYS)
     if (!isExact) throw new Error('scheduleStoredJsonInvalid')
     return value
   } catch {

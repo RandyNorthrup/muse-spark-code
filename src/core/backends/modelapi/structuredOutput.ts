@@ -103,10 +103,10 @@ function decoded(text: string): unknown {
 }
 
 /**
- * Repairs until the answer validates or the person stops it (D121: no repair
- * bound of ours). Every round says so in plain words; Stop aborts the signal
- * and ends it. Invalid JSON never reaches a consumer.
- */
+Repairs until the answer validates or the person stops it (D121: no repair
+bound of ours). Every round says so in plain words; Stop aborts the signal
+and ends it. Invalid JSON never reaches a consumer.
+*/
 export async function structuredSideCall<T>(options: {
   readonly formats: SideCallFormats | undefined
   readonly name: string

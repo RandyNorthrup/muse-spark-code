@@ -268,7 +268,8 @@ function writePlugin(source: string, name = 'plugin.mjs'): string {
 }
 
 /** The host side for real children: this node, standing in for bun too. */
-function host(warnings: string[] = []): PluginHostDeps {
+function host(): PluginHostDeps {
+  const warnings: string[] = []
   const dir = mkdtempSync(path.join(tmpdir(), 'm91b-bin-'))
   const bun = path.join(dir, 'bun')
   // Portable fixture: its Bun stand-in is this Node with a real heap bound.
@@ -316,14 +317,11 @@ function definitions(
   format: string,
   sourceEvent: string,
   plugin: string,
-  extra: Record<string, unknown> = {},
 ): readonly HookDefinition[] {
   const result = parseForeignHooks(
     JSON.stringify({
       hooks: {
-        [event]: [
-          { format, sourceEvent, plugin, hooks: [{ type: 'plugin', timeout: 20 }], ...extra },
-        ],
+        [event]: [{ format, sourceEvent, plugin, hooks: [{ type: 'plugin', timeout: 20 }] }],
       },
     }),
     'user',

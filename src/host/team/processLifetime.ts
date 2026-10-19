@@ -71,9 +71,9 @@ const NATIVE_CONFIRM_MS = 5000
 const LAUNCH_GATE_FD = 3
 
 /** A separate team MSP host, never the conversation's host. W supplies the
- * resolved CLI command/flags and credential-free environment. The handshake
- * is the installed SDK's request/initialized/flush sequence; MuseCodeHost
- * validates the existing captured initialize shape before initialized. */
+resolved CLI command/flags and credential-free environment. The handshake
+is the installed SDK's request/initialized/flush sequence; MuseCodeHost
+validates the existing captured initialize shape before initialized. */
 export async function startTeamMuseCodeHost(options: {
   readonly lifetime: TeamProcessLifetime
   readonly request: TeamLaunchRequest
@@ -304,9 +304,9 @@ export interface TeamProcessLifetime {
 }
 
 /**
- * Whether a scope read or run failed answering: reads and runs reject with
- * Errors, so anything else is foreign to the operation and keeps its kind.
- */
+Whether a scope read or run failed answering: reads and runs reject with
+Errors, so anything else is foreign to the operation and keeps its kind.
+*/
 function isScopeOperationFailure(error: unknown): boolean {
   return error instanceof Error
 }
@@ -473,14 +473,14 @@ export async function createNativeTeamProcessDriver(options: {
     throw new Error('TEAM_PLATFORM_UNSUPPORTED')
   const probeEnv = { PATH: process.env['PATH'], XDG_RUNTIME_DIR: process.env['XDG_RUNTIME_DIR'] }
   /**
-   * The pre-launch probe never searches PATH: it runs only the fixed system
-   * paths with an absolute `true`, so a program planted on a workspace PATH
-   * entry never runs before any launch directory is known. The launch itself
-   * re-resolves each tool outside its own working directory (links followed)
-   * and fails closed when that directory shadows the probe. The probe child
-   * gets the explicit no-workspace guarded environment (absolute entries
-   * only, links followed).
-   */
+  The pre-launch probe never searches PATH: it runs only the fixed system
+  paths with an absolute `true`, so a program planted on a workspace PATH
+  entry never runs before any launch directory is known. The launch itself
+  re-resolves each tool outside its own working directory (links followed)
+  and fails closed when that directory shadows the probe. The probe child
+  gets the explicit no-workspace guarded environment (absolute entries
+  only, links followed).
+  */
   const fixedTool = (file: string): string | undefined => (existsSync(file) ? file : undefined)
   const absoluteTrue = fixedTool('/bin/true') ?? fixedTool('/usr/bin/true')
   const probeChildEnv = ((): ReturnType<typeof noWorkspaceChildEnvironment> =>
@@ -836,16 +836,16 @@ export async function createNativeTeamProcessDriver(options: {
 }
 
 /**
- * The Windows team payload's whole environment, as the `string[]` block the
- * native helper hands `CreateProcessW`: the same guarded child environment
- * the POSIX launch uses for the same payload, so a helper the payload
- * starts by bare name (`ssh`, `git-remote-https`) never resolves to a
- * program planted in the workspace. (The executable itself never comes from
- * this block: `RunTeam` receives it as `lpApplicationName`, resolved
- * outside the workspace by `resolveWindowsTeamCommand` below.) Only a
- * guarded environment serializes (`guardedEnvironmentBlock`), so a raw
- * `request.env` does not type-check here.
- */
+The Windows team payload's whole environment, as the `string[]` block the
+native helper hands `CreateProcessW`: the same guarded child environment
+the POSIX launch uses for the same payload, so a helper the payload
+starts by bare name (`ssh`, `git-remote-https`) never resolves to a
+program planted in the workspace. (The executable itself never comes from
+this block: `RunTeam` receives it as `lpApplicationName`, resolved
+outside the workspace by `resolveWindowsTeamCommand` below.) Only a
+guarded environment serializes (`guardedEnvironmentBlock`), so a raw
+`request.env` does not type-check here.
+*/
 export function windowsTeamPayloadEnvironment(env: NodeJS.ProcessEnv, cwd: string): string[] {
   return guardedEnvironmentBlock(
     workspaceChildEnvironment('win32', env, {
@@ -857,12 +857,12 @@ export function windowsTeamPayloadEnvironment(env: NodeJS.ProcessEnv, cwd: strin
 
 export interface WindowsTeamCommandTarget {
   /**
-   * The absolute file `RunTeam` starts: outside the workspace, so
-   * `CreateProcessW` (which completes a partial `lpApplicationName` from
-   * the helper's own working directory without a PATH search) can never
-   * complete it to a workspace planting. A `.cmd`/`.bat` hit is the
-   * absolute `cmd.exe` instead, which alone can start one.
-   */
+  The absolute file `RunTeam` starts: outside the workspace, so
+  `CreateProcessW` (which completes a partial `lpApplicationName` from
+  the helper's own working directory without a PATH search) can never
+  complete it to a workspace planting. A `.cmd`/`.bat` hit is the
+  absolute `cmd.exe` instead, which alone can start one.
+  */
   readonly executable: string
   /** The arguments for it (the pre-quoted `cmd.exe` line for a batch file). */
   readonly args: readonly string[]
@@ -871,15 +871,15 @@ export interface WindowsTeamCommandTarget {
 }
 
 /**
- * The `RunTeam` executable and arguments for a team launch, resolved before
- * the helper runs. A bare `command` resolves on the absolute PATH entries
- * outside the launch's own working directory (PATHEXT order included), the
- * way the MCP servers resolve theirs; a missing name fails the launch
- * closed instead of falling back to the workspace. A path the person named
- * is the file it names, but one inside the workspace (links followed)
- * fails the launch closed too: with the workspace as the helper's working
- * directory, `CreateProcessW` would otherwise complete it there.
- */
+The `RunTeam` executable and arguments for a team launch, resolved before
+the helper runs. A bare `command` resolves on the absolute PATH entries
+outside the launch's own working directory (PATHEXT order included), the
+way the MCP servers resolve theirs; a missing name fails the launch
+closed instead of falling back to the workspace. A path the person named
+is the file it names, but one inside the workspace (links followed)
+fails the launch closed too: with the workspace as the helper's working
+directory, `CreateProcessW` would otherwise complete it there.
+*/
 export function resolveWindowsTeamCommand(
   command: string,
   args: readonly string[],

@@ -7,10 +7,10 @@
 import * as z from 'zod/mini'
 
 /**
- * One goal, as Muse Code's tools return it (`{ goal: { … } }`, snake case,
- * `null` for what is not set) without its `session_id`; stored with the
- * session as it is (D14).
- */
+One goal, as Muse Code's tools return it (`{ goal: { … } }`, snake case,
+`null` for what is not set) without its `session_id`; stored with the
+session as it is (D14).
+*/
 export const goalRecordSchema = z.object({
   goal_id: z.string(),
   objective: z.string(),

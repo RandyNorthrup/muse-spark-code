@@ -41,10 +41,10 @@ export interface UiTableDeps {
   /** The table a display language reads; the shipped list decides unless a test gives its own. */
   readonly tableLocaleFor?: (language: string) => string | undefined
   /**
-   * What the log names when it reports the installed language. The VS Code
-   * panel keeps the panel wording; a headless run has no panel, so it names
-   * the terminal's messages instead.
-   */
+  What the log names when it reports the installed language. The VS Code
+  panel keeps the panel wording; a headless run has no panel, so it names
+  the terminal's messages instead.
+  */
   readonly surface?: 'panel' | 'terminal'
 }
 
@@ -64,9 +64,9 @@ function problemSummary(problems: readonly string[]): string {
 }
 
 /**
- * Installs the display language's table (`setUiText`) and returns it for the
- * webviews; English when the language has none or its file is unusable.
- */
+Installs the display language's table (`setUiText`) and returns it for the
+webviews; English when the language has none or its file is unusable.
+*/
 export async function loadUiTable(deps: UiTableDeps): Promise<UiTable> {
   const english: UiTable = { locale: BASE_LOCALE, table: EN }
   // The terminal names its messages; only the VS Code panel names the panel.

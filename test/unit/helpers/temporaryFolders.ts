@@ -22,10 +22,10 @@ export function removeFolder(folder: string): Promise<void> {
 }
 
 /**
- * The temporary folders one suite makes, all removed afterwards. Suites
- * share it instead of repeating the tracker, so the duplication gate stays
- * silent and every folder still cleans up the same way.
- */
+The temporary folders one suite makes, all removed afterwards. Suites
+share it instead of repeating the tracker, so the duplication gate stays
+silent and every folder still cleans up the same way.
+*/
 export function temporaryTracker() {
   const folders: string[] = []
   return {
@@ -54,9 +54,9 @@ export async function usingTempDir<T>(
 }
 
 /**
- * A fresh directory under the process temporary folder (resolved, so
- * macOS's `/var` symlink never leaks into hashed paths).
- */
+A fresh directory under the process temporary folder (resolved, so
+macOS's `/var` symlink never leaks into hashed paths).
+*/
 export async function temporaryDir(prefix: string): Promise<string> {
   return await realpath(await mkdtemp(path.join(tmpdir(), prefix)))
 }

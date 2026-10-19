@@ -24,7 +24,7 @@ export interface ResourceRecordWorkSource {
   read(): Promise<readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[]>
 }
 /** M102 supplies durable append, retention, rollups and consent. Minute appends are
- * cumulative snapshots keyed by segment atMs; reads merge them idempotently. */
+cumulative snapshots keyed by segment atMs; reads merge them idempotently. */
 export interface ResourceRecordSink {
   append(record: ResourceRecord): Promise<void>
 }

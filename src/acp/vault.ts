@@ -75,10 +75,10 @@ export class AcpVault {
     }
   }
   /**
-   * Runs once the first editor attaches, at once when one already has.
-   * Long-lived approval routing starts here so one-shot commands (which
-   * never attach) keep no broker watch and exit when done.
-   */
+  Runs once the first editor attaches, at once when one already has.
+  Long-lived approval routing starts here so one-shot commands (which
+  never attach) keep no broker watch and exit when done.
+  */
   onAttach(listener: () => void): void {
     if (this.asker !== undefined) {
       listener()

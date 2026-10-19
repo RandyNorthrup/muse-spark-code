@@ -8,11 +8,11 @@ import { startWindowsPipeFiles } from '../../../../src/runtime/vault/windowsPipe
 import type { WindowsVaultExecutable } from '../../../../src/runtime/vault/slots/windowsVaultTransport'
 
 /**
- * The fixture files: POSIX needs no guard, while Windows requires the real
- * owner-only file guard or the files refuse every operation. The Windows
- * relay serves the test's prebuilt pipe helper (passed as a JSON path);
- * serving is per child, the compile happens once in the test's hook.
- */
+The fixture files: POSIX needs no guard, while Windows requires the real
+owner-only file guard or the files refuse every operation. The Windows
+relay serves the test's prebuilt pipe helper (passed as a JSON path);
+serving is per child, the compile happens once in the test's hook.
+*/
 async function fixtureFiles(
   root: string,
   helperJson: string | undefined,
@@ -115,7 +115,7 @@ class InterruptedFiles extends NodeVaultFiles {
 async function run(): Promise<void> {
   const chunks: Buffer[] = []
   for await (const bytes of process.stdin) {
-    if (!(bytes instanceof Buffer)) throw new Error('private fixture input')
+    if (!(bytes instanceof Buffer)) throw new TypeError('private fixture input')
     chunks.push(bytes)
   }
   const encoded = Buffer.concat(chunks)

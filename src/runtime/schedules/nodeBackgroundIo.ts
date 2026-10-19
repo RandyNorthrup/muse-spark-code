@@ -5,7 +5,7 @@ import { withoutCredentials } from '../../core/credentialEnvironment'
 import { isStoreErrorCode } from '../../host/backend/storeErrors'
 
 /** A spawned helper that ran and exited carries its own stdio: a numeric
- * code with string stdio is the expected completed-run shape, not a crash. */
+code with string stdio is the expected completed-run shape, not a crash. */
 const isExecFailure = (error: unknown): error is { code: number; stdout: string; stderr: string } =>
   typeof error === 'object' &&
   error !== null &&

@@ -111,10 +111,10 @@ function firstPushRemote(
 }
 
 /**
- * The push for `head`: to its upstream when it has one, else a first push
- * (with `-u`) to `chosenRemote`, the only remote, or `origin`. Never a
- * force: see the file comment for every refusal.
- */
+The push for `head`: to its upstream when it has one, else a first push
+(with `-u`) to `chosenRemote`, the only remote, or `origin`. Never a
+force: see the file comment for every refusal.
+*/
 export function planPush(
   head: HeadFacts,
   remotes: readonly RemoteFacts[],

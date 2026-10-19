@@ -4,9 +4,9 @@ import { rm } from 'node:fs/promises'
 import { build } from 'esbuild'
 
 /**
- * Bundle one fixture child: the child bundles the production admission
- * module, so each proof runs the same admission the installed broker does.
- */
+Bundle one fixture child: the child bundles the production admission
+module, so each proof runs the same admission the installed broker does.
+*/
 export async function bundleFixtureChild(entry: string, outfile: string): Promise<void> {
   await build({
     entryPoints: [entry],
@@ -31,10 +31,10 @@ export function trackFixtureChild(children: Set<ChildProcess>, child: ChildProce
 }
 
 /**
- * Race one fixture child's readiness message against its early exit: a
- * child that dies while building fails fast with its diagnostics, never
- * hanging to the test timeout.
- */
+Race one fixture child's readiness message against its early exit: a
+child that dies while building fails fast with its diagnostics, never
+hanging to the test timeout.
+*/
 export async function awaitFixtureMessage(
   child: ChildProcess,
   errors: Buffer[],

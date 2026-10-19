@@ -21,13 +21,13 @@ export function scheduleLane(id: string, changes: Partial<EstimateLane> = {}): E
 }
 
 /**
- * The smallest schema-valid fleet the scheduler accepts: one machine with
- * core capacity, one role, one account and the requested slots. Values are
- * arbitrary capacity labels; the scheduling verdicts come from the real
- * `prepareEstimateSchedule`.
- */
+The smallest schema-valid fleet the scheduler accepts: one machine with
+core capacity, one role, one account and the requested slots. Values are
+arbitrary capacity labels; the scheduling verdicts come from the real
+`prepareEstimateSchedule`.
+*/
 /** One schema-valid fixture machine: the disk, core and cap labels are
- * arbitrary; only the id, class and slot count vary between suites. */
+arbitrary; only the id, class and slot count vary between suites. */
 export function fleetMachine(id: string, classId: string, slots: number) {
   return {
     id,

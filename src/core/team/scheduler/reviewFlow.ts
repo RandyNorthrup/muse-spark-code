@@ -149,11 +149,11 @@ export class ReviewFlow {
   }
 
   /**
-   * The caller restores the journal's round count. Rounds continue until the
-   * change is clean or the person stops the work: no count of ours diverts
-   * to `redesign` (D121). The orchestrator dispatches a redesign through its
-   * own `redesign` implementation when the person asks for one.
-   */
+  The caller restores the journal's round count. Rounds continue until the
+  change is clean or the person stops the work: no count of ours diverts
+  to `redesign` (D121). The orchestrator dispatches a redesign through its
+  own `redesign` implementation when the person asks for one.
+  */
   async afterRetirement(
     task: TeamBoardTask,
     isWriting: boolean,

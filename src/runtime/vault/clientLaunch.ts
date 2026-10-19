@@ -20,12 +20,12 @@ export function vaultInstallRoot(context: VaultClientPlatformContext): string {
 }
 
 /**
- * Re-read broker.lock after a discovery failure. True means the broker is
- * provably gone (orderly shutdown removed the record, or its owner is dead
- * or reused), so the caller treats the broker as absent; false means a live
- * broker is still starting and the caller keeps waiting. Missing or live
- * records never read as gone; anything else keeps its failure.
- */
+Re-read broker.lock after a discovery failure. True means the broker is
+provably gone (orderly shutdown removed the record, or its owner is dead
+or reused), so the caller treats the broker as absent; false means a live
+broker is still starting and the caller keeps waiting. Missing or live
+records never read as gone; anything else keeps its failure.
+*/
 export async function isBrokerLockGone(
   files: Pick<VaultPrivateFilesPort, 'read'>,
   directory: string,
@@ -46,11 +46,11 @@ export async function isBrokerLockGone(
 }
 
 /**
- * Spawn the handed-off session broker and wait for discovery to find it.
- * Returns once a ready broker answers; refuses when no broker appears
- * within the native timeout. The payload carries only OS facts (folders,
- * sessions, helper digests), never credentials.
- */
+Spawn the handed-off session broker and wait for discovery to find it.
+Returns once a ready broker answers; refuses when no broker appears
+within the native timeout. The payload carries only OS facts (folders,
+sessions, helper digests), never credentials.
+*/
 export async function launchSessionBroker(options: {
   readonly script: string
   readonly payload: unknown

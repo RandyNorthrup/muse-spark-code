@@ -39,12 +39,12 @@ function endedMessage(terminal: string): string {
 }
 
 /**
- * The notice this session's event deserves, or undefined: none for a short
- * turn's end (it answered before the user looked away), a cancelled turn
- * (stopping it took the window), or a pending card shown again to a later
- * surface (it began waiting before that surface arrived). A turn whose
- * length the backend did not report may have been long, so it notifies.
- */
+The notice this session's event deserves, or undefined: none for a short
+turn's end (it answered before the user looked away), a cancelled turn
+(stopping it took the window), or a pending card shown again to a later
+surface (it began waiting before that surface arrived). A turn whose
+length the backend did not report may have been long, so it notifies.
+*/
 export function attentionNotice(sessionId: string, event: AgentEvent): AttentionNotice | undefined {
   switch (event.type) {
     case 'turnCompleted': {
@@ -77,17 +77,17 @@ export function attentionNotice(sessionId: string, event: AgentEvent): Attention
 }
 
 /**
- * Which notices already raised, oldest forgotten past the bound. Pure
- * memory with no ports, so the unit tests prove the once-per-key rule
- * through this real code instead of scripted notifier closures.
- */
+Which notices already raised, oldest forgotten past the bound. Pure
+memory with no ports, so the unit tests prove the once-per-key rule
+through this real code instead of scripted notifier closures.
+*/
 export class NoticeMemory {
   private readonly raised = new Set<string>()
 
   /**
-   * Remembers the key: true when it is new, false when already raised.
-   * Remembered whether or not it shows: a focused window saw it arrive.
-   */
+  Remembers the key: true when it is new, false when already raised.
+  Remembered whether or not it shows: a focused window saw it arrive.
+  */
   public take(key: string): boolean {
     if (this.raised.has(key)) {
       return false

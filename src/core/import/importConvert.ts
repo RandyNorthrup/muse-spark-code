@@ -69,14 +69,14 @@ import {
 import { fill } from '../../shared/l10n/text'
 
 /**
- * Why an entry that was found is not converted. The lane-0 preview keys name
- * the reason in the user's language: `weaker` is `agentImportSkippedWeaker`,
- * `chooses` is `agentImportSkippedChooses`, `needsMatcher` is
- * `agentImportSkippedNeedsMatcher`, `unknownFormat` is
- * `agentImportSkippedUnknownFormat`, `keptWaiting` is `agentImportKeptWaiting`,
- * `notify` is `agentImportSkippedNotify`, and `field` is
- * `agentImportSkippedField` with the refusing field in `Conversion.field`.
- */
+Why an entry that was found is not converted. The lane-0 preview keys name
+the reason in the user's language: `weaker` is `agentImportSkippedWeaker`,
+`chooses` is `agentImportSkippedChooses`, `needsMatcher` is
+`agentImportSkippedNeedsMatcher`, `unknownFormat` is
+`agentImportSkippedUnknownFormat`, `keptWaiting` is `agentImportKeptWaiting`,
+`notify` is `agentImportSkippedNotify`, and `field` is
+`agentImportSkippedField` with the refusing field in `Conversion.field`.
+*/
 export type ConversionRefusal =
   | 'disabled'
   | 'unsupported'
@@ -350,10 +350,10 @@ function isSameProjectPath(key: string, root: string, platform: NodeJS.Platform)
 }
 
 /**
- * Claude Code's `.claude.json`: the user-scope servers and, for the open
- * workspace, the local-scope ones (the user's own for that project). Only
- * those two keys are read; the file's account and usage data are not.
- */
+Claude Code's `.claude.json`: the user-scope servers and, for the open
+workspace, the local-scope ones (the user's own for that project). Only
+those two keys are read; the file's account and usage data are not.
+*/
 export function readClaudeState(
   text: string,
   workspaceRoot: string | undefined,
@@ -481,10 +481,10 @@ function foundHooksOf(table: Readonly<Record<string, readonly unknown[]>>): read
 }
 
 /**
- * The hooks a file-level switch turns off, marked so: `isOff` turns every
- * one off; `offNames` the entries whose `name` (Gemini's `hooksConfig.disabled`)
- * or whose command it lists.
- */
+The hooks a file-level switch turns off, marked so: `isOff` turns every
+one off; `offNames` the entries whose `name` (Gemini's `hooksConfig.disabled`)
+or whose command it lists.
+*/
 export interface HookSwitches {
   readonly isOff: boolean
   readonly offNames?: ReadonlySet<string> | undefined
@@ -504,10 +504,10 @@ export function withSwitches(
 }
 
 /**
- * Claude Code's and Copilot's `disableAllHooks: true` (the Copilot
- * reference's "Disable all hooks"; Claude Code's settings): every hook in
- * that scope stays on disk and never runs.
- */
+Claude Code's and Copilot's `disableAllHooks: true` (the Copilot
+reference's "Disable all hooks"; Claude Code's settings): every hook in
+that scope stays on disk and never runs.
+*/
 export function hasDisableAllHooks(text: string): boolean {
   return documentOf(text)?.['disableAllHooks'] === true
 }
@@ -518,9 +518,9 @@ const geminiHooksConfigSchema = z.looseObject({
 })
 
 /**
- * Gemini CLI's `hooksConfig` (raw-codex-gemini.md:79): `enabled: false`
- * turns every hook off; `disabled` lists hook names turned off.
- */
+Gemini CLI's `hooksConfig` (raw-codex-gemini.md:79): `enabled: false`
+turns every hook off; `disabled` lists hook names turned off.
+*/
 export function readGeminiSwitches(text: string): HookSwitches {
   const config = documentOf(text)?.['hooksConfig']
   const parsed = geminiHooksConfigSchema.safeParse(config)
@@ -543,9 +543,9 @@ const codexFeaturesSchema = z.looseObject({
 })
 
 /**
- * Codex's `[features] hooks = false` (deprecated alias `codex_hooks`,
- * raw-codex-gemini.md:9): hooks are on by default, and this turns them off.
- */
+Codex's `[features] hooks = false` (deprecated alias `codex_hooks`,
+raw-codex-gemini.md:9): hooks are on by default, and this turns them off.
+*/
 export function isCodexHooksOff(text: string): boolean {
   let document: unknown
   try {
@@ -570,10 +570,10 @@ function isTimeoutSeconds(timeout: unknown): timeout is number {
 }
 
 /**
- * A foreign timeout in whole seconds, rounded up; undefined when it is not a
- * number of seconds this runtime can honour (negative, or past 600: cutting
- * a source's bound short would make a slow guard fail where it blocked).
- */
+A foreign timeout in whole seconds, rounded up; undefined when it is not a
+number of seconds this runtime can honour (negative, or past 600: cutting
+a source's bound short would make a slow guard fail where it blocked).
+*/
 function sourceTimeoutSeconds(seconds: unknown): number | undefined {
   if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
     return undefined
@@ -628,9 +628,9 @@ interface ToolVocabulary {
   /** Source tool names and aliases by the names of ours they reach ([] for one we lack). */
   readonly tools: Readonly<Record<string, readonly string[]>>
   /**
-   * The source tests its regex unanchored (`new RegExp(m).test(name)`): a
-   * token also selects every name containing it, MCP names included.
-   */
+  The source tests its regex unanchored (`new RegExp(m).test(name)`): a
+  token also selects every name containing it, MCP names included.
+  */
   readonly isUnanchored: boolean
   /** A token the source spells for an MCP tool; undefined when it is not one, null to refuse. */
   readonly mcpToken?:
@@ -677,11 +677,11 @@ function joinSelection(selections: readonly Selection[]): MatcherTranslation {
 }
 
 /**
- * A foreign tool-name matcher as ours, exactly, or refused. A token must name
- * a documented tool (or alias, or MCP tool by the source's own spelling);
- * under unanchored rules it also selects the documented names that contain
- * it and the MCP tools whose names contain it.
- */
+A foreign tool-name matcher as ours, exactly, or refused. A token must name
+a documented tool (or alias, or MCP tool by the source's own spelling);
+under unanchored rules it also selects the documented names that contain
+it and the MCP tools whose names contain it.
+*/
 function translateToolMatcher(
   matcher: string | undefined,
   vocabulary: ToolVocabulary,
@@ -770,10 +770,10 @@ const CURSOR_VOCABULARY: ToolVocabulary = {
 
 const KIRO_MCP_TOKEN = /^@[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)?$/
 /**
- * Kiro's tool matchers name tools, aliases and categories; `@mcp`, `@builtin`
- * and `@<server>[/<tool>]` select by source, and Kiro tests `@` forms as a
- * regex, so `@git` also selects a server named `github`.
- */
+Kiro's tool matchers name tools, aliases and categories; `@mcp`, `@builtin`
+and `@<server>[/<tool>]` select by source, and Kiro tests `@` forms as a
+regex, so `@git` also selects a server named `github`.
+*/
 const KIRO_VOCABULARY: ToolVocabulary = {
   tools: AGENT_IMPORT_KIRO_TOOLS,
   isUnanchored: false,
@@ -824,10 +824,10 @@ const COPILOT_CLAUDE_VOCABULARY: ToolVocabulary = {
 }
 
 /**
- * A matcher on a non-tool subject: kept only as a list of the source's own
- * values that ours shares (`PreCompact`'s trigger, `SessionStart`'s source),
- * else refused. Undefined `values` means our event has no such subject.
- */
+A matcher on a non-tool subject: kept only as a list of the source's own
+values that ours shares (`PreCompact`'s trigger, `SessionStart`'s source),
+else refused. Undefined `values` means our event has no such subject.
+*/
 function translateValueMatcher(
   matcher: string | undefined,
   values: readonly string[] | undefined,
@@ -848,10 +848,10 @@ function translateValueMatcher(
 const PRE_COMPACT_TRIGGERS = ['manual', 'auto'] as const
 
 /**
- * Whether a matcher tested against one fixed value runs: Cursor's
- * `beforeReadFile` against `Read` and the like. Undefined when it is a regex
- * the import does not evaluate.
- */
+Whether a matcher tested against one fixed value runs: Cursor's
+`beforeReadFile` against `Read` and the like. Undefined when it is a regex
+the import does not evaluate.
+*/
 function matchesFixedSubject(
   matcher: string,
   subject: string,
@@ -889,9 +889,9 @@ function groupRefusal(hook: FoundHook, fields: ReadonlySet<string>): Conversion<
 }
 
 /**
- * One command handler as a Muse Code group under this event; refused when it
- * would widen or cannot run. Values stay unchanged in the allowed target.
- */
+One command handler as a Muse Code group under this event; refused when it
+would widen or cannot run. Values stay unchanged in the allowed target.
+*/
 function convertCommandGroup(
   hook: FoundHook,
   event: string,
@@ -945,9 +945,9 @@ function convertCommandGroup(
 }
 
 /**
- * One Claude Code hook handler as Muse Code's; refused when it would widen
- * or cannot run. Values stay unchanged in the allowed target.
- */
+One Claude Code hook handler as Muse Code's; refused when it would widen
+or cannot run. Values stay unchanged in the allowed target.
+*/
 export function convertHook(hook: FoundHook): Conversion<MuseHook> {
   return AGENT_IMPORT_HOOK_EVENTS.includes(hook.event)
     ? convertCommandGroup(hook, hook.event, nativeMatcher(hook.event, hook.matcher))
@@ -977,12 +977,12 @@ function sparkMatcher(event: string, matcher: string | undefined): MatcherTransl
 }
 
 /**
- * One Claude Code handler for an extension event as the `spark-hooks.json`
- * entry: the same native shape, no format tag. `WorktreeCreate` and
- * `ConfigChange` can block where they come from but only observe here, so
- * they stay refused; `FileChanged` without a matcher watches nothing. A
- * matcher that file's grammar refuses is refused here, by name.
- */
+One Claude Code handler for an extension event as the `spark-hooks.json`
+entry: the same native shape, no format tag. `WorktreeCreate` and
+`ConfigChange` can block where they come from but only observe here, so
+they stay refused; `FileChanged` without a matcher watches nothing. A
+matcher that file's grammar refuses is refused here, by name.
+*/
 export function convertClaudeSparkHook(hook: FoundHook): Conversion<MuseHook> {
   if (!AGENT_IMPORT_CLAUDE_SPARK_EVENTS.includes(hook.event)) {
     return { ok: false, reason: 'unmapped' }
@@ -1029,9 +1029,9 @@ const CODEX_APPLY_PATCH_NAMES = 'Edit|Write'
 const WHOLE_APPLY_PATCH = /(?<![A-Za-z0-9_])apply_patch(?![A-Za-z0-9_])/g
 
 /**
- * The `hooks` table of a Codex `config.toml`; an empty list when it names
- * none, undefined when the text is not a readable hooks table.
- */
+The `hooks` table of a Codex `config.toml`; an empty list when it names
+none, undefined when the text is not a readable hooks table.
+*/
 export function readCodexHooksToml(text: string): readonly FoundHook[] | undefined {
   let document: unknown
   try {
@@ -1066,28 +1066,28 @@ export function hasCodexNotify(text: string): boolean {
 }
 
 /**
- * A Codex matcher in Muse Code's grammar (the same as Codex's: a name list,
- * else an unanchored regex), with `apply_patch` naming `Edit|Write`. In a
- * regex the names are grouped, so `^apply_patch$` stays anchored on both.
- */
+A Codex matcher in Muse Code's grammar (the same as Codex's: a name list,
+else an unanchored regex), with `apply_patch` naming `Edit|Write`. In a
+regex the names are grouped, so `^apply_patch$` stays anchored on both.
+*/
 function codexMatcher(matcher: string): string {
   if (EXACT_NAME.test(matcher.replaceAll('|', '_'))) {
     const names = matcher
       .split('|')
-      .flatMap((name) => (name === CODEX_APPLY_PATCH ? CODEX_APPLY_PATCH_NAMES.split('|') : [name]))
+      .flatMap((name) => (name === CODEX_APPLY_PATCH ? CODEX_APPLY_PATCH_NAMES.split('|') : name))
     return [...new Set(names)].join('|')
   }
   return matcher.replaceAll(WHOLE_APPLY_PATCH, () => `(?:${CODEX_APPLY_PATCH_NAMES})`)
 }
 
 /**
- * One Codex hook handler as Muse Code's file entry: the same shape Muse
- * Code runs, so it runs on both backends. `apply_patch` matchers name
- * `Edit|Write` here; `commandWindows` is kept; `Interrupt` converts only
- * with `async:true`. Prompt, agent and MCP handlers and
- * `additionalContextLimit` are refused; `notify` is listed, not converted;
- * `[features] hooks = false` marks every hook disabled.
- */
+One Codex hook handler as Muse Code's file entry: the same shape Muse
+Code runs, so it runs on both backends. `apply_patch` matchers name
+`Edit|Write` here; `commandWindows` is kept; `Interrupt` converts only
+with `async:true`. Prompt, agent and MCP handlers and
+`additionalContextLimit` are refused; `notify` is listed, not converted;
+`[features] hooks = false` marks every hook disabled.
+*/
 export function convertCodexHook(hook: FoundHook): Conversion<MuseHook> {
   if (!AGENT_IMPORT_CODEX_EVENTS.includes(hook.event)) {
     return { ok: false, reason: 'unmapped' }
@@ -1270,14 +1270,14 @@ function geminiMatcher(event: string, matcher: string | undefined): MatcherTrans
 }
 
 /**
- * One Gemini CLI hook entry as the `spark-hooks.json` entry. `BeforeModel`
- * and `AfterModel` map to one call each here (Gemini fires them per chunk);
- * `BeforeToolSelection` narrows only, at call admission. A group with
- * `sequential: true` runs its hooks in order there, which the dispatcher
- * here does not, so every hook of that event is refused (pass `sequential`,
- * from `geminiSequentialEvents`). Milliseconds round up to whole seconds;
- * the documented 60 s default is written when there is none.
- */
+One Gemini CLI hook entry as the `spark-hooks.json` entry. `BeforeModel`
+and `AfterModel` map to one call each here (Gemini fires them per chunk);
+`BeforeToolSelection` narrows only, at call admission. A group with
+`sequential: true` runs its hooks in order there, which the dispatcher
+here does not, so every hook of that event is refused (pass `sequential`,
+from `geminiSequentialEvents`). Milliseconds round up to whole seconds;
+the documented 60 s default is written when there is none.
+*/
 export function convertGeminiHook(
   hook: FoundHook,
   sequential: ReadonlySet<string> = geminiSequentialEvents([hook]),
@@ -1384,11 +1384,11 @@ export function readCursorHooks(text: string): ForeignHooksRead {
 }
 
 /**
- * Cursor's matcher as ours, or refused: a tool-type matcher translated
- * exactly; a shell-command matcher kept as the command-text predicate
- * (`commandPattern`) beside the fixed shell matcher; a fixed-subject matcher
- * decided now (it runs always, or never: then refused).
- */
+Cursor's matcher as ours, or refused: a tool-type matcher translated
+exactly; a shell-command matcher kept as the command-text predicate
+(`commandPattern`) beside the fixed shell matcher; a fixed-subject matcher
+decided now (it runs always, or never: then refused).
+*/
 function cursorMatcher(
   sourceEvent: string,
   matcher: string | undefined,
@@ -1419,13 +1419,13 @@ function cursorMatcher(
 }
 
 /**
- * One Cursor hook entry as the `spark-hooks.json` entry. Generic tool events
- * (`preToolUse`) and the specialised ones (`beforeShellExecution`) keep their
- * own event, so the adapter selects each envelope without a flavor tag.
- * `failClosed` and `loop_limit` stay for the adapter. `subagentStart` can
- * block where it comes from but only observes here, so it stays refused; the
- * Tab hooks wait for inline completions.
- */
+One Cursor hook entry as the `spark-hooks.json` entry. Generic tool events
+(`preToolUse`) and the specialised ones (`beforeShellExecution`) keep their
+own event, so the adapter selects each envelope without a flavor tag.
+`failClosed` and `loop_limit` stay for the adapter. `subagentStart` can
+block where it comes from but only observes here, so it stays refused; the
+Tab hooks wait for inline completions.
+*/
 export function convertCursorHook(hook: FoundHook): Conversion<MuseHook> {
   const mapped = AGENT_IMPORT_CURSOR_EVENTS[hook.event]
   if (mapped === undefined) {
@@ -1561,10 +1561,10 @@ export function readCopilotHooks(text: string): ForeignHooksRead {
 }
 
 /**
- * The contract a Copilot-location file is written for (vsc/hooks.md:174-178):
- * PascalCase events without a numeric `version` are VS Code Local's own;
- * anything versioned, or an inline settings block, is Copilot CLI's.
- */
+The contract a Copilot-location file is written for (vsc/hooks.md:174-178):
+PascalCase events without a numeric `version` are VS Code Local's own;
+anything versioned, or an inline settings block, is Copilot CLI's.
+*/
 export function copilotFlavorOf(
   event: string,
   isVersioned: boolean,
@@ -1716,14 +1716,14 @@ function convertVsCodeLocal(hook: FoundHook, entry: JsonObject): Conversion<Muse
 }
 
 /**
- * One Copilot or VS Code hook entry as the `spark-hooks.json` entry, with
- * its flavor (`copilotFlavorOf`) and its event spelled as the source wrote
- * it: camelCase and PascalCase are separate Copilot CLI contracts, and VS
- * Code Local a third. `cwd` stays for the adapter, which runs it only when
- * relative and confined to the workspace; `env`, `exec` and `args` are
- * refused by name. The documented 30 s default is written when there is no
- * timeout.
- */
+One Copilot or VS Code hook entry as the `spark-hooks.json` entry, with
+its flavor (`copilotFlavorOf`) and its event spelled as the source wrote
+it: camelCase and PascalCase are separate Copilot CLI contracts, and VS
+Code Local a third. `cwd` stays for the adapter, which runs it only when
+relative and confined to the workspace; `env`, `exec` and `args` are
+refused by name. The documented 30 s default is written when there is no
+timeout.
+*/
 export function convertCopilotHook(
   hook: FoundHook,
   flavor: CopilotFlavor = 'copilot',
@@ -1757,11 +1757,11 @@ export function readWindsurfHooks(text: string): readonly FoundHook[] | undefine
 }
 
 /**
- * One Windsurf hook entry as the `spark-hooks.json` entry with the matcher
- * for its kind. Exit codes only: pre hooks stay synchronous so a block still
- * blocks. `working_directory` and the transcript answer have no equivalent
- * here and are refused.
- */
+One Windsurf hook entry as the `spark-hooks.json` entry with the matcher
+for its kind. Exit codes only: pre hooks stay synchronous so a block still
+blocks. `working_directory` and the transcript answer have no equivalent
+here and are refused.
+*/
 export function convertWindsurfHook(hook: FoundHook): Conversion<MuseHook> {
   const mapped = AGENT_IMPORT_WINDSURF_EVENTS[hook.event]
   if (mapped === undefined) {
@@ -1898,16 +1898,16 @@ function kiroMatcher(
 }
 
 /**
- * One Kiro v1 entry as the `spark-hooks.json` entry. `enabled: false` is
- * refused as disabled; a `confirm` question (and its `confirmCommand`) has
- * no equivalent here, so the entry is refused naming it. File triggers map
- * to `PostToolUse` on file tools with the path regex as `pathPattern`;
- * spec-task triggers map to the todo-item events; `Manual` is refused until
- * its adapter row exists. Agent actions become `prompt` handlers under lane H's
- * paid-feature gates, with the same scope as a command. `hooks[].timeout`
- * is kept (60 s when absent); `0` (no limit) cannot be honoured and is
- * refused.
- */
+One Kiro v1 entry as the `spark-hooks.json` entry. `enabled: false` is
+refused as disabled; a `confirm` question (and its `confirmCommand`) has
+no equivalent here, so the entry is refused naming it. File triggers map
+to `PostToolUse` on file tools with the path regex as `pathPattern`;
+spec-task triggers map to the todo-item events; `Manual` is refused until
+its adapter row exists. Agent actions become `prompt` handlers under lane H's
+paid-feature gates, with the same scope as a command. `hooks[].timeout`
+is kept (60 s when absent); `0` (no limit) cannot be honoured and is
+refused.
+*/
 export function convertKiroHook(hook: KiroHook): Conversion<MuseHook> {
   if (!isJsonObject(hook.raw) || hook.trigger === '') {
     return { ok: false, reason: 'unsupported' }
@@ -1975,9 +1975,9 @@ export function convertKiroHook(hook: KiroHook): Conversion<MuseHook> {
 }
 
 /**
- * Kiro's `hooks[].timeout` in seconds (60 when absent); `0` turns Kiro's
- * limit off, which this runtime cannot honour, so it is refused.
- */
+Kiro's `hooks[].timeout` in seconds (60 when absent); `0` turns Kiro's
+limit off, which this runtime cannot honour, so it is refused.
+*/
 function kiroTimeoutSeconds(timeout: number | undefined): number | undefined {
   if (timeout === undefined) {
     return AGENT_IMPORT_DEFAULT_TIMEOUT_SECONDS.kiro
@@ -1993,12 +1993,12 @@ export type ClineFileKind =
   | { readonly kind: 'ignore' }
 
 /**
- * A Cline hooks-folder entry by Cline v1's discovery rules
- * (cline-hooks-901d1b5c97.mdx:166-172): on Windows only `<HookName>.ps1`, on
- * macOS and Linux only an extensionless `<HookName>`; wrong-platform names
- * are ignored, as Cline ignores them. A JSON file is the newer SDK/CLI
- * format, refused with a reason. The kind carries Cline's own script name.
- */
+A Cline hooks-folder entry by Cline v1's discovery rules
+(cline-hooks-901d1b5c97.mdx:166-172): on Windows only `<HookName>.ps1`, on
+macOS and Linux only an extensionless `<HookName>`; wrong-platform names
+are ignored, as Cline ignores them. A JSON file is the newer SDK/CLI
+format, refused with a reason. The kind carries Cline's own script name.
+*/
 export function clineEventForFile(fileName: string, platform: NodeJS.Platform): ClineFileKind {
   if (fileName.toLowerCase().endsWith(AGENT_IMPORT_JSON_EXTENSION)) {
     return { kind: 'unknownFormat' }
@@ -2014,12 +2014,12 @@ export function clineEventForFile(fileName: string, platform: NodeJS.Platform): 
 }
 
 /**
- * One Cline v1 per-event script, by Cline's own script name, as the
- * `spark-hooks.json` entry. The script stays where it is; the entry runs it
- * by its absolute path, so the preview lists the event only, never command
- * text. A script the source would not run (`isEnabled` false: not
- * executable on macOS and Linux, Cline's toggle) is refused as disabled.
- */
+One Cline v1 per-event script, by Cline's own script name, as the
+`spark-hooks.json` entry. The script stays where it is; the entry runs it
+by its absolute path, so the preview lists the event only, never command
+text. A script the source would not run (`isEnabled` false: not
+executable on macOS and Linux, Cline's toggle) is refused as disabled.
+*/
 export function convertClineHook(
   sourceEvent: string,
   command: string,
@@ -2057,10 +2057,10 @@ export function convertClineHook(
 const frontMatterSchema = z.record(z.string(), z.string())
 
 /**
- * A foreign Markdown file's front matter as raw fields (first spelling of
- * a key wins, keys lower-cased) and the body after it. A file without a
- * closed fence has no fields; the whole text is its body.
- */
+A foreign Markdown file's front matter as raw fields (first spelling of
+a key wins, keys lower-cased) and the body after it. A file without a
+closed fence has no fields; the whole text is its body.
+*/
 export function splitFrontMatter(text: string): {
   readonly fields: Readonly<Record<string, string>>
   readonly body: string

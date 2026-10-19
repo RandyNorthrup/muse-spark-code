@@ -189,10 +189,10 @@ export function screenRecordExecutable(deps: {
 }
 
 /**
- * Removes the builds of earlier sources beside `current`. One that another
- * window still has loaded cannot go and stays until a later start; that is
- * logged.
- */
+Removes the builds of earlier sources beside `current`. One that another
+window still has loaded cannot go and stays until a later start; that is
+logged.
+*/
 export async function removeStaleJobs(
   build: JobBuild,
   current: string,

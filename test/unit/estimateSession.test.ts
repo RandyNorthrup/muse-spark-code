@@ -37,7 +37,7 @@ function makeSession(runner: EstimateRunPort): {
     (section) => {
       sections.push(section)
     },
-    (text) => {
+    (text: string) => {
       texts.push(text)
     },
   )

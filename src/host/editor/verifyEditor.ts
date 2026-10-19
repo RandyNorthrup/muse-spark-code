@@ -80,12 +80,12 @@ export interface VerifyEditor {
     canReadFile?: (file: EditedFile) => boolean,
   ): Promise<readonly FileDiagnostics[]>
   /**
-   * For the diagnostics tool asked about one file: shows it (when it is in
-   * the workspace by its real path and is not code the editor's tools run),
-   * waits for its server, and reads the file's diagnostics while it still
-   * shows (a server clears them when its tab closes). Undefined when none
-   * were read: refused, no report, or stopped.
-   */
+  For the diagnostics tool asked about one file: shows it (when it is in
+  the workspace by its real path and is not code the editor's tools run),
+  waits for its server, and reads the file's diagnostics while it still
+  shows (a server clears them when its tab closes). Undefined when none
+  were read: refused, no report, or stopped.
+  */
   settleFile(
     absolutePath: string,
     signal?: AbortSignal,
@@ -152,12 +152,12 @@ function logReports(platform: NodeJS.Platform): ReportLog {
 }
 
 /**
- * The reports for one file, counted from the moment this is called (before
- * the file is shown, so none is missed). `settle` starts its timers when it
- * is called, once the file is shown: true once a report arrived (or one
- * arrived earlier, `hasEarlierReport`) and the server has been quiet, false
- * when none arrived in the first wait or the caller stopped.
- */
+The reports for one file, counted from the moment this is called (before
+the file is shown, so none is missed). `settle` starts its timers when it
+is called, once the file is shown: true once a report arrived (or one
+arrived earlier, `hasEarlierReport`) and the server has been quiet, false
+when none arrived in the first wait or the caller stopped.
+*/
 function watchReports(
   key: string,
   platform: NodeJS.Platform,
@@ -254,13 +254,13 @@ type Shown =
   | { readonly ok: false; readonly reason: UncheckedReason }
 
 /**
- * Shows the file unless an editor already shows it, without focus: in the
- * group of a tab it already has outside the user's group, as that tab is
- * (its preview state kept; the Codex review of PR #54), else beside the
- * active editor as a tab of its own (never a preview, which would replace
- * the user's), noting the tabs it created. Never in the user's group, so
- * nothing the user types lands in it.
- */
+Shows the file unless an editor already shows it, without focus: in the
+group of a tab it already has outside the user's group, as that tab is
+(its preview state kept; the Codex review of PR #54), else beside the
+active editor as a tab of its own (never a preview, which would replace
+the user's), noting the tabs it created. Never in the user's group, so
+nothing the user types lands in it.
+*/
 async function show(
   deps: VerifyEditorDeps,
   file: EditedFile,
@@ -312,10 +312,10 @@ async function show(
 }
 
 /**
- * Whether the server reported on the file since it was written: for a file
- * an editor already showed, that report can come before the wait starts
- * (the Codex review of PR #54).
- */
+Whether the server reported on the file since it was written: for a file
+an editor already showed, that report can come before the wait starts
+(the Codex review of PR #54).
+*/
 async function isReportedSinceWrite(
   file: EditedFile,
   key: string,
@@ -337,10 +337,10 @@ async function isReportedSinceWrite(
 }
 
 /**
- * Whether a document an editor already showed holds what is on disk, unsaved
- * changes aside: its server has had that text, and a server that reports
- * nothing new keeps what it said about it.
- */
+Whether a document an editor already showed holds what is on disk, unsaved
+changes aside: its server has had that text, and a server that reports
+nothing new keeps what it said about it.
+*/
 async function isShowingDiskText(
   document: vscode.TextDocument,
   isAllowed?: () => boolean,
@@ -359,11 +359,11 @@ async function isShowingDiskText(
 }
 
 /**
- * Whether the file is still the one confinement found (its real path
- * unchanged) and, for an edited file, still holds what the edit left:
- * checked immediately before each act on it, the show and the read (the
- * Codex review of PR #54).
- */
+Whether the file is still the one confinement found (its real path
+unchanged) and, for an edited file, still holds what the edit left:
+checked immediately before each act on it, the show and the read (the
+Codex review of PR #54).
+*/
 async function isStillAsConfined(
   deps: VerifyEditorDeps,
   file: EditedFile,
@@ -406,12 +406,12 @@ function isSameTab(
 }
 
 /**
- * Brings back to the front, in each group where the loop left one of its
- * files in front, the tab that was there before the batch (the Codex review
- * of PR #54): a reused tab stays open, and would otherwise hide the user's.
- * A text tab is shown again as it was, without focus; any other kind is
- * logged.
- */
+Brings back to the front, in each group where the loop left one of its
+files in front, the tab that was there before the batch (the Codex review
+of PR #54): a reused tab stays open, and would otherwise hide the user's.
+A text tab is shown again as it was, without focus; any other kind is
+logged.
+*/
 async function restoreActiveTabs(
   deps: VerifyEditorDeps,
   before: ReadonlyMap<vscode.ViewColumn, vscode.Tab | undefined>,
@@ -521,9 +521,9 @@ async function settledDiagnostics(
 }
 
 /**
- * Each file in turn, then the tabs opened for them closed and each group's
- * front tab as it was before.
- */
+Each file in turn, then the tabs opened for them closed and each group's
+front tab as it was before.
+*/
 async function readFiles(
   deps: VerifyEditorDeps,
   reportLog: ReportLog,
@@ -549,11 +549,11 @@ async function readFiles(
 }
 
 /**
- * The diagnostics tool's file, confined by its real path (a link inside the
- * workspace to a file outside it is never opened) and never a file the
- * editor's tools run as code: its entries as read before its tab closed
- * (the integration run found the JSON server clearing them on close).
- */
+The diagnostics tool's file, confined by its real path (a link inside the
+workspace to a file outside it is never opened) and never a file the
+editor's tools run as code: its entries as read before its tab closed
+(the integration run found the JSON server clearing them on close).
+*/
 async function toolFileDiagnostics(
   deps: VerifyEditorDeps,
   reportLog: ReportLog,
@@ -689,9 +689,9 @@ function reachedBeforeStop(waited: Promise<void>, signal: AbortSignal): Promise<
 }
 
 /**
- * Once `first` settles and then `second` does, however `second` ended: the
- * queue only waits on a caller, whose own error goes to that caller.
- */
+Once `first` settles and then `second` does, however `second` ended: the
+queue only waits on a caller, whose own error goes to that caller.
+*/
 async function afterBoth(first: Promise<void>, second: Promise<unknown>): Promise<void> {
   await first
   try {

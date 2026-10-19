@@ -27,9 +27,9 @@ function refuse(what: string): Promise<never> {
 }
 
 /**
- * A `fetch` for the local-server probe: GETs an `http:` loopback URL over
- * `node:http` with no proxy, no redirect following and no credentials.
- */
+A `fetch` for the local-server probe: GETs an `http:` loopback URL over
+`node:http` with no proxy, no redirect following and no credentials.
+*/
 export function fetchLoopback(
   input: string | URL | Request,
   init?: RequestInit,

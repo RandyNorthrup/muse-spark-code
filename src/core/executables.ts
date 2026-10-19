@@ -9,20 +9,20 @@
 // file probe is injected.
 
 /**
- * The explicit "no workspace" scope for a capability probe before any folder
- * is known: absolute PATH entries only, links followed. Grep for
- * `NO_WORKSPACE` to review every such probe: each must never execute a
- * program planted in a workspace, so it resolves fixed absolute paths or
- * re-resolves once a workspace is known.
- */
+The explicit "no workspace" scope for a capability probe before any folder
+is known: absolute PATH entries only, links followed. Grep for
+`NO_WORKSPACE` to review every such probe: each must never execute a
+program planted in a workspace, so it resolves fixed absolute paths or
+re-resolves once a workspace is known.
+*/
 export const NO_WORKSPACE = 'absolute-entries-only-links-followed' as const
 
 /**
- * Where an executable lookup runs: a workspace root with its link resolver
- * (directories inside it are never probed), or the explicit no-workspace
- * scope above. Both carry the realpath function: forgetting either is a
- * type error, so the compiler lists every call site that skipped the guard.
- */
+Where an executable lookup runs: a workspace root with its link resolver
+(directories inside it are never probed), or the explicit no-workspace
+scope above. Both carry the realpath function: forgetting either is a
+type error, so the compiler lists every call site that skipped the guard.
+*/
 export type ExecutableScope =
   | {
       readonly workspaceRoot: string
@@ -49,10 +49,10 @@ export interface WorkspacePathSanitizeProbe {
   /** The workspace the child runs in (its working directory). */
   readonly workspaceRoot: string
   /**
-   * Resolves links in an entry or the workspace root; may throw (an entry
-   * that cannot be resolved is compared lexically instead). Injected so the
-   * Windows, macOS and Linux branches are all unit-tested on any OS.
-   */
+  Resolves links in an entry or the workspace root; may throw (an entry
+  that cannot be resolved is compared lexically instead). Injected so the
+  Windows, macOS and Linux branches are all unit-tested on any OS.
+  */
   readonly realpath: (filePath: string) => string
 }
 
@@ -60,21 +60,21 @@ export interface WorkspaceChild {
   /** The workspace the child runs in (its working directory). */
   readonly workspaceRoot: string
   /**
-   * Resolves links in an entry or the workspace root; may throw (an entry
-   * that cannot be resolved is compared lexically instead). REQUIRED: a
-   * lexical-only comparison keeps a symlink into the workspace on PATH.
-   */
+  Resolves links in an entry or the workspace root; may throw (an entry
+  that cannot be resolved is compared lexically instead). REQUIRED: a
+  lexical-only comparison keeps a symlink into the workspace on PATH.
+  */
   readonly realpath: (filePath: string) => string
 }
 
 declare const guardedChildEnvBrand: unique symbol
 
 /**
- * A child environment the guard produced: only `workspaceChildEnvironment`
- * (or `noWorkspaceChildEnvironment` for the explicit no-workspace probe)
- * can make one. Every spawn helper for a product-chosen program takes this
- * type, so passing a raw `process.env` is a type error the compiler lists.
- */
+A child environment the guard produced: only `workspaceChildEnvironment`
+(or `noWorkspaceChildEnvironment` for the explicit no-workspace probe)
+can make one. Every spawn helper for a product-chosen program takes this
+type, so passing a raw `process.env` is a type error the compiler lists.
+*/
 export type GuardedChildEnv = NodeJS.ProcessEnv & {
   readonly [guardedChildEnvBrand]: true
 }

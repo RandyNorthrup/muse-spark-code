@@ -76,10 +76,10 @@ export interface AcpMediaDeps extends AcpMediaContext {
   /** Bind metadata carrier + private source to M2; admission includes C/A's consent and budgets. */
   readonly prepare: (input: AcpMediaInput, signal: AbortSignal) => Promise<TurnPart>
   /**
-   * Lane V seam 5: whether this runtime transcribes attached sound (the
-   * agent's Muse Voice flag). Audio the model does not hear is then
-   * admitted for transcription; absent, the gate's refusal stands.
-   */
+  Lane V seam 5: whether this runtime transcribes attached sound (the
+  agent's Muse Voice flag). Audio the model does not hear is then
+  admitted for transcription; absent, the gate's refusal stands.
+  */
   readonly transcribesSound?: (info: MediaInfo) => boolean
   /** Releases this port's registrations when the session is let go (RVMEDIAV 7). */
   readonly release?: () => void
@@ -90,11 +90,11 @@ export interface AcpMediaDeps extends AcpMediaContext {
 }
 
 /**
- * A refusal the person reads as written: its message is always a UI
- * sentence (an unknown type, an unreadable file, a model limit). Anything
- * else never reaches the person in its own words. The attach boundary
- * answers these as written and unreadable for the rest.
- */
+A refusal the person reads as written: its message is always a UI
+sentence (an unknown type, an unreadable file, a model limit). Anything
+else never reaches the person in its own words. The attach boundary
+answers these as written and unreadable for the rest.
+*/
 export class MediaRefusal extends Error {}
 
 function unknown(type: string): MediaRefusal {

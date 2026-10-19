@@ -20,10 +20,10 @@ import type { Logger } from '../logger'
 export type SessionBudgetScope = 'workspace' | 'global'
 
 /**
- * The narrow configuration surface the wizard's budget write needs. The
- * production adapter in `modelsPanelEntry.ts` backs it with VS Code's
- * configuration; tests back it with memory.
- */
+The narrow configuration surface the wizard's budget write needs. The
+production adapter in `modelsPanelEntry.ts` backs it with VS Code's
+configuration; tests back it with memory.
+*/
 export interface SessionBudgetConfigSource {
   get(section: string): unknown
   inspect(section: string): { workspaceValue?: unknown; workspaceFolderValue?: unknown } | undefined
@@ -39,9 +39,9 @@ export interface SessionBudgetState {
 export interface SessionBudgetConfig {
   read(): SessionBudgetState
   /**
-   * Throws `SessionBudgetInvalidError` for an invalid value; anything else
-   * it throws is the store's failure and reaches the caller with its cause.
-   */
+  Throws `SessionBudgetInvalidError` for an invalid value; anything else
+  it throws is the store's failure and reaches the caller with its cause.
+  */
   write(value: UsdAmount, scope: SessionBudgetScope): Promise<void>
 }
 
@@ -102,10 +102,10 @@ export type SessionBudgetApplyOutcome =
   | { readonly status: 'failed'; readonly error: string }
 
 /**
- * The budget value itself is invalid (the setting's own schema refused
- * it). Anything else a write throws is the store's failure, which still
- * throws so the saver reports it with its cause.
- */
+The budget value itself is invalid (the setting's own schema refused
+it). Anything else a write throws is the store's failure, which still
+throws so the saver reports it with its cause.
+*/
 export class SessionBudgetInvalidError extends Error {
   public constructor() {
     super(UI_TEXT.wizardSessionBudgetInvalid)
@@ -129,13 +129,13 @@ export function validateWizardSessionBudget(
 }
 
 /**
- * Applies the wizard's budget to the conversation spending limit setting.
- * `undefined` (untouched) and a value equal to the effective one write
- * nothing. Anything else is validated with the setting's own schema and
- * written at the scope it is effective from; a failed write reports the
- * specific reason. Call only after provider save succeeds. A concurrent
- * setting change requires explicit confirmation before replacing it.
- */
+Applies the wizard's budget to the conversation spending limit setting.
+`undefined` (untouched) and a value equal to the effective one write
+nothing. Anything else is validated with the setting's own schema and
+written at the scope it is effective from; a failed write reports the
+specific reason. Call only after provider save succeeds. A concurrent
+setting change requires explicit confirmation before replacing it.
+*/
 export async function applyWizardSessionBudget(
   budget: UsdAmount | undefined,
   config: SessionBudgetConfig,

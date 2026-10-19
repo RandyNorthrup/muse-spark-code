@@ -110,10 +110,10 @@ export interface VaultBrokerDeps {
 }
 
 /**
- * The OS credential store (Secret Service, Keychain, Credential Manager or
- * DPAPI) cannot be used here. Slots and the anchor throw it with no native
- * text; every surface shows its fixed, localized repair (RVCM1091B 4).
- */
+The OS credential store (Secret Service, Keychain, Credential Manager or
+DPAPI) cannot be used here. Slots and the anchor throw it with no native
+text; every surface shows its fixed, localized repair (RVCM1091B 4).
+*/
 export class VaultStoreUnavailableError extends Error {
   constructor() {
     super('storeUnavailable')
@@ -140,10 +140,10 @@ export class VaultManagementError extends Error {
   }
 }
 /**
- * Protocol v2's management side (lead decision 2026-10-10), served only on
- * manage connections. The broker process binds it to the store, the slots and
- * the setup flow; values arrive and leave only through private frames.
- */
+Protocol v2's management side (lead decision 2026-10-10), served only on
+manage connections. The broker process binds it to the store, the slots and
+the setup flow; values arrive and leave only through private frames.
+*/
 export interface VaultManagementPort {
   snapshot(): Promise<VaultBrokerSnapshot>
   /** Takes ownership of the item's material and erases it, committed or not. */
@@ -152,10 +152,10 @@ export interface VaultManagementPort {
   editMetadata(metadata: VaultItemMetadata): Promise<void>
   remove(itemId: string): Promise<void>
   /**
-   * Imports one discovered credential file as a single all-or-none batch.
-   * `isCurrent` is false once the requester cancelled (its connection
-   * closed); it is checked at the commit, so a cancelled import writes nothing.
-   */
+  Imports one discovered credential file as a single all-or-none batch.
+  `isCurrent` is false once the requester cancelled (its connection
+  closed); it is checked at the commit, so a cancelled import writes nothing.
+  */
   importFile(path: string, isCurrent: () => boolean): Promise<VaultImportReport>
   keepImport(receipt: string): Promise<void>
   deleteImport(receipt: string, isCurrent: () => boolean): Promise<void>

@@ -23,10 +23,10 @@ function errorCode(error: unknown): string | undefined {
 }
 
 /**
- * Runs the rename fence; a refusal carries its reason (a foreign value as
- * the cause under a fixed marker, never as its text), or is undefined when
- * the fence commits.
- */
+Runs the rename fence; a refusal carries its reason (a foreign value as
+the cause under a fixed marker, never as its text), or is undefined when
+the fence commits.
+*/
 async function commitOrRefusal(
   commit: (() => Promise<void>) | undefined,
 ): Promise<Error | undefined> {
@@ -39,10 +39,10 @@ async function commitOrRefusal(
 }
 
 /**
- * The catch-gate-visible form of the expected usage-FS condition: `is`-named
- * so the inventory reads it as the one handled case, with exactly the same
- * answer as `errorCode` on every input.
- */
+The catch-gate-visible form of the expected usage-FS condition: `is`-named
+so the inventory reads it as the one handled case, with exactly the same
+answer as `errorCode` on every input.
+*/
 function isUsageErrorCode(error: unknown, code: string): boolean {
   return errorCode(error) === code
 }
@@ -77,14 +77,14 @@ async function erase(file: string): Promise<void> {
   if (!(await isAbsent(file))) throw new Error('usageRemoveIncomplete')
 }
 /**
- * Moves `from` back to the name `to` without replacing an entry that took it
- * (RVM107W2H P2-5): a file by `link` (no-replace everywhere), then unlink. A
- * directory on POSIX claims the name with an exclusive `mkdir` first, so the
- * rename can replace only an empty directory, and a failed rename gives the
- * claim back (`rmdir`, empty only). Windows never renames over a directory but
- * does over a file, and cannot claim a name: the name is checked free right
- * before the rename (the residual window in SECURITY). A taken name throws.
- */
+Moves `from` back to the name `to` without replacing an entry that took it
+(RVM107W2H P2-5): a file by `link` (no-replace everywhere), then unlink. A
+directory on POSIX claims the name with an exclusive `mkdir` first, so the
+rename can replace only an empty directory, and a failed rename gives the
+claim back (`rmdir`, empty only). Windows never renames over a directory but
+does over a file, and cannot claim a name: the name is checked free right
+before the rename (the residual window in SECURITY). A taken name throws.
+*/
 async function restore(from: string, to: string, isDirectory: boolean): Promise<void> {
   if (!isDirectory) {
     await link(from, to)
@@ -114,11 +114,11 @@ async function restore(from: string, to: string, isDirectory: boolean): Promise<
   }
 }
 /**
- * Puts a quarantined entry back under its name, never over a replacement;
- * best-effort, like the inline restore below it. The fence refuses with its
- * own error either way; a restore that fails too leaves the entry under its
- * quarantine name for the sweep.
- */
+Puts a quarantined entry back under its name, never over a replacement;
+best-effort, like the inline restore below it. The fence refuses with its
+own error either way; a restore that fails too leaves the entry under its
+quarantine name for the sweep.
+*/
 async function restoreQuarantinedEntry(trash: string, source: string): Promise<void> {
   try {
     const moved = await lstatEntry(trash)
@@ -128,12 +128,12 @@ async function restoreQuarantinedEntry(trash: string, source: string): Promise<v
   }
 }
 /**
- * On Windows, runs `action` holding a handle on `file`, proved to be
- * `identity`. Windows refuses to rename a directory while any handle under it
- * is open, so no ancestor of `file` can be swapped for a link meanwhile; our
- * own rename and delete of `file` still work. Linux pins the parent instead
- * (inParent); macOS has neither (the documented residual).
- */
+On Windows, runs `action` holding a handle on `file`, proved to be
+`identity`. Windows refuses to rename a directory while any handle under it
+is open, so no ancestor of `file` can be swapped for a link meanwhile; our
+own rename and delete of `file` still work. Linux pins the parent instead
+(inParent); macOS has neither (the documented residual).
+*/
 async function pinned<T>(file: string, identity: string, action: () => Promise<T>): Promise<T> {
   if (process.platform !== 'win32') return await action()
   const handle = await open(file, constants.O_RDONLY)
@@ -186,14 +186,14 @@ export class NodeUsageFs implements UsageFs {
     await this.checkPath(file)
   }
   /**
-   * Runs `action` against a validated parent directory. On Linux the parent is
-   * opened (no follow) and pinned through `/proc/self/fd/<fd>`, so every rename,
-   * stat and delete below acts on that verified inode whatever happens to the
-   * path above it. Elsewhere Node has no openat/renameat: `base` is the parent's
-   * path, and the parent's identity is re-proved around each step instead
-   * (Windows also pins each entry it renames or deletes: `pinned`).
-   * `proveParent` throws `usagePathChanged` once the parent is not the same.
-   */
+  Runs `action` against a validated parent directory. On Linux the parent is
+  opened (no follow) and pinned through `/proc/self/fd/<fd>`, so every rename,
+  stat and delete below acts on that verified inode whatever happens to the
+  path above it. Elsewhere Node has no openat/renameat: `base` is the parent's
+  path, and the parent's identity is re-proved around each step instead
+  (Windows also pins each entry it renames or deletes: `pinned`).
+  `proveParent` throws `usagePathChanged` once the parent is not the same.
+  */
   private async inParent<T>(
     parent: string,
     action: (base: string, proveParent: () => Promise<void>) => Promise<T>,
@@ -267,7 +267,7 @@ export class NodeUsageFs implements UsageFs {
     let generation = 0
     for (const entry of claims)
       generation = Math.max(generation, Number(entry.slice(name.length + 1)))
-    if (!Number.isSafeInteger(generation + 1)) throw new Error('invalidUsageLock')
+    if (!Number.isSafeInteger(generation + 1)) throw new TypeError('invalidUsageLock')
     return {
       folder,
       names,
@@ -394,23 +394,23 @@ export class NodeUsageFs implements UsageFs {
     })
   }
   /**
-   * Race-safe removal (RVM107W2 P1, RVM107W2G P2-1/P2-3).
-   *
-   * - A checked pathname is never deleted by name: the entry is renamed to a
-   *   fresh quarantine name in its validated parent, and deleted only once that
-   *   name proves to be the validated entry (dev/ino) in the same parent.
-   * - Success means the entry and every quarantine of the same name (in either
-   *   format) are gone, so a retry never reports a leftover as removed.
-   * - `commit` (a fence) runs on the proven quarantine, immediately before the
-   *   delete; a refusal puts the entry back.
-   * - Linux pins the parent by descriptor and Windows pins every ancestor by a
-   *   handle on the entry, so a swapped ancestor cannot redirect the rename or
-   *   the delete. macOS has neither: a swap during the rename itself can move
-   *   an outside entry to a quarantine name in its own directory. That entry is
-   *   not deleted by this call (the identity proof fails first) and is put back
-   *   only when it is reachable from the validated parent. The residuals are
-   *   listed in docs/certification/m107-w-history.md.
-   */
+  Race-safe removal (RVM107W2 P1, RVM107W2G P2-1/P2-3).
+  
+  - A checked pathname is never deleted by name: the entry is renamed to a
+    fresh quarantine name in its validated parent, and deleted only once that
+    name proves to be the validated entry (dev/ino) in the same parent.
+  - Success means the entry and every quarantine of the same name (in either
+    format) are gone, so a retry never reports a leftover as removed.
+  - `commit` (a fence) runs on the proven quarantine, immediately before the
+    delete; a refusal puts the entry back.
+  - Linux pins the parent by descriptor and Windows pins every ancestor by a
+    handle on the entry, so a swapped ancestor cannot redirect the rename or
+    the delete. macOS has neither: a swap during the rename itself can move
+    an outside entry to a quarantine name in its own directory. That entry is
+    not deleted by this call (the identity proof fails first) and is put back
+    only when it is reachable from the validated parent. The residuals are
+    listed in docs/certification/m107-w-history.md.
+  */
   public async remove(relative: string, commit?: () => Promise<void>): Promise<void> {
     const file = await this.resolve(relative)
     await this.checkPath(file)

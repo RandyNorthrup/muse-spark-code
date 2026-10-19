@@ -59,9 +59,9 @@ export interface PaletteProps {
   /** The active row's element id, for the prompt's aria-activedescendant. */
   readonly onActiveRowChange?: (elementId: string | undefined) => void
   /**
-   * The document retry for prices that failed to load (STARTUP017): said
-   * inside the palette, since pressing a notice outside it closes it first.
-   */
+  The document retry for prices that failed to load (STARTUP017): said
+  inside the palette, since pressing a notice outside it closes it first.
+  */
   readonly onRetryMoney?: () => void
 }
 
@@ -150,10 +150,10 @@ export function layoutActions(
 }
 
 /**
- * How a price reads in the picker: the pair, `unpriced`, `local` or `plan`.
- * The formatter is the lazy money chunk's (STARTUP017): unknown while it
- * loads, so priced rows read without prices rather than with guessed ones.
- */
+How a price reads in the picker: the pair, `unpriced`, `local` or `plan`.
+The formatter is the lazy money chunk's (STARTUP017): unknown while it
+loads, so priced rows read without prices rather than with guessed ones.
+*/
 function priceText(
   model: ModelOption,
   formatPrice: (amount: number | string) => string | undefined,
@@ -205,12 +205,12 @@ function modelDetail(
 }
 
 /**
- * A model's tier as the picker names it (F62): contributor-tier models carry
- * the `-contributor` suffix, whose price is the lower contributor rate for
- * training on what it is sent. Any other model's tier is the CLI's or the
- * provider's to report, never guessed here; the contributor switch (F8 lane)
- * reads the same suffix.
- */
+A model's tier as the picker names it (F62): contributor-tier models carry
+the `-contributor` suffix, whose price is the lower contributor rate for
+training on what it is sent. Any other model's tier is the CLI's or the
+provider's to report, never guessed here; the contributor switch (F8 lane)
+reads the same suffix.
+*/
 function modelTier(model: ModelOption): string | undefined {
   return model.modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
     ? UI_TEXT.pickerContributorTier
@@ -233,10 +233,10 @@ export interface ModelSection {
 }
 
 /**
- * The models view's sections (M95): pinned favourites first, then one group
- * per provider (Meta's own models under their own name). Pure, so the panel
- * and its tests share it.
- */
+The models view's sections (M95): pinned favourites first, then one group
+per provider (Meta's own models under their own name). Pure, so the panel
+and its tests share it.
+*/
 export function modelSections(
   models: readonly ModelOption[],
   currentModelId: string | undefined,
@@ -364,10 +364,10 @@ function bareDescription(text: string): string {
 }
 
 /**
- * A row's hover tip, unless it only repeats the visible detail (F69): rows
- * whose tip and detail are the same sentence read it twice (once seen, once
- * through the description), so the tip stays silent then.
- */
+A row's hover tip, unless it only repeats the visible detail (F69): rows
+whose tip and detail are the same sentence read it twice (once seen, once
+through the description), so the tip stays silent then.
+*/
 function rowTip(detail: string | undefined, tip: string | undefined): string | undefined {
   if (tip === undefined) {
     return undefined
@@ -482,7 +482,7 @@ export function Palette(props: PaletteProps) {
   const filterBox = useRef<HTMLInputElement>(null)
   const [storedIndex, setActiveIndex] = useState(0)
 
-  const layout = useMemo(
+  const { entries, rows } = useMemo(
     () =>
       view === 'models'
         ? layoutModels(models, filter, currentModelId, onSelectModel, onAction, (amount) =>
@@ -491,7 +491,6 @@ export function Palette(props: PaletteProps) {
         : layoutActions(filterPalette(groups, filter), onAction),
     [view, filter, models, currentModelId, onSelectModel, groups, onAction, money],
   )
-  const { entries, rows } = layout
 
   // The stored index may point past the end after the filter narrowed the
   // rows; derive the effective one instead of resetting state in an effect.

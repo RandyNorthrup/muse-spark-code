@@ -12,10 +12,10 @@ const PART_SEPARATOR = ' · '
 const DETAIL_SEPARATOR = ': '
 
 /**
- * "2 errors, 1 warning · 1 file not checked · lint failed · test passed", or
- * undefined for nothing to say. Errors and warnings count only the files
- * whose diagnostics were read.
- */
+"2 errors, 1 warning · 1 file not checked · lint failed · test passed", or
+undefined for nothing to say. Errors and warnings count only the files
+whose diagnostics were read.
+*/
 export function verifySummaryText(summary: VerifySummary | undefined): string | undefined {
   if (summary === undefined) {
     return undefined

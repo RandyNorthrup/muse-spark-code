@@ -48,9 +48,9 @@ const CODE_RECORD_FNS = new Set(['observeError', 'recordError', 'reportError'])
 /** A `report(x, error)`-shaped call posts the failure to the host's record. */
 const ERROR_SINK_FNS = new Set(['report', 'notify', 'record'])
 /**
- * A formatter whose result reaches the failure record with the error: the
- * webview's M39 host channel (`postMessage(webviewErrorReport(source, error))`).
- */
+A formatter whose result reaches the failure record with the error: the
+webview's M39 host channel (`postMessage(webviewErrorReport(source, error))`).
+*/
 const ERROR_CHANNEL_FNS = new Set(['webviewErrorReport', 'reportWebviewErrorMessage'])
 const LOG_METHODS = new Set(['warn', 'error', 'info', 'debug', 'log', 'trace'])
 const BRAND_GUARD = /^is[A-Z][A-Za-z0-9]*$/
@@ -93,9 +93,9 @@ function unparen(node) {
 }
 
 /**
- * Whether the expression reads the caught error: the binding itself or a
- * property chain rooted at it (`error`, `error.code`, `error?.name`).
- */
+Whether the expression reads the caught error: the binding itself or a
+property chain rooted at it (`error`, `error.code`, `error?.name`).
+*/
 function readsError(node, binding) {
   if (binding === undefined) return false
   let isFound = false
@@ -153,12 +153,12 @@ function isCodeRecordCall(node) {
 }
 
 /**
- * A fixed-diagnostic marker: the dependencies' documented `failed()` (the
- * question stack funnels it to a fixed-vocabulary code) and the agent's own
- * `questionFailed()` / `questionStateNotSaved()`, whose bodies are a single
- * fixed-message log. Scoped to zero-argument calls on `deps`/`this`
- * receivers, so an unrelated `failed()` cannot bless a handler.
- */
+A fixed-diagnostic marker: the dependencies' documented `failed()` (the
+question stack funnels it to a fixed-vocabulary code) and the agent's own
+`questionFailed()` / `questionStateNotSaved()`, whose bodies are a single
+fixed-message log. Scoped to zero-argument calls on `deps`/`this`
+receivers, so an unrelated `failed()` cannot bless a handler.
+*/
 const DIAGNOSTIC_MARKERS = new Set(['failed', 'questionFailed', 'questionStateNotSaved'])
 function isDiagnosticMarkerCall(node) {
   if (!ts.isCallExpression(node) || node.arguments.length > 0) return false
@@ -174,17 +174,17 @@ function isDiagnosticMarkerCall(node) {
 }
 
 /**
- * Calls verified (by reading their bodies) to carry only fixed vocabulary
- * from the error: `storeErrorCode` reads only `.code`;
- * `describeStoreError` runs `redactSecrets` over the message;
- * `errorKind` (conversationController.ts) returns only `.code`, `.name` or
- * `typeof`; `errorName` (accountHost.ts) returns only `.name`; `codeOf`
- * (pageConverter.ts, webFetcher.ts, runtimeStore.ts) reads only `.code`.
- * Anything else wrapping the error is opaque to this gate and counts as a
- * leak, so `String(error)` can no longer pass as REPORTED. A bare `describe`
- * stays a leak: the same name is `redactSecrets`-wrapped in one module and
- * a raw message in three others, so the gate cannot bless it by name.
- */
+Calls verified (by reading their bodies) to carry only fixed vocabulary
+from the error: `storeErrorCode` reads only `.code`;
+`describeStoreError` runs `redactSecrets` over the message;
+`errorKind` (conversationController.ts) returns only `.code`, `.name` or
+`typeof`; `errorName` (accountHost.ts) returns only `.name`; `codeOf`
+(pageConverter.ts, webFetcher.ts, runtimeStore.ts) reads only `.code`.
+Anything else wrapping the error is opaque to this gate and counts as a
+leak, so `String(error)` can no longer pass as REPORTED. A bare `describe`
+stays a leak: the same name is `redactSecrets`-wrapped in one module and
+a raw message in three others, so the gate cannot bless it by name.
+*/
 const SAFE_ERROR_FNS = new Set([
   'storeErrorCode',
   'describeStoreError',
@@ -503,12 +503,12 @@ function handlerPaths(body, binding) {
 }
 
 /**
- * Classify one handler body. `binding` is the caught name, if any.
- * `catchLine` is the source line of the `catch` keyword or `.catch(` call;
- * `leading` is the handler's leading comment text, if any. A reason comment
- * in either place marks CLEANUP; the ratchet baseline accepts each such
- * site by identity, so no new one passes silently.
- */
+Classify one handler body. `binding` is the caught name, if any.
+`catchLine` is the source line of the `catch` keyword or `.catch(` call;
+`leading` is the handler's leading comment text, if any. A reason comment
+in either place marks CLEANUP; the ratchet baseline accepts each such
+site by identity, so no new one passes silently.
+*/
 export function classifyHandler(body, options) {
   const { binding, catchLine, leading } = options
   const block = ts.isBlock(body) ? body : undefined
@@ -537,8 +537,8 @@ export function classifyHandler(body, options) {
   return 'GENERIC'
 }
 
-function hasReason(catchLine, leading) {
-  return catchLine.includes('//') || catchLine.includes('/*') || (leading ?? '').trim().length > 0
+function hasReason(catchLine, leading = '') {
+  return catchLine.includes('//') || catchLine.includes('/*') || leading.trim().length > 0
 }
 
 function snippetOf(source, node) {
@@ -646,11 +646,11 @@ export function classifySource(relative, source) {
 }
 
 /**
- * Every catch site under `<root>/src`, paths normalised to `/`. When
- * `subpaths` (like `['src/acp', 'src/webview']`) is given, only those
- * directories are read: a test that asserts on some areas need not parse
- * the whole tree inside its timeout. The gate script scans everything.
- */
+Every catch site under `<root>/src`, paths normalised to `/`. When
+`subpaths` (like `['src/acp', 'src/webview']`) is given, only those
+directories are read: a test that asserts on some areas need not parse
+the whole tree inside its timeout. The gate script scans everything.
+*/
 export function scanCatches(root, subpaths = ['src']) {
   const files = subpaths
     .flatMap((subpath) =>
@@ -695,14 +695,14 @@ export function countByArea(entries) {
 }
 
 /**
- * The ratchet: live SWALLOW/GENERIC/CLEANUP counts must equal the baseline
- * exactly. A rise fails; a fall without a lowered baseline fails too, so
- * the number only goes down and is always exact. CLEANUP stands in the
- * ratchet beside the other debt classes: a reason comment still marks it,
- * but the site is accepted by identity, so a commented primary-operation
- * tail cannot bypass the gate — it fails until a person audits that exact
- * site and regenerates the baseline.
- */
+The ratchet: live SWALLOW/GENERIC/CLEANUP counts must equal the baseline
+exactly. A rise fails; a fall without a lowered baseline fails too, so
+the number only goes down and is always exact. CLEANUP stands in the
+ratchet beside the other debt classes: a reason comment still marks it,
+but the site is accepted by identity, so a commented primary-operation
+tail cannot bypass the gate — it fails until a person audits that exact
+site and regenerates the baseline.
+*/
 export function checkBaseline(entries, baseline) {
   if (baseline.version !== 3 || !Array.isArray(baseline.sites))
     return ['Catch baseline lacks site identities; migrate it without increasing the accepted debt']

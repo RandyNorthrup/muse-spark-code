@@ -100,10 +100,10 @@ export class ConnectorProtocol {
   public constructor(private readonly server: ConnectorServer) {}
 
   /**
-   * A refused frame's answer, with its one receipt (the code only: nothing
-   * the client sent is recorded). The transport uses it for frames it never
-   * hands over: over the bound, invalid UTF-8, or beyond its task bound.
-   */
+  A refused frame's answer, with its one receipt (the code only: nothing
+  the client sent is recorded). The transport uses it for frames it never
+  hands over: over the bound, invalid UTF-8, or beyond its task bound.
+  */
   public refuse(code: number, id: unknown): Readonly<Record<string, unknown>> {
     this.server.transport(code)
     return error(id, code, REFUSED_WORDS[code] ?? 'Error')

@@ -222,11 +222,11 @@ function collectLicenses(root: SpdxNode): SpdxLicenseNode[] {
 }
 
 /**
- * Parse an SPDX license expression. Never throws on input: malformed text
- * comes back as `{ ok: false }` with one sentence the scanner can quote.
- * Recognition is case-insensitive for ids (`mit` is MIT); operators stay
- * uppercase, as the specification writes them.
- */
+Parse an SPDX license expression. Never throws on input: malformed text
+comes back as `{ ok: false }` with one sentence the scanner can quote.
+Recognition is case-insensitive for ids (`mit` is MIT); operators stay
+uppercase, as the specification writes them.
+*/
 export function parseSpdxExpression(text: string): SpdxExpression {
   const trimmed = text.trim()
   if (trimmed.length > LEGAL_TEXT_MAX_CHARS) return { ok: false, error: UI_TEXT.legalScanner.m133 }
@@ -264,11 +264,11 @@ export function parseSpdxExpression(text: string): SpdxExpression {
 }
 
 /**
- * Each top-level `OR` alternative's license ids (canonical spelling when
- * recognized, as written otherwise). A single license (no `OR`) is one
- * alternative; an `AND` of licenses is one alternative holding several
- * ids. The compatibility reader treats an alternative as a choice.
- */
+Each top-level `OR` alternative's license ids (canonical spelling when
+recognized, as written otherwise). A single license (no `OR`) is one
+alternative; an `AND` of licenses is one alternative holding several
+ids. The compatibility reader treats an alternative as a choice.
+*/
 export function orAlternatives(
   root: SpdxNode,
   shouldIncludeExceptions = false,

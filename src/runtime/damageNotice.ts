@@ -13,23 +13,23 @@ export interface DamageMarkerStore {
   /** The marked damage identity, or undefined when no marker (or no valid one) exists. */
   readMarker(): string | undefined
   /**
-   * Records the damage identity and claims its announcement: true when this
-   * call won it. A concurrent winner of the same identity makes this call
-   * lose (no duplicate announcement); a changed damage still wins and
-   * replaces the marker. A claim that cannot be taken still records, so a
-   * failure repeats an announcement but never hides one.
-   */
+  Records the damage identity and claims its announcement: true when this
+  call won it. A concurrent winner of the same identity makes this call
+  lose (no duplicate announcement); a changed damage still wins and
+  replaces the marker. A claim that cannot be taken still records, so a
+  failure repeats an announcement but never hides one.
+  */
   writeMarker(identity: string): boolean
   /** Clears the marker: the next damage, even an identical one, announces again. */
   clearMarker(): void
 }
 
 /**
- * Announces a damaged read once per distinct identity. `announce` runs at
- * most once per identity until the damage changes or the file reads healthy
- * in between; `noteHealthy` clears the marker so a recurrence announces
- * again. All storage failures only repeat an announcement, never hide one.
- */
+Announces a damaged read once per distinct identity. `announce` runs at
+most once per identity until the damage changes or the file reads healthy
+in between; `noteHealthy` clears the marker so a recurrence announces
+again. All storage failures only repeat an announcement, never hide one.
+*/
 export class DamageNoter {
   private isDirty = false
   private healthyMarkerChecked = false
@@ -71,10 +71,10 @@ export class DamageNoter {
 }
 
 /**
- * A file-backed marker store: `<file>.reported` holds `{ identity }`,
- * written through a temporary file and rename so a crash cannot leave a
- * torn marker. A torn marker only repeats an announcement, never hides one.
- */
+A file-backed marker store: `<file>.reported` holds `{ identity }`,
+written through a temporary file and rename so a crash cannot leave a
+torn marker. A torn marker only repeats an announcement, never hides one.
+*/
 export function fileDamageMarkers(file: string): DamageMarkerStore {
   const markerFile = `${file}.reported`
   const temporaryFile = `${file}.reported.tmp`

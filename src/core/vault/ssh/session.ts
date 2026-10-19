@@ -41,10 +41,10 @@ export class VaultSshSession {
     else this.unsubscribe = unsubscribe
   }
   /**
-   * Revocation ends the pinned client, not just this connection (D89.11).
-   * B also calls the per-signature lifetime's terminate for an in-flight
-   * admission; the once-guard keeps the two paths to a single kill.
-   */
+  Revocation ends the pinned client, not just this connection (D89.11).
+  B also calls the per-signature lifetime's terminate for an in-flight
+  admission; the once-guard keeps the two paths to a single kill.
+  */
   private revoke(): void {
     void this.terminateClient()
     this.close()

@@ -38,13 +38,13 @@ export interface PlaybookSurfacePort {
   /** Return scrubbed, bounded journal data. A read failure must reject. */
   read(): Promise<unknown>
   /** Authorize, stamp actor/time from trusted context, scrub, and persist
-   * atomically before answering. Never accept actor/time from a UI request.
-   * Must reject if unavailable, unauthorized or persistence fails. */
+  atomically before answering. Never accept actor/time from a UI request.
+  Must reject if unavailable, unauthorized or persistence fails. */
   change(change: PlaybookChange): Promise<unknown>
 }
 
 /** The adapter supplies identity and clock, not the model or editor request.
- * P owns authorization, second scrubbing, durable writes and concurrent updates. */
+P owns authorization, second scrubbing, durable writes and concurrent updates. */
 export function changedPlaybookSettings(
   current: PlaybookSettings,
   request: unknown,
@@ -82,9 +82,9 @@ export type PlaybookCommand =
   | { readonly view: 'settings'; readonly change: PlaybookChange }
 
 /** Shared CLI and ACP grammar. Technical rule ids are stable across locales.
- * settings <rule> on|off [<reason...>]; settings patchRoundsMax 0|<positive>
- * (0 is unlimited fix rounds); settings fallbackReviewer <reviewer-id>
- * [<reason...>]; settings fallbackReviewer off. */
+settings <rule> on|off [<reason...>]; settings patchRoundsMax 0|<positive>
+(0 is unlimited fix rounds); settings fallbackReviewer <reviewer-id>
+[<reason...>]; settings fallbackReviewer off. */
 export function parsePlaybookCommand(argv: readonly string[]): PlaybookCommand | undefined {
   const [view = 'status', rule, value, ...words] = argv
   if (view !== 'status' && view !== 'record' && view !== 'settings') return undefined
@@ -106,9 +106,9 @@ export function parsePlaybookCommand(argv: readonly string[]): PlaybookCommand |
 }
 
 /** Exit failure is explicit; no empty result stands in for an unavailable
- * policy/journal. Output contains validated data only, never exception text.
- * A missing surface is unavailable; a loaded playbook whose command fails
- * says the command could not be completed, never that it is unavailable. */
+policy/journal. Output contains validated data only, never exception text.
+A missing surface is unavailable; a loaded playbook whose command fails
+says the command could not be completed, never that it is unavailable. */
 export async function runPlaybookCommand(
   command: PlaybookCommand,
   port: PlaybookSurfacePort | undefined,
@@ -127,7 +127,7 @@ export async function runPlaybookCommand(
 }
 
 /** The standalone CLI entry binds a trusted local port and its output streams.
- * A failed read/write reports failure on stderr and exits 1; bad syntax exits 2. */
+A failed read/write reports failure on stderr and exits 1; bad syntax exits 2. */
 export async function runPlaybookCli(
   argv: readonly string[],
   deps: {

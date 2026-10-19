@@ -230,11 +230,11 @@ describe('historyOutcome', () => {
 })
 
 /**
- * The `session/resume` record captured live 2026-10-18 (Muse Code 1.4.7,
- * `muse-bin serve --provider echo`, worktree temp/probe0-shapes.ts): the
- * host serves the approval mode it runs beside the permission profile, so
- * a resumed handle starts knowing which mode to put back.
- */
+The `session/resume` record captured live 2026-10-18 (Muse Code 1.4.7,
+`muse-bin serve --provider echo`, worktree temp/probe0-shapes.ts): the
+host serves the approval mode it runs beside the permission profile, so
+a resumed handle starts knowing which mode to put back.
+*/
 const resumedRecord = {
   ...record,
   approvalMode: {

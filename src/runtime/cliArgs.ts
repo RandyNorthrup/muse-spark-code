@@ -59,8 +59,8 @@ import { questionDeferSeconds } from '../shared/questionDeadline'
 import { parsePlaybookCommand } from './playbook/command'
 
 /** U's CLI route; the runtime entry owner binds runPlaybookCommand to P's
- * journal before the general ACP/auth parser. No model process is needed.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+journal before the general ACP/auth parser. No model process is needed.
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function parsePlaybookCommandLine(argv: readonly string[]) {
   return argv[0] === 'playbook' ? parsePlaybookCommand(argv.slice(1)) : undefined
 }
@@ -236,10 +236,10 @@ export function parseChatGptProviderAction(
   }
 }
 /**
- * Flags `serve` and `login` never take (M95: `auth … --provider` and
- * `providers …`). Each names a key of the strict parser's values, so
- * indexing with one typechecks without a cast.
- */
+Flags `serve` and `login` never take (M95: `auth … --provider` and
+`providers …`). Each names a key of the strict parser's values, so
+indexing with one typechecks without a cast.
+*/
 const PROVIDER_AUTH_OPTIONS = [
   'preset',
   'as',
@@ -257,13 +257,13 @@ const NON_SERVE_OPTIONS = ['provider', ...PROVIDER_AUTH_OPTIONS] as const
 type StrictValues = ReturnType<typeof parseCommandLineStrictly>['values']
 
 /**
- * The non-Meta provider an `auth set` stores a key for, if any (M95,
- * PLAN.md D74). Both spellings count: `auth set --provider <id>` parses
- * without an account, and `--account default` names the same default
- * slot. Anything else (Meta, a named account, no provider at all) is not
- * a provider key set. One rule here, so the parser's two shapes cannot
- * drift from the dispatch again.
- */
+The non-Meta provider an `auth set` stores a key for, if any (M95,
+PLAN.md D74). Both spellings count: `auth set --provider <id>` parses
+without an account, and `--account default` names the same default
+slot. Anything else (Meta, a named account, no provider at all) is not
+a provider key set. One rule here, so the parser's two shapes cannot
+drift from the dispatch again.
+*/
 export function authSetProviderId(
   command: Extract<RuntimeCommand, { command: 'authSet' }>,
 ): string | undefined {
@@ -310,10 +310,10 @@ function refused(reason: string): Extract<RuntimeCommand, { command: 'invalid' }
 }
 
 /**
- * A strict-parser throw as a usage refusal (D119): a wrong option names the
- * option, the topic's accepted options, and the nearest valid option when
- * the name is close. Anything else keeps the parser's reason, still exit 2.
- */
+A strict-parser throw as a usage refusal (D119): a wrong option names the
+option, the topic's accepted options, and the nearest valid option when
+the name is close. Anything else keeps the parser's reason, still exit 2.
+*/
 function invalidStrictOption(
   topic: string,
   valid: readonly string[],
@@ -326,8 +326,8 @@ function invalidStrictOption(
 }
 
 /** An option-parser failure on one topic as its usage refusal (D119): a wrong
- * option names the option and the nearest valid one; anything else keeps the
- * parser's reason, still exit 2. */
+option names the option and the nearest valid one; anything else keeps the
+parser's reason, still exit 2. */
 function usageRefusal(
   topic: string,
   error: unknown,
@@ -388,10 +388,10 @@ const HOIST_VALUE_FLAGS: ReadonlySet<string> = new Set(
 )
 
 /**
- * D5: global options ride before or after the command word, so
- * `--verbose exec …` parses like `exec --verbose …`. Only `exec` and
- * `scan-secrets` hoist; anything past `--` stays positional.
- */
+D5: global options ride before or after the command word, so
+`--verbose exec …` parses like `exec --verbose …`. Only `exec` and
+`scan-secrets` hoist; anything past `--` stays positional.
+*/
 function hoistLeadingCommand(argv: readonly string[]): readonly string[] {
   let index = 0
   while (index < argv.length) {
@@ -616,8 +616,8 @@ export function parseCommandLine<T>(
   }
   const { values, positionals } = parsed
   if (values.help === true) {
-    const [first] = positionals
-    const topic = helpTopicNamed(first ?? '')
+    const [first = ''] = positionals
+    const topic = helpTopicNamed(first)
     return topic === undefined ? { command: 'help' } : { command: 'helpTopic', topic: topic.name }
   }
   if (values.version === true) {
@@ -1135,10 +1135,10 @@ function legalOutcome(parsed: ReturnType<typeof parseLegalArgs>): RuntimeCommand
 }
 
 /**
- * The reserved read-only scan (M97 lane R): `legal` never reaches prompt
- * parsing, starts no backend and touches no credential store. Unknown flags
- * are usage errors, as for the other headless commands.
- */
+The reserved read-only scan (M97 lane R): `legal` never reaches prompt
+parsing, starts no backend and touches no credential store. Unknown flags
+are usage errors, as for the other headless commands.
+*/
 function parseLegalCommand(argv: readonly string[]): RuntimeCommand {
   try {
     const { values, positionals } = parseArgs({

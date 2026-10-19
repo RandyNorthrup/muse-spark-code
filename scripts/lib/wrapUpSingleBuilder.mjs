@@ -40,10 +40,10 @@ function assignmentsOf(spanText, spanStartLine) {
 }
 
 /**
- * Check the single-builder rule over one source file (ModelApiHost.ts).
- * Fails on missing, empty or unreadable input: no input is never a pass.
- * Returns `{ ok: true }` or `{ ok: false, problem }`.
- */
+Check the single-builder rule over one source file (ModelApiHost.ts).
+Fails on missing, empty or unreadable input: no input is never a pass.
+Returns `{ ok: true }` or `{ ok: false, problem }`.
+*/
 export function checkWrapUpSingleBuilder(filePath) {
   if (typeof filePath !== 'string' || filePath.length === 0) {
     return { ok: false, problem: 'wrap-up request guard: pass the ModelApiHost.ts path to check' }

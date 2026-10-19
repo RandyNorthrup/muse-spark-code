@@ -51,10 +51,10 @@ export interface LaunchProbe {
   /** `serve` plus the host-posture flags (`serveArguments`, sandbox.ts). */
   readonly serveArgs: readonly string[]
   /**
-   * The workspace the child runs in: PATH entries inside it are never
-   * probed (resolved through links), so a planted `muse` on an absolute
-   * workspace PATH entry never resolves. REQUIRED.
-   */
+  The workspace the child runs in: PATH entries inside it are never
+  probed (resolved through links), so a planted `muse` on an absolute
+  workspace PATH entry never resolves. REQUIRED.
+  */
   readonly scope: ExecutableScope
 }
 
@@ -132,10 +132,10 @@ function resolveWindows(probe: LaunchProbe): LaunchResolution {
 }
 
 /**
- * The `muse-bin-<version>.exe` of an install folder: the version
- * `.muse-version` names, else the newest one present (version order, so
- * 1.10 beats 1.9); undefined when there is none.
- */
+The `muse-bin-<version>.exe` of an install folder: the version
+`.muse-version` names, else the newest one present (version order, so
+1.10 beats 1.9); undefined when there is none.
+*/
 function windowsExecutableIn(
   probe: LaunchProbe,
   p: path.PlatformPath,
@@ -203,12 +203,12 @@ export function resolveMuseLaunch(probe: LaunchProbe): LaunchResolution {
 }
 
 /**
- * `museSpark.environmentVariables` for a terminal that runs the CLI (`muse
- * logout`, `muse mcp login`, Open in Terminal). VS Code adds them to the
- * terminal's own environment, so the CLI there reads the same config home
- * as `muse serve` (the review of PR #49). On Windows one spelling per name,
- * the last one given winning, as for `muse serve`.
- */
+`museSpark.environmentVariables` for a terminal that runs the CLI (`muse
+logout`, `muse mcp login`, Open in Terminal). VS Code adds them to the
+terminal's own environment, so the CLI there reads the same config home
+as `muse serve` (the review of PR #49). On Windows one spelling per name,
+the last one given winning, as for `muse serve`.
+*/
 export function terminalEnvironment(
   variables: readonly EnvironmentVariable[],
   platform: NodeJS.Platform,
@@ -221,15 +221,15 @@ export function terminalEnvironment(
 }
 
 /**
- * Keeps loopback off the proxy (M56, PLAN.md D43). Muse Code sends every
- * HTTP request through the proxy its environment names, including its
- * connection to the extension's `ide` server on 127.0.0.1, which a corporate
- * proxy cannot reach (captured 2026-09-25: `POST http://127.0.0.1:<port>/mcp`
- * arrived at the proxy until NO_PROXY listed the address). So wherever a
- * proxy is set, from VS Code or the user's own environment, the loopback
- * names are added to each NO_PROXY spelling already there, or to a new
- * NO_PROXY; entries already listed stay as they are.
- */
+Keeps loopback off the proxy (M56, PLAN.md D43). Muse Code sends every
+HTTP request through the proxy its environment names, including its
+connection to the extension's `ide` server on 127.0.0.1, which a corporate
+proxy cannot reach (captured 2026-09-25: `POST http://127.0.0.1:<port>/mcp`
+arrived at the proxy until NO_PROXY listed the address). So wherever a
+proxy is set, from VS Code or the user's own environment, the loopback
+names are added to each NO_PROXY spelling already there, or to a new
+NO_PROXY; entries already listed stay as they are.
+*/
 export function withLoopbackBypass<T extends NodeJS.ProcessEnv>(
   env: T,
   platform: NodeJS.Platform,
@@ -271,11 +271,11 @@ export interface CredentialPathInput {
 }
 
 /**
- * Where the CLI stores its browser-login credential. The binary honours
- * `XDG_CONFIG_HOME` on every platform (Windows included) and otherwise uses
- * `~/.config`; `MUSE_AUTH_PATH` is honoured only by the POSIX launcher, so it
- * is deliberately not consulted here.
- */
+Where the CLI stores its browser-login credential. The binary honours
+`XDG_CONFIG_HOME` on every platform (Windows included) and otherwise uses
+`~/.config`; `MUSE_AUTH_PATH` is honoured only by the POSIX launcher, so it
+is deliberately not consulted here.
+*/
 export function credentialFilePath(input: CredentialPathInput): string {
   const p = pathModule(input.platform)
   const configHome = input.xdgConfigHome ?? p.join(input.homeDir, '.config')

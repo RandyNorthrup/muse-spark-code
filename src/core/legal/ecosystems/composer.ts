@@ -78,9 +78,9 @@ function readRequirements(
 }
 
 /**
- * Read Composer evidence from the snapshot. Platform requirements
- * (`php`, `ext-*`) are the runtime, not distributed packages.
- */
+Read Composer evidence from the snapshot. Platform requirements
+(`php`, `ext-*`) are the runtime, not distributed packages.
+*/
 export function readComposer(
   snapshot: LegalFileSnapshot,
   isDependencyIncluded?: LegalDependencyAdmission,

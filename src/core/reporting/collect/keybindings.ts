@@ -106,13 +106,13 @@ function bindingRows(facts: KeybindingsFacts): { rows: ReportRow[]; omitted: num
 }
 
 /**
- * A conflict is two editor bindings for the same platform chord whose `when`
- * clauses are equal (both empty counts): both fire together and the winner is
- * registration order. Different `when` clauses are shadowing by design — the
- * narrower context wins there — so they are not conflicts. The group key
- * carries the `when` clause, and the row shows the shared clause in its
- * scope, so a clash under one clause never reads as an editor-wide clash.
- */
+A conflict is two editor bindings for the same platform chord whose `when`
+clauses are equal (both empty counts): both fire together and the winner is
+registration order. Different `when` clauses are shadowing by design — the
+narrower context wins there — so they are not conflicts. The group key
+carries the `when` clause, and the row shows the shared clause in its
+scope, so a clash under one clause never reads as an editor-wide clash.
+*/
 interface ChordGroup {
   readonly chord: string
   readonly platform: string
@@ -121,14 +121,18 @@ interface ChordGroup {
 }
 
 /**
- * A conflict group key: the JSON of the tuple (platform, normalised chord,
- * `when` clause). Structured, never concatenated, so `ctrl+k` under
- * `when: 'ab'` can never share a key with `ctrl+kab` ungated, and a chord
- * sequence can never collide with a chord plus a clause either. JSON over a
- * fixed tuple of strings is injective, so equal keys mean equal groups.
- */
-function conflictGroupKey(platform: string, gesture: string, when: string | undefined): string {
-  return JSON.stringify([platform, normalizeChord(gesture), when ?? ''])
+A conflict group key: the JSON of the tuple (platform, normalised chord,
+`when` clause). Structured, never concatenated, so `ctrl+k` under
+`when: 'ab'` can never share a key with `ctrl+kab` ungated, and a chord
+sequence can never collide with a chord plus a clause either. JSON over a
+fixed tuple of strings is injective, so equal keys mean equal groups.
+*/
+function conflictGroupKey(
+  platform: string,
+  gesture: string,
+  when: string | undefined = '',
+): string {
+  return JSON.stringify([platform, normalizeChord(gesture), when])
 }
 
 function conflictRows(facts: KeybindingsFacts): { rows: ReportRow[]; omitted: number } {
@@ -191,11 +195,11 @@ function deduplicate(rows: ReportRow[]): ReportRow[] {
 }
 
 /**
- * Both facets are admitted once, downstream in forward(): the engine's final
- * row admission runs there before validation, so this builder only dedupes
- * and sorts. A skipped blank chord counts on the bindings section only, so
- * the gap stays visible either way.
- */
+Both facets are admitted once, downstream in forward(): the engine's final
+row admission runs there before validation, so this builder only dedupes
+and sorts. A skipped blank chord counts on the bindings section only, so
+the gap stays visible either way.
+*/
 export function collectKeybindingSections(facts: KeybindingsFacts): readonly ReportSection[] {
   const section = (
     id: string,

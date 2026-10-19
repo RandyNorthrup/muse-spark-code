@@ -120,24 +120,24 @@ async function settled(promise: Promise<unknown>): Promise<void> {
 
 export interface TabLedger {
   /**
-   * The day's total across every window's file: today's, or `date`'s
-   * (`YYYY-MM-DD`, as a reservation names it). Never throws.
-   */
+  The day's total across every window's file: today's, or `date`'s
+  (`YYYY-MM-DD`, as a reservation names it). Never throws.
+  */
   readonly todayTotal: (date?: string) => Promise<TabDayTotal>
   /** The same validated read with retained reservations distinguished. No writes. */
   readonly todayUsage?: () => Promise<TabDayTotal>
   /**
-   * Writes `worstCaseUsd` into this window's file for the local day read
-   * once from the clock, then admits the request only while that day's
-   * total across all files stays within `budgetUsd`. A refusal rolls the
-   * reservation back on the same day. Never throws.
-   */
+  Writes `worstCaseUsd` into this window's file for the local day read
+  once from the clock, then admits the request only while that day's
+  total across all files stays within `budgetUsd`. A refusal rolls the
+  reservation back on the same day. Never throws.
+  */
   readonly admit: (worstCaseUsd: UsdAmount, budgetUsd: UsdAmount) => Promise<TabAdmission>
   /**
-   * Replaces the reservation's worst case with the reported `actualUsd`
-   * in the reservation's own day's file, also after midnight. A request
-   * that never reports keeps its whole reservation. Never throws.
-   */
+  Replaces the reservation's worst case with the reported `actualUsd`
+  in the reservation's own day's file, also after midnight. A request
+  that never reports keeps its whole reservation. Never throws.
+  */
   readonly settle: (reservation: TabLedgerReservation, actualUsd: UsdAmount) => Promise<void>
 }
 

@@ -92,11 +92,11 @@ export interface GitWindowFeatures {
 }
 
 /**
- * What activation hands the bundle for the window's git and pull requests:
- * its own primitives only. The GitHub client, the sign-in reader, the
- * pull request links and the held checkout are made here, beside the code
- * that throws and checks their errors.
- */
+What activation hands the bundle for the window's git and pull requests:
+its own primitives only. The GitHub client, the sign-in reader, the
+pull request links and the held checkout are made here, beside the code
+that throws and checks their errors.
+*/
 export interface GitFeaturesDeps extends Omit<
   GitWindowDeps,
   'links' | 'github' | 'githubSignIn' | 'checkOutHeld' | 'nativeCheckoutRepository'
@@ -178,9 +178,9 @@ export async function fingerprintUntracked(
 }
 
 /**
- * A file start's gone-or-unreadable vocabulary: the file left to the file
- * list. Anything else is not this row's to hide.
- */
+A file start's gone-or-unreadable vocabulary: the file left to the file
+list. Anything else is not this row's to hide.
+*/
 const FILE_START_CODES: ReadonlySet<string> = new Set([
   'ENOENT',
   'ENOTDIR',
@@ -227,9 +227,9 @@ async function fileStart(
 }
 
 /**
- * New files' contents for the commit prompt, at most `maxBytes` read in all.
- * A file that is gone, unreadable, a link or a folder is left to the file list.
- */
+New files' contents for the commit prompt, at most `maxBytes` read in all.
+A file that is gone, unreadable, a link or a folder is left to the file list.
+*/
 export async function untrackedDiff(
   files: readonly UntrackedFile[],
   maxBytes: number,
@@ -308,10 +308,10 @@ async function repository(root: string): Promise<GitRepository> {
 }
 
 /**
- * A failed native push's command in the editor's terminal: git itself, no
- * shell to quote for, in exactly `env` (`strictEnv`): the user's
- * environment with no credential variable but the Git routes (RVM123G2 R3).
- */
+A failed native push's command in the editor's terminal: git itself, no
+shell to quote for, in exactly `env` (`strictEnv`): the user's
+environment with no credential variable but the Git routes (RVM123G2 R3).
+*/
 function gitTerminalOpener(
   env: NodeJS.ProcessEnv,
 ): (command: readonly string[], cwd: string) => Promise<void> {
@@ -334,13 +334,13 @@ function gitTerminalOpener(
 }
 
 /**
- * M123's native route over this window (PLAN.md D104), for a host without
- * the `vscode.git` extension: the user's git on PATH, the window's trust,
- * hold, admission and pull request links, VS Code's push modal and remote
- * pick, and the extension host's own environment for the push (the one VS
- * Code's git extension would use), captured now with no credential
- * variable but the Git routes. Undefined with no folder or no git.
- */
+M123's native route over this window (PLAN.md D104), for a host without
+the `vscode.git` extension: the user's git on PATH, the window's trust,
+hold, admission and pull request links, VS Code's push modal and remote
+pick, and the extension host's own environment for the push (the one VS
+Code's git extension would use), captured now with no credential
+variable but the Git routes. Undefined with no folder or no git.
+*/
 function nativeGitDeps(deps: GitWindowDeps, window: GitWindow): RuntimeGitDeps | undefined {
   const root = deps.workspaceRoot
   if (root === undefined) {

@@ -38,11 +38,11 @@ const BROWSER_ONLY: readonly SignInMethod[] = ['browser']
 const KEY_ONLY: readonly SignInMethod[] = ['apiKey']
 
 /**
- * Whether the choice needs the CLI's own sign-in. With the backend forced to
- * the Model API it does not, so nothing asks the CLI (no probe, no
- * `account/read`): a CLI that is slow to answer about an ambiguous file must
- * not hold up a user whose key is stored (Codex on 328efb52).
- */
+Whether the choice needs the CLI's own sign-in. With the backend forced to
+the Model API it does not, so nothing asks the CLI (no probe, no
+`account/read`): a CLI that is slow to answer about an ambiguous file must
+not hold up a user whose key is stored (Codex on 328efb52).
+*/
 export function isCliSignInConsulted(setting: BackendMode): boolean {
   return setting !== 'modelApi'
 }

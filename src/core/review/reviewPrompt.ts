@@ -81,10 +81,10 @@ function materialBody(material: ReviewMaterial): string {
 }
 
 /**
- * The material between a fresh pair of markers that nothing in it contains,
- * so it cannot end its own untrusted block. `newMarker` is random; a marker
- * already in the material means it is not, and the review is refused.
- */
+The material between a fresh pair of markers that nothing in it contains,
+so it cannot end its own untrusted block. `newMarker` is random; a marker
+already in the material means it is not, and the review is refused.
+*/
 function fenced(material: ReviewMaterial, newMarker: () => string): string {
   const body = materialBody(material)
   for (let attempt = 0; attempt < REVIEW_MARKER_ATTEMPTS; attempt += 1) {

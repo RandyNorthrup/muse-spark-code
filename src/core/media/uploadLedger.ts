@@ -100,11 +100,11 @@ export interface PinRef {
 }
 
 /**
- * An explicit provider deletion failed without deleting (ported
- * RVAPP-PORTM105R4 P3-4). Carries the file's display name (never its id);
- * the dialog text uses the fixed `uploadDeleteProviderRefused` reason,
- * never the provider's message (which echoes the id).
- */
+An explicit provider deletion failed without deleting (ported
+RVAPP-PORTM105R4 P3-4). Carries the file's display name (never its id);
+the dialog text uses the fixed `uploadDeleteProviderRefused` reason,
+never the provider's message (which echoes the id).
+*/
 export class UploadDeleteFailedError extends Error {
   public readonly fileName: string
   public constructor(fileName: string) {
@@ -137,7 +137,7 @@ function pidOfOwner(owner: string): number | undefined {
 }
 
 /** True only when the owning process is proven gone (ESRCH on signal 0);
- * any doubt keeps the reference: a live request's file is never deleted. */
+any doubt keeps the reference: a live request's file is never deleted. */
 function isOwnerGone(owner: string): boolean {
   if (owner === LEGACY_PIN_OWNER) return false
   const pid = pidOfOwner(owner)
@@ -156,9 +156,9 @@ function isOwnerGone(owner: string): boolean {
 }
 
 /** This process's verifiable birth for a pin row: the system's own reading,
- * never the wall clock. Undefined where the system cannot say (or on Linux
- * without its boot, where ticks since boot name no boot): those pins reap
- * by id alone. Read once per process: a birth never changes. */
+never the wall clock. Undefined where the system cannot say (or on Linux
+without its boot, where ticks since boot name no boot): those pins reap
+by id alone. Read once per process: a birth never changes. */
 async function currentBirth(): Promise<Pick<PinRef, 'processStart' | 'bootId'> | undefined> {
   const [processStart, bootId] = await Promise.all([processStartTime(process.pid), systemBootId()])
   if (processStart === undefined) return undefined
@@ -174,9 +174,9 @@ function processBirth(): Promise<Pick<PinRef, 'processStart' | 'bootId'> | undef
 }
 
 /** Whether the process that took this pin is provably gone. A row carrying
- * its owner's birth compares against the live process behind the id, so an
- * id the system handed to another process reads gone; rows without a birth
- * keep the old signal-zero check. Any doubt keeps the row. */
+its owner's birth compares against the live process behind the id, so an
+id the system handed to another process reads gone; rows without a birth
+keep the old signal-zero check. Any doubt keeps the row. */
 async function isPinOwnerGone(pin: PinRef): Promise<boolean> {
   if (pin.owner === LEGACY_PIN_OWNER) return false
   const pid = pidOfOwner(pin.owner)
@@ -310,9 +310,9 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /** Drops the references of processes proven gone (round 4, P2-1): a crash,
-   * a reload or a dead host never pins a file forever. A pin carrying its
-   * owner's birth is gone when no live process matches both id and birth,
-   * so a reused id does not pin forever. Any doubt keeps the row. */
+  a reload or a dead host never pins a file forever. A pin carrying its
+  owner's birth is gone when no live process matches both id and birth,
+  so a reused id does not pin forever. Any doubt keeps the row. */
   private async reapDeadOwners(state: UploadLedgerState): Promise<boolean> {
     const pins = pinsOf(state)
     const live: PinRef[] = []
@@ -334,18 +334,18 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * Delete one file through the provider. The durable intent is recorded
-   * first (RULE 2), then the signal is checked immediately before the
-   * dispatch; a file the provider already removed (a 404) is recorded as
-   * gone, never as an error. USE BEATS INTENT: the delete runs only when
-   * the entry's use generation still matches the intent's under the lock;
-   * a reused file drops the intent instead. A cancel before the dispatch
-   * voids an intent this call recorded; once the remote call is sent the
-   * intent stays for the next read. Any other failure keeps the row, its
-   * intent and its own backoff durable, and throws to the direct caller;
-   * listings isolate it instead (P2-6). Every delete consumer — release,
-   * sweep, single-file and Delete all ours — normalizes here.
-   */
+  Delete one file through the provider. The durable intent is recorded
+  first (RULE 2), then the signal is checked immediately before the
+  dispatch; a file the provider already removed (a 404) is recorded as
+  gone, never as an error. USE BEATS INTENT: the delete runs only when
+  the entry's use generation still matches the intent's under the lock;
+  a reused file drops the intent instead. A cancel before the dispatch
+  voids an intent this call recorded; once the remote call is sent the
+  intent stays for the next read. Any other failure keeps the row, its
+  intent and its own backoff durable, and throws to the direct caller;
+  listings isolate it instead (P2-6). Every delete consumer — release,
+  sweep, single-file and Delete all ours — normalizes here.
+  */
   private async removeEntry(
     state: UploadLedgerState,
     fileId: string,
@@ -431,16 +431,16 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * Offer unreferenced uploads for automatic clean-up (PLAN D85.2). The
-   * release path (`'release'`) deletes the files this sync left without a
-   * session, however young — never an orphan it never saw. The account
-   * read (`'sweep'`) is the only thing that deletes those orphans (a
-   * crash, another install), once the provider's own expiry has passed
-   * (`museSpark.mediaUploadExpiryDays` set it at upload). Provider
-   * `expiresAt` is seconds while the clock is milliseconds: one unit
-   * everywhere. One entry whose delete keeps failing is isolated with its
-   * own backoff and never breaks the listing (P2-6); a cancel aborts it.
-   */
+  Offer unreferenced uploads for automatic clean-up (PLAN D85.2). The
+  release path (`'release'`) deletes the files this sync left without a
+  session, however young — never an orphan it never saw. The account
+  read (`'sweep'`) is the only thing that deletes those orphans (a
+  crash, another install), once the provider's own expiry has passed
+  (`museSpark.mediaUploadExpiryDays` set it at upload). Provider
+  `expiresAt` is seconds while the clock is milliseconds: one unit
+  everywhere. One entry whose delete keeps failing is isolated with its
+  own backoff and never breaks the listing (P2-6); a cancel aborts it.
+  */
   private async cleanup(
     state: UploadLedgerState,
     isCurrent: () => boolean = () => true,
@@ -476,9 +476,9 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /** Retry the durable delete intents the previous read left behind. A file
-   * used again since (generation moved) drops its intent while something
-   * still holds it; an unreferenced file's delete reissues at the current
-   * generation. A failing entry keeps its backoff and never breaks the read. */
+  used again since (generation moved) drops its intent while something
+  still holds it; an unreferenced file's delete reissues at the current
+  generation. A failing entry keeps its backoff and never breaks the read. */
   private async retryPending(state: UploadLedgerState, signal?: AbortSignal): Promise<void> {
     signal?.throwIfAborted()
     if (!(await this.isCurrentAccount())) return
@@ -503,12 +503,12 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * The shared upload body: dedups by digest, verifies a replaced id by
-   * hash, uploads under the caller's lock and mutates its state. Returns
-   * the reference and, for a fresh upload, the file id the caller must
-   * remove from the provider when its write fails. Every reuse bumps the
-   * entry's use generation, voiding older delete intents (P1-1).
-   */
+  The shared upload body: dedups by digest, verifies a replaced id by
+  hash, uploads under the caller's lock and mutates its state. Returns
+  the reference and, for a fresh upload, the file id the caller must
+  remove from the provider when its write fails. Every reuse bumps the
+  entry's use generation, voiding older delete intents (P1-1).
+  */
   private async ensureLocked(
     state: UploadLedgerState,
     sessionId: string,
@@ -625,12 +625,12 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * The one upload write: runs the shared body under the caller's lock and
-   * persists once. With an owner the pin lands in the same write (P2-3), so
-   * no stale save lands between upload and pin. A receipt-time intent bounds
-   * a crash before the write; a failed or cancelled publication removes the
-   * fresh upload through the intent-first path below.
-   */
+  The one upload write: runs the shared body under the caller's lock and
+  persists once. With an owner the pin lands in the same write (P2-3), so
+  no stale save lands between upload and pin. A receipt-time intent bounds
+  a crash before the write; a failed or cancelled publication removes the
+  fresh upload through the intent-first path below.
+  */
   private async writeEnsuredUpload(
     sessionId: string,
     sha256: string,
@@ -682,13 +682,13 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * Persists a cancel/delete intent with bounded backoff waits (ported
-   * RVM105B P2-2): the wait doubles from the named delay and only the waits
-   * honour cancellation — a cancel while waiting skips the pause, and the
-   * remaining attempts (bounded, local, fast) still land the intent. Only
-   * a persistently failing store gives up, and the caller then deletes
-   * best-effort instead.
-   */
+  Persists a cancel/delete intent with bounded backoff waits (ported
+  RVM105B P2-2): the wait doubles from the named delay and only the waits
+  honour cancellation — a cancel while waiting skips the pause, and the
+  remaining attempts (bounded, local, fast) still land the intent. Only
+  a persistently failing store gives up, and the caller then deletes
+  best-effort instead.
+  */
   private async writeCancelIntent(state: UploadLedgerState, signal: AbortSignal): Promise<void> {
     const sleep = this.deps.sleep ?? defaultLedgerSleep
     let failure: unknown
@@ -712,17 +712,17 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * Removes a fresh upload whose publication write failed or was cancelled
-   * (ported RVM105B P2-2, RVAPP-PORTM105R4 P2-A). The delete intent lands
-   * BEFORE the remote DELETE, so a failed DELETE can never strand the file
-   * without an intent the next read retries; a re-upload's replaced entry
-   * is restored, so the other sessions that use it can still save and only
-   * the pending upload is forgotten. The caller keeps the original failure,
-   * never a cleanup write error. The rollback runs on the ledger's own
-   * authority, not the caller's signal: the failed or cancelled publication
-   * left provider bytes no session owns, and this delete is the cancel's
-   * own cleanup, so it is attempted however the caller ended.
-   */
+  Removes a fresh upload whose publication write failed or was cancelled
+  (ported RVM105B P2-2, RVAPP-PORTM105R4 P2-A). The delete intent lands
+  BEFORE the remote DELETE, so a failed DELETE can never strand the file
+  without an intent the next read retries; a re-upload's replaced entry
+  is restored, so the other sessions that use it can still save and only
+  the pending upload is forgotten. The caller keeps the original failure,
+  never a cleanup write error. The rollback runs on the ledger's own
+  authority, not the caller's signal: the failed or cancelled publication
+  left provider bytes no session owns, and this delete is the cancel's
+  own cleanup, so it is attempted however the caller ended.
+  */
   private async deleteUnpublished(
     state: UploadLedgerState,
     fileId: string,
@@ -770,12 +770,12 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * Pin the files an active request carries (RULE 1): one counted row per
-   * (file, owner) under the cross-process lock, so a stale window's save
-   * cannot delete them. References of a process proven gone are released
-   * first, so a crash never pins forever. No account check: unpinning must
-   * succeed even after the key is gone, or the pin would leak.
-   */
+  Pin the files an active request carries (RULE 1): one counted row per
+  (file, owner) under the cross-process lock, so a stale window's save
+  cannot delete them. References of a process proven gone are released
+  first, so a crash never pins forever. No account check: unpinning must
+  succeed even after the key is gone, or the pin would leak.
+  */
   public async pinFiles(
     fileIds: readonly string[],
     owner: string = processOwnerId(),
@@ -791,11 +791,11 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * Release a request's pins once it settles, however it settled. Only the
-   * caller's own references are released: the file is unpinned when the
-   * count reaches zero. A caller without an owner releases the legacy rows
-   * and this process's direct rows, never another live request's.
-   */
+  Release a request's pins once it settles, however it settled. Only the
+  caller's own references are released: the file is unpinned when the
+  count reaches zero. A caller without an owner releases the legacy rows
+  and this process's direct rows, never another live request's.
+  */
   public async unpinFiles(fileIds: readonly string[], owner?: string): Promise<void> {
     if (fileIds.length === 0) return
     await this.deps.storage.withLock(async () => {
@@ -826,10 +826,10 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * Upload and pin in ONE lock scope (round 4, P2-3): no stale save can
-   * land between the upload and its pin. The pin joins the caller's
-   * request bracket, drained at the turn's end.
-   */
+  Upload and pin in ONE lock scope (round 4, P2-3): no stale save can
+  land between the upload and its pin. The pin joins the caller's
+  request bracket, drained at the turn's end.
+  */
   public async ensureAndPin(
     sessionId: string,
     sha256: string,
@@ -973,13 +973,13 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * Account cleanup never deletes a file still shared by a session. A
-   * provider 404 means gone here too, through the one normalising path. A
-   * provider refusal reaches the direct caller as the typed error carrying
-   * the file's display name (never its id), so the dialog names the file
-   * with a fixed reason instead of the provider's id-echoing message
-   * (ported RVAPP-PORTM105R4 P3-4).
-   */
+  Account cleanup never deletes a file still shared by a session. A
+  provider 404 means gone here too, through the one normalising path. A
+  provider refusal reaches the direct caller as the typed error carrying
+  the file's display name (never its id), so the dialog names the file
+  with a fixed reason instead of the provider's id-echoing message
+  (ported RVAPP-PORTM105R4 P3-4).
+  */
   public async deleteFile(
     fileId: string,
     isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
@@ -1016,12 +1016,12 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * The account surface's once-only backlog notice (ported
-   * RVAPP-PORTM105R4 P2-B): entries whose delete keeps failing past the
-   * named attempts are told once, as a count only — no file name and no
-   * file id ever reaches this notice. A recovered entry's row is gone, so
-   * nothing is told for it.
-   */
+  The account surface's once-only backlog notice (ported
+  RVAPP-PORTM105R4 P2-B): entries whose delete keeps failing past the
+  named attempts are told once, as a count only — no file name and no
+  file id ever reaches this notice. A recovered entry's row is gone, so
+  nothing is told for it.
+  */
   public async consumeDeleteNotice(): Promise<{ provider: string; count: number } | undefined> {
     return await this.deps.storage.withLock(async () => {
       const state = await this.read()
@@ -1042,10 +1042,10 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * Explicit early removal (Delete uploaded files): every unreferenced own
-   * upload goes now, however young. An upload another session still
-   * references is never deleted.
-   */
+  Explicit early removal (Delete uploaded files): every unreferenced own
+  upload goes now, however young. An upload another session still
+  references is never deleted.
+  */
   public async deleteAllOurs(signal?: AbortSignal): Promise<void> {
     signal?.throwIfAborted()
     await this.deps.storage.withLock(async () => {

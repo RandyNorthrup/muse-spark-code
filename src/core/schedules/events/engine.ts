@@ -31,8 +31,8 @@ export interface ScheduleEventClaimState {
   ready: PendingEvent[]
 }
 /** S persists the entire mutation under one cross-process lock, before return.
- * Receipts include migrated legacy ids and never expire; only safe data is stored.
- */
+Receipts include migrated legacy ids and never expire; only safe data is stored.
+*/
 export interface ScheduleEventClaimStore {
   schedules(): Promise<readonly string[]>
   transact<T>(scheduleId: string, update: (state: ScheduleEventClaimState) => T): Promise<T>

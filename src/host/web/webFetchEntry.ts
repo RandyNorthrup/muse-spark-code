@@ -47,11 +47,11 @@ export async function fetchWebPageWith(
 }
 
 /**
- * Portable prompt bytes use the same DNS, pinning, redirects and decoding as
- * web fetch. NOLIMITS1FIX: the removed 128 KiB prompt-file bound was
- * invented — a remote prompt reads under the fetch transport's own buffer
- * window instead.
- */
+Portable prompt bytes use the same DNS, pinning, redirects and decoding as
+web fetch. NOLIMITS1FIX: the removed 128 KiB prompt-file bound was
+invented — a remote prompt reads under the fetch transport's own buffer
+window instead.
+*/
 export async function readRawPromptWith(
   url: string,
   isStillAllowed: () => boolean,

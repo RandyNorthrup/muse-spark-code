@@ -30,11 +30,11 @@ import {
 } from '../shared/constants'
 
 /**
- * Why a lock was not had: it could not be opened (`unavailable`, with the
- * operating system's code as `reason`), another holder kept it past the
- * deadline (`busy`), or the caller gave up (`cancelled`). The mechanism knows
- * nothing of any one caller; each caller says it in its own words.
- */
+Why a lock was not had: it could not be opened (`unavailable`, with the
+operating system's code as `reason`), another holder kept it past the
+deadline (`busy`), or the caller gave up (`cancelled`). The mechanism knows
+nothing of any one caller; each caller says it in its own words.
+*/
 export class NamedLockError extends Error {
   public readonly reason: string | undefined
   public constructor(
@@ -134,12 +134,12 @@ const LIVE_LISTENER_CODES = new Set(['EAGAIN', 'ECONNRESET'])
 const DEAD_ENTRY_CODES = new Set(['ECONNREFUSED', 'ENOENT', 'ENOTSOCK'])
 
 /**
- * Whether a socket file has a listener. A refused connection or a missing or
- * foreign file is a dead entry. A full backlog, or a connection the listener
- * accepted and dropped (every lock listener drops what connects to it: the
- * measured `ECONNRESET`), is a live listener. Any other failure is a local
- * failure, reported with its OS code.
- */
+Whether a socket file has a listener. A refused connection or a missing or
+foreign file is a dead entry. A full backlog, or a connection the listener
+accepted and dropped (every lock listener drops what connects to it: the
+measured `ECONNRESET`), is a live listener. Any other failure is a local
+failure, reported with its OS code.
+*/
 async function isLive(file: string): Promise<boolean> {
   const code = await new Promise<string | undefined>((resolve) => {
     const client = createConnection(file)
@@ -277,12 +277,12 @@ async function acquireLock(
 }
 
 /**
- * Runs `work` as the one holder of the named lock. Errors of `work` are
- * thrown as they are. A lock that cannot be opened for a local reason is
- * `NamedLockError('unavailable')` with its OS code; a wait that
- * outlasts the deadline is `'lock-busy'` and one the caller cancels is
- * `'cancelled'`, so neither reads as a provider outage.
- */
+Runs `work` as the one holder of the named lock. Errors of `work` are
+thrown as they are. A lock that cannot be opened for a local reason is
+`NamedLockError('unavailable')` with its OS code; a wait that
+outlasts the deadline is `'lock-busy'` and one the caller cancels is
+`'cancelled'`, so neither reads as a provider outage.
+*/
 export async function withNamedLock<T>(
   work: () => Promise<T>,
   names: NamedLockNames,
