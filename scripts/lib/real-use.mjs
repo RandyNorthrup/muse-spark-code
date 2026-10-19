@@ -10,7 +10,8 @@ import { readdirSync, readFileSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { isExecResult, isExecStatus, microUsd } from '../../action/lib/result.mjs'
 
-export { EXEC_TIMEOUT_MAX_SECONDS as REAL_USE_STEP_TIMEOUT_SECONDS } from '../../action/lib/result.mjs'
+// One step's wall clock: the live Action's recipe timeout.
+export const REAL_USE_STEP_TIMEOUT_SECONDS = 600
 
 export const REAL_USE_MODEL = 'muse-spark-1.3-contributor'
 export const REAL_USE_BACKEND = 'modelApi'
@@ -23,8 +24,6 @@ const MAX_STEPS = 8
 const MAX_PROMPT_CHARS = 4000
 const MAX_EXPECT_CHARS = 4000
 const STEP_ID = /^[a-z0-9][a-z0-9-]{0,63}$/
-// One step's wall clock is the product CLI's own ceiling, never ours
-// (re-exported above as REAL_USE_STEP_TIMEOUT_SECONDS).
 const BUDGET_GRAMMAR = /^[0-9]+(?:\.[0-9]{1,6})?$/
 /** The CLI budget range in micro-USD: over 0 through 20. */
 export const MAX_BUDGET_MICRO_USD = 20_000_000n

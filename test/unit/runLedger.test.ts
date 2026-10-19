@@ -427,4 +427,13 @@ describe('exec output cap across model resolution', () => {
     expect(outputCap(providerPolicy())).toBe(4096)
     expect(outputCap()).toBe(4096)
   })
+  it('accepts a set budget past 20 USD with no maximum', () => {
+    // No provider publishes a run budget, so the product sets none.
+    for (const cap of [20.000001, 1000]) {
+      const l = createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 })
+      const ticket = response(l)
+      l.settleResponse(ticket, eof())
+      expect(l.totals().requests).toBe(1)
+    }
+  })
 })

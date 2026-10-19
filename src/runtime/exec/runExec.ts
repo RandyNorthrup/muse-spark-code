@@ -400,7 +400,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   const limits = {
     budgetUsd: options.budgetUsd ?? null,
     maxRequests: options.maxRequests ?? null,
-    timeoutSeconds: options.timeoutMs / MILLISECONDS_PER_SECOND,
+    timeoutSeconds:
+      options.timeoutMs === undefined ? null : options.timeoutMs / MILLISECONDS_PER_SECOND,
   }
   // The same closure feeds the request body (via modelOutputMaxTokens) and
   // the run ledger's admission, so what is reserved is what the provider may
@@ -1599,10 +1600,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           },
         }),
       limits,
-      durationMs:
-        lifecycle.deadlineMs === undefined
-          ? 0
-          : Math.max(0, deps.now() - (lifecycle.deadlineMs - options.timeoutMs)),
+      durationMs: Math.max(0, deps.now() - lifecycle.startMs),
       error:
         status === 'completed'
           ? null

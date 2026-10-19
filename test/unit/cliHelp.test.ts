@@ -101,7 +101,10 @@ describe('per-command help', () => {
     // no invented maximum.
     expect(text).not.toContain('at most 20 USD')
     expect(text).toContain('--timeout <seconds>')
-    expect(text).toContain('default 1800')
+    // No deadline of ours: without --timeout a run has no deadline, so the
+    // row names neither the old 1800 default nor the old 21600 maximum.
+    expect(text).not.toContain('default 1800')
+    expect(text).not.toContain('21600')
     expect(text).toContain('--model <model>')
     expect(text).toContain('--untrusted-file <file>')
     expect(text).toContain('repeatable')
@@ -182,7 +185,7 @@ describe('wrong options and values', () => {
       [['exec', '--backend', 'auto', 'hi'], 'Invalid value for --backend'],
       [['exec', '--output', 'xml', 'hi'], 'Invalid value for --output'],
       [['exec', '--effort', 'turbo', 'hi'], 'Invalid value for --effort'],
-      [['exec', '--timeout', '1', 'hi'], 'Invalid number or limit for --timeout'],
+      [['exec', '--timeout', '0', 'hi'], 'Invalid number or limit for --timeout'],
       [['exec', '--max-requests', '0', 'hi'], 'Invalid number or limit for --max-requests'],
     ] as const) {
       const reason = refusalFor([...argv])

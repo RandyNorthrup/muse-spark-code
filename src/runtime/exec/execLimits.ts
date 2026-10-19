@@ -2,6 +2,7 @@ import {
   EXEC_FORCE_WRITE_MS,
   EXEC_SIGNAL_DEDUP_MS,
   EXEC_STOP_GRACE_MS,
+  NODE_SET_TIMEOUT_MAX_MS,
   UI_TEXT,
 } from '../../shared/constants'
 import { exitCodeFor, type ExecSignal, type ExecStatus } from './execProtocol'
@@ -29,8 +30,8 @@ export interface StopLatch {
 export interface Lifecycle extends StopLatch {
   readonly signal: AbortSignal
   readonly stopped: Promise<StopCause>
-  /** Absent when the command runs until a signal stops it (no deadline). */
-  readonly deadlineMs: number | undefined
+  /** Null without `--timeout`: no deadline of ours, so no timer is armed. */
+  readonly deadlineMs: number | null
   /** When the process started, for durations that outlive any deadline. */
   readonly startMs: number
   race<T>(waiting: Promise<T>): Promise<T>
@@ -76,7 +77,6 @@ export function statusForStop(cause: StopCause): ExecStatus {
 
 export function createLifecycle(input: {
   processStartMs: number
-  /** Undefined: the command runs until a signal stops it (no deadline). */
   timeoutMs: number | undefined
   now: () => number
   setTimer: (ms: number, run: () => void) => () => void
@@ -85,8 +85,7 @@ export function createLifecycle(input: {
   exit: (code: number) => never
 }): Lifecycle {
   const controller = new AbortController()
-  const deadlineMs =
-    input.timeoutMs === undefined ? undefined : input.processStartMs + input.timeoutMs
+  const deadlineMs = input.timeoutMs === undefined ? null : input.processStartMs + input.timeoutMs
   let cause: StopCause | null = null
   const stopped = new Promise<StopCause>((resolve) => {
     controller.signal.addEventListener(
@@ -128,13 +127,28 @@ export function createLifecycle(input: {
       ),
     )
   }
-  if (deadlineMs !== undefined) {
-    removers.push(
-      input.setTimer(Math.max(0, deadlineMs - input.now()), () => {
+  // A set deadline has no maximum of ours, and a delay past Node's setTimeout
+  // ceiling would fire after 1 ms: arm at most the platform ceiling and
+  // re-arm until the deadline is reached, so a large --timeout is honored.
+  // Without --timeout there is no deadline and no timer.
+  let clearDeadline: (() => void) | undefined
+  const armDeadline = (): void => {
+    if (deadlineMs === null) return
+    const delay = Math.max(0, deadlineMs - input.now())
+    if (delay <= NODE_SET_TIMEOUT_MAX_MS) {
+      clearDeadline = input.setTimer(delay, () => {
+        clearDeadline = undefined
         latch({ kind: 'timeout' })
-      }),
-    )
+      })
+    } else {
+      clearDeadline = input.setTimer(NODE_SET_TIMEOUT_MAX_MS, () => {
+        clearDeadline = undefined
+        armDeadline()
+      })
+    }
   }
+  armDeadline()
+  removers.push(() => clearDeadline?.())
   for (const signal of ['SIGINT', 'SIGTERM'] as const)
     removers.push(
       input.onSignal(signal, () => {
