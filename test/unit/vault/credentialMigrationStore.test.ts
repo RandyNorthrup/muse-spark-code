@@ -327,6 +327,22 @@ async function migratedShell(
   return { shell, active }
 }
 
+/** A migrated model API key with the vault locked, as an idle lock leaves it. */
+async function migratedThenLocked(): Promise<{
+  shell: ReturnType<typeof createMigrationShell>
+  store: SecretStore
+  first: string
+}> {
+  const first = modelApiKey()
+  const store = await persistedSecrets({ [MODEL_API_KEY]: first })
+  // The shell bound to the real migration controller, as the unlock edge
+  // leaves it: no hand-written mirror anywhere in this path.
+  const { shell } = await migratedShell(store, [])
+  expect(await readMigratedSecret()).toBe(first)
+  liveStore().lock()
+  return { shell, store, first }
+}
+
 /** Remove the migrated key through the shell, asserting both copies drop. */
 async function removeMigratedKey(shell: ReturnType<typeof createMigrationShell>): Promise<void> {
   expect(await credentialCount()).toBe(1)
@@ -749,14 +765,9 @@ describe('key-store migration against a real store', () => {
   })
 
   it('a sign-out that cannot reach the vault keeps the key readable', async () => {
-    const first = modelApiKey()
-    const store = await persistedSecrets({ [MODEL_API_KEY]: first })
-    const { shell } = await migratedShell(store, [])
-    expect(await readMigratedSecret()).toBe(first)
-    // The vault locks (the Lock control, or idle lock) before the sign-out:
-    // the removal must fail loudly with the key still readable, never
+    const { shell, store, first } = await migratedThenLocked()
+    // The removal must fail loudly with the key still readable, never
     // resolve with SecretStorage empty and the vault copy stranded.
-    liveStore().lock()
     await expect(shell.store.delete(MODEL_API_KEY)).rejects.toThrow()
     expect(await store.get(MODEL_API_KEY)).toBe(first)
     await reopenStore()
@@ -772,14 +783,8 @@ describe('key-store migration against a real store', () => {
   })
 
   it('keeps a save made while the vault is locked, and mirrors it on unlock', async () => {
-    const first = modelApiKey()
     const rotated = modelApiKey()
-    const store = await persistedSecrets({ [MODEL_API_KEY]: first })
-    // The shell bound to the real migration controller, as the unlock edge
-    // leaves it: no hand-written mirror anywhere in this path.
-    const { shell } = await migratedShell(store, [])
-    expect(await readMigratedSecret()).toBe(first)
-    liveStore().lock()
+    const { shell, store } = await migratedThenLocked()
     await shell.store.store(MODEL_API_KEY, rotated)
     expect(await store.get(MODEL_API_KEY)).toBe(rotated)
     await reopenStore()

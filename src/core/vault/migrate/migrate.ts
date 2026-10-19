@@ -493,6 +493,32 @@ export class VaultMigration {
       live?.fill(0)
     }
   }
+  /**
+   * The live legacy record's decoded material kind. Null when the record is
+   * absent or damaged — each caller leaves those to its own recovery — and
+   * every buffer is wiped before returning.
+   */
+  private async liveMaterialKind(
+    entry: MigrationCredential,
+    lease: MigrationLease,
+  ): Promise<VaultItem['material']['kind'] | null> {
+    let live: Uint8Array | null = null
+    let decoded: VaultItem | undefined
+    try {
+      live = await this.deps.legacy.read(entry.key)
+      lease.assertCurrent()
+      if (live === null) return null
+      try {
+        decoded = entry.decode(live)
+      } catch {
+        return null
+      }
+      return decoded.material.kind
+    } finally {
+      eraseItem(decoded)
+      live?.fill(0)
+    }
+  }
   /** The journal's phase for a key, or null before its first copy. */
   async journalPhase(key: string): Promise<MigrationRecord['phase'] | null> {
     const entry = this.credential(key)
@@ -769,22 +795,9 @@ export class VaultMigration {
         }
         isStuck = !isReadable
       } else {
-        let live: Uint8Array | null = null
-        let decoded: VaultItem | undefined
-        try {
-          live = await this.deps.legacy.read(entry.key)
-          lease.assertCurrent()
-          if (live === null) return false
-          try {
-            decoded = entry.decode(live)
-          } catch {
-            return false
-          }
-          isStuck = decoded.material.kind !== 'apiKey'
-        } finally {
-          eraseItem(decoded)
-          live?.fill(0)
-        }
+        const kind = await this.liveMaterialKind(entry, lease)
+        if (kind === null) return false
+        isStuck = kind !== 'apiKey'
       }
       if (!isStuck) return false
       if (isPresent) {
@@ -817,31 +830,19 @@ export class VaultMigration {
     return await this.run(async (lease) => {
       const row = await this.record(entry, lease)
       if (row === null || row.phase === 'deleted' || row.phase === 'undone') return false
-      let live: Uint8Array | null = null
-      let decoded: VaultItem | undefined
-      try {
-        live = await this.deps.legacy.read(entry.key)
+      const kind = await this.liveMaterialKind(entry, lease)
+      // An apiKey record is not stale — and an absent or damaged one stays
+      // the engine's own recovery to report. A newer record the finish path
+      // below reads is re-read there, so no check here can go stale.
+      if (kind === null || kind === 'apiKey') return false
+      if (row.phase === 'copying' || row.phase === 'writing') {
+        await this.removeVaultCopyIfPresent(entry, lease)
+        await this.deps.journal.remove(entry.key)
         lease.assertCurrent()
-        if (live === null) return false
-        try {
-          decoded = entry.decode(live)
-        } catch {
-          // A damaged record stays the engine's to report.
-          return false
-        }
-        if (decoded.material.kind === 'apiKey') return false
-        if (row.phase === 'copying' || row.phase === 'writing') {
-          await this.removeVaultCopyIfPresent(entry, lease)
-          await this.deps.journal.remove(entry.key)
-          lease.assertCurrent()
-          return true
-        }
-        await this.finishInterruptedDelete(entry, row, lease)
         return true
-      } finally {
-        eraseItem(decoded)
-        live?.fill(0)
       }
+      await this.finishInterruptedDelete(entry, row, lease)
+      return true
     })
   }
   /** Startup recovery runs before first-party bindings become usable. */
