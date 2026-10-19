@@ -97,5 +97,7 @@ describe('exact-count answer parse', () => {
     expect(parseExactCountResponse('anthropic-count-tokens', { input_tokens: -1 })).toBeUndefined()
     expect(parseExactCountResponse('anthropic-count-tokens', { input_tokens: 1.5 })).toBeUndefined()
     expect(parseExactCountResponse('anthropic-count-tokens', { totalTokens: 1 })).toBeUndefined()
+    expect(parseExactCountResponse('responses-input-tokens', 'seven')).toBeUndefined()
+    expect(parseExactCountResponse('responses-input-tokens', null)).toBeUndefined()
   })
 })

@@ -184,7 +184,9 @@ export function originOf(urlText: string): string | undefined {
   let url: URL
   try {
     url = new URL(urlText)
-  } catch {
+  } catch (error) {
+    // Only an invalid URL reads as no origin; anything else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     return undefined
   }
   if (url.username !== '' || url.password !== '' || url.search !== '' || url.hash !== '') {
@@ -210,7 +212,9 @@ export function checkEndpointUrl(urlText: string, answers: readonly string[]): E
   let url: URL
   try {
     url = new URL(urlText)
-  } catch {
+  } catch (error) {
+    // Only an invalid URL is refused as one; anything else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     return refusal('invalid-url')
   }
   if (url.protocol !== HTTP_SCHEME && url.protocol !== HTTPS_SCHEME) {

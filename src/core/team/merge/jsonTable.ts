@@ -88,7 +88,9 @@ function parseTable(source: string): JsonNode & { kind: 'object' } {
     let value: unknown
     try {
       value = JSON.parse(token)
-    } catch {
+    } catch (error) {
+      // Only malformed text fails here; anything else keeps its kind.
+      if (!(error instanceof SyntaxError)) throw error
       failParse(path)
     }
     if (value === null || typeof value === 'string' || typeof value === 'boolean') {

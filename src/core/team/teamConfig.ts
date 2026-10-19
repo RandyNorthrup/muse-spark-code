@@ -187,7 +187,9 @@ export function parseTeamJson(text: string): TeamJsonParse {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
-  } catch {
+  } catch (error) {
+    // Only malformed text refuses as not JSON; anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return { ok: false, reason: 'team.json is not JSON' }
   }
   if (!isRecord(parsed)) {

@@ -61,7 +61,10 @@ export function widenedHost(entry: string): string | undefined {
   let url: URL
   try {
     url = new URL(`http://${isIPv6(given) ? `${IPV6_OPEN}${given}${IPV6_CLOSE}` : given}/`)
-  } catch {
+  } catch (error) {
+    // The URL parser answers a malformed entry with a TypeError; anything
+    // else is not the entry and reaches the caller.
+    if (!(error instanceof TypeError)) throw error
     return undefined
   }
   // Only a host may have been given: no user, port, path or query slipped in.
@@ -101,7 +104,10 @@ export function placeBrowserUrl(raw: string, extraHosts: ReadonlySet<string>): B
   let url: URL
   try {
     url = new URL(raw)
-  } catch {
+  } catch (error) {
+    // The URL parser answers a malformed address with a TypeError; anything
+    // else is not the address and reaches the caller.
+    if (!(error instanceof TypeError)) throw error
     return { kind: 'refused' }
   }
   const host = plainHost(url.hostname)
@@ -136,7 +142,10 @@ export function isAllowedRequest(rawUrl: string, allowedHosts: ReadonlySet<strin
   let url: URL
   try {
     url = new URL(rawUrl)
-  } catch {
+  } catch (error) {
+    // The URL parser answers a malformed request address with a TypeError;
+    // anything else is not the address and reaches the caller.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
   return (
@@ -149,7 +158,10 @@ export function isAllowedRequest(rawUrl: string, allowedHosts: ReadonlySet<strin
 export function isNetworkUrl(rawUrl: string): boolean {
   try {
     return NETWORK_SCHEMES.has(new URL(rawUrl).protocol)
-  } catch {
+  } catch (error) {
+    // The URL parser answers a malformed address with a TypeError; anything
+    // else is not the address and reaches the caller.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
 }

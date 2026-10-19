@@ -74,14 +74,21 @@ export interface ChatGptCatalog {
   readonly facts: ReadonlyMap<string, ChatGptPlanFacts>
 }
 
+/** The answer's JSON body, or undefined when it is not JSON at all. */
+async function jsonBody(response: Response): Promise<unknown> {
+  try {
+    return await response.json()
+  } catch (error) {
+    // Only a body that is not JSON stays unread; anything else is not the
+    // body and reaches the caller.
+    if (!(error instanceof SyntaxError)) throw error
+    return undefined
+  }
+}
+
 /** A refused answer named by its HTTP status and OpenAI's own code, never its text. */
 async function refusalOf(response: Response): Promise<string> {
-  let body: unknown
-  try {
-    body = await response.json()
-  } catch {
-    body = undefined
-  }
+  const body = await jsonBody(response)
   const envelope = errorBodySchema.safeParse(body)
   const code = envelope.success ? envelope.data.error.code : undefined
   const status = `HTTP ${String(response.status)}`
@@ -113,7 +120,10 @@ export async function chatGptCatalog(
   let value: unknown
   try {
     value = await response.json()
-  } catch {
+  } catch (error) {
+    // Only a body that is not JSON reads unreadable; anything else is not
+    // the body and reaches the caller.
+    if (!(error instanceof SyntaxError)) throw error
     throw new ChatGptSignInError('catalogue-unreadable')
   }
   const parsed = catalogueSchema.safeParse(value)
@@ -289,12 +299,7 @@ export function chatGptFailureText(code: ChatGptSignInError['code'], reason?: st
  * documented transient (503 / retryable code).
  */
 export async function planRequestError(response: Response): Promise<ChatgptPlanRequestError> {
-  let body: unknown
-  try {
-    body = await response.json()
-  } catch {
-    body = undefined
-  }
+  const body = await jsonBody(response)
   const envelope = errorBodySchema.safeParse(body)
   const code = envelope.success ? (envelope.data.error.code ?? undefined) : undefined
   if (code === CHATGPT_PLAN_LIMIT_ERROR_KIND) {
@@ -357,7 +362,10 @@ function subscriptionRecord(record: unknown) {
   let value: unknown = record
   try {
     if (typeof record === 'string') value = JSON.parse(record)
-  } catch {
+  } catch (error) {
+    // Only malformed stored text reads unreadable; anything else is not
+    // the grant and reaches the caller.
+    if (!(error instanceof SyntaxError)) throw error
     throw new ChatGptSignInError('grant-unreadable')
   }
   const parsed = chatGptRecordSchema.safeParse(value)

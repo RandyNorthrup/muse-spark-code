@@ -9,6 +9,7 @@ import {
 } from '../../../shared/scheduleEvents'
 import { compileGlob } from '../../backends/modelapi/globLimits'
 import { noEventHistory } from './ports'
+import { isRejectedDelivery } from './registry'
 
 export interface ScheduleWorkspaceWatchPort {
   capability(): ScheduleSourceCapability
@@ -66,7 +67,10 @@ export class ScheduleFilesSource implements ScheduleSubscribedEventSource {
           observedAt: change.observedAt,
           fields: { path: change.relativePath },
         })
-      } catch {
+      } catch (error) {
+        // Only a malformed host delivery reads as a rejected event; a
+        // subscriber bug keeps its kind for the caller.
+        if (!isRejectedDelivery(error)) throw error
         this.onRejected(this.id)
         return
       }

@@ -1,9 +1,12 @@
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { onTestFinished, describe, expect, it } from 'vitest'
 import { acpPlaybook, type AcpPlaybookBundle } from '../../src/acp/playbook'
-import { FilePlaybookJournal } from '../../src/core/orchestration/playbook/journal'
+import {
+  FilePlaybookJournal,
+  PlaybookHistoryLostError,
+} from '../../src/core/orchestration/playbook/journal'
 import { requireFile } from '../../src/host/lazyBundle'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import {
@@ -217,5 +220,54 @@ describe('M116 playbook surface adapter (W)', () => {
     }
     expect(reread.settings.rules['offload']?.enabled).toBe(true)
     expect(reread.settings.rules['neverAround']).toBe(undefined)
+  })
+})
+
+/** The throw a journal read ends in, or undefined when it resolves. */
+function readFailure(journal: FilePlaybookJournal): unknown {
+  try {
+    journal.read()
+  } catch (error) {
+    return error
+  }
+  return undefined
+}
+
+describe('FilePlaybookJournal read failures', () => {
+  it('reads a missing journal as empty, and as lost once its marker stands', () => {
+    const { workspaceFolder, agentDataFolder } = scratchFolders('m116j-missing-')
+    const journal = new FilePlaybookJournal(agentDataFolder, workspaceFolder)
+    expect(journal.read()).toEqual([])
+    // A healthy read establishes the marker; the journal vanishing after
+    // that is history lost, and the missing-file failure stays as its cause.
+    mkdirSync(path.dirname(journal.file), { recursive: true })
+    writeFileSync(journal.file, '{}\n')
+    expect(journal.read()).toEqual([{}])
+    rmSync(journal.file)
+    const failure = readFailure(journal)
+    expect(failure).toBeInstanceOf(PlaybookHistoryLostError)
+    expect(failure).toMatchObject({ message: UI_TEXT.playbookUnavailable })
+    expect((failure as Error).cause).toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('keeps an unreadable journal failure as the cause of the lost history', () => {
+    const { workspaceFolder, agentDataFolder } = scratchFolders('m116j-unreadable-')
+    const journal = new FilePlaybookJournal(agentDataFolder, workspaceFolder)
+    // The journal path becomes a directory (the portable unreadable case):
+    // the listing succeeds but is not a file, so the read genuinely fails
+    // on every platform with no invented payload.
+    mkdirSync(journal.file, { recursive: true })
+    const failure = readFailure(journal)
+    expect(failure).toBeInstanceOf(PlaybookHistoryLostError)
+    expect(failure).toMatchObject({ message: UI_TEXT.playbookUnavailable })
+    expect((failure as Error).cause).toBeInstanceOf(Error)
+  })
+
+  it('answers a malformed journal line as unavailable, never its text', () => {
+    const { workspaceFolder, agentDataFolder } = scratchFolders('m116j-malformed-')
+    const journal = new FilePlaybookJournal(agentDataFolder, workspaceFolder)
+    mkdirSync(path.dirname(journal.file), { recursive: true })
+    writeFileSync(journal.file, '{\n')
+    expect(() => journal.read()).toThrow(UI_TEXT.playbookUnavailable)
   })
 })

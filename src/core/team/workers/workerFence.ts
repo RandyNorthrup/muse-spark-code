@@ -664,8 +664,10 @@ export function isCheckedWorkerWriteAllowed(
     role.writePaths.some((pattern) => {
       try {
         return isGlobMatch(confined.canonical, pattern)
-      } catch {
-        // An invalid role glob cannot grant a write.
+      } catch (error) {
+        // An over-limit role glob cannot grant a write; anything else is
+        // not the pattern and reaches the caller.
+        if (!(error instanceof RangeError)) throw error
         return false
       }
     })
@@ -689,7 +691,11 @@ export async function isWorkerCommandAllowed(
   }
   try {
     await assertWorkerRoot(input)
-  } catch {
+  } catch (error) {
+    // Admission-time failures arrive as the fence's refusal (the admission
+    // normalizes them, unreadable roots included) and deny closed; anything
+    // else keeps its kind for the caller.
+    if (!(error instanceof MuseWorkerFolderError)) throw error
     return false
   }
   const words = shape.commands[0] ?? []
@@ -780,7 +786,11 @@ export async function answerAcpPermission(
 ): Promise<AcpPermissionVerdict> {
   try {
     await assertWorkerRoot(input)
-  } catch {
+  } catch (error) {
+    // Admission-time failures arrive as the fence's refusal (the admission
+    // normalizes them, unreadable roots included) and reject closed;
+    // anything else keeps its kind for the caller.
+    if (!(error instanceof MuseWorkerFolderError)) throw error
     return { action: 'rejectOnce' }
   }
   const { role, toolCall } = input
