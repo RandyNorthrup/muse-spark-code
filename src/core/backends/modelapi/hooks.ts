@@ -1333,11 +1333,9 @@ async function runTypedHook(
   // A hook with no explicit timeout and no caller signal waits on a signal
   // that never aborts: nothing of ours bounds the run.
   const combined =
-    timeout === undefined
-      ? (signal ?? AbortSignal.any([]))
-      : signal === undefined
-        ? timeout
-        : AbortSignal.any([signal, timeout])
+    timeout !== undefined && signal !== undefined
+      ? AbortSignal.any([signal, timeout])
+      : (timeout ?? signal ?? AbortSignal.any([]))
   const runFallback = (): Promise<HookAnswer | undefined> =>
     runner === undefined || hook.onFailure === undefined
       ? Promise.resolve(undefined)
