@@ -14507,6 +14507,86 @@ CONTRIBUTING.md, "The capacity repository (D122)"; proofs:
 `docs/certification/ciflow.md` (D122). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
+### D206 — Release roles: the team learns the jobs that shipped 0.19.0 (M128, owner 2026-10-18)
+
+**D206 — The team gains the roles, report shapes and playbook loops the
+lead's fleet used to join, fix, review and prove 0.19.0, so a person's team
+can run the same flow.** The owner, 2026-10-18: "it looks like you have
+finally figured out a pretty good flow and what roles are needed have you
+been adding the types of roles you have been using into our app as role
+types and implimenting them properly?", then "authorized" for this record.
+They had not been added: the roles lived only in the lead's briefs and
+scripts. D75's seven built-in roles (Research, Design, Marketing,
+Engineering, QA, Code Review, Docs), its pools, caps and orchestrator slot,
+D96's playbook, D101's evidence rules and D103's routing stay as they are;
+D206 adds to them through the same `AGENT.md` role keys, so a person can
+copy, narrow or replace each new role as D75 allows.
+
+- **The orchestrator still merges.** D75 keeps the owner's words: "the
+  orchestration agent should be in charge of merging the code". D206 adds
+  no integrator role; the orchestrator's merge (`mergeQueue.ts`,
+  `mergeRoutine.ts`, `teamMerge.ts`) gains integration: an ordered candidate
+  list, late candidates taken in number order, both sides' intent kept at
+  every conflict, generated files regenerated instead of hand-merged, and
+  any candidate whose ancestry holds an excluded branch refused.
+- **New built-in roles.** Each is an `AGENT.md` with a charter, tool groups,
+  a workspace mode and a report shape.
+  - **Merge share.** Resolves one assigned set of files of one conflicted
+    merge, in its own worktree at the merge's head, and hands back a single
+    commit plus every cross-share dependency (a renamed symbol, a moved key,
+    an import). The orchestrator delegates it when one merge conflicts in
+    many files. Workspace: `own-branch`. Report: `share`.
+  - **Fix round.** Continues a pull request's branch from a review's
+    findings, quoted whole, or a red CI run; fixes each at its cause with a
+    test shown failing before the fix. Workspace: `own-branch` from the
+    branch it fixes. Report: `fix` (finding, cause, change, proof).
+  - **Branch review.** Reads each listed branch against its own merge base,
+    never merges it, and may cut a fix branch from the branch it fixes.
+    Workspace: `review-fix` (new: read-only on the reviewed branches, writes
+    only fix branches). Report: `verdict`.
+  - **Real use.** Drives only the packed product in an empty workspace,
+    names a model of known tier on every request, states the call count and
+    dollar cap before it starts, counts the calls from the product's own
+    records afterwards, and writes one line per behaviour (what it did,
+    what the product said, PASS or FAIL). A FAIL is fixed in code and the
+    same use repeated. Workspace: `own-branch`. Report: `real-use`.
+  - **Suite triage.** Runs the whole suite the way CI runs it and proves a
+    cause for every failure: a defect fixed at its cause, or a sandbox
+    denial reproduced in two lines. Never skips a test or widens a timeout.
+    Report: `triage`.
+  - **Test truth audit.** Reads the test tree file by file for stand-ins the
+    lint misses and tests that prove nothing, and moves each onto real code.
+    Report: `summary` with a per-file verdict table.
+  - **Security audit.** Read-only hunt for real defects; each finding goes
+    to a fix round. Report: `review`.
+  - **Notes truth.** Checks every release-note line against code on every
+    tree the release joins. Report: `verdict` per entry.
+- **Code Review keeps its charter and its pick.** `reviewerPick.ts` already
+  prefers a model that wrote none of the change and marks the same-model
+  fallback; that stays. D206 adds the re-review: its brief lists the
+  earlier findings and the fix range, and its report ends in one machine-read
+  verdict line (`mergeable`, or `not mergeable` with the blocking findings).
+- **Playbook loops (D96).**
+  - **Fix-round loop.** Review, fix round, land, re-review, until the
+    verdict is `mergeable` and CI is green; a red CI run counts as a
+    finding. Each round's findings travel whole.
+  - **Merge split.** A merge that conflicts in many files is split by area
+    across merge-share tasks; the orchestrator takes each share's files,
+    regenerates generated files, and typechecks the whole.
+  - **Candidate discipline.** Every candidate's ancestry is checked before
+    it is queued; a result that sits on an excluded branch is replayed onto
+    the right base first.
+  - **Verify the verdict.** Before acting on a report's claim that code is
+    missing, present or untrue, the orchestrator checks the claim against
+    every tree it covers. On 2026-10-18 two reviewers were wrong (one called
+    `nearestOptionName` missing; one cut two true release-note entries),
+    and only this check caught it.
+  - **Not taken, with the reason.** A result that duplicates another task,
+    or weakens a gate (a refusal turned into a warning, a widened timeout),
+    is not taken, and the orchestrator records why.
+- **No limit of ours.** D206 adds no cap, timeout or default; a role's caps
+  are the person's own pool settings (D75).
+
 ## 3. Open questions (need the owner)
 
 **Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
@@ -15604,6 +15684,68 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### M128 — Release roles: the team learns the jobs that shipped 0.19.0 (D206)
+
+**Status 2026-10-18: planned.** Starts after 0.19.0 ships; nothing of it
+goes into 0.19.0.
+
+- **Goal.** D206: a person's team can run the flow that joined, fixed,
+  reviewed and proved 0.19.0 — fix-round loops to a `mergeable` verdict,
+  merge splits across share tasks, real use on the packed product with a
+  stated call and dollar cap, suite triage, test-truth and security audits,
+  and release-note checks — with roles a person can copy and narrow as D75
+  allows.
+- **Depends on.** M96 (D75: roles, pools, `AGENT.md` role keys, the
+  orchestrator's merge and `reviewerPick.ts`), M116 (D96: the playbook the
+  loops join), M119 (D101: evidence and honest outcomes, which the new
+  report shapes feed), M120 (D103: preferred agents per role and lane
+  handoff), M102 (the usage journal the real-use role counts calls from).
+- **Order.** Lane 0 first; then R and S together; then P; then V; D last.
+- **Owner engine.** Left blank for every lane; the lead assigns one at
+  launch, and no lane is reviewed by the engine that wrote it.
+- **Lanes.**
+  - **0 Contract and strings.** `src/shared/constants.ts` (the new role ids
+    in `TEAM_BUILTIN_ROLE_IDS`; `review-fix` in `TEAM_WORKSPACE_MODES` and
+    `TEAM_WORKSPACE_ORDER` between `read-only` and `own-branch`; `verdict`,
+    `share`, `fix`, `real-use` and `triage` in `TEAM_REPORT_SHAPES`),
+    `src/shared/team.ts` schemas, `en.ts` and the 14 `l10n/ui.*.json`.
+  - **R Roles.** `src/core/team/builtInRoles.ts`, `roles.ts`, `charter.ts`,
+    `toolsets.ts`: the eight new built-in roles (merge share, fix round,
+    branch review, real use, suite triage, test truth audit, security
+    audit, notes truth) with charters, tool groups, workspace modes and
+    report shapes; a project copy may only narrow each, as today.
+  - **S Report shapes.** Parsing and validation of the five new report
+    shapes (the verdict line, the share's commit and dependencies, the fix
+    record per finding, the real-use record with its call count against the
+    stated cap, the triage record per failure), and their states on the
+    Agent map and in the roster.
+  - **P Playbook loops.** `src/core/orchestration/playbook/*`,
+    `mergeQueue.ts`, `mergeRoutine.ts`, `teamMerge.ts`: the fix-round loop
+    (review, fix round, land, re-review until `mergeable` and CI green; a
+    red CI run is a finding), the merge split (conflicted files split by
+    area into share tasks; the orchestrator takes each share and
+    regenerates generated files), candidate discipline (ancestry checked
+    before a candidate is queued), verify the verdict (a report's claim that
+    code is missing, present or untrue is checked on every tree it covers
+    before the orchestrator acts), and not-taken records with the reason.
+  - **V Real-use ledger.** The real-use role states its call count and
+    dollar cap before it starts and counts the calls from the M102 journal
+    afterwards; a request whose model tier is unknown is refused, never
+    sent.
+  - **D Docs.** Help, README's team section, the orchestrator playbook
+    skill (`first-party-skills/orchestrator_playbook/SKILL.md`), CHANGELOG.
+- **Gates.** Every new role file loads and validates; a project copy that
+  widens a role is refused; the playbook drills run real code (a fix-round
+  loop that converges on a seeded defect; a merge split on a seeded
+  conflict set whose shares come back and typecheck); each new test is
+  broken once on purpose and the non-zero exit recorded in
+  `docs/certification/m128.md`. Real life: in an empty workspace, a team on
+  the cheapest models (each named on every request) runs one fix-round loop
+  and one merge split through the packed product, with the call count and
+  dollar cap stated first and the calls counted afterwards.
+- **Out of scope.** D75's seven roles, pools and caps; any cap, timeout or
+  default of ours.
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
