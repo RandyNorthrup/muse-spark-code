@@ -764,6 +764,38 @@ describe('key-store migration against a real store', () => {
     expect(await store.get(PROVIDER_KEY)).toBe(overlaid)
   })
 
+  it('a sign-out that fails its vault remove finishes on retry and on unlock', async () => {
+    const first = modelApiKey()
+    const store = await persistedSecrets({ [MODEL_API_KEY]: first })
+    const shell = createMigrationShell(store)
+    const failRemoveOnce = { current: true }
+    shell.bind(controller(store, [], noFail(), quiet, failRemoveOnce))
+    await controller(store, [], noFail()).ensureMigrated()
+    expect(await readMigratedSecret()).toBe(first)
+    // The journal writes `deleting`, then the vault remove fails: the call
+    // throws with the original key still readable in both stores.
+    await expect(shell.store.delete(MODEL_API_KEY)).rejects.toThrow()
+    expect(await store.get(MODEL_API_KEY)).toBe(first)
+    expect(await credentialCount()).toBe(1)
+    // A retry finishes the sign-out the person asked for — the live copy is
+    // the journaled one, not a newer save — so both copies go.
+    await shell.store.delete(MODEL_API_KEY)
+    expect(await store.get(MODEL_API_KEY)).toBe(undefined)
+    expect(await credentialCount()).toBe(0)
+    // The unlock path heals the same way: a failure after `deleting` is
+    // journaled finishes the sign-out instead of restoring the key.
+    const second = modelApiKey()
+    await shell.store.store(MODEL_API_KEY, second)
+    expect(await readMigratedSecret()).toBe(second)
+    failRemoveOnce.current = true
+    await expect(shell.store.delete(MODEL_API_KEY)).rejects.toThrow()
+    expect(await store.get(MODEL_API_KEY)).toBe(second)
+    expect(await credentialCount()).toBe(1)
+    await controller(store, [], noFail()).ensureMigrated()
+    expect(await store.get(MODEL_API_KEY)).toBe(undefined)
+    expect(await credentialCount()).toBe(0)
+  })
+
   it('a sign-out that cannot reach the vault keeps the key readable', async () => {
     const { shell, store, first } = await migratedThenLocked()
     // The removal must fail loudly with the key still readable, never

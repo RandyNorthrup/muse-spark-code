@@ -445,10 +445,15 @@ export class VaultMigration {
   /**
    * Finish a sign-out the engine itself started: the journal already says
    * `deleting`, so a missing legacy copy is evidence of the interrupted
-   * sign-out, never of a user deletion. A live legacy copy is a key saved
-   * after the interruption, and it is never deleted here: only the stale
-   * vault copy goes. An apiKey record is then re-seeded with `store`, while
-   * an opaque one stays in SecretStorage with the row `deleted`, which the
+   * sign-out, never of a user deletion. A live legacy copy is compared
+   * against the journaled digest before anything is kept: the engine no
+   * longer clears SecretStorage before it journals `deleting`, so the same
+   * digest means the original key this sign-out started, and the sign-out
+   * finishes — the vault copy goes, the legacy copy goes, the row goes
+   * `deleted`. Only a different digest is a key saved after the
+   * interruption, and it is never deleted here: only the stale vault copy
+   * goes, and an apiKey record is then re-seeded with `store`, while an
+   * opaque one stays in SecretStorage with the row `deleted`, which the
    * unlock skips like any signed-out opaque slot. A record that no longer
    * decodes refuses with the codec's own fault and nothing is deleted. With
    * no legacy copy, the legacy remove runs only against the absent copy it
@@ -478,6 +483,15 @@ export class VaultMigration {
         decoded = entry.decode(live)
         await this.removeVaultCopyIfPresent(entry, lease)
         if (decoded.material.kind !== 'apiKey') {
+          const base = { ...row }
+          delete base.previous
+          delete base.retireIntent
+          delete base.retireNote
+          await this.save({ ...base, phase: 'deleted', digest: null }, lease)
+          return
+        }
+        if (row.digest !== null && itemDigest(decoded) === row.digest) {
+          await this.removeLegacy(entry.key, lease)
           const base = { ...row }
           delete base.previous
           delete base.retireIntent
@@ -716,8 +730,10 @@ export class VaultMigration {
    * `conflict` and destroys nothing. Rows already being deleted complete
    * without either: that delete was confirmed when it started. A resumed
    * one never deletes a key saved after the interruption — a live legacy
-   * copy is kept, only the stale vault copy goes — and a vault copy
-   * already gone is not removed again.
+   * copy whose digest differs from the journaled one is kept, only the
+   * stale vault copy goes — while a live copy that still matches the
+   * journaled digest is the original key, and the sign-out finishes by
+   * removing it too. A vault copy already gone is not removed again.
    */
   async delete(
     key: string,
