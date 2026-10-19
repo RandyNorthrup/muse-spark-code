@@ -105,7 +105,6 @@ import {
   FILE_REFUSAL_MODEL_TEXT,
   GOAL_STATUS,
   type GoalCommandVerb,
-  HOOK_MAX_STOP_CONTINUATIONS,
   HOOK_MAX_TASK_REFUSALS,
   HOOK_MODEL_READ_TOOLS,
   HOOK_NOTIFICATION_DELAY_MS,
@@ -156,7 +155,6 @@ import {
   SHELL_DEFAULT_TIMEOUT_MS,
   SKILL_FILE_NAME,
   STORED_SESSION_VERSION,
-  SUBAGENT_CAPACITY,
   SUBAGENT_DEPTH,
   SUBAGENT_ID_PREFIX,
   SUBAGENT_RESULT_READY,
@@ -164,6 +162,8 @@ import {
   SUBAGENT_SUMMARY_MAX_CHARS,
   SUBAGENT_TASK_MAX_REQUESTS,
   SUBAGENT_WAIT_DEFAULT_MS,
+  stopContinuationLimitFor,
+  subagentConcurrencyFor,
   type SubagentAction,
   TEAMMATE_MAX_IDLE_KEEPS,
   THEN_RUN_ARGUMENT,
@@ -792,7 +792,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   /** The configured bound is captured once for the session (D86.1). */
   readonly webSearchMaxPerRequest?: () => number
   /**
-   * Stop-hook continuations in a row (M127, Muse Code's default 8):
+   * Stop-hook continuations in a row (M127, D121: 0 is no limit of ours):
    * `museSpark.hooksMaxStopContinuations`, captured once for the session.
    */
   readonly hookMaxStopContinuations?: () => number
@@ -802,8 +802,9 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    */
   readonly hookMaxRunningCommands?: () => number
   /**
-   * Concurrent subagents (M127, Muse Code's 1–64 range, default 8):
-   * `museSpark.subagentMaxConcurrent`, captured once for the session.
+   * Concurrent subagents (M127, D121: 0 is no limit of ours, a set value in
+   * Muse Code's 1–64 range): `museSpark.subagentMaxConcurrent`, captured
+   * once for the session.
    */
   readonly subagentMaxConcurrent?: () => number
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
@@ -2891,9 +2892,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   private toolSelection:
     { readonly turnId: string; readonly allowed: readonly string[] } | undefined
   /**
-   * Consecutive TaskCreated/TaskCompleted refusals (M91 lane E): past the
-   * stop-continuation limit (M127 setting, Muse Code's default 8) the turn
-   * ends; no refused task is admitted.
+   * Consecutive TaskCreated/TaskCompleted refusals (M91 lane E): past their
+   * own pause bound the turn ends; no refused task is admitted.
    */
   private taskRefusals = 0
   private readonly observedRules = new Set<string>()
@@ -3188,16 +3188,17 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.modelId = modelId
     this.searchMaxPerRequest = deps.webSearchMaxPerRequest?.() ?? WEB_SEARCH_MAX_PER_REQUEST
     // Muse Code's own hook and subagent defaults as settings (M127),
-    // captured once for the session like the search bound above. The Stop
-    // ceiling is unoverrideable: a programmatic getter is never validated
-    // by the settings schema, and machine settings are writable by a
-    // dev-container definition, so the effective bound never passes what
-    // Muse Code itself spends.
-    this.stopContinuationLimit = Math.min(
-      deps.hookMaxStopContinuations?.() ?? HOOK_MAX_STOP_CONTINUATIONS,
-      HOOK_MAX_STOP_CONTINUATIONS,
+    // captured once for the session like the search bound above. D121: 0
+    // is no limit of ours; a set value never passes what Muse Code itself
+    // spends (a programmatic getter is never validated by the settings
+    // schema, and machine settings are writable by a dev-container
+    // definition).
+    this.stopContinuationLimit = stopContinuationLimitFor(
+      deps.hookMaxStopContinuations?.() ?? SETTING_DEFAULTS.hooksMaxStopContinuations,
     )
-    this.subagentConcurrency = deps.subagentMaxConcurrent?.() ?? SUBAGENT_CAPACITY
+    this.subagentConcurrency = subagentConcurrencyFor(
+      deps.subagentMaxConcurrent?.() ?? SETTING_DEFAULTS.subagentMaxConcurrent,
+    )
     this.sessionPermissions = new PermissionEngine(approvalMode)
     this.policies = new PolicyCache(
       deps.permissionSettings ?? (() => NO_PERMISSION_SETTINGS),

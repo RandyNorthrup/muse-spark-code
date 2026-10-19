@@ -1,7 +1,39 @@
 import { describe, expect, it } from 'vitest'
 import manifest from '../../package.json'
-import { QUESTION_DEFER_DEFAULT_SECONDS } from '../../src/shared/constants'
+import type { Logger } from '../../src/host/logger'
+import { readSettings, type SettingsSource } from '../../src/host/settings'
+import {
+  HOOK_MAX_STOP_CONTINUATIONS,
+  QUESTION_DEFER_DEFAULT_SECONDS,
+  SETTING_DEFAULTS,
+  SUBAGENT_CONCURRENT_MAX,
+  stopContinuationLimitFor,
+  subagentConcurrencyFor,
+} from '../../src/shared/constants'
 import { questionDeferSeconds } from '../../src/shared/questionDeadline'
+import { subagentSpawnDescription } from '../../src/core/backends/modelapi/subagentTools'
+
+const properties = manifest.contributes.configuration.properties as Record<
+  string,
+  { default: unknown }
+>
+
+function settingSource(values: Record<string, unknown>): SettingsSource {
+  return {
+    get: (key: string) => values[key],
+  }
+}
+
+function silentLog(warnings: string[]): Logger {
+  return {
+    trace: () => undefined,
+    info: () => undefined,
+    warn: (message: string) => {
+      warnings.push(message)
+    },
+    error: () => undefined,
+  }
+}
 
 // NOLIMITSALL (PLAN.md D121): every limit setting defaults to no limit; the
 // person sets their own. 0 is none, as `hooksMaxRunningCommands = 0` and
@@ -20,5 +52,47 @@ describe('no default limits: questions deferral', () => {
     expect(questionDeferSeconds(0)).toBe(0)
     expect(questionDeferSeconds(60)).toBe(60)
     expect(questionDeferSeconds(5)).toBe(10)
+  })
+})
+
+describe('no default limits: hook continuations and subagent concurrency', () => {
+  it('defaults to no limit of our own', () => {
+    expect(SETTING_DEFAULTS.hooksMaxStopContinuations).toBe(0)
+    expect(SETTING_DEFAULTS.subagentMaxConcurrent).toBe(0)
+    expect(properties['museSpark.hooksMaxStopContinuations'].default).toBe(0)
+    expect(properties['museSpark.subagentMaxConcurrent'].default).toBe(0)
+  })
+
+  it('runs Stop hooks and subagents without a count of ours with nothing set', () => {
+    expect(stopContinuationLimitFor(0)).toBe(Infinity)
+    expect(subagentConcurrencyFor(0)).toBe(Infinity)
+    expect(subagentSpawnDescription(0)).not.toContain('Up to')
+  })
+
+  it('still applies a person-set value within the provider range', () => {
+    const warnings: string[] = []
+    const read = readSettings(
+      settingSource({ hooksMaxStopContinuations: 3, subagentMaxConcurrent: 3 }),
+      silentLog(warnings),
+    )
+    expect(read.hooksMaxStopContinuations).toBe(3)
+    expect(read.subagentMaxConcurrent).toBe(3)
+    expect(warnings).toHaveLength(0)
+    expect(stopContinuationLimitFor(3)).toBe(3)
+    expect(subagentConcurrencyFor(3)).toBe(3)
+    expect(subagentSpawnDescription(3)).toContain('Up to 3 work at once')
+  })
+
+  it('still refuses a person-set value past the provider range', () => {
+    const warnings: string[] = []
+    const read = readSettings(
+      settingSource({ hooksMaxStopContinuations: 1000, subagentMaxConcurrent: 1000 }),
+      silentLog(warnings),
+    )
+    expect(read.hooksMaxStopContinuations).toBe(0)
+    expect(read.subagentMaxConcurrent).toBe(0)
+    expect(warnings).toHaveLength(2)
+    expect(stopContinuationLimitFor(1000)).toBe(HOOK_MAX_STOP_CONTINUATIONS)
+    expect(subagentConcurrencyFor(1000)).toBe(SUBAGENT_CONCURRENT_MAX)
   })
 })
