@@ -3,14 +3,15 @@
 // another process still uses. Native on every OS: the production startup
 // binding (`privateRootFor`) against real roots, and real second processes
 // running the same lease code (bundled by esbuild) as the other windows. The
-// Linux rules also run here against a fake /proc, on every OS.
+// Linux lease rules run on Linux only, against the real /proc entries of
+// real children.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { privateRootFor } from '../../src/host/backend/productionAudioEntry'
 import { identityOf, lstatIdentity } from '../../src/core/fs/fileIdentity'
 import {
@@ -18,7 +19,7 @@ import {
   openPrivateRoot,
   type PrivateRoot,
 } from '../../src/runtime/privateDirectory'
-import type { LeasedRoot, LeaseOptions, LinuxProcess } from '../../src/runtime/privateRootLease'
+import type { LeasedRoot, LeaseOptions } from '../../src/runtime/privateRootLease'
 import { secureOwnerOnly } from '../../src/runtime/tokenFile'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -95,7 +96,7 @@ async function goneLease(root: string, owner: string): Promise<string> {
   const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'])
   if (child.pid === undefined) throw new Error('the child must start')
   const line = await linuxLine(child.pid)
-  await crash(child)
+  await reaped(child)
   await fs.writeFile(file, line)
   return file
 }
@@ -105,6 +106,13 @@ async function crash(child: ChildProcess): Promise<void> {
   const ended = once(child, 'exit')
   child.kill('SIGKILL')
   await ended
+}
+
+/** A crash the kernel has finished reaping: its /proc entry is gone. */
+async function reaped(child: ChildProcess): Promise<void> {
+  const closed = once(child, 'close')
+  await crash(child)
+  await closed
 }
 
 describe('the production startup binding reclaims crash-left copies (RVMEDIAV3 3)', () => {
@@ -144,6 +152,16 @@ const m = require(process.argv[1])
   process.stdout.write(folder + '\n')
   setInterval(() => {}, 1000)
 })().catch(() => process.exit(2))`
+
+/** A restart in a new process: opens and leases the root through the same code, then exits. */
+const RESTART_WINDOW = `
+const m = require(process.argv[1])
+;(async () => {
+  await m.leasePrivateRoot(await m.openPrivateRoot(process.argv[2]))
+})().then(
+  () => process.exit(0),
+  () => process.exit(2),
+)`
 
 describe('other windows in other processes, through the same lease code', () => {
   const bundle = { file: '' }
@@ -188,6 +206,16 @@ describe('other windows in other processes, through the same lease code', () => 
     return { child, folder }
   }
 
+  /** The next process to open the root: a restart, through the same lease code. */
+  async function restartRoot(directory: string): Promise<void> {
+    const child = spawn(process.execPath, ['-e', RESTART_WINDOW, bundle.file, directory], {
+      stdio: ['ignore', 'ignore', 'inherit'],
+    })
+    children.push(child)
+    const [code] = (await once(child, 'close')) as [number | null]
+    if (code !== 0) throw new Error(`the restarted window exited with ${String(code)}`)
+  }
+
   it('keeps a live window’s copy, and reclaims it once that window crashed', async () => {
     const directory = path.join(await area(), 'media')
     await openPrivateRoot(directory)
@@ -200,10 +228,7 @@ describe('other windows in other processes, through the same lease code', () => 
     }).toEqual({ live: true, crashed: false })
     const mine = await createPrivateDirectory(root)
     await crash(live.child)
-    // The next process to open the root: a restart, through the same binding.
-    vi.resetModules()
-    const restarted = await import('../../src/host/backend/productionAudioEntry')
-    held(await restarted.privateRootFor(directory)())
+    await restartRoot(directory)
     expect({ live: await isPresent(live.folder), mine: await isPresent(mine) }).toEqual({
       live: false,
       mine: true,
@@ -211,18 +236,18 @@ describe('other windows in other processes, through the same lease code', () => 
   })
 })
 
-async function fakeRoot(owner = token('a')): Promise<PrivateRoot> {
+async function testRoot(owner = token('a')): Promise<PrivateRoot> {
   const directory = path.join(await area(), 'media')
   await fs.mkdir(directory)
   return { path: directory, identity: identityOf(await lstatIdentity(directory)), owner }
 }
 
-/** A fake root holding one other owner's folder, whose lease reads `text`. */
-async function goneOwnerRoot(text: string): Promise<{ fake: PrivateRoot; folder: string }> {
-  const fake = await fakeRoot()
-  const folder = await crashLeft(fake.path, token('b'))
-  await fs.writeFile(path.join(fake.path, `${PREFIX}${token('b')}.lease`), text)
-  return { fake, folder }
+/** A root holding one other owner's folder, whose lease reads `text`. */
+async function goneOwnerRoot(text: string): Promise<{ root: PrivateRoot; folder: string }> {
+  const root = await testRoot()
+  const folder = await crashLeft(root.path, token('b'))
+  await fs.writeFile(path.join(root.path, `${PREFIX}${token('b')}.lease`), text)
+  return { root, folder }
 }
 
 /** The lease itself, loaded when used: this file's other cases need only the startup binding. */
@@ -231,114 +256,99 @@ async function lease(root: PrivateRoot, options: LeaseOptions): Promise<LeasedRo
   return held(await leasePrivateRoot(root, options))
 }
 
-// The fake /proc: this machine, this boot, this namespace, and the PIDs alive in it.
-const MACHINE = 'f'.repeat(32)
-const BOOT = '11111111-2222-3333-4444-555555555555'
-const NAMESPACE = 'pid:[4026531836]'
-
-/** A /proc/<pid>/stat line whose command holds a space and a parenthesis. */
-function stat(pid: string, start: string): string {
-  const fields = ['S', ...Array.from({ length: START_FIELD - 1 }, () => '0'), start, '0']
-  return `${pid} (we (ird) node) ${fields.join(' ')}\n`
+/** A sleeper the lease can read in the real /proc, reaped by `afterEach`. */
+function sleeper(): { child: ChildProcess; pid: number } {
+  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
+    stdio: ['ignore', 'ignore', 'ignore'],
+  })
+  if (child.pid === undefined) throw new Error('the child must start')
+  children.push(child)
+  return { child, pid: child.pid }
 }
 
-function fakeLinux(alive: Record<string, string>, failing?: string): LinuxProcess {
-  return {
-    read: async (file) => {
-      if (file === failing) throw Object.assign(new Error('EACCES'), { code: 'EACCES' })
-      if (file === '/etc/machine-id') return `${MACHINE}\n`
-      if (file === '/proc/sys/kernel/random/boot_id') return `${BOOT}\n`
-      const pid = /^\/proc\/(\d+)\/stat$/u.exec(file)?.[1]
-      if (pid === undefined) return await fs.readFile(file, 'utf8')
-      const start = alive[pid]
-      if (start === undefined) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
-      return stat(pid, start)
-    },
-    link: (file) =>
-      file === failing ? Promise.reject(new Error('EACCES')) : Promise.resolve(NAMESPACE),
-  }
+/** This machine, this boot and this namespace, as a lease line names them. */
+function scopeOf(line: string): [string, string, string] {
+  const [machine, boot, namespace] = line.split(' ', 3)
+  if (machine === undefined || boot === undefined || namespace === undefined)
+    throw new Error('a lease line names machine, boot and namespace')
+  return [machine, boot, namespace]
 }
 
-function line(pid: string, start: string, scope = [MACHINE, BOOT, NAMESPACE]): string {
-  return `${scope.join(' ')} ${pid} ${start}`
+/** The start tick a lease line names: the text past its last space. */
+function startOf(line: string): string {
+  return line.slice(line.lastIndexOf(' ') + 1)
 }
 
-describe('the lease rules on a fake root', () => {
-  it('on Linux, reclaims only owners proven gone and writes its own identity', async () => {
-    const self = String(process.pid)
-    const fake = await fakeRoot()
+describe.runIf(process.platform === 'linux')('the lease rules on Linux, on the real /proc', () => {
+  it('reclaims only owners proven gone and writes its own identity', async () => {
+    const root = await testRoot()
+    const { pid: firstPid } = sleeper()
+    // Start ticks count 10 ms: sibling spawns can share one, so separate the
+    // pair by enough wall time that their ticks must differ.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    const { pid: secondPid } = sleeper()
+    const gone = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
+      stdio: ['ignore', 'ignore', 'ignore'],
+    })
+    if (gone.pid === undefined) throw new Error('the child must start')
+    const goneLine = await linuxLine(gone.pid)
+    await reaped(gone)
+    // A reused PID under this parent: a live PID paired with another live
+    // process's start tick. Both numbers are real /proc readings; only the
+    // pairing simulates what a rebooted PID looks like.
+    const firstLine = await linuxLine(firstPid)
+    const secondLine = await linuxLine(secondPid)
+    // The test's premise: two live processes with different start ticks.
+    expect(startOf(firstLine)).not.toBe(startOf(secondLine))
+    const [machine, boot, namespace] = scopeOf(secondLine)
     const owners = {
-      exited: line('40', '100'),
-      reused: line('41', '400'),
-      earlierBoot: line('41', '500', [MACHINE, '99999999-2222-3333-4444-555555555555', NAMESPACE]),
-      live: line('42', '900'),
-      otherMachine: line('40', '100', ['e'.repeat(32), BOOT, NAMESPACE]),
-      otherNamespace: line('40', '100', [MACHINE, BOOT, 'pid:[4026532000]']),
-      garbled: `${line('40', '100')} trailing`,
+      exited: goneLine,
+      reused: `${machine} ${boot} ${namespace} ${String(firstPid)} ${startOf(secondLine)}`,
+      live: secondLine,
+      garbled: `${firstLine} trailing`,
     }
     const folders: Record<string, string> = {}
     for (const [index, [name, value]] of Object.entries(owners).entries()) {
       const owner = token(String(index))
-      folders[name] = await crashLeft(fake.path, owner)
-      await fs.writeFile(path.join(fake.path, `${PREFIX}${owner}.lease`), value)
+      folders[name] = await crashLeft(root.path, owner)
+      await fs.writeFile(path.join(root.path, `${PREFIX}${owner}.lease`), value)
     }
-    await lease(fake, {
-      platform: 'linux',
-      linux: fakeLinux({ [self]: '700', '41': '500', '42': '900' }),
-    })
+    const { leasePrivateRoot } = await import('../../src/runtime/privateRootLease')
+    held(await leasePrivateRoot(root))
     const kept = Object.fromEntries(
       await Promise.all(
         Object.entries(folders).map(async ([name, folder]) => [name, await isPresent(folder)]),
       ),
     )
-    expect(kept).toEqual({
-      exited: false,
-      reused: false,
-      earlierBoot: false,
-      live: true,
-      otherMachine: true,
-      otherNamespace: true,
-      garbled: true,
-    })
-    expect(await fs.readFile(path.join(fake.path, `${PREFIX}${fake.owner}.lease`), 'utf8')).toBe(
-      line(self, '700'),
+    expect(kept).toEqual({ exited: false, reused: false, live: true, garbled: true })
+    expect(await fs.readFile(path.join(root.path, `${PREFIX}${root.owner}.lease`), 'utf8')).toBe(
+      await linuxLine(process.pid),
     )
   })
+})
 
-  it.each(['/etc/machine-id', '/proc/sys/kernel/random/boot_id', '/proc/self/ns/pid'])(
-    'on Linux, takes no lease and removes nothing when %s cannot be read',
-    async (failing) => {
-      const { fake, folder } = await goneOwnerRoot(line('40', '100'))
-      await lease(fake, {
-        platform: 'linux',
-        linux: fakeLinux({ [String(process.pid)]: '700' }, failing),
-      })
-      expect(await isPresent(folder)).toBe(true)
-      expect(await isPresent(path.join(fake.path, `${PREFIX}${fake.owner}.lease`))).toBe(false)
-    },
-  )
-
+describe('the lease rules where no process table names the owner', () => {
   // Where the flag is not a lock (it is O_EXLOCK only on macOS), this
   // process's own lease reads as free: then no probe proves anything.
   it.skipIf(process.platform === 'darwin')(
     'turns its sweep off where the lock does not hold against its own lease',
     async () => {
-      const { fake, folder } = await goneOwnerRoot('')
+      const { root, folder } = await goneOwnerRoot('')
       // The gone owner's folder stays, and the unlocked lease is dropped:
       // the root's folders carry a token no lease names (RVMEDIAV4 1).
-      const leased = await lease(fake, { platform: 'darwin' })
+      const leased = await lease(root, { platform: 'darwin' })
       expect(leased.lease).toBeUndefined()
       expect(await isPresent(folder)).toBe(true)
-      expect(leased.owner).not.toBe(fake.owner)
-      expect(await fs.readdir(fake.path)).toHaveLength(2)
+      expect(leased.owner).not.toBe(root.owner)
+      expect(await fs.readdir(root.path)).toHaveLength(2)
     },
   )
 
   it('takes no lease and removes nothing on a platform with neither a lock nor /proc', async () => {
-    const { fake, folder } = await goneOwnerRoot('')
-    const leased = await lease(fake, { platform: 'aix' })
+    const { root, folder } = await goneOwnerRoot('')
+    const leased = await lease(root, { platform: 'aix' })
     expect(leased.lease).toBeUndefined()
     expect(await isPresent(folder)).toBe(true)
-    expect(await fs.readdir(fake.path)).toHaveLength(2)
+    expect(await fs.readdir(root.path)).toHaveLength(2)
   })
 })
