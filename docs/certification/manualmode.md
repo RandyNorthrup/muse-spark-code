@@ -534,3 +534,83 @@ quarantine, send/steer/admission repeat the cause),
 `permissionRestoreRefused`; `permissionReviewerTorn` removed),
 `test/unit/approvalModesFailurePaths.test.ts` (new),
 `CHANGELOG.md`, PLAN.md D123.
+
+## 2026-10-19 — Grok's fourth re-review corrections (lane PR251FIX5)
+
+GRV251F confirms the restore hole closed and finds three things left, each
+fixed at its cause below. Earlier sections stand except where this one
+corrects them: the quarantine sentence now survives the rollback's own mode
+notice; tears on Plan and Bypass no longer claim a reviewer; and the proof
+replays recorded frames through the real session instead of hand-written
+objects.
+
+Wire facts established live in this run (pinned 1.4.7
+`/home/randy/lanes/_rig/muse-pinned/1.4.7-R6101.1/muse-bin`,
+`serve --provider echo`, zero model calls, 2026-10-19,
+`node temp/capture-approval-modes.mjs`, committed as
+`test/fixtures/m106/msp-1.4.7-approval-modes.json`, 22 frames, 8 requests):
+
+- An accepted `session/setApprovalMode` answers
+  `{applyOutcome, commandId, effectiveMode: {mode, source, lastCommandId},
+status}`: the ack echoes its `commandId` and names the mode the host runs
+  (`promptUnmatched`, `denyUnmatched`, `onRequest` each recorded).
+  `session/start` omits the echo, as the SDK's surface contract records.
+- Here the `session/approvalModeChanged` broadcast arrives just ahead of its
+  ack; the u16 trace has it the other way round (result, then the notice 5 ms
+  later). Both interleavings are real: the test below replays the late one.
+- An unknown mode is refused `invalidParams` (code -32602,
+  `Invalid params: session/setApprovalMode params`); the profile step without
+  `experimentalApi` is refused `experimentalRequired` (code -32601,
+  `session/setPermissionProfile requires experimentalApi capability`).
+
+1. A torn rollback's next send repeats the quarantine's own sentence
+   (`src/core/schedules/sessionOwner.ts`, `observeMode`). The notice names
+   the mode the quarantine already recorded (the rollback restored it), so
+   the sentence stays; only a genuinely different mode drops it, and the
+   later refusal then falls back to the generic words.
+2. A tear in Plan or Bypass says what is true for that mode
+   (`src/core/backends/musecode/approvalModesEntry.ts`,
+   `tornUnconfirmedWords`, `permissionModeTornUnconfirmed`): the acknowledged
+   mode is in effect but the adoption could not be confirmed. Those modes
+   install no reviewer (`mspPermissionProfile` is `undefined`), so no tear
+   there claims one failed. Manual, Edit automatically and Auto keep the
+   reviewer wording, where a profile is real.
+3. The proof replays the capture through the real `MuseCodeHost`/`MuseSession`
+   over the real SDK `Connection` (`test/unit/approvalModesFailurePaths.test.ts`,
+   rewritten): the recorded acks answer the session's own commands, the
+   recorded refusals fail its profile step, the recorded broadcast arrives
+   through the real dispatch path, and the test asserts the sentence the next
+   `sendTurn` throws. Only the per-connection nonces (JSON-RPC id, the ack's
+   `commandId` echo) are substituted; the tear is the host's own turn
+   tracking for a started turn. A refused schedule restore is not replayed:
+   restoring needs a schedule admission whose grant context would be invented
+   data, and the re-review confirms that hole closed. Fail-before in a scratch
+   clone of the pre-fix tree (9e7fa1d47a, new test and fixture checked out,
+   since removed): the torn-rollback notice test gets the generic
+   reviewer-missing sentence instead of the quarantine's, and the Plan test
+   gets the reviewer sentence instead of the unconfirmed one (3 passed, 2
+   failed); green after: 5 passed with the repository's own timeout.
+
+Activation (`test/unit/modelsActivationBudget.test.ts`, repo timeout, rig
+`linuxlt`): before baseline=561352 current=565482 growth=4130, after
+baseline=561352 current=565497 growth=4145 (+15 bytes for the owner's
+same-mode keep; the entry stays in `dist/approvalModes.js`). The branch was
+already over the 3 KiB budget before this lane; the release is making room
+elsewhere — nothing raised or weakened to get here.
+
+UNVERIFIED until real use (lead drills, VS Code, Manual, Muse Code ≥
+1.4.7): the Modes menu agreeing with the host when the rollback's notice
+arrives after a torn rollback (the menu must keep showing the previous mode
+with the quarantine sentence, and setting the mode again must recover), a
+tear on Plan or Bypass arriving as the unconfirmed sentence on both
+surfaces, and the standing model-driven drill above. A quarantined session's
+refused turn must arrive as the quarantine's own sentence in the panel.
+
+Files: `src/core/backends/musecode/approvalModesEntry.ts`
+(`tornUnconfirmedWords`, both torn builders),
+`src/core/schedules/sessionOwner.ts` (`observeMode` keeps the recorded
+mode's sentence), `src/shared/l10n/en.ts` + all 14 `l10n/ui.*.json`
+(`permissionModeTornUnconfirmed`),
+`test/fixtures/m106/msp-1.4.7-approval-modes.json` (new capture),
+`test/unit/approvalModesFailurePaths.test.ts` (rewritten on saved wire),
+`CHANGELOG.md`, PLAN.md D123.
