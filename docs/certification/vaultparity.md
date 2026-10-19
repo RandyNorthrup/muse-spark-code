@@ -223,3 +223,18 @@ hidden first-party rows, missing vault copies re-copied on unlock), with
 regression tests driving the real controller and the real VaultStore.
 Full record, tests and gates: `docs/certification/msm109.md`
 §VAULTMIGFIX. No parity-surface change.
+
+## Lane VAULTMIGFIX2 note (2026-10-19, appended by the VAULTMIGFIX2 lane)
+
+Grok's re-review of the VAULTMIGFIX key-store migration found it not
+mergeable: an interrupted sign-out deleted a key saved afterwards, and saving
+an oauth, subscription or account record stuck that secret in the vault with
+a `copying` row the unlock skipped forever. This lane fixes each at its cause
+on branch `ms/msm109-open-fix2` (resumed `deleting` rows keep a live legacy
+copy and re-seed apiKey records; `mirrorWrite` shares the unlock's apiKey
+check; stranded non-apiKey copies roll back on unlock; the shell test binds
+the real controller), with regression tests driving the real controller and
+the real VaultStore. Full record, tests and gates: `docs/certification/msm109.md`
+§VAULTMIGFIX2. No parity-surface change. The store suite could not run in this
+sandbox (`/bin/ps: Operation not permitted` stops `VaultStore.create` in
+`beforeEach`, like `writerCrashPosix`); the lead runs it outside.
