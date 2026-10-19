@@ -1,9 +1,9 @@
 // One M75 task's folders (PLAN.md D49): a fresh folder under the system's
 // temporary folder per task and arm, holding the workspace (the fixture
 // files, nothing else) and, beside it, the verifier the model never sees.
-// The verifier runs as its own Node process with an empty environment, so
-// nothing from the run's environment (the Model API key above all) reaches
-// the code the model wrote.
+// The verifier runs as its own Node process with none of the run's
+// environment (the Model API key above all), so nothing from it reaches the
+// code the model wrote; the guard's own safety variables still apply.
 
 import { realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, readdir, realpath, rm, writeFile } from 'node:fs/promises'
@@ -124,9 +124,12 @@ export async function runEvalVerifier(
     execFileGuarded(
       process.execPath,
       [script, folders.workspace],
-      // An empty environment. On Windows, libuv adds back only what a
-      // process needs to start (PATH, SYSTEMROOT, TEMP, the profile's
-      // folders), never a variable of the run's own.
+      // No variable of the run's own. On Windows, libuv adds back only
+      // what a process needs to start (PATH, SYSTEMROOT, TEMP, the
+      // profile's folders), and the guard sets its own
+      // `NoDefaultCurrentDirectoryInExePath` (the verifier runs
+      // model-written files, so its own bare-name lookups skip its
+      // working directory too).
       {
         cwd: folder,
         env: noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
