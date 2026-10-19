@@ -271,3 +271,19 @@ red on the lane base, green after). Full record, tests and gates:
 `docs/certification/msm109.md` §VAULTMIGFIX4. Parity-surface change: a
 sign-out the locked vault cannot complete now fails loudly instead of
 resolving half-finished.
+
+## Lane VAULTMIGFIX5 note (2026-10-19, appended by the VAULTMIGFIX5 lane)
+
+Grok's fourth security review (GRVVAULTMIG4) confirms every earlier finding
+fixed and still holding, and finds one blocking path, fixed here at its
+cause on branch `ms/msm109-open-fix5`: a sign-out that journals `deleting`
+then fails its vault remove no longer restores the key on retry or on
+unlock. The engine compares the live SecretStorage record against the
+journaled digest — the same digest is the original key, so the sign-out
+finishes (both copies removed); only a different digest is a newer save
+worth keeping. Proven by a new test driving the real shell, the real
+controller, persisted SecretStorage files and the real VaultStore (red on
+the lane base, green after). Full record, tests and gates:
+`docs/certification/msm109.md` §VAULTMIGFIX5. Parity-surface change: a
+retried or unlock-healed sign-out now removes the key it was asked to
+remove, instead of resolving with both copies still present.
