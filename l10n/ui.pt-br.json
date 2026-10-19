@@ -3494,6 +3494,8 @@
   "effortNotApplied": "Não foi possível aplicar o esforço de raciocínio",
   "permissionModeNotApplied": "Não foi possível aplicar o modo de permissão",
   "permissionModeChangeFailed": "Não foi possível alterar o modo de permissão",
+  "permissionReviewerNotInstalled": "O modo de permissão foi aplicado, mas seu revisor não pôde ser instalado ({reason}). Novos turnos são recusados até que o modo seja definido novamente.",
+  "permissionReviewerMissing": "Novos turnos são recusados: o revisor de permissões não pôde ser instalado. Defina o modo de permissão novamente para continuar.",
   "hostActionFailed": "{action} falhou",
   "backendListenerFailed": "Um ouvinte de eventos do backend falhou. A operação continuou; consulte o log para obter detalhes.",
   "contributorResumeFallbackTo": "A conversa retomada estava em um modelo do nível colaborador; agora ela usa {model}.",

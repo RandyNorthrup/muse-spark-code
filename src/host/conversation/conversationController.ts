@@ -48,6 +48,7 @@ import {
   isDecisionNotAppliedError,
   isGoalRefusedError,
   isMuseCodeFaultError,
+  isPermissionReviewerError,
   isPromptSettledError,
   isSessionNotLoadedError,
   isSteerRefusedError,
@@ -4229,9 +4230,13 @@ export class ConversationController {
         approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
       )
     } catch (error: unknown) {
+      // The reviewer error means the mode took: the composer already shows
+      // the mode the host runs, and its own sentence is the true one.
       this.notice(
         'warning',
-        `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
+        isPermissionReviewerError(error)
+          ? describe(error)
+          : `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
         undefined,
         error,
       )
@@ -4875,9 +4880,13 @@ export class ConversationController {
       await loaded.session.setApprovalMode(target)
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
+        // The reviewer error means the mode took: the composer already shows
+        // the mode the host runs, and its own sentence is the true one.
         this.notice(
           'warning',
-          `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
+          isPermissionReviewerError(error)
+            ? describe(error)
+            : `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
           undefined,
           error,
         )
@@ -8457,14 +8466,22 @@ export class ConversationController {
           this.retireBypassSession()
           return
         }
-        this.permissionMode = previous
-        this.restorePlanTurns(leftPlanTurns)
-        this.notice(
-          'error',
-          `${UI_TEXT.permissionModeChangeFailed}: ${describe(error)}`,
-          undefined,
-          error,
-        )
+        // The reviewer error means the host runs the chosen mode with its
+        // old reviewer: the menu keeps the choice so the two agree, and the
+        // error's own sentence (quarantined, set the mode again) is the one
+        // shown. Any other throw means the mode did not change.
+        if (isPermissionReviewerError(error)) {
+          this.notice('error', describe(error), undefined, error)
+        } else {
+          this.permissionMode = previous
+          this.restorePlanTurns(leftPlanTurns)
+          this.notice(
+            'error',
+            `${UI_TEXT.permissionModeChangeFailed}: ${describe(error)}`,
+            undefined,
+            error,
+          )
+        }
       }
     }
     if (isCurrent()) {

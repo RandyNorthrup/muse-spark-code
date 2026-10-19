@@ -4079,6 +4079,11 @@ export const EN = {
   effortNotApplied: 'Reasoning effort could not be applied',
   permissionModeNotApplied: 'Could not apply the permission mode',
   permissionModeChangeFailed: 'Could not change the permission mode',
+  // {reason}: the reviewer's own refusal, such as a managed exclusion.
+  permissionReviewerNotInstalled:
+    'The permission mode was applied, but its reviewer could not be installed ({reason}). New turns are refused until the mode is set again.',
+  permissionReviewerMissing:
+    'New turns are refused: the permission reviewer could not be installed. Set the permission mode again to recover.',
   // {action}: the panel's id for a host command, such as `openSettings`.
   hostActionFailed: '{action} failed',
   backendListenerFailed:

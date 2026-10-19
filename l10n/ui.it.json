@@ -3494,6 +3494,8 @@
   "effortNotApplied": "Non è stato possibile applicare l’impegno di ragionamento",
   "permissionModeNotApplied": "Non è stato possibile applicare la modalità di autorizzazione",
   "permissionModeChangeFailed": "Non è stato possibile cambiare la modalità di autorizzazione",
+  "permissionReviewerNotInstalled": "La modalità di autorizzazione è stata applicata, ma il suo revisore non ha potuto essere installato ({reason}). I nuovi turni sono rifiutati finché la modalità non viene impostata di nuovo.",
+  "permissionReviewerMissing": "I nuovi turni sono rifiutati: il revisore delle autorizzazioni non ha potuto essere installato. Imposta di nuovo la modalità di autorizzazione per continuare.",
   "hostActionFailed": "{action} non riuscito",
   "backendListenerFailed": "Un gestore degli eventi del backend ha riscontrato un errore. L’operazione è proseguita; consulta il registro per i dettagli.",
   "contributorResumeFallbackTo": "La conversazione ripresa usava un modello di livello contributore; ora usa {model}.",

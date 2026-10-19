@@ -3348,6 +3348,8 @@
   "effortNotApplied": "推論レベルを適用できませんでした",
   "permissionModeNotApplied": "権限モードを適用できませんでした",
   "permissionModeChangeFailed": "権限モードを変更できませんでした",
+  "permissionReviewerNotInstalled": "権限モードは適用されましたが、そのレビュー担当をインストールできませんでした ({reason})。モードを再度設定するまで、新しいターンは拒否されます。",
+  "permissionReviewerMissing": "新しいターンは拒否されます: 権限のレビュー担当をインストールできませんでした。続行するには、権限モードを再度設定してください。",
   "hostActionFailed": "{action} が失敗しました",
   "backendListenerFailed": "バックエンドのイベントリスナーでエラーが発生しました。処理は続行されました。詳細はログをご確認ください。",
   "contributorResumeFallbackTo": "再開した会話はコントリビューター ティアのモデルを使用していました。現在は {model} を使用しています。",

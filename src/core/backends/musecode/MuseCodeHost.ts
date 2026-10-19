@@ -102,8 +102,10 @@ import {
   type WithdrawOutcome,
   DecisionNotAppliedError,
   GoalRefusedError,
+  isPermissionReviewerError,
   isPromptSettledError,
   MuseCodeFaultError,
+  PermissionReviewerError,
   PromptSettledError,
   type PromptSettledReason,
   SessionNotLoadedError,
@@ -409,6 +411,11 @@ function taskRefusalOr(error: unknown): unknown {
     error.data['reason'] === INVALID_TARGET
     ? new Error(UI_TEXT.taskNotRunning)
     : error
+}
+
+/** A refusal in the user's words: the message it carries, never its frame. */
+function refusalReason(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 // `item/readOutput` encodings: text media is always utf8, binary media base64.
@@ -1065,6 +1072,7 @@ export class MuseSession implements ScheduledAgentSession {
     expectedTurnId?: string,
   ): Promise<TurnSubmission> {
     await this.restoringScheduleMode
+    if (this.owner.quarantined) throw new Error(UI_TEXT.permissionReviewerMissing)
     const token = this.owner.claim(waiter, run, expectedTurnId)
     if (token === undefined) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
     this.heldScheduleEvents = []
@@ -1103,20 +1111,35 @@ export class MuseSession implements ScheduledAgentSession {
 
   private restoreScheduleMode(effect: SessionEffect | undefined): void {
     if (effect === undefined) return
-    this.restoringScheduleMode = this.restoreScheduleEffect(effect)
-    void this.restoringScheduleMode.catch(() => {
-      this.log.warn('Scheduled mode or reviewer could not be restored; new turns are refused')
-    })
+    // The gate resolves once the outcome is recorded: a failed restore must
+    // not reject every later turn and mode change on the handle.
+    this.restoringScheduleMode = (async () => {
+      try {
+        await this.restoreScheduleEffect(effect)
+      } catch (error: unknown) {
+        this.log.warn(
+          `Scheduled mode or reviewer could not be restored (${failureForLog(error)}); new turns are refused until the permission mode is set again`,
+        )
+      }
+    })()
   }
 
   /**
    * Put a finished schedule's mode back, then the conversation's reviewer
    * with it, in the same place as the mode change: a Manual conversation
-   * resumes asking the person instead of keeping the admission's judge.
+   * resumes asking the person instead of keeping the admission's judge. The
+   * two go back as one unit: when the reviewer cannot be put back, the
+   * session is quarantined rather than left running the conversation's mode
+   * with the admission's reviewer.
    */
   private async restoreScheduleEffect(effect: SessionEffect): Promise<void> {
     await this.applyModeEffect(effect)
-    await this.setPermissionProfile(mspPermissionProfile(effect.mode), effect.mode)
+    try {
+      await this.setPermissionProfile(mspPermissionProfile(effect.mode), effect.mode)
+    } catch (error: unknown) {
+      this.owner.quarantine()
+      throw error
+    }
   }
 
   private stopScheduledRun(run: UnattendedRun): void {
@@ -1349,8 +1372,21 @@ export class MuseSession implements ScheduledAgentSession {
           `Muse Code runs approval mode ${wireWordForLog(effective)} instead of the requested ${effect.mode}`,
         )
       }
-      if (!this.owner.modeApplied(effect, true)) throw new Error(UI_TEXT.scheduleBusy)
+      if (!this.owner.modeApplied(effect, true)) {
+        // The ack arrived but a turn ended while it was in flight, so the
+        // adoption tore: the host runs the mode (the effective one when it
+        // says so) with a reviewer that was never confirmed. Quarantine
+        // rather than leave turns running on it, and name the mode the host
+        // runs so the surface shows it.
+        const appliedMode = effective ?? effect.mode
+        this.owner.quarantine()
+        throw new PermissionReviewerError(
+          fill(UI_TEXT.permissionReviewerNotInstalled, { reason: UI_TEXT.scheduleBusy }),
+          appliedMode,
+        )
+      }
     } catch (error: unknown) {
+      if (isPermissionReviewerError(error)) throw error
       this.owner.modeApplied(effect, false)
       throw ceilingOr(error)
     }
@@ -1664,6 +1700,7 @@ export class MuseSession implements ScheduledAgentSession {
   ): Promise<TurnSubmission> {
     const token = this.owner.token()
     await this.restoringScheduleMode
+    if (this.owner.quarantined) throw new Error(UI_TEXT.permissionReviewerMissing)
     if (scheduledOwner !== undefined) await scheduledOwner.checkParts(parts)
     if (!this.owner.start(token, scheduledOwner)) throw new Error(UI_TEXT.scheduleBusy)
     let ack: unknown
@@ -1694,6 +1731,7 @@ export class MuseSession implements ScheduledAgentSession {
     parts: readonly TurnPart[],
     scheduledOwner?: UnattendedRun,
   ): Promise<TurnSubmission> {
+    if (this.owner.quarantined) throw new SteerRefusedError(UI_TEXT.permissionReviewerMissing)
     const token = this.owner.token()
     const run = scheduledOwner ?? this.getScheduledRun(expectedTurnId)
     if (run !== undefined) await run.checkParts(parts)
@@ -1777,8 +1815,15 @@ export class MuseSession implements ScheduledAgentSession {
    * session's reviewer on the mode's (see `syncPermissionProfile`). The mode
    * changes first; when the profile step then fails with anything but
    * `methodNotFound`, the previous mode is put back before the throw, so the
-   * callers' "the mode did not change" stays true and Manual can never be
-   * left running with the judge installed.
+   * callers' "the mode did not change" stays true. When no previous mode is
+   * known (the first change after a resume, fork or load whose envelope did
+   * not serve one) or the rollback itself fails, the session is quarantined
+   * and a `PermissionReviewerError` names the wire mode the host runs, so
+   * the surface shows that mode: Manual is never left running with the judge
+   * installed, and the menu always agrees with the host. A turn that ends
+   * while the mode command is in flight tears its adoption the same way
+   * (the ack arrived, so the host runs the mode with an unconfirmed
+   * reviewer): that quarantines too, with the effective mode it served.
    */
   public async setApprovalMode(mode: string): Promise<void> {
     const token = this.owner.token()
@@ -1788,14 +1833,34 @@ export class MuseSession implements ScheduledAgentSession {
     try {
       await this.syncPermissionProfile(mode)
     } catch (error: unknown) {
-      if (previousMode !== mode && previousMode !== undefined) {
+      if (previousMode !== undefined && previousMode !== mode) {
         try {
-          await this.changeApprovalMode(previousMode, token)
+          // A foreground turn that ended during the profile call retires the
+          // captured token, so the rollback mints a fresh one: rolling back
+          // with the captured token would miss and report success-by-throw.
+          await this.changeApprovalMode(previousMode, this.owner.token())
         } catch (rollbackError: unknown) {
+          // A torn rollback adoption already quarantined with the true host
+          // mode (the previous one): keep it, so the menu agrees with the
+          // host. Any other rollback failure leaves the new mode running.
+          if (isPermissionReviewerError(rollbackError)) throw rollbackError
+          this.owner.quarantine()
           this.log.warn(
-            `Approval mode ${wireWordForLog(mode)} lost its permission profile (${failureForLog(error)}), and the previous mode is not restored (${failureForLog(rollbackError)})`,
+            `Approval mode ${wireWordForLog(mode)} lost its permission profile (${failureForLog(error)}), and the previous mode is not restored (${failureForLog(rollbackError)}); new turns are refused`,
+          )
+          throw new PermissionReviewerError(
+            fill(UI_TEXT.permissionReviewerNotInstalled, { reason: refusalReason(error) }),
+            mode,
+            { cause: rollbackError },
           )
         }
+      } else {
+        this.owner.quarantine()
+        throw new PermissionReviewerError(
+          fill(UI_TEXT.permissionReviewerNotInstalled, { reason: refusalReason(error) }),
+          mode,
+          { cause: error },
+        )
       }
       throw error
     }
@@ -2406,7 +2471,9 @@ export class MuseCodeHost implements AgentHost {
 
   private loaded(envelope: SessionEnvelope, modelId: string): LoadedSession {
     return {
-      session: this.track(envelope.session, modelId),
+      // The envelope serves the mode the host runs: the handle starts
+      // knowing it, so the first mode change rolls back like a live one.
+      session: this.track(envelope.session, modelId, false, envelope.session.approvalMode?.mode),
       record: envelope.session,
       history: historyOutcome(envelope),
       activeTurnId: envelope.session.activeTurnId ?? undefined,

@@ -3567,6 +3567,8 @@
   "effortNotApplied": "Úsilí uvažování se nepodařilo použít",
   "permissionModeNotApplied": "Režim oprávnění se nepodařilo použít",
   "permissionModeChangeFailed": "Režim oprávnění se nepodařilo změnit",
+  "permissionReviewerNotInstalled": "Režim oprávnění byl použit, ale jeho kontrolor nemohl být nainstalován ({reason}). Nové tahy jsou odmítnuty, dokud nebude režim oprávnění znovu nastaven.",
+  "permissionReviewerMissing": "Nové tahy jsou odmítnuty: kontrolor oprávnění nemohl být nainstalován. Chcete-li pokračovat, nastavte znovu režim oprávnění.",
   "hostActionFailed": "Akce {action} selhala",
   "backendListenerFailed": "Obsluha události backendu selhala. Operace pokračovala; podrobnosti najdete v protokolu.",
   "contributorResumeFallbackTo": "Obnovená konverzace používala model přispěvatelské úrovně; nyní používá {model}.",
