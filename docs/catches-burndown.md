@@ -1,9 +1,9 @@
 # Catch burn-down list (D119)
 
 Every site the corrected catch classifier accepts lives in
-`scripts/catch-baseline.json` (1,347 identities after PR161FIN: 1,163 from
-the original reader plus the corrected reader's pre-existing finds, minus
-the sites PR161FIN fixed). New sites still fail `npm run check:catches`.
+`scripts/catch-baseline.json` (1,555 identities after the 0.19.0
+runtime/panel/exec burn-down: the corrected reader's finds, minus the
+sites the lane fixed). New sites still fail `npm run check:catches`.
 Fix an area by fixing its handlers (the failure reaches the person in
 words or the caller as an error with its cause), proving the test fires,
 then regenerating the lowered baseline with
@@ -360,10 +360,119 @@ fail-closed words proven by a real-failure test unless noted):
   `throwIfAborted`.
 - `src/host/web/webFetchBundle.ts` (1): a bundle-loader failure answers
   `unavailable()`; the loader logged the file and the cause.
+- `src/runtime/panel/git/service.ts` spawn-time and held-parent checks
+  (2 SWALLOW): fail-closed denies; any unreadable bound root refuses as
+  `changed`. Proved on a real repository (`nativeGitService.test.ts`
+  binding cases); the catch bodies run only in the check-to-spawn race.
+- `src/runtime/panel/git/adapter.ts` form, push, operation and draft
+  catches (6 GENERIC + 1 SWALLOW): every failure reaches the person
+  (refusals in the panel's fixed words, git's own words redacted first)
+  and every form comes back answered; rethrowing would drop the notice
+  or strand the form. Proved on real repositories
+  (`nativeGitAdapter.test.ts`: swept-root notices, the failed push's
+  terminal offer, revoked trust, the failed generation).
+- `src/runtime/panel/pullRequests/checkout.ts` batch stream funnel
+  (2 GENERIC): a dead child, a bad answer or Cancel rejects the batch
+  through one funnel; anything else would strand the checkout.
+  Proved with real children (`nativeCheckout.test.ts`: no stdout,
+  unclean exit, Cancel).
+- `src/runtime/panel/pullRequests/checkout.ts` probes (2 GENERIC +
+  1 SWALLOW for `isPresent`/`isMadeFolder`/`folderIdentityOf`): an
+  unreadable folder reads as absent, never as verified; the removal
+  that never throws depends on it. Proved by the removal tests' kept
+  folders (`nativeCheckout.test.ts`).
+- `src/runtime/panel/pullRequests/checkout.ts` never-throws cleanup
+  (2 GENERIC): a rename or removal that fails is put back, warned with
+  its redacted kind, and answered as left; throwing would break the
+  cleanup contract. Proved on real folders (`nativeCheckout.test.ts`:
+  a foreign-filled folder kept, a warning when git cannot remove).
+- `src/runtime/panel/pullRequests/checkout.ts` checkout answer
+  (1 GENERIC) and fetch answer (1 GENERIC): a failed checkout must
+  answer (the card shows retry), never throw; git's words are
+  redacted. Proved with real git (`nativeCheckout.test.ts`: a worktree
+  add for a missing commit answers, the folder made is removed).
+- `src/runtime/panel/pullRequests/recordGenerations.ts` sync read
+  (1 SWALLOW) and proof verification (1 GENERIC): an unreadable head
+  reads as no records by contract, and a proof failure lands the
+  write unverified, never thrown. Proved by the records suite's
+  real-directory generations.
+- `src/runtime/panel/pullRequests/records.ts` claim capture
+  (1 GENERIC): the maker's failure is kept on the failed claim the
+  caller discards; throwing would lose it. Proved with a real
+  maker failure (`nativeCheckout.test.ts`: a blocked folder fails
+  the claim with its `EEXIST`).
+- `src/runtime/main.ts` CLI answers (12 GENERIC + 1 SWALLOW:
+  schedules fallback, scan usage, legal/exec barriers, history
+  naming, wake refused and unavailable, report probes, key
+  presence, report and crash barriers): a command answers in fixed
+  words with its exit code and never throws past its barrier; the
+  schedule wake reason and the crash line pass the redactor first.
+  The report probes degrade an unreadable file to absent so one bad
+  file never kills the report.
+- `src/runtime/exec/runExec.ts` vault deny, prompt text and result
+  computer (1 SWALLOW + 2 GENERIC): no vault answers as vaultless
+  with fixed words; the prompt failure's text and the result's
+  status travel in the exec result the transport settles; the close
+  failure is always recorded, the latch stays first-cause-wins.
+- `src/runtime/providersCommands.ts` restore, queue tail, busy,
+  warnings and probe answers (3 GENERIC + 1 SWALLOW + 1 CLEANUP): a
+  failed restore or a busy commit answers that it failed; the queue
+  tail settles either way (its failure travels on the commit);
+  advisory warnings degrade to none; the probe answers with its
+  refusal or `unreachable`, never throwing past the command.
+- `src/runtime/chatGptCallback.ts` (2 SWALLOW + 2 GENERIC),
+  `chatGptHost.ts` (2 GENERIC), `chatGptRefreshLock.ts` (1 GENERIC):
+  fixed-vocabulary sign-in errors (the core class carries the code,
+  hosts render their own sentences); the loopback answers 400s for
+  bad requests and the waiter always settles. Proved on a real
+  loopback server (`chatGptCallback.test.ts`, `chatGptHost.test.ts`).
+  The command-level answers share the existing
+  `chatGptProviderCommands.ts` row above.
+- `src/runtime/authCommands.ts` label fallback (1 SWALLOW): an
+  unreadable user file labels the provider with its id, always true.
+- `src/runtime/cliArgs.ts` sharing parse (1 GENERIC): an unbound
+  runner's failure answers `invalid` with its own words; parsing
+  must answer, never serve.
+- `src/runtime/providerPaths.ts` DNS deny (1 GENERIC) and
+  `windowsTrustedPath.ts` trust walk (1 GENERIC): fail-closed; an
+  unresolvable name or an unreadable step refuses. Proved with a
+  real `.invalid` lookup and a blocked ACL walk
+  (`providerPaths.test.ts`, `windowsTrustedPath.test.ts`).
+- `src/runtime/panel/git/transaction.ts` renew loss (1 SWALLOW):
+  a failed lease renewal marks the transaction lost, which refuses;
+  fail-closed.
+- `src/runtime/exec/execFetch.ts` stream forward (1 GENERIC): a
+  body read failure is forwarded into the wrapped stream the
+  consumer reads; dropping it would hang the consumer.
+- `src/runtime/exec/scanSecrets.ts` scanner refusal (1 GENERIC)
+  and `src/runtime/reportCommand.ts` journal/build/save fallbacks
+  (1 SWALLOW + 2 GENERIC): the scanner refuses with usage rather
+  than echoing; the report names each failed stage in fixed words
+  with its exit code. Proved (`scanSecrets.test.ts`,
+  `reportCommand.test.ts`).
+- `src/runtime/namedLock.ts` kill probe (1 GENERIC) and
+  `runtimeAccountingEntry.ts` settings read and estimate fallback
+  (1 GENERIC + 1 SWALLOW): only `ESRCH` collects a lock entry (alive
+  or foreign stays); a missing settings file takes the default
+  while a damaged one throws its kind with its cause; Cancel
+  propagates out of counting while other failures estimate.
+- `src/runtime/exec/providerExec.ts` DNS refusal (1 GENERIC): an
+  unanswered name refuses as unreachable with nothing sent, carrying
+  its cause where the gate cannot see positional causes. Proved
+  (`providerExec.test.ts`).
+- `src/runtime/backends.ts` readiness read (1 GENERIC): a refused
+  providers file keeps its own words, a stored-grant failure keeps
+  its words through the lazily loaded provider port (a value import
+  would drag provider code into the engine bundle, failing the
+  split gate), a store failure reads as the store-down condition
+  (signed out with the store-down flag), and anything else resolves
+  plain unavailable without the flag, so readiness answers instead
+  of rejecting into its callers. Proved over the real backend with
+  a denying store on both arms (`backendsReadiness.test.ts`).
 
 | Folder                 | GENERIC | SWALLOW |
 | ---------------------- | ------- | ------- |
-| src                    | 906     | 301     |
+| src                    | 840     | 291     |
 | src/acp                | 18      | 0       |
 | src/core               | 369     | 169     |
 | src/core/backends      | 79      | 14      |
@@ -430,13 +539,13 @@ fail-closed words proven by a real-failure test unless noted):
 | src/host/voice         | 2       | 0       |
 | src/host/web           | 2       | 0       |
 | src/host/whatsNew      | 0       | 0       |
-| src/runtime            | 281     | 73      |
+| src/runtime            | 215     | 63      |
 | src/runtime/companion  | 2       | 6       |
 | src/runtime/estimator  | 3       | 0       |
-| src/runtime/exec       | 19      | 4       |
+| src/runtime/exec       | 6       | 2       |
 | src/runtime/fonts      | 2       | 0       |
 | src/runtime/legal      | 8       | 1       |
-| src/runtime/panel      | 52      | 12      |
+| src/runtime/panel      | 19      | 6       |
 | src/runtime/playbook   | 1       | 0       |
 | src/runtime/providers  | 2       | 0       |
 | src/runtime/questions  | 0       | 0       |

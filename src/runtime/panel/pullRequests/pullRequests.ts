@@ -13,6 +13,7 @@
 // passed in, and checkout's git runs through the injected port in
 // checkout.ts.
 
+import { describeStoreError } from '../../../host/backend/storeErrors'
 import { UI_TEXT } from '../../../shared/constants'
 import type { PullRequestView } from '../../../shared/git'
 import { fill } from '../../../shared/l10n/text'
@@ -38,8 +39,8 @@ import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 
 /** A refusal in words for the user; the log gets the kind, never a secret. */
 export class PullRequestServiceError extends Error {
-  public constructor(message: string) {
-    super(message)
+  public constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options)
     this.name = 'PullRequestServiceError'
   }
 }
@@ -132,6 +133,24 @@ function refused(reason: string): PullRequestServiceError {
 }
 
 /** The runtime's pull requests: M123's native route (dist/nativeGit.js) runs them. */
+
+/** A cancellation, whatever threw it. */
+export function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+}
+
+/**
+ * An expected pull request failure: GitHub's answer (the client wraps
+ * every one, network included, in `GitHubError`), a trust refusal or
+ * Cancel. Anything else is a bug above the service, and is not its
+ * `{ ok: false }` answer to give.
+ */
+export function isExpectedPullRequestFailure(error: unknown): boolean {
+  return (
+    error instanceof GitHubError || error instanceof PullRequestServiceError || isAbortError(error)
+  )
+}
+
 export class RuntimePullRequests {
   public constructor(private readonly deps: RuntimePullRequestDeps) {}
 
@@ -140,6 +159,21 @@ export class RuntimePullRequests {
       throw refused(UI_TEXT.gitRestricted)
     }
     this.deps.signal.throwIfAborted()
+  }
+
+  /**
+   * The `{ ok: false }` answer when a trust refusal or Cancel stops the
+   * call before it starts; anything else is not this call's answer to
+   * give, so it keeps throwing. `undefined` means trust held.
+   */
+  private trustRefusal(): PullRequestFailure | undefined {
+    try {
+      this.checkTrust()
+    } catch (error: unknown) {
+      if (!isExpectedPullRequestFailure(error)) throw error
+      return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+    }
+    return undefined
   }
 
   private clientFor(credential: GitHubCredential): GitHubClient {
@@ -215,8 +249,11 @@ export class RuntimePullRequests {
     // Ownership loss stops linking, never changes success.
     try {
       this.checkTrust()
-    } catch {
-      return
+    } catch (error: unknown) {
+      // Ownership loss stops linking, never changes success.
+      if (error instanceof PullRequestServiceError) return
+      if (isAbortError(error)) return
+      throw error
     }
     try {
       await this.deps.links.set(this.deps.repositoryRoot, sessionId, {
@@ -231,9 +268,7 @@ export class RuntimePullRequests {
       // its creation into an apparent failure and a retried duplicate. The
       // number and URL go back with the success; only the log names the
       // missing link.
-      this.deps.log.warn(
-        `The pull request link could not be kept: ${redactSecrets(error instanceof Error ? error.message : String(error))}`,
-      )
+      this.deps.log.warn(`The pull request link could not be kept: ${describeStoreError(error)}`)
     }
   }
 
@@ -253,6 +288,9 @@ export class RuntimePullRequests {
       this.checkTrust()
       signal.throwIfAborted()
     } catch (error: unknown) {
+      // A trust refusal or Cancel answers; anything else is not this
+      // call's `{ ok: false }` answer to give.
+      if (!isExpectedPullRequestFailure(error)) throw error
       return { ok: false, reason: error instanceof Error ? error.message : String(error) }
     }
     if (!isPlainRefName(input.head)) {
@@ -308,6 +346,7 @@ export class RuntimePullRequests {
         },
       }
     } catch (error: unknown) {
+      if (!isExpectedPullRequestFailure(error)) throw error
       return await this.failure(credential, error)
     }
   }
@@ -318,11 +357,8 @@ export class RuntimePullRequests {
    * the description, the repository, the branches and the draft state.
    */
   public async create(input: CreatePullRequestInput): Promise<CreatePullRequestResult> {
-    try {
-      this.checkTrust()
-    } catch (error: unknown) {
-      return { ok: false, reason: error instanceof Error ? error.message : String(error) }
-    }
+    const refused = this.trustRefusal()
+    if (refused !== undefined) return refused
     const title = input.title.trim()
     const base = input.base.trim()
     const problem = pullRequestFormProblem(title, input.body, base)
@@ -358,6 +394,7 @@ export class RuntimePullRequests {
         return { ok: false, reason: UI_TEXT.gitOperationChanged }
       }
     } catch (error: unknown) {
+      if (!isExpectedPullRequestFailure(error)) throw error
       return await this.failure(credential, error)
     }
     const detail = [
@@ -392,6 +429,7 @@ export class RuntimePullRequests {
       )
       return { ok: true, number: created.number, url: created.url, title: created.title }
     } catch (error: unknown) {
+      if (!isExpectedPullRequestFailure(error)) throw error
       return await this.failure(credential, error)
     }
   }
@@ -409,11 +447,8 @@ export class RuntimePullRequests {
     },
     mode: 'silent' | 'ask',
   ): Promise<PullRequestStatusResult> {
-    try {
-      this.checkTrust()
-    } catch (error: unknown) {
-      return { ok: false, reason: error instanceof Error ? error.message : String(error) }
-    }
+    const refused = this.trustRefusal()
+    if (refused !== undefined) return refused
     const repository = repositoryFromFullName(link.repository)
     if (repository === undefined) {
       return { ok: false, reason: UI_TEXT.gitHubFailed }
@@ -446,6 +481,7 @@ export class RuntimePullRequests {
         },
       }
     } catch (error: unknown) {
+      if (!isExpectedPullRequestFailure(error)) throw error
       const { reason, needsSignIn } = await this.failure(credential, error)
       return {
         ok: true,

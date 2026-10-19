@@ -22,6 +22,7 @@ import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { wireWordForLog, type CoreLogger } from '../../../core/logging'
+import { isStoreErrorCode } from '../../../host/backend/storeErrors'
 import { parseWorktreeRegistry, type WorktreeRecord } from '../../../core/worktreeConversations'
 import {
   ATOMIC_TEMPORARY_SUFFIX,
@@ -71,10 +72,10 @@ async function names(fs: RecordStoreFs, folder: string): Promise<readonly string
   try {
     return await fs.readdir(folder)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
-      return []
-    }
-    throw error
+    // A missing folder holds no generations; any other listing failure is
+    // not this listing's answer to give.
+    if (!isStoreErrorCode(error, 'ENOENT')) throw error
+    return []
   }
 }
 
@@ -108,7 +109,9 @@ function parseGeneration(generation: number, bytes: Buffer): ParsedGeneration | 
           raw: parsed.data.records,
         }
       : undefined
-  } catch {
+  } catch (error: unknown) {
+    // Only malformed text fails here; anything else is not this parse's answer.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
@@ -196,7 +199,11 @@ async function isInEffect(
       await fs.readFile(path.join(folder, generationName(generation + 1))),
     )
     return next?.parent === writeId
-  } catch {
+  } catch (error: unknown) {
+    // Swept between the listing and the read: the proof is gone. Any other
+    // read failure is not this proof's answer to give (the write lands
+    // unverified through its own catch either way).
+    if (!isStoreErrorCode(error, 'ENOENT')) throw error
     return false
   }
 }
@@ -247,10 +254,8 @@ export async function writeNextGeneration(
     } catch (error: unknown) {
       // EEXIST: the number is taken. ENOENT: the stage was swept under a
       // delayed writer. Either way nothing was published.
-      const code = errorCode(error)
-      if (code === 'EEXIST' || code === 'ENOENT') {
-        return 'lost'
-      }
+      if (isStoreErrorCode(error, 'EEXIST')) return 'lost'
+      if (isStoreErrorCode(error, 'ENOENT')) return 'lost'
       throw error
     }
   } finally {

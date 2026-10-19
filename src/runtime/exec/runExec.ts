@@ -93,6 +93,7 @@ import type { ExecBudgetRefusal } from './execProtocol'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
 import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { metaSideCallFormats } from '../../core/backends/modelapi/modelCapabilities'
 import { compileOutputSchema, type OutputSchema } from './outputSchema'
 
@@ -622,8 +623,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       await lifecycle.stopped
       transport?.close()
       cancelSession?.()
-    } catch {
-      log.error('Exec cancel failed: cleanup_failed')
+    } catch (error_: unknown) {
+      log.error(failureForLog(error_))
     }
   })()
   const cleanupStart = { value: 0 }
@@ -1390,9 +1391,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             if (close !== undefined) {
               try {
                 await lifecycle.race(close())
-              } catch {
+              } catch (error_: unknown) {
+                // A close failure is recorded even when the run already
+                // latched its cause; only the latch stays first-cause-wins.
+                log.error(failureForLog(error_))
                 if (lifecycle.cause === null) {
-                  log.error('Exec session close: cleanup_failed')
                   lifecycle.latch({ kind: 'internal' })
                 }
               }
@@ -1652,14 +1655,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               : (async () => {
                   try {
                     await closingVault.close()
-                  } catch {
-                    throw new Error(UI_TEXT.vault.noAccess)
+                  } catch (vaultError: unknown) {
+                    throw new Error(UI_TEXT.vault.noAccess, { cause: vaultError })
                   }
                 })(),
           ]),
         )
-      } catch {
-        log.error('Exec runtime close: cleanup_failed')
+      } catch (error_: unknown) {
+        log.error(failureForLog(error_))
         lifecycle.latch({ kind: 'internal' })
       }
       await grace(transport?.whenSettled() ?? Promise.resolve())

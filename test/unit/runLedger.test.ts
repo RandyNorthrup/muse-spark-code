@@ -386,11 +386,23 @@ describe('M80 ledger integer admission and retained liability', () => {
       expect(() =>
         createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 }),
       ).not.toThrow()
-    // A person's exact BigInt budget is honored as given: one micro-USD past
-    // Number.MAX_SAFE_INTEGER still opens a run and round-trips through totals.
+    // Past integer-precise range refuses at construction, never as a spending
+    // ceiling of ours: one micro-USD past Number.MAX_SAFE_INTEGER cannot open
+    // a run.
     const hugeCap = Usd.from('9007199254.740992').toAmount()
-    const huge = createRunLedger({ capUsd: hugeCap, maxRequests: 1 })
-    expect(huge.totals().capUsd).toBe(hugeCap)
+    expect(() => createRunLedger({ capUsd: hugeCap, maxRequests: 1 })).toThrow()
+  })
+  it('refuses an out-of-range reservation as unpriced, never as priced', () => {
+    // A real reservation past micro-USD range: units() throws its
+    // out-of-range refusal and the admission answers unpriced.
+    expect(
+      createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 }).admitResponse({
+        model: 'm',
+        maxOutputTokens: 16,
+        price,
+        reserveUsd: Usd.from(1_000_000_000_000).toAmount(),
+      }),
+    ).toEqual({ refused: 'unpriced' })
   })
 })
 

@@ -151,9 +151,9 @@ export type ClaimResult<T> =
 export class UnknownWriteError<T> extends Error {
   public constructor(
     public readonly results: readonly T[],
-    cause: unknown,
+    options?: { readonly cause?: unknown },
   ) {
-    super(UI_TEXT.worktreeRecordsWriteUnknown, { cause })
+    super(UI_TEXT.worktreeRecordsWriteUnknown, options)
     this.name = 'UnknownWriteError'
   }
 }
@@ -536,7 +536,7 @@ export function createWorktreeRecordStore(
         } catch (error: unknown) {
           if (unknown.length > 0) {
             log.warn('The worktree records may have been written; not known')
-            throw new UnknownWriteError(unknown, error)
+            throw new UnknownWriteError(unknown, { cause: error })
           }
           throw error
         }
