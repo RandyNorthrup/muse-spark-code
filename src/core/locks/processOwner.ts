@@ -22,18 +22,19 @@
 // the tolerance cannot be told apart; a birth that cannot be read proves
 // nothing. Queries use absolute paths, no shell, and a timeout.
 
-import { readFile } from 'node:fs/promises'
-import { realpathSync } from 'node:fs'
-import { hostname } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { noWorkspaceChildEnvironment, type GuardedChildEnv } from '../executables'
-import { execFileGuarded } from '../guardedChildProcess'
 import {
   MILLISECONDS_PER_SECOND,
   PROCESS_START_QUERY_TIMEOUT_MS,
   PROCESS_START_TOLERANCE_MS,
 } from '../../shared/constants'
+import { type GuardedChildEnv } from '../executables'
+import { noWorkspaceChildEnvironment } from '../execGuard'
+import { readFile } from 'node:fs/promises'
+import { realpathSync } from 'node:fs'
+import { hostname } from 'node:os'
+import { execFileGuarded } from '../guardedChildProcess'
 
 const NO_SUCH_PROCESS = 'ESRCH'
 // `/proc/<pid>/stat` after the command's closing parenthesis: field 3 is

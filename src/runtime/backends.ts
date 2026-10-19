@@ -1,8 +1,5 @@
-import { resolveExecOutputCap } from './exec/runLedger'
 import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
-import { Usd } from '../shared/usd'
-import { loadLegalScanner } from './legal/legalScanner'
 import type { ProviderClient } from '../core/backends/modelapi/client'
 import type { runtimeSubscriptionClient } from './chatGptProviderCommands'
 import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvidersEntry'
@@ -19,46 +16,13 @@ import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvid
 // and nothing here sees an editor's unsaved buffers until file access goes
 // through the client (M63c).
 
-import { randomUUID } from 'node:crypto'
-import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
-import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
-import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
-import { NO_WORKSPACE, type GuardedChildEnv } from '../core/executables'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
-import {
-  buildChildEnvironment,
-  environmentValue,
-  withLoopbackBypass,
-} from '../core/backends/musecode/launch'
-import { personalSkillsRoot } from '../core/context/skills'
-import { personalAgentsRoot } from '../core/context/customAgents'
-import { memoryDataRoot } from '../core/memory/memoryLocation'
-import { MemoryStore } from '../core/memory/memoryStore'
-import { WorkspaceEdits } from '../core/verify/workspaceEdits'
-import { redactSecrets } from '../core/redact'
-import { recordPaidUse } from '../core/paid/paidFeatures'
 import type { UsageRecording } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
-import { fileContextIo } from '../host/backend/contextIo'
-import { describeEnvironment } from '../host/backend/environment'
-import { createFileSessionStore } from '../host/backend/fileSessionStore'
-import { jobSourceReader } from '../host/backend/jobSource'
-import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
-import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
-import { MuseCodeBackendManager, type ProxySettings } from '../host/backend/museCodeBackendManager'
-import { shellJobAssembly } from '../host/backend/shellJob'
-import { createToolIo } from '../host/backend/toolIo'
-import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
-import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
-import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
 import type { Logger } from '../host/logger'
-import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
-import { pageConverter } from '../host/web/pageConverter'
-import { createWebFetcher } from '../host/web/webFetcher'
-import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
   FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
@@ -74,7 +38,6 @@ import {
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
-import { fill, uiLocale } from '../shared/l10n/text'
 import type { ServeOptions } from './cliArgs'
 import {
   agentDataFolder,
@@ -87,10 +50,44 @@ import {
   withoutCredentials,
   withoutKeyringRoutes,
 } from './credentialVariables'
-import { walkFiles } from './fileWalk'
-import { paidGrantFile } from './paidGrants'
 
 import type { AssembledProviderRun } from './exec/providerExec'
+import { type GuardedChildEnv, NO_WORKSPACE } from '../core/executables'
+import { withLoopbackBypass } from '../core/backends/musecode/launch'
+import { buildChildEnvironment, environmentValue } from '../core/execGuard'
+import { createToolIo } from '../host/backend/toolIo'
+import { resolveExecOutputCap } from './exec/runLedger'
+import { Usd } from '../shared/usd'
+import { loadLegalScanner } from './legal/legalScanner'
+import { randomUUID } from 'node:crypto'
+import { existsSync, realpathSync } from 'node:fs'
+import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
+import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
+import { personalSkillsRoot } from '../core/context/skills'
+import { personalAgentsRoot } from '../core/context/customAgents'
+import { memoryDataRoot } from '../core/memory/memoryLocation'
+import { MemoryStore } from '../core/memory/memoryStore'
+import { WorkspaceEdits } from '../core/verify/workspaceEdits'
+import { redactSecrets } from '../core/redact'
+import { recordPaidUse } from '../core/paid/paidFeatures'
+import { fileContextIo } from '../host/backend/contextIo'
+import { describeEnvironment } from '../host/backend/environment'
+import { createFileSessionStore } from '../host/backend/fileSessionStore'
+import { jobSourceReader } from '../host/backend/jobSource'
+import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
+import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
+import { MuseCodeBackendManager, type ProxySettings } from '../host/backend/museCodeBackendManager'
+import { shellJobAssembly } from '../host/backend/shellJob'
+import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
+import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
+import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
+import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
+import { pageConverter } from '../host/web/pageConverter'
+import { createWebFetcher } from '../host/web/webFetcher'
+import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
+import { fill, uiLocale } from '../shared/l10n/text'
+import { walkFiles } from './fileWalk'
+import { paidGrantFile } from './paidGrants'
 
 export interface ExecRuntimeOptions {
   readonly outputCap?: (policy: ModelPolicy) => number

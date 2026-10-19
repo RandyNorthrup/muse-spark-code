@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-import { type SpawnSyncOptions, type SpawnSyncReturns } from 'node:child_process'
 import {
   existsSync,
   lstatSync,
@@ -10,25 +8,27 @@ import {
   writeFileSync,
   rmSync,
 } from 'node:fs'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { processGitPath } from '../../../host/git'
-import { workspaceChildEnvironment } from '../../../core/executables'
 import {
   GIT_OUTPUT_MAX_BYTES,
   GIT_TIMEOUT_MS,
   PLAYBOOK_HOOK_NAMES,
 } from '../../../shared/constants'
-import { UI_TEXT } from '../../../shared/l10n/text'
 import {
   playbookConfigSnapshotSchema,
   type PlaybookConfigSnapshot,
   type PlaybookRecord,
   type PlaybookPushRange,
 } from '../../../shared/playbook'
+import { processGitPath } from '../../../host/git'
+import { workspaceChildEnvironment } from '../../execGuard'
+import { runTreeSync } from '../../../host/processTree'
+import { createHash } from 'node:crypto'
+import { type SpawnSyncOptions, type SpawnSyncReturns } from 'node:child_process'
+import { tmpdir } from 'node:os'
+import { UI_TEXT } from '../../../shared/l10n/text'
 import { redactSecrets } from '../../../shared/redact'
 import { withoutCredentials } from '../../credentialEnvironment'
-import { runTreeSync } from '../../../host/processTree'
 
 /** Tagged effects go through the harness's ordinary tool policy. Hooks receive
  * their real arguments/stdin, never an altered script or a substitute command. */

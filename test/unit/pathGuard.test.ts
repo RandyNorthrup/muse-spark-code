@@ -1,19 +1,16 @@
 // The PATH guard: no workspace program runs from PATH when Muse Code starts
 // (docs/certification/pathguard.md). Drives the real environment builder
 // with a real temporary workspace and a real planted program.
+import path from 'node:path'
+import { buildChildEnvironment } from '../../src/core/execGuard'
+import { NO_WORKSPACE } from '../../src/core/executables'
+import { resolveExecutable, sanitizePathForWorkspace } from '../../src/core/execGuard'
+import { processGitRunner } from '../../src/host/git'
 import { spawnSync } from 'node:child_process'
 import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { chmodSync, existsSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { buildChildEnvironment } from '../../src/core/backends/musecode/launch'
-import {
-  NO_WORKSPACE,
-  resolveExecutable,
-  sanitizePathForWorkspace,
-} from '../../src/core/executables'
-import { processGitRunner } from '../../src/host/git'
 
 const PLATFORM = process.platform
 const SEPARATOR = PLATFORM === 'win32' ? ';' : ':'

@@ -461,3 +461,77 @@ timeout (never `--testTimeout`):
   lane. (`check:reference` crashes identically on the untouched
   base — pre-existing, unrelated: no command, setting or feature
   changes in this lane.)
+
+## Fix (round 7 continued, lane PR249FIX7B)
+
+Hosted CI left three failures after round 7; each fixed at its cause
+on this lane, no budget, bound, timeout or cap raised.
+
+- **Activation budget** (`modelsActivationBudget`, every platform:
+  `expected 7822 to be less than or equal to 3072`). The 3072 cap is
+  the owner's and never moves. Measured first: the immutable pre-K
+  baseline is 561352 bytes; main grows it by 2901; this branch grew
+  it by 7822. The cause is what rounds 4–7 put on the activation
+  path: the guard implementation (`guardedChildProcess`,
+  the executables brand machinery and the reporting tables reachable
+  from it) linked into `dist/extension.js` before the first deferred
+  import. The fix moves the implementation to `src/core/execGuard.ts`,
+  shipped as `dist/execGuard.js` and loaded on first guarded use
+  through the deferred-entry pattern the build already has
+  (`src/core/execGuardEntry.ts`, the `sharedExecGuard`
+  externalization in `scripts/lib/deferredBundles.mjs`, the
+  `EXEC_GUARD` deferred record, registry row, size/split/host-globals
+  pins, VSIX and ACP package lists). Types and `NO_WORKSPACE` stay in
+  `executables.ts`; the 47 call sites import the same names from the
+  guard module, so behaviour is identical. After: growth **1816**
+  (current 563168), under the cap and under main's figure.
+- **Eval verifier environment** (`evalTasks`, windows-latest only).
+  The extra variable is `NoDefaultCurrentDirectoryInExePath`, set by
+  `noWorkspaceChildEnvironment` itself — the guard's own safety
+  variable, not the run's environment. The verifier executes
+  model-written files, so its own bare-name lookups skip its working
+  directory too; removing it would weaken the guard. The test now
+  names that product-set variable exactly and why, still refusing
+  every variable that comes from the run (commit `90cb84a198`).
+- **Grok blocker GRV249G.** `windowsTeamDriver` now resolves
+  `request.command` to an absolute file outside the workspace before
+  `RunTeam` (`resolveWindowsTeamCommand`: bare name on the absolute
+  `PATH` entries outside the cwd, PATHEXT included, a `.cmd`/`.bat`
+  hit through the absolute `cmd.exe`, fail closed inside the
+  workspace), because `CreateProcessW` completes a partial
+  `lpApplicationName` from the helper's working directory with no
+  PATH search — no environment block could fix that.
+  `verbatimArguments` threads through `MuseSparkJob.cs`. The test
+  drives the real resolver and payload builder on every platform
+  (shown failing before the fix), and the notes that claimed a bare
+  name never resolves to a planting now say what the code does
+  (commit `8dbb4af2ca`).
+
+## Proof (round 7 continued)
+
+Activation, before → after (immutable pre-K baseline 561352):
+
+| Tree           | Current | Growth | Cap        |
+| -------------- | ------: | -----: | ---------- |
+| main           |  564253 |   2901 | 3072       |
+| round 7 before |  569174 |   7822 | 3072, FAIL |
+| round 7 after  |  563168 |   1816 | 3072, PASS |
+
+Suites on the rig with the repository's own timeout: budget (1),
+`pathGuardSpawns` + `pathGuardRound7` + `pathGuardRound4` (38),
+`pathGuard` + `executables` + `nativeProcessDefaults` (28),
+`windowsScreenRecorderNative` + `evalTasks` + budget (36 passed,
+recorder skips on Linux), `packagedBundles` (8, after adding the new
+chunk to the ACP list), `browserCheckLive` (skips without a browser).
+Full unit: 6284 passed, 61 skipped; the 21 failures are 18
+`inspectNative` (the native confine helper refuses on the rig —
+fails identically in a worktree without these changes, measured not
+assumed), the `browserUiText` load flake (passes isolated), and 2
+`packagedBundles` fixed by the ACP list entry above.
+`npm run typecheck` (all projects): exit 0. eslint: one
+`no-useless-undefined` in the new plugin, fixed at cause, then zero
+warnings on every touched file. prettier clean. `check:host-api`:
+regenerated (`node:fs` 97→98, `node:path` 205→204) then exit 0.
+`check:plan`: 0 drift. `check:l10n`: 0 problems. `npm run build`:
+exit 0 with budgets. `check:reference` still crashes identically
+without these changes (pre-existing, out of scope).

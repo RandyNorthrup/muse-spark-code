@@ -1,16 +1,6 @@
-import { nonnegativeUsdSchema } from '../../shared/usdSchema'
-import { type ChildProcess, type SpawnOptions } from 'node:child_process'
-import { realpathSync } from 'node:fs'
-import { noWorkspaceChildEnvironment, type GuardedChildEnv } from '../../core/executables'
-import { spawnResourceProcess, execResourceFile } from '../../core/resources/launcher'
-import { createHash, randomUUID } from 'node:crypto'
-import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
-import { homedir } from 'node:os'
 import * as z from 'zod/mini'
-import { withoutCredentials } from '../../core/credentialEnvironment'
-import { storeErrorCode } from '../../host/backend/storeErrors'
 import {
   CHECKPOINT_STORAGE_MODE,
   REPORT_STORAGE_FILE_MODE,
@@ -21,7 +11,6 @@ import {
   SCHEDULE_NATIVE_MAX_OUTPUT_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
-import { agentDataFolder } from '../dataFolder'
 import {
   unsafeScheduleLauncher,
   backgroundDefinitionPaths,
@@ -32,6 +21,18 @@ import {
 } from './registration'
 import type { BackgroundFilePort, BackgroundProcessResult } from './nativeBackground'
 import type { TrustedPathVerifier } from '../trustedPathPort'
+import { type GuardedChildEnv } from '../../core/executables'
+import { noWorkspaceChildEnvironment } from '../../core/execGuard'
+import { nonnegativeUsdSchema } from '../../shared/usdSchema'
+import { type ChildProcess, type SpawnOptions } from 'node:child_process'
+import { realpathSync } from 'node:fs'
+import { spawnResourceProcess, execResourceFile } from '../../core/resources/launcher'
+import { createHash, randomUUID } from 'node:crypto'
+import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { withoutCredentials } from '../../core/credentialEnvironment'
+import { storeErrorCode } from '../../host/backend/storeErrors'
+import { agentDataFolder } from '../dataFolder'
 import { windowsTrustedPathVerifier } from '../windowsTrustedPath'
 import { effectiveBackgroundDefinition, scheduleWindowsOwner } from './effectiveDefinition'
 

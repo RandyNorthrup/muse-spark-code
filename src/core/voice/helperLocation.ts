@@ -20,9 +20,9 @@ import {
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_PSMODULEPATH_VARIABLE,
 } from '../../shared/constants'
-import { setEnvironmentVariable, windowsPowerShellModulePath } from '../backends/musecode/launch'
-import { resolveExecutable } from '../executables'
 import type { HelperInvocation } from './dictation'
+import { setEnvironmentVariable, windowsPowerShellModulePath } from '../execGuard'
+import { resolveExecutable } from '../execGuard'
 
 export interface HelperProbe {
   readonly platform: NodeJS.Platform

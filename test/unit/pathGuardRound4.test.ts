@@ -2,23 +2,24 @@
 // the workspace is dropped, and every product lookup refuses a program
 // planted in the workspace. Drives the real resolvers with a real temporary
 // workspace and real planted programs.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { chmodSync, existsSync, realpathSync } from 'node:fs'
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import {
-  NO_WORKSPACE,
   resolveExecutable,
   sanitizePathForWorkspace,
   workspaceChildEnvironment,
-} from '../../src/core/executables'
+} from '../../src/core/execGuard'
+import { NO_WORKSPACE } from '../../src/core/executables'
+import { resolveServerCommand } from '../../src/core/execGuard'
+import { hookProgramFor, shellInterpreter } from '../../src/host/backend/toolIo'
+import { hookEnvironment } from '../../src/core/execGuard'
+import { processGitRunner } from '../../src/host/git'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { tmpdir } from 'node:os'
+import { chmodSync, existsSync, realpathSync } from 'node:fs'
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { resolvePluginRuntime } from '../../src/core/backends/modelapi/pluginHost'
-import { resolveServerCommand } from '../../src/host/backend/mcpProcess'
-import { hookEnvironment, hookProgramFor, shellInterpreter } from '../../src/host/backend/toolIo'
 import { PlaybookOutcomes } from '../../src/core/orchestration/playbook/outcomes'
 import { locateCaptureHelper } from '../../src/core/voice/helperLocation'
-import { processGitRunner } from '../../src/host/git'
 import { execResourceFile } from '../../src/core/resources/commands'
 import { reportGitIo } from '../../src/runtime/reporting/sources'
 import { fixedGitLocator } from '../../src/runtime/panel/git/service'

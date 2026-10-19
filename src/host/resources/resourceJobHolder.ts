@@ -1,12 +1,13 @@
-import { spawnGuarded } from '../../core/guardedChildProcess'
-import { powerShellQuoted } from '../../core/shellQuote'
 import type { ResourceJob, ResourceLease } from '../../core/resources/launch'
 import {
   RESOURCE_SAMPLE_MS,
   SHELL_JOB_TYPE_NAME,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
-import { loadJobAssembly, windowsPowerShell } from '../processTree'
+import { loadJobAssembly } from '../processTree'
+import { windowsPowerShell } from '../../core/execGuard'
+import { spawnGuarded } from '../../core/guardedChildProcess'
+import { powerShellQuoted } from '../../core/shellQuote'
 
 /** A sampler infrastructure process, excluded from the job it keeps queryable. */
 export async function holdResourceJob(

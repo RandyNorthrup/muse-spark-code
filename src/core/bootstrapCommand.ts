@@ -1,10 +1,10 @@
+import { noWorkspaceChildEnvironment } from './execGuard'
+import { spawnResourceProcess } from './resources/launcher'
+import { realpathSync } from 'node:fs'
+import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../shared/constants'
 // A client of the lazy facade, like any other governed command: the launcher
 // and its policy stay in the first-use resourceGovernor bundle, so this runner
 // may ride in every bundle that builds a helper.
-import { spawnResourceProcess } from './resources/launcher'
-import { realpathSync } from 'node:fs'
-import { noWorkspaceChildEnvironment } from './executables'
-import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../shared/constants'
 
 /**
  * Bootstrap tier: the compiler builds the containment helper it cannot yet use.

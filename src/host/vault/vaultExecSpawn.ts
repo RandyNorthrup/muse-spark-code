@@ -1,7 +1,3 @@
-import { type ChildProcess } from 'node:child_process'
-import { Writable } from 'node:stream'
-import { constants } from 'node:fs'
-import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import {
   UI_TEXT,
@@ -9,21 +5,25 @@ import {
   PROCESS_TABLE_TIMEOUT_MS,
   SHELL_DRAIN_GRACE_MS,
 } from '../../shared/constants'
-import { type ShellTimeLimit } from '../../core/backends/modelapi/tools'
-import { type ShellResult, unstartedShell, refusedShellEntry } from '../../core/shellResult'
 import {
   vaultExecEnvelopeSchema,
   vaultExecResultSchema,
   type VaultExecEnvelope,
 } from '../../core/vault/exec/schema'
+import { workspaceChildEnvironment } from '../../core/execGuard'
+import { runCommand } from '../backend/toolIo'
+import { killTree, type ProcessTreeDeps, type ShellJob } from '../processTree'
+import { type ChildProcess } from 'node:child_process'
+import { Writable } from 'node:stream'
+import { constants } from 'node:fs'
+import { mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { type ShellTimeLimit } from '../../core/backends/modelapi/tools'
+import { type ShellResult, unstartedShell, refusedShellEntry } from '../../core/shellResult'
 import { vaultFenceEnvironment } from '../../core/vault/exec/fence'
 import { type VaultExecFeederPort } from '../../core/vault/exec/feeder'
 import { realpathSync } from 'node:fs'
-import { workspaceChildEnvironment } from '../../core/executables'
-import { runCommand } from '../backend/toolIo'
 import { vaultPrivateDirectory } from '../../core/vault/broker/files'
 import { posixQuoted } from '../../core/shellQuote'
-import { killTree, type ProcessTreeDeps, type ShellJob } from '../processTree'
 
 export interface VaultExecSpawnDeps {
   readonly nodePath: string

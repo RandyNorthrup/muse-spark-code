@@ -1,4 +1,3 @@
-import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 // Owns the single `muse serve` process for this extension host: locates the
 // CLI, shapes its environment, spawns it through the SDK, and hands out the
 // MuseCodeHost wrapper. Everything platform-specific is delegated to the pure
@@ -13,10 +12,7 @@ import { resourceEnvironment, type ResourceLease } from '../../core/resources/la
 // location is resolved once per set of inputs instead of probing PATH on
 // every message.
 
-import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
-import { homedir } from 'node:os'
 import path from 'node:path'
-import { type FingerprintWarning } from '@muse-code/sdk'
 import type { CredentialFileVerdict } from '../../core/backends/musecode/credentialFile'
 import type { MuseCodeAccountHome } from '../../core/backends/musecode/accountHomes'
 import {
@@ -27,25 +23,11 @@ import {
   type MspHost,
 } from '../../core/backends/musecode/MuseCodeHost'
 import {
-  buildChildEnvironment,
-  credentialFilePath,
-  environmentValue,
-  type LaunchResolution,
-  type MuseLaunch,
-  resolveMuseLaunch,
-  withLoopbackBypass,
-} from '../../core/backends/musecode/launch'
-import {
   isSandboxNetworkApplied,
   resolveShellSandbox,
   serveArguments,
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
-import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
-import { clipForLog } from '../../core/logging'
-import { isSamePath } from '../../core/paths'
-import { withSlowDeadline } from '../../core/timeouts'
-import { resolveWorkspacePath } from '../../core/workspacePath'
 import {
   MILLISECONDS_PER_SECOND,
   MSP_CLIENT_NAME,
@@ -64,15 +46,32 @@ import {
   type ShellSandboxMode,
   UI_TEXT,
 } from '../../shared/constants'
-import { readCredentialFile } from '../auth/cliAccount'
 import type { Logger } from '../logger'
-import { systemPath } from './memoryIo'
-import { admitResource } from '../../core/resources/admission'
 import {
   spawnResourceMuseConnection,
   spawnResourceAccountConnection,
 } from '../resources/museResourceLaunch'
-import { NO_WORKSPACE, type GuardedChildEnv } from '../../core/executables'
+import {
+  credentialFilePath,
+  type LaunchResolution,
+  type MuseLaunch,
+  resolveMuseLaunch,
+  withLoopbackBypass,
+} from '../../core/backends/musecode/launch'
+import { buildChildEnvironment, environmentValue } from '../../core/execGuard'
+import { type GuardedChildEnv, NO_WORKSPACE } from '../../core/executables'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { type FingerprintWarning } from '@muse-code/sdk'
+import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
+import { clipForLog } from '../../core/logging'
+import { isSamePath } from '../../core/paths'
+import { withSlowDeadline } from '../../core/timeouts'
+import { resolveWorkspacePath } from '../../core/workspacePath'
+import { readCredentialFile } from '../auth/cliAccount'
+import { systemPath } from './memoryIo'
+import { admitResource } from '../../core/resources/admission'
 import { vaultFenceEnvironment, type VaultFenceOptions } from '../../core/vault/exec/fence'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */

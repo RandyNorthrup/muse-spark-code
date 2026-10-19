@@ -97,6 +97,8 @@
     "src/host/backend/fileSessionStoreEntry.ts",
     // The Create AGENTS.md command (D15), required by path when that command runs.
     "src/host/commands/rulesFileEntry.ts",
+    // The guarded process-start layer (D24), required by path beside activation.
+    "src/core/execGuardEntry.ts",
     // The bundled skills installer's own bundle (M89), required by path on first use.
     "src/host/skills/bundledSkillsEntry.ts",
     // Code intelligence's `ide` answers and voice's drivers, each required by

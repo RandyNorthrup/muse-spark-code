@@ -1,5 +1,3 @@
-import { type ExecFileOptionsWithStringEncoding } from 'node:child_process'
-import { execResourceFile } from '../../resources/launcher'
 import * as z from 'zod/mini'
 import {
   GITHUB_API_BASE_URL,
@@ -10,11 +8,6 @@ import {
   REPORT_SOURCE_TIMEOUT_MS,
   UI_TEXT,
 } from '../../../shared/constants'
-import { withoutCredentials } from '../../credentialEnvironment'
-import { resolveExecutable, type ExecutableProbe } from '../../executables'
-import { redactSecrets } from '../../redact'
-import { githubRepositoryOf, type GitHubRepository } from '../../git/githubRemote'
-import { isCommitSha } from '../../git/github'
 import {
   reportCiRunSchema,
   type ReportSourcePayloads,
@@ -22,8 +15,6 @@ import {
   type SourceReadContext,
 } from './types'
 import type { ReportKind } from '../../../shared/reportSchema'
-import { reportKindSchema } from '../../../shared/reportSchema'
-import { isReportNetworkAllowed, type ReportNetworkPolicy } from './cache'
 import {
   ReportNetworkFailure,
   type ReportNetworkQuery,
@@ -31,6 +22,16 @@ import {
   type ReportNetworkTransport,
   unavailableReportSource,
 } from './cache'
+import { type ExecutableProbe } from '../../executables'
+import { resolveExecutable } from '../../execGuard'
+import { type ExecFileOptionsWithStringEncoding } from 'node:child_process'
+import { execResourceFile } from '../../resources/launcher'
+import { withoutCredentials } from '../../credentialEnvironment'
+import { redactSecrets } from '../../redact'
+import { githubRepositoryOf, type GitHubRepository } from '../../git/githubRemote'
+import { isCommitSha } from '../../git/github'
+import { reportKindSchema } from '../../../shared/reportSchema'
+import { isReportNetworkAllowed, type ReportNetworkPolicy } from './cache'
 
 // M71's 2026-09-28 gh-api capture (githubCapture.ts), not new wire guesses.
 const namedRepository = z.object({ full_name: z.string() })

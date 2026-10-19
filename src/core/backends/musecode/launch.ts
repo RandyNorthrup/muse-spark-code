@@ -14,19 +14,9 @@
 // end the direct child, so closing a launcher left muse-bin running.
 
 import path from 'node:path'
-import {
-  isFullyQualifiedWindowsPath,
-  isWorkspacePath,
-  noWorkspaceChildEnvironment,
-  workspaceChildEnvironment,
-  type ExecutableScope,
-  type GuardedChildEnv,
-} from '../../executables'
-import type { MuseCodeAccountHome } from './accountHomes'
 import type { EnvironmentVariable } from '../../../shared/constants'
 import {
   LOOPBACK_NO_PROXY_ENTRIES,
-  HOOK_FORBIDDEN_ENV_NAMES,
   MUSE_BIN_PREFIX,
   MUSE_CMD_FILE,
   MUSE_CREDENTIAL_FILE_SEGMENTS,
@@ -40,8 +30,9 @@ import {
   NO_PROXY_VARIABLE,
   PROXY_VARIABLE_SPELLINGS,
   UI_TEXT,
-  WINDOWS_PSMODULEPATH_SEGMENTS,
 } from '../../../shared/constants'
+import { type ExecutableScope } from '../../executables'
+import { absoluteEntries, environmentValue, setEnvironmentVariable } from '../../execGuard'
 
 export interface LaunchProbe {
   readonly platform: NodeJS.Platform
@@ -84,25 +75,6 @@ export type LaunchResolution =
 
 function pathModule(platform: NodeJS.Platform): path.PlatformPath {
   return platform === 'win32' ? path.win32 : path.posix
-}
-
-/**
- * The PATH entries worth probing: an empty or relative entry means the
- * current directory, which for `muse serve` is the workspace (PLAN.md D24).
- * On Windows a rooted `\foo` entry is drive-relative and resolves on the
- * working directory's drive, so only fully qualified entries are probed.
- */
-function absoluteEntries(probe: LaunchProbe, p: path.PlatformPath): readonly string[] {
-  const workspace = 'workspaceRoot' in probe.scope ? probe.scope : undefined
-  return probe.pathEntries
-    .map((entry) => entry.trim())
-    .filter(
-      (entry) =>
-        entry !== '' &&
-        p.isAbsolute(entry) &&
-        (probe.platform !== 'win32' || isFullyQualifiedWindowsPath(entry)) &&
-        (workspace === undefined || !isWorkspacePath(probe.platform, workspace, entry)),
-    )
 }
 
 function windowsCandidateDirs(probe: LaunchProbe, p: path.PlatformPath): string[] {
@@ -230,48 +202,6 @@ export function resolveMuseLaunch(probe: LaunchProbe): LaunchResolution {
   return probe.platform === 'win32' ? resolveWindows(probe) : resolvePosix(probe)
 }
 
-export interface ChildEnvironmentInput {
-  readonly platform: NodeJS.Platform
-  readonly baseEnv: NodeJS.ProcessEnv
-  readonly extraVariables: readonly EnvironmentVariable[]
-  readonly systemRoot: string | undefined
-  readonly programFiles: string | undefined
-  /** Supplied only by the capture-gated account owner, never settings or a page. */
-  readonly accountHome?: MuseCodeAccountHome
-  /**
-   * The workspace the child runs in: PATH entries that are relative, empty,
-   * or inside it (resolved through links) are dropped, so no workspace
-   * program runs from PATH when Muse Code starts
-   * (docs/certification/pathguard.md). REQUIRED: with no folder open the
-   * caller passes the explicit no-workspace scope (absolute entries only,
-   * links followed).
-   */
-  readonly scope: ExecutableScope
-}
-
-/**
- * Sets `name` in a copied environment. Windows names are case-insensitive
- * and Node passes the first of several spellings in sort order, so an
- * inherited `PSMODULEPATH` would beat a new `PSModulePath`: every other
- * spelling goes first.
- */
-export function setEnvironmentVariable(
-  env: NodeJS.ProcessEnv,
-  platform: NodeJS.Platform,
-  name: string,
-  value: string,
-): void {
-  if (platform === 'win32') {
-    const lower = name.toLowerCase()
-    for (const key of Object.keys(env)) {
-      if (key !== name && key.toLowerCase() === lower) {
-        Reflect.deleteProperty(env, key)
-      }
-    }
-  }
-  env[name] = value
-}
-
 /** Removes `name` (every spelling of it on Windows) from a copied environment. */
 export function deleteEnvironmentVariable(
   env: NodeJS.ProcessEnv,
@@ -284,96 +214,6 @@ export function deleteEnvironmentVariable(
       Reflect.deleteProperty(env, key)
     }
   }
-}
-
-/** Reads `name` from a copied environment, ignoring case on Windows. */
-export function environmentValue(
-  env: NodeJS.ProcessEnv,
-  platform: NodeJS.Platform,
-  name: string,
-): string | undefined {
-  if (platform !== 'win32') {
-    return env[name]
-  }
-  const lower = name.toLowerCase()
-  const key = Object.keys(env).find((candidate) => candidate.toLowerCase() === lower)
-  return key === undefined ? undefined : env[key]
-}
-
-/**
- * Windows PowerShell 5.1's own module directories. A pwsh 7 `PSModulePath`
- * inherited by powershell.exe makes it load 7.x modules it cannot use
- * (verified failure: `Get-FileHash` not recognised).
- */
-export function windowsPowerShellModulePath(
-  systemRoot: string,
-  programFiles: string | undefined,
-): string {
-  const base = programFiles ?? path.win32.join(systemRoot, '..', 'Program Files')
-  return [
-    path.win32.join(base, ...WINDOWS_PSMODULEPATH_SEGMENTS.programFiles),
-    path.win32.join(systemRoot, ...WINDOWS_PSMODULEPATH_SEGMENTS.systemRoot),
-  ].join(';')
-}
-
-/**
- * The environment for `muse serve`. On Windows `PSModulePath` is reset to the
- * Windows PowerShell module directories: the CLI's launcher runs under
- * powershell.exe 5.1, which cannot load its own modules when a pwsh 7 module
- * path is inherited (verified failure: `Get-FileHash` not recognised).
- *
- * The Model API key from secret storage is deliberately NOT injected: the
- * CLI prefers `META_API_KEY` over its browser session, which would bill the
- * subscription's work to the key (PLAN.md D1, M7). A key already in the
- * user's own environment is inherited untouched, as the CLI documents.
- */
-/**
- * The guarded environment for `muse serve`: PATH entries that would let a
- * workspace program run are dropped (relative, empty, or inside
- * `workspaceRoot`, resolved through links; with the explicit no-workspace
- * scope, relative, empty and drive-relative entries still go). On Windows
- * the child also gets `NoDefaultCurrentDirectoryInExePath`, so
- * CreateProcess does not try the working directory before PATH (probed on
- * Windows 11, Node 24.20: docs/certification/m21.md). Sanitizing PATH alone
- * does not close that lookup. Only the branded producers below can make the
- * returned environment, so a raw one never reaches the serve spawn.
- */
-export function buildChildEnvironment(input: ChildEnvironmentInput): GuardedChildEnv {
-  const env: NodeJS.ProcessEnv = { ...input.baseEnv }
-  if (input.platform === 'win32' && input.systemRoot !== undefined) {
-    setEnvironmentVariable(
-      env,
-      input.platform,
-      'PSModulePath',
-      windowsPowerShellModulePath(input.systemRoot, input.programFiles),
-    )
-  }
-  for (const variable of input.extraVariables) {
-    setEnvironmentVariable(env, input.platform, variable.name, variable.value)
-  }
-  if (input.accountHome !== undefined) {
-    input.accountHome.assertCurrent()
-  }
-  if (input.accountHome?.configHome !== undefined) {
-    // A CLI account must never silently use another account's inherited key
-    // or the POSIX launcher's auth-file override. The default path keeps D1.
-    for (const name of Object.keys(env)) {
-      const upper = name.toUpperCase()
-      if (
-        upper === 'MUSE_AUTH_PATH' ||
-        upper.endsWith('_API_KEY') ||
-        HOOK_FORBIDDEN_ENV_NAMES.has(upper)
-      )
-        Reflect.deleteProperty(env, name)
-    }
-    setEnvironmentVariable(env, input.platform, 'XDG_CONFIG_HOME', input.accountHome.configHome)
-  }
-  // The guard runs after the person's variables, so a PATH from
-  // `museSpark.environmentVariables` is sanitized like the inherited one and
-  // cannot put a workspace entry back.
-  return 'workspaceRoot' in input.scope
-    ? workspaceChildEnvironment(input.platform, env, input.scope)
-    : noWorkspaceChildEnvironment(input.platform, env, input.scope.realpath)
 }
 
 /**

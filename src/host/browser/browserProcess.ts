@@ -13,22 +13,8 @@
 // owner is known to be gone.
 
 import type { ChildProcess } from 'node:child_process'
-import { realpathSync } from 'node:fs'
-import { withoutCredentials } from '../../core/credentialEnvironment'
-import { noWorkspaceChildEnvironment } from '../../core/executables'
-import { execFileGuarded, spawnGuarded } from '../../core/guardedChildProcess'
-import { randomBytes } from 'node:crypto'
-import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
-import { networkInterfaces } from 'node:os'
 import path from 'node:path'
-import { Duplex } from 'node:stream'
 import type { BrowserProcess, BrowserRunDeps, CheckFolder } from '../../core/browser/browserRun'
-import { startProbeFixture } from '../../core/browser/canaries'
-import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
-import { stopResourceTree } from '../../core/resources/admission'
-import { observeResourceProcess } from '../resources/resourceAdmission'
-import { spawnMcpJob } from '../backend/mcpJobLaunch'
-import { startCheckProxy } from '../../core/browser/checkProxy'
 import {
   BROWSER_CHECK_DIR,
   BROWSER_CHECK_ID_BYTES,
@@ -39,6 +25,20 @@ import {
   BROWSER_PROFILE_SUBDIRS,
   WINDOWS_TASKKILL_RELATIVE_PATH,
 } from '../../shared/browserCheckConstants'
+import { noWorkspaceChildEnvironment } from '../../core/execGuard'
+import { realpathSync } from 'node:fs'
+import { withoutCredentials } from '../../core/credentialEnvironment'
+import { execFileGuarded, spawnGuarded } from '../../core/guardedChildProcess'
+import { randomBytes } from 'node:crypto'
+import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { networkInterfaces } from 'node:os'
+import { Duplex } from 'node:stream'
+import { startProbeFixture } from '../../core/browser/canaries'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import { stopResourceTree } from '../../core/resources/admission'
+import { observeResourceProcess } from '../resources/resourceAdmission'
+import { spawnMcpJob } from '../backend/mcpJobLaunch'
+import { startCheckProxy } from '../../core/browser/checkProxy'
 
 export interface HostBrowserDeps {
   readonly windowsJob?:

@@ -1,7 +1,7 @@
-import { realpathSync } from 'node:fs'
 import * as z from 'zod/mini'
-import { noWorkspaceChildEnvironment } from '../../core/executables'
+import { noWorkspaceChildEnvironment } from '../../core/execGuard'
 import { runProgram } from '../processTree'
+import { realpathSync } from 'node:fs'
 
 export interface ProcessIdentity {
   readonly pid: number

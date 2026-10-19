@@ -1,4 +1,3 @@
-import { resourceEnvironment } from '../core/resources/launch'
 // How the extension runs git (the mention index, the Model API prompt's
 // environment facts): by absolute path, found on the absolute PATH entries
 // only, so a `git.exe` committed to the workspace is never the one that runs
@@ -7,21 +6,8 @@ import { resourceEnvironment } from '../core/resources/launch'
 // index lock out from under the user's own git.
 
 import type { ExecFileOptions } from 'node:child_process'
-import { spawnGuarded } from '../core/guardedChildProcess'
-import { existsSync, realpathSync } from 'node:fs'
-import { admitResource, resourceWindowsJob, stopResourceTree } from '../core/resources/admission'
-import { spawnMcpJob } from './backend/mcpJobLaunch'
-import { observeResourceProcess } from './resources/resourceAdmission'
-import { treeSpawnOptions } from './processTree'
-import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
-import {
-  resolveExecutable,
-  workspaceChildEnvironment,
-  type GuardedChildEnv,
-} from '../core/executables'
 import type { BestOfNGitGuard } from '../core/bestOfN/bestOfNRunner'
-import { environmentValue } from '../core/backends/musecode/launch'
 import {
   BEST_OF_N_MIN_GIT_MINOR,
   GIT_FILTER_NAMES_ARGS,
@@ -34,11 +20,17 @@ import {
   GIT_TIMEOUT_MS,
   UI_TEXT,
 } from '../shared/constants'
-
-import { withoutCredentials } from '../core/credentialEnvironment'
+import { treeSpawnOptions } from './processTree'
+import { gitLocator, quietGitEnvironment, childGitEnvironment } from '../core/execGuard'
+import { resourceEnvironment } from '../core/resources/launch'
+import { spawnGuarded } from '../core/guardedChildProcess'
+import { existsSync, realpathSync } from 'node:fs'
+import { admitResource, resourceWindowsJob, stopResourceTree } from '../core/resources/admission'
+import { spawnMcpJob } from './backend/mcpJobLaunch'
+import { observeResourceProcess } from './resources/resourceAdmission'
+import { Buffer } from 'node:buffer'
 
 const GIT = 'git'
-const PATH_VARIABLE = 'PATH'
 const GIT_MISSING = 'git was not found on the absolute entries of PATH'
 const CONFIG_OPTION = '-c'
 const OPTION_MARK = '-'
@@ -129,59 +121,6 @@ function subcommandOf(args: readonly string[]): string {
     }
   }
   return GIT
-}
-
-/**
- * git's absolute path, found once per PATH value and workspace; a miss is
- * not cached, so git installed while the window is open is found on the
- * next call. The run's working directory is the workspace: entries inside
- * it are never probed, so a planted git there never resolves
- * (docs/certification/pathguard.md).
- */
-function gitLocator(
-  deps: Pick<GitRunnerDeps, 'platform' | 'env' | 'fileExists' | 'realpath'>,
-): (workspaceRoot: string) => string | undefined {
-  let cache: { readonly key: string; readonly git: string } | undefined
-  return (workspaceRoot) => {
-    const pathValue = environmentValue(deps.env, deps.platform, PATH_VARIABLE)
-    const key = JSON.stringify([pathValue, workspaceRoot])
-    if (cache?.key !== key) {
-      const git = resolveExecutable(GIT, {
-        platform: deps.platform,
-        pathVariable: pathValue,
-        fileExists: deps.fileExists,
-        scope: { workspaceRoot, realpath: deps.realpath },
-      })
-      cache = git === undefined ? undefined : { key, git }
-    }
-    return cache?.git
-  }
-}
-
-/**
- * The extension's git environment: no optional locks, and never a
- * credential prompt. With the workspace the child runs in, its PATH is the
- * guarded child PATH (workspace entries dropped, empty/relative entries
- * dropped, `NoDefaultCurrentDirectoryInExePath=1` on Windows), so git's own
- * bare-name lookups (`ssh`, `git-remote-https`) never run a helper planted
- * in the repository.
- */
-export function quietGitEnvironment(
-  env: NodeJS.ProcessEnv,
-  workspace: {
-    readonly workspaceRoot: string
-    readonly platform: NodeJS.Platform
-    readonly realpath: (filePath: string) => string
-  },
-): GuardedChildEnv {
-  const child = workspaceChildEnvironment(
-    workspace.platform,
-    { ...withoutCredentials(env), GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' },
-    workspace,
-  )
-  child['GIT_OPTIONAL_LOCKS'] = '0'
-  child['GIT_TERMINAL_PROMPT'] = '0'
-  return child
 }
 
 export interface GitRunnerDeps {
@@ -463,30 +402,6 @@ export interface GitProcessDeps {
    * working directory is passed so a searching locator can exclude it.
    */
   readonly locate?: ((workspaceRoot: string) => string | undefined) | undefined
-}
-
-/**
- * One environment for both launch routes, an allow-list per operation
- * (RVM123G2 R3): no credential variable at all, or for D104's exception
- * (a confirmed push, a pull request fetch) only the Git routes
- * GIT_PUSH_CREDENTIAL_VARIABLES names, never a model or provider key.
- */
-function childGitEnvironment(
-  options: GitProcessOptions,
-  workspace: {
-    readonly workspaceRoot: string
-    readonly platform: NodeJS.Platform
-    readonly realpath: (filePath: string) => string
-  },
-): GuardedChildEnv {
-  const base =
-    options.credentialRoutes === undefined
-      ? withoutCredentials(options.env)
-      : {
-          ...withoutCredentials(options.env, options.credentialRoutes),
-          GIT_TERMINAL_PROMPT: '0',
-        }
-  return workspaceChildEnvironment(workspace.platform, base, workspace)
 }
 
 /**

@@ -1,6 +1,3 @@
-import { createHash } from 'node:crypto'
-import { realpathSync } from 'node:fs'
-import { execFileGuarded } from '../../src/core/guardedChildProcess'
 import {
   mkdir,
   mkdtemp,
@@ -11,12 +8,7 @@ import {
   utimes,
   writeFile,
 } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { noWorkspaceChildEnvironment } from '../../src/core/executables'
-import { screenRecordExecutable } from '../../src/host/backend/jobBuild'
-import { runProgram } from '../../src/host/processTree'
 import {
   MEDIA_FILE_ID_MIN_BYTES,
   MEDIA_MAX_UPLOAD_MIB,
@@ -25,6 +17,14 @@ import {
   SCREEN_RECORDING_RECENT_MAX_AGE_MS,
   PROCESS_TABLE_TIMEOUT_MS,
 } from '../../src/shared/constants'
+import { noWorkspaceChildEnvironment } from '../../src/core/execGuard'
+import { runProgram } from '../../src/host/processTree'
+import { createHash } from 'node:crypto'
+import { realpathSync } from 'node:fs'
+import { execFileGuarded } from '../../src/core/guardedChildProcess'
+import { tmpdir } from 'node:os'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { screenRecordExecutable } from '../../src/host/backend/jobBuild'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const paths = { root: '', executable: '' }

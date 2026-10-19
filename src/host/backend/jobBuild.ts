@@ -4,16 +4,16 @@
 // earlier sources removed. M27's shell job assembly and M50's MCP launcher
 // take the same steps with their own names and compiler options.
 
+import path from 'node:path'
+import type { RunProgram } from '../processTree'
+import { noWorkspaceChildEnvironment } from '../../core/execGuard'
 import { runBootstrap } from '../../core/bootstrapCommand'
 import { withoutCredentials } from '../../core/credentialEnvironment'
-import { noWorkspaceChildEnvironment } from '../../core/executables'
 import { createHash, randomUUID } from 'node:crypto'
 import { realpathSync } from 'node:fs'
 import { mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
-import path from 'node:path'
 import { sameFile, statIdentity } from '../../core/fs/fileIdentity'
 import { WINDOWS_FRAMEWORK_RELATIVE_PATH } from '../../shared/constants'
-import type { RunProgram } from '../processTree'
 
 const SOURCE_EXTENSION = '.cs'
 const DIGEST_LENGTH = 16

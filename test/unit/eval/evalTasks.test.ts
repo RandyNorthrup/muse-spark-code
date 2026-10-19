@@ -1,14 +1,9 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   EVAL_FLOOR_ACCEPT_PASS_RATE,
   EVAL_FLOOR_HELDOUT_PASS_RATE,
   EVAL_MODEL_ID,
 } from '../../../src/shared/constants'
-import { modelApiPaidTier } from '../../../src/shared/paid'
-import { EVAL_TASKS, evalTaskSchema, isEvalPath, type EvalTask } from '../../../src/core/eval/tasks'
 import {
   createEvalWorkspace,
   listWorkspaceFiles,
@@ -16,7 +11,12 @@ import {
   runEvalVerifier,
   type EvalVerdict,
 } from '../../../src/core/eval/workspace'
-import { noWorkspaceChildEnvironment } from '../../../src/core/executables'
+import { noWorkspaceChildEnvironment } from '../../../src/core/execGuard'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { modelApiPaidTier } from '../../../src/shared/paid'
+import { EVAL_TASKS, evalTaskSchema, isEvalPath, type EvalTask } from '../../../src/core/eval/tasks'
 import { removeFolder } from '../helpers/temporaryFolders'
 import { EVAL_CANONICAL_FIXES, EVAL_OTHER_FIXES, fixesFor, withFixes } from './evalFixes'
 

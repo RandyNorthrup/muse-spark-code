@@ -1212,6 +1212,31 @@ export const MODEL_API_BOUNDARY_SOURCES = [
   'src/core/backends/modelapi/legalScanTool.ts',
 ]
 
+// The guarded process-start layer (PLAN.md D24), once per process: every
+// Node bundle that starts a program or builds a child environment reads it
+// from dist/execGuard.js; the split check fails a bundle that loads it and
+// still carries it.
+export const EXEC_GUARD_SOURCE = 'src/core/execGuard.ts'
+export const EXEC_GUARD_BUNDLE = {
+  output: 'dist/execGuard.js',
+  metafile: 'dist/meta/execGuard.json',
+}
+/** @type {import('esbuild').Plugin} */
+export const sharedExecGuard = {
+  name: 'shared-exec-guard',
+  setup(build) {
+    build.onResolve({ filter: /\/execGuard(?:\.[jt]s)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      if (
+        source !== path.resolve(EXEC_GUARD_SOURCE) ||
+        path.resolve(build.initialOptions.outfile ?? '') === path.resolve(EXEC_GUARD_BUNDLE.output)
+      )
+        return
+      return { path: './execGuard.js', external: true }
+    })
+  },
+}
+
 // Share captured Model API validators, native path identity and team admission across Node
 // consumers; browser validators retain their original inline implementation.
 /** @type {import('esbuild').Plugin} */

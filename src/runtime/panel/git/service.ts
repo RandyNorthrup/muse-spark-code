@@ -45,9 +45,6 @@
 // - Nothing secret is logged, thrown in clear, or shown: failures carry
 //   git's words to the caller, which redacts them before any cut.
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
-import { spawnGuarded } from '../../../core/guardedChildProcess'
-import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import {
   fileIdentityKey,
@@ -59,17 +56,12 @@ import {
   statIdentitySync,
   type FileIdentity,
 } from '../../../core/fs/fileIdentity'
-import { withoutCredentials } from '../../../core/credentialEnvironment'
-import { isWorkspacePath } from '../../../core/executables'
-import { canonicalPath, isMissingPath } from '../../../host/canonicalPath'
-import { createGitProcess, quietGitEnvironment, type GitProcess } from '../../../host/git'
 import {
   commitMessageProblem,
   nativeCommitArgs,
   nativeStageAllArgs,
   type CommitMessageProblem,
 } from '../../../core/git/commit'
-import { nativeDiffArgs, readNativeDiff, type TruncatedDiff } from '../../../core/git/diff'
 import {
   isPlainRefName,
   isPlainRefspec,
@@ -91,7 +83,6 @@ import {
   type NativeGitContext,
   type NativeStatusSnapshot,
 } from '../../../core/git/status'
-import { newFileDiff } from '../../../core/git/gitText'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 import {
   GIT_PUSH_CREDENTIAL_VARIABLES,
@@ -111,6 +102,16 @@ import {
   type RepositoryLock,
   type StateSeal,
 } from './transaction'
+import { isWorkspacePath } from '../../../core/execGuard'
+import { createGitProcess, type GitProcess } from '../../../host/git'
+import { quietGitEnvironment } from '../../../core/execGuard'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { spawnGuarded } from '../../../core/guardedChildProcess'
+import { mkdir } from 'node:fs/promises'
+import { withoutCredentials } from '../../../core/credentialEnvironment'
+import { canonicalPath, isMissingPath } from '../../../host/canonicalPath'
+import { nativeDiffArgs, readNativeDiff, type TruncatedDiff } from '../../../core/git/diff'
+import { newFileDiff } from '../../../core/git/gitText'
 
 /** The subcommands the service runs; anything else is refused. */
 const NATIVE_GIT_SUBCOMMANDS = [

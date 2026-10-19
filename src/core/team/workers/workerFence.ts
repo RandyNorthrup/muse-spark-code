@@ -3,25 +3,25 @@ import type { MuseWorkerApprovalRequest, MuseWorkerApprovalAnswer } from './muse
 import type { AcpPermissionInput, AcpPermissionVerdict, AcpPreset, AcpPresetId } from './acpWorker'
 // One admission authority for every team worker (PLAN.md M96 W-F1-W-F3).
 // Names locate objects; only native identities establish containment.
+import type { RealPathIo } from '../../workspacePath'
+import {
+  WORKER_ACP_MAX_PERMISSION_PATHS,
+  WORKER_FILE_PATH_TIMEOUT_MS,
+} from '../../../shared/constants'
+import type { WorkerRolePolicy } from './workerTypes'
+import { noWorkspaceChildEnvironment } from '../../execGuard'
 import { open, realpath } from 'node:fs/promises'
 import { realpathSync } from 'node:fs'
 import { handleIdentity } from '../../fs/fileIdentity'
-import { noWorkspaceChildEnvironment } from '../../executables'
 import { execFileGuarded } from '../../guardedChildProcess'
 import { scrubWorkerEnv } from './workerEnv'
 import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
 import { homedir } from 'node:os'
 import { pathModule } from '../../workspaceRoot'
 import { windowsPathProblem } from '../../windowsPathSpelling'
-import type { RealPathIo } from '../../workspacePath'
 import { isProtectedPath } from '../../protectedPaths'
 import { isGlobMatch } from '../../backends/modelapi/globLimits'
 import { commandShape, looseWords, type ShellDialect } from '../../backends/modelapi/shellSyntax'
-import {
-  WORKER_ACP_MAX_PERMISSION_PATHS,
-  WORKER_FILE_PATH_TIMEOUT_MS,
-} from '../../../shared/constants'
-import type { WorkerRolePolicy } from './workerTypes'
 
 export interface WorkerFenceIo extends RealPathIo {
   /** Windows volume serial + file index; POSIX device + inode. Never a path string. */

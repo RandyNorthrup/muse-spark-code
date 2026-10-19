@@ -1,12 +1,6 @@
 import type { ChildProcess } from 'node:child_process'
-import { once } from 'node:events'
-import { realpathSync } from 'node:fs'
 import path from 'node:path'
-import { noWorkspaceChildEnvironment } from '../executables'
-import { execFileGuarded, spawnGuarded } from '../guardedChildProcess'
-import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
-import { admitBootstrap, admitResource, resourceWindowsJob, stopResourceTree } from './admission'
 import {
   resourceEnvironment,
   type ResourceLaunchProfile,
@@ -20,7 +14,6 @@ import {
 } from './launch'
 import type { AttestedJobControl, JobRecord } from '../../host/backend/mcpJobLaunch'
 import type { ResourceProcessIdentity } from '../../shared/resources'
-import { withoutCredentials } from '../credentialEnvironment'
 import {
   CLI_OUTPUT_MAX_BYTES,
   MILLISECONDS_PER_SECOND,
@@ -34,6 +27,13 @@ import {
   TREE_EXIT_WAIT_MS,
   WINDOWS_TASKKILL_RELATIVE_PATH,
 } from '../../shared/constants'
+import { noWorkspaceChildEnvironment } from '../execGuard'
+import { once } from 'node:events'
+import { realpathSync } from 'node:fs'
+import { execFileGuarded, spawnGuarded } from '../guardedChildProcess'
+import { setTimeout as delay } from 'node:timers/promises'
+import { admitBootstrap, admitResource, resourceWindowsJob, stopResourceTree } from './admission'
+import { withoutCredentials } from '../credentialEnvironment'
 
 /** Ends only this caller's wait at its deadline or cancellation; shared work keeps running. */
 async function untilAborted<T>(pending: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
