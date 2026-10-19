@@ -91,6 +91,24 @@ happened, not what was planned; superseded entries are kept.
   (`src/core/backends/musecode/sandbox.ts`): it resolves `bwrap` off
   absolute PATH entries only and refuses a binary inside the workspace
   before spawning. No behaviour change.
+- PATH lookups closed at their cause (round 5): the playbook resolves
+  `git` outside the workspace and admits and spawns it absolute with the
+  guarded child env, so the supervisor's command is never a bare name;
+  team `setpriv`/`systemd-run`/`systemctl` probe on the absolute PATH
+  entries only and resolve outside each launch's own directory with the
+  guarded child env (a tool the probe saw but that directory shadows
+  fails the launch closed); the ACP agent and setup hooks pass their
+  workspace into the shell lookup, so `bash`/`sh` resolve outside it; an
+  absolute `SHELL` inside the workspace is ignored for hooks and `sh`
+  resolves outside instead; Windows comparisons strip trailing spaces
+  and a single trailing dot the way `GetFullPathName` does (`repo .` is
+  the workspace, a non-final `repo...` stays a distinct name). The spawn
+  inventory now also enumerates wrapper starts (literal or variable
+  command) and embedded supervisor scripts, and fails on any start
+  outside the guarded routes or the reviewed lists.
+
+### Fixed
+
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
   `htmlToMarkdown` had no callers (both backends convert through
   `convertHtmlJob` on the page worker), so it was removed. No behaviour
@@ -131,6 +149,15 @@ happened, not what was planned; superseded entries are kept.
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+- Merging the PATHGUARD spawn inventory with the release branch reviewed the
+  Linux sandbox probe into its record: `bwrap` resolves through absolute
+  PATH entries only, a binary inside the workspace is refused, and the
+  spawn itself carries the absolute path with no shell. No behaviour change.
+- A refused ACP `session/delete` no longer drops the open session: on a
+  backend whose CLI serves no `session/delete` (Muse Code 1.4.4 on), the
+  refusal used to release the held conversation first, so the next prompt
+  answered "Resource not found". The capability is now checked first and
+  the held session stays usable.
 
 ### Packaging
 

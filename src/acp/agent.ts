@@ -3473,20 +3473,22 @@ class AgentState {
    */
   public async deleteSession(sessionId: string): Promise<void> {
     const held = this.sessions.get(sessionId) ?? this.adopting.get(sessionId)
-    if (held !== undefined) {
-      await this.releaseAll(sessionId)
-      this.choices.delete(sessionId)
-    }
     let host: AgentHost | undefined = held?.host
     if (host === undefined) {
       const opened = await this.openHost(this.deps.defaultCwd)
       host = opened.host
     }
+    // A host that cannot delete refuses before anything is released: the
+    // held session and the editor's remembered choice stay usable.
     if (!host.info.canDeleteSessions) {
       throw RequestError.internalError(
         undefined,
         fill(UI_TEXT.sessionDeleteUnsupported, { version: host.info.serverVersion }),
       )
+    }
+    if (held !== undefined) {
+      await this.releaseAll(sessionId)
+      this.choices.delete(sessionId)
     }
     try {
       await host.deleteSession(sessionId)
