@@ -798,6 +798,52 @@ export class VaultMigration {
       return true
     })
   }
+  /**
+   * Drop a vault copy the legacy slot no longer owns: the live record
+   * decodes to something other than an apiKey row (an oauth, subscription
+   * or account record saved over a migrated apiKey slot) while the journal
+   * still claims the old key. A readable apiKey vault item is not "stuck",
+   * so `rollbackCopy` leaves it; this removes it instead, without touching
+   * the live SecretStorage record. A `copying` or `writing` row goes with
+   * its item the way a rollback drops it; any other owned row (`active`,
+   * `retired`, `deleting`) finishes `deleted` through the interrupted
+   * sign-out path, which keeps a live copy it did not expect. Anything
+   * else — no row, a terminal row, an absent or damaged record, or a
+   * record that still decodes to an apiKey row — reports false and changes
+   * nothing. Never deletes the SecretStorage record: that is the live key.
+   */
+  async removeStaleVaultCopy(key: string): Promise<boolean> {
+    const entry = this.credential(key)
+    return await this.run(async (lease) => {
+      const row = await this.record(entry, lease)
+      if (row === null || row.phase === 'deleted' || row.phase === 'undone') return false
+      let live: Uint8Array | null = null
+      let decoded: VaultItem | undefined
+      try {
+        live = await this.deps.legacy.read(entry.key)
+        lease.assertCurrent()
+        if (live === null) return false
+        try {
+          decoded = entry.decode(live)
+        } catch {
+          // A damaged record stays the engine's to report.
+          return false
+        }
+        if (decoded.material.kind === 'apiKey') return false
+        if (row.phase === 'copying' || row.phase === 'writing') {
+          await this.removeVaultCopyIfPresent(entry, lease)
+          await this.deps.journal.remove(entry.key)
+          lease.assertCurrent()
+          return true
+        }
+        await this.finishInterruptedDelete(entry, row, lease)
+        return true
+      } finally {
+        eraseItem(decoded)
+        live?.fill(0)
+      }
+    })
+  }
   /** Startup recovery runs before first-party bindings become usable. */
   async resume(key: string): Promise<void> {
     const entry = this.credential(key)

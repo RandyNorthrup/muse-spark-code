@@ -386,6 +386,11 @@ export class CredentialMigrationController implements MigrationMirror {
         // opaque record is the only thing left to skip.
         if (phase === 'copying' || phase === 'writing') await migration.rollbackCopy(key)
         if (!(await this.isApiKeyRecord(key, credentials))) {
+          // A non-apiKey record saved over a migrated slot orphans the old
+          // vault copy: drop that item (finishing its journal row) while the
+          // new record keeps working in SecretStorage. Never the engine's
+          // `delete`, which would take the live record with it.
+          await migration.removeStaleVaultCopy(key)
           if (!this.skippedOpaque.has(key)) {
             this.skippedOpaque.add(key)
             this.deps.log.info(
@@ -431,8 +436,15 @@ export class CredentialMigrationController implements MigrationMirror {
     // subscription or account record stays in SecretStorage, working, and
     // the next unlock logs why. Without this check a save of one called
     // `migrate`, which stranded a `copying` row with a `secret` item the
-    // unlock then skipped forever.
-    if (!(await this.isApiKeyRecord(key, credentials))) return
+    // unlock then skipped forever. A save of one over a migrated slot also
+    // orphans the old vault copy: drop that item (finishing its journal
+    // row) while leaving the new record in place. A refused removal
+    // propagates to the shell, whose save already succeeded and heals it at
+    // the next unlock.
+    if (!(await this.isApiKeyRecord(key, credentials))) {
+      await migration.removeStaleVaultCopy(key)
+      return
+    }
     const bytes = Buffer.from(value, 'utf8')
     try {
       // The journal phase decides, not `resolve`: provider codecs carry no
@@ -460,12 +472,25 @@ export class CredentialMigrationController implements MigrationMirror {
     }
   }
 
-  async mirrorDelete(key: string): Promise<void> {
+  /**
+   * Drop a removed key's migrated slot. Resolves true when the engine owned
+   * the delete: it journals `deleting` before it removes either copy, so a
+   * failure before that journal write leaves SecretStorage untouched and
+   * the shell surfaces it instead of resolving a half-finished sign-out. A
+   * key the migration never took — or whose sign-out already finished —
+   * resolves false, and the shell clears SecretStorage the plain way. The
+   * person's own removal takes both copies. The engine still refuses a
+   * mid-state delete with a conflict instead of destroying half a slot.
+   */
+  async mirrorDelete(key: string): Promise<boolean> {
     const { migration, providerIds } = await this.engine()
-    if (!listMigrationKeys(providerIds).includes(key)) return
-    // The person's own removal: both copies go. The engine still refuses a
-    // mid-state delete with a conflict instead of destroying half a slot.
+    if (!listMigrationKeys(providerIds).includes(key)) return false
+    const phase = await migration.journalPhase(key)
+    // Never copied, or a finished sign-out: no vault copy to remove, so the
+    // shell clears SecretStorage the plain way.
+    if (phase === null || phase === 'deleted') return false
     await migration.delete(key, { destroyLastCopyConfirmed: true, legacyDeletionConfirmed: true })
+    return true
   }
 }
 

@@ -64,8 +64,13 @@ export function withMigrationLock<T>(work: () => Promise<T>): Promise<T> {
 export interface MigrationMirror {
   /** Copy a written value into its migrated slot; throws when it cannot. */
   mirrorWrite(key: string, value: string): Promise<void>
-  /** Drop a removed key's migrated slot; throws when it cannot. */
-  mirrorDelete(key: string): Promise<void>
+  /**
+   * Drop a removed key's migrated slot. Resolves true when the engine owned
+   * the delete (both copies); false for a key it never took, whose
+   * SecretStorage entry the shell still clears. Throws when it cannot: the
+   * shell leaves SecretStorage as it is and the failure surfaces.
+   */
+  mirrorDelete(key: string): Promise<boolean>
 }
 
 /** Activation owns the shell; the lazy vault binding owns the mirror. */
@@ -103,18 +108,19 @@ export function createMigrationShell(secrets: SecretStore): MigrationShell {
         })
       },
       async delete(key) {
-        // The mirror image of store: the SecretStorage clear and the engine
-        // delete are one atomic op, so a save that arrives second re-seeds
+        // The mirror image of store: the engine delete and the SecretStorage
+        // clear are one atomic op, so a save that arrives second re-seeds
         // after it instead of being wiped by its trailing remove, and no
         // stale in-flight mirror can recreate the key once this completes.
-        // A refused engine delete still never breaks the removal itself.
+        // While a mirror is bound the engine goes first: it journals
+        // `deleting` before it removes either copy, so a failure before
+        // that journal write leaves SecretStorage untouched and surfaces
+        // instead of resolving with the key unreadable and its vault copy
+        // stranded (the next unlock only heals a journaled `deleting` row).
+        // A key the migration never took deletes the plain way.
         await withMigrationLock(async () => {
+          if (mirror !== null && (await mirror.mirrorDelete(key))) return
           await secrets.delete(key)
-          try {
-            await mirror?.mirrorDelete(key)
-          } catch {
-            /* Healed at the next unlock; the removal itself succeeded. */
-          }
         })
       },
     },

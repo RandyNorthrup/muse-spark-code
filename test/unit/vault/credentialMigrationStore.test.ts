@@ -53,6 +53,15 @@ const oauthRecord = (secret: string) => ({
   origin: 'https://openrouter.ai',
   secret,
 })
+/** The default-account overlay: same slot, six keys, never an apiKey row. */
+const accountRecord = (secret: string) => ({
+  provider: 'openrouter',
+  account: 'default',
+  origin: 'https://openrouter.ai',
+  v: 1,
+  auth: 'apiKey',
+  secret,
+})
 const vaultId = 'b'.repeat(32)
 
 const quiet: Logger = {
@@ -662,11 +671,11 @@ describe('key-store migration against a real store', () => {
     const newer = modelApiKey()
     const inner = await persistedSecrets({ [MODEL_API_KEY]: first })
     const active = controller(inner, [], noFail())
-    // Hold the sign-out's engine delete open after its SecretStorage clear
-    // but before it touches the vault: the save below lands in that window,
-    // the way a save racing a fresh sign-out does. Every byte still goes
-    // through the real controller and the real store; the gate only decides
-    // when, like the persisted-write gate above.
+    // Hold the sign-out's engine delete open before it touches either copy:
+    // the save below lands in that window, the way a save racing a fresh
+    // sign-out does. Every byte still goes through the real controller and
+    // the real store; the gate only decides when, like the persisted-write
+    // gate above.
     const gateHit: (() => void)[] = []
     const gateOpen: (() => void)[] = []
     const removalReached = new Promise<void>((resolve) => {
@@ -681,18 +690,19 @@ describe('key-store migration against a real store', () => {
       mirrorDelete: async (key) => {
         for (const notify of gateHit.splice(0)) notify()
         await removalHold
-        await active.mirrorDelete(key)
+        return await active.mirrorDelete(key)
       },
     }
     shell.bind(gated)
     await active.ensureMigrated()
     expect(await readMigratedSecret()).toBe(first)
-    // The sign-out clears SecretStorage, then stalls before its engine
-    // delete; the lane queues by arrival, so the save below is ordered
-    // second even though it starts before the release.
+    // The sign-out stalls inside its engine delete before it touches either
+    // copy — SecretStorage still holds the old key, so a failure here can
+    // never strand it empty; the lane queues by arrival, so the save below
+    // is ordered second even though it starts before the release.
     const signOut = shell.store.delete(MODEL_API_KEY)
     await removalReached
-    expect(await inner.get(MODEL_API_KEY)).toBe(undefined)
+    expect(await inner.get(MODEL_API_KEY)).toBe(first)
     const save = shell.store.store(MODEL_API_KEY, newer)
     for (const release of gateOpen.splice(0)) release()
     await signOut
@@ -707,6 +717,58 @@ describe('key-store migration against a real store', () => {
     await controller(inner, [], noFail()).ensureMigrated()
     expect(await inner.get(MODEL_API_KEY)).toBe(newer)
     expect(await readMigratedSecret()).toBe(newer)
+  })
+
+  it('a non-apiKey save after unlock removes the stale vault copy', async () => {
+    const secret = providerSecret()
+    const store = await persistedSecrets({ [PROVIDER_KEY]: JSON.stringify(apiKeyRecord(secret)) })
+    const { shell } = await migratedShell(store, ['openrouter'])
+    expect(await readMigratedSecret()).toBe(secret)
+    // A later save on the same slot overwrites SecretStorage with an oauth
+    // record, the way the provider wizard writes one: the old vault copy
+    // must go, while the new record keeps working where it is.
+    const oauth = JSON.stringify(oauthRecord(providerSecret()))
+    await shell.store.store(PROVIDER_KEY, oauth)
+    expect(await store.get(PROVIDER_KEY)).toBe(oauth)
+    expect(await credentialCount()).toBe(0)
+    await controller(store, ['openrouter'], noFail()).ensureMigrated()
+    expect(await credentialCount()).toBe(0)
+    expect(await store.get(PROVIDER_KEY)).toBe(oauth)
+    // The slot is not stuck: an apiKey save migrates straight through, and
+    // the default-account overlay over it clears the vault copy the same way.
+    const rotated = providerSecret()
+    await shell.store.store(PROVIDER_KEY, JSON.stringify(apiKeyRecord(rotated)))
+    expect(await readMigratedSecret()).toBe(rotated)
+    const overlaid = JSON.stringify(accountRecord(providerSecret()))
+    await shell.store.store(PROVIDER_KEY, overlaid)
+    expect(await store.get(PROVIDER_KEY)).toBe(overlaid)
+    expect(await credentialCount()).toBe(0)
+    await controller(store, ['openrouter'], noFail()).ensureMigrated()
+    expect(await credentialCount()).toBe(0)
+    expect(await store.get(PROVIDER_KEY)).toBe(overlaid)
+  })
+
+  it('a sign-out that cannot reach the vault keeps the key readable', async () => {
+    const first = modelApiKey()
+    const store = await persistedSecrets({ [MODEL_API_KEY]: first })
+    const { shell } = await migratedShell(store, [])
+    expect(await readMigratedSecret()).toBe(first)
+    // The vault locks (the Lock control, or idle lock) before the sign-out:
+    // the removal must fail loudly with the key still readable, never
+    // resolve with SecretStorage empty and the vault copy stranded.
+    liveStore().lock()
+    await expect(shell.store.delete(MODEL_API_KEY)).rejects.toThrow()
+    expect(await store.get(MODEL_API_KEY)).toBe(first)
+    await reopenStore()
+    expect(await store.get(MODEL_API_KEY)).toBe(first)
+    expect(await readMigratedSecret()).toBe(first)
+    await controller(store, [], noFail()).ensureMigrated()
+    expect(await store.get(MODEL_API_KEY)).toBe(first)
+    expect(await readMigratedSecret()).toBe(first)
+    // Once the vault is back, the same sign-out removes both copies.
+    await shell.store.delete(MODEL_API_KEY)
+    expect(await store.get(MODEL_API_KEY)).toBe(undefined)
+    expect(await credentialCount()).toBe(0)
   })
 
   it('keeps a save made while the vault is locked, and mirrors it on unlock', async () => {
