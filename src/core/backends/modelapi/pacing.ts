@@ -6,7 +6,6 @@ import {
   MILLISECONDS_PER_MINUTE,
   MILLISECONDS_PER_SECOND,
   MINUTES_PER_HOUR,
-  MODEL_API_RETRY_MAX_MS,
   PACING_START_REQUESTS_PER_MINUTE,
   PACING_WINDOW_MS,
   PACING_BACKGROUND_TOKEN_FRACTION,
@@ -355,10 +354,11 @@ export class ModelApiPacing implements RequestPacer {
       bucket.observed = true
     }
     if (!Number.isFinite(retryAfterMs) || retryAfterMs <= 0) return
-    // A hostile or corrupt 429 wait must not wedge background dispatch
-    // for longer than one bounded pause; the next 429 re-pauses anyway.
-    const pause = Math.min(retryAfterMs, MODEL_API_RETRY_MAX_MS)
-    bucket.pausedUntil = Math.max(bucket.pausedUntil, this.deps.now() + pause)
+    // The provider's own wait is honoured whole: no ceiling of ours applies
+    // to a value the provider sent (the owner's limits rule). The wait stays
+    // Stop-abortable, and only background dispatch pauses here; the user's
+    // turn never waits on a sibling's pause.
+    bucket.pausedUntil = Math.max(bucket.pausedUntil, this.deps.now() + retryAfterMs)
   }
 
   /** M107/M108 can read headroom without reading a credential or initiating a request. */

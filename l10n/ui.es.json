@@ -3823,6 +3823,7 @@
   "announceApprovalFor": "Se necesita aprobación para {tool}",
   "turnFailed": "El turno falló.",
   "turnRetrying": "El intento {attempt}/{maxAttempts} falló ({reason}); se reintentará en {seconds} s.",
+  "modelApiProviderRetryWait": "{reason}; el proveedor pidió esperar hasta {time}. Puedes detener el turno en cualquier momento.",
   "usageWindowHours": {
     "one": "ventana de {count} hora",
     "other": "ventana de {count} horas",

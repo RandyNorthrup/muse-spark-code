@@ -3740,6 +3740,7 @@
   "announceApprovalFor": "{tool} için onay gerekiyor",
   "turnFailed": "Tur başarısız oldu.",
   "turnRetrying": "Deneme {attempt}/{maxAttempts} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor.",
+  "modelApiProviderRetryWait": "{reason}; sağlayıcı {time} tarihine kadar beklemeyi istedi. Turu istediğiniz zaman durdurabilirsiniz.",
   "usageWindowHours": {
     "one": "{count} saatlik pencere",
     "other": "{count} saatlik pencere"

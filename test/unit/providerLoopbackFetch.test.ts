@@ -5,51 +5,12 @@
 // before any lookup or connection, honors abort, and refuses oversized
 // bodies rather than reading them.
 
-import { createServer, type IncomingMessage, type Server } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { fetchLoopback } from '../../src/host/providers/loopbackFetch'
 import { LOOPBACK_FETCH_MAX_BODY_BYTES } from '../../src/shared/constants'
+import { closeLoopbackServers, listenLoopback } from './helpers/loopbackServer'
 
-const servers: Server[] = []
-
-afterEach(async () => {
-  await Promise.all(
-    servers.splice(0).map(
-      (server) =>
-        new Promise<void>((resolve) => {
-          server.close(() => {
-            resolve()
-          })
-        }),
-    ),
-  )
-})
-
-async function listen(
-  onRequest: (request: IncomingMessage, reply: (status: number, body: string) => void) => void,
-): Promise<{ port: number; requests: string[] }> {
-  const requests: string[] = []
-  const server = createServer((request, response) => {
-    requests.push(`${request.method ?? ''} ${request.url ?? ''}`)
-    onRequest(request, (status, body) => {
-      response.writeHead(status, { 'content-type': 'text/plain' })
-      response.end(body)
-    })
-  })
-  servers.push(server)
-  const port = await new Promise<number>((resolve, reject) => {
-    server.on('error', reject)
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address()
-      if (typeof address === 'object' && address !== null) {
-        resolve(address.port)
-      } else {
-        reject(new Error('loopback server did not bind'))
-      }
-    })
-  })
-  return { port, requests }
-}
+afterEach(closeLoopbackServers)
 
 const PROXY_VARIABLES = [
   'HTTP_PROXY',
@@ -61,7 +22,7 @@ const PROXY_VARIABLES = [
 ] as const
 
 async function withRecordingProxy<T>(run: (proxyRequests: string[]) => Promise<T>): Promise<T> {
-  const proxy = await listen((_request, reply) => {
+  const proxy = await listenLoopback((_request, reply) => {
     reply(200, 'proxy answer')
   })
   const saved = new Map<string, string | undefined>()
@@ -85,7 +46,7 @@ async function withRecordingProxy<T>(run: (proxyRequests: string[]) => Promise<T
 
 describe('fetchLoopback (M95 step 1)', () => {
   it('GETs a loopback target and returns its status and body', async () => {
-    const target = await listen((_request, reply) => {
+    const target = await listenLoopback((_request, reply) => {
       reply(200, 'Ollama is running')
     })
     const response = await fetchLoopback(`http://127.0.0.1:${String(target.port)}/`)
@@ -95,7 +56,7 @@ describe('fetchLoopback (M95 step 1)', () => {
   })
 
   it('passes non-2xx answers through with their status', async () => {
-    const target = await listen((_request, reply) => {
+    const target = await listenLoopback((_request, reply) => {
       reply(500, 'bad')
     })
     const response = await fetchLoopback(`http://127.0.0.1:${String(target.port)}/health`)
@@ -104,7 +65,7 @@ describe('fetchLoopback (M95 step 1)', () => {
   })
 
   it('ignores every proxy variable: a recording proxy sees nothing', async () => {
-    const target = await listen((_request, reply) => {
+    const target = await listenLoopback((_request, reply) => {
       reply(200, '{"models":[]}')
     })
     const outcome = await withRecordingProxy(async (proxyRequests) => {
@@ -142,25 +103,16 @@ describe('fetchLoopback (M95 step 1)', () => {
   })
 
   it('reports a refused connection instead of answering', async () => {
-    const closed = await listen((_request, reply) => {
+    const closed = await listenLoopback((_request, reply) => {
       reply(200, 'gone')
     })
     const port = closed.port
-    await Promise.all(
-      servers.splice(0).map(
-        (server) =>
-          new Promise<void>((resolve) => {
-            server.close(() => {
-              resolve()
-            })
-          }),
-      ),
-    )
+    await closed.close()
     await expect(fetchLoopback(`http://127.0.0.1:${String(port)}/`)).rejects.toThrow()
   })
 
   it('honors an aborted signal', async () => {
-    const target = await listen((_request, reply) => {
+    const target = await listenLoopback((_request, reply) => {
       reply(200, 'slow')
     })
     const controller = new AbortController()
@@ -171,7 +123,7 @@ describe('fetchLoopback (M95 step 1)', () => {
   })
 
   it('refuses a body past the cap rather than reading it', async () => {
-    const target = await listen((_request, reply) => {
+    const target = await listenLoopback((_request, reply) => {
       reply(200, 'x'.repeat(LOOPBACK_FETCH_MAX_BODY_BYTES + 1))
     })
     await expect(fetchLoopback(`http://127.0.0.1:${String(target.port)}/`)).rejects.toThrow(
@@ -185,7 +137,7 @@ describe('fetchLoopback (M95 step 1)', () => {
   // out reporting the port unanswered.
   for (const status of [204, 304]) {
     it(`settles a null-body ${String(status)} answer instead of hanging`, async () => {
-      const target = await listen((_request, reply) => {
+      const target = await listenLoopback((_request, reply) => {
         reply(status, '')
       })
       const response = await fetchLoopback(`http://127.0.0.1:${String(target.port)}/v1/models`)

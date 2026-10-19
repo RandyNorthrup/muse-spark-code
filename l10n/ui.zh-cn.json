@@ -3657,6 +3657,7 @@
   "announceApprovalFor": "{tool} 需要批准",
   "turnFailed": "本轮失败。",
   "turnRetrying": "第 {attempt}/{maxAttempts} 次尝试失败（{reason}）；{seconds} 秒后重试。",
+  "modelApiProviderRetryWait": "{reason}；提供方要求等到{time}再重试。您可以随时停止本轮。",
   "usageWindowHours": {
     "other": "{count} 小时时段"
   },
