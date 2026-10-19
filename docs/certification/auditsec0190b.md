@@ -200,3 +200,58 @@ with the fix restored all three pass. `test/unit/helpers/loopbackServer.ts` is d
 `test/unit/providerLoopbackFetch.test.ts` replays no captured wire
 traffic, so its inline server stands back as it was (verified by an
 empty diff against the pre-fix file; 12/12 green).
+
+## Follow-up (2026-10-19, lane AUDITSEC2FIX3): the last provider stand-ins out
+
+1. `test/unit/providerRetryWait.test.ts` no longer injects a fetch
+   answering canned 429 `Response`s. It drives the real decision functions
+   with the header values as plain input (`providerWaitMs`: `retry-after-ms`
+   first, then `Retry-After` seconds, then an HTTP date), the whole-wait
+   sleep rule (`backoffMs`: a named wait whole per try, trillions-scale
+   included; only our own fallback keeps the `MODEL_API_RETRY_MAX_MS`
+   ceiling), the retry telling (`providerRetryReason`, the new pure function
+   the request loop calls per retry — named, trillions-scale and unnamed
+   cases, the absolute end time in `modelApiProviderRetryWait`), the real
+   `pause` over real timers (a 250 ms wait really slept whole; a derived
+   120 s wait ending on a real Stop in milliseconds), and the real
+   `ModelApiPacing` holding background dispatch for the derived wait while
+   the foreground passes. No committed capture holds a real provider 429
+   with `Retry-After` (no 429 frame and no `retry-after` header in
+   `docs/certification/m95-captures`), so the function level is the proof.
+   Drills: the silent cap back, the plain reason back, and the pause ignored
+   in pacing fail 4/5 (the pure-sleep test needs the `pause`-not-sleeping
+   break, which fails it with the Stop test); restored 5/5 with the
+   repository's own timeout.
+2. `test/unit/providerPinDial.test.ts` no longer runs a socket answering
+   HTTP 302. The refusal decision is the new pure `isRedirectRefusal`, which
+   `sendPinned` calls on every answer's status; the test drives it with
+   statuses as plain input (301/302/303/307/308 refuse; 200/201/204/300/
+   304/400/404/500 and a missing status do not). The dial-target proof keeps
+   the silent acceptor (it answers nothing) and the rebinding refusals keep
+   proving zero connections. Drill: the helper returning false fails only
+   the redirect test; restored 3/3. The end-to-end behaviour — a 302 over
+   the wire refused with the `redirect: 'error'` parity failure, the
+   Location answer never followed — is proven by the real-life run through
+   the packed product (CONTRIBUTING.md, "Before you open a pull request"),
+   not by any socket in this suite.
+3. `test/unit/providerLoopbackFetch.test.ts` replays the committed
+   captured bytes, per case: the 200 case serves the llama.cpp b11541
+   models-list sample with its captured 200 status
+   (`m95-captures/llamacpp/01-models-list.json`); the non-2xx case the
+   captured 400 overflow body with its status
+   (`15-overflow-long-prompt.json`); the proxy case the LM Studio llmster 0.0.25-1 models-list sample
+   at the target (`m95-captures/lmstudio/01-models-list.json`, captured
+   bytes at the unreached proxy too); the closed, aborted and oversized
+   cases captured bytes (the oversized body repeats the models-list content
+   past the cap — repetition is size mechanics, every byte captured). No
+   capture backs a 204/304 from these servers, so the 204/304 pair is proven
+   at the function level: the server sends zero content bytes and the
+   statuses are plain input exercising the real null-body branch (C-M95-4
+   R2) over a real socket. The refusal and bracketed-`::1` cases serve
+   nothing (pure pre-connect checks). Drills: 127.0.0.1 out of the allowlist
+   fails the five 127.0.0.1 cases (GET, non-2xx, proxy, oversized, and the
+   POST sub-case via the wrong refusal); the null-body branch removed fails
+   exactly the 204/304 pair; restored 12/12 with the repository's own
+   timeout. The refused-connection and abort cases assert settlement bare
+   (`rejects.toThrow()` with no reason), so they pass on any refusal — they
+   prove the probe settles, not why.
