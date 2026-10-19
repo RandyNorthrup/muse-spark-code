@@ -13,7 +13,7 @@ import path from 'node:path'
 import { CLINE_CONTRACT } from './contracts/cline'
 
 /** The v1 script names: the 8 documented hooks plus Notification, which is in
- * VALID_HOOK_TYPES but in no docs page (raw-copilot-cline.md:24). */
+VALID_HOOK_TYPES but in no docs page (raw-copilot-cline.md:24). */
 export const CLINE_HOOK_NAMES = [
   'TaskStart',
   'TaskResume',
@@ -65,9 +65,9 @@ function canExecute(file: string): boolean {
 }
 
 /**
- * The filename Cline accepts for this hook on this platform
- * (DOC:169-174), or undefined when the platform has no v1 form.
- */
+The filename Cline accepts for this hook on this platform
+(DOC:169-174), or undefined when the platform has no v1 form.
+*/
 export function clineFileName(platform: NodeJS.Platform, name: ClineHookName): string | undefined {
   if (platform === 'win32') return `${name}.ps1`
   return platform === 'linux' || platform === 'darwin' ? name : undefined
@@ -123,11 +123,11 @@ function scan(
 }
 
 /**
- * The runnable v1 scripts: global scope first, then project
- * (DOC:96: "Global hooks execute first, then workspace hooks"). A directory
- * that cannot be read contributes nothing; a non-v1 filename (an SDK hook,
- * a backup, a wrong-platform name) is ignored, never converted.
- */
+The runnable v1 scripts: global scope first, then project
+(DOC:96: "Global hooks execute first, then workspace hooks"). A directory
+that cannot be read contributes nothing; a non-v1 filename (an SDK hook,
+a backup, a wrong-platform name) is ignored, never converted.
+*/
 export function discoverClineHooks(options: ClineDiscoverOptions = {}): readonly ClineHookRef[] {
   const platform = options.platform ?? process.platform
   const readdir = options.readdir ?? defaultReaddir

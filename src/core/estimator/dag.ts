@@ -5,11 +5,11 @@ import { UI_TEXT } from '../../shared/l10n/text'
 import { compareEstimateIds, remainingHours } from './goal'
 
 /** A node's duration with its evidence, frozen: an eight-hour plan
- * assumption and eight hours backed by calibration must not compare equal.
- * `unit` is always hours; `source` names the plan or the sampler;
- * `basis`/`samples` reuse the disclosure vocabulary (`calibration` with its
- * fit's sample count, otherwise `assumption` with zero).
- */
+assumption and eight hours backed by calibration must not compare equal.
+`unit` is always hours; `source` names the plan or the sampler;
+`basis`/`samples` reuse the disclosure vocabulary (`calibration` with its
+fit's sample count, otherwise `assumption` with zero).
+*/
 export interface EstimateDurationEvidence {
   readonly hours: number
   readonly unit: 'hour'
@@ -19,13 +19,13 @@ export interface EstimateDurationEvidence {
 }
 
 /** The closed evidence vocabulary, checked by membership: forged objects
- * from untyped callers must fail closed rather than ride a literal type. */
+from untyped callers must fail closed rather than ride a literal type. */
 const EVIDENCE_UNITS = new Set(['hour'])
 const EVIDENCE_SOURCES = new Set(['plan', 'sample'])
 const EVIDENCE_BASES = new Set(['assumption', 'calibration'])
 
 /** Shape and evidence invariant for a duration object. Hours range checks
- * stay with the caller: merged lanes and running floors differ by context. */
+stay with the caller: merged lanes and running floors differ by context. */
 export function isEstimateDurationEvidence(value: unknown): value is EstimateDurationEvidence {
   if (value === null || typeof value !== 'object') return false
   const record = value as Record<string, unknown>
@@ -83,10 +83,10 @@ export function planDurationEvidence(hours: number): EstimateDurationEvidence {
 }
 
 /** Dependency-only timing: no machine, account or CI constraint can shorten it.
- * Durations, when supplied by S, are sampled *remaining* hours with their
- * evidence, not bare totals. Their map must cover exactly the graph. Merged
- * work always stays at zero.
- */
+Durations, when supplied by S, are sampled *remaining* hours with their
+evidence, not bare totals. Their map must cover exactly the graph. Merged
+work always stays at zero.
+*/
 export function buildEstimateDag(
   input: readonly EstimateLane[],
   durations?: ReadonlyMap<string, EstimateDurationEvidence>,

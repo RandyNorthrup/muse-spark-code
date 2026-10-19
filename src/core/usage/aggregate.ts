@@ -22,10 +22,10 @@ import {
 } from '../../shared/resourceHistory'
 
 /**
- * Resource region for M102's aggregate: validate retained input before any projection.
- * `sources[i]` names the collector that wrote `records[i]` (the journal's writer):
- * a later cumulative snapshot replaces only its own collector's segment.
- */
+Resource region for M102's aggregate: validate retained input before any projection.
+`sources[i]` names the collector that wrote `records[i]` (the journal's writer):
+a later cumulative snapshot replaces only its own collector's segment.
+*/
 export function aggregateResources(
   records: readonly ResourceRecord[],
   sources: readonly string[] = [],

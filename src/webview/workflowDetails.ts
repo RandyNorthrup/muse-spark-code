@@ -73,10 +73,10 @@ function failureText(failure: unknown): string | undefined {
 }
 
 /**
- * How a run ended: the summary and the last failure of Muse Code's
- * reconciled report, or, when the message is not that report, the message
- * itself as the summary. Undefined while the run has sent no message.
- */
+How a run ended: the summary and the last failure of Muse Code's
+reconciled report, or, when the message is not that report, the message
+itself as the summary. Undefined while the run has sent no message.
+*/
 export function workflowOutcome(message: string | undefined): WorkflowOutcome | undefined {
   if (message === undefined || message.trim() === '') {
     return undefined
@@ -136,12 +136,12 @@ export function childName(child: WorkflowChild, index: number): string {
 }
 
 /**
- * Latest reported input + output for each child's current attempt. The UI
- * resets prior usage on a new attempt, so this is not a billed total.
- */
+Latest reported input + output for each child's current attempt. The UI
+resets prior usage on a new attempt, so this is not a billed total.
+*/
 export function workflowTokens(entry: WorkflowEntry): number | undefined {
   const reported = entry.children.flatMap((child) =>
-    child.usage === undefined ? [] : [child.usage.inputTokens + child.usage.outputTokens],
+    child.usage === undefined ? [] : child.usage.inputTokens + child.usage.outputTokens,
   )
   return reported.length === 0 ? undefined : reported.reduce((sum, tokens) => sum + tokens, 0)
 }

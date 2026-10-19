@@ -21,9 +21,9 @@ const FILE_ACCESS_SUBJECT = 'fileAccess'
 const READ_ACCESS = 'read'
 
 /**
- * Whether a workspace-relative path (forward slashes, links resolved) is a
- * protected write. Case is ignored: Windows and macOS file systems fold it.
- */
+Whether a workspace-relative path (forward slashes, links resolved) is a
+protected write. Case is ignored: Windows and macOS file systems fold it.
+*/
 export function isProtectedPath(canonicalRelative: string): boolean {
   const segments = canonicalRelative.toLowerCase().split('/')
   const name = segments.at(-1) ?? ''
@@ -42,18 +42,18 @@ export function isProtectedPath(canonicalRelative: string): boolean {
 }
 
 /**
- * Whether a Muse Code approval asks to write a protected file: a
- * `fileAccess` subject with any access but a read (an access it does not
- * name counts as a write). Muse Code names the file by its absolute path,
- * `\\?\C:\…\.muse\hooks.json` on Windows (captured 2026-10-04,
- * docs/certification/protect-agent-folders.md), and a file outside the
- * workspace by its own path, so both separators split and every segment
- * counts: one outside the workspace (`~/.claude/settings.json`) is
- * protected, and so is every file of a workspace inside a protected folder,
- * which only asks more. The Model API's `fileWrite` subjects are judged by
- * its host on the canonical path instead (`isProtectedWrite`), and a memory
- * note there is an ordinary edit (D41).
- */
+Whether a Muse Code approval asks to write a protected file: a
+`fileAccess` subject with any access but a read (an access it does not
+name counts as a write). Muse Code names the file by its absolute path,
+`\\?\C:\…\.muse\hooks.json` on Windows (captured 2026-10-04,
+docs/certification/protect-agent-folders.md), and a file outside the
+workspace by its own path, so both separators split and every segment
+counts: one outside the workspace (`~/.claude/settings.json`) is
+protected, and so is every file of a workspace inside a protected folder,
+which only asks more. The Model API's `fileWrite` subjects are judged by
+its host on the canonical path instead (`isProtectedWrite`), and a memory
+note there is an ordinary edit (D41).
+*/
 export function isProtectedFileAccess(
   subject: Pick<ApprovalSubject, 'kind' | 'path' | 'access'>,
 ): boolean {

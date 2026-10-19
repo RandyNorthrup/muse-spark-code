@@ -48,12 +48,12 @@ export class TabCache {
   }
 
   /**
-   * The rest of the longest-prefix entry the current prefix starts with
-   * (same document, same suffix), served only when the text typed since
-   * that prefix starts the entry's completion. A hit refreshes the entry;
-   * anything else — a skipped prefix check would serve stale text — sends
-   * nothing here (undefined).
-   */
+  The rest of the longest-prefix entry the current prefix starts with
+  (same document, same suffix), served only when the text typed since
+  that prefix starts the entry's completion. A hit refreshes the entry;
+  anything else — a skipped prefix check would serve stale text — sends
+  nothing here (undefined).
+  */
   public lookup(document: string, prefix: string, suffix: string): string | undefined {
     let best: TabCacheEntry | undefined
     for (const entry of this.entries.values()) {
@@ -86,10 +86,10 @@ export class TabCache {
   }
 
   /**
-   * The completion request `id` has streamed so far (the whole text, not a
-   * delta). It is kept with that request alone, so each open request is
-   * matched against its own stream. An id no longer open is ignored.
-   */
+  The completion request `id` has streamed so far (the whole text, not a
+  delta). It is kept with that request alone, so each open request is
+  matched against its own stream. An id no longer open is ignored.
+  */
   public noteStreamed(id: string, text: string): void {
     const request = this.open.get(id)
     if (request !== undefined) {
@@ -98,10 +98,10 @@ export class TabCache {
   }
 
   /**
-   * An open request the trigger extends (same document and suffix) whose
-   * own streamed text so far starts what was typed since it opened: wait
-   * for it instead of sending another. The longest such request wins.
-   */
+  An open request the trigger extends (same document and suffix) whose
+  own streamed text so far starts what was typed since it opened: wait
+  for it instead of sending another. The longest such request wins.
+  */
   public findOpen(document: string, prefix: string, suffix: string): string | undefined {
     let match: string | undefined
     let longest = -1

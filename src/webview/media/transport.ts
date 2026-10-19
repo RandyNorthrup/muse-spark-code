@@ -26,7 +26,7 @@ export interface CompanionUploadCredentials {
 const failureSchema = z.strictObject({ reason: z.string() })
 
 /** M104 C supplies its current per-window bearer after the one-use launch exchange.
- * @unwired M104 read only by tests deleted 2026-10-17 (no fakes) */
+@unwired M104 read only by tests deleted 2026-10-17 (no fakes) */
 export function companionMediaTransport(
   credentials: () => CompanionUploadCredentials,
   sendRequest: typeof fetch = (input, init) => fetch(input, init),

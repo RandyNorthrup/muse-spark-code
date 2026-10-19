@@ -44,11 +44,11 @@ export const legalFixFileHashSchema = z.strictObject({
 })
 
 /**
- * What the host stores under a preview id (and what crosses the wire
- * inside the preview): the scan's versions, the evidence digests, the file
- * hashes, and the workspace and mode the preview was taken in. A confirm
- * whose live state differs in any of these is refused as stale.
- */
+What the host stores under a preview id (and what crosses the wire
+inside the preview): the scan's versions, the evidence digests, the file
+hashes, and the workspace and mode the preview was taken in. A confirm
+whose live state differs in any of these is refused as stale.
+*/
 export const legalFixSnapshotSchema = z.strictObject({
   version: legalScanResultSchema.shape.version,
   ruleVersion: legalScanResultSchema.shape.ruleVersion,
@@ -62,9 +62,9 @@ export const legalFixSnapshotSchema = z.strictObject({
 export type LegalFixSnapshot = z.infer<typeof legalFixSnapshotSchema>
 
 /**
- * The report the selection was read from: its rule/data versions and scope,
- * echoed so the preview's snapshot names the exact scan it guards.
- */
+The report the selection was read from: its rule/data versions and scope,
+echoed so the preview's snapshot names the exact scan it guards.
+*/
 export const legalFixScanMetaSchema = z.strictObject({
   scanId: z.optional(idSchema),
   ruleVersion: legalScanResultSchema.shape.ruleVersion,
@@ -73,12 +73,12 @@ export const legalFixScanMetaSchema = z.strictObject({
 })
 
 /**
- * The webview asks the host to preview fixes for exactly these findings:
- * the selected ids, in the report's order. Browser evidence is never
- * authoritative; the host looks the ids up in its own scan record. `includeProjectLicense` is the user's separate
- * project-license confirmation (D76); without it those findings stay out
- * of the preview.
- */
+The webview asks the host to preview fixes for exactly these findings:
+the selected ids, in the report's order. Browser evidence is never
+authoritative; the host looks the ids up in its own scan record. `includeProjectLicense` is the user's separate
+project-license confirmation (D76); without it those findings stay out
+of the preview.
+*/
 export const requestLegalFixMessageSchema = z.strictObject({
   type: z.literal('requestLegalFix'),
   requestId: z.optional(idSchema),
@@ -96,10 +96,10 @@ export const legalFixExcludedSchema = z.strictObject({
 export type LegalFixExcluded = z.infer<typeof legalFixExcludedSchema>
 
 /**
- * The host's preview: the exact eligible findings and the only paths a
- * confirm may authorize, plus who stays out and why. Nothing is authorized
- * by this message; `confirmLegalFix` still has to pass every recheck.
- */
+The host's preview: the exact eligible findings and the only paths a
+confirm may authorize, plus who stays out and why. Nothing is authorized
+by this message; `confirmLegalFix` still has to pass every recheck.
+*/
 export const legalFixPatchSchema = z.strictObject({
   path: pathSchema,
   diff: z.string().check(z.minLength(1), z.maxLength(LEGAL_FIX_FILE_READ_MAX_BYTES)),
@@ -112,10 +112,10 @@ export const legalFixPreviewMessageSchema = z.strictObject({
   patches: z.optional(z.array(legalFixPatchSchema).check(z.maxLength(LEGAL_FINDINGS_MAX))),
   previewId: idSchema,
   /**
-   * Present exactly when `refusal` is absent: the guarded baseline the
-   * confirm rechecks. A refused preview stores nothing; confirming its id
-   * refuses with `previewExpired`.
-   */
+  Present exactly when `refusal` is absent: the guarded baseline the
+  confirm rechecks. A refused preview stores nothing; confirming its id
+  refuses with `previewExpired`.
+  */
   snapshot: z.optional(legalFixSnapshotSchema),
   eligible: z.array(idSchema).check(z.maxLength(LEGAL_FINDINGS_MAX)),
   excluded: z.array(legalFixExcludedSchema).check(z.maxLength(LEGAL_FINDINGS_MAX)),
@@ -139,10 +139,10 @@ export const legalFixFailureSchema = z.strictObject({
 export type LegalFixFailure = z.infer<typeof legalFixFailureSchema>
 
 /**
- * What the confirm ends as: every selected path applied, some applied and
- * the rest listed (never reported as complete success), or refused before
- * any write with a LEGAL_FIX_REFUSALS word.
- */
+What the confirm ends as: every selected path applied, some applied and
+the rest listed (never reported as complete success), or refused before
+any write with a LEGAL_FIX_REFUSALS word.
+*/
 export const legalFixResultMessageSchema = z.strictObject({
   type: z.literal('legalFixResult'),
   previewId: idSchema,
@@ -162,10 +162,10 @@ const FNV_HEX_RADIX = 16
 const FNV_HEX_LENGTH = 8
 
 /**
- * The evidence digest (FNV-1a, 8 hex digits): a stable fingerprint of what
- * the scanner said, so a changed report refuses instead of fixing from
- * stale words. Field order is fixed; every applicable field participates.
- */
+The evidence digest (FNV-1a, 8 hex digits): a stable fingerprint of what
+the scanner said, so a changed report refuses instead of fixing from
+stale words. Field order is fixed; every applicable field participates.
+*/
 export function findingDigest(finding: z.infer<typeof legalFindingSchema>): string {
   const stable = JSON.stringify([
     finding.id,

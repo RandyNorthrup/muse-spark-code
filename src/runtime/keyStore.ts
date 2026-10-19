@@ -298,21 +298,21 @@ export function keyringSecretStore(
 }
 
 /**
- * The OS store / SecretStorage account holding a provider's secret (M95,
- * PLAN.md D74): named after the provider's id. Undefined for anything but
- * a provider id (`meta` is reserved and never valid).
- */
+The OS store / SecretStorage account holding a provider's secret (M95,
+PLAN.md D74): named after the provider's id. Undefined for anything but
+a provider id (`meta` is reserved and never valid).
+*/
 export function providerSecretAccount(providerId: string): string | undefined {
   return isProviderId(providerId) ? `museSpark.provider.${providerId}` : undefined
 }
 
 /**
- * A stored provider secret: lane P's credential record (the origin the
- * credential was obtained for) plus the secret itself under `secret`. D74's
- * record is `{v, auth, origin, …}`; the `…` is the secret, which lane K
- * writes beside the record on the VS Code side and this file reads on the
- * agent's. Parsed by composing lane P's parser (never a divergent schema).
- */
+A stored provider secret: lane P's credential record (the origin the
+credential was obtained for) plus the secret itself under `secret`. D74's
+record is `{v, auth, origin, …}`; the `…` is the secret, which lane K
+writes beside the record on the VS Code side and this file reads on the
+agent's. Parsed by composing lane P's parser (never a divergent schema).
+*/
 export interface StoredProviderSecret {
   readonly record: CredentialRecord
   readonly key: string

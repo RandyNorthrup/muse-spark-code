@@ -140,9 +140,9 @@ export const HOOK_FORMAT_CONTRACTS: Readonly<Record<HookFormat, VendorContract>>
 }
 
 /**
- * The adapter entry for an import record: (source format, Muse event, the
- * record's source event and protocol flavor in `options`, payload).
- */
+The adapter entry for an import record: (source format, Muse event, the
+record's source event and protocol flavor in `options`, payload).
+*/
 export function buildForeignStdin(
   format: HookFormat,
   event: AdapterEvent,

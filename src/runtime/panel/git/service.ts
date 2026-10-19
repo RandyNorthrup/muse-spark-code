@@ -160,9 +160,9 @@ function isAllowedConfigRead(rest: readonly string[]): boolean {
   if (haveSameArgs(['config', ...rest], configOriginsArgs())) {
     return true
   }
-  const [flag, key] = rest
-  const remoteKey = /^remote\.(.+)\.(url|pushurl)$/.exec(key ?? '')
-  const isSigning = (SIGNING_CONFIG_KEYS as readonly string[]).includes(key ?? '')
+  const [flag, key = ''] = rest
+  const remoteKey = /^remote\.(.+)\.(url|pushurl)$/.exec(key)
+  const isSigning = (SIGNING_CONFIG_KEYS as readonly string[]).includes(key)
   return (
     flag === '--get' &&
     rest.length === 2 &&
@@ -215,11 +215,11 @@ function isAllowedRemoteRead(args: readonly string[]): boolean {
 }
 
 /**
- * The fixed argument allowlist: the subcommand and every flag are fixed,
- * and any name git resolves is refused unless plain. Throws on anything
- * else, including an unknown subcommand. Lane P reuses this for the pull
- * request fetch and the held checkout's reads.
- */
+The fixed argument allowlist: the subcommand and every flag are fixed,
+and any name git resolves is refused unless plain. Throws on anything
+else, including an unknown subcommand. Lane P reuses this for the pull
+request fetch and the held checkout's reads.
+*/
 export function assertNativeGitArgs(args: readonly string[]): void {
   const [subcommand, ...rest] = args
   if (
@@ -328,10 +328,10 @@ export function assertNativeGitArgs(args: readonly string[]): void {
 }
 
 /**
- * A confirmed push's or a pull request fetch's environment (D104's named
- * exception): the user's, without any credential variable but the Git
- * routes GIT_PUSH_CREDENTIAL_VARIABLES names, and never a prompt.
- */
+A confirmed push's or a pull request fetch's environment (D104's named
+exception): the user's, without any credential variable but the Git
+routes GIT_PUSH_CREDENTIAL_VARIABLES names, and never a prompt.
+*/
 export function nativePushEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return { ...withoutCredentials(env, GIT_PUSH_CREDENTIAL_VARIABLES), GIT_TERMINAL_PROMPT: '0' }
 }
@@ -363,11 +363,11 @@ export function nativeWorktreeAddArgs(wtPath: string, commit: string): readonly 
 
 /** Why a commit did not run; the adapter answers each in the panel's words. */
 /**
- * The git the host resolved (`RuntimeGitDeps.gitPath`) as createGitProcess's
- * locator: used only when absolute, so a relative name never runs a
- * workspace's own `git` (D24); undefined otherwise, so the run fails as git
- * missing.
- */
+The git the host resolved (`RuntimeGitDeps.gitPath`) as createGitProcess's
+locator: used only when absolute, so a relative name never runs a
+workspace's own `git` (D24); undefined otherwise, so the run fails as git
+missing.
+*/
 export function fixedGitLocator(
   platform: NodeJS.Platform,
   executable: string,
@@ -395,12 +395,12 @@ export class CommitRefusedError extends Error {
 }
 
 /**
- * A reason word the service throws (for the log, as `tokenSource.ts`
- * does): the adapter shows each in the panel's words. `closed` is an
- * aborted window or operation (Cancel, a session change, disposal);
- * `changed` a moved repository, root, plan or form; `untrusted` a lost
- * trust; `refused` an argument git must not see.
- */
+A reason word the service throws (for the log, as `tokenSource.ts`
+does): the adapter shows each in the panel's words. `closed` is an
+aborted window or operation (Cancel, a session change, disposal);
+`changed` a moved repository, root, plan or form; `untrusted` a lost
+trust; `refused` an argument git must not see.
+*/
 export type NativeGitRefusal = 'untrusted' | 'changed' | 'refused' | 'closed'
 
 /** A refusal: nothing ran past the check that threw it. */
@@ -425,10 +425,10 @@ export function refusalOf(error: unknown): NativeGitRefusal | undefined {
 }
 
 /**
- * What a caller's operation adds to the window's: its own signal (Cancel,
- * a session change, disposal) and its owner check (the conversation's
- * epoch and session), run after every await and at the spawn.
- */
+What a caller's operation adds to the window's: its own signal (Cancel,
+a session change, disposal) and its owner check (the conversation's
+epoch and session), run after every await and at the spawn.
+*/
 export interface NativeGitOperation {
   readonly signal?: AbortSignal | undefined
   readonly check?: (() => void) | undefined
@@ -463,9 +463,9 @@ export interface StampedStatus {
 }
 
 /**
- * A push the user confirms: M71's plan plus what binds it (RVM123G2 R2).
- * The final revalidation compares all of it with a fresh plan.
- */
+A push the user confirms: M71's plan plus what binds it (RVM123G2 R2).
+The final revalidation compares all of it with a fresh plan.
+*/
 export type NativePushPlan = Extract<PushPlan, { ok: true }> & {
   /** Every URL the push goes to, as git resolves it (rewrites applied); what the confirmation shows. */
   readonly pushUrls: readonly string[]
@@ -510,11 +510,11 @@ function identityAtConstruction(root: string): FileIdentity | undefined {
 }
 
 /**
- * The root as approved: its canonical path and its directory identity,
- * which must be the identity sampled synchronously when the service was
- * made (RVM123G2 R6: a replacement after construction never binds), or
- * undefined (every operation then refuses).
- */
+The root as approved: its canonical path and its directory identity,
+which must be the identity sampled synchronously when the service was
+made (RVM123G2 R6: a replacement after construction never binds), or
+undefined (every operation then refuses).
+*/
 async function bindRoot(
   root: string,
   approved: FileIdentity | undefined,
@@ -609,11 +609,11 @@ function expectSame(isSame: boolean): void {
 }
 
 /**
- * Git behind lane 0's `RuntimeGitDeps`, for lanes P and U, the ACP agent
- * and `exec` to build on. Every method rechecks the operation, the signal
- * and the editor's trust after every await and at the spawn, runs in the
- * bound root, and asserts the argument allowlist at the last line before git.
- */
+Git behind lane 0's `RuntimeGitDeps`, for lanes P and U, the ACP agent
+and `exec` to build on. Every method rechecks the operation, the signal
+and the editor's trust after every await and at the spawn, runs in the
+bound root, and asserts the argument allowlist at the last line before git.
+*/
 export class NativeGitService {
   private readonly run: GitProcess
   /** The directory approved when the service was made; undefined when it could not be bound. */
@@ -663,9 +663,9 @@ export class NativeGitService {
   }
 
   /**
-   * The spawn's last line (the runner's `beforeRun`, and the Windows
-   * helper's payload authorization): synchronous, after every wait.
-   */
+  The spawn's last line (the runner's `beforeRun`, and the Windows
+  helper's payload authorization): synchronous, after every wait.
+  */
   private atSpawn(
     args: readonly string[],
     root: ConfinedRoot,
@@ -724,8 +724,8 @@ export class NativeGitService {
       }
       // Fixed words only: git's own text (paths, remotes, accounts) goes to
       // the caller, which redacts it before any cut.
-      const [subcommand] = args
-      this.deps.log.warn(`git ${subcommand ?? 'unknown'} failed`)
+      const [subcommand = 'unknown'] = args
+      this.deps.log.warn(`git ${subcommand} failed`)
       throw error
     }
   }
@@ -771,11 +771,11 @@ export class NativeGitService {
   }
 
   /**
-   * The files a payload's git reads, for the seal: HEAD and the index of
-   * this worktree, the branch HEAD names, packed and loose refs, the
-   * reftable list, the repository's configuration, and `extra` (a push's
-   * refs and every configuration file git named).
-   */
+  The files a payload's git reads, for the seal: HEAD and the index of
+  this worktree, the branch HEAD names, packed and loose refs, the
+  reftable list, the repository's configuration, and `extra` (a push's
+  refs and every configuration file git named).
+  */
   private sealNow(repo: BoundRepository, extra: readonly string[] = []): StateSeal {
     const branch = headBranch(repo.gitDir)
     return sealOf([
@@ -798,10 +798,10 @@ export class NativeGitService {
   }
 
   /**
-   * One transaction: the repository's lock (waiting while any editor or
-   * runtime process holds it), then the host's admission, then `work`,
-   * which revalidates after both. The lock goes whatever happens.
-   */
+  One transaction: the repository's lock (waiting while any editor or
+  runtime process holds it), then the host's admission, then `work`,
+  which revalidates after both. The lock goes whatever happens.
+  */
   private async transaction<T>(
     repo: BoundRepository,
     guard: Guard,
@@ -893,11 +893,11 @@ export class NativeGitService {
   }
 
   /**
-   * The storage parent for held checkouts: `pr-worktrees/` directly under
-   * the resolved data folder, made if missing, and a real directory there
-   * (never a link or junction that leads elsewhere). Links above the data
-   * folder itself are the user's own layout and are resolved, not refused.
-   */
+  The storage parent for held checkouts: `pr-worktrees/` directly under
+  the resolved data folder, made if missing, and a real directory there
+  (never a link or junction that leads elsewhere). Links above the data
+  folder itself are the user's own layout and are resolved, not refused.
+  */
   private async worktreeParent(guard: Guard): Promise<ConfinedRoot> {
     const storage = await canonicalPath(this.deps.dataFolder)
     guard.check()
@@ -938,10 +938,10 @@ export class NativeGitService {
   }
 
   /**
-   * The form as confirmed, revalidated after every wait: the state sealed
-   * first, then the stamp read again and compared (or taken as it is when
-   * the caller confirmed none).
-   */
+  The form as confirmed, revalidated after every wait: the state sealed
+  first, then the stamp read again and compared (or taken as it is when
+  the caller confirmed none).
+  */
   private async confirmedForm(
     held: Held,
     expectedStamp: string | undefined,
@@ -957,13 +957,13 @@ export class NativeGitService {
   }
 
   /**
-   * After `add -A`: exactly the confirmed changes are staged, with the
-   * confirmed bytes (sealed first, then read): nothing else staged, the
-   * same HEAD, the files the form showed still holding those bytes, and
-   * nothing left unstaged or new (a submodule's own content excepted), so
-   * the index holds them. Otherwise `changed`: the staging stays, and
-   * nothing is committed.
-   */
+  After `add -A`: exactly the confirmed changes are staged, with the
+  confirmed bytes (sealed first, then read): nothing else staged, the
+  same HEAD, the files the form showed still holding those bytes, and
+  nothing left unstaged or new (a submodule's own content excepted), so
+  the index holds them. Otherwise `changed`: the staging stays, and
+  nothing is committed.
+  */
   private async stagedAsConfirmed(
     held: Held,
     before: NativeStatusSnapshot,
@@ -987,10 +987,10 @@ export class NativeGitService {
   }
 
   /**
-   * The bound repository root, verified again: resolved through links and
-   * junctions, the same directory (by identity) as when the service was
-   * made, and git's own toplevel.
-   */
+  The bound repository root, verified again: resolved through links and
+  junctions, the same directory (by identity) as when the service was
+  made, and git's own toplevel.
+  */
   public async resolveRoot(operation?: NativeGitOperation): Promise<string> {
     const root = await this.rootFor(this.guard(operation))
     return root.path
@@ -1015,9 +1015,9 @@ export class NativeGitService {
   }
 
   /**
-   * The commit form's facts and its stamp: what the commit revalidates,
-   * after the lock and the admission, before staging anything.
-   */
+  The commit form's facts and its stamp: what the commit revalidates,
+  after the lock and the admission, before staging anything.
+  */
   public async formStatus(operation?: NativeGitOperation): Promise<StampedStatus> {
     const guard = this.guard(operation)
     const root = await this.rootFor(guard)
@@ -1043,11 +1043,11 @@ export class NativeGitService {
   }
 
   /**
-   * New files' starts for a commit-message prompt, as a diff would show
-   * them, within `maxBytes` read in all; each read confined to the bound
-   * root by identity. A link, a folder or a vanished file stays a
-   * file-list entry.
-   */
+  New files' starts for a commit-message prompt, as a diff would show
+  them, within `maxBytes` read in all; each read confined to the bound
+  root by identity. A link, a folder or a vanished file stays a
+  file-list entry.
+  */
   public async newFileParts(
     files: readonly string[],
     maxBytes: number,
@@ -1085,12 +1085,12 @@ export class NativeGitService {
   }
 
   /**
-   * Commits `message`: validates it, then in one transaction revalidates
-   * the form against `expectedStamp` (the status records with the index's
-   * object names, and the working tree's bytes), stages everything for an
-   * unstaged commit and checks that what got staged is what was shown, and
-   * runs the user's hooks and signer. The caller's press is the confirmation.
-   */
+  Commits `message`: validates it, then in one transaction revalidates
+  the form against `expectedStamp` (the status records with the index's
+  object names, and the working tree's bytes), stages everything for an
+  unstaged commit and checks that what got staged is what was shown, and
+  runs the user's hooks and signer. The caller's press is the confirmation.
+  */
   public async commit(
     message: string,
     isUnstagedIncluded: boolean,
@@ -1134,10 +1134,10 @@ export class NativeGitService {
   }
 
   /**
-   * The push for the current branch, or why M71's push plan refuses it.
-   * `chosenRemote` is the user's pick for a first push when git cannot
-   * tell (`chooseRemote` names the choices).
-   */
+  The push for the current branch, or why M71's push plan refuses it.
+  `chosenRemote` is the user's pick for a first push when git cannot
+  tell (`chooseRemote` names the choices).
+  */
   public async planPush(
     chosenRemote?: string,
     operation?: NativeGitOperation,
@@ -1148,12 +1148,12 @@ export class NativeGitService {
   }
 
   /**
-   * Pushes exactly `plan`, the one the user confirmed: in one transaction,
-   * the push's state sealed, the plan read again and compared whole, and
-   * the seal and lock checked at the last line before git (never a force
-   * mode, in the user's own Git environment). Throws the failure for the
-   * caller to show and to offer in the editor's terminal.
-   */
+  Pushes exactly `plan`, the one the user confirmed: in one transaction,
+  the push's state sealed, the plan read again and compared whole, and
+  the seal and lock checked at the last line before git (never a force
+  mode, in the user's own Git environment). Throws the failure for the
+  caller to show and to offer in the editor's terminal.
+  */
   public async push(plan: NativePushPlan, operation?: NativeGitOperation): Promise<void> {
     const guard = this.guard(operation)
     guard.check()
@@ -1175,10 +1175,10 @@ export class NativeGitService {
   }
 
   /**
-   * The bound root for finishing a failed push in the editor's terminal
-   * (RVM123G2 R5): the same directory, git's own toplevel, and the push
-   * plan still exactly the one confirmed. Otherwise `changed`.
-   */
+  The bound root for finishing a failed push in the editor's terminal
+  (RVM123G2 R5): the same directory, git's own toplevel, and the push
+  plan still exactly the one confirmed. Otherwise `changed`.
+  */
   public async confirmedPushRoot(
     plan: NativePushPlan,
     operation?: NativeGitOperation,
@@ -1249,10 +1249,10 @@ export class NativeGitService {
   }
 
   /**
-   * A held checkout's worktree (lane P): `name` is one safe segment under
-   * the runtime data folder's `pr-worktrees/`, confined before anything
-   * runs and again at the spawn. Returns the confined path.
-   */
+  A held checkout's worktree (lane P): `name` is one safe segment under
+  the runtime data folder's `pr-worktrees/`, confined before anything
+  runs and again at the spawn. Returns the confined path.
+  */
   public async addWorktree(
     name: string,
     commit: string,

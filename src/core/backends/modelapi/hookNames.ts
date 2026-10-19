@@ -2,10 +2,10 @@ import path from 'node:path'
 import { CODE_INTEL_TOOLS, MODEL_API_TOOLS, SPARK_HOOKS_SEGMENTS } from '../../../shared/constants'
 import type { HookLoadDeps } from './hooks'
 /**
- * Both spark-hooks.json files (M91): the user's beside Muse Code's settings
- * file, which is the settingsPath (`<config>/muse/settings.json`), and the
- * project's under `.muse`.
- */
+Both spark-hooks.json files (M91): the user's beside Muse Code's settings
+file, which is the settingsPath (`<config>/muse/settings.json`), and the
+project's under `.muse`.
+*/
 export function sparkHooksFiles(deps: Pick<HookLoadDeps, 'settingsPath' | 'workspaceRoot'>): {
   readonly user: string
   readonly project: string

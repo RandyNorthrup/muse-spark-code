@@ -94,10 +94,10 @@ export interface StoredChild {
 }
 
 /**
- * A completed child's result not yet in a request, with the file policy's
- * revision its child ran under (M78). Plain text is a result saved before
- * revisions were: it is withheld.
- */
+A completed child's result not yet in a request, with the file policy's
+revision its child ran under (M78). Plain text is a result saved before
+revisions were: it is withheld.
+*/
 export type StoredPendingChildResult =
   string | { readonly childId: string; readonly text: string; readonly policyRevision?: string }
 
@@ -111,20 +111,20 @@ export interface StoredSession {
   readonly fileRefs?: readonly UploadedMediaRef[]
   readonly sideChat?: boolean
   /**
-   * Built from an imported session-export file (M84, PLAN.md D49), or forked
-   * from one: its history is untrusted, so it starts asking whenever it is
-   * opened.
-   */
+  Built from an imported session-export file (M84, PLAN.md D49), or forked
+  from one: its history is untrusted, so it starts asking whenever it is
+  opened.
+  */
   readonly imported?: true
   readonly workspaceRoot: string
   readonly modelId: string
   readonly approvalMode: ApprovalMode
   readonly effort: string
   /**
-   * A custom agent's narrowed run (M76): present on a child spawned with an
-   * agent, so a resume or fork keeps its prompt, tools and ceiling. Absent
-   * on parents, plain children, and sessions saved before M76's review.
-   */
+  A custom agent's narrowed run (M76): present on a child spawned with an
+  agent, so a resume or fork keeps its prompt, tools and ceiling. Absent
+  on parents, plain children, and sessions saved before M76's review.
+  */
   readonly agent?: AgentRuntime
   readonly name?: string
   readonly createdAt: string
@@ -159,10 +159,10 @@ export interface StoredSession {
    */
   readonly unknownChargeCalls?: number
   /**
-   * Observation packing's ledger (M73): the estimated tokens packed sends
-   * left out. Absent where the session never packed, and in a file saved
-   * before the ledger was kept, which resumes at zero.
-   */
+  Observation packing's ledger (M73): the estimated tokens packed sends
+  left out. Absent where the session never packed, and in a file saved
+  before the ledger was kept, which resumes at zero.
+  */
   readonly packedTokensAvoided?: number
   readonly hookTokensAdded?: number
   /** Sticky packing swaps (M101), with originals retained in replay; absent on old files. */
@@ -173,10 +173,10 @@ export interface StoredSession {
   readonly pendingChildResults?: readonly StoredPendingChildResult[]
   readonly spawnCommands?: Readonly<Record<string, string>>
   /**
-   * M96 lane T: the conversation's declared delegation family, decided at
-   * its first request and kept on resume. Absent on conversations saved
-   * before teams, which keep their single-model declared set.
-   */
+  M96 lane T: the conversation's declared delegation family, decided at
+  its first request and kept on resume. Absent on conversations saved
+  before teams, which keep their single-model declared set.
+  */
   readonly teamMode?: 'single-model' | 'team'
   /** M96 lane T: the roster's stable part as the first request sent it, never rewritten. */
   readonly teamRoster?: string
@@ -185,10 +185,10 @@ export interface StoredSession {
 }
 
 /**
- * What the history list needs of a stored session, without its conversation
- * (PLAN.md D26): a window keeps these in memory and loads a session whole
- * only when it is resumed, forked or read.
- */
+What the history list needs of a stored session, without its conversation
+(PLAN.md D26): a window keeps these in memory and loads a session whole
+only when it is resumed, forked or read.
+*/
 export interface StoredSessionHeader {
   readonly sessionId: string
   readonly accountId?: string
@@ -436,10 +436,10 @@ export type StoredSessionParse =
   | { readonly ok: false; readonly reason: string }
 
 /**
- * A missing or corrupt packed-token estimate restarts at zero without losing
- * the conversation (M73). zod's `catch` would do this too, but it keeps
- * zod's `navigator` probe in the host bundles (scripts/check-host-globals.mjs).
- */
+A missing or corrupt packed-token estimate restarts at zero without losing
+the conversation (M73). zod's `catch` would do this too, but it keeps
+zod's `navigator` probe in the host bundles (scripts/check-host-globals.mjs).
+*/
 function withoutCorruptEstimate(raw: unknown): unknown {
   if (typeof raw !== 'object' || raw === null || !('packedTokensAvoided' in raw)) {
     return raw

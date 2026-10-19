@@ -184,10 +184,10 @@ export class PipelineBranchError extends Error {
 const SEVERITY_ORDER: readonly ReviewSeverity[] = [...REVIEW_SEVERITIES].toReversed()
 
 /**
- * Whether a finding sends the change back: at or above the threshold. A
- * severity the model made up (no known word) counts as failing: sending a
- * change of unknown severity back for rework is safer than merging it.
- */
+Whether a finding sends the change back: at or above the threshold. A
+severity the model made up (no known word) counts as failing: sending a
+change of unknown severity back for rework is safer than merging it.
+*/
 export function isFailingSeverity(
   severity: string | undefined,
   threshold: ReviewSeverity,
@@ -229,10 +229,10 @@ export function builtInPipelines(): readonly PipelineDefinition[] {
 }
 
 /**
- * Validate a parsed definition's shape beyond the schema: at least one step,
- * at least one work step, and every review or check step after a work step
- * (a loop-back needs a writer to send the change back to).
- */
+Validate a parsed definition's shape beyond the schema: at least one step,
+at least one work step, and every review or check step after a work step
+(a loop-back needs a writer to send the change back to).
+*/
 export function validatePipeline(def: PipelineDefinition): PipelineRefusalReason | undefined {
   if (def.steps.length === 0) {
     return 'invalid'
@@ -325,17 +325,17 @@ const EXPECTED_RESULT_KIND: Record<PipelineStepKind, PipelineStepResult['kind']>
 }
 
 /**
- * Record a finished step and move the run. The result's kind must belong to
- * the current step (`work-done` for work, `reviewed` for review, `checked`
- * for check); anything else throws, so a bare `work-done` can never stand
- * in for the review's findings or the check's pass/fail. A failing review
- * (findings at or above the threshold) or a failed check loops back to the
- * first work step on the same branch with the findings; the round past
- * `maxRounds` stops at `redesign`, naming the findings that came back. The
- * last step's success hands the reviewed branch to the orchestrator's
- * `merge`: this module never merges by itself. Returns the updated run and
- * the decision.
- */
+Record a finished step and move the run. The result's kind must belong to
+the current step (`work-done` for work, `reviewed` for review, `checked`
+for check); anything else throws, so a bare `work-done` can never stand
+in for the review's findings or the check's pass/fail. A failing review
+(findings at or above the threshold) or a failed check loops back to the
+first work step on the same branch with the findings; the round past
+`maxRounds` stops at `redesign`, naming the findings that came back. The
+last step's success hands the reviewed branch to the orchestrator's
+`merge`: this module never merges by itself. Returns the updated run and
+the decision.
+*/
 export function recordStepResult(
   def: PipelineDefinition,
   run: PipelineRun,
@@ -431,9 +431,9 @@ function advance(
 }
 
 /**
- * One approval covers the whole pipeline: the steps with each step's first
- * entry. Structured data for lane T's card; no sentences.
- */
+One approval covers the whole pipeline: the steps with each step's first
+entry. Structured data for lane T's card; no sentences.
+*/
 export function approvalSteps(
   def: PipelineDefinition,
   firstEntries: readonly (string | undefined)[],
@@ -450,9 +450,9 @@ export function approvalSteps(
 }
 
 /**
- * The approval's ceiling: each step's ceiling times the rounds. Lengths must
- * match the steps.
- */
+The approval's ceiling: each step's ceiling times the rounds. Lengths must
+match the steps.
+*/
 export function pipelineCeiling(def: PipelineDefinition, stepCeilings: readonly number[]): number {
   if (stepCeilings.length !== def.steps.length) {
     throw new PipelineStepError(`${String(def.steps.length)} ceilings`, String(stepCeilings.length))
@@ -515,10 +515,10 @@ const narrowingSchema = z.object({
 })
 
 /**
- * A project file may only lower the rounds or remove steps of a pipeline the
- * user has. Anything else — an unknown id, raised rounds, added or changed
- * steps, an unknown key — refuses the file whole.
- */
+A project file may only lower the rounds or remove steps of a pipeline the
+user has. Anything else — an unknown id, raised rounds, added or changed
+steps, an unknown key — refuses the file whole.
+*/
 function applyNarrowing(
   file: string,
   base: PipelineDefinition,
@@ -560,12 +560,12 @@ function applyNarrowing(
 }
 
 /**
- * Load every pipeline: the built-ins, the user's personal folder
- * (`<config>/muse/pipelines/`, full definitions or narrowing replacements),
- * then the project's `.muse/pipelines/` in a trusted workspace, which may
- * only narrow a pipeline the user has. Refused files are reported, never
- * thrown.
- */
+Load every pipeline: the built-ins, the user's personal folder
+(`<config>/muse/pipelines/`, full definitions or narrowing replacements),
+then the project's `.muse/pipelines/` in a trusted workspace, which may
+only narrow a pipeline the user has. Refused files are reported, never
+thrown.
+*/
 export function loadPipelines(args: {
   readonly personalDir: string
   readonly projectDir: string

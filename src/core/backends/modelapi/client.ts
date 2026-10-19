@@ -200,9 +200,9 @@ export interface ModelApiClientDeps {
   /** Idle limit for headers and all response-body reads; tests may shorten it. */
   readonly streamIdleMs?: number
   /**
-   * Whose settings a request that never reached Meta names (M56): VS Code's
-   * unless the ACP agent says its own (PLAN.md D62, Q66).
-   */
+  Whose settings a request that never reached Meta names (M56): VS Code's
+  unless the ACP agent says its own (PLAN.md D62, Q66).
+  */
   readonly networkAdvice?: NetworkAdvice
 }
 
@@ -494,10 +494,10 @@ export class ModelApiClient implements TransportProviderClient {
   }
 
   /**
-   * One generated image (M34): `POST /images/generations`, validated. Billed
-   * per image returned; a failed or filtered one is not. The turn's Stop and
-   * a deadline of its own end the wait.
-   */
+  One generated image (M34): `POST /images/generations`, validated. Billed
+  per image returned; a failed or filtered one is not. The turn's Stop and
+  a deadline of its own end the wait.
+  */
   public async createImage(
     body: CreateImageBody,
     signal: AbortSignal,
@@ -516,10 +516,10 @@ export class ModelApiClient implements TransportProviderClient {
   }
 
   /**
-   * The streamed response as validated events. Unknown event types are
-   * skipped; a malformed known one or a non-JSON frame ends the stream with
-   * an error, since the reply can no longer be trusted.
-   */
+  The streamed response as validated events. Unknown event types are
+  skipped; a malformed known one or a non-JSON frame ends the stream with
+  an error, since the reply can no longer be trusted.
+  */
   public async *streamResponse(
     body: CreateResponseBody,
     signal: AbortSignal,

@@ -184,14 +184,12 @@ function parseUsage(
                 : entry.payload.rate_limits?.secondary
             return window == null
               ? []
-              : [
-                  {
-                    key,
-                    used: window.used_percent,
-                    limit: 100,
-                    resetsAt: new Date(window.resets_at * MILLISECONDS_PER_SECOND).toISOString(),
-                  },
-                ]
+              : {
+                  key,
+                  used: window.used_percent,
+                  limit: 100,
+                  resetsAt: new Date(window.resets_at * MILLISECONDS_PER_SECOND).toISOString(),
+                }
           }),
         }
       }

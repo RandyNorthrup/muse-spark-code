@@ -247,11 +247,11 @@ export function subagentTaskPrice(modelId: string, attemptLimit: number): string
 }
 
 /**
- * One paid use the user is asked about (M58, PLAN.md D48): what the popup
- * names before anything is billed. Interactive web search Once covers the window
- * under the same model and price binding; each response still carries its own
- * validated quote and bounded search reservation.
- */
+One paid use the user is asked about (M58, PLAN.md D48): what the popup
+names before anything is billed. Interactive web search Once covers the window
+under the same model and price binding; each response still carries its own
+validated quote and bounded search reservation.
+*/
 export type PaidUseRequest =
   | {
       readonly feature: 'autoCompaction'
@@ -338,10 +338,10 @@ export type PaidUseRequest =
 export { paidFeatureName, usablePaidFeatures } from './paidBoundary'
 
 /**
- * The paid features Account & usage lists (the review of PR #30): the ones
- * this backend can use, and any this window has already used, whatever the
- * backend now, so its total is the sum of the rows it shows.
- */
+The paid features Account & usage lists (the review of PR #30): the ones
+this backend can use, and any this window has already used, whatever the
+backend now, so its total is the sum of the rows it shows.
+*/
 export function listedPaidFeatures(
   usable: readonly PaidFeature[],
   tally: PaidTally,
@@ -382,10 +382,10 @@ function tokenRatesByTier(): string {
 }
 
 /**
- * What a best-of-N run may bill (M77, PLAN.md D49): the per-token rates of
- * the model, the attempt count and the request ceiling per attempt. The
- * total cannot be known in advance, so the popup quotes exactly these.
- */
+What a best-of-N run may bill (M77, PLAN.md D49): the per-token rates of
+the model, the attempt count and the request ceiling per attempt. The
+total cannot be known in advance, so the popup quotes exactly these.
+*/
 export function bestOfNPrice(
   modelId: string,
   attempts: number,
@@ -407,10 +407,10 @@ export function bestOfNPrice(
 }
 
 /**
- * What one prompt/agent hook run may bill (M91, PLAN.md D70): the per-token
- * rates of the model. The total cannot be known in advance, so the popup
- * quotes exactly these; unknown models cannot authorize a hook run.
- */
+What one prompt/agent hook run may bill (M91, PLAN.md D70): the per-token
+rates of the model. The total cannot be known in advance, so the popup
+quotes exactly these; unknown models cannot authorize a hook run.
+*/
 export function hookModelPrice(modelId: string): string {
   const tier = modelApiPaidTier(modelId)
   return tier === undefined ? UI_TEXT.subagentTariffUnknown : tokenRatePrice(tier)

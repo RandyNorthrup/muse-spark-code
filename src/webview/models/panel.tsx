@@ -142,9 +142,9 @@ export interface ModelsPanelProps {
 }
 
 /**
- * The open wizard's generation as pending work sees it when it settles:
- * the latest one this panel rendered, or none once the wizard closed.
- */
+The open wizard's generation as pending work sees it when it settles:
+the latest one this panel rendered, or none once the wizard closed.
+*/
 function useWizardLife(ui: PanelUiState): WizardLife {
   const openGeneration = ui.wizardOpen ? ui.wizardGeneration : undefined
   const latest = useRef(openGeneration)

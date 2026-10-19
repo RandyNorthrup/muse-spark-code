@@ -24,19 +24,19 @@ export interface WorkspaceFileListerDeps {
 
 export interface RootFileSearch<U> {
   /**
-   * VS Code's file search below the first folder only (a `RelativePattern`
-   * on it); undefined with no folder open.
-   */
+  VS Code's file search below the first folder only (a `RelativePattern`
+  on it); undefined with no folder open.
+  */
   readonly search: (() => PromiseLike<readonly U[]>) | undefined
   /** The path relative to the root; undefined outside it (`rootRelativePath`). */
   readonly relativePath: (uri: U) => string | undefined
 }
 
 /**
- * The file search's list: the root's files, relative to it with forward
- * slashes. A second folder's files are neither searched nor listed, so none
- * can pass for a path under the root.
- */
+The file search's list: the root's files, relative to it with forward
+slashes. A second folder's files are neither searched nor listed, so none
+can pass for a path under the root.
+*/
 export async function findRootFiles<U>(files: RootFileSearch<U>): Promise<readonly string[]> {
   if (files.search === undefined) {
     return []
@@ -44,7 +44,7 @@ export async function findRootFiles<U>(files: RootFileSearch<U>): Promise<readon
   const found = await files.search()
   return found.flatMap((uri) => {
     const relative = files.relativePath(uri)
-    return relative === undefined ? [] : [relative]
+    return relative ?? []
   })
 }
 

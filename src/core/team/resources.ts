@@ -56,12 +56,12 @@ export interface ServerIdentity {
 }
 
 /**
- * Known singletons (D75): Chrome Control and other browser-control servers,
- * Playwright with a fixed profile, and serial or device servers. Matched by
- * lowercase substring on the command's basename and on the package name; a
- * substring that hits too widely still only serialises the server, which is
- * the safe direction. The user overrides any server in the panel.
- */
+Known singletons (D75): Chrome Control and other browser-control servers,
+Playwright with a fixed profile, and serial or device servers. Matched by
+lowercase substring on the command's basename and on the package name; a
+substring that hits too widely still only serialises the server, which is
+the safe direction. The user overrides any server in the panel.
+*/
 const COMMAND_SINGLETON_TOKENS: readonly string[] = [
   'chrome',
   'chromium',
@@ -252,9 +252,9 @@ function normalizeCommand(line: string): string {
 }
 
 /**
- * "resource busy, held by `<role>` task `<id>`" (D75): the answer past the
- * wait, and the holder's next call after Take back.
- */
+"resource busy, held by `<role>` task `<id>`" (D75): the answer past the
+wait, and the holder's next call after Take back.
+*/
 export function busyText(holder: LeaseHolder): string {
   return fill(UI_TEXT.teamResourceBusy, { role: holder.role, taskId: holder.taskId })
 }
@@ -555,10 +555,10 @@ export class ResourceRegistry {
   }
 
   /**
-   * The user-level set from the panel's Tools and devices section: creates or
-   * replaces the declaration. A repository cannot do this; see
-   * `applyRepositoryResources`.
-   */
+  The user-level set from the panel's Tools and devices section: creates or
+  replaces the declaration. A repository cannot do this; see
+  `applyRepositoryResources`.
+  */
   public declare(init: ResourceDeclarationInit): ResourceDeclaration {
     if (init.name === '') {
       throw new Error('A resource needs a name')
@@ -593,10 +593,10 @@ export class ResourceRegistry {
   }
 
   /**
-   * The declaration a bridge server gets: the user's override when one is
-   * set, else the defaults matched by command and package. Called before the
-   * first call, so every bridged server passes through the registry.
-   */
+  The declaration a bridge server gets: the user's override when one is
+  set, else the defaults matched by command and package. Called before the
+  first call, so every bridged server passes through the registry.
+  */
   public ensureServer(name: string, identity: ServerIdentity = {}): ResourceDeclaration {
     const live = this.resources.get(name)
     return live === undefined
@@ -647,9 +647,9 @@ export class ResourceRegistry {
   }
 
   /**
-   * The repository's lowering file (D75): it may only narrow. It cannot
-   * declare a resource free, loosen exclusive to shared, or raise a limit.
-   */
+  The repository's lowering file (D75): it may only narrow. It cannot
+  declare a resource free, loosen exclusive to shared, or raise a limit.
+  */
   public applyRepositoryResources(entries: readonly RepositoryResource[]): {
     readonly accepted: readonly string[]
     readonly refused: readonly RepositoryRefusal[]
@@ -725,9 +725,9 @@ export class ResourceRegistry {
   }
 
   /**
-   * Reserves ownership without dispatching work. A command uses acquireCall
-   * and dispatch until proved process exit; release names the returned lease.
-   */
+  Reserves ownership without dispatching work. A command uses acquireCall
+  and dispatch until proved process exit; release names the returned lease.
+  */
   public acquire(
     resourceName: string,
     holder: LeaseHolder,
@@ -945,10 +945,10 @@ export class ResourceRegistry {
   }
 
   /**
-   * The hint question (D75): the other window running this exclusive server,
-   * when a fresh hint names it. The caller (lane K) passes fresh hints only;
-   * a stale or missing hint asks nothing.
-   */
+  The hint question (D75): the other window running this exclusive server,
+  when a fresh hint names it. The caller (lane K) passes fresh hints only;
+  a stale or missing hint asks nothing.
+  */
   public externalUserOf(
     resourceName: string,
     freshHints: readonly ExternalResourceHint[],

@@ -164,7 +164,7 @@ export const mediaAttachmentUpdateSchema = z.strictObject({
 })
 
 /** One provider file as the upload ledger caches it (metadata only). Pure
- * builders: the browser never parses it, so chat startup drops both. */
+builders: the browser never parses it, so chat startup drops both. */
 export const uploadedAccountFileSchema = /* @__PURE__ */ (() =>
   z.strictObject({
     fileId: z.string(),
@@ -173,7 +173,7 @@ export const uploadedAccountFileSchema = /* @__PURE__ */ (() =>
     expiresAt: z.optional(z.int().check(z.gt(0))),
   }))()
 /** The account's uploaded-files report the chat validates before posting it
- * (CAPS017: here, so dist/conversation.js no longer carries the ledger). */
+(CAPS017: here, so dist/conversation.js no longer carries the ledger). */
 export const uploadedFilesReportSchema = /* @__PURE__ */ (() =>
   z.strictObject({
     provider: z.string(),

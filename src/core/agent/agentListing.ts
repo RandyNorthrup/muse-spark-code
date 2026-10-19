@@ -14,25 +14,23 @@ export function listedAgents(items: readonly ItemSnapshot[]): ItemSnapshot[] {
   return items.flatMap((item) => {
     if (item.kind === 'subagent') return [item]
     if (item.kind === 'toolCall' && item.background === true)
-      return [{ ...item, agentEvidence: toolAgentEvidence(item.status, item.exitCode) }]
+      return { ...item, agentEvidence: toolAgentEvidence(item.status, item.exitCode) }
     if (item.kind !== 'workflow') return []
     return (item.children ?? []).flatMap((raw) => {
       const child = workflowChildSchema.safeParse(raw).data
       if (child === undefined) return []
       const reported = typeof child.terminal === 'string' ? child.terminal : child.status
       const status = WORKFLOW_CHILD_RUNNING_STATUSES.has(reported) ? 'inProgress' : reported
-      return [
-        {
-          itemId: `${item.itemId}/${child.childId}`,
-          kind: 'workflowAgent',
-          status,
-          controlStatus: child.status === 'scheduled' ? 'queued' : undefined,
-          objective: typeof child.label === 'string' ? child.label : child.childId,
-          agentEvidence: item.agentWorkflowEvidence?.[`${item.itemId}/${child.childId}`] ?? {
-            attempt: child.attempt,
-          },
+      return {
+        itemId: `${item.itemId}/${child.childId}`,
+        kind: 'workflowAgent',
+        status,
+        controlStatus: child.status === 'scheduled' ? 'queued' : undefined,
+        objective: typeof child.label === 'string' ? child.label : child.childId,
+        agentEvidence: item.agentWorkflowEvidence?.[`${item.itemId}/${child.childId}`] ?? {
+          attempt: child.attempt,
         },
-      ]
+      }
     })
   })
 }

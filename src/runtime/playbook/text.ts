@@ -50,7 +50,7 @@ export function disabledPlaybookDetail(
 }
 
 /** Counters are journal facts, keyed by stable identity and class. A new key
- * never resets a badge, and a `caught` outcome never implies closure. */
+never resets a badge, and a `caught` outcome never implies closure. */
 export function playbookCounters(records: readonly PlaybookRecord[]) {
   const counts = new Map<
     string,
@@ -105,7 +105,7 @@ function prioritized(entry: PlaybookRecord | { readonly kind: 'counter' }): numb
 }
 
 /** Every surface shares this stable order: owner/unresolved designs, warnings,
- * then informational records and aggregate counter statistics. */
+then informational records and aggregate counter statistics. */
 export function orderedPlaybookRecords<T extends PlaybookRecord | { readonly kind: 'counter' }>(
   records: readonly T[],
 ): T[] {

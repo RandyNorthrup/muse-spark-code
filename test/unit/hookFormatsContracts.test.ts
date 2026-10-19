@@ -199,7 +199,7 @@ describe('missing required data refuses; nothing is guessed', () => {
 describe('a documented veto never becomes failed or allow', () => {
   const vetoCases = CASES.flatMap((c) =>
     c.row.result.rules.flatMap((rule, index) =>
-      rule.kind === 'veto' ? [{ ...c, rule, label: `${c.name} veto ${String(index)}` }] : [],
+      rule.kind === 'veto' ? { ...c, rule, label: `${c.name} veto ${String(index)}` } : [],
     ),
   )
 

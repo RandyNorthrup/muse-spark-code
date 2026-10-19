@@ -6,7 +6,7 @@ import { UI_TEXT } from '../shared/constants'
 import type { PlaybookCommand, PlaybookSurfacePort } from '../runtime/playbook/command'
 
 /** The journal bundle's slice the agent needs, installed with the runtime's
- * table. The runtime adapts the loaded bundle; tests hand in the entry. */
+table. The runtime adapts the loaded bundle; tests hand in the entry. */
 export interface AcpPlaybookBundle {
   parsePlaybookCommand(argv: readonly string[]): PlaybookCommand | undefined
   runPlaybookCommand(
@@ -16,7 +16,7 @@ export interface AcpPlaybookBundle {
 }
 
 /** Only a lone text block is a local command. Attachments/extra blocks are
- * rejected for /playbook rather than silently dropping their contents. */
+rejected for /playbook rather than silently dropping their contents. */
 export async function acpPlaybook(
   blocks: readonly ContentBlock[],
   port: () => PlaybookSurfacePort | undefined,

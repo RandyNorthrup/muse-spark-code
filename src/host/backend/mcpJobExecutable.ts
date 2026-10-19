@@ -70,9 +70,9 @@ async function verify(executable: string, deps: McpJobExecutableDeps): Promise<v
 }
 
 /**
- * Undefined means unavailable. The bytes are sealed around the self-test; a
- * changed helper is refused with a typed error, and the next call recompiles.
- */
+Undefined means unavailable. The bytes are sealed around the self-test; a
+changed helper is refused with a typed error, and the next call recompiles.
+*/
 export function sealedMcpJobExecutable(
   deps: McpJobExecutableDeps,
 ): () => Promise<SealedMcpJob | undefined> {

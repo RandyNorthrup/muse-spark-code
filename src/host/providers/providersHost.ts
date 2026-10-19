@@ -166,10 +166,10 @@ export interface ProvidersHost {
 }
 
 /**
- * The stored secret for a scan or test; undefined for a local server
- * without auth, or when no credential was entered. The secret is held only
- * for the call below, never logged or stored elsewhere.
- */
+The stored secret for a scan or test; undefined for a local server
+without auth, or when no credential was entered. The secret is held only
+for the call below, never logged or stored elsewhere.
+*/
 async function credentialFor(
   credentials: CredentialStore,
   entry: ProviderEntry,

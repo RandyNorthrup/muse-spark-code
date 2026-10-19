@@ -39,10 +39,10 @@ async function emptyDirectory(directory) {
 }
 
 /**
- * Fetches the exact commits and checks out `headSha` detached in the empty
- * `directory`. `token` travels only in the fetch's one-shot header. Returns
- * the verified HEAD.
- */
+Fetches the exact commits and checks out `headSha` detached in the empty
+`directory`. `token` travels only in the fetch's one-shot header. Returns
+the verified HEAD.
+*/
 export async function checkoutHead({ owner, git, paths, baseEnv, directory, remote, shas, token }) {
   if (shas.some((sha) => !SHA.test(sha))) throw new InputError('a commit id is malformed')
   const protocol = remoteProtocol(remote)

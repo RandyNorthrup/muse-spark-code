@@ -8,11 +8,11 @@ import { fill } from '../../../shared/l10n/text'
 import type { JudgePromptWording } from '../prompt'
 
 /**
- * The production wording for one judge batch: the stated-confidence system
- * instruction (techniques.ts parses exactly its contract), the state-first
- * labels, and one line per alternative (an option letter for a choice, a
- * level digit for a score, nothing to add for a noul).
- */
+The production wording for one judge batch: the stated-confidence system
+instruction (techniques.ts parses exactly its contract), the state-first
+labels, and one line per alternative (an option letter for a choice, a
+level digit for a score, nothing to add for a noul).
+*/
 export function judgePromptWording(): JudgePromptWording {
   return {
     systemInstruction: JUDGE_MODEL_TEXT.judgeSystemInstruction,
@@ -27,10 +27,10 @@ export function judgePromptWording(): JudgePromptWording {
 }
 
 /**
- * The standalone turn for a Muse Code judge batch: the instructions with the
- * judged request fenced as data, on its own (an earlier turn was another
- * batch and does not bear on it), using no tools.
- */
+The standalone turn for a Muse Code judge batch: the instructions with the
+judged request fenced as data, on its own (an earlier turn was another
+batch and does not bear on it), using no tools.
+*/
 export function judgeStandaloneTurn(request: string): string {
   return fill(JUDGE_MODEL_TEXT.judgeStandaloneTurn, {
     instructions: JUDGE_MODEL_TEXT.judgeSystemInstruction,

@@ -75,11 +75,11 @@ export function importPromptFile(file: string, scope: SavedPrompt['scope']) {
 }
 
 /**
- * User lane resolves agentDataFolder()/prompts/<slug>.md, independent of
- * workspace/editor. Workspace lane resolves .muse/prompts/<slug>.md.
- * Adapters validate files with parsePromptFile, enforce unique ids per scope,
- * and use checked, atomic writes. They never execute stored text.
- */
+User lane resolves agentDataFolder()/prompts/<slug>.md, independent of
+workspace/editor. Workspace lane resolves .muse/prompts/<slug>.md.
+Adapters validate files with parsePromptFile, enforce unique ids per scope,
+and use checked, atomic writes. They never execute stored text.
+*/
 export interface PromptStoragePort {
   list(scope: SavedPrompt['scope']): Promise<readonly SavedPrompt[]>
   write(prompt: SavedPrompt, shouldKeepNewer?: boolean): Promise<void>

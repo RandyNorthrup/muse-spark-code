@@ -20,8 +20,8 @@ export interface TasksTabPort {
   /** The conversation the tab opened for changed its list or its name. */
   update(view: TasksTabView): void
   /**
-   * That conversation ended: cleared, replaced by another in the panel, or
-   * its panel closed. The tab says so and takes no update until it opens again.
-   */
+  That conversation ended: cleared, replaced by another in the panel, or
+  its panel closed. The tab says so and takes no update until it opens again.
+  */
   ended(): void
 }

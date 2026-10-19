@@ -59,8 +59,8 @@ import { questionDeferSeconds } from '../shared/questionDeadline'
 import { parsePlaybookCommand } from './playbook/command'
 
 /** U's CLI route; the runtime entry owner binds runPlaybookCommand to P's
- * journal before the general ACP/auth parser. No model process is needed.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+journal before the general ACP/auth parser. No model process is needed.
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function parsePlaybookCommandLine(argv: readonly string[]) {
   return argv[0] === 'playbook' ? parsePlaybookCommand(argv.slice(1)) : undefined
 }
@@ -236,10 +236,10 @@ export function parseChatGptProviderAction(
   }
 }
 /**
- * Flags `serve` and `login` never take (M95: `auth … --provider` and
- * `providers …`). Each names a key of the strict parser's values, so
- * indexing with one typechecks without a cast.
- */
+Flags `serve` and `login` never take (M95: `auth … --provider` and
+`providers …`). Each names a key of the strict parser's values, so
+indexing with one typechecks without a cast.
+*/
 const PROVIDER_AUTH_OPTIONS = [
   'preset',
   'as',
@@ -1119,10 +1119,10 @@ function legalOutcome(parsed: ReturnType<typeof parseLegalArgs>): RuntimeCommand
 }
 
 /**
- * The reserved read-only scan (M97 lane R): `legal` never reaches prompt
- * parsing, starts no backend and touches no credential store. Unknown flags
- * are usage errors, as for the other headless commands.
- */
+The reserved read-only scan (M97 lane R): `legal` never reaches prompt
+parsing, starts no backend and touches no credential store. Unknown flags
+are usage errors, as for the other headless commands.
+*/
 function parseLegalCommand(argv: readonly string[]): RuntimeCommand {
   try {
     const { values, positionals } = parseArgs({

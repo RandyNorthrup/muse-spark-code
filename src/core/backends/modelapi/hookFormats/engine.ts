@@ -82,11 +82,11 @@ export type RowSelection =
   { readonly ok: true; readonly row: EventRow } | { readonly ok: false; readonly reason: string }
 
 /**
- * The row for this event: same flavor; the imported source event when the
- * record names one (else a default row); then the row that translates the
- * call's tool. A named source event whose row does not fit the tool refuses,
- * and a build for tool-specific rows refuses a call without a tool name.
- */
+The row for this event: same flavor; the imported source event when the
+record names one (else a default row); then the row that translates the
+call's tool. A named source event whose row does not fit the tool refuses,
+and a build for tool-specific rows refuses a call without a tool name.
+*/
 export function selectRow(
   contract: VendorContract,
   event: AdapterEvent,

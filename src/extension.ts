@@ -527,12 +527,12 @@ function modifiedAt(fsPath: string): number | undefined {
 }
 
 /**
- * Runs the CLI where the user can see and interact with it. The terminal's
- * shell is pinned so the call syntax is known (PLAN.md D25): Windows
- * PowerShell on Windows (the CLI's own shim shell), `/bin/sh` elsewhere (a
- * default shell of pwsh or nushell would not run `"path" login` as a
- * command). `env` is added to the terminal's own environment.
- */
+Runs the CLI where the user can see and interact with it. The terminal's
+shell is pinned so the call syntax is known (PLAN.md D25): Windows
+PowerShell on Windows (the CLI's own shim shell), `/bin/sh` elsewhere (a
+default shell of pwsh or nushell would not run `"path" login` as a
+command). `env` is added to the terminal's own environment.
+*/
 function runInTerminal(
   cliPath: string,
   args: readonly string[],
@@ -610,10 +610,10 @@ const runGit = processGitRunner()
 const automaticBestOfNGit = processGitRunner({ isAutomatic: true })
 
 /**
- * A tested Windows job helper, compiled once from the shared C# (`jobSource.ts`):
- * the shell tool's job assembly (M27) or the direct MCP stdio launcher (M50).
- * Undefined off Windows.
- */
+A tested Windows job helper, compiled once from the shared C# (`jobSource.ts`):
+the shell tool's job assembly (M27) or the direct MCP stdio launcher (M50).
+Undefined off Windows.
+*/
 function windowsJobHelper<T>(
   build: (deps: ShellJobDeps) => () => Promise<T | undefined>,
   storageDir: string,
@@ -647,21 +647,21 @@ function pathSpellings(fsPath: string): readonly string[] {
 }
 
 /**
- * Set by `activate`: stops the hosts, their turns and their processes; and
- * the window's flight recorder (M93), whose marker a normal exit clears.
- */
+Set by `activate`: stops the hosts, their turns and their processes; and
+the window's flight recorder (M93), whose marker a normal exit clears.
+*/
 const lifecycle: {
   shutdown: (() => Promise<void>) | undefined
   reports: ReportRecorder | undefined
 } = { shutdown: undefined, reports: undefined }
 
 /**
- * VS Code awaits this before the extension host exits (PLAN.md D25): running
- * turns are cancelled and `muse serve` is closed rather than left to the
- * process teardown, while the log channel is still open to say so. Last, the
- * flight recorder clears this activation's marker: only a window that never
- * got here leaves one behind (M93, D72).
- */
+VS Code awaits this before the extension host exits (PLAN.md D25): running
+turns are cancelled and `muse serve` is closed rather than left to the
+process teardown, while the log channel is still open to say so. Last, the
+flight recorder clears this activation's marker: only a window that never
+got here leaves one behind (M93, D72).
+*/
 export async function deactivate(): Promise<void> {
   await lifecycle.shutdown?.()
   lifecycle.shutdown = undefined
@@ -692,10 +692,10 @@ function tabFilesExcludeTable(value: unknown): TabFilesExclude {
 }
 
 /**
- * A command whose failure is logged, with its stack, and said once (M39). A
- * rejected command would otherwise reach only VS Code's Extension Host log.
- * Arguments pass through for the commands that take them (Tab's accept).
- */
+A command whose failure is logged, with its stack, and said once (M39). A
+rejected command would otherwise reach only VS Code's Extension Host log.
+Arguments pass through for the commands that take them (Tab's accept).
+*/
 function registerLoggedCommand(
   log: Logger,
   id: string,
@@ -730,10 +730,10 @@ function isUsageInsightsBundle(value: unknown): value is {
 const EXIT_SIGNAL = /\bSIG[A-Z]{2,6}\b/
 
 /**
- * How Muse Code's process ended, as one word of the recorder's vocabulary
- * (M93, D72): the signal named in the exit's description, or `exited`.
- * The description itself (which can name a path) is never recorded.
- */
+How Muse Code's process ended, as one word of the recorder's vocabulary
+(M93, D72): the signal named in the exit's description, or `exited`.
+The description itself (which can name a path) is never recorded.
+*/
 function exitCodeWord(description: string): string {
   const signal = EXIT_SIGNAL.exec(description)?.[0]
   return signal !== undefined && REPORT_ERROR_CODES.has(signal) ? signal : REPORT_EXIT_CODE
@@ -996,10 +996,10 @@ async function activateWindow(
     )
   }
   /**
-   * Whether the project's own configuration may load (rules, skills, hooks,
-   * MCP servers, and the backends' workspace shell): VS Code trusts the
-   * folder, and the window is not held (M71).
-   */
+  Whether the project's own configuration may load (rules, skills, hooks,
+  MCP servers, and the backends' workspace shell): VS Code trusts the
+  folder, and the window is not held (M71).
+  */
   const isProjectTrusted = () =>
     !nativeStarts.signal.aborted &&
     windowHold.allowsProjectConfiguration(vscode.workspace.isTrusted)
@@ -1814,11 +1814,11 @@ async function activateWindow(
   const workflowTriggerMode = () =>
     readWorkflowTriggerMode({ ...museConfig(), readTextFile: readTextFileSync })
   /**
-   * Stops both hosts (PLAN.md D25), or Muse Code alone for fault recovery.
-   * The affected conversations hear it first: a
-   * running turn is cancelled, and unless they end (sign-out, shutdown) the
-   * next message resumes the same session on the new host.
-   */
+  Stops both hosts (PLAN.md D25), or Muse Code alone for fault recovery.
+  The affected conversations hear it first: a
+  running turn is cancelled, and unless they end (sign-out, shutdown) the
+  next message resumes the same session on the new host.
+  */
   const restartBackend = async (
     reason: string,
     isConversationEnding = false,
@@ -1834,11 +1834,11 @@ async function activateWindow(
     )
   }
   /**
-   * Muse Code alone, afresh (CLI recovery): a notice's Restart (a fault's,
-   * the watchdog's) and "Muse Spark: Restart Muse Code". A running turn is
-   * stopped; the new host starts at once, and each conversation resumes
-   * with its next message.
-   */
+  Muse Code alone, afresh (CLI recovery): a notice's Restart (a fault's,
+  the watchdog's) and "Muse Spark: Restart Muse Code". A running turn is
+  stopped; the new host starts at once, and each conversation resumes
+  with its next message.
+  */
   const restartMuseCode = async (reason: string): Promise<void> => {
     await restartBackend(reason, false, true)
     for (const controller of controllers.values()) {
@@ -1846,10 +1846,10 @@ async function activateWindow(
     }
   }
   /**
-   * The CLI in a terminal (`muse logout`, `muse mcp login`, Open in
-   * Terminal), with `museSpark.environmentVariables` as `muse serve` gets
-   * them, so it reads the same config home (the review of PR #49).
-   */
+  The CLI in a terminal (`muse logout`, `muse mcp login`, Open in
+  Terminal), with `museSpark.environmentVariables` as `muse serve` gets
+  them, so it reads the same config home (the review of PR #49).
+  */
   const runCliInTerminal = async (
     cliPath: string,
     args: readonly string[],

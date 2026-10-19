@@ -39,7 +39,7 @@ export type BackendSession = Pick<
   Partial<Pick<ScheduledAgentSession, 'sendScheduledTurn' | 'steerScheduledTurn'>>
 
 /** U registers this individual message before the backend admits it. This is
- * required even for a steer sharing an interactive turn or a queued message. */
+required even for a steer sharing an interactive turn or a queued message. */
 export interface ScheduleContextSubmitter {
   submit(
     session: BackendSession,
@@ -49,7 +49,7 @@ export interface ScheduleContextSubmitter {
 }
 
 /** Stop is the backend's public cancel, including Muse Code's approval cleanup.
- * No provider wire shape or alternate cancellation command is introduced. */
+No provider wire shape or alternate cancellation command is introduced. */
 export class ScheduleAgentSession implements ScheduleDeliverySession {
   private readonly lifetime = new AbortController()
   private activeTurnId: string | undefined
@@ -278,7 +278,7 @@ export interface ScheduleBackgroundTargetDeps {
   releaseOptions?(options: StartSessionOptions): void
   readonly contexts: ScheduleContextSubmitter
   /** Bind history/transcript and Agent map without a panel switch. The title is
-   * always provided, including on Muse Code where rename is unavailable. */
+  always provided, including on Muse Code where rename is unavailable. */
   publish(
     session: BackendSession,
     details: {

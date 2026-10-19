@@ -98,10 +98,10 @@ async function resolveThrough(
 }
 
 /**
- * Resolves `absolutePath` through the file system. Rejects on anything but
- * a missing component (a permission error, a link loop), so a caller never
- * mistakes an unreadable path for a confined one.
- */
+Resolves `absolutePath` through the file system. Rejects on anything but
+a missing component (a permission error, a link loop), so a caller never
+mistakes an unreadable path for a confined one.
+*/
 export async function canonicalPath(
   absolutePath: string,
   options: CanonicalPathOptions = {},

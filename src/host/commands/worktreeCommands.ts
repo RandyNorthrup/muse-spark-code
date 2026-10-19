@@ -49,9 +49,9 @@ export interface WorktreeDeps {
   /** The folder in a new window. */
   readonly openFolder: (fsPath: string) => Promise<void>
   /**
-   * Remembers the worktree for the window that opens on it (M71): a
-   * conversation there is a conversation in a worktree.
-   */
+  Remembers the worktree for the window that opens on it (M71): a
+  conversation there is a conversation in a worktree.
+  */
   readonly recordWorktree: (folder: string, branch: string, repositoryRoot: string) => Promise<void>
   readonly showInformation: (message: string) => void
   readonly showWarning: (message: string) => void

@@ -79,11 +79,11 @@ export function hasBinaryControlCharacters(content: string): boolean {
 }
 
 /**
- * The images a message's attachments stand for in Meta's per-request budget
- * (M54): one per image, and a PDF's page images, at most its first 50. A
- * PDF whose pages could not be counted weighs the full 50, so the host
- * never accepts a set that would force a newly attached file out of view.
- */
+The images a message's attachments stand for in Meta's per-request budget
+(M54): one per image, and a PDF's page images, at most its first 50. A
+PDF whose pages could not be counted weighs the full 50, so the host
+never accepts a set that would force a newly attached file out of view.
+*/
 function imageWeight(summary: AttachmentSummary): number {
   if (summary.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE) {
     return 0
@@ -350,9 +350,9 @@ export class AttachmentStore {
   }
 
   /**
-   * An image, or a PDF when `acceptsDocuments` (the Model API backend); the
-   * caller refuses a PDF on Muse Code with its own reason first (M54).
-   */
+  An image, or a PDF when `acceptsDocuments` (the Model API backend); the
+  caller refuses a PDF on Muse Code with its own reason first (M54).
+  */
   public add(
     name: string,
     bytes: Uint8Array,
@@ -435,10 +435,10 @@ export class AttachmentStore {
   }
 
   /**
-   * Image and document parts for the given ids (unknown ids are skipped).
-   * They stay until `release`: a message the host refused keeps them for
-   * another try.
-   */
+  Image and document parts for the given ids (unknown ids are skipped).
+  They stay until `release`: a message the host refused keeps them for
+  another try.
+  */
   public partsFor(ids: readonly string[]): readonly TurnPart[] {
     const parts: TurnPart[] = []
     for (const id of ids) {

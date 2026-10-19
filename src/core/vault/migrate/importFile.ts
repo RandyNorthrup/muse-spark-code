@@ -47,8 +47,8 @@ export interface VaultFileImportPort {
   list(): Promise<readonly VaultItemMetadata[]>
   read(id: string): Promise<VaultItem>
   /** C verifies staged decrypted items, then atomically publishes the batch AND its encrypted
-   * receipt under the migration writer. Verification failure publishes neither. Calls authorize
-   * at physical commit. Receipts persist across processes; no plaintext journal is permitted. */
+  receipt under the migration writer. Verification failure publishes neither. Calls authorize
+  at physical commit. Receipts persist across processes; no plaintext journal is permitted. */
   writeBatch(
     items: readonly VaultItem[],
     receipt: { id: string; record: ImportReceipt },

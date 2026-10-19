@@ -116,9 +116,9 @@ function hookPart(event: StreamEvent): {
 }
 
 /**
- * One hook turn's transcript row: the paid run is loud, like a review's.
- * The row is the transcript's, never the model's: it is not replayed.
- */
+One hook turn's transcript row: the paid run is loud, like a review's.
+The row is the transcript's, never the model's: it is not replayed.
+*/
 export async function runHookModelTurn(
   context: HookModelContext,
   input: HookModelTurnInput,

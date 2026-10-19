@@ -88,11 +88,11 @@ export interface BundledSkillsNotice {
 
 export interface BundledSkillsOffer {
   /**
-   * The notice for a Muse Code conversation that just started, at most once
-   * per window: the install while there is no copy and Not now was never
-   * said, the update while the copy's release is not the vendored one and
-   * its Not now named another release.
-   */
+  The notice for a Muse Code conversation that just started, at most once
+  per window: the install while there is no copy and Not now was never
+  said, the update while the copy's release is not the vendored one and
+  its Not now named another release.
+  */
   next(): Promise<BundledSkillsNotice | undefined>
   /** Not now on the notice shown: remembered for the install, or for this release's update. */
   decline(): Promise<void>

@@ -45,11 +45,11 @@ function review(
   }
 }
 
-function check(stepId: string, branch: string, isPassed: boolean): PipelineStepResult {
+function check(stepId: string, isPassed: boolean): PipelineStepResult {
   return {
     kind: 'checked',
     stepId,
-    branch,
+    branch: 'agents/engineering/t1',
     passed: isPassed,
     findings: [],
     report: `${stepId} checked`,
@@ -134,7 +134,7 @@ describe('rounds and redesign', () => {
     const { run, statuses } = drive(def, [
       work('implement', 'agents/engineering/t1'),
       review('review', 'agents/engineering/t1', []),
-      check('verify', 'agents/engineering/t1', true),
+      check('verify', true),
     ])
     expect(statuses).toEqual(['next', 'next', 'handoff'])
     expect(run.status).toBe('handoff')
@@ -145,7 +145,7 @@ describe('rounds and redesign', () => {
     const pass = drive(def, [
       work('implement', 'agents/engineering/t1'),
       review('review', 'agents/engineering/t1', []),
-      check('verify', 'agents/engineering/t1', true),
+      check('verify', true),
     ])
     const failingTitle = 'null dereference on empty input'
     const fail = drive(def, [
@@ -211,7 +211,7 @@ describe('rounds and redesign', () => {
     const { statuses } = drive(def, [
       work('implement', 'agents/engineering/t1'),
       review('review', 'agents/engineering/t1', ['medium', 'low', 'info']),
-      check('verify', 'agents/engineering/t1', true),
+      check('verify', true),
     ])
     expect(statuses).toEqual(['next', 'next', 'handoff'])
   })
@@ -229,7 +229,7 @@ describe('rounds and redesign', () => {
     const first = drive(def, [
       work('implement', 'agents/engineering/t1'),
       review('review', 'agents/engineering/t1', []),
-      check('verify', 'agents/engineering/t1', false),
+      check('verify', false),
     ])
     expect(first.statuses).toEqual(['next', 'next', 'repeat'])
   })
@@ -354,9 +354,7 @@ describe('result kinds', () => {
     expect(() =>
       recordStepResult(def, run, review('implement', 'agents/engineering/t1', [])),
     ).toThrow(PipelineResultError)
-    expect(() =>
-      recordStepResult(def, run, check('implement', 'agents/engineering/t1', true)),
-    ).toThrow(PipelineResultError)
+    expect(() => recordStepResult(def, run, check('implement', true))).toThrow(PipelineResultError)
   })
 
   it('the mismatch names the step and both kinds', () => {

@@ -57,10 +57,10 @@ export interface ScanRequest {
 }
 
 /**
- * Diffs a scan against the last one. Ids compare exactly: `Model` and
- * `model` are different models, and only an identical id with a changed
- * price fingerprint is repriced.
- */
+Diffs a scan against the last one. Ids compare exactly: `Model` and
+`model` are different models, and only an identical id with a changed
+price fingerprint is repriced.
+*/
 export function diffScans(
   previous: readonly ProviderModelRow[] | undefined,
   current: readonly ProviderModelRow[],
@@ -80,7 +80,7 @@ export function diffScans(
 }
 
 /** The diff in the panel's words; empty when nothing changed.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function scanDiffLines(diff: ScanDiff): readonly string[] {
   const lines: string[] = []
   if (diff.added.length > 0) {
@@ -96,10 +96,10 @@ export function scanDiffLines(diff: ScanDiff): readonly string[] {
 }
 
 /**
- * Re-reads the mutable abort state after awaits (as `isAbortRequested` in
- * `ModelApiHost`): a cancellation from another call lands between two
- * reads of the same signal.
- */
+Re-reads the mutable abort state after awaits (as `isAbortRequested` in
+`ModelApiHost`): a cancellation from another call lands between two
+reads of the same signal.
+*/
 function isScanCancelled(signal: AbortSignal): boolean {
   return signal.aborted
 }
@@ -117,9 +117,9 @@ function isFresh(
 }
 
 /**
- * The scans, one at a time per provider: concurrent scans of one provider
- * join the running one, and a cancelled scan leaves the last scan standing.
- */
+The scans, one at a time per provider: concurrent scans of one provider
+join the running one, and a cancelled scan leaves the last scan standing.
+*/
 export function createModelScanner(deps: ModelScannerDeps): {
   readonly scan: (entry: ProviderEntry, request?: ScanRequest) => Promise<ScanOutcome>
   readonly cancelScan: (providerId: string) => boolean

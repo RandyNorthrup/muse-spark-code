@@ -26,7 +26,7 @@ export interface ScheduleDestinationPickerProps {
 }
 
 /** V supplies the registry choices and Q's shared destination picker, adapted
- * to opaque configured ids. The same field runs in every host's shared panel. */
+to opaque configured ids. The same field runs in every host's shared panel. */
 export interface ReportActionEditorProps {
   readonly value: ScheduleDraft
   readonly initialReport?: ScheduleReportAction

@@ -22,10 +22,10 @@ export interface WorkLifetime {
    */
   readonly deadlineAt: number | undefined
   /**
-   * Runs `run` while the lifetime lasts; refuses, and closes a late result,
-   * after its end. A step whose value has no `close` names its `dispose`,
-   * run on a late value instead.
-   */
+  Runs `run` while the lifetime lasts; refuses, and closes a late result,
+  after its end. A step whose value has no `close` names its `dispose`,
+  run on a late value instead.
+  */
   step<T>(
     run: (signal: AbortSignal) => Promise<T>,
     dispose?: (value: T) => Promise<void>,

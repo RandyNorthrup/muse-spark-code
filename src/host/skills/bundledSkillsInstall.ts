@@ -43,9 +43,9 @@ export interface BundledSkillsPaths {
   /** Its sibling `<config home>/muse/skill-sources`, where the copy goes. */
   readonly sourcesRoot: string
   /**
-   * The installed extension's own `skills/` (M97): its skills link straight
-   * at the extension, with no copy and no tag. Absent where none ship.
-   */
+  The installed extension's own `skills/` (M97): its skills link straight
+  at the extension, with no copy and no tag. Absent where none ship.
+  */
   readonly extensionSkillsRoot?: string | undefined
 }
 
@@ -156,10 +156,10 @@ function copyFolder(paths: BundledSkillsPaths): string {
 }
 
 /**
- * The installed extension's own skill ids (M97): every folder under its
- * `skills/` holding a SKILL.md with a matching id. A missing root lists as
- * empty, like a missing catalog root; anything else throws.
- */
+The installed extension's own skill ids (M97): every folder under its
+`skills/` holding a SKILL.md with a matching id. A missing root lists as
+empty, like a missing catalog root; anything else throws.
+*/
 async function extraSkillIds(extensionSkillsRoot: string | undefined): Promise<readonly string[]> {
   if (extensionSkillsRoot === undefined) {
     return []
@@ -209,7 +209,7 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
       file === SKILL_FILE_NAME &&
       parts.length === SKILL_FILE_PATH_PARTS &&
       SKILL_ID_PATTERN.test(id)
-      ? [id]
+      ? id
       : []
   })
   if (skillIds.length === 0) {
@@ -391,9 +391,9 @@ async function linksInto(
 }
 
 /**
- * The new copy renamed in: over nothing, or over the extension's earlier
- * copy, which steps aside first and comes back if the rename fails.
- */
+The new copy renamed in: over nothing, or over the extension's earlier
+copy, which steps aside first and comes back if the rename fails.
+*/
 async function renameIn(
   staging: string,
   folder: string,

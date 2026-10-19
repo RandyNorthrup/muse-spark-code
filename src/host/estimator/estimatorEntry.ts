@@ -258,7 +258,7 @@ export function createEstimatorRun(
       const qualifications = recommendation.selections.flatMap((selection) => {
         const evaluation = recommendation.evaluations[selection.evaluation]
         return evaluation?.forecast.status === 'feasible'
-          ? [{ setup: selection.kind, unknownLimits: evaluation.forecast.simulation.unknownLimits }]
+          ? { setup: selection.kind, unknownLimits: evaluation.forecast.simulation.unknownLimits }
           : []
       })
       const setupFleets = recommendation.selections.map((selection) => ({
@@ -398,6 +398,6 @@ export function createEstimatorRun(
 }
 
 /** The bundle's shape is guarded beside its loader (estimatorBundle.ts): a
- * value imported from this entry would carry the engine back into
- * dist/extension.js, which the bundle-split gate refuses.
- */
+value imported from this entry would carry the engine back into
+dist/extension.js, which the bundle-split gate refuses.
+*/

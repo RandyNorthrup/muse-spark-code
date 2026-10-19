@@ -60,10 +60,10 @@ export interface HeldCheckoutDeps {
 }
 
 /**
- * Adds `commit` at `folder`, held, from the repository at `cwd`; `check`
- * (trust and the repository's owner) speaks before every git and every
- * write. Rejects with the reason in words.
- */
+Adds `commit` at `folder`, held, from the repository at `cwd`; `check`
+(trust and the repository's owner) speaks before every git and every
+write. Rejects with the reason in words.
+*/
 export type HeldCheckout = (
   folder: string,
   commit: string,

@@ -71,9 +71,9 @@ function symbolKey(symbol: CodeSymbol): string {
 }
 
 /**
- * Each result placed in the workspace (sorted, a repeat of the same place
- * and `sameness` left out), and the count left outside.
- */
+Each result placed in the workspace (sorted, a repeat of the same place
+and `sameness` left out), and the count left outside.
+*/
 async function placeAll<T>(
   query: CodeIntelQuery,
   items: readonly T[],
@@ -137,12 +137,12 @@ async function findLocations(
 }
 
 /**
- * The hover, unless the symbol is defined only in files outside the
- * workspace that are no language's library: a hover shows what its
- * declaration says (its documentation, a constant's literal type), and the
- * tools show nothing of such files. A symbol with no definition to judge
- * (a keyword, a literal) keeps its hover.
- */
+The hover, unless the symbol is defined only in files outside the
+workspace that are no language's library: a hover shows what its
+declaration says (its documentation, a constant's literal type), and the
+tools show nothing of such files. A symbol with no definition to judge
+(a keyword, a literal) keeps its hover.
+*/
 async function hover(query: CodeIntelQuery, raw: unknown): Promise<string> {
   const target = await query.target(parseArgs(locateArgs, raw))
   const parts = await ask(query.service.hover(target.file.absolute, target.at))
@@ -292,9 +292,9 @@ async function workspaceSymbols(query: CodeIntelQuery, raw: unknown): Promise<st
 }
 
 /**
- * Each call site, a few listed and the rest counted: `line:column`, or
- * `path:line:column` when the sites are in a file the line does not name.
- */
+Each call site, a few listed and the rest counted: `line:column`, or
+`path:line:column` when the sites are in a file the line does not name.
+*/
 function callSites(ranges: readonly CodeRange[], relative?: string): string {
   const sorted = ranges
     .map((range) => range.start)
@@ -418,10 +418,10 @@ async function answerText(
 }
 
 /**
- * One read-only call: the answer, or the refusal with its reason. Anything
- * else (the language service's own failure) is thrown for the caller to
- * report as a failed call.
- */
+One read-only call: the answer, or the refusal with its reason. Anything
+else (the language service's own failure) is thrown for the caller to
+report as a failed call.
+*/
 export async function answerCodeIntel(
   tool: CodeIntelReadTool,
   raw: unknown,

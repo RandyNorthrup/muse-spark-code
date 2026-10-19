@@ -64,9 +64,9 @@ function problemSummary(problems: readonly string[]): string {
 }
 
 /**
- * Installs the display language's table (`setUiText`) and returns it for the
- * webviews; English when the language has none or its file is unusable.
- */
+Installs the display language's table (`setUiText`) and returns it for the
+webviews; English when the language has none or its file is unusable.
+*/
 export async function loadUiTable(deps: UiTableDeps): Promise<UiTable> {
   const english: UiTable = { locale: BASE_LOCALE, table: EN }
   // The terminal names its messages; only the VS Code panel names the panel.

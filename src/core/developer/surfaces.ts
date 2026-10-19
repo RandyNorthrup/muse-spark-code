@@ -61,8 +61,8 @@ export async function handleDeveloperRequest(
 }
 
 /** The visible machine setting uses the same confirmations and owner. The
- * host must restore its checkbox from the returned snapshot, even on denial.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+host must restore its checkbox from the returned snapshot, even on denial.
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export async function setDeveloperMachineSetting(
   owner: DeveloperOptions,
   isEnabled: boolean,
@@ -72,8 +72,8 @@ export async function setDeveloperMachineSetting(
 }
 
 /** Metadata read after localization installation; W copies this into its
- * manifest/catalogue, H into /help and terminal help, U into settings.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+manifest/catalogue, H into /help and terminal help, U into settings.
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function developerHelpRows() {
   return [
     {

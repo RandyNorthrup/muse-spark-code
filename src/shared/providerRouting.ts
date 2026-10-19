@@ -37,11 +37,11 @@ export const openRouterRoutingSchema = /* @__PURE__ */ (() =>
   }))()
 
 /**
- * Compatibility overrides for a custom server (M101 BYO 14): the wire
- * shape its format's defaults misdescribe. Strict: an unknown key is a
- * typo that would send the wrong shape, so it refuses the entry instead
- * of stripping it.
- */
+Compatibility overrides for a custom server (M101 BYO 14): the wire
+shape its format's defaults misdescribe. Strict: an unknown key is a
+typo that would send the wrong shape, so it refuses the entry instead
+of stripping it.
+*/
 // Pure factory: same droppability as above for custom-server overrides.
 export const customCompatSchema = /* @__PURE__ */ (() =>
   z.strictObject({

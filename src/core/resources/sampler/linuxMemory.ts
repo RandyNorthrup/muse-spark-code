@@ -44,9 +44,9 @@ export async function linuxMemoryLimit(
   const group = path.posix.normalize(groupField)
   const mounts = await read('/proc/self/mountinfo')
   const mount = mounts?.split('\n').find((line) => {
-    const [kind, , options] = line.split(' - ', 2)[1]?.split(' ') ?? []
+    const [kind, , options = ''] = line.split(' - ', 2)[1]?.split(' ') ?? []
     return isV1
-      ? kind === 'cgroup' && (options ?? '').split(',').includes('memory')
+      ? kind === 'cgroup' && options.split(',').includes('memory')
       : line.includes(' - cgroup2 ')
   })
   const fields = mount?.split(' ')

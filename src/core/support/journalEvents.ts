@@ -7,9 +7,9 @@ import type { ProblemReportEvent } from './problemReport'
 import type { FlightRecord } from './flightRecorder'
 
 /**
- * The report's events for these records at `nowMs`. A record stamped after
- * `nowMs` (the clock moved back) reads as just now rather than being lost.
- */
+The report's events for these records at `nowMs`. A record stamped after
+`nowMs` (the clock moved back) reads as just now rather than being lost.
+*/
 export function reportEventsOf(
   records: readonly FlightRecord[],
   nowMs: number,

@@ -142,10 +142,10 @@ function failureCode(error: unknown): CopilotFailure {
 }
 
 /**
- * Copilot's model tolerance for the shared confirmed-dispatch gate: the
- * session stores `copilot/<id>` while a request may carry the catalogue
- * `<id>`, and both name this adapter's model.
- */
+Copilot's model tolerance for the shared confirmed-dispatch gate: the
+session stores `copilot/<id>` while a request may carry the catalogue
+`<id>`, and both name this adapter's model.
+*/
 function withoutCopilotPrefix(id: string): string {
   return id.startsWith('copilot/') ? id.slice('copilot/'.length) : id
 }
@@ -170,11 +170,11 @@ class CopilotClient implements ProviderClient {
     return new CopilotFailureError(this.deps.failureText(code), options)
   }
   /**
-   * The pre-dispatch gate with Copilot's model tolerance: the session stores
-   * `copilot/<id>` while a request may carry the catalogue `<id>`, and both
-   * name this adapter's model. A lapse here keeps the adapter's refusal,
-   * like every direct call before it.
-   */
+  The pre-dispatch gate with Copilot's model tolerance: the session stores
+  `copilot/<id>` while a request may carry the catalogue `<id>`, and both
+  name this adapter's model. A lapse here keeps the adapter's refusal,
+  like every direct call before it.
+  */
   private assertConfirmed(
     body: CreateResponseBody,
     confirmed: ConfirmedModelRequest | undefined,

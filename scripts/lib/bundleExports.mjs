@@ -128,10 +128,10 @@ function annotationObject(node) {
 }
 
 /**
- * The names a file exports without an annotation: every `exports.NAME = ...`
- * of a generated or hand-written CommonJS file. Any other use of `exports`
- * or of `module.exports` leaves the list unknown.
- */
+The names a file exports without an annotation: every `exports.NAME = ...`
+of a generated or hand-written CommonJS file. Any other use of `exports`
+or of `module.exports` leaves the list unknown.
+*/
 function assignedExports(source) {
   const names = new Set()
   let isOpen = false
@@ -153,11 +153,11 @@ function assignedExports(source) {
 }
 
 /**
- * The names a CommonJS bundle exports: esbuild's annotation,
- * `0 && (module.exports = { a, b, ...require("./c.js") })`, or the file's own
- * `exports.NAME = ...` when it has none. `undefined` when neither says: its
- * exports are unknown.
- */
+The names a CommonJS bundle exports: esbuild's annotation,
+`0 && (module.exports = { a, b, ...require("./c.js") })`, or the file's own
+`exports.NAME = ...` when it has none. `undefined` when neither says: its
+exports are unknown.
+*/
 function exportList(source) {
   let list
   const visit = (node) => {
@@ -202,9 +202,9 @@ function isVariableScope(node) {
 }
 
 /**
- * A node that can declare names of its own. A function's body block is the
- * function's scope, not a second one.
- */
+A node that can declare names of its own. A function's body block is the
+function's scope, not a second one.
+*/
 function isScope(node) {
   return ts.isBlock(node)
     ? !isVariableScope(node.parent)
@@ -334,9 +334,9 @@ function loweredImport(arrow) {
 }
 
 /**
- * Every member one bundle reads from each sibling bundle it loads, and every
- * use of a loaded sibling that could not be followed to its members.
- */
+Every member one bundle reads from each sibling bundle it loads, and every
+use of a loaded sibling that could not be followed to its members.
+*/
 function siblingReads(source) {
   const reads = new Map()
   const lost = new Map()
@@ -640,24 +640,24 @@ function siblingReads(source) {
 }
 
 /**
- * The bundles a build plugin points other bundles at (`deferredCohort` in
- * deferredBundles.mjs). Each must have members compared with it, or the gate
- * fails: these are the ones 0.18.0's missing exports were in.
- */
+The bundles a build plugin points other bundles at (`deferredCohort` in
+deferredBundles.mjs). Each must have members compared with it, or the gate
+fails: these are the ones 0.18.0's missing exports were in.
+*/
 export const CROSS_BUNDLE_TARGETS = Object.freeze(['modelApi.js', 'modelApiBoundaries.js'])
 
 /**
- * The loads by a computed name the gate accepts: the reader, a part of the
- * call that minifying does not rename, and below, why.
- *
- * - `configuredProviders.js`: configured.ts falls back from
- *   dist/providerCatalog.json to the same table written as a module beside
- *   it. That file is data (`module.exports = JSON.parse(...)`); the reader
- *   hands the whole module to its schema and calls no member of it.
- *
- * Any other computed load fails the gate, and so does an entry here whose
- * load is no longer in the build.
- */
+The loads by a computed name the gate accepts: the reader, a part of the
+call that minifying does not rename, and below, why.
+
+- `configuredProviders.js`: configured.ts falls back from
+  dist/providerCatalog.json to the same table written as a module beside
+  it. That file is data (`module.exports = JSON.parse(...)`); the reader
+  hands the whole module to its schema and calls no member of it.
+
+Any other computed load fails the gate, and so does an entry here whose
+load is no longer in the build.
+*/
 export const COMPUTED_LOADS = Object.freeze([
   Object.freeze({
     reader: 'configuredProviders.js',
@@ -668,21 +668,21 @@ export const COMPUTED_LOADS = Object.freeze([
 const sorted = (items) => [...items].toSorted((a, b) => a.localeCompare(b, 'en'))
 
 /**
- * The cross-bundle members of a set of built bundles, by file name
- * (`modelApi.js`) and text.
- *
- * - `problems` names every member a bundle reads from a sibling that the
- *   sibling does not export.
- * - `verified` counts the members compared with each sibling's export list.
- *   A sibling no member was compared with is not in it.
- * - `unverified` lists siblings whose export list could not be read from
- *   their text, so nothing was compared with them.
- * - `unfollowed` names every use of a loaded sibling the check could not
- *   follow to the members read: the reader, the sibling and the form.
- * - `computed` lists every `require(...)` or `import(...)` whose file is
- *   worked out at run time, by reader and text: which bundle it loads is not
- *   in the text, so nothing can be compared for it.
- */
+The cross-bundle members of a set of built bundles, by file name
+(`modelApi.js`) and text.
+
+- `problems` names every member a bundle reads from a sibling that the
+  sibling does not export.
+- `verified` counts the members compared with each sibling's export list.
+  A sibling no member was compared with is not in it.
+- `unverified` lists siblings whose export list could not be read from
+  their text, so nothing was compared with them.
+- `unfollowed` names every use of a loaded sibling the check could not
+  follow to the members read: the reader, the sibling and the form.
+- `computed` lists every `require(...)` or `import(...)` whose file is
+  worked out at run time, by reader and text: which bundle it loads is not
+  in the text, so nothing can be compared for it.
+*/
 export function siblingExportProblems(files) {
   const exportLists = new Map()
   const readsByFile = new Map()
@@ -743,14 +743,14 @@ export function siblingExportProblems(files) {
 }
 
 /**
- * Why a cross-bundle report does not pass, as sentences: a member a sibling
- * does not export, a use that could not be followed, a load by a computed
- * name that is not in `expectedComputed` (or an entry of it that matches no
- * load), a sibling whose export list could not be read, and each of
- * `targets` (the bundles a build plugin points others at) that no member was
- * compared with. Being loaded is not being checked: a target counts only by
- * the members compared with it.
- */
+Why a cross-bundle report does not pass, as sentences: a member a sibling
+does not export, a use that could not be followed, a load by a computed
+name that is not in `expectedComputed` (or an entry of it that matches no
+load), a sibling whose export list could not be read, and each of
+`targets` (the bundles a build plugin points others at) that no member was
+compared with. Being loaded is not being checked: a target counts only by
+the members compared with it.
+*/
 export function crossBundleFailures(report, targets, expectedComputed = []) {
   const isExpected = (load) =>
     expectedComputed.some(

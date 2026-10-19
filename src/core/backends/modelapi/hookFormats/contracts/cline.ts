@@ -48,15 +48,15 @@ const COMMON: readonly FieldSpec[] = [
 ]
 
 /**
- * DOC:253-267 plus cline/cline#13554 (SUMMARY:27): `cancel: true` stops the
- * operation with `errorMessage` as its reason; `contextModification` is
- * injected as context, capped at 50,000 chars (SUMMARY:25). Upstream discards
- * the context of a cancelling TaskStart/UserPromptSubmit hook; the engine
- * scans the veto before validation, so ours does the same: a veto carries
- * the error message only. An errorMessage without cancel is shown to nobody,
- * as documented. Vendor code: the cap cannot be a `context` rule (the
- * engine does not truncate), so it is this named function.
- */
+DOC:253-267 plus cline/cline#13554 (SUMMARY:27): `cancel: true` stops the
+operation with `errorMessage` as its reason; `contextModification` is
+injected as context, capped at 50,000 chars (SUMMARY:25). Upstream discards
+the context of a cancelling TaskStart/UserPromptSubmit hook; the engine
+scans the veto before validation, so ours does the same: a veto carries
+the error message only. An errorMessage without cancel is shown to nobody,
+as documented. Vendor code: the cap cannot be a `context` rule (the
+engine does not truncate), so it is this named function.
+*/
 function cappedContext(output: Readonly<Record<string, unknown>>): CustomResult {
   const found = output['contextModification']
   if (typeof found !== 'string' || found.trim() === '') return { ok: true, answer: {} }

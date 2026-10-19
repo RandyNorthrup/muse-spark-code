@@ -206,10 +206,10 @@ function isValidUsage(usage: Usage): boolean {
 }
 
 /**
- * The reply passed on as the client reads it, each chunk also given to
- * `copy`. The copy ends when the reply ends, fails or is cancelled by the
- * client, so reading it never outlasts the client's own reading.
- */
+The reply passed on as the client reads it, each chunk also given to
+`copy`. The copy ends when the reply ends, fails or is cancelled by the
+client, so reading it never outlasts the client's own reading.
+*/
 function metered(
   body: ReadableStream<Uint8Array>,
 ): [ReadableStream<Uint8Array>, ReadableStream<Uint8Array>] {

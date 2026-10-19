@@ -135,16 +135,14 @@ export function parseCaptureSse(text) {
       .map((line) => line.slice('data:'.length).replace(/^ /, ''))
       .join('\n')
     if (data === '' || data === '[DONE]') return []
-    return [
-      {
-        event:
-          lines
-            .find((line) => line.startsWith('event:'))
-            ?.slice('event:'.length)
-            .trim() ?? null,
-        data: object.parse(JSON.parse(data)),
-      },
-    ]
+    return {
+      event:
+        lines
+          .find((line) => line.startsWith('event:'))
+          ?.slice('event:'.length)
+          .trim() ?? null,
+      data: object.parse(JSON.parse(data)),
+    }
   })
 }
 

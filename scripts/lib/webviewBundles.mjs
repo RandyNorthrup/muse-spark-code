@@ -388,10 +388,10 @@ export const MODELS_DEFERRED_BUDGETS = [
 ]
 
 /**
- * The Models page's lazy section closures from its own metafile: every file
- * statically reachable from the section entries except the page's startup
- * and the panel body's own files.
- */
+The Models page's lazy section closures from its own metafile: every file
+statically reachable from the section entries except the page's startup
+and the panel body's own files.
+*/
 export function modelsDeferredBudgetGroups(modelsMeta) {
   const meta = { ...modelsMeta, outputs: normalOutputs(modelsMeta) }
   const excluded = new Set([
