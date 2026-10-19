@@ -14,6 +14,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { open, writeFile, realpath, lstat } from 'node:fs/promises'
 import { createInterface } from 'node:readline'
+import { createInterface as createPromisedInterface } from 'node:readline/promises'
 import { homedir, hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -371,6 +372,21 @@ function authDeps(): AuthCommandDeps {
     secrets,
     storeName: credentialStoreName(process.platform),
     readSecret: (prompt) => readSecretLine(prompt, process.stdin, process.stderr),
+    confirmKeyUse: async (message) => {
+      // Piped stdin cannot answer: name the value and proceed to the
+      // provider, exactly as before (PLAN.md D123 never dead-ends a
+      // pipe). A terminal asks and waits for the answer.
+      if (!process.stdin.isTTY) {
+        writeLine(process.stderr, message)
+        return true
+      }
+      const input = createPromisedInterface({ input: process.stdin, output: process.stderr })
+      try {
+        return (await input.question(`${message} (y/N): `)) === 'y'
+      } finally {
+        input.close()
+      }
+    },
     print: (line) => {
       writeLine(process.stdout, line)
     },

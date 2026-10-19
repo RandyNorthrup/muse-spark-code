@@ -422,3 +422,55 @@ Build: `npm run build` green; all packed runs below are `node dist/acp.js` under
 - T-dead-gate (`presets.ts:48`, `isKeyShape`): FIXED in `a23e8c149` — a repo-wide search showed no production reader of `preset.keyShape` and no production call of `isKeyShape`, so the `KeyShape` interface, the function, the `keyShape` field (18 uniform preset literals plus the Mistral-plan copy) and their test assertions are gone. `test/unit/providersPresets.test.ts` (16 passed), `test/unit/planKeyPresets.test.ts` (3 passed).
 - T-fixtures (`providerKeyInspect.test.ts:28`): FIXED in `a23e8c149` — the provider-prefixed strings are gone. The classifier under test is provider-agnostic (no prefix or length is consulted), so the suite now feeds shape-neutral generic strings (`opaque-token-00001`, `token.abcdef`, …); no input pretends to be any provider's key, and no outside-world input is involved. `test/unit/providerKeyInspect.test.ts` (8 passed).
 - T7 per-account (`notOffered` gate): PARTLY PROVEN, remainder measured. `auth set --provider meta --account work` — after `providers accounts add --provider meta --account work --label Work` (exit 0, real product path) — piped genuine non-UTF-8 bytes answers `That input is not text (it is not valid UTF-8), so it was not used.` (exit 1): dispatch, metadata, binding, account-list, `readSecret` and the invalid-notice mapping in `runAccountAuthSet` all executed in the packed product. The same form piped the URL answers the Meta invalid-credential sentence (Meta accounts validate shape, never ask). The non-meta inspection/notice/store path stays unreached here for two measured reasons, not one: (1) no product path on this headless runtime onboards a non-meta provider row into the account-service file (`fileAccountsMetadata` offers only the built-in meta row plus stored rows, and "a later owner supplies" the rest — hand-inventing a row's policy vocabulary is forbidden); (2) `setCredential` needs the OS keyring and this rig has no Secret Service (`DBUS_SESSION_BUS_ADDRESS` empty; the product itself reports `store-unavailable`). The non-meta inspection code is line-identical in shape to the now-proven `authSetProvider` path above. Scratch cleanup: the `work` row added by the drill was filtered back out of the lane's account metadata file (the product's `remove` refuses a row added in another process by design); `list --provider meta` afterwards shows only the default row, exit 0. No credential was stored at any point.
+
+### PR159W2 triage (2026-10-18, linuxlt rig, lane PR159W2)
+
+One line per new Codex thread; fixes follow in this lane. No hosted CI failures are listed after the threads in the brief, and this rig cannot read them (`gh` has no auth here), so the local gates below stand in.
+
+- cert T7 (`notOffered` gate): ACCEPTED, partly proven — will add a unit wiring proof through the real account store and metadata; the packed non-meta path stays unreachable here for the two measured reasons above (no row onboarding, no keyring).
+- `providerKeyInspect.test.ts` (invented fixtures): ALREADY FIXED by `a23e8c149` — suite now feeds shape-neutral generic strings; re-run here to confirm.
+- `hiddenInput.ts` (whole-stream decode): ALREADY FIXED by `fd9759ad8` — first-line-only decode; re-run here to confirm.
+- `presets.ts` (dead `isKeyShape`): ALREADY FIXED by `a23e8c149` — `KeyShape`/`isKeyShape`/`keyShape` gone repo-wide (`keyShapeOk` in the wizard is unrelated flow state); re-run here to confirm.
+- `CHANGELOG.md:60` (`auth set --provider` routing): ALREADY FIXED by `a23e8c149` — re-prove packed here.
+- `PLAN.md:14521` (stale open-shape claim): ACCEPTED, open — D123 still says every preset carries `{ kind: 'any' }`; this lane rewrites it to the fieldless behavior.
+- `authCommands.ts:150` (silent affirmative): ACCEPTED, open — on a TTY the notice question gets a real y/N answer with a re-prompt on "no" (panel parity); on a pipe the certified continue stands (stdin cannot answer, D123 never dead-ends).
+
+### PR159W2 outcomes (2026-10-18, linuxlt rig, lane PR159W2)
+
+- T-plan (`PLAN.md:14521`): FIXED — D123 no longer claims a `{ kind: 'any'
+}` shape per preset; it says no preset carries a key-shape field at all,
+  the provider judges every key, and the question waits for an answer
+  where one can be given (panel modal, terminal prompt) while a pipe
+  continues. Archive untouched; `check:plan` 0 drift.
+- T-confirm (`authCommands.ts:150`): FIXED in the three CLI key readers
+  (`authSetProvider`, `providersAdd`, `runAccountAuthSet`): a
+  suspicious-looking value now goes through a `confirmKeyUse` dependency
+  (named like the host's modal port). Production wiring (`main.ts`
+  `authDeps`): a pipe prints the notice and proceeds — byte-identical to
+  the certified runs; a TTY asks `notice (y/N)` on stderr and waits, and a
+  "no" re-prompts for the key, like the panel's password box. Proven by
+  `test/unit/providerKeyConfirm.test.ts` (4 passed, repo default timeout):
+  decline re-prompts and never stores (nothing printed, exit 1), accept
+  continues to the store. The per-account tests run the real
+  `AccountStore` over a real metadata file whose row is composed only of
+  production tables (the openai preset's origin/auth, the offered
+  openai/api policy); the vault refuses any call, so reaching it fails.
+  The TTY-interactive branch itself is for the lead's real-life run (no
+  TTY exists on this headless rig): on a terminal, run `auth set
+--provider <id>`, type a URL at the hidden prompt, answer `n` and see
+  the prompt return, answer `y` and see the key stored.
+- Already-fixed threads re-verified on this tree: `providerKeyInspect`
+  (8), `execKeyInput` (19), `providersPresets` (16), `planKeyPresets` (3),
+  `accountsCommand` (23), `execProviderNotice` (4) — all green at the repo
+  default timeout; `isKeyShape`/`KeyShape`/`keyShape` absent repo-wide
+  (`keyShapeOk` is unrelated wizard flow state).
+- Packed re-proof, same build (`npm run build` green), scratch homes only
+  (no real keys, `work` row only in scratch): bare `auth set` piped the
+  URL answers the Meta sentence (exit 1); `auth set --provider groq`
+  piped the same URL prints the web-address notice first, then the
+  store-unavailable truth (exit 1); the same form piped non-UTF-8 bytes
+  answers the not-text sentence (exit 1); `providers add --preset custom
+... --key-stdin` piped the URL prints the notice, then the connection
+  truth (exit 1) — every line byte-identical to the PR159FIX2 record.
+  Per-account meta intact: `accounts add` exit 0, non-UTF-8 auth set
+  answers not-text (exit 1), `list` shows both rows.
