@@ -1428,6 +1428,22 @@ happened, not what was planned; superseded entries are kept.
 - Screen recordings run until stopped by default: `museSpark.screenRecordingMaxSeconds`
   defaults to `0` instead of 120; a set value stays within 10–600, and the recorder keeps
   what it captured.
+- A Model API turn runs with no round count of ours: with no caller allowance it keeps
+  going until the model answers without a tool call or you press Stop, showing the
+  running round count; a caller's own allowance still bounds its run.
+- An output-limit reply keeps continuing while the model is mid-answer instead of
+  stopping after one continuation, saying which part it is on.
+- A turn never stops for repeating the same tool call: it says the model is
+  repeating the call and keeps going until stopped.
+- A structured answer repairs until it validates instead of stopping after one
+  repair, saying which repair round it is on.
+- A subagent task runs until done or stopped instead of stopping after four
+  requests; the paid-consent card prices each request as it goes, never from a cap.
+- Commands and hooks run with no default deadline: a command or hook without a
+  timeout you set runs until it ends or is stopped, showing its running time.
+- Tool results reach the model whole: no 16,000-token, 8,000-characters-a-line or
+  64,000-character trim of ours; only a byte guard you set or the model's window
+  share may cut a result, with the full text spilled to a file and a notice saying so.
 - JSON headless runs report request starts, token totals and cost on stderr while stdout remains one JSON result.
 - Headless Model API runs accept `--max-output-tokens <n>` as an optional
   lowering limit: absent is the model's policy cap, present never exceeds it

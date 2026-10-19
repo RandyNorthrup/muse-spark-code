@@ -260,3 +260,110 @@ No other default of the same kind was found: every remaining Max/Limit/Cap/
 Timeout/Deadline/Seconds/Budget either comes from a provider's published
 limit, is set by the person (or null/unset by default), validates a person's
 own value, or guards protocol/memory/loop liveness as listed above.
+
+# Lane NOLIMITSRUN certification — the model loop runs until done or stopped
+
+Branch `fix/0190-nolimitsrun` (continues `fix/0190-no-default-limits`),
+seven commits, one per limit below. Each limit is removed at its cause per
+PLAN.md D121 (outcome 1: not about a model → the constant, its checks, its
+refusal text and its docs go). Removing a stop never leaves a silent hang:
+the person is told in plain words what is happening while the work keeps
+going until they stop it, and Stop always works. Per-person and per-model
+explicit values still bind. Tests drive real code with no stand-ins, each
+shown failing on the code before its change (break-once drill), then green
+with the repository's own timeout (never `--testTimeout`).
+
+## Each limit, its replacement, its proof
+
+- Tool rounds (`MODEL_API_MAX_TOOL_ROUNDS` 200/turn + caller-allowance
+  default). Replaced with: `modelCallLimit = callerModelCallsLeft() ??
+Infinity`; the running round count rides the existing narration (tool
+  rows, notices, per-request `tokenUsage`) on the panel, terminal and ACP.
+  Proof: `test/unit/noRoundCap.test.ts` + `scripts/check-no-round-cap.mjs`
+  (`check:no-round-cap` gate in `quality:gates`) fail on a reintroduced
+  round constant and pass without one; lane suites green (counts below).
+- Output continuations (`MODEL_API_CONTINUATIONS_MAX` 1). Replaced with: a
+  `modelApiContinuing (part {count})` notice each round while the model is
+  mid-answer. Proof: `test/unit/noOutputContinuationCap.test.ts` +
+  `scripts/check-no-output-continuation-cap.mjs` (`check:no-output-cap`
+  gate) fail on a reintroduced continuation constant, pass without one.
+- Repeat guard (`TOOL_REPEAT_LIMIT` 3). Replaced with:
+  `RepeatGuard.before()` returning `'run' | {repeat: N}`, always running,
+  with a `modelApiToolRepeating {tool} {count}` info notice. Proof:
+  `test/unit/repeatGuard.test.ts` green; the new-behaviour assertions
+  (repeat runs with notice, never stops) failed before the change.
+- Structured-output repairs (`STRUCTURED_OUTPUT_REPAIRS_MAX` 1). Replaced
+  with a `for(;;)` repair loop emitting `structuredOutputRepair {count}` /
+  `structuredOutputRetry {count}` notices per round; abort and terminal
+  errors still end it. Proof: `noModelLoopLimits.test.ts` repair cases
+  failed on the one-repair code, green after.
+- Subagent requests (`SUBAGENT_TASK_MAX_REQUESTS` 4). Replaced with: no
+  `remainingAttempts`/`attemptLimit` on the grant, no `requestLimit`
+  refusal; `subagentTaskPrice(modelId)` prices from the model rates with
+  "billed per request until ends/stopped" (`SUBAGENT_PRICE_ACCEPTANCE_VERSION`
+  bumped to `2026-10-19:unbounded:v1`). Proof: `noModelLoopLimits.test.ts`
+  subagent cases (unbounded run, live per-request pricing, Stop ends it)
+  failed on the capped code, green after.
+- Shell/hook timeouts (`SHELL_DEFAULT_TIMEOUT_MS`,
+  `HOOK_DEFAULT_TIMEOUT_SECONDS`, `HOOK_MODEL_TIMEOUT_MS`,
+  `HOOK_SESSION_END_TIMEOUT_MS`). Replaced with: `timeoutSeconds?` /
+  `timeoutMs?` optional, `undefined` means run until it ends or is stopped,
+  with running time shown (`streamRepairAttempt(..., timeoutMs|undefined)`,
+  SessionEnd close waits with a log line). A timeout someone sets still
+  works; only validating bounds stay (`HOOK_MAX_TIMEOUT_SECONDS` 600 s
+  ceiling, `TOOL_RESULT_MIN_BYTES` floor, `SHELL_MAX_TIMEOUT_MS` for
+  media). Proof: `test/unit/shellNoDeadline.test.ts` (unnamed run waits,
+  named timeout kills, past-one-timer-range waits whole) and
+  `test/unit/elicitationHookSeam.test.ts` failed on default-deadline code,
+  green after.
+- Tool-result trim (`TOOL_RESULT_MAX_TOKENS` 16,000,
+  `TOOL_RESULT_MAX_LINE_CHARS` 8,000, `TOOL_OUTPUT_MAX_CHARS` 64,000
+  fallback). Replaced with: the result reaches the model whole; only a
+  byte guard the person set or the window share cuts, with a spill file
+  under `.muse-spark/tool-results/` and a notice naming how much, which
+  head/tail and how to read more. Read, search, list, vault, MCP text,
+  IDE-external, browser-check, memory-note and `then_run` outcomes no
+  longer clip at our 64 KiB; rows and the panel keep their display clip.
+  Proof: `test/unit/toolResultBound.test.ts` (36: sums, surrogate, CRLF
+  byte-exact, window-share guarantee, spill notices) and the new
+  `test/unit/toolResultsRideWhole.test.ts` (6: MCP text/error past 64 KiB
+  whole, browser report whole, kept-whole shell outcome with exit line and
+  elided row, memory window whole with line-only paging) — 4 of the 6
+  failed before the change; `test/unit/noDefaultLimits.test.ts` and
+  `test/unit/execArgs.test.ts` updated to the two-argument
+  `validateToolResultCap` (no fallback of ours).
+
+## Suites run (repository's own timeout, `--maxWorkers=3`)
+
+- `toolResultBound` (36) + `noDefaultLimits` (15) + `toolResultsRideWhole`
+  (6): 57 green.
+- `noModelLoopLimits` + `memoryIo` + `shellNoDeadline`: 24 green.
+- `browserCheckNoCaps` + `importHookSources` + `modelapiChatCodec`: 178
+  green.
+- `responsesCodec` + `execArgs` + `diagnosticsReport`: 130 green.
+- `noModelLoopLimits` + `noOutputContinuationCap` + `noRoundCap`: 19 green.
+- `noRoundCap` + `noOutputContinuationCap` + `toolRoundsWrapUpGuard` through
+  the shared `describeSourceGuard` drill: 12 green (dedupe keeps the gate at
+  its base 13 pre-existing vault clones; this lane adds none).
+- `repeatGuard` + `elicitationHookSeam` + `execArgs`: 89 green.
+- `node scripts/check-l10n.mjs`: 0 problems. `npm run check:reference`:
+  current. Repo eslint on every file this lane touched: zero errors.
+- Host typecheck: green. Unit typecheck: 19 errors, all in files this lane
+  never touched (estimate*, modelApiPacing, teamConstants,
+  vendorMediaCodecs, runtimePullRequestProcessBirth) — pre-existing, left
+  for their owners (the one `execArgs.test.ts` error this lane's signature
+  change caused was fixed in the same change).
+
+## Kept bounds, listed for the lead (D121 outcome 4)
+
+The read/search/list paging contracts (limits the model sets, honest
+continuation notices), `readFileCharacterBudget` (window-derived from the
+capability record's `contextTokens` when known; its unknown-window 64 KiB
+branch is ours), the verify-note budget `VERIFY_NOTE_MAX_CHARS` with
+per-check shares (M68/D27 design: beginning, end and exit line kept),
+`SEARCH_*`/`GLOB_*` engine bounds and the hit/pattern validity refusals
+(search tool contract), hook input preview bounds
+(`HOOK_TOOL_OUTPUT_PREVIEW_CHARS`, hook contract — the 64 KiB elide on the
+hook path was left because hooks never see more than the preview anyway),
+and every display/row/panel clip (they hide nothing from the model or the
+saved record).
