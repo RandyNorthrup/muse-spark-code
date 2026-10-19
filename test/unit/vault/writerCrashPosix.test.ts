@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { build } from 'esbuild'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import { randomBytes } from 'node:crypto'
@@ -55,7 +55,10 @@ async function complete(root: string, action: string, key: Buffer) {
 // SIGKILL at every reset/restore stage and never takes over a live writer.
 describe('POSIX production writer crash recovery (CM109JOINA)', () => {
   beforeAll(async () => {
-    fixture.directory = await mkdtemp(path.join(os.tmpdir(), 'vkill-'))
+    // macOS spells its temporary root through /var (a symlink to
+    // /private/var), and the vault refuses roots under a symlinked
+    // ancestor: resolve to the real path first, as brokerWithoutKeyring does.
+    fixture.directory = await mkdtemp(path.join(await realpath(os.tmpdir()), 'vkill-'))
     fixture.file = path.join(fixture.directory, 'child.cjs')
     await build({
       entryPoints: ['test/unit/helpers/vault/writerCrashChild.ts'],

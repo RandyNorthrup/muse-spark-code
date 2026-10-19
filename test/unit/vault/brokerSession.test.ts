@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { fork, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import * as z from 'zod/mini'
@@ -18,7 +18,10 @@ const children = new Set<ChildProcess>()
 const brokers = new Set<number>()
 beforeAll(async () => {
   if (process.platform === 'win32') return
-  fixture.root = await mkdtemp(path.join(os.tmpdir(), 'vs-'))
+  // macOS spells its temporary root through /var (a symlink to
+  // /private/var), and the vault refuses roots under a symlinked
+  // ancestor: resolve to the real path first, as brokerWithoutKeyring does.
+  fixture.root = await mkdtemp(path.join(await realpath(os.tmpdir()), 'vs-'))
   await compileVaultPeer(fixture.root)
   await mkdir(path.join(fixture.root, 'dist'))
   for (const [entry, output] of [

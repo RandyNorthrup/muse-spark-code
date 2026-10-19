@@ -19,11 +19,25 @@ export async function darwinProcessHelper(): Promise<{
     // build.sh compiles every source beside it (M105 screen recording, M109
     // vault) and localizes the screen app from its .lproj folders and the UI
     // tables, so the fixture holds the whole folder rather than a file list.
+    // The M109 peer section also reads native/posix/vaultPeer.c through its
+    // relative path, so that file rides along at the same relative spot.
     await mkdir(native, { recursive: true })
     await cp(path.resolve('native/darwin'), native, {
       recursive: true,
       filter: (source) => !BUILT.test(source),
     })
+    await mkdir(path.join(folder, 'native', 'posix'), { recursive: true })
+    await copyFile(
+      path.resolve('native/posix/vaultPeer.c'),
+      path.join(folder, 'native', 'posix', 'vaultPeer.c'),
+    )
+    // vaultPeer.c includes the shared broker peer source through its
+    // relative path, so it rides along at the same relative spot too.
+    await mkdir(path.join(folder, 'src', 'core', 'vault', 'broker'), { recursive: true })
+    await copyFile(
+      path.resolve('src/core/vault/broker/peer.c'),
+      path.join(folder, 'src', 'core', 'vault', 'broker', 'peer.c'),
+    )
     await mkdir(path.join(folder, 'l10n'))
     const tables = await readdir('l10n')
     for (const file of tables)
