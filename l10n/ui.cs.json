@@ -3906,6 +3906,7 @@
   "announceApprovalFor": "Je vyžadováno schválení pro {tool}",
   "turnFailed": "Kolo selhalo.",
   "turnRetrying": "Pokus {attempt}/{maxAttempts} selhal ({reason}); nový pokus za {seconds} s.",
+  "modelApiProviderRetryWait": "{reason}; poskytovatel požádal o čekání do {time}. Tah můžete kdykoli zastavit.",
   "usageWindowHours": {
     "one": "{count}hodinové okno",
     "other": "{count}hodinové okno",

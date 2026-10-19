@@ -3657,6 +3657,7 @@
   "announceApprovalFor": "{tool} の承認が必要です",
   "turnFailed": "ターンが失敗しました。",
   "turnRetrying": "試行 {attempt}/{maxAttempts} が失敗しました ({reason})。{seconds} 秒後に再試行します。",
+  "modelApiProviderRetryWait": "{reason}；プロバイダーが{time}まで待機するよう求めています。ターンはいつでも停止できます。",
   "usageWindowHours": {
     "other": "{count} 時間枠"
   },

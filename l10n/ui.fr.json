@@ -3823,6 +3823,7 @@
   "announceApprovalFor": "Approbation requise pour {tool}",
   "turnFailed": "Le tour a échoué.",
   "turnRetrying": "La tentative {attempt}/{maxAttempts} a échoué ({reason}) ; nouvelle tentative dans {seconds} s.",
+  "modelApiProviderRetryWait": "{reason} ; le fournisseur a demandé d’attendre jusqu’à {time}. Vous pouvez arrêter le tour à tout moment.",
   "usageWindowHours": {
     "one": "fenêtre de {count} heure",
     "other": "fenêtre de {count} heures",

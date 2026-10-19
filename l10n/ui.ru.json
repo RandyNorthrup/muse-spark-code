@@ -3906,6 +3906,7 @@
   "announceApprovalFor": "Требуется подтверждение для {tool}",
   "turnFailed": "Не удалось выполнить ход.",
   "turnRetrying": "Попытка {attempt}/{maxAttempts} не удалась ({reason}); повтор через {seconds} с.",
+  "modelApiProviderRetryWait": "{reason}; провайдер попросил подождать до {time}. Вы можете остановить ход в любой момент.",
   "usageWindowHours": {
     "one": "{count}-часовое окно",
     "other": "{count}-часовое окно",

@@ -169,6 +169,21 @@ describe('provider pacing readers', () => {
   })
 })
 
+/** A pacer over controllable time that records every wait it takes. */
+function recordingPacer(): { readonly pacing: ModelApiPacing; readonly waits: number[] } {
+  let now = 1_800_000_000_000
+  const waits: number[] = []
+  const pacing = new ModelApiPacing({
+    now: () => now,
+    wait: (ms) => {
+      waits.push(ms)
+      now += ms
+      return Promise.resolve()
+    },
+  })
+  return { pacing, waits }
+}
+
 describe('pacing admission', () => {
   it('governs configured-provider inference carrying a model id, nothing else', () => {
     // The codec path supplies the native model id on a native path (never
@@ -191,16 +206,7 @@ describe('pacing admission', () => {
     // A 429 pause the observation recorded (the captured Groq readers
     // teach the windows, the 2 s wait stands in for its Retry-After):
     // admitted background work waits it out, the user's turn never does.
-    let now = 1_800_000_000_000
-    const waits: number[] = []
-    const pacing = new ModelApiPacing({
-      now: () => now,
-      wait: (ms) => {
-        waits.push(ms)
-        now += ms
-        return Promise.resolve()
-      },
-    })
+    const { pacing, waits } = recordingPacer()
     pacing.observe('groq', openaiPacingLimits(capturedHeaders.groq), 2000)
     await pacing.acquire('groq', 'subagent', 0, AbortSignal.timeout(5000))
     expect(waits).toEqual([2000])
@@ -254,30 +260,23 @@ describe('azureRetryAfterMs', () => {
   })
 })
 
-describe('hostile provider waits stay bounded', () => {
-  it('caps a corrupt 429 wait at one retry-ceiling pause instead of wedging background dispatch', async () => {
-    // A compromised endpoint answering `retry-after-ms` in the trillions
-    // must not pause background work past the retry ceiling; the next 429
-    // re-pauses anyway, and the user's turn never waits on a sibling pause.
-    let now = 1_800_000_000_000
-    const waits: number[] = []
-    const pacing = new ModelApiPacing({
-      now: () => now,
-      wait: (ms) => {
-        waits.push(ms)
-        now += ms
-        return Promise.resolve()
-      },
-    })
+describe('provider waits are honoured whole', () => {
+  it('pauses background dispatch for the whole named wait while the foreground passes', async () => {
+    // A provider answering `retry-after-ms` in the trillions pauses
+    // background work for exactly that wait — no ceiling of ours applies to
+    // a value the provider sent — and the user's turn never waits on a
+    // sibling pause.
+    const { pacing, waits } = recordingPacer()
     pacing.observe('rogue', undefined, 99_999_999_999_999)
     await pacing.acquire('rogue', 'subagent', 0, AbortSignal.timeout(5000))
-    expect(waits).toEqual([MODEL_API_RETRY_MAX_MS])
+    expect(waits).toEqual([99_999_999_999_999])
     await pacing.acquire('rogue', 'foreground', 0, AbortSignal.timeout(5000))
-    expect(waits).toEqual([MODEL_API_RETRY_MAX_MS])
+    expect(waits).toEqual([99_999_999_999_999])
   })
-  it('caps the retry sleep a corrupt wait header names at the same ceiling', () => {
+  it('sleeps the whole named wait per retry try; only our own fallback keeps a ceiling', () => {
     // The foreground retry loop sleeps what backoffMs returns: a header
-    // naming trillions of milliseconds sleeps one bounded wait per try.
+    // naming trillions of milliseconds sleeps that whole wait per try, with
+    // the retry notice naming when it ends and Stop ending it at once.
     const silent = {
       trace: () => undefined,
       info: () => undefined,
@@ -292,7 +291,7 @@ describe('hostile provider waits stay bounded', () => {
       random: () => 0,
       log: silent,
     })
-    expect(transport.backoffMs(0, 99_999_999_999_999)).toBe(MODEL_API_RETRY_MAX_MS)
+    expect(transport.backoffMs(0, 99_999_999_999_999)).toBe(99_999_999_999_999)
     expect(transport.backoffMs(0, 1500)).toBe(1500)
     expect(transport.backoffMs(0, undefined)).toBeLessThanOrEqual(MODEL_API_RETRY_MAX_MS)
   })

@@ -35,7 +35,7 @@ interface PaidRequestClaim {
   settle(actualCostUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
 }
 import type { MediaRequestAccounting } from '../../media/mediaCost'
-import { fill } from '../../../shared/l10n/text'
+import { fill, formatDateTime } from '../../../shared/l10n/text'
 import { classifyRetry, RETRY_TABLES, type RetryTables } from '../../../shared/retryPolicy'
 import type { CoreLogger } from '../../logging'
 import {
@@ -376,8 +376,8 @@ export function retryAfterMs(header: string | null, now: number): number | undef
  * The wait an answer names, in every form a provider uses: `retry-after-ms`
  * (milliseconds; Azure OpenAI, read before `Retry-After` per research
  * azure-openai.md ZB2), then `Retry-After` (seconds or an HTTP date).
- * Read whole here; the retry loop honours it up to its own ceiling, so a
- * hostile or corrupt header stalls one bounded wait per try at most.
+ * Read whole here; the retry loop honours it whole, tells the person when it
+ * ends, and the turn's Stop ends it at once.
  */
 export function providerWaitMs(headers: Headers, now: number): number | undefined {
   const milliseconds = headers.get(RETRY_AFTER_MS_HEADER)
@@ -909,12 +909,12 @@ export class RequestTransport {
 
   public backoffMs(attempt: number, suggestedMs?: number): number {
     const jitter = Math.floor(this.deps.random() * MODEL_API_RETRY_JITTER_MS)
-    // The provider's own wait is the least it asks for (every provider
-    // documents it so): honoured whole up to our retry ceiling. Past the
-    // ceiling the ceiling applies — a hostile or corrupt header must not
-    // stall a turn for longer than one bounded wait per try. Still waited
-    // and still retried, never shortened below what was asked within it.
-    if (suggestedMs !== undefined) return Math.min(suggestedMs + jitter, MODEL_API_RETRY_MAX_MS)
+    // The provider's own wait is honoured whole: no ceiling of ours applies
+    // to a value the provider sent (the owner's limits rule). The retry
+    // notice names when the wait ends, and the turn's Stop ends it at once.
+    // Only our own exponential fallback below keeps a ceiling, having no
+    // provider value to honour.
+    if (suggestedMs !== undefined) return suggestedMs + jitter
     const exponential = Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS)
     return Math.min(exponential + jitter, MODEL_API_RETRY_MAX_MS)
   }
@@ -1265,6 +1265,17 @@ export class RequestTransport {
       this.deps.log.warn(
         `Model API answered ${String(response.status)} (${scrubRefusalLeak(failure.message)}); retrying in ${String(delay)} ms`,
       )
+      // A wait the provider named is told at once with when it ends, in
+      // absolute time and plain words, so a long provider wait never stalls
+      // silently; the pause after it stays Stop-abortable. The `HTTP …`
+      // prefix stays first, as the rate-limited retry readers match on it.
+      const reason =
+        waitMs === undefined
+          ? `HTTP ${String(response.status)}: ${failure.message}`
+          : fill(UI_TEXT.modelApiProviderRetryWait, {
+              reason: `HTTP ${String(response.status)}: ${failure.message}`,
+              time: formatDateTime(this.deps.now() + delay),
+            })
       if (
         response.status === PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout &&
         admitAttempt?.prepareRetry !== undefined
@@ -1273,7 +1284,7 @@ export class RequestTransport {
           credentials.keyDigest,
           signal ?? new AbortController().signal,
         )
-      await retry(attempt, delay, `HTTP ${String(response.status)}: ${failure.message}`)
+      await retry(attempt, delay, reason)
     }
   }
 }
