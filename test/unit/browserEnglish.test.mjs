@@ -50,12 +50,13 @@ it('keeps account, developer and help values out of startup and loads them exact
     Object.hasOwn(output.inputs, 'browser-schedule-english:browser-schedule-english'),
   )
   expect(scheduleChunk?.[0]).not.toBe(chunk[0])
+  // M116: the playbook's English rides its own deferred chunk, out of the
+  // shared surface closure.
   const playbookChunk = Object.entries(built.meta.outputs).find(([, output]) =>
     Object.hasOwn(output.inputs, 'browser-playbook-english:browser-playbook-english'),
   )
   expect(playbookChunk).toBeDefined()
-  expect(playbookChunk[0]).not.toBe(chunk[0])
-
+  expect(playbookChunk?.[0]).not.toBe(chunk[0])
   const main = Object.entries(built.meta.outputs).find(([file]) => file.endsWith('probe.mjs'))
   const seen = new Set()
   const reachesLoader = (file) => {

@@ -372,7 +372,6 @@ export const compactBrowserUiText = {
       // STARTUP017: the schedule surfaces' English loads beside them; chat
       // startup paints restored settlement rows from scheduleSettlement alone.
       const scheduleKeys = deferredKeys.filter((key) => key === 'scheduleV2')
-      const playbookKeys = deferredKeys.filter((key) => key.startsWith('playbook'))
       // Each panel module that reads it installs it before its body runs, however
       // chat loads that module (a deferred surface, a row body or a direct import).
       const scheduleReaders = new Set(
@@ -387,6 +386,30 @@ export const compactBrowserUiText = {
       )
       // M109: the vault group's English travels with the vault surface, whose
       // vaultEnglish.ts installs it before any vault render; never twice here.
+      // M116: the orchestrator playbook's English loads with its deferred
+      // surfaces (src/webview/playbook/), out of the shared surface closure.
+      const playbookKeys = deferredKeys.filter(
+        (key) =>
+          key.startsWith('playbook') &&
+          !helpKeys.includes(key) &&
+          !accountKeys.includes(key) &&
+          !scheduleKeys.includes(key) &&
+          key !== 'vault' &&
+          nonResourceKeys.has(key),
+      )
+      // Each deferred playbook module that reads it installs it before its
+      // body runs, however chat loads that module (an eager reader would
+      // carry the key in startup instead, so it needs no installer here).
+      const playbookReaders = new Set(
+        playbookKeys.length === 0
+          ? []
+          : files.filter(
+              (file) =>
+                /[/\\]src[/\\]webview[/\\]/.test(file) &&
+                !eagerSources.has(file) &&
+                /UI_TEXT\.playbook/.test(readFileSync(file, 'utf8')),
+            ),
+      )
       const surfaceKeys = deferredKeys.filter(
         (key) =>
           !helpKeys.includes(key) &&
@@ -416,10 +439,11 @@ export const compactBrowserUiText = {
         lanes,
         deferredKeys,
         surfaceKeys,
+        playbookKeys,
+        playbookReaders,
         helpKeys,
         accountKeys,
         scheduleKeys,
-        playbookKeys,
         scheduleReaders,
         resourceKeys,
         contract,
@@ -454,6 +478,7 @@ export const compactBrowserUiText = {
       'browser-reference-english',
       'browser-account-english',
       'browser-schedule-english',
+      'browser-playbook-english',
     ]) {
       build.onResolve({ filter: /.*/, namespace }, (args) => {
         if (args.path === path.resolve(TABLE).replaceAll('\\', '/'))
@@ -507,6 +532,16 @@ ${inlineBrowserTable(Object.fromEntries(data.surfaceKeys.toSorted((left, right) 
 installSurfaceEnglish(EN);`,
       loader: 'js',
     }))
+    build.onResolve({ filter: /^browser-playbook-english$/ }, () => ({
+      path: 'browser-playbook-english',
+      namespace: 'browser-playbook-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-playbook-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.playbookKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
     build.onResolve({ filter: /^browser-schedule-english$/ }, () => ({
       path: 'browser-schedule-english',
       namespace: 'browser-schedule-english',
@@ -526,6 +561,20 @@ installSurfaceEnglish(EN);`,
         throw new Error(`Unsupported lazy surface in a schedule English reader: ${args.path}`)
       return {
         contents: "await import('browser-schedule-english');\n" + source,
+        loader: args.path.endsWith('.tsx') ? 'tsx' : 'ts',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [args.path],
+      }
+    })
+    // M116: same installer for the playbook's own English, beside the lazy()
+    // rewrite below, with the same loud failure when a reader declares one.
+    build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx?$/ }, (args) => {
+      if (!data.playbookReaders.has(path.resolve(args.path))) return
+      const source = readFileSync(args.path, 'utf8')
+      if (/\blazy\(|ReferencePage/.test(source))
+        throw new Error(`Unsupported lazy surface in a playbook English reader: ${args.path}`)
+      return {
+        contents: "await import('browser-playbook-english');\n" + source,
         loader: args.path.endsWith('.tsx') ? 'tsx' : 'ts',
         resolveDir: path.dirname(args.path),
         watchFiles: [args.path],
