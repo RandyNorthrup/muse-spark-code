@@ -16,8 +16,8 @@
 // A model with no captures (1.1, standard tiers) resolves to unknown
 // support, which the gate refuses with a named reason (D85.1).
 import {
-  MAX_DOCUMENT_BYTES,
-  MAX_IMAGE_BYTES,
+  META_DOCUMENT_MAX_BYTES,
+  META_IMAGE_MAX_BYTES,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   BYTES_PER_MIB,
   IMAGE_MEDIA_TYPES,
@@ -39,13 +39,16 @@ function captured(modelId: (typeof CONTRIBUTOR_MODELS)[number]): MediaModelCapab
       image: {
         support: 'yes',
         formats: [...IMAGE_MEDIA_TYPES],
-        inlineMaxBytes: MAX_IMAGE_BYTES,
+        // D121: Meta's documented inline maxima (dev.meta.ai/docs, read
+        // 2026-10-19), not product limits — the gate enforces the model's
+        // own record.
+        inlineMaxBytes: META_IMAGE_MAX_BYTES,
         uploadMaxBytes: UPLOAD_MAX_BYTES,
       },
       document: {
         support: 'yes',
         formats: ['application/pdf'],
-        inlineMaxBytes: MAX_DOCUMENT_BYTES,
+        inlineMaxBytes: META_DOCUMENT_MAX_BYTES,
         uploadMaxBytes: UPLOAD_MAX_BYTES,
       },
       video: {

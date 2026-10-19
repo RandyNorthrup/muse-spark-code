@@ -147,9 +147,11 @@ export const BROWSER_CHECK_TYPE_TEXT_MAX_CHARS = 1000
 // rest are counted), each cut to this length.
 export const BROWSER_CHECK_MAX_ENTRIES = 20
 export const BROWSER_CHECK_ENTRY_MAX_CHARS = 500
-// A CDP message larger than this ends the check (a screenshot is at most
-// MAX_IMAGE_BYTES, about a third more as base64).
-export const BROWSER_CHECK_MESSAGE_MAX_BYTES = 32 * MIB
+// A CDP message larger than this ends the check. D121: sized for the
+// model's documented image bound (Meta's 50 MB inline, about a third more
+// as base64, plus envelope) — a raw capture past it ends the check instead
+// of the run. Check-harness frame, not model media.
+export const BROWSER_CHECK_MESSAGE_MAX_BYTES = 80 * MIB
 // Random bytes (as hex) in the markers around what the page produced.
 export const BROWSER_CHECK_MARKER_BYTES = 8
 // The hosts `museSpark.browserCheckExtraHosts` may name: how many, how long.
