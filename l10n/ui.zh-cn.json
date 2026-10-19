@@ -3348,6 +3348,8 @@
   "effortNotApplied": "无法应用推理强度",
   "permissionModeNotApplied": "无法应用权限模式",
   "permissionModeChangeFailed": "无法更改权限模式",
+  "permissionReviewerNotInstalled": "权限模式已应用，但无法安装其审查器 ({reason})。在重新设置模式之前，新回合将被拒绝。",
+  "permissionReviewerMissing": "新回合将被拒绝：无法安装权限审查器。请重新设置权限模式以继续。",
   "hostActionFailed": "{action} 失败",
   "backendListenerFailed": "后端事件监听器发生错误。操作已继续；详情请查看日志。",
   "contributorResumeFallbackTo": "恢复的对话原先使用贡献者级模型；现在改用 {model}。",

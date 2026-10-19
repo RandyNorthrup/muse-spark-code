@@ -3421,6 +3421,8 @@
   "effortNotApplied": "Akıl yürütme çabası uygulanamadı",
   "permissionModeNotApplied": "İzin modu uygulanamadı",
   "permissionModeChangeFailed": "İzin modu değiştirilemedi",
+  "permissionReviewerNotInstalled": "İzin modu uygulandı, ancak inceleyicisi yüklenemedi ({reason}). Mod yeniden ayarlanana kadar yeni turlar reddedilir.",
+  "permissionReviewerMissing": "Yeni turlar reddedilir: izin inceleyicisi yüklenemedi. Devam etmek için izin modunu yeniden ayarlayın.",
   "hostActionFailed": "{action} başarısız oldu",
   "backendListenerFailed": "Bir arka uç olay dinleyicisi hata verdi. İşlem devam etti; ayrıntılar için günlüğe bakın.",
   "contributorResumeFallbackTo": "Sürdürülen konuşma bir katkı katmanı modelindeydi; artık {model} modelini kullanıyor.",

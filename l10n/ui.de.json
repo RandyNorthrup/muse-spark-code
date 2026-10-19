@@ -3421,6 +3421,8 @@
   "effortNotApplied": "Der Denkaufwand konnte nicht angewendet werden",
   "permissionModeNotApplied": "Der Berechtigungsmodus konnte nicht angewendet werden",
   "permissionModeChangeFailed": "Der Berechtigungsmodus konnte nicht geändert werden",
+  "permissionReviewerNotInstalled": "Der Berechtigungsmodus wurde angewendet, aber sein Prüfer konnte nicht installiert werden ({reason}). Neue Durchläufe werden abgelehnt, bis der Modus erneut festgelegt wird.",
+  "permissionReviewerMissing": "Neue Durchläufe werden abgelehnt: Der Berechtigungsprüfer konnte nicht installiert werden. Legen Sie den Berechtigungsmodus erneut fest, um fortzufahren.",
   "hostActionFailed": "{action} fehlgeschlagen",
   "backendListenerFailed": "Ein Listener für Backend-Ereignisse ist fehlgeschlagen. Der Vorgang wurde fortgesetzt; Details stehen im Protokoll.",
   "contributorResumeFallbackTo": "Die fortgesetzte Unterhaltung lief auf einem Modell der Contributor-Stufe; sie verwendet jetzt {model}.",

@@ -47,6 +47,7 @@ import {
 import {
   type AgentHost,
   type AgentSession,
+  isPermissionReviewerError,
   isPromptSettledError,
   type ModelSummary,
   type SessionMcpServer,
@@ -1617,7 +1618,18 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, modeId)
     }
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(mode, true))
+    try {
+      await this.session.setApprovalMode(approvalModeFor(mode, true))
+    } catch (error: unknown) {
+      if (!isPermissionReviewerError(error)) throw error
+      // The host runs the requested mode with its old reviewer: show that
+      // mode so the editor agrees with the host, then report the quarantine
+      // in the error's own true words.
+      this.mode = mode
+      this.send({ sessionUpdate: 'current_mode_update', currentModeId: mode })
+      await this.outbox
+      throw error
+    }
     this.mode = mode
     // The set took: tell the editor, which otherwise keeps showing the old
     // mode (it learns it only from new/load responses and this notice).

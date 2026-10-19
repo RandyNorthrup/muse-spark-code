@@ -3348,6 +3348,8 @@
   "effortNotApplied": "추론 수준을 적용할 수 없습니다",
   "permissionModeNotApplied": "권한 모드를 적용할 수 없습니다",
   "permissionModeChangeFailed": "권한 모드를 변경할 수 없습니다",
+  "permissionReviewerNotInstalled": "권한 모드가 적용되었지만 검토자를 설치할 수 없습니다 ({reason}). 모드를 다시 설정할 때까지 새 턴이 거부됩니다.",
+  "permissionReviewerMissing": "새 턴이 거부됩니다: 권한 검토자를 설치할 수 없습니다. 계속하려면 권한 모드를 다시 설정하세요.",
   "hostActionFailed": "{action} 실패",
   "backendListenerFailed": "백엔드 이벤트 수신기에서 오류가 발생했습니다. 작업은 계속되었습니다. 자세한 내용은 로그를 확인하세요.",
   "contributorResumeFallbackTo": "재개된 대화는 기여자 등급 모델을 사용했습니다. 이제 {model}을(를) 사용합니다.",

@@ -3421,6 +3421,8 @@
   "effortNotApplied": "Az érvelési ráfordítást nem sikerült alkalmazni",
   "permissionModeNotApplied": "Az engedélyezési módot nem sikerült alkalmazni",
   "permissionModeChangeFailed": "Az engedélyezési módot nem sikerült módosítani",
+  "permissionReviewerNotInstalled": "Az engedélyezési mód alkalmazva lett, de az ellenőrzője nem telepíthető ({reason}). Az új fordulók elutasításra kerülnek, amíg a módot újra be nem állítja.",
+  "permissionReviewerMissing": "Az új fordulók elutasításra kerülnek: az engedélyezési ellenőrző nem telepíthető. A folytatáshoz állítsa be újra az engedélyezési módot.",
   "hostActionFailed": "{action}: sikertelen",
   "backendListenerFailed": "A háttérrendszer egyik eseményfigyelője hibát észlelt. A művelet folytatódott; a részletek a naplóban találhatók.",
   "contributorResumeFallbackTo": "A folytatott beszélgetés contributor-szintű modellen futott; mostantól ezt használja: {model}.",

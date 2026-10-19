@@ -66,6 +66,22 @@ export class SessionOwner {
     return this.mode
   }
 
+  /** Whether turns are refused until a mode change succeeds. */
+  public get quarantined(): boolean {
+    return this.isQuarantined
+  }
+
+  /**
+   * Refuse turns until a mode change succeeds: the host runs a mode whose
+   * reviewer is not installed (or no mode is known at all), so letting a
+   * turn run would judge where the person expects asking. A later mode
+   * change still runs, which is how the session recovers.
+   */
+  public quarantine(): void {
+    this.mode = undefined
+    this.isQuarantined = true
+  }
+
   public token(): SessionToken {
     return { generation: this.generation, turnId: this.fire?.turnId ?? this.currentTurnId }
   }
@@ -195,6 +211,7 @@ export class SessionOwner {
       (this.fire === undefined || this.currentTurnId === expectedTurnId) &&
       !this.restoring &&
       !this.modePending &&
+      !this.isQuarantined &&
       (this.fire === undefined ||
         (this.fire.run === run && this.fire.phase !== 'failed' && run.isActive()))
     )
