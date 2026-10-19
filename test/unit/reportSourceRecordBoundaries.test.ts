@@ -73,7 +73,7 @@ const agentLine = (id: string) =>
     },
   })
 const journalRecord = (id: string) => ({
-  v: 2,
+  v: 3,
   type: 'usage',
   id,
   at: Date.parse('2026-10-06T11:00:00Z'),
