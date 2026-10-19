@@ -66,15 +66,33 @@ export async function setSessionProfile(
 }
 
 /**
+ * The unconfirmed-adoption sentence for a torn mode with no reviewer: only
+ * the asking modes install one (their `mspPermissionProfile` exists). Plan
+ * (`denyUnmatched`) and Bypass (`allowAll`) decide by themselves, so a tear
+ * there must not claim a reviewer failed. `undefined` for a mode with a
+ * reviewer, whose caller keeps the reviewer wording.
+ */
+function tornUnconfirmedWords(mode: string): string | undefined {
+  return mspPermissionProfile(mode) === undefined
+    ? fill(UI_TEXT.permissionModeTornUnconfirmed, { mode })
+    : undefined
+}
+
+/**
  * The ack arrived but a turn ended while a forward mode command was in
  * flight, so the adoption tore: the host runs the named mode with a reviewer
  * that was never confirmed. The caller quarantines with this sentence, which
  * says the named mode is running and its reviewer was not installed, so the
  * surface shows the acknowledgement's mode instead of calling it unconfirmed.
+ * A mode with no reviewer (Plan, Bypass) instead says the acknowledged mode
+ * is in effect but the adoption could not be confirmed.
  */
 export function tornForwardError(appliedMode: string): PermissionReviewerError {
   return new PermissionReviewerError(
-    fill(UI_TEXT.permissionReviewerNotInstalled, { reason: UI_TEXT.permissionReviewerTornReason }),
+    tornUnconfirmedWords(appliedMode) ??
+      fill(UI_TEXT.permissionReviewerNotInstalled, {
+        reason: UI_TEXT.permissionReviewerTornReason,
+      }),
     appliedMode,
   )
 }
@@ -85,11 +103,14 @@ export function tornForwardError(appliedMode: string): PermissionReviewerError {
  * profile never changed, so that mode's reviewer is still installed. The
  * adoption itself could not be confirmed, so turns stay refused until the
  * mode is set again; this sentence says exactly that, and the later refusal
- * repeats it instead of saying the reviewer is missing.
+ * repeats it instead of saying the reviewer is missing. A previous mode with
+ * no reviewer (Plan, Bypass) instead says it is restored but the adoption
+ * could not be confirmed.
  */
 export function tornRollbackError(previousMode: string, cause: unknown): PermissionReviewerError {
   return new PermissionReviewerError(
-    fill(UI_TEXT.permissionReviewerRollbackTorn, { mode: previousMode }),
+    tornUnconfirmedWords(previousMode) ??
+      fill(UI_TEXT.permissionReviewerRollbackTorn, { mode: previousMode }),
     previousMode,
     { cause },
   )

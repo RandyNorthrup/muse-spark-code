@@ -3425,6 +3425,7 @@
   "permissionReviewerTornReason": "a módváltás alkalmazás közben megszakadt",
   "permissionReviewerMissing": "Az új fordulók elutasításra kerülnek: az engedélyezési ellenőrző nem telepíthető. A folytatáshoz állítsa be újra az engedélyezési módot.",
   "permissionReviewerRollbackTorn": "Az engedélyezési mód váltása alkalmazás közben megszakadt; az előző mód ({mode}) vissza lett állítva, és ellenőrzője továbbra is telepítve van, de az átvételt nem sikerült megerősíteni. Az új körök elutasításra kerülnek, amíg a mód nincs újra beállítva.",
+  "permissionModeTornUnconfirmed": "Az engedélyezési mód váltása alkalmazás közben megszakadt; a gazda {mode} módot futtatja, de az átvételt nem sikerült megerősíteni. Az új körök elutasításra kerülnek, amíg a módot újra be nem állítják.",
   "permissionReviewerUnknown": "Az engedélyezési mód nem módosítható, és a gazda által futtatott mód ismeretlen. Az új körök elutasításra kerülnek, amíg a mód nincs újra beállítva.",
   "permissionModeKept": "Az engedélyezési mód váltása nem lépett életbe ({reason}); a gazda továbbra is a saját módjában fut.",
   "permissionRestoreRefused": "A beszélgetés engedélyezési módját nem sikerült visszaállítani ({reason}); a gazda továbbra is {mode} módban fut. Az új körök elutasításra kerülnek, amíg a mód nincs újra beállítva.",

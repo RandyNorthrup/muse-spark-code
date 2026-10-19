@@ -196,11 +196,14 @@ export class SessionOwner {
   public observeMode(mode: string): void {
     // Session-wide notifications have no generation. Only an idle external
     // change can be adopted; owned commands use their tagged acknowledgement.
-    // An adoption while quarantined drops the quarantine's sentence (it named
-    // another mode), so the later refusal falls back to the generic words.
+    // A torn rollback's notice names the mode the quarantine already
+    // recorded (the rollback restored it), so the sentence stays and the
+    // next refused turn repeats it. Only a genuinely different mode drops
+    // it (it named another mode), and then the later refusal falls back to
+    // the generic words.
     if (this.fire !== undefined || this.modePending || this.restoring) return
+    if (this.isQuarantined && mode !== this.mode) this.quarantineNote = undefined
     this.mode = mode
-    if (this.isQuarantined) this.quarantineNote = undefined
   }
 
   public start(token: SessionToken, run?: UnattendedRun): boolean {

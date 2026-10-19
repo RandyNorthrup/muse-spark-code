@@ -3571,6 +3571,7 @@
   "permissionReviewerTornReason": "zmiana trybu została przerwana podczas stosowania",
   "permissionReviewerMissing": "Nowe tury są odrzucane: oceniający uprawnienia nie mógł zostać zainstalowany. Aby kontynuować, ustaw ponownie tryb uprawnień.",
   "permissionReviewerRollbackTorn": "Zmiana trybu uprawnień została przerwana podczas stosowania; poprzedni tryb ({mode}) został przywrócony, a jego recenzent jest nadal zainstalowany, ale przejęcia nie udało się potwierdzić. Nowe tury są odrzucane do czasu ponownego ustawienia trybu.",
+  "permissionModeTornUnconfirmed": "Zmiana trybu uprawnień została przerwana podczas stosowania; host działa w trybie {mode}, ale nie można było potwierdzić przyjęcia. Nowe tury są odrzucane do czasu ponownego ustawienia trybu.",
   "permissionReviewerUnknown": "Nie można zmienić trybu uprawnień, a tryb, w którym działa host, jest nieznany. Nowe tury są odrzucane do czasu ponownego ustawienia trybu.",
   "permissionModeKept": "Zmiana trybu uprawnień nie została zastosowana ({reason}); host nadal działa w swoim trybie.",
   "permissionRestoreRefused": "Trybu uprawnień konwersacji nie udało się przywrócić ({reason}); host nadal działa w trybie {mode}. Nowe tury są odrzucane do czasu ponownego ustawienia trybu.",

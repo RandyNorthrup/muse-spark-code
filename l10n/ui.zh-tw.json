@@ -3352,6 +3352,7 @@
   "permissionReviewerTornReason": "模式變更在套用過程中中斷",
   "permissionReviewerMissing": "新回合將被拒絕：無法安裝權限審查器。請重新設定權限模式以繼續。",
   "permissionReviewerRollbackTorn": "權限模式變更在套用過程中中斷;先前的模式({mode})已還原,其審查器仍已安裝,但無法確認套用。在重新設定模式之前,將拒絕新的回合。",
+  "permissionModeTornUnconfirmed": "權限模式變更在套用期間中斷；主機正在執行 {mode} 模式，但無法確認採用。在重新設定模式之前，新輪次將被拒絕。",
   "permissionReviewerUnknown": "無法變更權限模式,且主機正在執行的模式不明。在重新設定模式之前,將拒絕新的回合。",
   "permissionModeKept": "權限模式變更未生效({reason});主機繼續以其模式執行。",
   "permissionRestoreRefused": "無法還原交談的權限模式({reason});主機仍在執行{mode}。在重新設定模式之前,將拒絕新的回合。",
