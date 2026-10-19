@@ -61,7 +61,8 @@ export const EN = {
   resourceGpu: 'GPU Use',
   resourceDisk: 'Disk Busy',
   resourceDiskFree: 'Free Disk Space',
-  resourceDiskWriteRefused: 'Cannot write to {volume}: critically low free disk space.',
+  resourceDiskWriteRefused:
+    'Cannot write to {volume}: free space is below the disk floor set in settings.',
   resourceDiskMinFreeGiBDescription:
     'Free disk space floor in GiB. Unset means no floor; a set floor is at least 2 GiB.',
   resourceHistory: 'Resource History',

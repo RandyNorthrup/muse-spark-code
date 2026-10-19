@@ -37,7 +37,7 @@
   "resourceGpu": "GPU-Auslastung",
   "resourceDisk": "Datenträgerauslastung",
   "resourceDiskFree": "Freier Speicherplatz",
-  "resourceDiskWriteRefused": "Schreiben auf {volume} nicht möglich: kritisch wenig freier Speicherplatz.",
+  "resourceDiskWriteRefused": "Schreiben auf {volume} nicht möglich: Der freie Speicherplatz liegt unter der in den Einstellungen festgelegten Untergrenze.",
   "resourceDiskMinFreeGiBDescription": "Untergrenze für freien Speicherplatz in GiB. Ohne Wert gibt es keine Untergrenze; ein gesetzter Wert beträgt mindestens 2 GiB.",
   "resourceHistory": "Ressourcenverlauf",
   "resourceHarness": "Arbeit der Agentenumgebung",

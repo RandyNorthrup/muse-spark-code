@@ -37,7 +37,7 @@
   "resourceGpu": "Utilisation du processeur graphique",
   "resourceDisk": "Disque occupé",
   "resourceDiskFree": "Espace disque libre",
-  "resourceDiskWriteRefused": "Impossible d’écrire sur {volume} : l’espace disque libre est critique.",
+  "resourceDiskWriteRefused": "Impossible d’écrire sur {volume} : l’espace libre est sous le seuil défini dans les paramètres.",
   "resourceDiskMinFreeGiBDescription": "Seuil d’espace disque libre en GiB. Sans valeur, aucun seuil ; une valeur définie est d’au moins 2 GiB.",
   "resourceHistory": "Historique des ressources",
   "resourceHarness": "Travail de l’environnement d’agent",

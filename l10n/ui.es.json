@@ -37,7 +37,7 @@
   "resourceGpu": "Uso de GPU",
   "resourceDisk": "Disco ocupado",
   "resourceDiskFree": "Espacio libre en disco",
-  "resourceDiskWriteRefused": "No se puede escribir en {volume}: el espacio libre en disco es críticamente bajo.",
+  "resourceDiskWriteRefused": "No se puede escribir en {volume}: el espacio libre está por debajo del mínimo establecido en los ajustes.",
   "resourceDiskMinFreeGiBDescription": "Umbral de espacio libre en GiB. Sin valor, no hay umbral; un valor configurado es de al menos 2 GiB.",
   "resourceHistory": "Historial de recursos",
   "resourceHarness": "Trabajo del entorno del agente",

@@ -37,7 +37,7 @@
   "resourceGpu": "Využití grafického procesoru",
   "resourceDisk": "Vytížení disku",
   "resourceDiskFree": "Volné místo na disku",
-  "resourceDiskWriteRefused": "Nelze zapisovat do {volume}: kriticky málo volného místa na disku.",
+  "resourceDiskWriteRefused": "Nelze zapisovat do {volume}: volné místo je pod hranicí nastavenou v nastavení.",
   "resourceDiskMinFreeGiBDescription": "Dolní mez volného místa v GiB. Bez hodnoty není stanovena žádná mez; nastavená hodnota činí nejméně 2 GiB.",
   "resourceHistory": "Historie prostředků",
   "resourceHarness": "Práce prostředí agenta",

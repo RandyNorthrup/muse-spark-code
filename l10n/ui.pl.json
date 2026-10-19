@@ -37,7 +37,7 @@
   "resourceGpu": "Użycie procesora graficznego",
   "resourceDisk": "Zajętość dysku",
   "resourceDiskFree": "Wolne miejsce na dysku",
-  "resourceDiskWriteRefused": "Nie można zapisać na {volume}: krytycznie mało wolnego miejsca na dysku.",
+  "resourceDiskWriteRefused": "Nie można zapisać na {volume}: wolne miejsce jest poniżej progu ustawionego w ustawieniach.",
   "resourceDiskMinFreeGiBDescription": "Dolny próg wolnego miejsca w GiB. Bez wartości brak progu; ustawiona wartość wynosi co najmniej 2 GiB.",
   "resourceHistory": "Historia zasobów",
   "resourceHarness": "Praca środowiska agenta",

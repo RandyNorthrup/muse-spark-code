@@ -37,7 +37,7 @@
   "resourceGpu": "GPU kullanımı",
   "resourceDisk": "Disk meşguliyeti",
   "resourceDiskFree": "Boş disk alanı",
-  "resourceDiskWriteRefused": "{volume} üzerine yazılamıyor: boş disk alanı kritik derecede az.",
+  "resourceDiskWriteRefused": "{volume} üzerine yazılamıyor: boş alan, ayarlarda belirlenen disk eşiğinin altında.",
   "resourceDiskMinFreeGiBDescription": "GiB cinsinden boş disk alanı alt sınırı. Ayarlanmamışsa alt sınır yoktur; ayarlanan değer en az 2 GiB olur.",
   "resourceHistory": "Kaynak geçmişi",
   "resourceHarness": "Ajan ortamının işi",

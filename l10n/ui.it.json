@@ -37,7 +37,7 @@
   "resourceGpu": "Utilizzo della GPU",
   "resourceDisk": "Disco occupato",
   "resourceDiskFree": "Spazio libero su disco",
-  "resourceDiskWriteRefused": "Impossibile scrivere su {volume}: lo spazio libero su disco è a un livello critico.",
+  "resourceDiskWriteRefused": "Impossibile scrivere su {volume}: lo spazio libero è sotto la soglia impostata nelle impostazioni.",
   "resourceDiskMinFreeGiBDescription": "Soglia di spazio libero in GiB. Senza un valore, nessuna soglia; un valore impostato è di almeno 2 GiB.",
   "resourceHistory": "Cronologia delle risorse",
   "resourceHarness": "Lavoro dell’ambiente agente",

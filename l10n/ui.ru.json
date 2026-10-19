@@ -37,7 +37,7 @@
   "resourceGpu": "Загрузка графического процессора",
   "resourceDisk": "Занятость диска",
   "resourceDiskFree": "Свободное место на диске",
-  "resourceDiskWriteRefused": "Невозможно записать в {volume}: критически мало свободного места на диске.",
+  "resourceDiskWriteRefused": "Невозможно записать в {volume}: свободного места меньше установленного в настройках порога.",
   "resourceDiskMinFreeGiBDescription": "Нижний порог свободного места в GiB. Без значения порог отсутствует; заданное значение — не менее 2 GiB.",
   "resourceHistory": "История ресурсов",
   "resourceHarness": "Работа среды агента",
