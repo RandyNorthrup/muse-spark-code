@@ -82,10 +82,10 @@ export interface BrowserCheckRequest {
   readonly url: string
   readonly actions: readonly BrowserAction[]
   /**
-   * The hosts beyond loopback the user explicitly allowed for this check:
-   * the setting, and the one a card or the modal widened. Never the
-   * model's. Implicit loopback is derived separately (plain HTTP only).
-   */
+  The hosts beyond loopback the user explicitly allowed for this check:
+  the setting, and the one a card or the modal widened. Never the
+  model's. Implicit loopback is derived separately (plain HTTP only).
+  */
   readonly allowedHosts: readonly string[]
   /** What the user approved: the URL and its scope (`browserScopeKey`). */
   readonly approvalKey: string
@@ -200,9 +200,9 @@ export type BrowserCheckResult =
   | { readonly ok: false; readonly failure: BrowserFailure }
 
 /**
- * Whether a caller's check is still allowed, read around every await: the
- * workspace's trust, the mode, the network posture and the frozen scope.
- */
+Whether a caller's check is still allowed, read around every await: the
+workspace's trust, the mode, the network posture and the frozen scope.
+*/
 export type CheckAdmission = () => 'ok' | 'notOffered' | 'scopeChanged'
 
 /** What runs a check: the host's browser bundle, loaded on the first call. */
@@ -212,10 +212,10 @@ export type BrowserChecker = (
 ) => Promise<BrowserCheckResult>
 
 /**
- * The host's side of one check (spec §5, lead ruling v4-M1): consent is
- * host-owned, so the runtime adapter takes the request without it and asks
- * the user itself.
- */
+The host's side of one check (spec §5, lead ruling v4-M1): consent is
+host-owned, so the runtime adapter takes the request without it and asks
+the user itself.
+*/
 export interface BrowserHostOptions {
   readonly storageDir: string
   readonly prepareRuntime: (
@@ -235,11 +235,11 @@ export interface BrowserProcess {
   /** Resolves once the browser has exited (or never started). */
   readonly exited: Promise<void>
   /**
-   * The spawn's own error code once known: EPERM or EACCES when the OS
-   * refused to run the executable; undefined once the browser started. The
-   * OS reports those asynchronously, so this is read after the spawn
-   * returns rather than thrown.
-   */
+  The spawn's own error code once known: EPERM or EACCES when the OS
+  refused to run the executable; undefined once the browser started. The
+  OS reports those asynchronously, so this is read after the spawn
+  returns rather than thrown.
+  */
   readonly spawnError: Promise<string | undefined>
   /** Ends the browser and everything it started, at once. */
   kill(): Promise<void>
@@ -274,10 +274,10 @@ export interface BrowserRunDeps {
   readonly startProxy: (scope: FrozenScope) => Promise<CheckProxy>
   readonly startFixture: () => Promise<ProbeFixture>
   /**
-   * Throws an error with code EPERM or EACCES when the OS refuses to run it
-   * at once, and reports the same codes through the process's `spawnError`
-   * when the refusal arrives after the spawn returned.
-   */
+  Throws an error with code EPERM or EACCES when the OS refuses to run it
+  at once, and reports the same codes through the process's `spawnError`
+  when the refusal arrives after the spawn returned.
+  */
   readonly spawn: (
     executable: string,
     args: readonly string[],
@@ -450,13 +450,13 @@ async function networkServiceId(page: PageCheck): Promise<number | undefined> {
 }
 
 /**
- * The network service's process id once the browser has started it, read
- * before any request. The browser launches the service after its own
- * process already answers on the pipe, so it is asked again until it is
- * listed. The wait has no bound of its own: the check's lifetime (its
- * deadline, the person's Stop, admission) closes the pipe when it ends,
- * which wakes the wait at once and fails the next ask.
- */
+The network service's process id once the browser has started it, read
+before any request. The browser launches the service after its own
+process already answers on the pipe, so it is asked again until it is
+listed. The wait has no bound of its own: the check's lifetime (its
+deadline, the person's Stop, admission) closes the pipe when it ends,
+which wakes the wait at once and fails the next ask.
+*/
 async function startedNetworkServiceId(page: PageCheck): Promise<number> {
   for (;;) {
     const serviceId = await networkServiceId(page)
@@ -478,11 +478,11 @@ interface CheckContext {
 }
 
 /**
- * One canary phase on its own probe target (in the private context when
- * one is given): fresh nonces and fixture ports, exceptions bound to that
- * frame and revoked when it ends, then the verdict on its own records only.
- * Throws the confinement failure it finds.
- */
+One canary phase on its own probe target (in the private context when
+one is given): fresh nonces and fixture ports, exceptions bound to that
+frame and revoked when it ends, then the verdict on its own records only.
+Throws the confinement failure it finds.
+*/
 async function runPhase(
   context: CheckContext,
   phase: CanaryPhase,
@@ -622,9 +622,9 @@ interface CheckHooks {
 }
 
 /**
- * The check inside its 60-second lifetime, after the runtime is ready.
- * Throws a CheckFailure, or rejects when the browser fails it.
- */
+The check inside its 60-second lifetime, after the runtime is ready.
+Throws a CheckFailure, or rejects when the browser fails it.
+*/
 async function check(
   runtime: VerifiedRuntime,
   context: Pick<CheckContext, 'request' | 'deps' | 'timings'> & {

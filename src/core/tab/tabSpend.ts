@@ -15,10 +15,10 @@ export interface TabWorstCase {
 }
 
 /**
- * The reservation: input at one token per UTF-8 byte at the input price
- * (M82's estimate, which errs high), plus `max_output_tokens` at the output
- * price, through the same estimate reported usage settles at.
- */
+The reservation: input at one token per UTF-8 byte at the input price
+(M82's estimate, which errs high), plus `max_output_tokens` at the output
+price, through the same estimate reported usage settles at.
+*/
 export function tabWorstCaseUsd(request: TabWorstCase): UsdAmount {
   const inputTokens = new TextEncoder().encode(request.inputText).length
   return estimateCostUsd(

@@ -64,7 +64,7 @@ import type { EstimateStartPort } from '../../shared/estimate'
 /** The milestone bindings, injected: each refuses with its handoff until it merges. */
 export interface EstimatorSourcePorts extends EstimateGoalSourcesPort {
   /** This estimate's lanes ride along so the fleet can offer them capacity.
-   * The fleet is stamped with the request's asOf, never a second clock. */
+  The fleet is stamped with the request's asOf, never a second clock. */
   fleet(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
   history(): Promise<unknown>
   candidatePool(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
@@ -258,7 +258,7 @@ export function createEstimatorRun(
       const qualifications = recommendation.selections.flatMap((selection) => {
         const evaluation = recommendation.evaluations[selection.evaluation]
         return evaluation?.forecast.status === 'feasible'
-          ? [{ setup: selection.kind, unknownLimits: evaluation.forecast.simulation.unknownLimits }]
+          ? { setup: selection.kind, unknownLimits: evaluation.forecast.simulation.unknownLimits }
           : []
       })
       const setupFleets = recommendation.selections.map((selection) => ({
@@ -398,6 +398,6 @@ export function createEstimatorRun(
 }
 
 /** The bundle's shape is guarded beside its loader (estimatorBundle.ts): a
- * value imported from this entry would carry the engine back into
- * dist/extension.js, which the bundle-split gate refuses.
- */
+value imported from this entry would carry the engine back into
+dist/extension.js, which the bundle-split gate refuses.
+*/

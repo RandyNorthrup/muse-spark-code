@@ -45,9 +45,9 @@ const limitsOf = (preset: string) => quirksOf(presetById(preset)!).retryLimits
 const STOP_AFTER_MS = 200
 
 /**
- * The platform's own timer, unreferenced so a wait left pending by a Stop
- * never holds the test process open.
- */
+The platform's own timer, unreferenced so a wait left pending by a Stop
+never holds the test process open.
+*/
 const platformSleep = async (ms: number): Promise<void> => {
   await timer(ms, undefined, { ref: false })
 }
@@ -78,10 +78,10 @@ const transportWithSleep = (sleep: (ms: number, signal?: AbortSignal) => Promise
   })
 
 /**
- * A port nothing answers: bind loopback, then close it, so the
- * platform's own fetch fails the send with a real refused connection.
- * No provider and no answering server stands in for one.
- */
+A port nothing answers: bind loopback, then close it, so the
+platform's own fetch fails the send with a real refused connection.
+No provider and no answering server stands in for one.
+*/
 const closedLoopbackPort = async (): Promise<number> => {
   const server = createServer()
   await new Promise<void>((done) =>
@@ -99,11 +99,11 @@ const closedLoopbackPort = async (): Promise<number> => {
 }
 
 /**
- * The product's transport aimed at a dead address, over one provider's
- * documented limits. The key is a dummy: the refused connection means no
- * request is ever built or sent (precedent: providerRefusals' made-up
- * key for its model-list path).
- */
+The product's transport aimed at a dead address, over one provider's
+documented limits. The key is a dummy: the refused connection means no
+request is ever built or sent (precedent: providerRefusals' made-up
+key for its model-list path).
+*/
 const transportToNowhere = (
   port: number,
   retryLimits: RetryLimits,
@@ -132,10 +132,10 @@ const postNowhere = (
   )
 
 /**
- * A refused send's retry notices: posts, waits for `wanted` notices, stops
- * the waits, and hands back what the turn announced. The stop ends the
- * backoff; the attempt rejects with the send failure either way.
- */
+A refused send's retry notices: posts, waits for `wanted` notices, stops
+the waits, and hands back what the turn announced. The stop ends the
+backoff; the attempt rejects with the send failure either way.
+*/
 const refusedNotices = async (
   transport: RequestTransport,
   wanted: number,
@@ -327,12 +327,12 @@ describe('ambiguous sends need an explicit cap', () => {
 })
 
 /**
- * The product's subscription registry in front of the product's Meta
- * client (PR #225: the aggregate reported Meta's four retries for
- * `chatgpt/...` and `copilot/...`, though neither route documents a
- * maximum). Sign-in, the catalogue and the account stay untouched: a limit
- * read never reaches them, and no send ever happens for one.
- */
+The product's subscription registry in front of the product's Meta
+client (PR #225: the aggregate reported Meta's four retries for
+`chatgpt/...` and `copilot/...`, though neither route documents a
+maximum). Sign-in, the catalogue and the account stay untouched: a limit
+read never reaches them, and no send ever happens for one.
+*/
 const subscriptionClient = (person: number | undefined) => {
   const log = stderrLogger((line) => process.stderr.write(`${line}\n`), 'warn')
   const meta = new ModelApiClient({

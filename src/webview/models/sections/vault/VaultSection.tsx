@@ -19,11 +19,11 @@ export interface VaultSectionProps {
 }
 
 /**
- * The card names the vault's real state first: a vault that is not created,
- * still pending setup, or lost never asks for an unlock and never claims a
- * protection its slots cannot give (RVCM1091D P2). Only a locked vault names
- * an unlock; only an observed slot names a protection.
- */
+The card names the vault's real state first: a vault that is not created,
+still pending setup, or lost never asks for an unlock and never claims a
+protection its slots cannot give (RVCM1091D P2). Only a locked vault names
+an unlock; only an observed slot names a protection.
+*/
 export function tierWarning(status: VaultStatus): string {
   if (status.state === 'uncreated') return UI_TEXT.vault.setupNeeded
   if (status.state === 'setupPending') return UI_TEXT.vault.setupPending
@@ -83,10 +83,10 @@ export function tierWarning(status: VaultStatus): string {
 }
 
 /**
- * Every vault state has its own true heading, from the core's typed states:
- * a new state that is not added here fails the build instead of falling
- * through to 'Locked' (RVCM1091D P2).
- */
+Every vault state has its own true heading, from the core's typed states:
+a new state that is not added here fails the build instead of falling
+through to 'Locked' (RVCM1091D P2).
+*/
 export function vaultStateHeading(status: VaultStatus): string {
   switch (status.state) {
     case 'unlocked': {
@@ -111,9 +111,9 @@ export function vaultStateHeading(status: VaultStatus): string {
 }
 
 /**
- * A transient failure (not a rollback, not a broker that cannot start)
- * offers the person's own Retry once the bounded auto-retries are spent.
- */
+A transient failure (not a rollback, not a broker that cannot start)
+offers the person's own Retry once the bounded auto-retries are spent.
+*/
 function isRetryableReason(reason: VaultStatus['reason']): boolean {
   switch (reason) {
     case 'busy':

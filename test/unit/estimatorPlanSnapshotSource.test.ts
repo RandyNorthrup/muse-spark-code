@@ -52,12 +52,11 @@ function countingIo(ws: PlanWorkspace): { io: PlanSnapshotSourceIo; reads(): num
 
 async function resolveThrough(
   io: PlanSnapshotSourceIo,
-  text: string,
   root: string,
   options: { networkAllowed?: boolean; signal?: AbortSignal } = {},
 ): Promise<string[]> {
-  const goal = parseEstimateGoal(text)
-  if (goal === undefined) throw new Error(`unparseable goal: ${text}`)
+  const goal = parseEstimateGoal('M112')
+  if (goal === undefined) throw new Error('unparseable goal: M112')
   const snapshot = createPlanSnapshotSource({
     root,
     io,
@@ -84,7 +83,7 @@ describe('M117 plan snapshot source', () => {
         // The honest empty answer: no pull requests open.
         runGh: () => Promise.resolve('[]'),
       }
-      expect(await resolveThrough(io, 'M112', ws.root, { networkAllowed: true })).toEqual([
+      expect(await resolveThrough(io, ws.root, { networkAllowed: true })).toEqual([
         'M112:0:merged',
         'M112:Q:running',
       ])
@@ -98,9 +97,7 @@ describe('M117 plan snapshot source', () => {
     const ws = await planWorkspace(PLAN)
     try {
       const { io, reads } = countingIo(ws)
-      await expect(resolveThrough(io, 'M112', '', { networkAllowed: true })).rejects.toThrow(
-        /missing-plan/,
-      )
+      await expect(resolveThrough(io, '', { networkAllowed: true })).rejects.toThrow(/missing-plan/)
       expect(reads()).toBe(0)
     } finally {
       await ws.cleanup()
@@ -112,7 +109,7 @@ describe('M117 plan snapshot source', () => {
     try {
       // No repository here either: the plan read fails first, for real.
       await expect(
-        resolveThrough(ws.io, 'M112', `${ws.root}/no-such-dir`, { networkAllowed: true }),
+        resolveThrough(ws.io, `${ws.root}/no-such-dir`, { networkAllowed: true }),
       ).rejects.toThrow(/missing-plan/)
     } finally {
       await ws.cleanup()
@@ -124,9 +121,7 @@ describe('M117 plan snapshot source', () => {
     // fails for real, and the source names branches unavailable.
     const ws = await planWorkspace(PLAN, undefined, { repo: false })
     try {
-      await expect(resolveThrough(ws.io, 'M112', ws.root)).rejects.toThrow(
-        /source-unavailable: branches/,
-      )
+      await expect(resolveThrough(ws.io, ws.root)).rejects.toThrow(/source-unavailable: branches/)
     } finally {
       await ws.cleanup()
     }
@@ -143,7 +138,7 @@ describe('M117 plan snapshot source', () => {
       ])
       for (const output of ['not json', '{}', mergedWithoutTimestamp]) {
         const io: PlanSnapshotSourceIo = { ...ws.io, runGh: () => Promise.resolve(output) }
-        await expect(resolveThrough(io, 'M112', ws.root, { networkAllowed: true })).rejects.toThrow(
+        await expect(resolveThrough(io, ws.root, { networkAllowed: true })).rejects.toThrow(
           /source-unavailable: pull-requests/,
         )
       }
@@ -151,7 +146,7 @@ describe('M117 plan snapshot source', () => {
         ...ws.io,
         runGh: () => Promise.reject(new Error('no gh')),
       }
-      await expect(resolveThrough(down, 'M112', ws.root, { networkAllowed: true })).rejects.toThrow(
+      await expect(resolveThrough(down, ws.root, { networkAllowed: true })).rejects.toThrow(
         /source-unavailable: pull-requests/,
       )
     } finally {
@@ -169,10 +164,7 @@ describe('M117 plan snapshot source', () => {
     try {
       // With no network, a `gh` that ran would fail for real and refuse the
       // source; resolving proves it never ran.
-      expect(await resolveThrough(ws.io, 'M112', ws.root)).toEqual([
-        'M112:0:merged',
-        'M112:Q:running',
-      ])
+      expect(await resolveThrough(ws.io, ws.root)).toEqual(['M112:0:merged', 'M112:Q:running'])
     } finally {
       await ws.cleanup()
     }

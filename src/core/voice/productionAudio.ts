@@ -49,12 +49,12 @@ export interface ProductionAudioDeps extends Omit<VoiceBatchSeamDeps, 'sessionId
 }
 
 /**
- * The converter's refusal, said rather than dropped: when sound would have
- * been transcribed had conversion been possible, standalone audio (which no
- * Meta model hears) and any part under a configured converter path refuse
- * with the discovery's reason. A video with no converter installed and none
- * configured still goes, without its sound, as the attach warning said.
- */
+The converter's refusal, said rather than dropped: when sound would have
+been transcribed had conversion been possible, standalone audio (which no
+Meta model hears) and any part under a configured converter path refuse
+with the discovery's reason. A video with no converter installed and none
+configured still goes, without its sound, as the attach warning said.
+*/
 function assertConvertible(
   sources: readonly AudioSource[],
   located: Awaited<ReturnType<typeof locateMediaConverter>>,

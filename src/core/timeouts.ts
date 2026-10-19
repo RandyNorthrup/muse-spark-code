@@ -19,10 +19,10 @@ export class DeadlineError extends Error {
 }
 
 /**
- * Runs `callback` once `delayMs` has passed, however long: a delay past
- * `TIMER_MAX_DELAY_MS` would fire after 1 ms on one timer, so it runs as a
- * chain of timer-sized pieces. The returned function cancels it.
- */
+Runs `callback` once `delayMs` has passed, however long: a delay past
+`TIMER_MAX_DELAY_MS` would fire after 1 ms on one timer, so it runs as a
+chain of timer-sized pieces. The returned function cancels it.
+*/
 export function setLongTimeout(callback: () => void, delayMs: number): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined
   const arm = (leftMs: number): void => {
@@ -39,10 +39,10 @@ export function setLongTimeout(callback: () => void, delayMs: number): () => voi
 }
 
 /**
- * `promise`, or a `DeadlineError` with `message` once `timeoutMs` has passed.
- * The timer is always cleared; the promise itself keeps running (the caller
- * decides whether to kill what it was waiting on).
- */
+`promise`, or a `DeadlineError` with `message` once `timeoutMs` has passed.
+The timer is always cleared; the promise itself keeps running (the caller
+decides whether to kill what it was waiting on).
+*/
 export async function withDeadline<T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -62,13 +62,13 @@ export async function withDeadline<T>(
 }
 
 /**
- * An answer with no deadline of its own (owner 2026-10-16: no arbitrary
- * limits): `answer` until it settles, saying so out loud through `tell`
- * every `everyMs` meanwhile (a notice cadence, not a limit). The wait
- * itself ends only at the answer or at Stop (`signal` aborts: dispose, a
- * newer attempt, the window closing), which throws `stopError`. Tests name
- * short waits through `everyMs`.
- */
+An answer with no deadline of its own (owner 2026-10-16: no arbitrary
+limits): `answer` until it settles, saying so out loud through `tell`
+every `everyMs` meanwhile (a notice cadence, not a limit). The wait
+itself ends only at the answer or at Stop (`signal` aborts: dispose, a
+newer attempt, the window closing), which throws `stopError`. Tests name
+short waits through `everyMs`.
+*/
 export async function waitForAnswer<T>(
   answer: Promise<T>,
   signal: AbortSignal,
@@ -94,11 +94,11 @@ export async function waitForAnswer<T>(
 }
 
 /**
- * A wait with no deadline of its own says so out loud (owner 2026-10-16:
- * no silent hangs): `tell` runs with the elapsed milliseconds every
- * `everyMs` until the returned stop runs. The work itself keeps waiting;
- * only its own end or Stop ends it. A notice cadence, not a limit.
- */
+A wait with no deadline of its own says so out loud (owner 2026-10-16:
+no silent hangs): `tell` runs with the elapsed milliseconds every
+`everyMs` until the returned stop runs. The work itself keeps waiting;
+only its own end or Stop ends it. A notice cadence, not a limit.
+*/
 export function startStillWaiting(
   tell: (elapsedMs: number) => void,
   everyMs: number = STILL_WAITING_NOTICE_MS,
@@ -113,11 +113,11 @@ export function startStillWaiting(
 }
 
 /**
- * What a still-waiting notice names (PR #214 review): a key into the
- * translated subject table, never English prose, so a non-English locale
- * reads the whole notice in its own language. Names the other side chose
- * (a server, a method) travel as slots.
- */
+What a still-waiting notice names (PR #214 review): a key into the
+translated subject table, never English prose, so a non-English locale
+reads the whole notice in its own language. Names the other side chose
+(a server, a method) travel as slots.
+*/
 export type StillWaitingSubject =
   | { readonly key: 'imageRequest' }
   | { readonly key: 'providerAnswer' }
@@ -130,10 +130,10 @@ export type StillWaitingSubject =
   | { readonly key: 'museServeStarting' }
 
 /**
- * A notice's subject in the installed language. The subject itself carries
- * the slots its template names (`fill` leaves the rest alone), so every
- * key of the union is read and none needs its own branch.
- */
+A notice's subject in the installed language. The subject itself carries
+the slots its template names (`fill` leaves the rest alone), so every
+key of the union is read and none needs its own branch.
+*/
 export function stillWaitingSubjectText(subject: StillWaitingSubject): string {
   return fill(UI_TEXT.stillWaitingSubject[subject.key], subject)
 }
@@ -151,10 +151,10 @@ export function stillWaitingText(subject: StillWaitingSubject, elapsedMs: number
 const IGNORE = (): void => undefined
 
 /**
- * `work`'s value, or undefined as soon as `signal` aborts. `work` runs on
- * (a probe's answer is still cached); its failure after the abort is
- * handled by the race.
- */
+`work`'s value, or undefined as soon as `signal` aborts. `work` runs on
+(a probe's answer is still cached); its failure after the abort is
+handled by the race.
+*/
 export async function unlessAborted<T>(
   work: Promise<T>,
   signal: AbortSignal,

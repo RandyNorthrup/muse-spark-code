@@ -79,10 +79,10 @@ async function defaultModelId(host: MuseCodeHost): Promise<string> {
 }
 
 /**
- * A refused mode change on the real session: returns the throw, which must
- * be the kept-mode error naming the running mode (never a silent change or
- * a quarantine with the reviewer sentence).
- */
+A refused mode change on the real session: returns the throw, which must
+be the kept-mode error naming the running mode (never a silent change or
+a quarantine with the reviewer sentence).
+*/
 async function refusedChange(
   session: Pick<MuseSession, 'setApprovalMode'>,
   mode: string,

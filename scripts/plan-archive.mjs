@@ -201,9 +201,9 @@ async function status(root) {
 }
 
 /**
- * The moves asked for, from the command line or a --batch file.
- * @returns {{ to: string, heading: string, lines: string, summary?: string, pointer?: boolean, linked?: boolean }[]}
- */
+The moves asked for, from the command line or a --batch file.
+@returns {{ to: string, heading: string, lines: string, summary?: string, pointer?: boolean, linked?: boolean }[]}
+*/
 function requests(kind, flags) {
   const batch = flags.get('--batch')
   if (batch !== undefined) {

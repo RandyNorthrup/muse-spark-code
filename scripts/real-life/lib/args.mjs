@@ -55,9 +55,9 @@ const listOf = (text) =>
     .filter((item) => item !== '')
 
 /**
- * @param {readonly string[]} argv
- * @returns {{ ok: true, options: object } | { ok: false, reason: string }}
- */
+@param {readonly string[]} argv
+@returns {{ ok: true, options: object } | { ok: false, reason: string }}
+*/
 export function parseArguments(argv) {
   const given = new Map()
   for (let index = 0; index < argv.length; index += 1) {

@@ -489,8 +489,8 @@ function decodedPowerShell(command: string): string {
   return Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le')
 }
 
-function importedOnWindows(event: string, group: Record<string, unknown>) {
-  return parseForeignHooks(JSON.stringify({ hooks: { [event]: [group] } }), 'project', 'win32')
+function importedOnWindows(group: Record<string, unknown>) {
+  return parseForeignHooks(JSON.stringify({ hooks: { PreToolUse: [group] } }), 'project', 'win32')
     .hooks
 }
 
@@ -505,19 +505,19 @@ describe('the shell a Windows source runs its hook in', () => {
   const winShell = { ...shell('dir'), cwd: WIN_ROOT }
 
   it('runs Copilot, Windsurf and Cline hooks in PowerShell, as their sources do', async () => {
-    const copilot = importedOnWindows('PreToolUse', {
+    const copilot = importedOnWindows({
       format: 'copilot',
       sourceEvent: 'preToolUse',
       flavor: 'copilot',
       hooks: [{ type: 'command', command: 'Write-Output "{}"', timeout: 30 }],
     })
-    const windsurf = importedOnWindows('PreToolUse', {
+    const windsurf = importedOnWindows({
       matcher: 'Bash',
       format: 'windsurf',
       sourceEvent: 'pre_run_command',
       hooks: [{ type: 'command', command: 'python3 guard.py', timeout: 30 }],
     })
-    const cline = importedOnWindows('PreToolUse', {
+    const cline = importedOnWindows({
       format: 'cline',
       sourceEvent: 'PreToolUse',
       // Lane I's record: the script quoted for sh, and for PowerShell on Windows.
@@ -572,7 +572,7 @@ describe('the shell a Windows source runs its hook in', () => {
   })
 
   it('keeps cmd for the others, and every source’s own command off Windows', async () => {
-    const cursor = importedOnWindows('PreToolUse', {
+    const cursor = importedOnWindows({
       matcher: 'Bash',
       format: 'cursor',
       sourceEvent: 'beforeShellExecution',

@@ -71,7 +71,7 @@ interface VersionProbeOptions {
 
 export interface ConverterVerification {
   /** The shared StrictModes/safe_path port (REDM104L3's `runtime/trustedPath.ts`
-   * on POSIX, `runtime/windowsTrustedPath.ts` on Windows). Absent refuses. */
+  on POSIX, `runtime/windowsTrustedPath.ts` on Windows). Absent refuses. */
   readonly trustedPath?: TrustedPathVerifier
   /** Raw bounded version stdout; an unrecognised banner is refused. */
   readonly probeVersion?: (
@@ -84,8 +84,8 @@ export interface ConverterVerification {
 interface ConverterDiscoveryOptions extends ConverterVerification {
   readonly platform?: NodeJS.Platform
   /** Machine configuration (`museSpark.mediaConverterPath`, the runtime's
-   * `--media-converter`), never workspace PATH lookup. When given, it is the
-   * only candidate: a failure refuses with its reason, never falling back. */
+  `--media-converter`), never workspace PATH lookup. When given, it is the
+  only candidate: a failure refuses with its reason, never falling back. */
   readonly configuredConverters?: readonly MediaConverter[]
   /** Where Windows install locations resolve from; never a drive literal. */
   readonly env?: NodeJS.ProcessEnv
@@ -101,7 +101,7 @@ function documentedConverters(
       const root = Object.entries(env).find(([name]) => name.toUpperCase() === variable)?.[1]
       return root === undefined || !path.win32.isAbsolute(root) || /\p{Cc}/u.test(root)
         ? []
-        : [{ kind: 'ffmpeg' as const, command: path.win32.join(root, ...segments) }]
+        : { kind: 'ffmpeg' as const, command: path.win32.join(root, ...segments) }
     })
   const installations: Partial<Record<NodeJS.Platform, readonly string[]>> =
     MEDIA_CONVERTER_INSTALL_PATHS
@@ -118,7 +118,7 @@ type TrustedCommand =
   { readonly ok: true; readonly path: string } | { readonly ok: false; readonly reason: string }
 
 /** The verified canonical executable to launch, or why not. A launcher shim
- * (Chocolatey, Scoop, snap) runs a second, unverified binary, so it refuses. */
+(Chocolatey, Scoop, snap) runs a second, unverified binary, so it refuses. */
 async function trustedCommand(
   converter: MediaConverter,
   options: ConverterVerification,
@@ -201,7 +201,7 @@ async function probeVersion(
 }
 
 /** The verified canonical command with a strictly parsed release banner, or
- * why not. The probe itself launches the verified canonical path. */
+why not. The probe itself launches the verified canonical path. */
 async function knownVersionCommand(
   converter: MediaConverter,
   options: ConverterVerification,
@@ -240,8 +240,8 @@ async function recheckedCommand(
 }
 
 /** Explicit configuration first and alone, else documented installs; never
- * PATH. No verifier means no offer. Every version probe is a verified launch,
- * and the converter returned names the verified canonical executable. */
+PATH. No verifier means no offer. Every version probe is a verified launch,
+and the converter returned names the verified canonical executable. */
 export async function locateMediaConverter(
   options: ConverterDiscoveryOptions = {},
 ): Promise<
@@ -306,41 +306,41 @@ interface ConversionRunOptions extends LimitedRunOptions {
 
 export interface MediaConversionOptions extends ConverterVerification {
   /**
-   * The attachment's digest-verified stream (RVMEDIAV2): written whole into
-   * the conversion's owner-only folder, read back against the stream's
-   * length and digest (RVMEDIAV3 1) and encoded from there, so the converter
-   * never opens the user's path. `inputPath` is then only the file's name.
-   */
+  The attachment's digest-verified stream (RVMEDIAV2): written whole into
+  the conversion's owner-only folder, read back against the stream's
+  length and digest (RVMEDIAV3 1) and encoded from there, so the converter
+  never opens the user's path. `inputPath` is then only the file's name.
+  */
   readonly inputBytes?: (signal: AbortSignal | undefined) => AsyncIterable<Uint8Array>
   readonly limits?: MediaLimits
   readonly signal?: AbortSignal
   readonly timeoutMs?: number
   /** Native/kernel sampler for the encoder PID. Off Linux, encoding requires
-   * either this bounded sampler or `memoryLimitedRun`; neither refuses. */
+  either this bounded sampler or `memoryLimitedRun`; neither refuses. */
   readonly readRssBytes?: (pid: number) => Promise<number>
   /**
-   * A sampler made for each spawned encoder (lane VB's macOS `ps` reader),
-   * fenced to that child's PID, parent and start time; used when no fixed
-   * sampler is given.
-   */
+  A sampler made for each spawned encoder (lane VB's macOS `ps` reader),
+  fenced to that child's PID, parent and start time; used when no fixed
+  sampler is given.
+  */
   readonly readRssBytesFor?: (child: ChildProcess) => (pid: number) => Promise<number>
   /**
-   * A process boundary whose memory cap the kernel enforces (the Windows job's
-   * JOB_OBJECT_LIMIT_JOB_MEMORY), used when no sampler is bound. It applies
-   * `maxRssBytes` as that cap, enforces the output and deadline limits itself,
-   * awaits the child's close, and rejects with an error whose `code` is
-   * `MEDIA_CONVERSION_MEMORY_CAP_CODE` when the cap stopped the encoder.
-   */
+  A process boundary whose memory cap the kernel enforces (the Windows job's
+  JOB_OBJECT_LIMIT_JOB_MEMORY), used when no sampler is bound. It applies
+  `maxRssBytes` as that cap, enforces the output and deadline limits itself,
+  awaits the child's close, and rejects with an error whose `code` is
+  `MEDIA_CONVERSION_MEMORY_CAP_CODE` when the cap stopped the encoder.
+  */
   readonly memoryLimitedRun?: (
     command: string,
     args: readonly string[],
     options: LimitedRunOptions,
   ) => Promise<void>
   /** Fresh owner-only directory. Required on Windows: chmod cannot set its ACL.
-   * The host/native runtime creates the directory; conversion owns its cleanup. */
+  The host/native runtime creates the directory; conversion owns its cleanup. */
   readonly createPrivateDirectory?: () => Promise<string>
   /** Injected process boundary for other hosts and fake-only tests. It must
-   * enforce the supplied output/RSS/deadline limits and await child close. */
+  enforce the supplied output/RSS/deadline limits and await child close. */
   readonly run?: (
     command: string,
     args: readonly string[],
@@ -358,7 +358,7 @@ export type MediaConversionResult =
   | { readonly ok: false; readonly reason: string; readonly cause?: unknown }
 
 /** `convertToWav16kMono` returns audio, never video: a separate result keeps
- * the video-only `MediaConversionResult` honest. */
+the video-only `MediaConversionResult` honest. */
 export type WavConversionResult =
   | {
       readonly ok: true
@@ -425,7 +425,7 @@ async function runConverter(
       return output.isFile() && output.size <= options.maxOutputBytes
     }
     /** The final check, bounded like a sample (and Windows' job run): a
-     * stalled stat is a failed check, so Stop and the deadline settle. */
+    stalled stat is a failed check, so Stop and the deadline settle. */
     const isFinalOutputWithinCap = async (): Promise<boolean> => {
       let deadline: ReturnType<typeof setTimeout> | undefined
       const late = new Promise<false>((settle) => {
@@ -619,15 +619,15 @@ type ConvertedResult<I extends MediaFileInfo> =
 const SNAPSHOT_EXTENSION = /\.[a-z0-9]{1,8}$/iu
 
 /**
- * Writes a verified stream to an owner-only file no one else can change,
- * then reads the copy back, so the encoder reads exactly the verified bytes
- * (RVMEDIAV3 1). A write may land fewer bytes than asked (a full disk, a
- * quota: `bytesWritten`, write(2)); the rest is written from where it
- * stopped. A write that lands nothing or fails, and a copy whose length or
- * digest differs from the stream's, refuse with `failed`. A stream that
- * throws (its bytes are not the ones attached) refuses with its own reason.
- * The caller's folder cleanup removes a partial file.
- */
+Writes a verified stream to an owner-only file no one else can change,
+then reads the copy back, so the encoder reads exactly the verified bytes
+(RVMEDIAV3 1). A write may land fewer bytes than asked (a full disk, a
+quota: `bytesWritten`, write(2)); the rest is written from where it
+stopped. A write that lands nothing or fails, and a copy whose length or
+digest differs from the stream's, refuse with `failed`. A stream that
+throws (its bytes are not the ones attached) refuses with its own reason.
+The caller's folder cleanup removes a partial file.
+*/
 async function writeSnapshot(
   file: string,
   read: NonNullable<MediaConversionOptions['inputBytes']>,
@@ -693,11 +693,11 @@ interface ConversionSpec<I extends MediaFileInfo> {
 }
 
 /**
- * The one conversion pipeline: bounded options, a verified canonical
- * converter, a memory watch, an owner-only directory and reserved output,
- * the recheck immediately before encoding, then the output verified by its
- * bytes and limits. Every refusal and failure removes the directory.
- */
+The one conversion pipeline: bounded options, a verified canonical
+converter, a memory watch, an owner-only directory and reserved output,
+the recheck immediately before encoding, then the output verified by its
+bytes and limits. Every refusal and failure removes the directory.
+*/
 async function convertWith<I extends MediaFileInfo>(
   inputPath: string,
   converter: MediaConverter,
@@ -854,14 +854,14 @@ export async function convertToMp4(
 }
 
 /**
- * Sound extraction for batch transcription (U18, D85.5): the batch endpoint
- * refuses mp4, mov and mp3 sent as they are, and accepts 16 kHz mono WAV
- * (`MUSE_VOICE_AUDIO_ENCODING`), so the product converts before it sends.
- * ffmpeg renders exactly that (`-vn -ac 1 -ar 16000 -c:a pcm_s16le`, the
- * lead's round-3 command); avconvert cannot express it through its preset
- * interface, so only ffmpeg converts here. Owner-only output, verified by
- * bytes before returning; dispose after upload/discard.
- */
+Sound extraction for batch transcription (U18, D85.5): the batch endpoint
+refuses mp4, mov and mp3 sent as they are, and accepts 16 kHz mono WAV
+(`MUSE_VOICE_AUDIO_ENCODING`), so the product converts before it sends.
+ffmpeg renders exactly that (`-vn -ac 1 -ar 16000 -c:a pcm_s16le`, the
+lead's round-3 command); avconvert cannot express it through its preset
+interface, so only ffmpeg converts here. Owner-only output, verified by
+bytes before returning; dispose after upload/discard.
+*/
 export async function convertToWav16kMono(
   inputPath: string,
   converter: MediaConverter,

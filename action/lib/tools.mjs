@@ -65,9 +65,9 @@ export function regularFileOutside(candidate, workspace, label) {
 }
 
 /**
- * The gated checkout directory: `relative` inside the real workspace, no `..`
- * segment, no absolute path, and no existing component that is a link.
- */
+The gated checkout directory: `relative` inside the real workspace, no `..`
+segment, no absolute path, and no existing component that is a link.
+*/
 export function checkoutPathFor(workspace, relative) {
   if (
     typeof relative !== 'string' ||
@@ -171,10 +171,10 @@ export function invocationId({ runId, attempt, job, random }) {
 }
 
 /**
- * One exclusive invocation directory: RUNNER_TEMP/muse-spark/<role>-<id> with
- * private work/ (empty Git configuration and hooks, home, temp, npm
- * configuration) and out/. An existing directory is refused, never reused.
- */
+One exclusive invocation directory: RUNNER_TEMP/muse-spark/<role>-<id> with
+private work/ (empty Git configuration and hooks, home, temp, npm
+configuration) and out/. An existing directory is refused, never reused.
+*/
 export function allocateInvocation({ runnerTemp, role, id, checkout }) {
   if (!ROLES.has(role)) throw new InputError('unknown role')
   const root = path.join(realpathSync.native(runnerTemp), INVOCATION_ROOT)
@@ -224,13 +224,13 @@ function exactBoolean(env, name, fallback) {
   throw new InputError(`${name} must be true or false`)
 }
 
-function boundedInteger(env, name, fallback, min, max) {
+function boundedInteger(env, name, fallback, max) {
   const value = env[name] ?? ''
   if (value === '') return fallback
   if (!INTEGER.test(value)) throw new InputError(`${name} must be an integer`)
   const parsed = Number(value)
-  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
-    throw new InputError(`${name} must be between ${String(min)} and ${String(max)}`)
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > max) {
+    throw new InputError(`${name} must be between 1 and ${String(max)}`)
   }
   return parsed
 }
@@ -315,7 +315,6 @@ export function parseActionInputs(env) {
       env,
       'MUSE_INPUT_TIMEOUT_MINUTES',
       DEFAULT_TIMEOUT_MINUTES,
-      1,
       MAX_TIMEOUT_MINUTES,
     ),
     model,
@@ -325,7 +324,6 @@ export function parseActionInputs(env) {
       env,
       'MUSE_INPUT_MAX_DIFF_BYTES',
       ACTION_DEFAULT_MAX_DIFF_BYTES,
-      1,
       ACTION_MAX_DIFF_BYTES,
     ),
     triggerPhrase: triggerPhrase === '' ? DEFAULT_TRIGGER : triggerPhrase,

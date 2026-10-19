@@ -344,10 +344,10 @@ export class CreatedRegistry {
   }
 
   /**
-   * A refused quarantine restores its entry only onto a missing name, never
-   * over a replacement. Probe failures stay quarantined; the quarantine's own
-   * cause is refused and rethrown by the caller.
-   */
+  A refused quarantine restores its entry only onto a missing name, never
+  over a replacement. Probe failures stay quarantined; the quarantine's own
+  cause is refused and rethrown by the caller.
+  */
   private async restoreQuarantined(
     source: string,
     trash: string,

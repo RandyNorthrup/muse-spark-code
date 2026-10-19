@@ -103,7 +103,7 @@ export interface ChatGptCommandText {
 export interface ChatGptProviderCommandDeps {
   createHost(): Promise<ChatGptHostPort>
   /** Nonsecret file/catalogue wiring commits atomically before success.
-   * Both calls run under the grant's process lock. */
+  Both calls run under the grant's process lock. */
   readonly providers: {
     add(host: ChatGptHostPort): Promise<void>
     remove(): Promise<void>
@@ -114,7 +114,7 @@ export interface ChatGptProviderCommandDeps {
 }
 
 /** Best-effort revocation after a failed setup: the setup failure dominates,
- * so a revoke failure is attempted and dropped, never replacing the cause. */
+so a revoke failure is attempted and dropped, never replacing the cause. */
 const revokeSignInQuietly = async (signIn: ChatGptSignIn): Promise<void> => {
   try {
     await signIn.remove()
@@ -268,10 +268,10 @@ export function runtimeChatGptCommandDeps(
 }
 
 /**
- * The stored grant's account identity: the verified account hash where the
- * sign-in captured one, else the whole record. A refused `add-new-account`
- * leaves the old grant byte-identical, so an unchanged identity fails.
- */
+The stored grant's account identity: the verified account hash where the
+sign-in captured one, else the whole record. A refused `add-new-account`
+leaves the old grant byte-identical, so an unchanged identity fails.
+*/
 function chatGptGrantIdentity(record: unknown): string | undefined {
   const parsed = chatGptRecordSchema.safeParse(record)
   return parsed.success ? (parsed.data.accountIdHash ?? JSON.stringify(parsed.data)) : undefined

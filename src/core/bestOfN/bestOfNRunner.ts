@@ -59,10 +59,10 @@ export interface BestOfNAttemptDriver {
   cancel(): Promise<void>
   dispose(): void
   /**
-   * A TeammateIdle hook kept the attempt working (M91 lane E): send one more
-   * turn with the hook's reason. Absent until the host implements it; without
-   * it the attempt completes as before.
-   */
+  A TeammateIdle hook kept the attempt working (M91 lane E): send one more
+  turn with the hook's reason. Absent until the host implements it; without
+  it the attempt completes as before.
+  */
   readonly continueAttempt?: ((reason: string) => Promise<void>) | undefined
 }
 
@@ -78,11 +78,11 @@ export interface BestOfNTeammateIdleResult {
 }
 
 /**
- * The run's extension hooks (M91 lane E), fired from the parent session's
- * snapshot by the host: attempts run with hooks off, so the coordinator's
- * side fires. Absent until the host wires it; without it the run behaves as
- * before.
- */
+The run's extension hooks (M91 lane E), fired from the parent session's
+snapshot by the host: attempts run with hooks off, so the coordinator's
+side fires. Absent until the host wires it; without it the run behaves as
+before.
+*/
 export interface BestOfNExtensionHooks {
   readonly fireWorktreeHook: (
     event: Extract<ExtensionHookEvent, 'WorktreeCreate' | 'WorktreeRemove'>,
@@ -279,10 +279,10 @@ function snapshotOf(run: LiveRun): BestOfNRun {
 }
 
 /**
- * One best-of-N run per window. `start` asks once and fans out; driver
- * events settle attempts; `take` applies and stages the frozen tree; `cancel`
- * stops whatever still runs. Every change posts the run through `onUpdate`.
- */
+One best-of-N run per window. `start` asks once and fans out; driver
+events settle attempts; `take` applies and stages the frozen tree; `cancel`
+stops whatever still runs. Every change posts the run through `onUpdate`.
+*/
 export class BestOfNRunner {
   private run: LiveRun | undefined
 
@@ -601,14 +601,14 @@ export class BestOfNRunner {
   }
 
   /**
-   * An attempt stopped while its siblings run (M91 lane E): TeammateIdle
-   * fires from the parent's snapshot, because attempts run with hooks off.
-   * A block keeps the attempt working inside its consented run — the driver
-   * sends one more turn, billed to the run's ceiling — up to
-   * `HOOK_MAX_STOP_CONTINUATIONS` keeps, then the attempt stops for good.
-   * True when the attempt keeps working; its completion waits for the next
-   * event.
-   */
+  An attempt stopped while its siblings run (M91 lane E): TeammateIdle
+  fires from the parent's snapshot, because attempts run with hooks off.
+  A block keeps the attempt working inside its consented run — the driver
+  sends one more turn, billed to the run's ceiling — up to
+  `HOOK_MAX_STOP_CONTINUATIONS` keeps, then the attempt stops for good.
+  True when the attempt keeps working; its completion waits for the next
+  event.
+  */
   private async maybeKeepWorking(run: LiveRun, entry: RunningAttempt): Promise<boolean> {
     const fireTeammateIdle = this.deps.extensionHooks?.fireTeammateIdle
     if (fireTeammateIdle === undefined) {
@@ -784,10 +784,10 @@ export class BestOfNRunner {
   }
 
   /**
-   * Failed setup tears down only what it made: the empty worktrees from
-   * before launch, never a force-delete after a host could have written to
-   * an attempt. Every attempt left behind reads cancelled.
-   */
+  Failed setup tears down only what it made: the empty worktrees from
+  before launch, never a force-delete after a host could have written to
+  an attempt. Every attempt left behind reads cancelled.
+  */
   private async cancelSetup(
     run: LiveRun,
     created: readonly RunningAttempt[],

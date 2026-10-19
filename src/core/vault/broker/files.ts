@@ -112,15 +112,15 @@ export async function writeVaultFile(
 /** The fixed owner-only temporary an exclusive claim publishes through. */
 export const VAULT_CLAIM_PENDING_SUFFIX = '.pending'
 /**
- * Publish the complete record, or nothing a reader can see. The bytes are
- * written to the owner-only temporary name and synced then published with
- * link(), which fails when the name exists: a publisher killed before the
- * link leaves only the temporary (no reader opens it), killed after it
- * leaves the complete record, whose provably dead holder the contender
- * retires by rule. Never an empty or partial record (RVCM109JE P2-1).
- * Cleanup only the file we created; never unlink a replacement from a
- * competing process.
- */
+Publish the complete record, or nothing a reader can see. The bytes are
+written to the owner-only temporary name and synced then published with
+link(), which fails when the name exists: a publisher killed before the
+link leaves only the temporary (no reader opens it), killed after it
+leaves the complete record, whose provably dead holder the contender
+retires by rule. Never an empty or partial record (RVCM109JE P2-1).
+Cleanup only the file we created; never unlink a replacement from a
+competing process.
+*/
 export async function vaultExclusiveFile(
   path: string,
   bytes: Uint8Array,
@@ -198,11 +198,11 @@ export interface PrivateWriterPorts {
 }
 
 /**
- * One owner-only file writer over the platform's descriptor checks: appends
- * and atomic replaces are identical everywhere, while opening, revalidation
- * and release stay in the ports. Both the POSIX files port and the Windows
- * relay write this way.
- */
+One owner-only file writer over the platform's descriptor checks: appends
+and atomic replaces are identical everywhere, while opening, revalidation
+and release stay in the ports. Both the POSIX files port and the Windows
+relay write this way.
+*/
 export function privateFileWriter(path: string, ports: PrivateWriterPorts): VaultFileWriter {
   return {
     append: (bytes) => {
@@ -234,12 +234,12 @@ export const writePrivateBytes = (fd: number, bytes: Uint8Array): void => {
 }
 
 /**
- * Atomically replace an owner-only file: write the bytes to an exclusive
- * temporary beside it, flush, rename over the path and flush the directory.
- * The caller opens the temporary with its own flags and adopts the winning
- * descriptor; any failure drops the temporary and keeps the old file. Both
- * the POSIX files port and the Windows relay replace this way.
- */
+Atomically replace an owner-only file: write the bytes to an exclusive
+temporary beside it, flush, rename over the path and flush the directory.
+The caller opens the temporary with its own flags and adopts the winning
+descriptor; any failure drops the temporary and keeps the old file. Both
+the POSIX files port and the Windows relay replace this way.
+*/
 export function replacePrivateFile(
   path: string,
   bytes: Uint8Array,

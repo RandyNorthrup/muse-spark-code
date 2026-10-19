@@ -142,10 +142,10 @@ function requirementDependency(
 }
 
 /**
- * Read pip, uv and Poetry evidence from the snapshot. Lock stanzas carry
- * no license fields, so per-package licenses come from present METADATA
- * or stay unknown; requirements without pins have unresolved versions.
- */
+Read pip, uv and Poetry evidence from the snapshot. Lock stanzas carry
+no license fields, so per-package licenses come from present METADATA
+or stay unknown; requirements without pins have unresolved versions.
+*/
 export function readPython(
   snapshot: LegalFileSnapshot,
   isDependencyIncluded?: LegalDependencyAdmission,

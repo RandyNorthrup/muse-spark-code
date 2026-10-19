@@ -11,11 +11,11 @@ export function credentialLockDir(providersFilePath: string): string {
 }
 
 /**
- * Where the runner's own providers file lives (beside, never inside, Muse
- * Code's config folder). Windows joins with `\`; join keeps one dialect per
- * platform. Both the terminal and the panel derive the same lease directory
- * from it, so the one credential lease excludes writers on either side.
- */
+Where the runner's own providers file lives (beside, never inside, Muse
+Code's config folder). Windows joins with `\`; join keeps one dialect per
+platform. Both the terminal and the panel derive the same lease directory
+from it, so the one credential lease excludes writers on either side.
+*/
 export function providerConfigFilePath(input: {
   readonly platform: NodeJS.Platform
   readonly homeDir: string

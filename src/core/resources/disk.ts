@@ -73,8 +73,8 @@ export function diskPressure(volumes: readonly ResourceDiskVolume[], settings: R
 }
 
 /** Peer data is validated by deviceResourceSchema before this admission check.
- * @unwired M107 device disk headroom check
- */
+@unwired M107 device disk headroom check
+*/
 export function hasDeviceDiskHeadroom(device: DeviceResource): boolean {
   const disk = device.diskFree
   return (
@@ -91,6 +91,12 @@ interface DiskCache {
   history: { atMs: number; freeBytes: number }[]
 }
 
+/** The production disk port: the wall clock and the filesystem's volume reader. */
+const DEFAULT_RESOURCE_DISK_PORT: ResourceDiskPort = {
+  now: () => Date.now(),
+  read: (file) => statfs(file, { bigint: true }),
+}
+
 /** No timers or processes: S/G owns sampling; every target is a harness write location. */
 export class ResourceDiskSampler {
   private readonly cache = new Map<ResourceDiskRole, DiskCache>()
@@ -98,10 +104,7 @@ export class ResourceDiskSampler {
   constructor(
     private readonly targets: readonly ResourceDiskTarget[],
     private readonly settings: () => ResourceSettings,
-    private readonly port: ResourceDiskPort = {
-      now: () => Date.now(),
-      read: (file) => statfs(file, { bigint: true }),
-    },
+    private readonly port: ResourceDiskPort = DEFAULT_RESOURCE_DISK_PORT,
   ) {
     const roles = new Set<ResourceDiskRole>()
     for (const target of targets) {

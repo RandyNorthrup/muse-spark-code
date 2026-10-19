@@ -12,11 +12,11 @@ import { UI_TEXT } from '../../shared/constants'
 import type { GuardedChildEnv } from '../executables'
 
 /**
- * Every governed launch names its lifetime (PLAN SPAWN017C):
- * contained owns its whole tree and a temp root; probe (read-only, bounded) owns
- * its whole tree but no temp root; handoff owns only a bounded OS adapter;
- * interactive inherits the terminal; bootstrap builds containment itself.
- */
+Every governed launch names its lifetime (PLAN SPAWN017C):
+contained owns its whole tree and a temp root; probe (read-only, bounded) owns
+its whole tree but no temp root; handoff owns only a bounded OS adapter;
+interactive inherits the terminal; bootstrap builds containment itself.
+*/
 export type ResourceLaunchProfile = 'contained' | 'probe' | 'handoff' | 'interactive' | 'bootstrap'
 /** Callers cannot choose session, shell or terminal wiring; the profile does. */
 export type ResourceProcessOptions = Omit<
@@ -24,25 +24,25 @@ export type ResourceProcessOptions = Omit<
   'detached' | 'stdio' | 'shell' | 'env'
 > & {
   /**
-   * The child's whole environment: only `workspaceChildEnvironment` /
-   * `noWorkspaceChildEnvironment` can produce one, so a raw environment
-   * does not type-check here.
-   */
+  The child's whole environment: only `workspaceChildEnvironment` /
+  `noWorkspaceChildEnvironment` can produce one, so a raw environment
+  does not type-check here.
+  */
   readonly env: GuardedChildEnv
   /**
-   * The whole tree's committed memory cap in bytes. Enforced only by the Windows
-   * attested job (contained and probe), whose outcome then names `jobMemory`
-   * when the kernel enforced it; other platforms and profiles set no cap.
-   */
+  The whole tree's committed memory cap in bytes. Enforced only by the Windows
+  attested job (contained and probe), whose outcome then names `jobMemory`
+  when the kernel enforced it; other platforms and profiles set no cap.
+  */
   readonly jobMemoryBytes?: number | undefined
   /** Hand-off only: when the adapter counts as launched (see ResourceHandoffUntil). */
   readonly handoffUntil?: ResourceHandoffUntil | undefined
 }
 /**
- * 'exit': the adapter's exit 0, or still running at the named deadline (then
- * detached, never killed). 'spawn': a foreground handler that may stay with
- * what it opened (xdg-open), launched once it has started, in its own session.
- */
+'exit': the adapter's exit 0, or still running at the named deadline (then
+detached, never killed). 'spawn': a foreground handler that may stay with
+what it opened (xdg-open), launched once it has started, in its own session.
+*/
 export type ResourceHandoffUntil = 'exit' | 'spawn'
 export interface ResourceInteractiveProcess {
   child: ChildProcess
@@ -116,8 +116,8 @@ export class ResourceMemoryLimitError extends Error {
 }
 
 /** Structural, not instanceof: the launcher and its callers live in different bundles.
- * @unwired M107 resource cap refusal guard
- */
+@unwired M107 resource cap refusal guard
+*/
 export function isResourceCapRefused(error: unknown): error is ResourceCapRefusedError {
   return (
     error instanceof Error &&
@@ -163,10 +163,10 @@ export interface ResourceProcessLaunch {
   /** An SDK wrapper's PID must also be proved a direct child of the harness. */
   readonly parentPid?: number | undefined
   /**
-   * SPAWN017C (Windows): the launcher's job attests its own tree. Its observed
-   * exit proves the tree gone, its job enforces the caps, and its final record
-   * settles the usage; no registry reader binds it.
-   */
+  SPAWN017C (Windows): the launcher's job attests its own tree. Its observed
+  exit proves the tree gone, its job enforces the caps, and its final record
+  settles the usage; no registry reader binds it.
+  */
   readonly attested?: boolean | undefined
 }
 /** The prepared Windows helpers; `verify` runs before every launch (SPAWN017C). */
@@ -206,10 +206,10 @@ export interface ResourceLease {
   /** An attested launch's final usage, before complete; history reads it. */
   settle?: ((settlement: ResourceSettlement) => void) | undefined
   /**
-   * The tree's exit was not observed (no emptied record): admission is
-   * released, the temp root is kept for recovery, and the failure is reported.
-   * A lease without this path holds admission instead (complete(false)).
-   */
+  The tree's exit was not observed (no emptied record): admission is
+  released, the temp root is kept for recovery, and the failure is reported.
+  A lease without this path holds admission instead (complete(false)).
+  */
   uncertain?: (() => void) | undefined
   background(): void
 }

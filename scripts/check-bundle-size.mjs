@@ -19,8 +19,8 @@ const WHATS_NEW_CONTENT_BUDGET_KIB = 40
 const QUESTION_UI_BUDGET_KIB = 25
 
 /**
- * @type {ReadonlyArray<{ path: string; budgetKiB: number }>}
- */
+@type {ReadonlyArray<{ path: string; budgetKiB: number }>}
+*/
 const BUDGETS = [
   // M113 W: new entries, each measured +15%, rounded to 25 KiB.
   // MSM113 (estimate kind wired end to end): 220.4 KiB measured +15% =

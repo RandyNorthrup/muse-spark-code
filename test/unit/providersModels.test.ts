@@ -74,10 +74,10 @@ interface ModelsHarness {
 }
 
 /**
- * Deps over a real providers file in a temp folder. Secrets are the
- * product's own memory store; reads are counted through delegation so the
- * forced-add test proves the key is never read.
- */
+Deps over a real providers file in a temp folder. Secrets are the
+product's own memory store; reads are counted through delegation so the
+forced-add test proves the key is never read.
+*/
 function deps(): ModelsHarness {
   const folder = mkdtempSync(path.join(tmpdir(), 'cli-help-models-'))
   folders.push(folder)
@@ -120,10 +120,10 @@ async function writeInitial(filePath: string, file: ProvidersFile): Promise<void
   if (!written.ok) throw new Error(written.detail)
 }
 
-async function readEntry(filePath: string, id = 'openrouter'): Promise<ProviderEntry> {
+async function readEntry(filePath: string): Promise<ProviderEntry> {
   const read = await readProvidersFile(filePath)
   if (!read.ok) throw new Error(read.detail)
-  const found = read.file.providers.find((candidate) => candidate.id === id)
+  const found = read.file.providers.find((candidate) => candidate.id === 'openrouter')
   if (found === undefined) throw new Error('entry is missing after the command')
   return found
 }

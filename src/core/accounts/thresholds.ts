@@ -86,7 +86,7 @@ export function evaluateAccountThresholds(deps: {
   readonly journal: AccountJournalReader
   readonly limits?: AccountLimitsReader
   /** Not yet in the reader's totals (or exclude this request's owned claim).
-   * Equality may admit the last request; a reached cap cannot admit another. */
+  Equality may admit the last request; a reached cap cannot admit another. */
   readonly request?: AccountUsageTotals
 }): readonly AccountTrigger[] {
   if (

@@ -22,10 +22,10 @@ export interface HtmlJob {
   /** The page's final URL, against which relative links resolve (unless a `<base>` says otherwise). */
   readonly url: string
   /**
-   * D121: absent, the page converts whole — web fetch passes no bound. An
-   * explicit bound still stops the conversion there (isTruncated), for
-   * callers that name one.
-   */
+  D121: absent, the page converts whole — web fetch passes no bound. An
+  explicit bound still stops the conversion there (isTruncated), for
+  callers that name one.
+  */
   readonly maxChars?: number | undefined
 }
 

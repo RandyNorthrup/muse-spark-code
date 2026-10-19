@@ -96,12 +96,12 @@ function vaultFilePath(): string {
 }
 
 /**
- * Make the real VaultStore refuse its next remove, the way a real
- * filesystem refusal does. POSIX-only (this suite does not run on Windows):
- * mode `0444` trips the store's own verify (owner-only `0600`), so the
- * `liveStore().remove` below runs and fails at verify, before the unlink —
- * nothing throws on its behalf.
- */
+Make the real VaultStore refuse its next remove, the way a real
+filesystem refusal does. POSIX-only (this suite does not run on Windows):
+mode `0444` trips the store's own verify (owner-only `0600`), so the
+`liveStore().remove` below runs and fails at verify, before the unlink —
+nothing throws on its behalf.
+*/
 async function refuseVaultFile(): Promise<void> {
   await chmod(vaultFilePath(), 0o444)
 }
@@ -119,13 +119,13 @@ function vaultDirPath(): string {
 }
 
 /**
- * Make the real VaultStore refuse its next write, the way a real
- * filesystem refusal does. POSIX-only: mode `0555` trips the store's own
- * directory verify (owner-only `0700`), so the `liveStore().write` below
- * runs and fails inside the store — nothing throws on its behalf. A
- * read-only vault *file* would not refuse a write (the publish renames over
- * it), which is why this refuses the directory instead.
- */
+Make the real VaultStore refuse its next write, the way a real
+filesystem refusal does. POSIX-only: mode `0555` trips the store's own
+directory verify (owner-only `0700`), so the `liveStore().write` below
+runs and fails inside the store — nothing throws on its behalf. A
+read-only vault *file* would not refuse a write (the publish renames over
+it), which is why this refuses the directory instead.
+*/
 async function refuseVaultDir(): Promise<void> {
   await chmod(vaultDirPath(), 0o555)
 }
@@ -228,10 +228,10 @@ async function readMigratedSecret(): Promise<string> {
 }
 
 /**
- * Pause one persisted secret write until released. Every byte still lands
- * in the real files; the gate only holds the commit so a save can land
- * mid-migration, the way a save during unlock does.
- */
+Pause one persisted secret write until released. Every byte still lands
+in the real files; the gate only holds the commit so a save can land
+mid-migration, the way a save during unlock does.
+*/
 function gateValue(
   inner: SecretStore,
   value: string,
@@ -354,13 +354,13 @@ afterEach(async () => {
 })
 
 /**
- * The stranded journal row's phase, read back through the real store. The
- * crash tests migrate exactly one key, so the single `migration-` row is
- * unambiguous; its phase tells which side of the crash the engine stopped
- * on (`copying`/`writing` past the journal commit, `deleting` past the
- * vault remove). A crash the refusal did not really cause would have moved
- * the row on, so this is the proof the refusal fired.
- */
+The stranded journal row's phase, read back through the real store. The
+crash tests migrate exactly one key, so the single `migration-` row is
+unambiguous; its phase tells which side of the crash the engine stopped
+on (`copying`/`writing` past the journal commit, `deleting` past the
+vault remove). A crash the refusal did not really cause would have moved
+the row on, so this is the proof the refusal fired.
+*/
 async function strandedJournalPhase(): Promise<string | null> {
   const items = await liveStore().list()
   const rows = items.filter((entry) => entry.name.startsWith('migration-'))
@@ -405,11 +405,11 @@ async function persistedSecrets(
 }
 
 /**
- * The real persisted secret file for one key: refusing it refuses the one
- * legacy write the crashed-mirror test targets. File-backed like the
- * fixture's store, which names one `${encodeURIComponent(key)}.secret` file
- * per key under its directory.
- */
+The real persisted secret file for one key: refusing it refuses the one
+legacy write the crashed-mirror test targets. File-backed like the
+fixture's store, which names one `${encodeURIComponent(key)}.secret` file
+per key under its directory.
+*/
 async function refuseSecretFile(dir: string, key: string): Promise<void> {
   await chmod(path.join(dir, `${encodeURIComponent(key)}.secret`), 0o444)
 }
@@ -458,14 +458,14 @@ async function removeMigratedKey(shell: ReturnType<typeof createMigrationShell>)
 }
 
 /**
- * A sign-out crashed mid-delete through the real shell and controller.
- * Refusing the real vault file strands the old vault item with the journal
- * saying `deleting`; refusing the second journal write strands the state
- * past the vault remove instead. Each refusal is the real filesystem one,
- * and the assertions below prove it fired: a consumed flag alone could
- * still pass had the refused op succeeded, but the stranded row's phase and
- * the vault's contents cannot.
- */
+A sign-out crashed mid-delete through the real shell and controller.
+Refusing the real vault file strands the old vault item with the journal
+saying `deleting`; refusing the second journal write strands the state
+past the vault remove instead. Each refusal is the real filesystem one,
+and the assertions below prove it fired: a consumed flag alone could
+still pass had the refused op succeeded, but the stranded row's phase and
+the vault's contents cannot.
+*/
 async function crashedSignOut(
   store: SecretStore,
   refuseSecondWriteOnce?: { current: boolean },
@@ -493,22 +493,21 @@ async function crashedSignOut(
 }
 
 /**
- * An opaque save stays in SecretStorage: nothing reaches the vault on save,
- * and the next unlock leaves it alone too, with the record working where it is.
- */
+An opaque save stays in SecretStorage: nothing reaches the vault on save,
+and the next unlock leaves it alone too, with the record working where it is.
+*/
 async function expectOpaqueSaveKept(
   shell: ReturnType<typeof createMigrationShell>,
   store: SecretStore,
   providerIds: readonly string[],
-  key: string,
   record: string,
 ): Promise<void> {
-  await shell.store.store(key, record)
-  expect(await store.get(key)).toBe(record)
+  await shell.store.store(PROVIDER_KEY, record)
+  expect(await store.get(PROVIDER_KEY)).toBe(record)
   expect(await credentialCount()).toBe(0)
   await controller(store, providerIds).ensureMigrated()
   expect(await credentialCount()).toBe(0)
-  expect(await store.get(key)).toBe(record)
+  expect(await store.get(PROVIDER_KEY)).toBe(record)
 }
 
 // POSIX-only, like the session-owned broker suite: on Windows the product
@@ -748,7 +747,7 @@ describe.skipIf(process.platform === 'win32')('key-store migration against a rea
     expect(await credentialCount()).toBe(0)
     // The next unlock leaves it alone too: no vault item, no journal row to
     // strand, the record working in SecretStorage.
-    await expectOpaqueSaveKept(shell, store, ['openrouter'], PROVIDER_KEY, oauth)
+    await expectOpaqueSaveKept(shell, store, ['openrouter'], oauth)
   })
 
   it('an oauth save after sign-out never reaches the vault', async () => {
@@ -759,7 +758,7 @@ describe.skipIf(process.platform === 'win32')('key-store migration against a rea
     expect(await readMigratedSecret()).toBe(secret)
     await shell.store.delete(PROVIDER_KEY)
     expect(await credentialCount()).toBe(0)
-    await expectOpaqueSaveKept(shell, store, ['openrouter'], PROVIDER_KEY, oauth)
+    await expectOpaqueSaveKept(shell, store, ['openrouter'], oauth)
   })
 
   it('rolls back a stranded non-apiKey copy on unlock', async () => {

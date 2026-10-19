@@ -14,14 +14,14 @@ import { outputTokenMinimumMessage } from './outputTokenMinimum'
 export { outputTokenMinimumMessage } from './outputTokenMinimum'
 
 /** Subscription (plan) providers by model-ref prefix: their turns spend
- * allowance, never the Meta key. */
+allowance, never the Meta key. */
 export const PLAN_MODEL_PROVIDERS: readonly string[] = ['chatgpt', 'copilot']
 
 /**
- * Whether a validated model ref addresses a plan model. Only validated
- * refs qualify (exec args, listed session models): validation itself stays
- * with provider core, which lazy bundles cannot carry.
- */
+Whether a validated model ref addresses a plan model. Only validated
+refs qualify (exec args, listed session models): validation itself stays
+with provider core, which lazy bundles cannot carry.
+*/
 export function isPlanModelRef(model: string): boolean {
   const slash = model.indexOf('/')
   return slash > 0 && PLAN_MODEL_PROVIDERS.includes(model.slice(0, slash))
@@ -37,11 +37,11 @@ export const openRouterRoutingSchema = /* @__PURE__ */ (() =>
   }))()
 
 /**
- * Compatibility overrides for a custom server (M101 BYO 14): the wire
- * shape its format's defaults misdescribe. Strict: an unknown key is a
- * typo that would send the wrong shape, so it refuses the entry instead
- * of stripping it.
- */
+Compatibility overrides for a custom server (M101 BYO 14): the wire
+shape its format's defaults misdescribe. Strict: an unknown key is a
+typo that would send the wrong shape, so it refuses the entry instead
+of stripping it.
+*/
 // Pure factory: same droppability as above for custom-server overrides.
 export const customCompatSchema = /* @__PURE__ */ (() =>
   z.strictObject({
@@ -108,13 +108,13 @@ export function providerOutputMinimum(
 }
 
 /**
- * Limits exist only for ticked models (C-M95-4 R5): keep an entry's
- * `modelLimits` for models in its list and drop the rest, so a stale
- * window an untick left behind can never win over a later scan. Listed
- * custom models' required limits are intact. Structural on purpose: both
- * the file schema's entry and the host's entry satisfy it, and panel
- * bundles import this shared module without pulling provider core.
- */
+Limits exist only for ticked models (C-M95-4 R5): keep an entry's
+`modelLimits` for models in its list and drop the rest, so a stale
+window an untick left behind can never win over a later scan. Listed
+custom models' required limits are intact. Structural on purpose: both
+the file schema's entry and the host's entry satisfy it, and panel
+bundles import this shared module without pulling provider core.
+*/
 export function pruneModelLimits(
   models: readonly string[],
   modelLimits:
@@ -127,12 +127,12 @@ export function pruneModelLimits(
 }
 
 /**
- * The output cap a context-window edit stores. A scanned local model
- * reports no separate output limit, so its stored cap equals its window;
- * that derived cap rises with the window (no separate control sets it).
- * An explicitly lower cap stays, still bounded by the new window, and a
- * first window starts window-sized.
- */
+The output cap a context-window edit stores. A scanned local model
+reports no separate output limit, so its stored cap equals its window;
+that derived cap rises with the window (no separate control sets it).
+An explicitly lower cap stays, still bounded by the new window, and a
+first window starts window-sized.
+*/
 export function editedOutputTokens(
   previous: { readonly contextTokens: number; readonly outputTokens: number } | undefined,
   contextTokens: number,

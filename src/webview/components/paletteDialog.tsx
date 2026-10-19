@@ -16,9 +16,9 @@ import { UI_TEXT } from '../../shared/constants'
 import { wrapIndex } from '../listNavigation'
 
 /**
- * The arrows/Enter/Escape contract of a combobox dialog's search box, over
- * its rows. Enter resumes the row at the active index through the caller.
- */
+The arrows/Enter/Escape contract of a combobox dialog's search box, over
+its rows. Enter resumes the row at the active index through the caller.
+*/
 export function usePaletteNavigation(
   count: number,
   onEnterIndex: (index: number) => void,

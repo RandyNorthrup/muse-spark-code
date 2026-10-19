@@ -45,11 +45,11 @@ export const ZERO_TEAM_METER_USAGE: TeamMeterUsage = {
 }
 
 /**
- * A ledger row as the meter sees it (the host ledger owns the full row with
- * its zod schema; this structural view keeps core free of host imports).
- * `entryId` is the entry that SENT the request, so a continued task charges
- * its first part to the first entry and the rest to the next.
- */
+A ledger row as the meter sees it (the host ledger owns the full row with
+its zod schema; this structural view keeps core free of host imports).
+`entryId` is the entry that SENT the request, so a continued task charges
+its first part to the first entry and the rest to the next.
+*/
 export interface TeamMeterRow {
   /** A delegation attempt, a retention rollup, or a reset marker. */
   readonly kind: 'task' | 'totals' | 'reset'
@@ -150,17 +150,17 @@ export interface TeamClaimLimits {
 export interface TeamBudgetClaim {
   readonly reservation: TeamReservation
   /** Like D78's claim.check: reads ALL durable intents/outcomes, with no await before dispatch.
-   * Includes this claim; entry caps include historical ledger use without counting it twice.
-   * Missing/corrupt storage, a closed claim or an obsolete day throws and sends nothing.
-   */
+  Includes this claim; entry caps include historical ledger use without counting it twice.
+  Missing/corrupt storage, a closed claim or an obsolete day throws and sends nothing.
+  */
   check(limits: TeamClaimLimits): TeamClaimAdmission
 }
 
 /** Injected D78 adapter, hosted by integration; no production stand-in.
- * Each request publishes one permanent intent before check. All windows/workspaces
- * share paid/team totals; entry caps are workspace-scoped. Outcomes are durable
- * before acknowledgement, identical retries succeed, conflicting retries throw.
- */
+Each request publishes one permanent intent before check. All windows/workspaces
+share paid/team totals; entry caps are workspace-scoped. Outcomes are durable
+before acknowledgement, identical retries succeed, conflicting retries throw.
+*/
 export interface TeamReservationJournal {
   claim(reservation: Omit<TeamReservation, 'id'>): Promise<TeamBudgetClaim>
   settle(
@@ -328,9 +328,9 @@ function isRowInScope(
 
 export class TeamMeter {
   /**
-   * Whether a task past its minutes is stopped (D75): elapsed minutes
-   * against the role's minutes per task.
-   */
+  Whether a task past its minutes is stopped (D75): elapsed minutes
+  against the role's minutes per task.
+  */
   public static isTaskOverdue(startMs: number, minutesPerTask: number, nowMs: number): boolean {
     return nowMs - startMs >= minutesPerTask * MILLISECONDS_PER_MINUTE
   }
@@ -338,10 +338,10 @@ export class TeamMeter {
   public constructor(private readonly source: TeamMeterSource) {}
 
   /**
-   * The latest reset clearing an entry's window (0 when none): its persisted
-   * baseline is subtracted from later usage. A reset names one window; a `task` window is
-   * per task and needs none.
-   */
+  The latest reset clearing an entry's window (0 when none): its persisted
+  baseline is subtracted from later usage. A reset names one window; a `task` window is
+  per task and needs none.
+  */
   public lastResetMs(entryId: string | undefined, window: TeamWindow): number {
     let latest = 0
     for (const row of this.source.rows()) {
@@ -358,11 +358,11 @@ export class TeamMeter {
   }
 
   /**
-   * An entry's used amount for a cap: ledger rows in the window (task rows
-   * and retention rollups alike, so a spent `lifetime` cap never refills
-   * when old task rows age out) plus open reservations. `estimated` is true
-   * where any of it was measured rather than reported.
-   */
+  An entry's used amount for a cap: ledger rows in the window (task rows
+  and retention rollups alike, so a spent `lifetime` cap never refills
+  when old task rows age out) plus open reservations. `estimated` is true
+  where any of it was measured rather than reported.
+  */
   public used(
     entryId: string,
     cap: { readonly measure: TeamMeasure; readonly window: TeamWindow },
@@ -435,10 +435,10 @@ export interface TeamTotals {
 }
 
 /**
- * Sums rows for a scope (a day, or everything): base tokens and cost, with
- * estimated, hook-added and paid-tool lines apart, so the ledger's totals
- * equal Account & usage's Team totals by construction.
- */
+Sums rows for a scope (a day, or everything): base tokens and cost, with
+estimated, hook-added and paid-tool lines apart, so the ledger's totals
+equal Account & usage's Team totals by construction.
+*/
 export function sumTeamTotals(
   rows: readonly TeamMeterRow[],
   scope: { readonly dayKey: string | undefined },
@@ -470,10 +470,10 @@ export function sumTeamTotals(
 }
 
 /** Publish the request's claim, then check the complete durable scope.
- * A local preflight avoids known failures; it is never the final admission.
- * Call the returned check synchronously at dispatch, with no await in between;
- * if it refuses, refund the nonsent claim. Limits are read anew on every check.
- */
+A local preflight avoids known failures; it is never the final admission.
+Call the returned check synchronously at dispatch, with no await in between;
+if it refuses, refund the nonsent claim. Limits are read anew on every check.
+*/
 export async function checkAndReserve(
   meter: TeamMeter,
   journal: TeamReservationJournal,

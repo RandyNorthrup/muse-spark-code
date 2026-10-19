@@ -158,7 +158,7 @@ describe('doc stdin: every emitted key is documented, with the documented type',
     if (first === undefined) return []
     const { format, flavor } = formatOf(first)
     const row = rowOf(format, flavor, first.event)
-    return row === undefined ? [] : [{ key, fixtures, format, row }]
+    return row === undefined ? [] : { key, fixtures, format, row }
   })
 
   it.each(cases)('$key', ({ fixtures, format, row }) => {

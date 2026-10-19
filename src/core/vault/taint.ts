@@ -30,10 +30,10 @@ export function vaultProvenance(source: VaultProvenance['source'], label: string
 }
 
 /**
- * Model API snapshots only the context of this request. Muse Code cannot
- * expose that context, so observations remain tainted until the session ends.
- * Returned snapshots are copies: an approval or tool cannot clear the owner.
- */
+Model API snapshots only the context of this request. Muse Code cannot
+expose that context, so observations remain tainted until the session ends.
+Returned snapshots are copies: an approval or tool cannot clear the owner.
+*/
 export class VaultTaintSession {
   private observed: VaultTaint = { tainted: false, reasons: [] }
   private request: VaultTaint = { tainted: false, reasons: [] }

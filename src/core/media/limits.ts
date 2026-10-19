@@ -96,11 +96,11 @@ export async function sniffMedia(source: MediaSource): Promise<SniffMediaResult>
 }
 
 /**
- * Size/duration/format admission; no provider or paid request occurs here.
- * D121: an absent or 0 size bound admits any size — the provider refuses
- * what it cannot take, and the modality gate still enforces the model's
- * own record.
- */
+Size/duration/format admission; no provider or paid request occurs here.
+D121: an absent or 0 size bound admits any size — the provider refuses
+what it cannot take, and the modality gate still enforces the model's
+own record.
+*/
 export function checkMediaLimits(info: MediaFileInfo, limits: MediaLimits = {}): MediaLimitResult {
   const maximum = limits.maxUploadBytes
   if (

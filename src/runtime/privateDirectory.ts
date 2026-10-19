@@ -53,10 +53,10 @@ export interface PrivateRoot {
   readonly path: string
   readonly identity: FileIdentity
   /**
-   * This opening's owner token: every folder made in the root carries it,
-   * and `privateRootLease.ts`'s lease of the same name says whether its owner
-   * still lives (RVMEDIAV3 3).
-   */
+  This opening's owner token: every folder made in the root carries it,
+  and `privateRootLease.ts`'s lease of the same name says whether its owner
+  still lives (RVMEDIAV3 3).
+  */
   readonly owner: string
 }
 
@@ -100,10 +100,10 @@ const windowsAclReader: WindowsAclReader = {
 }
 
 /**
- * Windows: the owner is the current user, SYSTEM or Administrators. On the
- * root nobody else holds any grant; on its parent nobody else holds a
- * write-class grant (reading, as some sandbox groups do, is allowed).
- */
+Windows: the owner is the current user, SYSTEM or Administrators. On the
+root nobody else holds any grant; on its parent nobody else holds a
+write-class grant (reading, as some sandbox groups do, is allowed).
+*/
 async function verifyWindows(
   directory: string,
   reader: WindowsAclReader,
@@ -153,18 +153,18 @@ async function verifyPosixRoot(root: string, info: BigIntStats): Promise<void> {
 }
 
 /**
- * The private root for conversion folders, verified once: on Windows its
- * owner and grants are only the user's, SYSTEM's and Administrators'; on
- * POSIX it is this user's with mode 0700 or stricter, and every folder above
- * it is root's or this user's and writable by no one else (unless sticky).
- *
- * `directory` is a dedicated folder, normally `media` in the host's own
- * per-user storage. When it is absent, its parent is checked first (Windows:
- * no other principal holds a write-class grant; POSIX: the ancestor rule),
- * then the folder is made and made owner-only before any check passes it.
- * An existing folder is only checked, never repaired. Any failure throws
- * `PrivateRootRefused`; nothing falls back to a temporary folder.
- */
+The private root for conversion folders, verified once: on Windows its
+owner and grants are only the user's, SYSTEM's and Administrators'; on
+POSIX it is this user's with mode 0700 or stricter, and every folder above
+it is root's or this user's and writable by no one else (unless sticky).
+
+`directory` is a dedicated folder, normally `media` in the host's own
+per-user storage. When it is absent, its parent is checked first (Windows:
+no other principal holds a write-class grant; POSIX: the ancestor rule),
+then the folder is made and made owner-only before any check passes it.
+An existing folder is only checked, never repaired. Any failure throws
+`PrivateRootRefused`; nothing falls back to a temporary folder.
+*/
 export async function openPrivateRoot(
   directory: string,
   options: PrivateRootOptions = {},
@@ -240,15 +240,15 @@ async function currentRoot(root: PrivateRoot): Promise<BigIntStats> {
 }
 
 /**
- * A fresh folder that only this user can open, for one conversion, inside a
- * verified root; the caller owns its removal. Its name carries the root's
- * owner token (`muse-media-<owner>-<random>`), so a folder a crash left
- * behind is reclaimed once its owner is gone (RVMEDIAV3 3). The root's
- * identity is checked again first. The folder never claims an existing one (an exclusive mkdir),
- * inherits the root's private DACL, is secured owner-only and read back, and
- * is empty when returned. Any failure removes what this call made and throws
- * `PrivateDirectoryRefused`.
- */
+A fresh folder that only this user can open, for one conversion, inside a
+verified root; the caller owns its removal. Its name carries the root's
+owner token (`muse-media-<owner>-<random>`), so a folder a crash left
+behind is reclaimed once its owner is gone (RVMEDIAV3 3). The root's
+identity is checked again first. The folder never claims an existing one (an exclusive mkdir),
+inherits the root's private DACL, is secured owner-only and read back, and
+is empty when returned. Any failure removes what this call made and throws
+`PrivateDirectoryRefused`.
+*/
 export async function createPrivateDirectory(
   root: PrivateRoot,
   options: PrivateDirectoryOptions = {},

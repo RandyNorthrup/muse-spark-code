@@ -18,28 +18,28 @@ import { UI_TEXT } from '../../shared/constants'
 import { holdVaultStartupLock, vaultProcessIdentity } from './posixNative'
 
 /**
- * Decide a contended epoch writer by rule. The caller holds lock-epoch.lock,
- * so no other epoch writer can interleave: a recorded holder that is provably
- * gone (the same native identity evidence the broker lock lane uses) is
- * unlinked so the next round claims fresh; a live, unprovable or
- * unidentified holder is left alone for the caller to wait on. Never deletes
- * what it cannot identify, never leaks EEXIST: 'retry' reclaims at once,
- * 'wait' means try again shortly, and only the caller refuses when its
- * bounded rounds run out (RVCM109JD P2-1).
- *
- * RVCM109JE P2-1: an empty or unparsable record (a publisher killed before
- * its atomic publication by an older build, which wrote the record in place)
- * is retired, but only while the kernel mutex is held — the sole caller
- * holds it — and only when the remnant predates the hold, so a concurrent
- * publication (impossible under the mutex) could never be removed. The same
- * age rule retires the fixed pending temporary first, which also restores
- * the single link a kill between publication and temporary cleanup leaves
- * behind. Empty, partial and valid-but-dead records are all covered.
- */
+Decide a contended epoch writer by rule. The caller holds lock-epoch.lock,
+so no other epoch writer can interleave: a recorded holder that is provably
+gone (the same native identity evidence the broker lock lane uses) is
+unlinked so the next round claims fresh; a live, unprovable or
+unidentified holder is left alone for the caller to wait on. Never deletes
+what it cannot identify, never leaks EEXIST: 'retry' reclaims at once,
+'wait' means try again shortly, and only the caller refuses when its
+bounded rounds run out (RVCM109JD P2-1).
+
+RVCM109JE P2-1: an empty or unparsable record (a publisher killed before
+its atomic publication by an older build, which wrote the record in place)
+is retired, but only while the kernel mutex is held — the sole caller
+holds it — and only when the remnant predates the hold, so a concurrent
+publication (impossible under the mutex) could never be removed. The same
+age rule retires the fixed pending temporary first, which also restores
+the single link a kill between publication and temporary cleanup leaves
+behind. Empty, partial and valid-but-dead records are all covered.
+*/
 /**
- * Only an owner-only non-link single-link file may be retired by these
- * rounds: anything else fails closed with no access, never deleted.
- */
+Only an owner-only non-link single-link file may be retired by these
+rounds: anything else fails closed with no access, never deleted.
+*/
 function assertOwnerOnlyRemnant(sample: Stats): void {
   if (
     sample.isSymbolicLink() ||
@@ -52,12 +52,12 @@ function assertOwnerOnlyRemnant(sample: Stats): void {
 }
 
 /**
- * The per-platform file sampling a settle round needs. POSIX samples the
- * kernel view and unlinks directly under the kernel mutex; Windows samples
- * synchronously and retires only after the relay guard verifies the file.
- * Liveness reads the platform's native identity; a throw means unprovable
- * (fail closed), while undefined means provably gone.
- */
+The per-platform file sampling a settle round needs. POSIX samples the
+kernel view and unlinks directly under the kernel mutex; Windows samples
+synchronously and retires only after the relay guard verifies the file.
+Liveness reads the platform's native identity; a throw means unprovable
+(fail closed), while undefined means provably gone.
+*/
 export interface EpochRemnantPorts {
   readonly files: VaultPrivateFilesPort
   sample(file: string): Promise<Stats> | Stats
@@ -114,9 +114,9 @@ export async function readEpochWriterOwner(
 }
 
 /**
- * A complete record that appeared under the mutex goes back to the rule;
- * anything else stays for the remnant below to retire.
- */
+A complete record that appeared under the mutex goes back to the rule;
+anything else stays for the remnant below to retire.
+*/
 export async function rereadEpochWriter(
   files: Pick<VaultPrivateFilesPort, 'read'>,
   writer: string,
@@ -159,11 +159,11 @@ export async function settleBumpRound(
 }
 
 /**
- * Retire an empty or partial writer record left by a publisher killed before
- * its publication. Only while the kernel mutex is held (the sole caller
- * holds it) and only when the remnant predates the hold: a newer file waits
- * for the bounded rounds instead of being removed.
- */
+Retire an empty or partial writer record left by a publisher killed before
+its publication. Only while the kernel mutex is held (the sole caller
+holds it) and only when the remnant predates the hold: a newer file waits
+for the bounded rounds instead of being removed.
+*/
 async function retireUnparsableWriter(
   ports: EpochRemnantPorts,
   writer: string,
@@ -191,10 +191,10 @@ async function retireUnparsableWriter(
 }
 
 /**
- * Decide one contended epoch writer by rule; shared by the POSIX kernel
- * mutex and the Windows claim-file mutex, which differ only in how they
- * sample and retire files and read native liveness.
- */
+Decide one contended epoch writer by rule; shared by the POSIX kernel
+mutex and the Windows claim-file mutex, which differ only in how they
+sample and retire files and read native liveness.
+*/
 export async function settleEpochWriter(
   ports: EpochRemnantPorts,
   runDirectory: string,
@@ -240,10 +240,10 @@ export async function settleEpochWriter(
 }
 
 /**
- * Drive one epoch bump through contended-writer rounds: a dead holder's
- * record is retired and the bump reclaimed at once, a live holder is
- * awaited briefly, and only exhausted rounds refuse. Never leaks EEXIST.
- */
+Drive one epoch bump through contended-writer rounds: a dead holder's
+record is retired and the bump reclaimed at once, a live holder is
+awaited briefly, and only exhausted rounds refuse. Never leaks EEXIST.
+*/
 export async function runEpochSettleRounds(
   bump: () => Promise<number>,
   settle: () => Promise<'retry' | 'wait'>,
@@ -266,12 +266,12 @@ export const EPOCH_WRITER_SETTLE_ROUNDS = 10
 export const EPOCH_WRITER_SETTLE_WAIT_MS = 50
 
 /**
- * Publish one epoch under the shared kernel mutex. A contender that finds the
- * writer already claimed decides by rule instead of failing EEXIST: a dead
- * holder's record is replaced and the bump proceeds; a live holder is
- * awaited briefly, then refused with the fixed reason. The caller's session
- * survives either way: it retries after a refusal, never an unhandled EEXIST.
- */
+Publish one epoch under the shared kernel mutex. A contender that finds the
+writer already claimed decides by rule instead of failing EEXIST: a dead
+holder's record is replaced and the bump proceeds; a live holder is
+awaited briefly, then refused with the fixed reason. The caller's session
+survives either way: it retries after a refusal, never an unhandled EEXIST.
+*/
 export async function bumpVaultEpoch(
   helper: string,
   runDirectory: string,

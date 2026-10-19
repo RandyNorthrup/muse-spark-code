@@ -26,24 +26,24 @@ import type { ModelApiBackendManagerDeps } from './modelApiBackendManager'
 export type McpPoolFactory = (deps: McpPoolDeps) => McpToolSource
 
 /**
- * What the bundle builds a host from: values and functions of the activation
- * bundle, and nothing compared by identity across the two (M57's audit).
- */
+What the bundle builds a host from: values and functions of the activation
+bundle, and nothing compared by identity across the two (M57's audit).
+*/
 export interface ModelApiBundleDeps {
   /**
-   * The installed table and its language (PLAN.md D33). The bundle's own
-   * `UI_TEXT` starts English; the factory installs these before it builds.
-   */
+  The installed table and its language (PLAN.md D33). The bundle's own
+  `UI_TEXT` starts English; the factory installs these before it builds.
+  */
   readonly uiText: UiText
   readonly uiLocale: string
   readonly client: ModelApiClientDeps
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
   readonly createProviderClient?: (meta: ProviderClient) => Promise<ProviderClient>
   /**
-   * The host's, but for what the bundle makes itself: the client, the hooks,
-   * the MCP pool and audio preparation, which is the bundle's own binding and
-   * never a caller's (RVMEDIAW2 2).
-   */
+  The host's, but for what the bundle makes itself: the client, the hooks,
+  the MCP pool and audio preparation, which is the bundle's own binding and
+  never a caller's (RVMEDIAW2 2).
+  */
   readonly host: Omit<
     ModelApiHostDeps,
     'client' | 'loadHooks' | 'mcpServers' | 'prepareAudioMessage'
@@ -80,10 +80,10 @@ export interface ModelApiBundle {
 }
 
 /**
- * Whether a required module is the bundle: its factory is a function. The
- * factory's signature is taken on trust (PLAN.md §8): both bundles are built
- * from one source tree by one `npm run build` and ship in one package.
- */
+Whether a required module is the bundle: its factory is a function. The
+factory's signature is taken on trust (PLAN.md §8): both bundles are built
+from one source tree by one `npm run build` and ship in one package.
+*/
 export function isModelApiBundle(value: unknown): value is ModelApiBundle {
   return (
     typeof value === 'object' &&

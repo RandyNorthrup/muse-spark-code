@@ -15,10 +15,10 @@ import type { ReportStoreAdapter } from './stores'
 export const OPEN_VSX_HOST = 'open-vsx.org'
 
 /**
- * The default Open VSX channel adapter: extension record, `version` only.
- * The publisher and name come from the workspace manifest, never a
- * hard-coded extension.
- */
+The default Open VSX channel adapter: extension record, `version` only.
+The publisher and name come from the workspace manifest, never a
+hard-coded extension.
+*/
 export function openVsxStoreAdapter(publisher: string, name: string): ReportStoreAdapter {
   const url = `https://${OPEN_VSX_HOST}/api/${encodeURIComponent(publisher)}/${encodeURIComponent(name)}`
   return {

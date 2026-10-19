@@ -197,10 +197,10 @@ function connectDestination(request: IncomingMessage): Destination | undefined {
 }
 
 /**
- * A head's fields as passed on, either way: no hop-by-hop field, none a
- * Connection field nominates, no credential and no sign-in challenge; then
- * `Connection: close`. Whether a challenge was taken out.
- */
+A head's fields as passed on, either way: no hop-by-hop field, none a
+Connection field nominates, no credential and no sign-in challenge; then
+`Connection: close`. Whether a challenge was taken out.
+*/
 function cleanHead(raw: readonly string[]): {
   readonly head: string[]
   readonly stripped: boolean
@@ -226,9 +226,9 @@ const NODE_LOOKUP: ProxyLookup = async (host) => {
 }
 
 /**
- * Starts the check's proxy on 127.0.0.1, ready before the browser is
- * spawned. Its listener and every connection close with `close()`.
- */
+Starts the check's proxy on 127.0.0.1, ready before the browser is
+spawned. Its listener and every connection close with `close()`.
+*/
 export async function startCheckProxy(
   scope: FrozenScope,
   lookupName: ProxyLookup = NODE_LOOKUP,

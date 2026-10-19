@@ -64,7 +64,7 @@ describe('scanHeaders', () => {
 # SPDX-License-Identifier: MIT
 value = 1
 `
-    const bom = '﻿// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\n'
+    const bom = '\u{FEFF}// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\n'
     const result = scanHeaders(
       snapshotFrom({ 'src/tool.py': python, 'src/bom.ts': bom }),
       'required',

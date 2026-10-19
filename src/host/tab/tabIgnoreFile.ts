@@ -5,10 +5,10 @@
 import { statSync } from 'node:fs'
 
 /**
- * Whether an ignore file exists at an absolute path: missing reads absent,
- * anything else that cannot be proven absent reads present, so a broken
- * check denies (never widens) what Tab reads.
- */
+Whether an ignore file exists at an absolute path: missing reads absent,
+anything else that cannot be proven absent reads present, so a broken
+check denies (never widens) what Tab reads.
+*/
 export function hasIgnoreFile(absolutePath: string): boolean {
   try {
     return statSync(absolutePath).isFile()

@@ -106,17 +106,12 @@ describe('Windows team command resolution (real resolver and payload builder)', 
     String.raw`C:\Tools\worker.exe`,
     String.raw`C:\work\repo\bin\tool.exe`,
   ])
-  function targetOf(
-    command: string,
-    args: readonly string[],
-    pathValue: string,
-    extraEnv: NodeJS.ProcessEnv = {},
-  ) {
+  function targetOf(command: string, args: readonly string[], pathValue: string) {
     return resolveWindowsTeamCommand(
       command,
       args,
       WORKSPACE,
-      { PATH: pathValue, ...extraEnv },
+      { PATH: pathValue },
       {
         systemRoot: SYSTEM_ROOT,
         isExistingFile: (file: string) => files.has(file),

@@ -39,10 +39,10 @@ export interface VoiceBatchSeamDeps extends Pick<
   /** D78's exact daily reservation. Absent: nothing billed outside a request can be admitted. */
   readonly reservePaidExtra: ReservePaidExtra | undefined
   /**
-   * M82: the owner conversation's limit and running total (D121), for the
-   * batch cost to be checked against and charged to. Absent: this turn has
-   * no conversation-cap path, so only the daily ledger admits.
-   */
+  M82: the owner conversation's limit and running total (D121), for the
+  batch cost to be checked against and charged to. Absent: this turn has
+  no conversation-cap path, so only the daily ledger admits.
+  */
   readonly session:
     | {
         readonly capUsd: () => UsdAmount
@@ -69,10 +69,10 @@ async function refund(claims: readonly (PaidExtraClaim | SessionAdmission)[]): P
 }
 
 /**
- * The batch's bounded cost against what is left of the owner's cap (D121):
- * a request whose cost would pass the cap is not sent, with the same
- * sentence the request path says. Nothing is held.
- */
+The batch's bounded cost against what is left of the owner's cap (D121):
+a request whose cost would pass the cap is not sent, with the same
+sentence the request path says. Nothing is held.
+*/
 function checkSessionFits(
   session: NonNullable<VoiceBatchSeamDeps['session']>,
   amount: UsdAmount,

@@ -5,17 +5,17 @@ import type { ConfirmedModelRequest, ProviderClient, ResponseAttemptGuard } from
 type RepairClient = Pick<ProviderClient, 'streamResponse'>
 
 /**
- * One unretried stream for structured-repair flows (the hook model, the auto
- * reviewer): the call names no transport retries, so a failure surfaces to
- * repair's own admission and settlement instead of retrying inside the
- * transport (owner 2026-10-16: only a call that names a ceiling stops at
- * it; these name zero).
- */
+One unretried stream for structured-repair flows (the hook model, the auto
+reviewer): the call names no transport retries, so a failure surfaces to
+repair's own admission and settlement instead of retrying inside the
+transport (owner 2026-10-16: only a call that names a ceiling stops at
+it; these name zero).
+*/
 /**
- * D121: no default deadline of ours — an absent timeout runs the attempt
- * until it ends or the caller stops it; only a caller that names a ceiling
- * still bounds it.
- */
+D121: no default deadline of ours — an absent timeout runs the attempt
+until it ends or the caller stops it; only a caller that names a ceiling
+still bounds it.
+*/
 export function streamRepairAttempt(
   client: RepairClient,
   body: CreateResponseBody,

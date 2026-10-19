@@ -130,18 +130,18 @@ export interface ImportIo extends RealPathIo {
   /** The file, unread when it is over `maxBytes`; throws on a failure other than "not there". */
   readFile(absolutePath: string, maxBytes: number, projectRoot?: string): Promise<ImportRead>
   /**
-   * Safe git metadata query; false outside a repository, throws if
-   * classification fails. `signal` ends a stalled probe (PR #214 review):
-   * the probes name no deadline of their own, and the window closing
-   * must still reach the child.
-   */
+  Safe git metadata query; false outside a repository, throws if
+  classification fails. `signal` ends a stalled probe (PR #214 review):
+  the probes name no deadline of their own, and the window closing
+  must still reach the child.
+  */
   isIgnored(absolutePath: string, workspaceRoot: string, signal?: AbortSignal): Promise<boolean>
   /** The directory's entries; undefined when it is missing; throws on any other failure. */
   listDirectory(absolutePath: string): Promise<readonly ImportDirEntry[] | undefined>
   /**
-   * Whether the file has an execute bit (Cline v1's on switch off Windows);
-   * without this, no Cline script there counts as on.
-   */
+  Whether the file has an execute bit (Cline v1's on switch off Windows);
+  without this, no Cline script there counts as on.
+  */
   isExecutable?(absolutePath: string): Promise<boolean>
 }
 
@@ -163,9 +163,9 @@ export interface ImportScanInput {
   readonly isWorkspaceTrusted: () => boolean
   readonly isActive: () => boolean
   /**
-   * Ends the scan's git probes when it aborts (PR #214 review): the window
-   * closing. Absent, the probes wait for git's answer.
-   */
+  Ends the scan's git probes when it aborts (PR #214 review): the window
+  closing. Absent, the probes wait for git's answer.
+  */
   readonly signal?: AbortSignal
   readonly sources: readonly AgentImportSource[]
 }
@@ -241,11 +241,11 @@ export interface ImportScan {
 }
 
 /**
- * Where the copied entries go: Muse Code's settings file, the project's
- * hooks file, or the extension's own `spark-hooks.json` (M91, PLAN.md D70)
- * beside the settings file and in the project. Foreign formats convert only
- * into the spark files, with a `format` tag for lane P's adapters.
- */
+Where the copied entries go: Muse Code's settings file, the project's
+hooks file, or the extension's own `spark-hooks.json` (M91, PLAN.md D70)
+beside the settings file and in the project. Foreign formats convert only
+into the spark files, with a `format` tag for lane P's adapters.
+*/
 export type ImportCopyFile = 'settings' | 'hooks' | 'sparkUser' | 'sparkProject'
 
 interface Scan {
@@ -257,10 +257,10 @@ interface Scan {
   /** Per id base, the first suffix not yet tried: duplicate labels register in O(1) amortized. */
   readonly nextSuffix: Map<string, number>
   /**
-   * Each source file read once per scan: a source's switches (Claude's and
-   * Copilot's `disableAllHooks`, Gemini's `hooksConfig`, Codex's
-   * `[features]`) are read before its hooks, from the same text.
-   */
+  Each source file read once per scan: a source's switches (Claude's and
+  Copilot's `disableAllHooks`, Gemini's `hooksConfig`, Codex's
+  `[features]`) are read before its hooks, from the same text.
+  */
   readonly reads: Map<string, Promise<SourceRead>>
   readonly unreadableHookSources: Set<AgentImportSource>
 }
@@ -717,10 +717,10 @@ async function collectHooks(
 }
 
 /**
- * One read of a Codex `config.toml` for its servers, its `notify` program
- * and its inline `hooks` table: a file that is not TOML warns once, whatever
- * was wanted from it.
- */
+One read of a Codex `config.toml` for its servers, its `notify` program
+and its inline `hooks` table: a file that is not TOML warns once, whatever
+was wanted from it.
+*/
 async function collectCodexConfigFile(
   scan: Scan,
   origin: ImportOrigin,
@@ -837,10 +837,10 @@ async function switchTexts(
 }
 
 /**
- * Gemini's switches over every settings file read: `hooksConfig` off in any
- * one, or a name disabled in any one, keeps those hooks off. Gemini merges
- * user and project settings, and an import is never more on than its source.
- */
+Gemini's switches over every settings file read: `hooksConfig` off in any
+one, or a name disabled in any one, keeps those hooks off. Gemini merges
+user and project settings, and an import is never more on than its source.
+*/
 function mergedGeminiSwitches(texts: readonly string[]): HookSwitches {
   const switches = texts.map((text) => readGeminiSwitches(text))
   return {
@@ -903,11 +903,11 @@ async function collectCursorHooks(scan: Scan, origin: ImportOrigin, file: string
 }
 
 /**
- * One Copilot-location hooks file or inline settings block. Each entry
- * keeps its contract: a VS Code Local file (PascalCase, no `version`) or a
- * Copilot CLI one. `disableAllHooks` in the file, or in a settings file of
- * the same scan (`isOff`), keeps every entry off.
- */
+One Copilot-location hooks file or inline settings block. Each entry
+keeps its contract: a VS Code Local file (PascalCase, no `version`) or a
+Copilot CLI one. `disableAllHooks` in the file, or in a settings file of
+the same scan (`isOff`), keeps every entry off.
+*/
 async function collectCopilotHooks(
   scan: Scan,
   origin: ImportOrigin,
@@ -1056,13 +1056,13 @@ async function isInOpenWorkspace(scan: Scan, absolutePath: string): Promise<bool
 }
 
 /**
- * A Cline script checked one by one, as the JSON readers check a file: its
- * canonical path confined to its scope behind the live trust gate, a
- * regular file (no link beneath a project root), and a personal script never
- * one that leads into a folder open in the window (a personal hook would run
- * that project's code everywhere). `refused` is offered with its reason;
- * `skip` is missing or already warned.
- */
+A Cline script checked one by one, as the JSON readers check a file: its
+canonical path confined to its scope behind the live trust gate, a
+regular file (no link beneath a project root), and a personal script never
+one that leads into a folder open in the window (a personal hook would run
+that project's code everywhere). `refused` is offered with its reason;
+`skip` is missing or already warned.
+*/
 async function checkClineScript(
   scan: Scan,
   file: string,
@@ -1232,12 +1232,12 @@ function isPlainValue(value: string | undefined): value is string {
 }
 
 /**
- * The agent format M76 reads (`<id>/AGENT.md`, PLAN.md D49), checked here on
- * the bytes that would be written, so a foreign restriction the format does
- * not carry never becomes a broader agent: a file with an unknown field, an
- * unsupported value or a tool this extension does not have is shown, not
- * written. M76's own parser replaces this check once that milestone lands.
- */
+The agent format M76 reads (`<id>/AGENT.md`, PLAN.md D49), checked here on
+the bytes that would be written, so a foreign restriction the format does
+not carry never becomes a broader agent: a file with an unknown field, an
+unsupported value or a tool this extension does not have is shown, not
+written. M76's own parser replaces this check once that milestone lands.
+*/
 function isImportableAgent(text: string): boolean {
   if (TEXT_ENCODER.encode(text).length > AGENT_FILE_MAX_BYTES || hasUnsupportedHeader(text)) {
     return false
@@ -1797,9 +1797,9 @@ async function scanOpenCode(scan: Scan, isProjectRead: boolean): Promise<void> {
 }
 
 /**
- * Whether the repository's folders are read: a trusted workspace that is
- * not the home folder itself (whose tool folders are the user's own).
- */
+Whether the repository's folders are read: a trusted workspace that is
+not the home folder itself (whose tool folders are the user's own).
+*/
 async function shouldReadProject(scan: Scan): Promise<boolean> {
   const { input } = scan
   if (!input.isActive() || !input.isWorkspaceTrusted() || input.workspaceRoot === undefined) {
@@ -1818,9 +1818,9 @@ async function shouldReadProject(scan: Scan): Promise<boolean> {
 }
 
 /**
- * Every entry the chosen tools hold, importable or not: what cannot be
- * imported is a candidate too, with its reason, so the user sees it.
- */
+Every entry the chosen tools hold, importable or not: what cannot be
+imported is a candidate too, with its reason, so the user sees it.
+*/
 export async function scanAgentImports(input: ImportScanInput): Promise<ImportScan> {
   const scan: Scan = {
     input,
@@ -1879,11 +1879,11 @@ export async function scanAgentImports(input: ImportScanInput): Promise<ImportSc
 // --- Plan ---
 
 /**
- * A folder as the plan saw it: its canonical path and its device and file
- * number. The approval wait can be long, so a write compares the folder
- * with this again (a path a link now leads elsewhere, or a folder replaced
- * by another, is not the folder that was previewed).
- */
+A folder as the plan saw it: its canonical path and its device and file
+number. The approval wait can be long, so a write compares the folder
+with this again (a path a link now leads elsewhere, or a folder replaced
+by another, is not the folder that was previewed).
+*/
 export interface ImportRootIdentity {
   readonly canonical: string
   /** Empty when the file system gives no file number: the canonical path alone is compared. */
@@ -2061,9 +2061,9 @@ function fileRefusal(file: ImportPlanFile): 'outside' | 'unreadable' | undefined
 }
 
 /**
- * Why a hook copy's file refuses it; spark files carry no pre-read state,
- * so their standing is checked live when the copy is offered.
- */
+Why a hook copy's file refuses it; spark files carry no pre-read state,
+so their standing is checked live when the copy is offered.
+*/
 function hookCopyRefusal(
   state: ImportPlanState,
   file: ImportCopyFile,
@@ -2434,11 +2434,11 @@ function copiesOf(builder: PlanBuilder): readonly ImportCopy[] {
 }
 
 /**
- * The accepted selection as file writes and copy texts. A destination that
- * exists is skipped, never replaced; two checked entries with one
- * destination keep the first; a rules section already in `AGENTS.md` is
- * not added again; a server Muse Code already defines is left alone.
- */
+The accepted selection as file writes and copy texts. A destination that
+exists is skipped, never replaced; two checked entries with one
+destination keep the first; a rules section already in `AGENTS.md` is
+not added again; a server Muse Code already defines is left alone.
+*/
 export async function planImportApply(
   selected: readonly ImportCandidate[],
   destinations: ImportDestinations,
@@ -2512,9 +2512,9 @@ export interface ImportWriter extends RealPathIo {
   /** The folder's identity now: its canonical path and its file number. */
   identifyRoot(absolutePath: string): Promise<ImportRootIdentity>
   /**
-   * Refuses a root that is no longer the folder the plan saw, and links or
-   * junctions beneath it, the final path included.
-   */
+  Refuses a root that is no longer the folder the plan saw, and links or
+  junctions beneath it, the final path included.
+  */
   assertSafePath(absolutePath: string, project: ImportProjectRoot): Promise<void>
   /** Creates the file and its folders; 'exists' when anything is already at the path. */
   createFile(
@@ -2549,10 +2549,10 @@ export type ImportWriteNotice = (file: EditedFile) => (wasWritten: boolean) => v
 
 export interface ImportApplyOptions {
   /**
-   * Throws once a write must not publish: the window is closing, trust was
-   * revoked, or the checkpoint lease is gone. Called again before every
-   * native step that can publish.
-   */
+  Throws once a write must not publish: the window is closing, trust was
+  revoked, or the checkpoint lease is gone. Called again before every
+  native step that can publish.
+  */
   readonly beforeWrite?: (isProject: boolean) => void
   readonly beginProjectEdit?: ImportWriteNotice
   /** Refuses a project publication in checkpoint storage (M86); records no bytes. */
@@ -2604,10 +2604,10 @@ async function fileWithinRoot(
 }
 
 /**
- * One native publication behind its storage and window guards, with the
- * notice completed either way and counting only a write. Explicit imports
- * remain outside the model's recorder (M86).
- */
+One native publication behind its storage and window guards, with the
+notice completed either way and counting only a write. Explicit imports
+remain outside the model's recorder (M86).
+*/
 async function wasPublished(
   write: ImportWrite,
   file: EditedFile,
@@ -2647,11 +2647,11 @@ async function wasPublished(
 }
 
 /**
- * The sections not yet in the rules file, appended while the file stays
- * within the size Muse Code loads; the rest are skipped. The file is read
- * again here, so a section the user added meanwhile is not doubled (a second
- * import in this window waits for this one, `agentImportCommands.ts`).
- */
+The sections not yet in the rules file, appended while the file stays
+within the size Muse Code loads; the rest are skipped. The file is read
+again here, so a section the user added meanwhile is not doubled (a second
+import in this window waits for this one, `agentImportCommands.ts`).
+*/
 async function appendSections(
   write: ImportWrite,
   project: ImportProjectRoot | undefined,
@@ -2717,11 +2717,11 @@ async function createOne(
 }
 
 /**
- * The plan's writes, each destination checked against its root again at
- * the moment of writing (a link planted since the preview, or a root that is
- * no longer the previewed folder, is refused), a file created only where
- * nothing is, and rules sections appended.
- */
+The plan's writes, each destination checked against its root again at
+the moment of writing (a link planted since the preview, or a root that is
+no longer the previewed folder, is refused), a file created only where
+nothing is, and rules sections appended.
+*/
 export async function applyImportWrites(
   writes: readonly ImportWrite[],
   writer: ImportWriter,

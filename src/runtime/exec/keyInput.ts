@@ -13,10 +13,10 @@ export function memorySecretStore(key: string): MemorySecretStore {
 }
 
 /**
- * Headless secrets held only in memory: each account's key, cleared when
- * the run ends. The map is exactly what the caller gave: a provider run
- * holds its provider's account, never the Meta key's alongside it.
- */
+Headless secrets held only in memory: each account's key, cleared when
+the run ends. The map is exactly what the caller gave: a provider run
+holds its provider's account, never the Meta key's alongside it.
+*/
 export function memorySecretStoreFor(entries: Readonly<Record<string, string>>): MemorySecretStore {
   const held = new Map(Object.entries(entries))
   return {
@@ -107,9 +107,9 @@ function readBytes(
 }
 
 /**
- * One bounded, wiped UTF-8 line from stdin. One CRLF line ending is
- * accepted; any other white space or CR stays part of the value.
- */
+One bounded, wiped UTF-8 line from stdin. One CRLF line ending is
+accepted; any other white space or CR stays part of the value.
+*/
 async function readRawKeyLine(
   input: Readable,
   signal: AbortSignal,
@@ -162,9 +162,9 @@ export async function readKeyLine(
 }
 
 /**
- * Provider keys use the same bounded input and cleanup as Meta. Any
- * non-blank value is accepted: the provider judges it, never its shape.
- */
+Provider keys use the same bounded input and cleanup as Meta. Any
+non-blank value is accepted: the provider judges it, never its shape.
+*/
 export async function readProviderKeyLine(
   input: Readable,
   signal: AbortSignal,
@@ -176,10 +176,10 @@ export async function readProviderKeyLine(
 }
 
 /**
- * One sentence for each failed provider-key stdin read. Every caller that
- * turns a failed stdin key read into words shares this mapping, so a cause
- * is never answered with a sentence that is false for it.
- */
+One sentence for each failed provider-key stdin read. Every caller that
+turns a failed stdin key read into words shares this mapping, so a cause
+is never answered with a sentence that is false for it.
+*/
 export function providerKeyFailureText(reason: 'tty' | 'empty' | 'invalid' | 'tooLong'): string {
   switch (reason) {
     case 'tty': {

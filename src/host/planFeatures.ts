@@ -38,10 +38,10 @@ const STAGE_NAME = new RegExp(
 )
 
 /**
- * A folder's entries by kind, a link or junction reported as neither file
- * nor folder; none when the folder does not exist. Anything else (a file
- * where the folder should be) rejects, so it is not taken for "no plans".
- */
+A folder's entries by kind, a link or junction reported as neither file
+nor folder; none when the folder does not exist. Anything else (a file
+where the folder should be) rejects, so it is not taken for "no plans".
+*/
 async function listPlanEntries(absolutePath: string): Promise<readonly PlanDirectoryEntry[]> {
   try {
     return await entriesByKind(absolutePath)

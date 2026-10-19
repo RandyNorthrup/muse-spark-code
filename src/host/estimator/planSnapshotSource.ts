@@ -72,8 +72,8 @@ export interface PlanSnapshotSourceDeps {
 }
 
 /** Installs the caller's language table in the snapshot bundle: each bundle
- * keeps its own installed-language state, so the lazy loader calls this
- * with its table before the first snapshot reads it. */
+keeps its own installed-language state, so the lazy loader calls this
+with its table before the first snapshot reads it. */
 export function installPlanSnapshotText(table: UiText, locale: string): void {
   setUiText(table, locale)
 }
@@ -272,9 +272,9 @@ export interface PlanCheckSourceDeps {
 }
 
 /** The whole plan's estimator problems, evidence-free: no git, no `gh`, no
- * network. Reports every duplicate, malformed Starts cell, unknown
- * prerequisite, unknown rig and unknown release member; empty means every
- * goal is forecastable. */
+network. Reports every duplicate, malformed Starts cell, unknown
+prerequisite, unknown rig and unknown release member; empty means every
+goal is forecastable. */
 export function createPlanCheckSource(
   deps: PlanCheckSourceDeps,
 ): (signal?: AbortSignal) => Promise<string[]> {

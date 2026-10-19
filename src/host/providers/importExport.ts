@@ -73,10 +73,10 @@ function parseDocumentText(
 }
 
 /**
- * The non-secret configuration as JSON for a team. Credentials are never
- * in it: only what `ProvidersStore.list` holds (lane P's file holds no
- * secret either, D74).
- */
+The non-secret configuration as JSON for a team. Credentials are never
+in it: only what `ProvidersStore.list` holds (lane P's file holds no
+secret either, D74).
+*/
 export async function exportProviders(store: ProvidersStore): Promise<string> {
   const entries = await store.list()
   const document: ProvidersDocument = {
@@ -111,10 +111,10 @@ function isSameEntry(left: ProviderEntry, right: ProviderEntry): boolean {
 }
 
 /**
- * Previews an import as a diff against the current file. Throws on an
- * unreadable file, an unknown shape, or a refused address: an import never
- * skips the address check (M95 acceptance 6, Tests).
- */
+Previews an import as a diff against the current file. Throws on an
+unreadable file, an unknown shape, or a refused address: an import never
+skips the address check (M95 acceptance 6, Tests).
+*/
 export async function previewProvidersImport(
   current: readonly ProviderEntry[],
   text: string,
@@ -157,17 +157,17 @@ export interface ProvidersImportDeps {
   readonly policy: AddressPolicy
   readonly presetAddress?: (preset: string) => string | undefined
   /**
-   * Shows the preview (every address, every "needs a key") and asks to go
-   * on. False, or a dismissal, imports nothing.
-   */
+  Shows the preview (every address, every "needs a key") and asks to go
+  on. False, or a dismissal, imports nothing.
+  */
   readonly confirm: (preview: ImportPreview) => Promise<boolean>
 }
 
 /**
- * Imports a confirmed file, replacing the whole configuration. Returns the
- * imported providers' count; an unconfirmed, unreadable or refused import
- * writes nothing.
- */
+Imports a confirmed file, replacing the whole configuration. Returns the
+imported providers' count; an unconfirmed, unreadable or refused import
+writes nothing.
+*/
 export async function importProviders(deps: ProvidersImportDeps, text: string): Promise<number> {
   const document = parseDocumentText(text, deps.presetAddress)
   const current = await deps.store.list()

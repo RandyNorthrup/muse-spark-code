@@ -15,10 +15,10 @@ export interface PlaybookSurfaceDeps {
 }
 
 /** The journal-backed settings/record port for user-initiated surfaces (the
- * CLI, ACP local commands, the panel settings page once mounted). Actor and
- * time come from this trusted context, never from the request; P re-checks
- * authority on every change. Wire this factory only to surfaces the person
- * operates; a model turn never receives it. */
+CLI, ACP local commands, the panel settings page once mounted). Actor and
+time come from this trusted context, never from the request; P re-checks
+authority on every change. Wire this factory only to surfaces the person
+operates; a model turn never receives it. */
 export function createPlaybookSurface(deps: PlaybookSurfaceDeps): PlaybookSurfacePort {
   const journal = new FilePlaybookJournal(deps.agentDataFolder, deps.workspaceFolder)
   const policy = new OrchestratorPlaybook({

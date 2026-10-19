@@ -53,45 +53,45 @@ const worktreeRecordSchema = z.object({
   /** Someone else's pull request: held until the user confirms trust in the card. */
   isHeld: z.boolean(),
   /**
-   * Epoch ms of the user's confirmation in the held-worktree card: the only
-   * thing that lets a window under the held folder go.
-   */
+  Epoch ms of the user's confirmation in the held-worktree card: the only
+  thing that lets a window under the held folder go.
+  */
   trustConfirmedAt: z.optional(z.number()),
   /**
-   * A pull request checkout recorded before its folder exists and not yet
-   * finished: its folder is never offered as a checkout, even after a crash.
-   */
+  A pull request checkout recorded before its folder exists and not yet
+  finished: its folder is never offered as a checkout, even after a crash.
+  */
   isCheckoutPending: z.optional(z.boolean()),
   /**
-   * The per-folder mutation counter (M123, PLAN.md D104): every record
-   * mutation bumps it, so a writer holding an older copy detects it lost
-   * and re-reads instead of overwriting. Absent on records an earlier
-   * version wrote; those read as revision 0.
-   */
+  The per-folder mutation counter (M123, PLAN.md D104): every record
+  mutation bumps it, so a writer holding an older copy detects it lost
+  and re-reads instead of overwriting. Absent on records an earlier
+  version wrote; those read as revision 0.
+  */
   revision: z.optional(z.number()),
   /**
-   * The runtime checkout this record names (M123): a random id made at
-   * reservation. A replacement checkout gets a new one, so a trust card
-   * confirmed for the old checkout never matches the new one.
-   */
+  The runtime checkout this record names (M123): a random id made at
+  reservation. A replacement checkout gets a new one, so a trust card
+  confirmed for the old checkout never matches the new one.
+  */
   checkoutId: z.optional(z.string()),
   /**
-   * The finished worktree folder's identity (`dev:ino:birth`, links
-   * resolved), sampled when the checkout completed: trust binds to that
-   * very folder, never to one made again at the same path (the birth time
-   * tells it apart where an inode number is reused).
-   */
+  The finished worktree folder's identity (`dev:ino:birth`, links
+  resolved), sampled when the checkout completed: trust binds to that
+  very folder, never to one made again at the same path (the birth time
+  tells it apart where an inode number is reused).
+  */
   folderIdentity: z.optional(z.string()),
   /**
-   * The fence of the records lease hold that last wrote this record (M123,
-   * src/core/locks/fileLease.ts): a checkout's reservation names it, so any
-   * other writer's change to the record is seen as a change.
-   */
+  The fence of the records lease hold that last wrote this record (M123,
+  src/core/locks/fileLease.ts): a checkout's reservation names it, so any
+  other writer's change to the record is seen as a change.
+  */
   fence: z.optional(z.number()),
   /**
-   * Who runs a pending checkout: a process that is gone leaves it to be
-   * taken over. Linux births are clock ticks of the boot `bootId` names.
-   */
+  Who runs a pending checkout: a process that is gone leaves it to be
+  taken over. Linux births are clock ticks of the boot `bootId` names.
+  */
   pendingOwner: z.optional(
     z.object({
       host: z.string(),
@@ -112,9 +112,9 @@ const registrySchema = z.array(worktreeRecordSchema)
 const REPOSITORY_DIGEST_CHARS = 8
 
 /**
- * The records as stored; a value an earlier version or a hand edit left
- * that does not validate reads as none (the hold is by location anyway).
- */
+The records as stored; a value an earlier version or a hand edit left
+that does not validate reads as none (the hold is by location anyway).
+*/
 export function parseWorktreeRegistry(raw: unknown): readonly WorktreeRecord[] {
   const parsed = registrySchema.safeParse(raw ?? [])
   return parsed.success ? parsed.data : []
@@ -170,15 +170,15 @@ export interface WorktreeHold {
 }
 
 /**
- * Whether a window whose root is `root` is held. `roots` and `heldRoots`
- * are the same paths in each spelling the host could read (as given, and
- * resolved through links): any pair that places the root under a held root
- * holds it. Only a record for that worktree whose trust the user confirmed
- * in the card lets it go; no other record does, whatever it says (a branch
- * made from the pull request inside that folder is someone else's code too).
- * The deepest record holding the root decides: a trusted folder above a pull
- * request (the held root itself, say) never lets that pull request go.
- */
+Whether a window whose root is `root` is held. `roots` and `heldRoots`
+are the same paths in each spelling the host could read (as given, and
+resolved through links): any pair that places the root under a held root
+holds it. Only a record for that worktree whose trust the user confirmed
+in the card lets it go; no other record does, whatever it says (a branch
+made from the pull request inside that folder is someone else's code too).
+The deepest record holding the root decides: a trusted folder above a pull
+request (the held root itself, say) never lets that pull request go.
+*/
 export function holdFor(
   roots: readonly string[],
   heldRoots: readonly string[],

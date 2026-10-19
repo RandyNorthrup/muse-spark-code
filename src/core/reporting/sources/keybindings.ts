@@ -50,15 +50,15 @@ export interface AcpCommandEntry {
 }
 
 /**
- * ACP's static local slash commands: the names `refreshCommands`
- * (`src/acp/agent.ts`) announces, with the port that gates each one.
- * Shared names come from the same constants the agent reads; the rest
- * match that table's own entries, and the parity test reads that table
- * back, so a new registrar entry fails there until the report lists it.
- * Installed skills add dynamic commands per session, so they are not
- * listed. `/resources resume` and `/usage resources` are argument forms
- * of `resources` and `usage`, not commands of their own.
- */
+ACP's static local slash commands: the names `refreshCommands`
+(`src/acp/agent.ts`) announces, with the port that gates each one.
+Shared names come from the same constants the agent reads; the rest
+match that table's own entries, and the parity test reads that table
+back, so a new registrar entry fails there until the report lists it.
+Installed skills add dynamic commands per session, so they are not
+listed. `/resources resume` and `/usage resources` are argument forms
+of `resources` and `usage`, not commands of their own.
+*/
 export const ACP_COMMAND_FACTS: readonly AcpCommandEntry[] = [
   { name: 'help' },
   { name: 'share', when: 'sharing' },

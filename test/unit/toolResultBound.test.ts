@@ -38,11 +38,11 @@ import {
 const LIMITS = { maxBytes: 64_000, windowTokens: undefined }
 
 /**
- * Every cut's kept and omitted add up to the total, and `keptChars` counts
- * ORIGINAL characters carried in the kept text: the `…` markers the cut
- * itself added are not original characters. These inputs contain no `…`,
- * so every one in the kept text is a marker, counted here independently.
- */
+Every cut's kept and omitted add up to the total, and `keptChars` counts
+ORIGINAL characters carried in the kept text: the `…` markers the cut
+itself added are not original characters. These inputs contain no `…`,
+so every one in the kept text is a marker, counted here independently.
+*/
 function expectSums(
   text: string,
   limits: typeof LIMITS,
@@ -193,17 +193,17 @@ describe('boundToolResultText', () => {
 })
 
 /** A cut notice for the shared two-line fixture, told apart by its spill. */
-function noticeFor(spill: string | undefined, id: string): string {
+function noticeFor(spill: string | undefined): string {
   const text = `${'h'.repeat(20_000)}\n${'t'.repeat(20_000)}`
   const bounded = boundToolResultText(text, { maxBytes: 2000, windowTokens: undefined })
   if (bounded.cut === undefined) throw new Error('expected a cut')
-  return cutNotice(bounded.cut, spill, id)
+  return cutNotice(bounded.cut, spill, 'c1')
 }
 
 describe('cutNotice', () => {
   it('says how much, which head and tail, and how to read more', () => {
     // D121: no longest-line clause — lines are never cut.
-    const notice = noticeFor('.muse-spark/tool-results/s-c1.txt', 'c1')
+    const notice = noticeFor('.muse-spark/tool-results/s-c1.txt')
     expect(notice).toContain('40001 characters')
     expect(notice).toContain('characters omitted)')
     expect(notice).not.toContain('longest line')
@@ -213,7 +213,7 @@ describe('cutNotice', () => {
   })
 
   it('an unkept spill names no file and says the full result is gone', () => {
-    const notice = noticeFor(undefined, 'c1')
+    const notice = noticeFor(undefined)
     expect(notice).toContain('The full result could not be kept')
     expect(notice).not.toContain('Full result in')
     expect(notice).not.toContain('recall_output')

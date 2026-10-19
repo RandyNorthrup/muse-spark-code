@@ -27,11 +27,11 @@ const GIT = 'git'
 const PATH_VARIABLE = 'PATH'
 
 /**
- * Sets `name` in a copied environment. Windows names are case-insensitive
- * and Node passes the first of several spellings in sort order, so an
- * inherited `PSMODULEPATH` would beat a new `PSModulePath`: every other
- * spelling goes first.
- */
+Sets `name` in a copied environment. Windows names are case-insensitive
+and Node passes the first of several spellings in sort order, so an
+inherited `PSMODULEPATH` would beat a new `PSModulePath`: every other
+spelling goes first.
+*/
 export function setEnvironmentVariable(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
@@ -78,10 +78,10 @@ export function deleteEnvironmentVariable(
 }
 
 /**
- * Windows PowerShell 5.1's own module directories. A pwsh 7 `PSModulePath`
- * inherited by powershell.exe makes it load 7.x modules it cannot use
- * (verified failure: `Get-FileHash` not recognised).
- */
+Windows PowerShell 5.1's own module directories. A pwsh 7 `PSModulePath`
+inherited by powershell.exe makes it load 7.x modules it cannot use
+(verified failure: `Get-FileHash` not recognised).
+*/
 export function windowsPowerShellModulePath(
   systemRoot: string,
   programFiles: string | undefined,
@@ -94,11 +94,11 @@ export function windowsPowerShellModulePath(
 }
 
 /**
- * The PATH entries worth probing: an empty or relative entry means the
- * current directory, which for `muse serve` is the workspace (PLAN.md D24).
- * On Windows a rooted `\foo` entry is drive-relative and resolves on the
- * working directory's drive, so only fully qualified entries are probed.
- */
+The PATH entries worth probing: an empty or relative entry means the
+current directory, which for `muse serve` is the workspace (PLAN.md D24).
+On Windows a rooted `\foo` entry is drive-relative and resolves on the
+working directory's drive, so only fully qualified entries are probed.
+*/
 export function absoluteEntries(
   probe: {
     readonly platform: NodeJS.Platform
@@ -133,38 +133,38 @@ export interface ChildEnvironmentInput {
       }
     | undefined
   /**
-   * The workspace the child runs in: PATH entries that are relative, empty,
-   * or inside it (resolved through links) are dropped, so no workspace
-   * program runs from PATH when Muse Code starts
-   * (docs/certification/pathguard.md). REQUIRED: with no folder open the
-   * caller passes the explicit no-workspace scope (absolute entries only,
-   * links followed).
-   */
+  The workspace the child runs in: PATH entries that are relative, empty,
+  or inside it (resolved through links) are dropped, so no workspace
+  program runs from PATH when Muse Code starts
+  (docs/certification/pathguard.md). REQUIRED: with no folder open the
+  caller passes the explicit no-workspace scope (absolute entries only,
+  links followed).
+  */
   readonly scope: ExecutableScope
 }
 
 /**
- * The environment for `muse serve`. On Windows `PSModulePath` is reset to the
- * Windows PowerShell module directories: the CLI's launcher runs under
- * powershell.exe 5.1, which cannot load its own modules when a pwsh 7 module
- * path is inherited (verified failure: `Get-FileHash` not recognised).
- *
- * The Model API key from secret storage is deliberately NOT injected: the
- * CLI prefers `META_API_KEY` over its browser session, which would bill the
- * subscription's work to the key (PLAN.md D1, M7). A key already in the
- * user's own environment is inherited untouched, as the CLI documents.
- */
+The environment for `muse serve`. On Windows `PSModulePath` is reset to the
+Windows PowerShell module directories: the CLI's launcher runs under
+powershell.exe 5.1, which cannot load its own modules when a pwsh 7 module
+path is inherited (verified failure: `Get-FileHash` not recognised).
+
+The Model API key from secret storage is deliberately NOT injected: the
+CLI prefers `META_API_KEY` over its browser session, which would bill the
+subscription's work to the key (PLAN.md D1, M7). A key already in the
+user's own environment is inherited untouched, as the CLI documents.
+*/
 /**
- * The guarded environment for `muse serve`: PATH entries that would let a
- * workspace program run are dropped (relative, empty, or inside
- * `workspaceRoot`, resolved through links; with the explicit no-workspace
- * scope, relative, empty and drive-relative entries still go). On Windows
- * the child also gets `NoDefaultCurrentDirectoryInExePath`, so
- * CreateProcess does not try the working directory before PATH (probed on
- * Windows 11, Node 24.20: docs/certification/m21.md). Sanitizing PATH alone
- * does not close that lookup. Only the branded producers below can make the
- * returned environment, so a raw one never reaches the serve spawn.
- */
+The guarded environment for `muse serve`: PATH entries that would let a
+workspace program run are dropped (relative, empty, or inside
+`workspaceRoot`, resolved through links; with the explicit no-workspace
+scope, relative, empty and drive-relative entries still go). On Windows
+the child also gets `NoDefaultCurrentDirectoryInExePath`, so
+CreateProcess does not try the working directory before PATH (probed on
+Windows 11, Node 24.20: docs/certification/m21.md). Sanitizing PATH alone
+does not close that lookup. Only the branded producers below can make the
+returned environment, so a raw one never reaches the serve spawn.
+*/
 export function buildChildEnvironment(input: ChildEnvironmentInput): GuardedChildEnv {
   const env: NodeJS.ProcessEnv = { ...input.baseEnv }
   if (input.platform === 'win32' && input.systemRoot !== undefined) {
@@ -207,29 +207,29 @@ export function buildChildEnvironment(input: ChildEnvironmentInput): GuardedChil
 const WINDOWS_EXECUTABLE_EXTENSIONS = ['.exe', '.com'] as const
 
 /**
- * Whether a Windows path names its drive (or server and share), so it means
- * the same folder whatever the child's working directory is. `path.win32`
- * calls a rooted `\foo` or `/foo` absolute, but CreateProcess resolves it on
- * the working directory's drive — with the workspace as the working
- * directory that is the workspace's drive, so such an entry can name the
- * workspace. Only drive-letter (`D:\…`, `D:/…`) and UNC (`\\server\share\…`,
- * spelled with either slash — Windows accepts forward slashes in a UNC
- * path) entries are fully qualified; anything else rooted is drive-relative.
- * Separators are normalised before classifying, so `//server/share` and
- * `//?/C:/…` count as the UNC and verbatim paths they are instead of being
- * rewritten onto the workspace's drive.
- */
+Whether a Windows path names its drive (or server and share), so it means
+the same folder whatever the child's working directory is. `path.win32`
+calls a rooted `\foo` or `/foo` absolute, but CreateProcess resolves it on
+the working directory's drive — with the workspace as the working
+directory that is the workspace's drive, so such an entry can name the
+workspace. Only drive-letter (`D:\…`, `D:/…`) and UNC (`\\server\share\…`,
+spelled with either slash — Windows accepts forward slashes in a UNC
+path) entries are fully qualified; anything else rooted is drive-relative.
+Separators are normalised before classifying, so `//server/share` and
+`//?/C:/…` count as the UNC and verbatim paths they are instead of being
+rewritten onto the workspace's drive.
+*/
 export function isFullyQualifiedWindowsPath(entry: string): boolean {
   const normalized = entry.replaceAll('/', '\\')
   return /^[a-z]:\\/iu.test(normalized) || normalized.startsWith('\\\\')
 }
 
 /**
- * The absolute, non-empty entries of a PATH value, in order. With a
- * workspace, entries inside it (resolved through `realpath` when given) are
- * dropped too, so a planted program on an absolute workspace PATH entry is
- * never probed.
- */
+The absolute, non-empty entries of a PATH value, in order. With a
+workspace, entries inside it (resolved through `realpath` when given) are
+dropped too, so a planted program on an absolute workspace PATH entry is
+never probed.
+*/
 export function absolutePathEntries(
   platform: NodeJS.Platform,
   pathVariable: string | undefined,
@@ -254,11 +254,11 @@ export function absolutePathEntries(
 }
 
 /**
- * Whether `candidate` is the workspace itself or inside it (resolved through
- * `realpath` when given, lexical otherwise), on `platform`'s terms: Windows
- * compares case-insensitively with verbatim prefixes stripped and loopback
- * admin shares mapped to their drive path.
- */
+Whether `candidate` is the workspace itself or inside it (resolved through
+`realpath` when given, lexical otherwise), on `platform`'s terms: Windows
+compares case-insensitively with verbatim prefixes stripped and loopback
+admin shares mapped to their drive path.
+*/
 export function isWorkspacePath(
   platform: NodeJS.Platform,
   workspace: {
@@ -275,20 +275,20 @@ export function isWorkspacePath(
 }
 
 /**
- * Compares two absolute paths on `platform`'s terms: separators normalised
- * to `/` (so Windows spellings compare on any host) and, on Windows,
- * case-insensitive. Device (`\\.\`, `//./`) and verbatim (`\\?\`, `//?/`)
- * prefixes are stripped, `\\.\UNC\` like `\\?\UNC\` maps to its plain share,
- * and a loopback admin share (`//localhost/C$/…`, `//127.0.0.1/C$/…`) maps
- * to its drive path, so every local spelling of the workspace compares as
- * the workspace itself. `.` and `..` collapse lexically and trailing
- * spaces and dots strip the way `GetFullPathName` strips them, so `..\…`,
- * `repo.\…` and `repo .` spellings of the workspace compare as the
- * workspace too (a run of two or more dots on a non-final segment stays a
- * distinct name). A
- * remote UNC name that cannot be proven local stays as it is: only the
- * local spellings above are mapped.
- */
+Compares two absolute paths on `platform`'s terms: separators normalised
+to `/` (so Windows spellings compare on any host) and, on Windows,
+case-insensitive. Device (`\\.\`, `//./`) and verbatim (`\\?\`, `//?/`)
+prefixes are stripped, `\\.\UNC\` like `\\?\UNC\` maps to its plain share,
+and a loopback admin share (`//localhost/C$/…`, `//127.0.0.1/C$/…`) maps
+to its drive path, so every local spelling of the workspace compares as
+the workspace itself. `.` and `..` collapse lexically and trailing
+spaces and dots strip the way `GetFullPathName` strips them, so `..\…`,
+`repo.\…` and `repo .` spellings of the workspace compare as the
+workspace too (a run of two or more dots on a non-final segment stays a
+distinct name). A
+remote UNC name that cannot be proven local stays as it is: only the
+local spellings above are mapped.
+*/
 function isSameOrInsideDirectory(
   platform: NodeJS.Platform,
   directory: string,
@@ -304,25 +304,25 @@ function isSameOrInsideDirectory(
 }
 
 /**
- * A Windows path with every local spelling collapsed to one comparison
- * form: lower-cased, device/verbatim prefixes stripped, loopback admin
- * shares mapped to their drive, `.`/`..` collapsed and trailing spaces and
- * dots stripped the way `GetFullPathName` strips them (`..` above the root
- * clamps). The final segment loses every trailing space and dot, so
- * `repo .` and `repo...` are `repo`. A non-final `name.` or `name .` names
- * `name` too, but a run of two or more dots on a non-final segment is a
- * distinct legal name (`repo...` is not `repo..`) and is kept. Drive-relative
- * and UNC roots keep their prefix; `..` never climbs past it.
- */
+A Windows path with every local spelling collapsed to one comparison
+form: lower-cased, device/verbatim prefixes stripped, loopback admin
+shares mapped to their drive, `.`/`..` collapsed and trailing spaces and
+dots stripped the way `GetFullPathName` strips them (`..` above the root
+clamps). The final segment loses every trailing space and dot, so
+`repo .` and `repo...` are `repo`. A non-final `name.` or `name .` names
+`name` too, but a run of two or more dots on a non-final segment is a
+distinct legal name (`repo...` is not `repo..`) and is kept. Drive-relative
+and UNC roots keep their prefix; `..` never climbs past it.
+*/
 function withoutTrailingSpaces(value: string): string {
   return value.replace(/ +$/u, '')
 }
 
 /**
- * A final segment with every trailing space and dot stripped, so `repo .`
- * and `repo...` are both `repo`. Dots reveal spaces and spaces reveal dots
- * (`repo. ` strips to `repo`), so both are stripped until nothing moves.
- */
+A final segment with every trailing space and dot stripped, so `repo .`
+and `repo...` are both `repo`. Dots reveal spaces and spaces reveal dots
+(`repo. ` strips to `repo`), so both are stripped until nothing moves.
+*/
 function stripFinalSegment(raw: string): string {
   let segment = raw
   for (;;) {
@@ -385,7 +385,7 @@ function normalizeWindowsSpelling(slashed: string): string {
 }
 
 /** POSIX needs no spelling map, but `.` and `..` still collapse lexically:
- * a `work/../work/bin` entry names the workspace as surely as `work/bin`. */
+a `work/../work/bin` entry names the workspace as surely as `work/bin`. */
 function collapsePosix(slashed: string): string {
   const kept: string[] = []
   for (const segment of slashed.split('/')) {
@@ -432,20 +432,20 @@ function resolveForCompare(realpath: (filePath: string) => string, filePath: str
 }
 
 /**
- * A PATH value with the workspace removed: entries that are empty,
- * relative, or inside `workspaceRoot` (resolved through links) are dropped,
- * on Windows, macOS and Linux alike. An empty or relative entry means the
- * working directory on every platform (and Windows also tries the current
- * directory before PATH), so with the workspace as the working directory a
- * planted program would otherwise run instead of the real one — as Muse
- * Code 1.4.9 proved with a planted `<workspace>/bin/bwrap` at `muse serve`
- * start (docs/certification/pathguard.md). On Windows a rooted `\foo` or
- * `/foo` entry is drive-relative and resolves on the child's drive, so it
- * is compared with the workspace root's drive applied (and dropped when the
- * root names no drive). Nothing else changes: kept entries stay
- * byte-identical and in order, and entries that cannot be resolved are kept
- * unless they are relative, empty, or lexically inside.
- */
+A PATH value with the workspace removed: entries that are empty,
+relative, or inside `workspaceRoot` (resolved through links) are dropped,
+on Windows, macOS and Linux alike. An empty or relative entry means the
+working directory on every platform (and Windows also tries the current
+directory before PATH), so with the workspace as the working directory a
+planted program would otherwise run instead of the real one — as Muse
+Code 1.4.9 proved with a planted `<workspace>/bin/bwrap` at `muse serve`
+start (docs/certification/pathguard.md). On Windows a rooted `\foo` or
+`/foo` entry is drive-relative and resolves on the child's drive, so it
+is compared with the workspace root's drive applied (and dropped when the
+root names no drive). Nothing else changes: kept entries stay
+byte-identical and in order, and entries that cannot be resolved are kept
+unless they are relative, empty, or lexically inside.
+*/
 export function sanitizePathForWorkspace(probe: WorkspacePathSanitizeProbe): string {
   const p = probe.platform === 'win32' ? path.win32 : path.posix
   const separator = probe.platform === 'win32' ? ';' : ':'
@@ -489,11 +489,11 @@ function brandGuarded(env: NodeJS.ProcessEnv): GuardedChildEnv {
 }
 
 /**
- * Whether `name` is a PATH spelling the guard handles: on Windows every
- * casing (the child reads the first spelling in block order, so a second
- * raw spelling would survive the first sanitizing empty — every spelling
- * is guarded); elsewhere only `PATH`.
- */
+Whether `name` is a PATH spelling the guard handles: on Windows every
+casing (the child reads the first spelling in block order, so a second
+raw spelling would survive the first sanitizing empty — every spelling
+is guarded); elsewhere only `PATH`.
+*/
 function isPathSpelling(platform: NodeJS.Platform, name: string): boolean {
   return platform === 'win32' ? name.toLowerCase() === 'path' : name === 'PATH'
 }
@@ -504,12 +504,12 @@ function isNoDefaultCwdGuard(name: string): boolean {
 }
 
 /**
- * Copies `env` while guarding every PATH spelling with `sanitizePath`
- * (a spelling with nothing left is deleted, never stored empty), dropping
- * any preset current-directory-exclusion variable, and setting the
- * canonical `NoDefaultCurrentDirectoryInExePath=1` on Windows so a preset
- * `0` cannot shadow it. Nothing else changes.
- */
+Copies `env` while guarding every PATH spelling with `sanitizePath`
+(a spelling with nothing left is deleted, never stored empty), dropping
+any preset current-directory-exclusion variable, and setting the
+canonical `NoDefaultCurrentDirectoryInExePath=1` on Windows so a preset
+`0` cannot shadow it. Nothing else changes.
+*/
 function guardedEnvironmentEntries(
   platform: NodeJS.Platform,
   env: NodeJS.ProcessEnv,
@@ -533,14 +533,14 @@ function guardedEnvironmentEntries(
 }
 
 /**
- * One child environment for every spawn the product makes with the workspace
- * as its working directory or on its PATH: every PATH spelling sanitised by
- * `sanitizePathForWorkspace` (empty, relative, drive-relative and workspace
- * entries dropped; a spelling with nothing left deleted, never stored
- * empty), and `NoDefaultCurrentDirectoryInExePath=1` on Windows (any preset
- * spelling removed first, so a preset `0` cannot shadow it) so CreateProcess
- * does not try the working directory before PATH. Nothing else changes.
- */
+One child environment for every spawn the product makes with the workspace
+as its working directory or on its PATH: every PATH spelling sanitised by
+`sanitizePathForWorkspace` (empty, relative, drive-relative and workspace
+entries dropped; a spelling with nothing left deleted, never stored
+empty), and `NoDefaultCurrentDirectoryInExePath=1` on Windows (any preset
+spelling removed first, so a preset `0` cannot shadow it) so CreateProcess
+does not try the working directory before PATH. Nothing else changes.
+*/
 export function workspaceChildEnvironment(
   platform: NodeJS.Platform,
   env: NodeJS.ProcessEnv,
@@ -559,12 +559,12 @@ export function workspaceChildEnvironment(
 }
 
 /**
- * The guarded child environment before any folder is known (the explicit
- * no-workspace probe): empty and relative entries are still dropped and
- * Windows still gets `NoDefaultCurrentDirectoryInExePath`, but no workspace
- * is excluded. Only for probes that resolve fixed absolute paths and never
- * execute a PATH-resolved program; grep `NO_WORKSPACE` to review each one.
- */
+The guarded child environment before any folder is known (the explicit
+no-workspace probe): empty and relative entries are still dropped and
+Windows still gets `NoDefaultCurrentDirectoryInExePath`, but no workspace
+is excluded. Only for probes that resolve fixed absolute paths and never
+execute a PATH-resolved program; grep `NO_WORKSPACE` to review each one.
+*/
 export function noWorkspaceChildEnvironment(
   platform: NodeJS.Platform,
   env: NodeJS.ProcessEnv,
@@ -572,8 +572,8 @@ export function noWorkspaceChildEnvironment(
 ): GuardedChildEnv {
   const p = platform === 'win32' ? path.win32 : path.posix
   const separator = platform === 'win32' ? ';' : ':'
-  const sanitize = (pathVariable: string | undefined): string =>
-    (pathVariable ?? '')
+  const sanitize = (pathVariable = ''): string =>
+    pathVariable
       .split(separator)
       .filter((entry) => {
         const trimmed = entry.trim()
@@ -596,24 +596,24 @@ export function noWorkspaceChildEnvironment(
 }
 
 /**
- * The `KEY=value` environment block for a native helper that starts the
- * payload itself (`CreateProcessW` from its own environment array): only a
- * guarded child environment serializes, so a raw `request.env` cannot reach
- * a helper payload. Entries with `undefined` values are dropped, as the
- * helper's block parser rejects them.
- */
+The `KEY=value` environment block for a native helper that starts the
+payload itself (`CreateProcessW` from its own environment array): only a
+guarded child environment serializes, so a raw `request.env` cannot reach
+a helper payload. Entries with `undefined` values are dropped, as the
+helper's block parser rejects them.
+*/
 export function guardedEnvironmentBlock(env: GuardedChildEnv): string[] {
   return Object.entries(env).flatMap(([key, value]) =>
-    value === undefined ? [] : [`${key}=${value}`],
+    value === undefined ? [] : `${key}=${value}`,
   )
 }
 
 /**
- * The absolute path of `name` on PATH, or undefined when it is not there. On
- * Windows a name that already ends in `.exe` or `.com` (the OS adapters'
- * `rundll32.exe`, `explorer.exe`, `powershell.exe`) is looked up as named;
- * any other name gets those extensions, so a batch file never resolves.
- */
+The absolute path of `name` on PATH, or undefined when it is not there. On
+Windows a name that already ends in `.exe` or `.com` (the OS adapters'
+`rundll32.exe`, `explorer.exe`, `powershell.exe`) is looked up as named;
+any other name gets those extensions, so a batch file never resolves.
+*/
 export function resolveExecutable(name: string, probe: ExecutableProbe): string | undefined {
   const p = probe.platform === 'win32' ? path.win32 : path.posix
   const isNamedExecutable = WINDOWS_EXECUTABLE_EXTENSIONS.some((extension) =>
@@ -752,12 +752,12 @@ export function hookEnvironment(
 }
 
 /**
- * git's absolute path, found once per PATH value and workspace; a miss is
- * not cached, so git installed while the window is open is found on the
- * next call. The run's working directory is the workspace: entries inside
- * it are never probed, so a planted git there never resolves
- * (docs/certification/pathguard.md).
- */
+git's absolute path, found once per PATH value and workspace; a miss is
+not cached, so git installed while the window is open is found on the
+next call. The run's working directory is the workspace: entries inside
+it are never probed, so a planted git there never resolves
+(docs/certification/pathguard.md).
+*/
 export function gitLocator(deps: {
   readonly platform: NodeJS.Platform
   readonly env: NodeJS.ProcessEnv
@@ -782,13 +782,13 @@ export function gitLocator(deps: {
 }
 
 /**
- * The extension's git environment: no optional locks, and never a
- * credential prompt. With the workspace the child runs in, its PATH is the
- * guarded child PATH (workspace entries dropped, empty/relative entries
- * dropped, `NoDefaultCurrentDirectoryInExePath=1` on Windows), so git's own
- * bare-name lookups (`ssh`, `git-remote-https`) never run a helper planted
- * in the repository.
- */
+The extension's git environment: no optional locks, and never a
+credential prompt. With the workspace the child runs in, its PATH is the
+guarded child PATH (workspace entries dropped, empty/relative entries
+dropped, `NoDefaultCurrentDirectoryInExePath=1` on Windows), so git's own
+bare-name lookups (`ssh`, `git-remote-https`) never run a helper planted
+in the repository.
+*/
 export function quietGitEnvironment(
   env: NodeJS.ProcessEnv,
   workspace: {
@@ -808,11 +808,11 @@ export function quietGitEnvironment(
 }
 
 /**
- * One environment for both launch routes, an allow-list per operation
- * (RVM123G2 R3): no credential variable at all, or for D104's exception
- * (a confirmed push, a pull request fetch) only the Git routes
- * GIT_PUSH_CREDENTIAL_VARIABLES names, never a model or provider key.
- */
+One environment for both launch routes, an allow-list per operation
+(RVM123G2 R3): no credential variable at all, or for D104's exception
+(a confirmed push, a pull request fetch) only the Git routes
+GIT_PUSH_CREDENTIAL_VARIABLES names, never a model or provider key.
+*/
 export function childGitEnvironment(
   options: {
     readonly env: NodeJS.ProcessEnv
@@ -879,12 +879,12 @@ function candidatesFor(
 }
 
 /**
- * The file the command names, absolute; throws with the reason when there
- * is none. A bare name is resolved on the absolute PATH entries outside the
- * server's working directory (resolved through links), so a planted `node`
- * there never wins; a command with a directory is the file the person's
- * config names, resolved against that directory.
- */
+The file the command names, absolute; throws with the reason when there
+is none. A bare name is resolved on the absolute PATH entries outside the
+server's working directory (resolved through links), so a planted `node`
+there never wins; a command with a directory is the file the person's
+config names, resolved against that directory.
+*/
 export function resolveServerCommand(
   command: string,
   cwd: string,
@@ -953,10 +953,10 @@ export function spawnLine(
 }
 
 /**
- * Windows PowerShell with its own modules (`Get-CimInstance`, `Add-Type`),
- * whatever shell VS Code came from: every spelling of `PSModulePath` is
- * replaced, since Windows hands a child the first one it sorts.
- */
+Windows PowerShell with its own modules (`Get-CimInstance`, `Add-Type`),
+whatever shell VS Code came from: every spelling of `PSModulePath` is
+replaced, since Windows hands a child the first one it sorts.
+*/
 export function windowsPowerShell(
   systemRoot: string,
   base: NodeJS.ProcessEnv = process.env,

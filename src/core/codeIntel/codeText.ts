@@ -73,11 +73,11 @@ function positionOf(starts: readonly number[], offset: number): CodePosition {
 }
 
 /**
- * The first whole-word occurrence of `name` at or after `from`, and no
- * later than line `lastLine` when given, as a position; undefined when there
- * is none (or `from` is not in the text). The name is matched literally,
- * never as a pattern.
- */
+The first whole-word occurrence of `name` at or after `from`, and no
+later than line `lastLine` when given, as a position; undefined when there
+is none (or `from` is not in the text). The name is matched literally,
+never as a pattern.
+*/
 export function findName(
   text: string,
   name: string,
@@ -112,9 +112,9 @@ export function textIn(text: string, start: CodePosition, end: CodePosition): st
 }
 
 /**
- * The text with the edits applied, positions read against the text as it
- * was; undefined when an edit falls outside it or two edits overlap.
- */
+The text with the edits applied, positions read against the text as it
+was; undefined when an edit falls outside it or two edits overlap.
+*/
 export function applyTextEdits(text: string, edits: readonly TextEdit[]): string | undefined {
   const starts = lineStarts(text)
   const spans: { readonly from: number; readonly to: number; readonly newText: string }[] = []
@@ -194,11 +194,11 @@ function spanningHunk(old: readonly string[], updated: readonly string[]): Patch
 }
 
 /**
- * The one hunk around everything that changed between two texts, with
- * three lines of context each side, in unified numbering (PLAN.md D27: an
- * insertion's `oldStart` is the line it follows); undefined when no line
- * changed. The file tools' patch (`write_file`, `edit_file`).
- */
+The one hunk around everything that changed between two texts, with
+three lines of context each side, in unified numbering (PLAN.md D27: an
+insertion's `oldStart` is the line it follows); undefined when no line
+changed. The file tools' patch (`write_file`, `edit_file`).
+*/
 export function changeHunk(before: string, after: string): PatchHunk | undefined {
   return spanningHunk(patchLines(before), patchLines(after))
 }
@@ -233,10 +233,10 @@ function alignedHunk(
 }
 
 /**
- * The hunks between two texts (BOMs left out, as Edit Review matches them):
- * one per group of changed lines when the line count is unchanged (a rename
- * changes names within lines), else one around everything that changed.
- */
+The hunks between two texts (BOMs left out, as Edit Review matches them):
+one per group of changed lines when the line count is unchanged (a rename
+changes names within lines), else one around everything that changed.
+*/
 export function patchHunks(before: string, after: string): readonly PatchHunk[] {
   const old = patchLines(withoutBom(before))
   const updated = patchLines(withoutBom(after))
@@ -244,7 +244,7 @@ export function patchHunks(before: string, after: string): readonly PatchHunk[] 
     const hunk = spanningHunk(old, updated)
     return hunk === undefined ? [] : [hunk]
   }
-  const changed = old.flatMap((line, index) => (line === updated[index] ? [] : [index]))
+  const changed = old.flatMap((line, index) => (line === updated[index] ? [] : index))
   const hunks: PatchHunk[] = []
   let group: { first: number; last: number } | undefined
   const close = (closing: { first: number; last: number }) => {

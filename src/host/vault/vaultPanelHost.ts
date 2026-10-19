@@ -69,17 +69,17 @@ export interface VaultPanelHostDeps {
   readonly publish: (message: ReturnType<typeof vaultHostMessageSchema.parse>) => void
   readonly status: (isUnlocked: boolean) => void
   /**
-   * Fires on lock-state edges only (not every frame), for the key-store
-   * migration's unlock trigger. Absent in tests and lock-only hosts.
-   */
+  Fires on lock-state edges only (not every frame), for the key-store
+  migration's unlock trigger. Absent in tests and lock-only hosts.
+  */
   readonly onVaultLockStateChange?: (isUnlocked: boolean) => void
   readonly showError: (message: string) => void
   /** The per-item report (names only) and the person's Keep or Delete of the source. */
   readonly importDone: (names: readonly string[]) => Promise<'keep' | 'delete'>
   /**
-   * The host's own two steps: the warning with Continue, then the typed word.
-   * Resolves the typed text, or null when the person stops.
-   */
+  The host's own two steps: the warning with Continue, then the typed word.
+  Resolves the typed text, or null when the person stops.
+  */
   readonly confirmReset: (
     word: string,
     signal: AbortSignal,
@@ -96,11 +96,11 @@ function wipe(item: VaultItem): void {
 }
 
 /**
- * A refusal the broker or a guard below named with a fixed localized
- * sentence keeps that sentence; anything else (native text, connection
- * errors) stays the generic failure (RVCM1091B 4: never native text).
- * Exact match only: no foreign text can quote a full sentence.
- */
+A refusal the broker or a guard below named with a fixed localized
+sentence keeps that sentence; anything else (native text, connection
+errors) stays the generic failure (RVCM1091B 4: never native text).
+Exact match only: no foreign text can quote a full sentence.
+*/
 function refusalMessage(error: unknown): string {
   // Every named sentence, shared with the terminal (RVAPP-CM1091D5 P2-3),
   // plus the broker-shape fallback only the panel names.
@@ -119,13 +119,13 @@ function isVeto(error: unknown): boolean {
 }
 
 /**
- * Map a snapshot failure to the machine's typed reason. Anything without a
- * known cause is `unreachable`: the section says the operation failed and
- * offers Retry, never the repair message (RVCM1091F P2). Only the broker's
- * own `brokerBlocked` snapshot verdict reaches `brokerCannotStart`. A dead
- * or corrupted channel is `unreachable` too: it never claims the vault is
- * locked beside a recovered unlocked section (RVCM1091G P3).
- */
+Map a snapshot failure to the machine's typed reason. Anything without a
+known cause is `unreachable`: the section says the operation failed and
+offers Retry, never the repair message (RVCM1091F P2). Only the broker's
+own `brokerBlocked` snapshot verdict reaches `brokerCannotStart`. A dead
+or corrupted channel is `unreachable` too: it never claims the vault is
+locked beside a recovered unlocked section (RVCM1091G P3).
+*/
 function classifySnapshotError(error: unknown): VaultUnavailableReason {
   if (error instanceof VaultChannelError) return 'unreachable'
   if (error instanceof Error) {
@@ -247,11 +247,11 @@ export class VaultPanelHost {
   }
 
   /**
-   * Record a reload request inside the machine and return its sequence. A
-   * reply is applied only if it answers the newest request, so overlapping
-   * reloads (two approval cards) settle newest-wins in both landing orders
-   * (RVCM1091G P2).
-   */
+  Record a reload request inside the machine and return its sequence. A
+  reply is applied only if it answers the newest request, so overlapping
+  reloads (two approval cards) settle newest-wins in both landing orders
+  (RVCM1091G P2).
+  */
   private beginReload(): number {
     const seq = (this.reloadSeq += 1)
     this.apply({ kind: 'reloadRequested', seq })
@@ -296,15 +296,15 @@ export class VaultPanelHost {
   }
 
   /**
-   * The one place every failed operation goes through (RVCM1091E CLASS 1,
-   * RVCM1091F REDESIGN): a fresh snapshot is published first, so a change
-   * that arrived while the operation was failing is applied, not dropped;
-   * when no snapshot can be had, the machine publishes the explicit
-   * unavailable state (no item labels) instead. Then the failure is
-   * reported — unless a barrier already put its view on screen, which stays
-   * silent. A failure that arrives while a reload is running is kept and
-   * shown, never dropped (RVCM1091F P3).
-   */
+  The one place every failed operation goes through (RVCM1091E CLASS 1,
+  RVCM1091F REDESIGN): a fresh snapshot is published first, so a change
+  that arrived while the operation was failing is applied, not dropped;
+  when no snapshot can be had, the machine publishes the explicit
+  unavailable state (no item labels) instead. Then the failure is
+  reported — unless a barrier already put its view on screen, which stays
+  silent. A failure that arrives while a reload is running is kept and
+  shown, never dropped (RVCM1091F P3).
+  */
   private async settleFailure(error: unknown, generation: number): Promise<void> {
     if (this.disposed) return
     // A retirement a barrier already put on screen stays silent — including
@@ -373,13 +373,13 @@ export class VaultPanelHost {
   }
 
   /**
-   * Finish the person's Delete of an imported source (RVAPP-CM1091D5 P2-2):
-   * shared by the one-time prompt after an import and by a kept or orphaned
-   * receipt's own Delete action. The source already gone finishes the Delete
-   * by clearing the leftover record instead of dropping it, so no orphan
-   * receipt waits for another Delete carrying it. A record already cleared
-   * (or still stuck) leaves the refusal below exactly as it stands.
-   */
+  Finish the person's Delete of an imported source (RVAPP-CM1091D5 P2-2):
+  shared by the one-time prompt after an import and by a kept or orphaned
+  receipt's own Delete action. The source already gone finishes the Delete
+  by clearing the leftover record instead of dropping it, so no orphan
+  receipt waits for another Delete carrying it. A record already cleared
+  (or still stuck) leaves the refusal below exactly as it stands.
+  */
   private async finishDelete(
     receipt: string,
     authorize: () => void,

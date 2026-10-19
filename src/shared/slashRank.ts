@@ -19,11 +19,11 @@ function rankOf(command: SlashCommand, needle: string): number | undefined {
 }
 
 /**
- * The commands `query` (what follows the slash) matches, case-insensitively:
- * names that start with it, then names with a word that does, then names
- * holding it anywhere, then descriptions holding it. Alphabetical within
- * each.
- */
+The commands `query` (what follows the slash) matches, case-insensitively:
+names that start with it, then names with a word that does, then names
+holding it anywhere, then descriptions holding it. Alphabetical within
+each.
+*/
 export function rankSlashCommands(
   commands: readonly SlashCommand[],
   query: string,
@@ -32,7 +32,7 @@ export function rankSlashCommands(
   return commands
     .flatMap((command) => {
       const rank = rankOf(command, needle)
-      return rank === undefined ? [] : [{ command, rank }]
+      return rank === undefined ? [] : { command, rank }
     })
     .toSorted(
       (left, right) =>

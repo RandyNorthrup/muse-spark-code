@@ -33,9 +33,9 @@ export interface MuseCodeReviewerPort {
   /** `museSpark.museCodeAutoReviewer`, read for each approval. */
   readonly isOn: () => boolean
   /**
-   * The window's reviewer, its bundle required on the first call; throws
-   * when the bundle cannot be loaded (the log has why).
-   */
+  The window's reviewer, its bundle required on the first call; throws
+  when the bundle cannot be loaded (the log has why).
+  */
   readonly reviewer: () => MuseCodeReviewer
   /** Whether a session is one of the reviewer's side sessions: no History lists it. */
   readonly isSideSession: (sessionId: string) => boolean

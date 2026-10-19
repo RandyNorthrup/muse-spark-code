@@ -2,10 +2,10 @@ import { isSpendLedgerError } from './paid/spendLedgerError'
 import { NON_BILLABLE_HTTP_REJECTIONS, UI_TEXT } from '../shared/constants'
 
 /**
- * A paid stop (a daily, run, session or account limit) is never retried as a
- * send failure and never replaced by a generic error. Name-based so the
- * identity survives lazy bundles and every provider wrapper (D1, P2-3).
- */
+A paid stop (a daily, run, session or account limit) is never retried as a
+send failure and never replaced by a generic error. Name-based so the
+identity survives lazy bundles and every provider wrapper (D1, P2-3).
+*/
 export function isPaidStop(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -60,11 +60,11 @@ export function isRequestNotSent(error: unknown): error is Error {
 }
 
 /**
- * A side call (hook model, reviewer) counts as refused before sending when
- * the dispatcher says so, when a local refusal arrived before any response
- * frame and no sent mark exists, or when the provider's first answer is a
- * non-billable rejection and no usage arrived.
- */
+A side call (hook model, reviewer) counts as refused before sending when
+the dispatcher says so, when a local refusal arrived before any response
+frame and no sent mark exists, or when the provider's first answer is a
+non-billable rejection and no usage arrived.
+*/
 export function isUnsentSideCall(
   error: unknown,
   hasResponseFrame: boolean,

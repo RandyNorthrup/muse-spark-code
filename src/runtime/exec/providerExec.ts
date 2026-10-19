@@ -66,11 +66,11 @@ export interface ProviderRequestPath {
 }
 
 /**
- * The codec's request path per preset, from the 2026-10-04 captures unless
- * said. Local servers, the custom preset and Azure follow the research's
- * official references (research §1); a preset without either has no
- * request path and refuses to run until its capture is recorded (rule 13).
- */
+The codec's request path per preset, from the 2026-10-04 captures unless
+said. Local servers, the custom preset and Azure follow the research's
+official references (research §1); a preset without either has no
+request path and refuses to run until its capture is recorded (rule 13).
+*/
 function requestPathFor(preset: ProviderPreset): ProviderRequestPath | undefined {
   switch (preset.id) {
     case 'openai':
@@ -199,16 +199,16 @@ export function parseCatalogPresence(value: unknown): CatalogPresence | undefine
 }
 
 /**
- * D4: whether a configured model has no price card anywhere. Mirrors the
- * pricing half of `core/providers/configured.ts`, which stays the pricing
- * source of truth; this copy only warns at add/test/list time, never
- * refuses. An `unpriced` catalogue entry is capability evidence, not price
- * evidence — configured resolution still leaves that model unpriced and an
- * exec run refuses it — so only a priced catalogue record or a user-entered
- * price suppresses the warning. A plan-key preset never warns: configured
- * resolution assigns its models `{ kind: 'plan' }`, so the run is not
- * refused as unpriced.
- */
+D4: whether a configured model has no price card anywhere. Mirrors the
+pricing half of `core/providers/configured.ts`, which stays the pricing
+source of truth; this copy only warns at add/test/list time, never
+refuses. An `unpriced` catalogue entry is capability evidence, not price
+evidence — configured resolution still leaves that model unpriced and an
+exec run refuses it — so only a priced catalogue record or a user-entered
+price suppresses the warning. A plan-key preset never warns: configured
+resolution assigns its models `{ kind: 'plan' }`, so the run is not
+refused as unpriced.
+*/
 export function isModelUnpriced(
   catalog: CatalogPresence,
   presetId: string,
@@ -238,12 +238,12 @@ export interface ResolvedProvider {
 }
 
 /**
- * Resolve a provider id against the runner's own user file only. `presets`
- * is the built-in table (lane P's `presetById`); `resolveHost` answers DNS
- * for the address check. A repository file is never read here: callers pass
- * the user file's content, so a workspace's `providers.json` cannot aim a
- * run elsewhere.
- */
+Resolve a provider id against the runner's own user file only. `presets`
+is the built-in table (lane P's `presetById`); `resolveHost` answers DNS
+for the address check. A repository file is never read here: callers pass
+the user file's content, so a workspace's `providers.json` cannot aim a
+run elsewhere.
+*/
 export async function resolveProvider(
   file: ProvidersFile,
   providerId: string,
@@ -334,10 +334,10 @@ export function isEndpointBindingCurrent(
 export type ProviderCredentialError = 'no-secret' | 'unparseable' | 'origin-mismatch'
 
 /**
- * The provider's key from the secret store: parsed, present, and bound to
- * the resolved origin. An edited file aiming elsewhere refuses here and the
- * caller asks for the credential again, naming both origins.
- */
+The provider's key from the secret store: parsed, present, and bound to
+the resolved origin. An edited file aiming elsewhere refuses here and the
+caller asks for the credential again, naming both origins.
+*/
 export async function readProviderKey(
   secrets: { get(key: string): PromiseLike<string | undefined> },
   provider: ResolvedProvider,
@@ -378,11 +378,11 @@ export async function readProviderKey(
 }
 
 /**
- * The origin pin in front of `fetch`: only `https:` (or `http:` to the
- * pinned loopback origin) on the resolved origin, with no userinfo, query
- * (except the codec's own) or fragment, and only an allowlisted path. A
- * refusal throws before anything is sent.
- */
+The origin pin in front of `fetch`: only `https:` (or `http:` to the
+pinned loopback origin) on the resolved origin, with no userinfo, query
+(except the codec's own) or fragment, and only an allowlisted path. A
+refusal throws before anything is sent.
+*/
 export function pinProviderFetch(
   fetch: typeof globalThis.fetch,
   provider: ResolvedProvider,
@@ -509,12 +509,12 @@ export type ProviderAssemblyFailure =
   | { readonly kind: 'auth'; readonly reason: string }
 
 /**
- * Resolve a provider run from the runner's own user file: the provider, a
- * model naming it, a bound credential (standard input or the store), a
- * re-checked endpoint, and the pinned fetch. Usage failures are the
- * caller's mistake; auth failures need a key. The turn itself is lane T/I's
- * `ProviderExecRunner` seam (`runExec.ts`); this function never sends one.
- */
+Resolve a provider run from the runner's own user file: the provider, a
+model naming it, a bound credential (standard input or the store), a
+re-checked endpoint, and the pinned fetch. Usage failures are the
+caller's mistake; auth failures need a key. The turn itself is lane T/I's
+`ProviderExecRunner` seam (`runExec.ts`); this function never sends one.
+*/
 export async function assembleProviderRun(input: ProviderRunInput): Promise<
   | {
       readonly ok: true

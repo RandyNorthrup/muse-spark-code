@@ -33,9 +33,9 @@ export interface ModelCapabilities {
   /** Unknown is off; resolved for this model, never inferred from its format. */
   readonly supportsStrictTools?: boolean | undefined
   /**
-   * Which `tool_choice` values the model takes; unknown (absent) means auto
-   * only. Read from the model's capability record, never inferred.
-   */
+  Which `tool_choice` values the model takes; unknown (absent) means auto
+  only. Read from the model's capability record, never inferred.
+  */
   readonly toolChoiceModes?: readonly ('auto' | 'none')[] | undefined
   /** Documented pixel limits only; absence preserves today's image bytes. */
   readonly imageLimits?: ImageLimits | undefined
@@ -110,10 +110,10 @@ export function isAgentCapable(capabilities: ModelCapabilities): boolean {
 }
 
 /**
- * Whether two capability sets use the same wire for tools: both call tools
- * with the same parallelism. The codecs read the fuller preset quirks; this
- * answers the picker's grouping only.
- */
+Whether two capability sets use the same wire for tools: both call tools
+with the same parallelism. The codecs read the fuller preset quirks; this
+answers the picker's grouping only.
+*/
 export function hasSameToolShape(a: ModelCapabilities, b: ModelCapabilities): boolean {
   return a.toolCalling === b.toolCalling && a.parallelToolCalls === b.parallelToolCalls
 }

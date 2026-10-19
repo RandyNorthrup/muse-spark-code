@@ -74,13 +74,13 @@ export function hasBinaryControlCharacters(content: string): boolean {
 }
 
 /**
- * The images a message's attachments stand for in a provider's per-request
- * budget (M54): one per image, and a PDF's page images, at most its first
- * 50 (Meta's documented budget). A PDF whose pages could not be counted
- * weighs the full 50, so a record count errs toward protecting the request,
- * never toward sending one the provider refuses. The weight only matters
- * where a record states a count; without one nothing is enforced locally.
- */
+The images a message's attachments stand for in a provider's per-request
+budget (M54): one per image, and a PDF's page images, at most its first
+50 (Meta's documented budget). A PDF whose pages could not be counted
+weighs the full 50, so a record count errs toward protecting the request,
+never toward sending one the provider refuses. The weight only matters
+where a record states a count; without one nothing is enforced locally.
+*/
 function imageWeight(summary: AttachmentSummary): number {
   if (summary.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE) {
     return 0
@@ -91,11 +91,11 @@ function imageWeight(summary: AttachmentSummary): number {
 }
 
 /**
- * D121: bytes past the record's own limit are refused, in the record's
- * words; without a record limit nothing is enforced locally, so both adders
- * share this one gate instead of mirroring it. The provider's own refusal
- * reaches the person in words at send.
- */
+D121: bytes past the record's own limit are refused, in the record's
+words; without a record limit nothing is enforced locally, so both adders
+share this one gate instead of mirroring it. The provider's own refusal
+reaches the person in words at send.
+*/
 function refuseOverLimit(
   recordBytes: number | undefined,
   byteLength: number,
@@ -128,9 +128,9 @@ export class AttachmentStore {
   }
 
   /**
-   * The held Model API text in tokens, estimated high: the admission unit
-   * the provider's window is counted in.
-   */
+  The held Model API text in tokens, estimated high: the admission unit
+  the provider's window is counted in.
+  */
   private modelApiTextTokens(): number {
     return Math.ceil(this.modelApiTextBytes() / MODEL_API_CONTEXT_BYTES_PER_TOKEN)
   }
@@ -322,11 +322,11 @@ export class AttachmentStore {
   }
 
   /**
-   * An image, or a PDF when `acceptsDocuments` (the Model API backend); the
-   * caller refuses a PDF on Muse Code with its own reason first (M54).
-   * D121: no count of ours — any number of attachments is held; the
-   * transports' frame validity and the send path answer for the rest.
-   */
+  An image, or a PDF when `acceptsDocuments` (the Model API backend); the
+  caller refuses a PDF on Muse Code with its own reason first (M54).
+  D121: no count of ours — any number of attachments is held; the
+  transports' frame validity and the send path answer for the rest.
+  */
   public add(
     name: string,
     bytes: Uint8Array,
@@ -405,10 +405,10 @@ export class AttachmentStore {
   }
 
   /**
-   * Image and document parts for the given ids (unknown ids are skipped).
-   * They stay until `release`: a message the host refused keeps them for
-   * another try.
-   */
+  Image and document parts for the given ids (unknown ids are skipped).
+  They stay until `release`: a message the host refused keeps them for
+  another try.
+  */
   public partsFor(ids: readonly string[]): readonly TurnPart[] {
     const parts: TurnPart[] = []
     for (const id of ids) {

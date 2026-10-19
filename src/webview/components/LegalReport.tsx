@@ -61,9 +61,9 @@ function locationOf(finding: LegalFinding): string | undefined {
 }
 
 /**
- * A finding's location: a button opening the workspace file at its lines,
- * or plain text when it climbs out of the workspace (shown, never opened).
- */
+A finding's location: a button opening the workspace file at its lines,
+or plain text when it climbs out of the workspace (shown, never opened).
+*/
 function locationLine(
   location: string | undefined,
   target: ReturnType<typeof linkTarget> | undefined,

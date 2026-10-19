@@ -57,11 +57,11 @@ export function isStoredSignIn(account: AccountState): boolean {
 }
 
 /**
- * The answer every captured `account/read` after a sign-out gave
- * (docs/certification/sign-in-detection.md). Nothing else counts as signed
- * out: `envKey` masks the stored lane, and other answers were never
- * captured (AGENTS.md rule 13, the review of PR #49).
- */
+The answer every captured `account/read` after a sign-out gave
+(docs/certification/sign-in-detection.md). Nothing else counts as signed
+out: `envKey` masks the stored lane, and other answers were never
+captured (AGENTS.md rule 13, the review of PR #49).
+*/
 export function isCapturedSignedOut(account: AccountState): boolean {
   return account.state === MUSE_ACCOUNT_STATES.loggedOut && account.credentialRequired
 }
@@ -104,10 +104,10 @@ export async function readAccountState(
 }
 
 /**
- * `use` on one short-lived host, closed afterwards; `fallback` when it
- * cannot start, or once `ended` aborts (the window closing), which closes
- * the host at once instead of waiting for its answer.
- */
+`use` on one short-lived host, closed afterwards; `fallback` when it
+cannot start, or once `ended` aborts (the window closing), which closes
+the host at once instead of waiting for its answer.
+*/
 async function onAccountHost<T>(
   connect: ConnectAccountHost,
   log: Logger,
@@ -148,12 +148,12 @@ export async function probeAccount(
 }
 
 /**
- * MSP `account/logout` on a short-lived host, confirmed by `account/read`:
- * `confirmed` only on the captured signed-out answer; `unconfirmed` when the
- * host could not start or refused, or answered anything else: a stored
- * credential, `envKey` (`META_API_KEY`, which no logout can unset, masks
- * the stored lane), or a state never captured.
- */
+MSP `account/logout` on a short-lived host, confirmed by `account/read`:
+`confirmed` only on the captured signed-out answer; `unconfirmed` when the
+host could not start or refused, or answered anything else: a stored
+credential, `envKey` (`META_API_KEY`, which no logout can unset, masks
+the stored lane), or a state never captured.
+*/
 export async function logOutAccount(
   connect: ConnectAccountHost,
   log: Logger,
@@ -184,11 +184,11 @@ export async function logOutAccount(
 }
 
 /**
- * The window's short-lived `account/read` and `account/logout` hosts, which
- * end together when it closes (the review of PR #49): a probe still waiting,
- * or one Cancel left behind, is closed rather than left running, and none
- * starts afterwards.
- */
+The window's short-lived `account/read` and `account/logout` hosts, which
+end together when it closes (the review of PR #49): a probe still waiting,
+or one Cancel left behind, is closed rather than left running, and none
+starts afterwards.
+*/
 export class AccountHosts {
   private readonly windowClosing = new AbortController()
 

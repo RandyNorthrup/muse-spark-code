@@ -444,8 +444,8 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
 }
 
 /** Standalone panel entry for VS Code, companion and native webview hosts.
- * @unwired M115 schedule surface mount
- */
+@unwired M115 schedule surface mount
+*/
 export function mountScheduleSurface(element: Element, context: ScheduleSurfaceProps): () => void {
   const tableError = installEmbeddedTable(element.ownerDocument)
   if (tableError !== undefined) throw tableError

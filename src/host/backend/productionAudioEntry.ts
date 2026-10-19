@@ -24,12 +24,12 @@ import type { ModelApiBundleDeps } from './modelApiBundle'
 const privateRoots = new Map<string, Promise<LeasedRoot>>()
 
 /**
- * The host's root, opened once; a refused root is refused again, never
- * retried quietly. Opening it takes this process's lease and reclaims the
- * folders owners proven gone left behind (RVMEDIAV3 3); the lease is held
- * here for the process's life. The lease code is the media bundle's, which
- * this host already loaded (dist/productionMedia.js).
- */
+The host's root, opened once; a refused root is refused again, never
+retried quietly. Opening it takes this process's lease and reclaims the
+folders owners proven gone left behind (RVMEDIAV3 3); the lease is held
+here for the process's life. The lease code is the media bundle's, which
+this host already loaded (dist/productionMedia.js).
+*/
 export function privateRootFor(directory: string): () => Promise<LeasedRoot> {
   return async () => {
     let root = privateRoots.get(directory)
@@ -48,15 +48,15 @@ async function openLeased(directory: string): Promise<LeasedRoot> {
 }
 
 /**
- * Lane VB's platform bindings for each conversion:
- * - a fresh owner-only folder inside the host's verified private root (its
- *   own storage, never a shared temporary folder);
- * - Windows: the kernel job's memory cap, no RSS sampler, so the kernel
- *   path is taken; a missing launcher refuses, never runs unbounded;
- * - macOS: a `ps` sampler fenced to each encoder child, loaded from the
- *   resource governor's bundle, which alone carries M107's policy modules;
- * - Linux keeps its `/proc` sampler.
- */
+Lane VB's platform bindings for each conversion:
+- a fresh owner-only folder inside the host's verified private root (its
+  own storage, never a shared temporary folder);
+- Windows: the kernel job's memory cap, no RSS sampler, so the kernel
+  path is taken; a missing launcher refuses, never runs unbounded;
+- macOS: a `ps` sampler fenced to each encoder child, loaded from the
+  resource governor's bundle, which alone carries M107's policy modules;
+- Linux keeps its `/proc` sampler.
+*/
 export async function conversionBindings(
   jobExecutable: (() => Promise<string | undefined>) | undefined,
   privateRoot: (() => Promise<PrivateRoot>) | undefined,

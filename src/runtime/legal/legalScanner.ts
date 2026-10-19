@@ -31,10 +31,10 @@ function failed(reason: string): Error {
 }
 
 /**
- * The scanner from the bundle beside the running one (`distDir`), loaded on
- * the first scan and kept after. Tests hand in `loadBundle`; production uses
- * Node's own require, like the host's lazy bundles.
- */
+The scanner from the bundle beside the running one (`distDir`), loaded on
+the first scan and kept after. Tests hand in `loadBundle`; production uses
+Node's own require, like the host's lazy bundles.
+*/
 export function loadLegalScanner(input: {
   readonly distDir: string
   readonly loadBundle?: ((file: string) => unknown) | undefined

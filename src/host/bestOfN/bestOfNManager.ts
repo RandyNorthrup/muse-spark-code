@@ -78,11 +78,11 @@ export interface BestOfNManagerDeps extends Pick<
   /** The originating conversation's wire approval mode. */
   readonly wireApprovalMode: () => string
   /**
-   * Fire one extension event from the originating session's snapshot (M91
-   * lane E): Best-of-N worktrees and idling teammates fire from the parent,
-   * because attempts run with hooks off. Absent until the host wires it;
-   * without it the run behaves as before.
-   */
+  Fire one extension event from the originating session's snapshot (M91
+  lane E): Best-of-N worktrees and idling teammates fire from the parent,
+  because attempts run with hooks off. Absent until the host wires it;
+  without it the run behaves as before.
+  */
   readonly fireExtensionHook?: (
     event: ExtensionHookEvent,
     fields: Readonly<Record<string, unknown>>,
@@ -98,10 +98,10 @@ export interface BestOfNManagerDeps extends Pick<
 const ABORT_CHOICE_ID = 'abort'
 
 /**
- * A failed attempt's reason for the run: the redacted failure text, as the
- * runner records its own failures, never the log's kind word. The dialog
- * renders it (`bestOfNAttemptFailed`), and the log keeps the kind.
- */
+A failed attempt's reason for the run: the redacted failure text, as the
+runner records its own failures, never the log's kind word. The dialog
+renders it (`bestOfNAttemptFailed`), and the log keeps the kind.
+*/
 export function attemptFailureReason(error: unknown): string {
   return redactSecrets(error instanceof Error ? error.message : String(error))
 }
@@ -249,14 +249,14 @@ class AttemptDriver implements BestOfNAttemptDriver {
   }
 
   /**
-   * One turn on the attempt's session: the first runs the run's prompt, a
-   * kept turn the hook's reason, each billed to the run's ceiling like any
-   * attempt request. The turn runs floating and its completion (or failure)
-   * is reported as the attempt's next event, which the runner is already
-   * waiting for. The session stays open between turns — the runner settles
-   * the attempt, and only settling closes it — so a kept attempt keeps its
-   * transcript.
-   */
+  One turn on the attempt's session: the first runs the run's prompt, a
+  kept turn the hook's reason, each billed to the run's ceiling like any
+  attempt request. The turn runs floating and its completion (or failure)
+  is reported as the attempt's next event, which the runner is already
+  waiting for. The session stays open between turns — the runner settles
+  the attempt, and only settling closes it — so a kept attempt keeps its
+  transcript.
+  */
   private startTurn(prompt: string): void {
     const session = this.session
     if (session === undefined) {
@@ -313,12 +313,12 @@ class AttemptDriver implements BestOfNAttemptDriver {
   }
 
   /**
-   * A TeammateIdle hook kept the attempt working (M91 lane E): one more
-   * turn carrying the hook's reason, on the same session. The turn is
-   * dispatched and this resolves; its completion arrives as the attempt's
-   * next event, which the runner already waits for. A gone session fails
-   * loudly, so the attempt completes instead of hanging.
-   */
+  A TeammateIdle hook kept the attempt working (M91 lane E): one more
+  turn carrying the hook's reason, on the same session. The turn is
+  dispatched and this resolves; its completion arrives as the attempt's
+  next event, which the runner already waits for. A gone session fails
+  loudly, so the attempt completes instead of hanging.
+  */
   public continueAttempt(reason: string): Promise<void> {
     if (this.session === undefined || this.isDisposed || !this.turnOver) {
       throw new Error('A best-of-N attempt has no turn to continue')
@@ -334,10 +334,10 @@ class AttemptDriver implements BestOfNAttemptDriver {
   }
 
   /**
-   * Starts the session, then runs its conversation in the background: the
-   * runner marks the attempt running once this resolves, while the turn
-   * itself finishes through `onEvent`.
-   */
+  Starts the session, then runs its conversation in the background: the
+  runner marks the attempt running once this resolves, while the turn
+  itself finishes through `onEvent`.
+  */
   public async start(): Promise<void> {
     try {
       this.attempt.signal.throwIfAborted()
@@ -397,10 +397,10 @@ class AttemptDriver implements BestOfNAttemptDriver {
 }
 
 /**
- * The window's best-of-N runs: one live run at a time, driven through the
- * core runner, with attempt conversations on worktree-rooted Model API
- * hosts. The controller posts every `onUpdate` run to its surface.
- */
+The window's best-of-N runs: one live run at a time, driven through the
+core runner, with attempt conversations on worktree-rooted Model API
+hosts. The controller posts every `onUpdate` run to its surface.
+*/
 export class BestOfNManager {
   private readonly runner: BestOfNRunner
   private backendKind: 'museCode' | 'modelApi' = 'modelApi'

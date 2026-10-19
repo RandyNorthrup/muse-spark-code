@@ -305,7 +305,7 @@ switch (process.platform) {
           ['/etc/ld.so.cache', true],
         ]) {
           if (typeof target !== 'string' || typeof isAllowed !== 'boolean')
-            throw new Error('Invalid case')
+            throw new TypeError('Invalid case')
           const h = await fixture()
           const result = await native(
             variant('Race'),

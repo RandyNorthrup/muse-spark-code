@@ -16,19 +16,19 @@ import {
 } from './slotEntries'
 
 /**
- * macOS slots: the login Keychain for the OS store (as D61 and VS Code use
- * today) and the Secure Enclave where `SecureEnclave.isAvailable` (Touch ID
- * or Apple silicon), after Q-M109's capture. Presence is a fresh Secure
- * Enclave `userPresence` unwrap — Touch ID or the password at each unwrap,
- * with a new context and process per use — so every presence call prompts.
- */
+macOS slots: the login Keychain for the OS store (as D61 and VS Code use
+today) and the Secure Enclave where `SecureEnclave.isAvailable` (Touch ID
+or Apple silicon), after Q-M109's capture. Presence is a fresh Secure
+Enclave `userPresence` unwrap — Touch ID or the password at each unwrap,
+with a new context and process per use — so every presence call prompts.
+*/
 export class MacVaultSlots implements VaultSlotProvider {
   /**
-   * A fresh Secure Enclave presence unwrap: the helper prompts (Touch ID or
-   * password, naming this exact use) and the operation fails closed without
-   * it. The broker's nonce scopes the operation; the prompt's freshness is
-   * what proves presence.
-   */
+  A fresh Secure Enclave presence unwrap: the helper prompts (Touch ID or
+  password, naming this exact use) and the operation fails closed without
+  it. The broker's nonce scopes the operation; the prompt's freshness is
+  what proves presence.
+  */
   readonly presence: VaultSlotProvider['presence'] = presenceGate(
     () => this.deps.presenceRecords,
     'secureEnclave',

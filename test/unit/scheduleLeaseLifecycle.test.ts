@@ -123,11 +123,11 @@ async function expectReleasedForNextWriter(fs: ScheduleFsPort) {
 }
 
 /**
- * A port decorator that records calls and can pause heartbeat pulses: every
- * method passes through to the real port, so observations never change
- * behaviour. The heartbeat gate holds one pulse in flight for the drain
- * case; the operations log orders releases for the successor case.
- */
+A port decorator that records calls and can pause heartbeat pulses: every
+method passes through to the real port, so observations never change
+behaviour. The heartbeat gate holds one pulse in flight for the drain
+case; the operations log orders releases for the successor case.
+*/
 class RecordingScheduleFs implements ScheduleFsPort {
   readonly operations: string[] = []
   public onReplace: ((file: string) => Promise<void>) | undefined

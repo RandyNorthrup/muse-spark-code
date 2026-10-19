@@ -61,11 +61,11 @@ export interface MuseCodeBundleLoaderDeps {
 }
 
 /**
- * The backend's bundle, required the first time it is asked for and kept
- * from then on; a missing or corrupt bundle throws `museCodeBundleUnavailable`
- * and is tried again on the next call. The installed display table goes in on
- * every load, since the bundle carries its own copy of the English fallback.
- */
+The backend's bundle, required the first time it is asked for and kept
+from then on; a missing or corrupt bundle throws `museCodeBundleUnavailable`
+and is tried again on the next call. The installed display table goes in on
+every load, since the bundle carries its own copy of the English fallback.
+*/
 export function museCodeBundleLoader(deps: MuseCodeBundleLoaderDeps): () => MuseCodeBundle {
   const load = lazyBundleLoader({
     ...deps,

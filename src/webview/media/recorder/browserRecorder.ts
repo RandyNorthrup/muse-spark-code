@@ -47,9 +47,9 @@ export interface BrowserRecordingPort {
 export type BrowserRecordingState =
   | { readonly status: 'idle' | 'requesting' | 'stopping' | 'uploading' }
   /**
-   * Seconds remaining while capped, seconds recorded while uncapped
-   * (maxSeconds 0); only the person stops an uncapped recording.
-   */
+  Seconds remaining while capped, seconds recorded while uncapped
+  (maxSeconds 0); only the person stops an uncapped recording.
+  */
   | { readonly status: 'recording'; readonly remaining: number }
   | { readonly status: 'preview'; readonly url: string }
   | { readonly status: 'error'; readonly reason: string }

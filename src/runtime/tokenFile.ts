@@ -70,12 +70,12 @@ $rules = @($verified.GetAccessRules($true, $true, [System.Security.Principal.Sec
 `
 
 /**
- * One fixed ACL script over one path, in the Windows root's own PowerShell
- * (`SystemRoot`, then `windir`; never PATH and never an assumed drive). Only
- * the path and its kind are encoded into the script as `$inputPath`; the
- * credential-free environment carries no bearer or key. Returns the parsed
- * JSON receipt for the caller's schema.
- */
+One fixed ACL script over one path, in the Windows root's own PowerShell
+(`SystemRoot`, then `windir`; never PATH and never an assumed drive). Only
+the path and its kind are encoded into the script as `$inputPath`; the
+credential-free environment carries no bearer or key. Returns the parsed
+JSON receipt for the caller's schema.
+*/
 export async function runWindowsAclScript(
   body: string,
   file: string,
@@ -114,11 +114,11 @@ const windowsAcl: TokenWindowsAcl = {
 }
 
 /**
- * macOS's mode string for one path when it carries no extended ACL (`ls
- * -led` prints exactly one line, with no `+` and no ACL entries), else
- * undefined. chmod does not remove macOS allow ACEs, so the mode alone
- * proves nothing there.
- */
+macOS's mode string for one path when it carries no extended ACL (`ls
+-led` prints exactly one line, with no `+` and no ACL entries), else
+undefined. chmod does not remove macOS allow ACEs, so the mode alone
+proves nothing there.
+*/
 export async function darwinModeWithoutAcl(file: string): Promise<string | undefined> {
   const output = await runProgram(
     '/bin/ls',
@@ -138,14 +138,14 @@ export async function darwinModeWithoutAcl(file: string): Promise<string | undef
 }
 
 /**
- * Owner-only access for one file or directory, read back before it is used:
- * the bearer token's folder and file (M104) and conversion's private folder
- * (M105, `privateDirectory.ts`). On Windows the DACL is protected and holds
- * only the current user's full-control grant (container and object inherit
- * on a directory), through the `%SystemRoot%` PowerShell, never PATH; on
- * POSIX the mode is 0700/0600, owned by this user, and macOS shows no ACL.
- * Any failure throws `EOWNER_ONLY`; callers keep their own refusal.
- */
+Owner-only access for one file or directory, read back before it is used:
+the bearer token's folder and file (M104) and conversion's private folder
+(M105, `privateDirectory.ts`). On Windows the DACL is protected and holds
+only the current user's full-control grant (container and object inherit
+on a directory), through the `%SystemRoot%` PowerShell, never PATH; on
+POSIX the mode is 0700/0600, owned by this user, and macOS shows no ACL.
+Any failure throws `EOWNER_ONLY`; callers keep their own refusal.
+*/
 export async function secureOwnerOnly(
   file: string,
   kind: 'file' | 'directory',

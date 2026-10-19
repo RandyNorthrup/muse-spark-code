@@ -14,13 +14,13 @@ import {
 } from '../../shared/constants'
 
 /**
- * A read-only view of the workspace a scan may inspect. The host (or a
- * test) enumerates `files` and serves `readFile`; the scanner never lists
- * directories, resolves links or writes. `readFile` returns the file's
- * text decoded as UTF-8, or `undefined` when the file is missing or cannot
- * be read as text. Binary content (a NUL byte) is the readers' cue to skip
- * a file, never to treat its bytes as evidence.
- */
+A read-only view of the workspace a scan may inspect. The host (or a
+test) enumerates `files` and serves `readFile`; the scanner never lists
+directories, resolves links or writes. `readFile` returns the file's
+text decoded as UTF-8, or `undefined` when the file is missing or cannot
+be read as text. Binary content (a NUL byte) is the readers' cue to skip
+a file, never to treat its bytes as evidence.
+*/
 export interface LegalFileSnapshot {
   readonly incompleteChecks?: readonly string[]
   readonly files: readonly string[]
@@ -40,11 +40,11 @@ const WINDOWS_ABSOLUTE = /^[a-zA-Z]:[\\/]/
 const PARENT_SEGMENT = '..'
 
 /**
- * Refuse anything that is not a workspace-relative forward-slash path:
- * absolute paths, parent segments and backslashes never reach `readFile`.
- * Link escapes are the enumerator's to prevent; the scanner additionally
- * never follows a path it was not given.
- */
+Refuse anything that is not a workspace-relative forward-slash path:
+absolute paths, parent segments and backslashes never reach `readFile`.
+Link escapes are the enumerator's to prevent; the scanner additionally
+never follows a path it was not given.
+*/
 export function assertWorkspaceRelative(path: string): void {
   const segments = new Set(path.split('/'))
   if (
@@ -74,21 +74,21 @@ export function dirNameOf(path: string): string {
 }
 
 /**
- * The first `window` lines of a file's text, with a byte-order mark
- * removed and universal newlines. Headers live at the top of a file, past
- * shebangs and mode lines; a longer window only invites matching code as
- * headers, so the bound stays at lane 0's header window.
- */
+The first `window` lines of a file's text, with a byte-order mark
+removed and universal newlines. Headers live at the top of a file, past
+shebangs and mode lines; a longer window only invites matching code as
+headers, so the bound stays at lane 0's header window.
+*/
 export function topLines(text: string, window: number = LEGAL_HEADER_LINE_WINDOW): string[] {
   const withoutBom = text.codePointAt(0) === BYTE_ORDER_MARK_CODE ? text.slice(1) : text
   return withoutBom.split(/\r\n|\r|\n/).slice(0, window)
 }
 
 /**
- * The only raw file content a finding may carry: at most the excerpt
- * bound's characters of the evidence region, never a whole file, so a
- * report stays free of secret and PII values and confidential bodies.
- */
+The only raw file content a finding may carry: at most the excerpt
+bound's characters of the evidence region, never a whole file, so a
+report stays free of secret and PII values and confidential bodies.
+*/
 export function excerpt(text: string, maxChars: number = LEGAL_EVIDENCE_EXCERPT_MAX_CHARS): string {
   const scrubbed = scrubLegalText(text)
   return scrubbed.length <= maxChars ? scrubbed : scrubbed.slice(0, maxChars)
@@ -102,10 +102,10 @@ export function isLicenseFileName(base: string): boolean {
 }
 
 /**
- * Whether text holds binary content (a NUL byte): readers skip such files
- * instead of treating their bytes as evidence. Written without a literal
- * so the source stays printable.
- */
+Whether text holds binary content (a NUL byte): readers skip such files
+instead of treating their bytes as evidence. Written without a literal
+so the source stays printable.
+*/
 export function hasBinaryContent(text: string): boolean {
   return text.includes(String.fromCodePoint(0))
 }

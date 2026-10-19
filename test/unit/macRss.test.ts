@@ -33,8 +33,8 @@ function fakeChild(pid: number | null = PID) {
   return child
 }
 
-function clock(start = 1000) {
-  let time = start
+function clock() {
+  let time = 1000
   return {
     now: () => time,
     advance: (ms: number) => {

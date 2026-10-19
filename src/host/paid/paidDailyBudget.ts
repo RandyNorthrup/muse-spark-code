@@ -180,11 +180,11 @@ export function createPaidDailyBudget(deps: {
     assertActive()
   }
   /**
-   * One paid request under today's limit: `undefined` when the person set
-   * none (nothing is read or written); otherwise its claim. An estimate that
-   * would pass what is left asks to raise the limit when the person can
-   * answer (a signal), and refuses with the stop sentence otherwise.
-   */
+  One paid request under today's limit: `undefined` when the person set
+  none (nothing is read or written); otherwise its claim. An estimate that
+  would pass what is left asks to raise the limit when the person can
+  answer (a signal), and refuses with the stop sentence otherwise.
+  */
   const admit = async (
     estimateUsd: UsdAmount,
     signal?: AbortSignal,

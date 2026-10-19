@@ -38,10 +38,10 @@ const optionalNumber = z.optional(numberSchema)
 const optionalBoolean = z.optional(booleanSchema)
 
 /**
- * One check command as a row reports it (M68): its name, how it ended, why
- * it did not run, and that reason's detail (the user's feedback on Reject,
- * or a hook's words).
- */
+One check command as a row reports it (M68): its name, how it ended, why
+it did not run, and that reason's detail (the user's feedback on Reject,
+or a hook's words).
+*/
 export const checkSummarySchema = z.object({
   name: stringSchema,
   outcome: z.enum(CHECK_OUTCOMES),
@@ -51,10 +51,10 @@ export const checkSummarySchema = z.object({
 export type CheckSummary = z.infer<typeof checkSummarySchema>
 
 /**
- * The verify loop's row (M68, PLAN.md D49): the files it checked, the errors
- * and warnings of those it read (absent when the diagnostics are off or
- * could not be read), how many files it could not read, and each check.
- */
+The verify loop's row (M68, PLAN.md D49): the files it checked, the errors
+and warnings of those it read (absent when the diagnostics are off or
+could not be read), how many files it could not read, and each check.
+*/
 export const verifySummarySchema = z.object({
   files: z.array(stringSchema),
   errors: optionalNumber,
@@ -83,10 +83,10 @@ export type CitationSummary = z.infer<typeof citationSchema>
 export const outputRefSchema = z.object({ id: stringSchema, byteLen: numberSchema })
 
 /**
- * A user message's image, as the durable log echoes it (MSP
- * `MessageAttachment`, whose vocabulary "grows additively"), or a PDF the
- * Model API backend sent (M54, `type: "file"`): its name, size and pages.
- */
+A user message's image, as the durable log echoes it (MSP
+`MessageAttachment`, whose vocabulary "grows additively"), or a PDF the
+Model API backend sent (M54, `type: "file"`): its name, size and pages.
+*/
 const messageAttachmentSchema = z.object({
   type: stringSchema,
   mediaType: stringSchema,
@@ -106,11 +106,11 @@ export const patchSummarySchema = z.object({
 export type PatchSummary = z.infer<typeof patchSummarySchema>
 
 /**
- * One transcript item at one revision: the common fields plus the per-kind
- * fields the UI renders (MSP `Item`, verified live 2026-09-21 for
- * `agentMessage`, `toolCall`, `userMessage`, `reminderChild`). Exported as a
- * shape so the MSP mapper can widen `turnId` to nullable.
- */
+One transcript item at one revision: the common fields plus the per-kind
+fields the UI renders (MSP `Item`, verified live 2026-09-21 for
+`agentMessage`, `toolCall`, `userMessage`, `reminderChild`). Exported as a
+shape so the MSP mapper can widen `turnId` to nullable.
+*/
 /** Provider-reported tokens (`session/tokenUsage`, a subagent's transitive usage). */
 export const tokenUsageSchema = z.object({
   inputTokens: numberSchema,
@@ -128,10 +128,10 @@ const subagentResultSchema = z.object({
 })
 
 /**
- * A workflow run as its item names it (M47): the handle its controls send,
- * the entry and script it launched, and what started it. The wire item and
- * the transcript's saved row share these.
- */
+A workflow run as its item names it (M47): the handle its controls send,
+the entry and script it launched, and what started it. The wire item and
+the transcript's saved row share these.
+*/
 export const workflowRunFields = {
   workflowRunId: optionalString,
   entryId: optionalString,
@@ -171,47 +171,47 @@ export const itemSnapshotFields = {
   durationMs: optionalNumber,
   controlStatus: optionalString,
   /**
-   * `agentMessage`: the response's tokens (M82, Model API only, and only
-   * while its setting is on; Muse Code reports no per-reply totals on its
-   * protocol, PLAN.md D26).
-   */
+  `agentMessage`: the response's tokens (M82, Model API only, and only
+  while its setting is on; Muse Code reports no per-reply totals on its
+  protocol, PLAN.md D26).
+  */
   usage: z.optional(tokenUsageSchema),
   result: z.optional(subagentResultSchema),
   /** `toolCall`: durably backgrounded, and by whom (M14). */
   background: optionalBoolean,
   backgroundInitiator: optionalString,
   /**
-   * `userShell` (M46, captured live 2026-09-25): the command as the user
-   * typed it, and how it ended, an exit code or a signal number (MSP
-   * `exitSignal`, verbatim). `durationMs` above is its run time.
-   */
+  `userShell` (M46, captured live 2026-09-25): the command as the user
+  typed it, and how it ended, an exit code or a signal number (MSP
+  `exitSignal`, verbatim). `durationMs` above is its run time.
+  */
   commandText: optionalString,
   exitCode: optionalNumber,
   exitSignal: optionalNumber,
   /** `toolCall`: a call billed on top of tokens (M33, PLAN.md D30), marked paid in its row. */
   paid: z.optional(z.enum(PAID_FEATURES)),
   /**
-   * `toolCall`: what the model saw beyond text (MSP 1.3.0 `ModelVisibleContent`,
-   * metadata only). Muse Code did not send it on the live stream (captured
-   * 2026-09-25), so it is taken as it comes and read element by element
-   * (`reportedImages`): a shape that differs costs the picture, never the
-   * item (the review of PR #29).
-   */
+  `toolCall`: what the model saw beyond text (MSP 1.3.0 `ModelVisibleContent`,
+  metadata only). Muse Code did not send it on the live stream (captured
+  2026-09-25), so it is taken as it comes and read element by element
+  (`reportedImages`): a shape that differs costs the picture, never the
+  item (the review of PR #29).
+  */
   modelVisibleContent: z.optional(z.array(z.unknown())),
   /** `agentMessage`: the sources the reply cites (`url_citation`, M33), each once. */
   citations: z.optional(z.array(citationSchema)),
   /**
-   * `agentMessage`: the response's dollar estimate (M82, Model API only,
-   * and only while its setting is on). Muse Code reports no per-reply
-   * totals on its protocol, and its cost is never invented (PLAN.md D26).
-   */
+  `agentMessage`: the response's dollar estimate (M82, Model API only,
+  and only while its setting is on). Muse Code reports no per-reply
+  totals on its protocol, and its cost is never invented (PLAN.md D26).
+  */
   costUsd: z.optional(nonnegativeUsdSchema),
   /**
-   * `workflow` (M47, captured live 2026-09-25): the run as above, and the
-   * reconciled message it ends with. Its `children` are taken as they come
-   * and read one by one (`reportedChildren`), so a child whose shape
-   * differs costs that child, never the run.
-   */
+  `workflow` (M47, captured live 2026-09-25): the run as above, and the
+  reconciled message it ends with. Its `children` are taken as they come
+  and read one by one (`reportedChildren`), so a child whose shape
+  differs costs that child, never the run.
+  */
   ...workflowRunFields,
   children: z.optional(z.array(z.unknown())),
   message: optionalString,
@@ -220,18 +220,18 @@ export const itemSnapshotFields = {
   /** `toolCall` of an edit with `then_run` (M68): the command's result beside the edit's. */
   thenRun: z.optional(thenRunResultSchema),
   /**
-   * The team's cards (M96 lane U2): the delegation plan, a switch, the
-   * waiting card, the merge card, a report row, and the worker label on a
-   * worker's own card. Lanes T/A/W fill these; the webview only renders.
-   */
+  The team's cards (M96 lane U2): the delegation plan, a switch, the
+  waiting card, the merge card, a report row, and the worker label on a
+  worker's own card. Lanes T/A/W fill these; the webview only renders.
+  */
   ...teamItemFields,
   /**
-   * When the item was recorded (M87, PLAN.md D66), an RFC 3339 string: MSP
-   * `Item.recordedAt` as captured on `userMessage`, `agentMessage` and
-   * `userShell` items (M46, M79), or the Model API host's own stamp. Kept as
-   * the string it came as: a time that does not parse costs the time where
-   * it is read, never the item.
-   */
+  When the item was recorded (M87, PLAN.md D66), an RFC 3339 string: MSP
+  `Item.recordedAt` as captured on `userMessage`, `agentMessage` and
+  `userShell` items (M46, M79), or the Model API host's own stamp. Kept as
+  the string it came as: a time that does not parse costs the time where
+  it is read, never the item.
+  */
   recordedAt: z.optional(z.string()),
 } as const
 
@@ -272,19 +272,19 @@ export const requirementRefSchema = z.object({
 export type RequirementRef = z.infer<typeof requirementRefSchema>
 
 /**
- * One stage of a multi-command shell approval (`a; b` is two stages, each
- * decided in turn; verified live 2026-09-22).
- */
+One stage of a multi-command shell approval (`a; b` is two stages, each
+decided in turn; verified live 2026-09-22).
+*/
 export const approvalStageSchema = z.object({
   requirementId: requirementRefSchema,
   position: numberSchema,
   totalStages: numberSchema,
   argv: z.array(stringSchema),
   /**
-   * The rule "Always allow in this workspace" would add for this stage; its
-   * `label` is the label and preview Muse Code gives that choice while this
-   * stage is current (captured 2026-10-02, Muse Code 1.4.0 and 1.4.2).
-   */
+  The rule "Always allow in this workspace" would add for this stage; its
+  `label` is the label and preview Muse Code gives that choice while this
+  stage is current (captured 2026-10-02, Muse Code 1.4.0 and 1.4.2).
+  */
   suggestedPrefix: z.optional(z.object({ argvPrefix: z.array(stringSchema), label: stringSchema })),
 })
 export type ApprovalStage = z.infer<typeof approvalStageSchema>
@@ -365,12 +365,12 @@ export const todoItemSchema = z.object({
 export type TodoItem = z.infer<typeof todoItemSchema>
 
 /**
- * The session goal (M45, PLAN.md D38): MSP 1.3.0's `Goal` block, as
- * `session/goalChanged` and a resumed snapshot carry it (captured live
- * 2026-09-25). `status` and `percentComplete` are verbatim: a status Muse
- * Code adds later is shown as it came, and the bar clamps the percentage.
- * The Model API backend's goal takes the same shape.
- */
+The session goal (M45, PLAN.md D38): MSP 1.3.0's `Goal` block, as
+`session/goalChanged` and a resumed snapshot carry it (captured live
+2026-09-25). `status` and `percentComplete` are verbatim: a status Muse
+Code adds later is shown as it came, and the bar clamps the percentage.
+The Model API backend's goal takes the same shape.
+*/
 export const sessionGoalSchema = z.object({
   objective: stringSchema,
   status: stringSchema,
@@ -381,12 +381,12 @@ export const sessionGoalSchema = z.object({
 export type SessionGoal = z.infer<typeof sessionGoalSchema>
 
 /**
- * One model completion's own counters, where the backend reports them per
- * completion (Muse Code's `session/tokenUsage` since 1.4, SDK 1.4.4
- * SessionTokenUsageParams): raw counters verbatim, counted-once prompt
- * tokens, the call's own wall time and the effective model that produced
- * it. All but input/output stay optional so older frames still parse.
- */
+One model completion's own counters, where the backend reports them per
+completion (Muse Code's `session/tokenUsage` since 1.4, SDK 1.4.4
+SessionTokenUsageParams): raw counters verbatim, counted-once prompt
+tokens, the call's own wall time and the effective model that produced
+it. All but input/output stay optional so older frames still parse.
+*/
 export const tokenUsageCompletionSchema = z.object({
   inputTokens: numberSchema,
   outputTokens: numberSchema,
@@ -505,22 +505,22 @@ const agentEventSchema = z.discriminatedUnion('type', [
     isJudgeEscalated: booleanSchema,
     isProtectedWrite: booleanSchema,
     /**
-     * Why the card asks beyond the mode (M78): the user's ask rule, the
-     * permission profile, or the Auto reviewer's reason. The extension's
-     * own; Muse Code sends none.
-     */
+    Why the card asks beyond the mode (M78): the user's ask rule, the
+    permission profile, or the Auto reviewer's reason. The extension's
+    own; Muse Code sends none.
+    */
     note: optionalString,
     /**
-     * A custom child's own `permission-mode`: the client answers it under
-     * the less automatic of this and its own mode (childPermissionMode).
-     */
+    A custom child's own `permission-mode`: the client answers it under
+    the less automatic of this and its own mode (childPermissionMode).
+    */
     permissionMode: z.optional(z.enum(PERMISSION_MODES)),
     /** A pending card shown to a later surface; joining never approves it automatically. */
     isReplayed: optionalBoolean,
     /**
-     * The turn that asked (Muse Code's `turnId`, captured 2026-10-02): the
-     * Auto reviewer answers only the running parent turn's (M90).
-     */
+    The turn that asked (Muse Code's `turnId`, captured 2026-10-02): the
+    Auto reviewer answers only the running parent turn's (M90).
+    */
     turnId: optionalString,
   }),
   // Extension-owned note only: cannot change a choice or settle an approval.
@@ -537,9 +537,9 @@ const agentEventSchema = z.discriminatedUnion('type', [
     subject: approvalSubjectSchema,
     availableChoices: z.array(approvalChoiceSchema),
     /**
-     * Why the card asks beyond the mode. The CLI sends none; the controller
-     * sets the secret note here too when it scrubs one in (M92e).
-     */
+    Why the card asks beyond the mode. The CLI sends none; the controller
+    sets the secret note here too when it scrubs one in (M92e).
+    */
     note: z.optional(z.string()),
   }),
   z.object({

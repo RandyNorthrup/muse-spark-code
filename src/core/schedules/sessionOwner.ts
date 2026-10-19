@@ -30,10 +30,10 @@ export class SessionOwner {
   private modePending: SessionEffect | undefined
   private isQuarantined = false
   /**
-   * The quarantine's own sentence (it names the wire mode the host still
-   * runs), so a later refused turn repeats it instead of the generic
-   * reviewer-missing words. Cleared with the quarantine.
-   */
+  The quarantine's own sentence (it names the wire mode the host still
+  runs), so a later refused turn repeats it instead of the generic
+  reviewer-missing words. Cleared with the quarantine.
+  */
   private quarantineNote: string | undefined
   private restoring = false
   private sequence = 0
@@ -80,12 +80,12 @@ export class SessionOwner {
   }
 
   /**
-   * The approval mode the host was last told to run (the constructor's, the
-   * last applied effect's, an idle external change, or the running mode a
-   * quarantine named): `undefined` while a failed change quarantined without
-   * naming one. Lets a caller put the previous mode back when a follow-up
-   * step fails, so the mode the person sees stays the mode the host runs.
-   */
+  The approval mode the host was last told to run (the constructor's, the
+  last applied effect's, an idle external change, or the running mode a
+  quarantine named): `undefined` while a failed change quarantined without
+  naming one. Lets a caller put the previous mode back when a follow-up
+  step fails, so the mode the person sees stays the mode the host runs.
+  */
   public get currentMode(): string | undefined {
     return this.mode
   }
@@ -96,11 +96,11 @@ export class SessionOwner {
   }
 
   /**
-   * Refuse turns until a mode change succeeds: the host runs a mode whose
-   * reviewer is not installed (or no mode is known at all), so letting a
-   * turn run would judge where the person expects asking. A later mode
-   * change still runs, which is how the session recovers.
-   */
+  Refuse turns until a mode change succeeds: the host runs a mode whose
+  reviewer is not installed (or no mode is known at all), so letting a
+  turn run would judge where the person expects asking. A later mode
+  change still runs, which is how the session recovers.
+  */
   public quarantine(): void {
     this.mode = undefined
     this.isQuarantined = true
@@ -108,11 +108,11 @@ export class SessionOwner {
   }
 
   /**
-   * Quarantine naming the wire mode the host still runs (a torn ack or a
-   * refused restore named it) with the sentence that says so: the later
-   * refused turn repeats that sentence instead of saying the reviewer is
-   * missing. Without a mode the sentence stands but no mode is kept.
-   */
+  Quarantine naming the wire mode the host still runs (a torn ack or a
+  refused restore named it) with the sentence that says so: the later
+  refused turn repeats that sentence instead of saying the reviewer is
+  missing. Without a mode the sentence stands but no mode is kept.
+  */
   public quarantineWith(message: string, mode?: string): void {
     this.quarantine()
     this.quarantineNote = message
@@ -193,11 +193,11 @@ export class SessionOwner {
   }
 
   /**
-   * A command that did not change the host (a refused `session/setApprovalMode`,
-   * a stale token) releases its effect but keeps the mode: the host still runs
-   * it with its reviewer, so turns stay live. Only a mode the host runs with an
-   * unconfirmed reviewer quarantines, through `quarantine()` at that site.
-   */
+  A command that did not change the host (a refused `session/setApprovalMode`,
+  a stale token) releases its effect but keeps the mode: the host still runs
+  it with its reviewer, so turns stay live. Only a mode the host runs with an
+  unconfirmed reviewer quarantines, through `quarantine()` at that site.
+  */
   public modeApplied(effect: SessionEffect, didSucceed: boolean): boolean {
     if (this.modePending !== effect) return false
     this.modePending = undefined

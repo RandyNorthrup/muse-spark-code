@@ -37,12 +37,12 @@ export function isNpmPackageName(name: string): boolean {
 }
 
 /**
- * Registry path encoding for one package name. Mirrors the registry's
- * captured scoped form (`@types%2Fnode`); kept beside the adapter because the
- * reporting bundle must not import the runtime legal scanner. Only a leading
- * `@` opens the scoped form: any other slash (an invalid name the adapter
- * refuses) encodes as `%2F` instead of borrowing a neighbouring scope.
- */
+Registry path encoding for one package name. Mirrors the registry's
+captured scoped form (`@types%2Fnode`); kept beside the adapter because the
+reporting bundle must not import the runtime legal scanner. Only a leading
+`@` opens the scoped form: any other slash (an invalid name the adapter
+refuses) encodes as `%2F` instead of borrowing a neighbouring scope.
+*/
 export function encodeNpmPackageName(name: string): string {
   if (name.startsWith('@')) {
     const slash = name.indexOf('/')
@@ -53,11 +53,11 @@ export function encodeNpmPackageName(name: string): string {
 }
 
 /**
- * The default npm channel adapter: latest version document, `version` only.
- * An invalid name is a refused adapter, never a throw: the stores source
- * reports its channel row as unavailable with the refusal reason, so one bad
- * manifest name cannot fail the whole report (RVCM1136 P2).
- */
+The default npm channel adapter: latest version document, `version` only.
+An invalid name is a refused adapter, never a throw: the stores source
+reports its channel row as unavailable with the refusal reason, so one bad
+manifest name cannot fail the whole report (RVCM1136 P2).
+*/
 export function npmStoreAdapter(packageName: string): ReportStoreAdapter {
   if (!isNpmPackageName(packageName))
     return {

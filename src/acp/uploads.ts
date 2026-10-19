@@ -22,9 +22,9 @@ export interface AcpUploadsPort {
 }
 
 /**
- * One listed file: its number and id are both accepted by
- * `/uploads delete`, so the listing shows what the delete needs.
- */
+One listed file: its number and id are both accepted by
+`/uploads delete`, so the listing shows what the delete needs.
+*/
 function rowLine(file: UploadedFilesReport['files'][number], index: number): string {
   const expiry = uploadExpiryText(file.expiresAt)
   const ownership = file.ours ? UI_TEXT.media.filesOurs : UI_TEXT.media.filesOtherApp
@@ -57,14 +57,14 @@ async function readReport(
 }
 
 /**
- * Runs `/uploads`, `/uploads delete <file>` and `/uploads delete-all`,
- * where `<file>` is the listed file's id or its number. Anything else is
- * ignored for the model turn. With no ledger it says so and deletes
- * nothing; a failed provider delete names its reason and the row stays.
- * A cancelled turn deletes nothing: the signal is checked before the read
- * and again immediately before every destructive dispatch, and it travels
- * into the delete sequence itself.
- */
+Runs `/uploads`, `/uploads delete <file>` and `/uploads delete-all`,
+where `<file>` is the listed file's id or its number. Anything else is
+ignored for the model turn. With no ledger it says so and deletes
+nothing; a failed provider delete names its reason and the row stays.
+A cancelled turn deletes nothing: the signal is checked before the read
+and again immediately before every destructive dispatch, and it travels
+into the delete sequence itself.
+*/
 export async function runUploadsCommand(
   text: string,
   input: {

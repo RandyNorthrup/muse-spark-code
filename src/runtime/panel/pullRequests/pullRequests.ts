@@ -78,10 +78,10 @@ export interface PreparePullRequestInput {
   readonly base?: string
   readonly sessionId?: string
   /**
-   * The running operation's own stop: Cancel, a session change and disposal
-   * abort the discovery and skip the link, instead of persisting a link for
-   * a stale session (Codex on PR #227).
-   */
+  The running operation's own stop: Cancel, a session change and disposal
+  abort the discovery and skip the link, instead of persisting a link for
+  a stale session (Codex on PR #227).
+  */
   readonly signal?: AbortSignal
 }
 
@@ -140,11 +140,11 @@ export function isAbortError(error: unknown): boolean {
 }
 
 /**
- * An expected pull request failure: GitHub's answer (the client wraps
- * every one, network included, in `GitHubError`), a trust refusal or
- * Cancel. Anything else is a bug above the service, and is not its
- * `{ ok: false }` answer to give.
- */
+An expected pull request failure: GitHub's answer (the client wraps
+every one, network included, in `GitHubError`), a trust refusal or
+Cancel. Anything else is a bug above the service, and is not its
+`{ ok: false }` answer to give.
+*/
 export function isExpectedPullRequestFailure(error: unknown): boolean {
   return (
     error instanceof GitHubError || error instanceof PullRequestServiceError || isAbortError(error)
@@ -162,10 +162,10 @@ export class RuntimePullRequests {
   }
 
   /**
-   * The `{ ok: false }` answer when a trust refusal or Cancel stops the
-   * call before it starts; anything else is not this call's answer to
-   * give, so it keeps throwing. `undefined` means trust held.
-   */
+  The `{ ok: false }` answer when a trust refusal or Cancel stops the
+  call before it starts; anything else is not this call's answer to
+  give, so it keeps throwing. `undefined` means trust held.
+  */
   private trustRefusal(): PullRequestFailure | undefined {
     try {
       this.checkTrust()
@@ -209,10 +209,10 @@ export class RuntimePullRequests {
   }
 
   /**
-   * Where the pull request opens: the remote's repository, or for a fork
-   * the repository it came from, with the branch named `owner:branch`
-   * there. Reuses the REST client's repository facts, never a guess.
-   */
+  Where the pull request opens: the remote's repository, or for a fork
+  the repository it came from, with the branch named `owner:branch`
+  there. Reuses the REST client's repository facts, never a guess.
+  */
   private async destinationOf(
     client: GitHubClient,
     bearer: string,
@@ -273,10 +273,10 @@ export class RuntimePullRequests {
   }
 
   /**
-   * The pull request form's facts: where it would open, and the open pull
-   * request for the branch when one already exists (linked instead of a
-   * second one). Reads only; posts nothing.
-   */
+  The pull request form's facts: where it would open, and the open pull
+  request for the branch when one already exists (linked instead of a
+  second one). Reads only; posts nothing.
+  */
   public async prepare(input: PreparePullRequestInput): Promise<PreparePullRequestResult> {
     // The window's lifetime joins the operation's own stop: either aborts
     // the discovery below, and a stop also skips the link (Codex on PR #227).
@@ -352,10 +352,10 @@ export class RuntimePullRequests {
   }
 
   /**
-   * Open the pull request, as a draft or ready, after the user confirms
-   * what goes out. The confirmation is the form here: it shows the title,
-   * the description, the repository, the branches and the draft state.
-   */
+  Open the pull request, as a draft or ready, after the user confirms
+  what goes out. The confirmation is the form here: it shows the title,
+  the description, the repository, the branches and the draft state.
+  */
   public async create(input: CreatePullRequestInput): Promise<CreatePullRequestResult> {
     const refused = this.trustRefusal()
     if (refused !== undefined) return refused
@@ -435,9 +435,9 @@ export class RuntimePullRequests {
   }
 
   /**
-   * The linked pull request's state and checks from GitHub; `ask` may show
-   * the source's own sign-in. Reads only.
-   */
+  The linked pull request's state and checks from GitHub; `ask` may show
+  the source's own sign-in. Reads only.
+  */
   public async status(
     link: {
       readonly repository: string

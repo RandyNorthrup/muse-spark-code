@@ -47,10 +47,10 @@ export interface ListedRecord {
 }
 
 /**
- * A unit as listed: its ref, the tree the ref names, its conversation's key
- * and number from the ref's name, and the record (undefined: unreadable, or
- * not the record its name says).
- */
+A unit as listed: its ref, the tree the ref names, its conversation's key
+and number from the ref's name, and the record (undefined: unreadable, or
+not the record its name says).
+*/
 export interface ListedUnit {
   readonly ref: string
   readonly keep: string
@@ -181,10 +181,10 @@ export async function listRecords(shadow: ShadowGit): Promise<readonly ListedRec
 }
 
 /**
- * Every unit the shadow repository holds, read as it stands now. A ref whose
- * name is no unit's is left out; one whose record does not parse, or is not
- * the unit its name says, is listed with no record.
- */
+Every unit the shadow repository holds, read as it stands now. A ref whose
+name is no unit's is left out; one whose record does not parse, or is not
+the unit its name says, is listed with no record.
+*/
 export async function listUnits(shadow: ShadowGit): Promise<readonly ListedUnit[]> {
   const refs = await listRefs(shadow, UNIT_REF_PREFIX)
   const named = refs.flatMap((entry) => {
@@ -192,7 +192,7 @@ export async function listUnits(shadow: ShadowGit): Promise<readonly ListedUnit[
       .slice(UNIT_REF_PREFIX.length)
       .split(SEPARATOR)
     return rest.length === 0 && DECIMAL.test(number)
-      ? [{ ...entry, sessionKey: key, sequence: Number(number) }]
+      ? { ...entry, sessionKey: key, sequence: Number(number) }
       : []
   })
   const texts = await recordTexts(
@@ -230,11 +230,11 @@ export async function keepTree(
 }
 
 /**
- * Writes a unit record at its ref: created only if absent (`previous`
- * undefined), or changed only from the tree it was read at. The new tree, or
- * undefined when the ref was not what was expected (another window took the
- * number, or changed the record).
- */
+Writes a unit record at its ref: created only if absent (`previous`
+undefined), or changed only from the tree it was read at. The new tree, or
+undefined when the ref was not what was expected (another window took the
+number, or changed the record).
+*/
 export async function writeUnit(
   shadow: ShadowGit,
   ref: string,
@@ -263,10 +263,10 @@ export async function readUnit(
 }
 
 /**
- * Deletes refs, each only if it still names the tree it was read at: all at
- * once when none changed, else one by one, leaving any that did. The refs
- * deleted.
- */
+Deletes refs, each only if it still names the tree it was read at: all at
+once when none changed, else one by one, leaving any that did. The refs
+deleted.
+*/
 export async function deleteRefs(
   shadow: ShadowGit,
   refs: readonly HeldRef[],

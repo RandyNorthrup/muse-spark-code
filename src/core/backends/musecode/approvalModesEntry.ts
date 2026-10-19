@@ -18,9 +18,9 @@ import { failureForLog } from './logText'
 import { wireWordForLog } from '../../logging'
 
 /**
- * What the deferred mode sync needs from its session (built once per session
- * by its shells, never at activation).
- */
+What the deferred mode sync needs from its session (built once per session
+by its shells, never at activation).
+*/
 export interface ModeSyncOps {
   readonly owner: SessionOwner
   applyEffect(effect: SessionEffect): Promise<string | undefined>
@@ -37,13 +37,13 @@ function refusalReason(error: unknown): string {
 }
 
 /**
- * Select a native permission profile on the session (Muse Code 1.4.7,
- * amendment 42624; needs `experimentalApi`). `undefined` leaves the host
- * default alone. A host without `session/setPermissionProfile` answers
- * `methodNotFound` and the mode change stands without the profile; any
- * other refusal surfaces, so a managed profile exclusion fails loudly
- * instead of silently judging.
- */
+Select a native permission profile on the session (Muse Code 1.4.7,
+amendment 42624; needs `experimentalApi`). `undefined` leaves the host
+default alone. A host without `session/setPermissionProfile` answers
+`methodNotFound` and the mode change stands without the profile; any
+other refusal surfaces, so a managed profile exclusion fails loudly
+instead of silently judging.
+*/
 export async function setSessionProfile(
   ops: ModeSyncOps,
   profileId: string | undefined,
@@ -66,12 +66,12 @@ export async function setSessionProfile(
 }
 
 /**
- * The unconfirmed-adoption sentence for a torn mode with no reviewer: only
- * the asking modes install one (their `mspPermissionProfile` exists). Plan
- * (`denyUnmatched`) and Bypass (`allowAll`) decide by themselves, so a tear
- * there must not claim a reviewer failed. `undefined` for a mode with a
- * reviewer, whose caller keeps the reviewer wording.
- */
+The unconfirmed-adoption sentence for a torn mode with no reviewer: only
+the asking modes install one (their `mspPermissionProfile` exists). Plan
+(`denyUnmatched`) and Bypass (`allowAll`) decide by themselves, so a tear
+there must not claim a reviewer failed. `undefined` for a mode with a
+reviewer, whose caller keeps the reviewer wording.
+*/
 function tornUnconfirmedWords(mode: string): string | undefined {
   return mspPermissionProfile(mode) === undefined
     ? fill(UI_TEXT.permissionModeTornUnconfirmed, { mode })
@@ -79,14 +79,14 @@ function tornUnconfirmedWords(mode: string): string | undefined {
 }
 
 /**
- * The ack arrived but a turn ended while a forward mode command was in
- * flight, so the adoption tore: the host runs the named mode with a reviewer
- * that was never confirmed. The caller quarantines with this sentence, which
- * says the named mode is running and its reviewer was not installed, so the
- * surface shows the acknowledgement's mode instead of calling it unconfirmed.
- * A mode with no reviewer (Plan, Bypass) instead says the acknowledged mode
- * is in effect but the adoption could not be confirmed.
- */
+The ack arrived but a turn ended while a forward mode command was in
+flight, so the adoption tore: the host runs the named mode with a reviewer
+that was never confirmed. The caller quarantines with this sentence, which
+says the named mode is running and its reviewer was not installed, so the
+surface shows the acknowledgement's mode instead of calling it unconfirmed.
+A mode with no reviewer (Plan, Bypass) instead says the acknowledged mode
+is in effect but the adoption could not be confirmed.
+*/
 export function tornForwardError(appliedMode: string): PermissionReviewerError {
   return new PermissionReviewerError(
     tornUnconfirmedWords(appliedMode) ??
@@ -98,15 +98,15 @@ export function tornForwardError(appliedMode: string): PermissionReviewerError {
 }
 
 /**
- * The ack arrived but a turn ended while the rollback was in flight, so the
- * rollback's adoption tore: the host runs the previous mode again, and the
- * profile never changed, so that mode's reviewer is still installed. The
- * adoption itself could not be confirmed, so turns stay refused until the
- * mode is set again; this sentence says exactly that, and the later refusal
- * repeats it instead of saying the reviewer is missing. A previous mode with
- * no reviewer (Plan, Bypass) instead says it is restored but the adoption
- * could not be confirmed.
- */
+The ack arrived but a turn ended while the rollback was in flight, so the
+rollback's adoption tore: the host runs the previous mode again, and the
+profile never changed, so that mode's reviewer is still installed. The
+adoption itself could not be confirmed, so turns stay refused until the
+mode is set again; this sentence says exactly that, and the later refusal
+repeats it instead of saying the reviewer is missing. A previous mode with
+no reviewer (Plan, Bypass) instead says it is restored but the adoption
+could not be confirmed.
+*/
 export function tornRollbackError(previousMode: string, cause: unknown): PermissionReviewerError {
   return new PermissionReviewerError(
     tornUnconfirmedWords(previousMode) ??
@@ -117,22 +117,22 @@ export function tornRollbackError(previousMode: string, cause: unknown): Permiss
 }
 
 /**
- * Select one of the host's approval modes and keep the session's reviewer on
- * the mode's: the mode changes first, and when the profile step then fails
- * with anything but `methodNotFound`, the previous mode is put back before
- * the throw, so "the mode did not change" stays true. Every failure names
- * the wire mode the host runs: a refused mode command, or a clean rollback,
- * throws `ModeKeptError` with the running mode (turns stay live), while an
- * unknown previous mode, a failed rollback, or a torn adoption quarantines
- * with `PermissionReviewerError`.
- */
+Select one of the host's approval modes and keep the session's reviewer on
+the mode's: the mode changes first, and when the profile step then fails
+with anything but `methodNotFound`, the previous mode is put back before
+the throw, so "the mode did not change" stays true. Every failure names
+the wire mode the host runs: a refused mode command, or a clean rollback,
+throws `ModeKeptError` with the running mode (turns stay live), while an
+unknown previous mode, a failed rollback, or a torn adoption quarantines
+with `PermissionReviewerError`.
+*/
 /**
- * Mint the effect and run the mode command for it: a refused effect mints
- * `scheduleBusy`, a torn adoption quarantines with the running mode's
- * reviewer error (a forward tear names the applied mode; a rollback's tear is
- * replaced by its caller, which knows the previous mode is restored), and a
- * refused command propagates for the caller to name the kept mode.
- */
+Mint the effect and run the mode command for it: a refused effect mints
+`scheduleBusy`, a torn adoption quarantines with the running mode's
+reviewer error (a forward tear names the applied mode; a rollback's tear is
+replaced by its caller, which knows the previous mode is restored), and a
+refused command propagates for the caller to name the kept mode.
+*/
 export async function applyModeChange(
   ops: ModeSyncOps,
   mode: string,
@@ -223,13 +223,13 @@ export async function runSetApprovalMode(
 }
 
 /**
- * Put a finished schedule's mode back, then the conversation's reviewer with
- * it, in the same place as the mode change: a Manual conversation resumes
- * asking the person instead of keeping the admission's judge. The two go
- * back as one unit: when the reviewer cannot be put back, the session is
- * quarantined rather than left running the conversation's mode with the
- * admission's reviewer.
- */
+Put a finished schedule's mode back, then the conversation's reviewer with
+it, in the same place as the mode change: a Manual conversation resumes
+asking the person instead of keeping the admission's judge. The two go
+back as one unit: when the reviewer cannot be put back, the session is
+quarantined rather than left running the conversation's mode with the
+admission's reviewer.
+*/
 export async function restoreScheduleEffect(
   ops: ModeSyncOps,
   effect: SessionEffect,

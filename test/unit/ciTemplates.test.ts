@@ -88,9 +88,9 @@ describe('template defaults through the launcher’s own grammar', () => {
     // repository, so YAML pushed by a change under test cannot rebind the
     // key; the job condition is only a second layer.
     const jobs = record(yamlOf('azure'))['jobs']
-    if (!Array.isArray(jobs)) throw new Error('expected a jobs list')
+    if (!Array.isArray(jobs)) throw new TypeError('expected a jobs list')
     const variables = record(jobs[0])['variables']
-    if (!Array.isArray(variables)) throw new Error('expected a variables list')
+    if (!Array.isArray(variables)) throw new TypeError('expected a variables list')
     expect(
       variables.some(
         (entry) =>
@@ -136,7 +136,7 @@ describe('result transport out of external temp', () => {
   it('Bitbucket declares the five published files as step artifacts', () => {
     const definitions = record(record(yamlOf('bitbucket'))['definitions'])
     const steps = definitions['steps']
-    if (!Array.isArray(steps)) throw new Error('expected a steps list')
+    if (!Array.isArray(steps)) throw new TypeError('expected a steps list')
     expect(record(record(steps[0])['step'])['artifacts']).toEqual(published)
   })
 })
@@ -151,10 +151,10 @@ function runBootstrap(
 }
 
 /**
- * The parent-side slice of the generated bootstrap: the removal-command
- * probe first (so the trap's one bounded removal resolves under `set -u`),
- * then the result assignment through the parent trap.
- */
+The parent-side slice of the generated bootstrap: the removal-command
+probe first (so the trap's one bounded removal resolves under `set -u`),
+then the result assignment through the parent trap.
+*/
 function parentSnippet(system: (typeof SYSTEMS)[number]): {
   parent: string
   setupName: string

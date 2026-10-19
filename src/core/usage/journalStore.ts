@@ -61,10 +61,10 @@ export interface UsageFs {
   /** No length: read the complete file through one handle, for atomic rollups. */
   read(file: string, offset: number, length?: number): Promise<Uint8Array>
   /**
-   * `isDurable` flushes the appended bytes to disk before resolving. `commit`,
-   * a fence (here and below), runs at the last step before the change lands and
-   * refuses it by throwing.
-   */
+  `isDurable` flushes the appended bytes to disk before resolving. `commit`,
+  a fence (here and below), runs at the last step before the change lands and
+  refuses it by throwing.
+  */
   append(
     file: string,
     line: string,
@@ -207,7 +207,7 @@ const legacyRollupSchema = rollupSchemaWith(
   usageLegacyLimitSnapshotSchema,
 )
 /** An older month reads as current with the same exact decimals (M121, T7);
- * the next retention that changes it writes it back as current. */
+the next retention that changes it writes it back as current. */
 function rollupToCurrent(
   rollup: z.infer<typeof previousRollupSchema> | z.infer<typeof legacyRollupSchema>,
 ): Rollup {
@@ -244,14 +244,14 @@ const USAGE_LEGACY_MONEY_KEYS: ReadonlySet<string> = new Set([
   'remainingUsd',
 ])
 /**
- * Parse stored JSON. A version 1 dollar is exact only when the number it
- * parses to has the same decimal value as the digits written: 0.17 wrote
- * JSON.stringify's shortest spelling, which always does; digits beyond a
- * double (an edited or foreign file) do not, and `isExact` is false so the
- * reader refuses the record instead of rounding it. The written digits come
- * from `parseJsonWithExactNumbers`, never the reviver's source text, so the
- * refusal holds on Node 20 as well as newer runtimes (M121 P2-1).
- */
+Parse stored JSON. A version 1 dollar is exact only when the number it
+parses to has the same decimal value as the digits written: 0.17 wrote
+JSON.stringify's shortest spelling, which always does; digits beyond a
+double (an edited or foreign file) do not, and `isExact` is false so the
+reader refuses the record instead of rounding it. The written digits come
+from `parseJsonWithExactNumbers`, never the reviver's source text, so the
+refusal holds on Node 20 as well as newer runtimes (M121 P2-1).
+*/
 function parseUsageJson(text: string): { readonly value: unknown; readonly isExact: boolean } {
   return parseJsonWithExactNumbers(text, USAGE_LEGACY_MONEY_KEYS)
 }
@@ -276,9 +276,9 @@ export interface UsageJournalRead {
   readonly tornLines: number
   readonly invalidLines: number
   /**
-   * Version 1 records (lines, or a month's rollup rows) whose written dollars
-   * a number cannot carry: refused and named on the page, never rounded (M121).
-   */
+  Version 1 records (lines, or a month's rollup rows) whose written dollars
+  a number cannot carry: refused and named on the page, never rounded (M121).
+  */
   readonly inexactRecords: number
 }
 export interface UsageJournalOptions {
@@ -303,9 +303,9 @@ function sum(a: number | undefined, b: number | undefined): number | undefined {
   return a === undefined && b === undefined ? undefined : (a ?? 0) + (b ?? 0)
 }
 /**
- * Adapt a validated stored rollup without inventing unknown paired rates
- * (C-M113-2 shares this with the usage service instead of copying it).
- */
+Adapt a validated stored rollup without inventing unknown paired rates
+(C-M113-2 shares this with the usage service instead of copying it).
+*/
 export function toAggregateRow(row: UsageRollupRow): UsageAggregateRow {
   return {
     day: row.day,
@@ -437,10 +437,10 @@ export function rollupUsageRecords(records: readonly UsageRecord[]): UsageRollup
 }
 
 /**
- * The lock went away mid-read: the snapshot may mix generations, so the
- * read retries once with cold caches instead of returning it. Caught by
- * identity in `read` only; it never surfaces to a caller.
- */
+The lock went away mid-read: the snapshot may mix generations, so the
+read retries once with cold caches instead of returning it. Caught by
+identity in `read` only; it never surfaces to a caller.
+*/
 class UsageLockRacedError extends Error {}
 
 export class UsageJournalStore {

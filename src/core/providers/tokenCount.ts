@@ -10,13 +10,13 @@ import * as z from 'zod/mini'
 import { quirksOf, type ExactCountKind, type ProviderPreset } from './presets'
 
 /**
- * The wire's counting capability from data, not from a format `if`: the
- * preset's own `exactCount` where only some providers of a format document
- * one (OpenAI's Responses siblings do; xAI's and Azure's do not), else the
- * format default. The entry switch turns it off. Both the client offer
- * (configured.ts) and the start line (runExec.ts) read this one function,
- * so the line can never promise a count the wire does not send.
- */
+The wire's counting capability from data, not from a format `if`: the
+preset's own `exactCount` where only some providers of a format document
+one (OpenAI's Responses siblings do; xAI's and Azure's do not), else the
+format default. The entry switch turns it off. Both the client offer
+(configured.ts) and the start line (runExec.ts) read this one function,
+so the line can never promise a count the wire does not send.
+*/
 export function exactCountKindFor(
   entry: { readonly exactInputCount?: boolean | undefined },
   preset: ProviderPreset,
@@ -51,12 +51,12 @@ function without(body: Record<string, unknown>, keys: readonly string[]): Record
 }
 
 /**
- * The count request for one already-built native request, or undefined
- * where the kind does not own the path or the body. Callers treat
- * undefined (and every transport or parse failure after it) as the byte
- * bound with the fixed reason: a count is never retried and never invents
- * a sibling for a path it does not recognise.
- */
+The count request for one already-built native request, or undefined
+where the kind does not own the path or the body. Callers treat
+undefined (and every transport or parse failure after it) as the byte
+bound with the fixed reason: a count is never retried and never invents
+a sibling for a path it does not recognise.
+*/
 export function buildExactCountRequest(
   kind: ExactCountKind,
   encoded: EncodedCountSource,
@@ -89,11 +89,11 @@ const tokenCountSchema = z.object({
 })
 
 /**
- * The counted input tokens from a count answer, or undefined where the
- * body is not a non-negative integer count. A lying count (a count larger
- * than the byte bound) is NOT caught here: the caller compares against
- * the byte bound it already holds and falls back with the fixed reason.
- */
+The counted input tokens from a count answer, or undefined where the
+body is not a non-negative integer count. A lying count (a count larger
+than the byte bound) is NOT caught here: the caller compares against
+the byte bound it already holds and falls back with the fixed reason.
+*/
 export function parseExactCountResponse(kind: ExactCountKind, json: unknown): number | undefined {
   try {
     switch (kind) {

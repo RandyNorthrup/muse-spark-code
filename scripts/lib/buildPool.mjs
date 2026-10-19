@@ -7,16 +7,16 @@
 // and exit with the true error.
 
 /**
- * @template T
- * @typedef {readonly [name: string, start: () => Promise<T>]} PoolSpec
- */
+@template T
+@typedef {readonly [name: string, start: () => Promise<T>]} PoolSpec
+*/
 
 /**
- * @template T
- * @param {readonly PoolSpec<T>[]} specs
- * @param {number} size
- * @returns {Promise<Record<string, T>>}
- */
+@template T
+@param {readonly PoolSpec<T>[]} specs
+@param {number} size
+@returns {Promise<Record<string, T>>}
+*/
 export async function runBuildPool(specs, size) {
   if (!Number.isSafeInteger(size) || size < 1) {
     throw new Error(`pool size must be a positive integer, got ${String(size)}`)

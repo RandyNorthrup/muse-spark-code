@@ -52,11 +52,11 @@ async function quietly(work: () => Promise<unknown>): Promise<void> {
 const ENDED = Symbol('ended')
 
 /**
- * A lifetime of `ms` from now, ended early by any of `signals`; undefined
- * names no deadline (owner 2026-10-16) and the lifetime ends only at its
- * signals or its owner's `end()`. Cleanups get `cleanupMs` in all; one
- * that hangs is left behind, not waited for.
- */
+A lifetime of `ms` from now, ended early by any of `signals`; undefined
+names no deadline (owner 2026-10-16) and the lifetime ends only at its
+signals or its owner's `end()`. Cleanups get `cleanupMs` in all; one
+that hangs is left behind, not waited for.
+*/
 export function createLifetime(
   ms: number | undefined,
   signals: readonly AbortSignal[],

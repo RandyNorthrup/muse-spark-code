@@ -66,9 +66,9 @@ import {
 } from './crypto'
 
 /**
- * A broker authorization refusal, matched structurally so this layer keeps
- * no dependency on the broker: only its name and reason cross the boundary.
- */
+A broker authorization refusal, matched structurally so this layer keeps
+no dependency on the broker: only its name and reason cross the boundary.
+*/
 function isBrokerRefusal(error: unknown): error is Error {
   return (
     error instanceof Error &&
@@ -84,11 +84,11 @@ export type VaultWriterCheck = (() => void) & {
   mutate?: <T>(work: () => Promise<T>) => Promise<T>
 }
 /**
- * The serialized per-directory writer queue, shared process-wide (not per
- * module copy): two bundles loading this file in one process still run one
- * queue, so a second copy never adopts the first's live lock
- * (RVAPP-LEASE2 P2-1).
- */
+The serialized per-directory writer queue, shared process-wide (not per
+module copy): two bundles loading this file in one process still run one
+queue, so a second copy never adopts the first's live lock
+(RVAPP-LEASE2 P2-1).
+*/
 function sharedWriterQueues(): Map<string, Promise<void>> {
   // `globalThis` has no such property: the double assertion is the only
   // access to the lane-owned queue key (PLAN.md §8).
@@ -101,9 +101,9 @@ export interface VaultFilePort {
   readonly maxBytes: number
   read(name: VaultFileName): Promise<Buffer | null>
   /**
-   * `commit` runs synchronously immediately before the rename that publishes
-   * the file; if it throws, nothing is published and its error is rethrown.
-   */
+  `commit` runs synchronously immediately before the rename that publishes
+  the file; if it throws, nothing is published and its error is rethrown.
+  */
   writeAtomic(name: VaultFileName, data: Uint8Array, commit?: () => void): Promise<void>
   /** Retain any displaced document durably without reading it or removing its current path. */
   quarantine(name: 'vault.v1', authorize?: () => void): Promise<void>
@@ -1016,10 +1016,10 @@ export class VaultStore implements VaultStorePort {
     }
   }
   /**
-   * An initial intent nobody can complete: only `pending.v1`, no slots, no
-   * document and no anchor, so no key can ever open it. Setup removes it so
-   * a fresh setup can start; a vault with any other file is never touched.
-   */
+  An initial intent nobody can complete: only `pending.v1`, no slots, no
+  document and no anchor, so no key can ever open it. Setup removes it so
+  a fresh setup can start; a vault with any other file is never touched.
+  */
   static async discardAbandonedCreation(files: VaultFilePort): Promise<boolean> {
     return await files.withWriter(async () => {
       const document = await files.read('vault.v1')
@@ -1034,10 +1034,10 @@ export class VaultStore implements VaultStorePort {
     })
   }
   /**
-   * Reset Vault (lead decision, 2026-10-10): offered only when the anchored
-   * vault cannot be opened by any slot or code, because its required files are
-   * missing or damaged. Never true for a vault that merely is locked.
-   */
+  Reset Vault (lead decision, 2026-10-10): offered only when the anchored
+  vault cannot be opened by any slot or code, because its required files are
+  missing or damaged. Never true for a vault that merely is locked.
+  */
   static async isLost(
     files: VaultFilePort,
     anchoredId: string,
@@ -1054,10 +1054,10 @@ export class VaultStore implements VaultStorePort {
     )
   }
   /**
-   * The reset's file side: appends a value-free audit line to `reset.v1`,
-   * retains any displaced document (quarantine) and removes the vault files,
-   * under the writer lock, refusing a vault that can be opened.
-   */
+  The reset's file side: appends a value-free audit line to `reset.v1`,
+  retains any displaced document (quarantine) and removes the vault files,
+  under the writer lock, refusing a vault that can be opened.
+  */
   static async resetLost(
     files: VaultFilePort,
     anchoredId: string | null,
@@ -1493,10 +1493,10 @@ export class VaultStore implements VaultStorePort {
     }
   }
   /**
-   * `expect` is checked inside the same writer transaction as the commit, so an
-   * add never replaces an item and an edit never resurrects a removed one
-   * (RVCM1091A F6).
-   */
+  `expect` is checked inside the same writer transaction as the commit, so an
+  add never replaces an item and an edit never resurrects a removed one
+  (RVCM1091A F6).
+  */
   async write(input: VaultItem, expect: 'absent' | 'present' | 'any' = 'any'): Promise<void> {
     // Own the input before the first await; the caller cannot change the approved item mid-write.
     const parsed = vaultItemSchema.safeParse(input)
@@ -1637,11 +1637,11 @@ export class VaultStore implements VaultStorePort {
     this.active()
   }
   /**
-   * All items or none (lead decision, C-M109-1): every item is new by id and
-   * name, sealed at one generation and published with its receipt in a
-   * single transaction. `verify` reads the staged items back before the
-   * commit; `authorize` runs at the physical commit, like every other write.
-   */
+  All items or none (lead decision, C-M109-1): every item is new by id and
+  name, sealed at one generation and published with its receipt in a
+  single transaction. `verify` reads the staged items back before the
+  commit; `authorize` runs at the physical commit, like every other write.
+  */
   async writeBatch(
     input: readonly VaultItem[],
     receipt: { id: string; record: string },
@@ -1739,10 +1739,10 @@ export class VaultStore implements VaultStorePort {
     })
   }
   /**
-   * The cross-process Keep/Delete claim: atomically removes the receipt and
-   * throws `invalid` when another broker already claimed it, so exactly one
-   * side wins. `forgetReceipt` stays idempotent for best-effort cleanup.
-   */
+  The cross-process Keep/Delete claim: atomically removes the receipt and
+  throws `invalid` when another broker already claimed it, so exactly one
+  side wins. `forgetReceipt` stays idempotent for best-effort cleanup.
+  */
   async takeReceipt(id: string, authorize: () => void): Promise<void> {
     await this.withWriter(async () => {
       const { snapshot, index } = await this.load()

@@ -27,10 +27,10 @@ export function usdText(micro) {
 }
 
 /**
- * @param {number} maxRequests
- * @param {number} maxUsd settled dollars
- * @param {number} maxUncertainUsd dollars booked for requests that were sent and came back with no usage
- */
+@param {number} maxRequests
+@param {number} maxUsd settled dollars
+@param {number} maxUncertainUsd dollars booked for requests that were sent and came back with no usage
+*/
 export function allowance(maxRequests, maxUsd, maxUncertainUsd) {
   const cap = {
     requests: maxRequests,
@@ -61,11 +61,11 @@ export function allowance(maxRequests, maxUsd, maxUncertainUsd) {
       ended ??= reason
     },
     /**
-     * @param {number} requests
-     * @param {number} micro settled dollars, in millionths
-     * @param {number} [uncertain] booked with no usage report, in millionths
-     * @param {number} [turnedAway] runs the product turned away before sending, at the run's asking
-     */
+    @param {number} requests
+    @param {number} micro settled dollars, in millionths
+    @param {number} [uncertain] booked with no usage report, in millionths
+    @param {number} [turnedAway] runs the product turned away before sending, at the run's asking
+    */
     spend(requests, micro, uncertain = 0, turnedAway = 0) {
       spent.requests += requests
       spent.micro += micro

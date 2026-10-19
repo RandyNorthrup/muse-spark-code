@@ -5,11 +5,11 @@ import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 
 /**
- * Builds the running gate's traffic harness into `root`'s dist/traffic-harness,
- * the folder the harness server for `root` serves. A visual baseline replays a
- * historical revision from its own snapshot root, so the output must land
- * there, not in the working folder.
- */
+Builds the running gate's traffic harness into `root`'s dist/traffic-harness,
+the folder the harness server for `root` serves. A visual baseline replays a
+historical revision from its own snapshot root, so the output must land
+there, not in the working folder.
+*/
 export async function buildTrafficHarness(root = process.cwd()) {
   const outdir = path.join(root, 'dist', 'traffic-harness')
   await mkdir(outdir, { recursive: true })

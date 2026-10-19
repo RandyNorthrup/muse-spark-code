@@ -178,8 +178,8 @@ function slashActionsOn(backend: PaletteContext['backend']) {
   )
 }
 
-function backendRow(base: PaletteContext, backend: PaletteContext['backend']) {
-  return pricedPalette({ ...base, backend })
+function backendRow(backend: PaletteContext['backend']) {
+  return pricedPalette({ ...context, backend })
     .find((group) => group.id === 'account')
     ?.items.find((item) => item.id === 'backend')
 }
@@ -364,16 +364,16 @@ describe('buildPalette', () => {
   })
 
   it('shows the backend in use under Account & Usage, opening the settings', () => {
-    expect(backendRow(context, 'museCode')).toMatchObject({
+    expect(backendRow('museCode')).toMatchObject({
       label: 'Backend',
       widget: { kind: 'value', text: 'Muse Code (Your Muse Subscription)' },
       action: { type: 'openSettings' },
     })
-    expect(backendRow(context, 'modelApi')?.widget).toEqual({
+    expect(backendRow('modelApi')?.widget).toEqual({
       kind: 'value',
       text: 'Meta Model API (Your Key, Pay as You Go)',
     })
-    expect(backendRow(context, undefined)?.widget).toEqual({ kind: 'value', text: '—' })
+    expect(backendRow(undefined)?.widget).toEqual({ kind: 'value', text: '—' })
   })
 
   it('opens the Account & Usage dialog from its row and from /usage and /cost', () => {

@@ -28,11 +28,11 @@ export interface ChatGptPlanFacts {
 }
 
 /**
- * The catalogue levels the app can honestly offer: its own effort
- * vocabulary, in catalogue order. Levels it does not name (`ultra`) are
- * kept out of every picker; the send path below still maps them the way
- * the provider's own client does.
- */
+The catalogue levels the app can honestly offer: its own effort
+vocabulary, in catalogue order. Levels it does not name (`ultra`) are
+kept out of every picker; the send path below still maps them the way
+the provider's own client does.
+*/
 export function planOfferedLevels(facts: ChatGptPlanFacts): readonly EffortLevel[] {
   return facts.reasoningLevels.filter(isEffortLevel)
 }
@@ -60,13 +60,13 @@ export function planDefaultEffort(facts: ChatGptPlanFacts): EffortLevel | undefi
 }
 
 /**
- * The effort a plan turn sends for one requested setting, from the
- * catalogue's own levels. A listed level rides as named, never `none` to
- * a model that does not list it. `ultra` maps the way the provider's own
- * client maps it: the catalogue's multi-agent effort where listed, else
- * `max` where listed, else the highest listed level. Anything else falls
- * back to the catalogue default; Thinking-off rides unchanged.
- */
+The effort a plan turn sends for one requested setting, from the
+catalogue's own levels. A listed level rides as named, never `none` to
+a model that does not list it. `ultra` maps the way the provider's own
+client maps it: the catalogue's multi-agent effort where listed, else
+`max` where listed, else the highest listed level. Anything else falls
+back to the catalogue default; Thinking-off rides unchanged.
+*/
 export function resolvePlanEffort(facts: ChatGptPlanFacts, requested: string): string {
   const offered = planOfferedLevels(facts)
   if ((offered as readonly string[]).includes(requested)) return requested

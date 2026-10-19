@@ -17,10 +17,10 @@ export interface UiStore {
   readonly dispatch: (action: UiAction) => void
   readonly subscribe: (listener: () => void) => () => void
   /**
-   * The app's first render of the conversation committed: a crash after it
-   * is not the restored state's doing, one before it is (its transcript is
-   * then saved without the rows, or the reload would crash again).
-   */
+  The app's first render of the conversation committed: a crash after it
+  is not the restored state's doing, one before it is (its transcript is
+  then saved without the rows, or the reload would crash again).
+  */
   readonly noteRendered: () => void
   readonly hasRendered: () => boolean
 }
@@ -55,10 +55,10 @@ export function createUiStore(initial: UiState): UiStore {
 }
 
 /**
- * Reduce every message the host posts to `target` into the store. One that
- * fails validation is dropped, and one the reducer throws on is lost; both
- * are reported to the host's log (M39). Returns the unsubscribe.
- */
+Reduce every message the host posts to `target` into the store. One that
+fails validation is dropped, and one the reducer throws on is lost; both
+are reported to the host's log (M39). Returns the unsubscribe.
+*/
 export function listenToHost(
   store: UiStore,
   target: MessageSource,
@@ -144,17 +144,17 @@ export function listenToHost(
 
 export interface Persister {
   /**
-   * Save now (before a reload, or as the page goes away). Without the
-   * transcript when the state itself is what crashed the first render.
-   */
+  Save now (before a reload, or as the page goes away). Without the
+  transcript when the state itself is what crashed the first render.
+  */
   readonly flush: (isTranscriptKept: boolean) => void
 }
 
 /**
- * Save the store's state through `save` (VS Code's `setState`) at most once
- * per `delayMs` while it changes: serialising a long conversation on every
- * streamed delta would cost more than the delta.
- */
+Save the store's state through `save` (VS Code's `setState`) at most once
+per `delayMs` while it changes: serialising a long conversation on every
+streamed delta would cost more than the delta.
+*/
 export function persistStore(
   store: UiStore,
   save: (state: WebviewState) => void,

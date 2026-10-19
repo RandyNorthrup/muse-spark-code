@@ -46,11 +46,11 @@ export interface WebBrowserOwnerPort {
     readonly virtualAuthenticator: boolean
   }
   /**
-   * One serialized owner for the browser. It inspects in an isolated world, without reading
-   * any input value, and pins navigation and focus through the callback's Input.insertText
-   * dispatch. All other browser actions share this queue. Failure to pin refuses the lease.
-   * The explicit origin host must be added to the check's frozen scope before opening it.
-   */
+  One serialized owner for the browser. It inspects in an isolated world, without reading
+  any input value, and pins navigation and focus through the callback's Input.insertText
+  dispatch. All other browser actions share this queue. Failure to pin refuses the lease.
+  The explicit origin host must be added to the check's frozen scope before opening it.
+  */
   withTarget<T>(
     origin: string,
     field: WebFillUse['field'] | null,

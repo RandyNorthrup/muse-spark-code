@@ -33,11 +33,11 @@ export function toolRepeatKey(call: ToolIdentity): string {
 }
 
 /**
- * Turn-local, consecutive results only; stores digests, never tool output
- * text. D121: no repeat bound of ours — the guard only names a repeat so the
- * person is told in plain words. The call always runs; only the person stops
- * the turn.
- */
+Turn-local, consecutive results only; stores digests, never tool output
+text. D121: no repeat bound of ours — the guard only names a repeat so the
+person is told in plain words. The call always runs; only the person stops
+the turn.
+*/
 export class RepeatGuard {
   private previous:
     | {
@@ -59,10 +59,10 @@ export class RepeatGuard {
   }
 
   /**
-   * `'run'`, or the repeat count to tell the person when the same call keeps
-   * returning the same result. A witness must freshly prove the complete
-   * observable result is unchanged; anything else resets and runs.
-   */
+  `'run'`, or the repeat count to tell the person when the same call keeps
+  returning the same result. A witness must freshly prove the complete
+  observable result is unchanged; anything else resets and runs.
+  */
   public before(call: ToolIdentity, witness: string | undefined): 'run' | { repeat: number } {
     const previous = this.previous
     if (previous?.key !== toolRepeatKey(call)) return 'run'

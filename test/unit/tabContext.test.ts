@@ -8,11 +8,11 @@ import {
 import { contextWindow, cursorLine, orderSnippets, selectMode } from '../../src/core/tab/tabContext'
 
 /**
- * Numbered lines of exactly 200 characters, so anchors land deterministically:
- * line N starts at offset N * 201.
- */
-function numbered(count: number): string {
-  return Array.from({ length: count }, (_line, index) => {
+140 numbered lines of exactly 200 characters, so anchors land
+deterministically: line N starts at offset N * 201.
+*/
+function numbered(): string {
+  return Array.from({ length: 140 }, (_line, index) => {
     const head = `line ${String(index)} `
     return `${head}${'x'.repeat(200 - head.length)}`
   }).join('\n')
@@ -88,7 +88,7 @@ describe('contextWindow', () => {
   })
 
   it('keeps the prefix start on a 32-line multiple while typing forward', () => {
-    const text = numbered(140)
+    const text = numbered()
     const first = text.indexOf('line 90')
     const second = text.indexOf('line 91')
     const before = contextWindow(text, first + 2, 'fast')
@@ -99,7 +99,7 @@ describe('contextWindow', () => {
   })
 
   it('moves the anchor only across a block boundary', () => {
-    const text = numbered(140)
+    const text = numbered()
     const inFirstBlock = contextWindow(text, text.indexOf('line 70'), 'fast')
     const inSecondBlock = contextWindow(text, text.indexOf('line 110'), 'fast')
     expect(inFirstBlock.startLine).toBe(TAB_PREFIX_ANCHOR_LINES)

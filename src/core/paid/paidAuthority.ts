@@ -370,7 +370,7 @@ export function latestPaidGrant(grants: readonly PaidGrant[]): PaidGrant | undef
 }
 
 /** One persisted profile counter. Exclusive slots serialize concurrent processes;
- * a crash may leave a gap but can never reuse or move an approval backwards. */
+a crash may leave a gap but can never reuse or move an approval backwards. */
 export function nextPaidApprovalOrder(directory: string): number {
   mkdirSync(directory, { recursive: true })
   let order = 0

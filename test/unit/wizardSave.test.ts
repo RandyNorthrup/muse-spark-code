@@ -57,10 +57,10 @@ function stores(options: { failCredential?: Error } = {}) {
   return { deps }
 }
 
-function draft(address: string, credential?: string): WizardDraft {
+function draft(address: string): WizardDraft {
   return {
     provider: { ...entry(), address },
-    credential,
+    credential: 'key-1',
     credentialAuth: 'apiKey',
     defaultModel: 'p/m',
     useNow: false,
@@ -72,7 +72,7 @@ describe('saveWizardDraft', () => {
     const { deps } = stores()
     let failure: unknown
     try {
-      await saveWizardDraft(deps, draft('http://exa mple.com/', 'key-1'))
+      await saveWizardDraft(deps, draft('http://exa mple.com/'))
     } catch (error: unknown) {
       failure = error
     }
@@ -83,7 +83,7 @@ describe('saveWizardDraft', () => {
 
   it('reports a failed credential save step by step', async () => {
     const { deps } = stores({ failCredential: new Error('secret store is down') })
-    const outcome = await saveWizardDraft(deps, draft('http://127.0.0.1:1/', 'key-1'))
+    const outcome = await saveWizardDraft(deps, draft('http://127.0.0.1:1/'))
     expect(outcome.failedStep).toBe('credential')
     expect(outcome.notice).toContain(UI_TEXT.providerSaved)
     expect(outcome.notice).toContain('secret store is down')

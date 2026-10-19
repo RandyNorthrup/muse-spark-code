@@ -42,12 +42,12 @@ export interface VaultBrokerProcessOptions {
 }
 
 /**
- * Only under the kernel startup lock. Never delete a live broker's files.
- * The socket is recovered through the record that names it (the broker
- * record in the data folder carries the socket path), and only while it
- * stays inside this broker's own socket directory: a foreign record never
- * directs a deletion elsewhere.
- */
+Only under the kernel startup lock. Never delete a live broker's files.
+The socket is recovered through the record that names it (the broker
+record in the data folder carries the socket path), and only while it
+stays inside this broker's own socket directory: a foreign record never
+directs a deletion elsewhere.
+*/
 async function clearStale(
   discovery: VaultBrokerDiscovery,
   helper: string,

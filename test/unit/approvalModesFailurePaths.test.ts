@@ -105,11 +105,11 @@ const profileRefusal = receivedError(8)
 type Answer = { result: unknown } | { error: unknown }
 
 /**
- * The SDK's transport fed with the recording: answers come from the script
- * the test installs (recorded content, gated on the test's releases), while
- * notifications are released verbatim by the test. Methods without a scripted
- * answer are refused loudly instead of invented.
- */
+The SDK's transport fed with the recording: answers come from the script
+the test installs (recorded content, gated on the test's releases), while
+notifications are released verbatim by the test. Methods without a scripted
+answer are refused loudly instead of invented.
+*/
 class ReplayWire {
   private readonly inbox: string[] = []
   private readonly waiters: ((value: string | null) => void)[] = []
@@ -248,11 +248,12 @@ async function liveSession(
   return { host, session, wire }
 }
 
-/** The request the session just sent, so the test can interleave the tear. */
-async function waitForSent(wire: ReplayWire, method: string, count: number): Promise<void> {
+/** The approval-mode request the session just sent, so the test can interleave the tear. */
+async function waitForSent(wire: ReplayWire, count: number): Promise<void> {
   const deadline = Date.now() + 5000
-  while (wire.sentCount(method) < count) {
-    if (Date.now() > deadline) throw new Error(`replay harness: ${method} was never sent`)
+  while (wire.sentCount('session/setApprovalMode') < count) {
+    if (Date.now() > deadline)
+      throw new Error('replay harness: session/setApprovalMode was never sent')
     await new Promise((resolve) => setTimeout(resolve, 5))
   }
 }
@@ -313,7 +314,7 @@ describe('approval-mode failure paths tell the truth on saved wire (GRV251F)', (
     })
     const changing = session.setApprovalMode('promptUnmatched')
     // The rollback command is in flight: a turn starts before its ack lands.
-    await waitForSent(wire, 'session/setApprovalMode', 2)
+    await waitForSent(wire, 2)
     session.emit({ type: 'turnStarted', turnId: 'turn-1' })
     releaseRollback({ result: ackAuto })
     const thrown = await caught(changing)
@@ -357,7 +358,7 @@ describe('approval-mode failure paths tell the truth on saved wire (GRV251F)', (
       throw new Error(`unexpected ${method}`)
     })
     const changing = session.setApprovalMode('promptUnmatched')
-    await waitForSent(wire, 'session/setApprovalMode', 1)
+    await waitForSent(wire, 1)
     session.emit({ type: 'turnStarted', turnId: 'turn-1' })
     releaseAck({ result: ackManual })
     const thrown = await caught(changing)
@@ -383,7 +384,7 @@ describe('approval-mode failure paths tell the truth on saved wire (GRV251F)', (
       throw new Error(`unexpected ${method}`)
     })
     const changing = session.setApprovalMode('denyUnmatched')
-    await waitForSent(wire, 'session/setApprovalMode', 1)
+    await waitForSent(wire, 1)
     session.emit({ type: 'turnStarted', turnId: 'turn-1' })
     releaseAck({ result: receivedResult(5) })
     const thrown = await caught(changing)

@@ -40,18 +40,14 @@ function timedChrome() {
   return registry
 }
 
-function sleep(ms: number): Promise<void> {
+function sleep(): Promise<void> {
   return new Promise((resolve) => {
-    setTimeout(resolve, ms)
+    setTimeout(resolve, SETTLE_MS)
   })
 }
 
-async function held(
-  registry: ResourceRegistry,
-  name = 'chrome',
-  holder: LeaseHolder = RESEARCHER,
-): Promise<LeaseToken> {
-  const outcome = await registry.acquire(name, holder)
+async function held(registry: ResourceRegistry): Promise<LeaseToken> {
+  const outcome = await registry.acquire('chrome', RESEARCHER)
   if (outcome.status !== 'held') throw new Error(outcome.status)
   return outcome.lease
 }
@@ -436,7 +432,7 @@ describe('time-driven leases on the real clock', () => {
     const registry = timedChrome()
     const token = await call(registry, 'one')
     registry.settle(token, 'answered')
-    await sleep(SETTLE_MS)
+    await sleep()
     expect(registry.snapshot()[0]?.holders).toEqual([])
     registry.close()
   })
@@ -448,10 +444,10 @@ describe('time-driven leases on the real clock', () => {
     registry.settle(first, 'answered')
     registry.settle(first, 'answered')
     registry.release(first.lease)
-    await sleep(SETTLE_MS)
+    await sleep()
     expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
     registry.settle(second, 'failed')
-    await sleep(SETTLE_MS)
+    await sleep()
     expect(registry.snapshot()[0]?.holders).toEqual([])
     registry.close()
   })
@@ -465,7 +461,7 @@ describe('time-driven leases on the real clock', () => {
     registry.declareCommandNeed('npm run dev', 'port:3000')
     const token = await call(registry, 'command', RESEARCHER, 'port:3000')
     registry.settle(token, 'answered')
-    await sleep(SETTLE_MS)
+    await sleep()
     expect(registry.checkCall('port:3000', ENGINEER)).toMatchObject({
       status: 'not-holder',
       holder: RESEARCHER,
@@ -482,7 +478,7 @@ describe('time-driven leases on the real clock', () => {
     registry.close()
     await expect(waiting).resolves.toEqual({ status: 'closed' })
     await expect(registry.acquire('chrome', ENGINEER)).resolves.toEqual({ status: 'closed' })
-    await sleep(SETTLE_MS)
+    await sleep()
     expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
     registry.settle(first, 'answered')
     expect(registry.snapshot()[0]?.holders).toEqual([])

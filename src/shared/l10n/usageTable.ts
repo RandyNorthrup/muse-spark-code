@@ -24,10 +24,10 @@ export function isUsageText(value: unknown, locale: string): value is UsageText 
   return tableProblems(USAGE_EN, value, { locale, isStrict: false }).length === 0
 }
 /**
- * The table failures English covers: a missing or unreadable table file, or
- * text no JSON value denotes. The warn names the file; the kind stays out of
- * the sentence, and anything else keeps its kind past this boundary.
- */
+The table failures English covers: a missing or unreadable table file, or
+text no JSON value denotes. The warn names the file; the kind stays out of
+the sentence, and anything else keeps its kind past this boundary.
+*/
 const TABLE_READ_CODES: ReadonlySet<string> = new Set(['ENOENT', 'EACCES', 'EPERM'])
 export function isTableReadError(error: unknown): boolean {
   return (

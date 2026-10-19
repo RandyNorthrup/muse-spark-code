@@ -19,12 +19,12 @@ export interface LinuxHelperDeps {
 }
 
 /**
- * The native recogniser helper, downloaded after the same consent as the
- * model (PLAN.md D140): every file travels the shared pinned path, so a
- * digest mismatch, a partial file or a swapped file refuses exactly like a
- * corrupt model. Installed files are re-hashed before every start and the
- * binary keeps owner-only execute permissions; nothing runs unchecked.
- */
+The native recogniser helper, downloaded after the same consent as the
+model (PLAN.md D140): every file travels the shared pinned path, so a
+digest mismatch, a partial file or a swapped file refuses exactly like a
+corrupt model. Installed files are re-hashed before every start and the
+binary keeps owner-only execute permissions; nothing runs unchecked.
+*/
 export class LinuxDictationHelper {
   private readonly pins: readonly LinuxHelperFilePin[]
   public readonly helperPath: string

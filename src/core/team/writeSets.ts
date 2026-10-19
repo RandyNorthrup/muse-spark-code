@@ -124,7 +124,7 @@ function isSame(left: Attempt, right: Attempt): boolean {
 }
 
 /** One instance per window. Empty plans are observed as writers but lease
- * no paths. S supplies retirement proof; hints never release a lease. */
+no paths. S supplies retirement proof; hints never release a lease. */
 export class WriteSetLeases {
   private readonly held = new Map<string, Held>()
   private readonly latest = new Map<string, number>()
@@ -252,7 +252,7 @@ export interface FileHintQuestion {
 }
 
 /** K supplies only fresh, canonical repository hints. Collision answers have
- * no authority over trust, paid consent, caps, or the local execution leases. */
+no authority over trust, paid consent, caps, or the local execution leases. */
 export class FileHintQuestions {
   private readonly answers = new Map<
     string,

@@ -22,16 +22,16 @@ const SHELL_NAMES = new Set(['exec', 'execSync'])
 /** The raw governed launch: only `commands.ts` (guarded) may resolve bare names through it. */
 const LAUNCH_NAME = 'spawnResourceProcess'
 /**
- * Wrappers that end in a process start, taking the program as their first
- * argument: `runProgram` (`execFile` with a timeout), `runTreeSync`
- * (`spawnSync` under the POSIX supervisor), `runResourceCommand` (the
- * governed runner), `execResourceFile` and `handoffResourceFile` (the
- * governed command boundary in commands.ts: guarded lookup + child env for
- * the run workspace). A bare call with a literal or a variable command alike
- * is a spawn the direct-start walk cannot see (round 5: the playbook's bare
- * `git` variable and the team probes' bare names stayed green; round 6: the
- * report's `gh` through an unscanned `execResourceFile`).
- */
+Wrappers that end in a process start, taking the program as their first
+argument: `runProgram` (`execFile` with a timeout), `runTreeSync`
+(`spawnSync` under the POSIX supervisor), `runResourceCommand` (the
+governed runner), `execResourceFile` and `handoffResourceFile` (the
+governed command boundary in commands.ts: guarded lookup + child env for
+the run workspace). A bare call with a literal or a variable command alike
+is a spawn the direct-start walk cannot see (round 5: the playbook's bare
+`git` variable and the team probes' bare names stayed green; round 6: the
+report's `gh` through an unscanned `execResourceFile`).
+*/
 const WRAPPER_NAMES = new Set([
   'runProgram',
   'runTreeSync',
@@ -49,14 +49,14 @@ interface KnownSpawn {
 }
 
 /**
- * Round 7 closed the class: every start not listed here moved behind
- * `spawnGuarded` / `execFileGuarded` (whose signatures take only the branded
- * environment) or the already-branded `runProgram` / `runTreeSync` /
- * governed launch. The entries below are the direct starters the 0.19.0
- * join still keeps beside the guarded wrapper, each with its reviewed
- * mechanism. A direct `spawn`/`execFile` value import anywhere else is an
- * unknown file below.
- */
+Round 7 closed the class: every start not listed here moved behind
+`spawnGuarded` / `execFileGuarded` (whose signatures take only the branded
+environment) or the already-branded `runProgram` / `runTreeSync` /
+governed launch. The entries below are the direct starters the 0.19.0
+join still keeps beside the guarded wrapper, each with its reviewed
+mechanism. A direct `spawn`/`execFile` value import anywhere else is an
+unknown file below.
+*/
 const KNOWN: Record<string, KnownSpawn> = {
   'src/core/guardedChildProcess.ts': {
     kind: 'guarded',
@@ -433,12 +433,12 @@ function directSpawns(
 }
 
 /**
- * Bare calls of the process-start wrappers, literal or variable command
- * alike, including one-level aliases (`const exec = execResourceFile` in
- * the schedule git reader, `const execFileAsync = execResourceFile` in the
- * report history): an alias call is the same spawn under another name
- * (round 6: both aliases hid a governed start from the wrapper walk).
- */
+Bare calls of the process-start wrappers, literal or variable command
+alike, including one-level aliases (`const exec = execResourceFile` in
+the schedule git reader, `const execFileAsync = execResourceFile` in the
+report history): an alias call is the same spawn under another name
+(round 6: both aliases hid a governed start from the wrapper walk).
+*/
 function wrapperSpawns(file: string, text: string): SpawnSite[] {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
   const aliases = new Set<string>()
@@ -472,11 +472,11 @@ function wrapperSpawns(file: string, text: string): SpawnSite[] {
 }
 
 /**
- * Template scripts that start a process of their own: a backtick literal
- * containing a `spawn(`/`execFile` call (the POSIX tree supervisor keeps
- * its child in `POSIX_TREE_SUPERVISOR`, where the import walk never sees
- * it). Tagged templates (`String.raw`) count too.
- */
+Template scripts that start a process of their own: a backtick literal
+containing a `spawn(`/`execFile` call (the POSIX tree supervisor keeps
+its child in `POSIX_TREE_SUPERVISOR`, where the import walk never sees
+it). Tagged templates (`String.raw`) count too.
+*/
 function embeddedScripts(file: string, text: string): SpawnSite[] {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
   const sites: SpawnSite[] = []
@@ -501,10 +501,10 @@ function embeddedScripts(file: string, text: string): SpawnSite[] {
 }
 
 /**
- * The inventory, built once at import: walking and parsing the whole tree
- * takes seconds, far past a test's own budget, and the result cannot change
- * mid-suite. Every test reads these maps.
- */
+The inventory, built once at import: walking and parsing the whole tree
+takes seconds, far past a test's own budget, and the result cannot change
+mid-suite. Every test reads these maps.
+*/
 const inventory = ((): {
   readonly starts: Map<string, SpawnSite[]>
   readonly launches: Map<string, SpawnSite[]>

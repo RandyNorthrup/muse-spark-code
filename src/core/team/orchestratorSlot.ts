@@ -59,10 +59,10 @@ export function resolveOrchestratorModel(options: {
 }
 
 /**
- * What Default resolves to right now: live, not a snapshot. Default takes
- * the slot's current model and backend (the picker's, or the override), so a
- * picker change applies to the next delegation.
- */
+What Default resolves to right now: live, not a snapshot. Default takes
+the slot's current model and backend (the picker's, or the override), so a
+picker change applies to the next delegation.
+*/
 export function resolveDefaultModel(options: {
   readonly override: OrchestratorOverride | undefined
   readonly pickerModelId: string

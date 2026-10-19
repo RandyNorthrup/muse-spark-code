@@ -9,10 +9,10 @@
 // import.
 
 /**
- * The fields of the main body the side request reads. Structural on purpose:
- * the adapter passes ModelApiHost's own keyed body, whose extra fields ride
- * along untouched on the shared-prefix path.
- */
+The fields of the main body the side request reads. Structural on purpose:
+the adapter passes ModelApiHost's own keyed body, whose extra fields ride
+along untouched on the shared-prefix path.
+*/
 export interface SideRequestMain {
   readonly model: string
   readonly instructions: unknown
@@ -58,11 +58,11 @@ function isFiniteCount(value: number): boolean {
 }
 
 /**
- * Plan the side request for one judge batch. The main body is never edited,
- * reordered or trimmed: the shared-prefix body spreads it whole and replaces
- * only `input` with the same items plus the redacted tail. Anything redaction
- * changes, or a prefix below the cacheable minimum, goes standalone.
- */
+Plan the side request for one judge batch. The main body is never edited,
+reordered or trimmed: the shared-prefix body spreads it whole and replaces
+only `input` with the same items plus the redacted tail. Anything redaction
+changes, or a prefix below the cacheable minimum, goes standalone.
+*/
 export function planSideRequest<TBody extends SideRequestMain>(
   inputs: PlanSideRequestInputs<TBody>,
 ): SideRequestPlan<TBody> {

@@ -83,11 +83,11 @@ async function linuxStart(pid: string, linux: LinuxProcess): Promise<string | un
 }
 
 /**
- * Whether a Linux lease's owner is gone, seen from `scope` (this process's
- * machine, boot and namespace): it ran in an earlier boot of this machine,
- * or no process in this namespace has its PID and start. Another machine's
- * or namespace's PID cannot be judged here, so it is kept.
- */
+Whether a Linux lease's owner is gone, seen from `scope` (this process's
+machine, boot and namespace): it ran in an earlier boot of this machine,
+or no process in this namespace has its PID and start. Another machine's
+or namespace's PID cannot be judged here, so it is kept.
+*/
 async function isLinuxOwnerGone(
   line: string,
   scope: readonly string[],
@@ -137,10 +137,10 @@ async function sweep(
 }
 
 /**
- * A root this process holds no lease on: what the failed attempt made is
- * closed and removed, and the root takes a fresh token no lease names, so
- * no sweeper can prove its folders' owner gone (RVMEDIAV4 1).
- */
+A root this process holds no lease on: what the failed attempt made is
+closed and removed, and the root takes a fresh token no lease names, so
+no sweeper can prove its folders' owner gone (RVMEDIAV4 1).
+*/
 async function unleased(
   root: PrivateRoot,
   attempt: FileHandle | undefined,
@@ -163,11 +163,11 @@ async function unleased(
 }
 
 /**
- * Takes this process's lease on a verified root, then removes what owners
- * proven gone left behind (RVMEDIAV3 3). Never throws: without a lease, or
- * where the lock does not hold against this process's own probe, nothing
- * is removed and the root is `unleased`.
- */
+Takes this process's lease on a verified root, then removes what owners
+proven gone left behind (RVMEDIAV3 3). Never throws: without a lease, or
+where the lock does not hold against this process's own probe, nothing
+is removed and the root is `unleased`.
+*/
 export async function leasePrivateRoot(
   root: PrivateRoot,
   options: LeaseOptions = {},

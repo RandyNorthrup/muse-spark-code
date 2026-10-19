@@ -7,8 +7,8 @@ import {
 } from '../../shared/scheduleV2'
 
 /** Exact selectors avoid guessing command tokenization or glob containment.
- * U still validates canonical paths and denies protected/physical actions.
- * A broader glob/prefix can be added only with a proven subset matcher. */
+U still validates canonical paths and denies protected/physical actions.
+A broader glob/prefix can be added only with a proven subset matcher. */
 function isContained(parent: ScheduleGrantRule, requested: ScheduleGrantRule): boolean {
   switch (requested.kind) {
     case 'tool': {
@@ -28,7 +28,7 @@ function isContained(parent: ScheduleGrantRule, requested: ScheduleGrantRule): b
 }
 
 /** Never turns a request or consent into new authority. Inputs are snapshots,
- * not mutated; the same intersection applies to report destination ids. */
+not mutated; the same intersection applies to report destination ids. */
 export class AgentScheduleNoEscalation implements ScheduleNoEscalation {
   public bounded(request: ScheduleGrant, creator: ScheduleGrant): ScheduleGrant {
     const wanted = scheduleGrantSchema.parse(request)

@@ -20,10 +20,10 @@ function isConfidentialPolicyError(error: unknown): boolean {
 }
 
 /**
- * Settings files are JSONC: strip line and block comments and trailing
- * commas before parsing, so a commented settings file still reads (Codex on
- * PR #227). Strings are honored, so a comment-looking value survives.
- */
+Settings files are JSONC: strip line and block comments and trailing
+commas before parsing, so a commented settings file still reads (Codex on
+PR #227). Strings are honored, so a comment-looking value survives.
+*/
 function stripJsonc(text: string): string {
   let out = ''
   let i = 0

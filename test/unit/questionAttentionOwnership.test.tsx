@@ -51,9 +51,9 @@ function leaveKeyboardElsewhere(): void {
 }
 
 /** Hold the keyboard on a real button so the surface owns it; caller removes it. */
-function ownKeyboard(label: string): HTMLButtonElement {
+function ownKeyboard(): HTMLButtonElement {
   const owned = document.createElement('button')
-  owned.textContent = label
+  owned.textContent = 'owned'
   document.body.append(owned)
   owned.focus()
   expect(document.hasFocus()).toBe(true)
@@ -221,7 +221,7 @@ describe('async arrivals keep the keyboard where it is (D116)', () => {
   it('still focuses a navigated dock card while the surface holds the keyboard', () => {
     // The owned control for the navigated-card path (QuestionUi's own guard):
     // the same arrival lands when the keyboard is already here.
-    const owned = ownKeyboard('owned')
+    const owned = ownKeyboard()
     try {
       const view = render(dockedQuestion(group([waitingQuestion()]), { userInputId: 'q-1' }))
       expect(view.container.contains(document.activeElement)).toBe(true)
@@ -248,7 +248,7 @@ describe('async arrivals keep the keyboard where it is (D116)', () => {
     // The owned control: the same arrival lands when the keyboard is already
     // here, so the unowned tests above can actually fail. Runs last: jsdom
     // keeps ownership once anything has focused.
-    const owned = ownKeyboard('owned')
+    const owned = ownKeyboard()
     try {
       const view = render(dockedQuestion(group([waitingQuestion()])))
       expect(view.container.contains(document.activeElement)).toBe(true)

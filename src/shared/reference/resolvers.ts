@@ -33,7 +33,7 @@ export function resolveCommandCondition(
   menus: readonly { readonly command: string; readonly when?: string }[],
 ): string | undefined {
   const entries = menus.filter((menu) => menu.command === command.command)
-  const clauses = entries.flatMap((menu) => (menu.when === undefined ? [] : [menu.when]))
+  const clauses = entries.flatMap((menu) => menu.when ?? [])
   const isUnconditional = entries.some((menu) => menu.when === undefined)
   let palette: string | undefined
   if (!isUnconditional && clauses.length === 1) palette = clauses[0]

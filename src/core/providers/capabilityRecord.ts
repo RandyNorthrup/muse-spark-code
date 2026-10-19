@@ -74,18 +74,18 @@ const reasoningSchema = z.strictObject({
   summary: flag,
   replay: replaySchema,
   /**
-   * The Thinking-off value the model takes instead of `disabled` (lane
-   * REASONSHAPESR2): Claude Sonnet 5.5's `between_tools`, which turns off
-   * up-front thinking where `disabled` answers 400. Absent means the
-   * product's off switch is `disabled` itself.
-   */
+  The Thinking-off value the model takes instead of `disabled` (lane
+  REASONSHAPESR2): Claude Sonnet 5.5's `between_tools`, which turns off
+  up-front thinking where `disabled` answers 400. Absent means the
+  product's off switch is `disabled` itself.
+  */
   offSwitch: z.optional(z.enum(['disabled', 'between_tools'])),
   /**
-   * The model's own default effort where its list names one (lane
-   * REASONSHAPESR2, XAI-G01): xAI's `default_reasoning_effort` (`low`
-   * for grok-4.3 in the recorded list). The picker falls back to the
-   * highest served tier without it.
-   */
+  The model's own default effort where its list names one (lane
+  REASONSHAPESR2, XAI-G01): xAI's `default_reasoning_effort` (`low`
+  for grok-4.3 in the recorded list). The picker falls back to the
+  highest served tier without it.
+  */
   defaultEffort: z.optional(z.string()),
 })
 const cacheSchema = z.strictObject({
@@ -322,13 +322,13 @@ export function resolveModelCapabilities(
   return record
 }
 /**
- * Meta policy, from Meta's own documented numbers (each with its URL, read
- * 2026-10-19), never a product limit: D121 removed every attach count and
- * size of ours, so these record values are the only local media admission
- * left, and only where a record reached the call. Callers keep their exact
- * wire; without a record nothing local is enforced and Meta's own refusal
- * reaches the caller in words.
- */
+Meta policy, from Meta's own documented numbers (each with its URL, read
+2026-10-19), never a product limit: D121 removed every attach count and
+size of ours, so these record values are the only local media admission
+left, and only where a record reached the call. Callers keep their exact
+wire; without a record nothing local is enforced and Meta's own refusal
+reaches the caller in words.
+*/
 export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord {
   const source: CapabilitySource = { kind: 'preset', ref: 'meta' }
   const yes = <T>(value: T) => ({ state: 'yes' as const, value, source })

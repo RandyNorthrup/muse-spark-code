@@ -57,11 +57,11 @@ export function conversationGitLoader(deps: {
 }
 
 /**
- * The window's git features, made in the bundle the first time they are
- * asked for and kept from then on (one window, one pull request checkout
- * at a time). A bundle that cannot load throws `gitUnavailable`, and the
- * next call tries again.
- */
+The window's git features, made in the bundle the first time they are
+asked for and kept from then on (one window, one pull request checkout
+at a time). A bundle that cannot load throws `gitUnavailable`, and the
+next call tries again.
+*/
 export function gitFeaturesLoader(
   bundle: () => ConversationGitBundle,
   deps: GitFeaturesDeps,
@@ -83,19 +83,19 @@ export function conversationGitFactory(
 }
 
 /**
- * Whether this is the bundle loader's own refusal: its fixed unavailable
- * words, whose cause the loader already logged (lazyBundle.ts). Anything
- * else is a foreign failure, never shown as-is.
- */
+Whether this is the bundle loader's own refusal: its fixed unavailable
+words, whose cause the loader already logged (lazyBundle.ts). Anything
+else is a foreign failure, never shown as-is.
+*/
 function isBundleUnavailable(error: unknown): boolean {
   return error instanceof Error && error.message === UI_TEXT.gitUnavailable
 }
 
 /**
- * "Open a Pull Request in a Conversation…": when the bundle cannot load,
- * the command is refused with Git's unavailable error (the log has the
- * cause), as a repository Git cannot reach is, and the next press tries again.
- */
+"Open a Pull Request in a Conversation…": when the bundle cannot load,
+the command is refused with Git's unavailable error (the log has the
+cause), as a repository Git cannot reach is, and the next press tries again.
+*/
 export async function openPullRequestInConversation(
   features: () => GitWindowFeatures,
   showError: (message: string) => void,

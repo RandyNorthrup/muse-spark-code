@@ -50,10 +50,10 @@ export interface DailySpendTotal {
 const NOTHING: DailySpendTotal = { spentUsd: Usd.from(0).toAmount(), unknownChargeCalls: 0 }
 
 /**
- * One paid-daily Limits row, shared by the editor's daily ledger and the
- * standalone runtime's: the same row with or without the editor's
- * stop/raise state (the runtime never raises a day or records a stop).
- */
+One paid-daily Limits row, shared by the editor's daily ledger and the
+standalone runtime's: the same row with or without the editor's
+stop/raise state (the runtime never raises a day or records a stop).
+*/
 export function paidDailyBudgetRow(input: {
   readonly scope: string
   readonly total: DailySpendTotal
@@ -107,12 +107,12 @@ export function createDailySpend(deps: {
     }
   }
   /**
-   * What the pre-D121 journal settled for this scope, or nothing when it
-   * never did. Read-only: the legacy files stay where they are, so the
-   * first request after upgrading still sees today's spend instead of
-   * another full allowance. A legacy record that does not read refuses,
-   * like a damaged new one; only settled dollars carry over.
-   */
+  What the pre-D121 journal settled for this scope, or nothing when it
+  never did. Read-only: the legacy files stay where they are, so the
+  first request after upgrading still sees today's spend instead of
+  another full allowance. A legacy record that does not read refuses,
+  like a damaged new one; only settled dollars carry over.
+  */
   const readLegacy = (scope: string): DailySpendTotal => {
     const directory = path.join(
       deps.directory,
@@ -220,10 +220,10 @@ export function createDailySpend(deps: {
     return { spentUsd: spent.toAmount(), unknownChargeCalls }
   }
   /**
-   * One finished call, after it ended: its cost from the provider's usage,
-   * or `undefined` when it went out and no usage came back. This process's
-   * file is rewritten whole, so a crash between calls loses nothing written.
-   */
+  One finished call, after it ended: its cost from the provider's usage,
+  or `undefined` when it went out and no usage came back. This process's
+  file is rewritten whole, so a crash between calls loses nothing written.
+  */
   const add = async (scope: string, costUsd: UsdAmount | undefined): Promise<DailySpendTotal> => {
     const directory = folder(scope)
     if (costUsd !== undefined && Usd.from(costUsd).compare(Usd.from(0)) < 0)

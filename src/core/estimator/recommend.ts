@@ -123,9 +123,9 @@ function subset(pool: FleetSnapshot, slotIds: ReadonlySet<string>): FleetSnapsho
 }
 
 /** Exhaustive within the supplied pool, never a universal sizing promise.
- * Candidate capacities, disk and accounts come from M107/M108/P, not vCPU
- * guesses. Bound the search before calling the expensive S/C evaluator.
- */
+Candidate capacities, disk and accounts come from M107/M108/P, not vCPU
+guesses. Bound the search before calling the expensive S/C evaluator.
+*/
 export function recommendEstimate(
   input: EstimateInputs,
   candidatePool: FleetSnapshot,
@@ -238,7 +238,7 @@ export function recommendEstimate(
   for (const ids of subsets) evaluate(subset(pool, ids))
   const feasible = evaluations.flatMap((entry, index) =>
     entry.forecast.status === 'feasible'
-      ? [{ ...entry, index, simulation: entry.forecast.simulation }]
+      ? { ...entry, index, simulation: entry.forecast.simulation }
       : [],
   )
   const deadline = inputs.request.deadline
@@ -262,7 +262,7 @@ export function recommendEstimate(
       return exactCost !== undefined &&
         deadline !== undefined &&
         Date.parse(entry.simulation.p90) <= Date.parse(deadline)
-        ? [{ ...entry, exactCost }]
+        ? { ...entry, exactCost }
         : []
     })
     .toSorted(

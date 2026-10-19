@@ -62,9 +62,9 @@ function formatUsdIntl(
 }
 
 /**
- * A verified quote's chosen precision, without changing its exact amount:
- * in the installed language, or in `locale` when a report renders for its own.
- */
+A verified quote's chosen precision, without changing its exact amount:
+in the installed language, or in `locale` when a report renders for its own.
+*/
 export function formatUsdAtPrecision(exact: Usd, precision: number, locale?: string): string {
   const rounded = exact.ceiling(precision).toString()
   const [whole = '0', fraction = ''] = rounded.split('.', 2)

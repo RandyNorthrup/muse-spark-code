@@ -46,7 +46,7 @@ export function isErrorCode(error: unknown, code: string): boolean {
   return error instanceof Error && 'code' in error && error.code === code
 }
 /** A held Windows handle fails a file operation transiently: below the
- * attempt budget the retry, not the caller, owns a transient-coded failure. */
+attempt budget the retry, not the caller, owns a transient-coded failure. */
 export function isTransientStoreError(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -101,15 +101,15 @@ async function scheduleLeaseCleanup<T>(work: () => Promise<T>): Promise<T> {
 }
 
 /**
- * Proof that one fence candidate belongs to its acquisition. The single
- * factory below issues a handle only for a publication this acquisition
- * proved it owns (direct exclusive success, or an interrupted publication
- * whose stored bytes carry the acquisition's unique token). Release accepts
- * only an issued, unreleased handle for its own candidate: a structural
- * literal can never be issued (the constructor is private and issuance is
- * recorded in a module-private set no other module can reach), so a bare
- * candidate path can never release.
- */
+Proof that one fence candidate belongs to its acquisition. The single
+factory below issues a handle only for a publication this acquisition
+proved it owns (direct exclusive success, or an interrupted publication
+whose stored bytes carry the acquisition's unique token). Release accepts
+only an issued, unreleased handle for its own candidate: a structural
+literal can never be issued (the constructor is private and issuance is
+recorded in a module-private set no other module can reach), so a bare
+candidate path can never release.
+*/
 const issuedScheduleFences = new WeakSet<object>()
 export class OwnedScheduleFence {
   static issue(candidate: string): OwnedScheduleFence {
@@ -121,11 +121,11 @@ export class OwnedScheduleFence {
 }
 
 /**
- * The only publisher of fence release markers. A handle that was never
- * issued, was already released, or belongs to another candidate is refused
- * with the ownership word; a future edit that publishes a release marker
- * directly bypasses proof and fails the forge regression test by design.
- */
+The only publisher of fence release markers. A handle that was never
+issued, was already released, or belongs to another candidate is refused
+with the ownership word; a future edit that publishes a release marker
+directly bypasses proof and fails the forge regression test by design.
+*/
 export async function releaseScheduleFence(
   fs: ScheduleFsPort,
   handle: OwnedScheduleFence,
@@ -138,20 +138,20 @@ export async function releaseScheduleFence(
 }
 
 /**
- * Folder fsync exists only where the platform honours it. Production and the
- * lifecycle matrix share this predicate, so the matrix runs exactly the rows
- * that can occur here: Windows runs the rows that exist there, and no row is
- * silently lost elsewhere.
- */
+Folder fsync exists only where the platform honours it. Production and the
+lifecycle matrix share this predicate, so the matrix runs exactly the rows
+that can occur here: Windows runs the rows that exist there, and no row is
+silently lost elsewhere.
+*/
 export function canRunScheduleFsOperation(operation: string): boolean {
   const requiresFolderSync = operation === 'disk.openFolder' || operation === 'disk.syncFolder'
   return process.platform !== 'win32' || !requiresFolderSync
 }
 
 /**
- * A pulse without a fencing token is a previous-version heartbeat: absence is
- * legacy and compatible. A present token that contradicts the header stays invalid.
- */
+A pulse without a fencing token is a previous-version heartbeat: absence is
+legacy and compatible. A present token that contradicts the header stays invalid.
+*/
 function hasFencingContradiction(
   pulseFencingToken: number | undefined,
   headerFencingToken: number | undefined,

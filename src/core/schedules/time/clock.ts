@@ -12,9 +12,9 @@ export interface ScheduleClockState {
 }
 
 /** The host supplies the clock; no timers, OS reads or module-global state.
- * suspendedMs is measured suspend time omitted by that host's monotonic
- * clock. Never infer sleep from a wall jump: a clock correction is identical
- * in those two readings. With a suspend-inclusive clock, leave it at zero. */
+suspendedMs is measured suspend time omitted by that host's monotonic
+clock. Never infer sleep from a wall jump: a clock correction is identical
+in those two readings. With a suspend-inclusive clock, leave it at zero. */
 export function readScheduleClock(
   clock: ScheduleClockPort,
   previous?: ScheduleClockState,
@@ -42,9 +42,9 @@ export function readScheduleClock(
 }
 
 /** Use the returned plan/now for next-fire and recovery calculations. End
- * dates remain absolute wall deadlines, even when interval ids use a virtual
- * epoch. Add wallOffsetMs to a logical occurrence only for its display/wake
- * time; the permanent claim keeps the original logical occurrence. */
+dates remain absolute wall deadlines, even when interval ids use a virtual
+epoch. Add wallOffsetMs to a logical occurrence only for its display/wake
+time; the permanent claim keeps the original logical occurrence. */
 export function scheduleTimeAtClock(
   plan: ScheduleTimePlan,
   clock: ScheduleClockState,

@@ -127,10 +127,10 @@ function readVendored(
 }
 
 /**
- * Read Cargo evidence from the snapshot. The lock's sourceless entries are
- * the workspace itself, not dependencies. Lock entries without vendored
- * metadata, and manifest requirements no lock resolves, stay unknown.
- */
+Read Cargo evidence from the snapshot. The lock's sourceless entries are
+the workspace itself, not dependencies. Lock entries without vendored
+metadata, and manifest requirements no lock resolves, stay unknown.
+*/
 export function readCargo(
   snapshot: LegalFileSnapshot,
   isDependencyIncluded?: cargoDependencies.LegalDependencyAdmission,

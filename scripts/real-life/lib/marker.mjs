@@ -21,9 +21,9 @@ export const markerFile = (parent = tmpdir()) =>
   path.join(parent, 'real-life-run', 'meta-key-stored.json')
 
 /**
- * The note of an earlier run, when there is one.
- * @returns {{ storedAt: string, run: string } | undefined}
- */
+The note of an earlier run, when there is one.
+@returns {{ storedAt: string, run: string } | undefined}
+*/
 export function readMarker(file = markerFile()) {
   let note
   try {

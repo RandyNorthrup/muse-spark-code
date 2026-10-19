@@ -132,10 +132,10 @@ const CI_TASK = {
 }
 
 /**
- * The key, taken out of `env` at once: the run variable (validated as the
- * Action validates it), the system's secret name, and every other variable
- * whose value carries the key are deleted before any child can start.
- */
+The key, taken out of `env` at once: the run variable (validated as the
+Action validates it), the system's secret name, and every other variable
+whose value carries the key are deleted before any child can start.
+*/
 export function takeCiKey(env) {
   const raw = readCiKey(env)
   return isValidModelApiKey(raw) ? raw : undefined
@@ -150,11 +150,11 @@ function exactBoolean(raw, name, fallback) {
 }
 
 /**
- * The Action's inputs (MUSE_INPUT_*) with the Action's own grammar, plus
- * trust-pull-requests. GitHub-only inputs are refused when set; Azure's
- * True/False booleans are read without case; the digest-pinned package the
- * template verified is required.
- */
+The Action's inputs (MUSE_INPUT_*) with the Action's own grammar, plus
+trust-pull-requests. GitHub-only inputs are refused when set; Azure's
+True/False booleans are read without case; the digest-pinned package the
+template verified is required.
+*/
 export function parseCiInputs(env, system) {
   const raw = rawInputs(env)
   for (const name of GITHUB_ONLY_INPUTS) {
@@ -220,10 +220,10 @@ export function jobMinutes(env, system) {
 }
 
 /**
- * Milliseconds since the epoch when the template's bootstrap started. The
- * templates always set it; without it the launcher cannot measure what the
- * job already spent, so it refuses instead of admitting blind.
- */
+Milliseconds since the epoch when the template's bootstrap started. The
+templates always set it; without it the launcher cannot measure what the
+job already spent, so it refuses instead of admitting blind.
+*/
 export function bootstrapStartMs(env) {
   const raw = env[CI_BOOTSTRAP_START_VARIABLE] ?? ''
   if (!/^[1-9][0-9]{9,}$/.test(raw)) {
@@ -233,10 +233,10 @@ export function bootstrapStartMs(env) {
 }
 
 /**
- * Milliseconds since the epoch when the job started: the vendor's own start
- * time the vendor exposes, otherwise the bootstrap timestamp. Azure reserves
- * its documented pre-bootstrap setup bound; no vendor date expression is read.
- */
+Milliseconds since the epoch when the job started: the vendor's own start
+time the vendor exposes, otherwise the bootstrap timestamp. Azure reserves
+its documented pre-bootstrap setup bound; no vendor date expression is read.
+*/
 export function jobStartMs(env, system, nowMs = Date.now()) {
   const starts = []
   if (system === 'gitlab') starts.push(Date.parse(env.CI_JOB_STARTED_AT ?? ''))
@@ -264,11 +264,11 @@ export function requiredRunMs(inputs) {
 }
 
 /**
- * Admits a run only on the time REMAINING: the job timeout minus what the
- * job already spent, measured from the vendor start or bootstrap. Azure also
- * reserves its required worst-case setup allowance before bootstrap. Coverage
- * on Azure is conditional on the qualified runner meeting that setup bound.
- */
+Admits a run only on the time REMAINING: the job timeout minus what the
+job already spent, measured from the vendor start or bootstrap. Azure also
+reserves its required worst-case setup allowance before bootstrap. Coverage
+on Azure is conditional on the qualified runner meeting that setup bound.
+*/
 export function checkJobDeadline(env, system, inputs, nowMs = Date.now()) {
   const need = requiredRunMs(inputs)
   const remain =
@@ -332,13 +332,13 @@ async function resolveCommit(run, revision, refusal) {
 }
 
 /**
- * The run's own repository, made from the system's clone without running
- * anything of it: a fresh `git init` in the private invocation, the clone's
- * HEAD (and, for a pull request, its target branch) fetched over the local
- * file transport through safeGit, the head the system names verified and
- * checked out detached. The base is the system's named commit, the target
- * branch's tip, or the head's first parent.
- */
+The run's own repository, made from the system's clone without running
+anything of it: a fresh `git init` in the private invocation, the clone's
+HEAD (and, for a pull request, its target branch) fetched over the local
+file transport through safeGit, the head the system names verified and
+checked out detached. The base is the system's named commit, the target
+branch's tip, or the head's first parent.
+*/
 export async function checkoutClone({ owner, git, paths, baseEnv, clone, facts }) {
   await mkdirAsync(paths.checkout, { mode: PRIVATE_DIR })
   const run = (args, isReadOnly = false) =>
@@ -495,16 +495,16 @@ function messageOf(error, fallback) {
 }
 
 /**
- * One run on `system`: the workspace and private temp first, then the
- * output-destination refusal (before any model call), the inputs, the gate
- * and the remaining-time deadline (nothing installed, no key used), then
- * under one owner the verified install, the checkout, the staged inputs and
- * the Action's run. Returns the exit code; refusals and malformed facts
- * throw an InputError. The bootstrap's temp directory is removed on every
- * path out (its trap owns the pre-exec paths); final publication and that
- * cleanup each keep their own bound like the GitHub Action's final writes
- * (RVCM80CI2 findings 6-7).
- */
+One run on `system`: the workspace and private temp first, then the
+output-destination refusal (before any model call), the inputs, the gate
+and the remaining-time deadline (nothing installed, no key used), then
+under one owner the verified install, the checkout, the staged inputs and
+the Action's run. Returns the exit code; refusals and malformed facts
+throw an InputError. The bootstrap's temp directory is removed on every
+path out (its trap owns the pre-exec paths); final publication and that
+cleanup each keep their own bound like the GitHub Action's final writes
+(RVCM80CI2 findings 6-7).
+*/
 export async function runCi(input) {
   const { system, env, held, log } = input
   const execute = input.fileOperation ?? fileOperation

@@ -31,12 +31,12 @@ export interface SchedulesReportReader {
 }
 
 /**
- * Trigger and grant prose in the installed language, read here (after the
- * input bundle installs the caller's table) so the pure collector never
- * touches the text table — like dates, which arrive pre-rendered.
- * Technical details spliced after a label (a trigger's `source:event`, a
- * target or creator id, a cron expression) stay as they came.
- */
+Trigger and grant prose in the installed language, read here (after the
+input bundle installs the caller's table) so the pure collector never
+touches the text table — like dates, which arrive pre-rendered.
+Technical details spliced after a label (a trigger's `source:event`, a
+target or creator id, a cron expression) stay as they came.
+*/
 export function triggerText(schedule: ScheduleV2, reportText: UiText): string {
   const trigger = schedule.trigger
   const cells = reportText.reportScheduleCells
@@ -72,10 +72,10 @@ export function triggerText(schedule: ScheduleV2, reportText: UiText): string {
 }
 
 /**
- * Target prose in the installed language: the translated target word with
- * the technical id spliced after it (`Label: detail` over a session, worker,
- * role, team or node id), like dates arrive pre-rendered.
- */
+Target prose in the installed language: the translated target word with
+the technical id spliced after it (`Label: detail` over a session, worker,
+role, team or node id), like dates arrive pre-rendered.
+*/
 export function targetText(schedule: ScheduleV2, reportText: UiText): string {
   const words = reportText.scheduleV2.targets
   const target = schedule.target
@@ -107,10 +107,10 @@ export function deliveryText(schedule: ScheduleV2, reportText: UiText): string {
 }
 
 /**
- * Agent-creator prose in the installed language: the translated creator
- * word with the technical agent id spliced after it. A user creator reads
- * as the `user` label, so this is `undefined` for one.
- */
+Agent-creator prose in the installed language: the translated creator
+word with the technical agent id spliced after it. A user creator reads
+as the `user` label, so this is `undefined` for one.
+*/
 export function creatorText(schedule: ScheduleV2, reportText: UiText): string | undefined {
   return schedule.creator.kind === 'user'
     ? undefined

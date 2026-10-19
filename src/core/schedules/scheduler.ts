@@ -52,7 +52,7 @@ export interface SchedulerDeps {
   /** E persists a manual event composed with time; T computes its due instant. */
   readonly deferEvent: (schedule: ScheduleV2, event: ScheduleEvent) => Promise<void>
   /** D/U provide conservative final accounting when a returned terminal result
-   * is invalid. S never invents an exact zero-cost failed dispatch. */
+  is invalid. S never invents an exact zero-cost failed dispatch. */
   readonly failureSettlement: (
     intent: ScheduleRunIntent,
     error: unknown,

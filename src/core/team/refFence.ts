@@ -90,10 +90,10 @@ function isBranchSegment(segment: string): boolean {
 }
 
 /**
- * `agents/<role>/<task-id>`, validated branch-safe. Throws `TeamRefError`
- * (`badName`) for anything that is not two clean segments: the fence is
- * fail-closed, and a bad name never becomes a ref.
- */
+`agents/<role>/<task-id>`, validated branch-safe. Throws `TeamRefError`
+(`badName`) for anything that is not two clean segments: the fence is
+fail-closed, and a bad name never becomes a ref.
+*/
 export function teamBranchName(role: string, taskId: string): string {
   if (!isBranchSegment(role) || !isBranchSegment(taskId)) {
     throw new TeamRefError('badName', `Refused team branch for role ${role} and task ${taskId}`)
@@ -126,10 +126,10 @@ export function teamAgentsRef(branch: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * One entry of the read-only command list (the shape lane 0's
- * `TEAM_READ_ONLY_COMMANDS` fills): an exact Git argv shape and the
- * entry's own refused options.
- */
+One entry of the read-only command list (the shape lane 0's
+`TEAM_READ_ONLY_COMMANDS` fills): an exact Git argv shape and the
+entry's own refused options.
+*/
 export interface ReadOnlyCommandEntry {
   readonly command: string
   /** Exact arguments after the executable, supplied by the trusted host. */
@@ -210,11 +210,11 @@ export type AgentsRefCheck =
     }
 
 /**
- * The value the extension last wrote for an `agents/` ref, against what is
- * there now. Any other value stops the task and refuses its merge, naming
- * the ref and both values. Refs the user or VS Code moves (a commit, a
- * fetch) live outside `agents/` and are never a breach.
- */
+The value the extension last wrote for an `agents/` ref, against what is
+there now. Any other value stops the task and refuses its merge, naming
+the ref and both values. Refs the user or VS Code moves (a commit, a
+fetch) live outside `agents/` and are never a breach.
+*/
 export function checkAgentsRef(
   ref: string,
   expected: string | undefined,
@@ -232,11 +232,11 @@ export function checkAgentsRef(
 }
 
 /**
- * Per-task ref tracking. Each task records only the `agents/` refs the
- * extension wrote for it, so two writers running at once never trip each
- * other's fence: a move of another task's ref is simply not this fence's
- * ref.
- */
+Per-task ref tracking. Each task records only the `agents/` refs the
+extension wrote for it, so two writers running at once never trip each
+other's fence: a move of another task's ref is simply not this fence's
+ref.
+*/
 export class RefFence {
   private readonly lastWritten = new Map<string, string | undefined>()
 
@@ -265,11 +265,11 @@ export class RefFence {
 }
 
 /**
- * Whether a reflog subject shows `receive-pack` wrote the ref: a script the
- * worker started found the user's repository through the shared clone's
- * alternates and pushed into it without credentials. Subjects come from
- * `git log -g --format=%gs`.
- */
+Whether a reflog subject shows `receive-pack` wrote the ref: a script the
+worker started found the user's repository through the shared clone's
+alternates and pushed into it without credentials. Subjects come from
+`git log -g --format=%gs`.
+*/
 export function isReflogPush(subject: string): boolean {
   return subject.split(':', 1)[0]?.trim().toLowerCase() === 'push'
 }

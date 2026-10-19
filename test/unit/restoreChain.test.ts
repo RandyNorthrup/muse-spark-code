@@ -87,8 +87,8 @@ function unit(
 
 const turn = (id: string, sequence: number, writes: readonly WriteSpec[], options?: UnitOptions) =>
   unit('turn', id, sequence, writes, options)
-const batch = (id: string, sequence: number, writes: readonly WriteSpec[], options?: UnitOptions) =>
-  unit('batch', id, sequence, writes, options)
+const batch = (id: string, sequence: number, writes: readonly WriteSpec[]) =>
+  unit('batch', id, sequence, writes)
 const legacy = (turnId: string, sequence: number) => ({ legacy: true, sequence, turnId }) as const
 
 /** A write by another conversation, in this window unless said otherwise. */
@@ -146,8 +146,8 @@ function decide(
 
 const restoreFrom = (turnId: string, units: Units, now: Now, more: Partial<RangeInput> = {}) =>
   decide('restore', { unitKind: 'turn', unitId: turnId }, units, now, more)
-const redoOf = (batchId: string, units: Units, now: Now, more: Partial<RangeInput> = {}) =>
-  decide('redo', { unitKind: 'batch', unitId: batchId }, units, now, more)
+const redoOf = (batchId: string, units: Units, now: Now) =>
+  decide('redo', { unitKind: 'batch', unitId: batchId }, units, now, {})
 
 const restored = (
   expectNow: ContentState,
@@ -161,11 +161,7 @@ const restored = (
   removeFolders: more.removeFolders ?? [],
 })
 const unchanged = (path = PATH): PathDecision => ({ kind: 'unchanged', path })
-const refused = (reason: PathRefusal, path = PATH): PathDecision => ({
-  kind: 'refused',
-  path,
-  reason,
-})
+const refused = (reason: PathRefusal): PathDecision => ({ kind: 'refused', path: PATH, reason })
 const decided = (...paths: PathDecision[]): RangeDecision => ({
   ok: true,
   paths,

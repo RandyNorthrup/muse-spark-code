@@ -48,11 +48,11 @@ export function testSecretStore(): SecretStore {
 }
 
 /**
- * A real plan-route request body in the captured shape the Responses codec
- * test pins (`test/unit/chatgptResponsesCodec.test.ts`, owner capture
- * 2026-10-05): the same values, with only the model swapped, so a request
- * the plan endpoint would take is built without restating it per test.
- */
+A real plan-route request body in the captured shape the Responses codec
+test pins (`test/unit/chatgptResponsesCodec.test.ts`, owner capture
+2026-10-05): the same values, with only the model swapped, so a request
+the plan endpoint would take is built without restating it per test.
+*/
 export function testPlanStreamBody(model: string): CreateResponseBody {
   return {
     model,
@@ -103,9 +103,9 @@ export function testPlanMetaClient(secrets: SecretStore): ModelApiClient {
 }
 
 /**
- * An unexpired grant for one account subject: the stored hash is the
- * product's own derivation, the host id and nonce its own generators.
- */
+An unexpired grant for one account subject: the stored hash is the
+product's own derivation, the host id and nonce its own generators.
+*/
 export function testGrantRecord(accountSubject: string): ChatGptRecord {
   return {
     v: CREDENTIAL_RECORD_VERSION,

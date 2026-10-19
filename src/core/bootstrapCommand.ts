@@ -7,11 +7,11 @@ import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../shared/consta
 // may ride in every bundle that builds a helper.
 
 /**
- * Bootstrap tier: the compiler builds the containment helper it cannot yet use.
- * A failure always names its exit code, signal and whether it was stopped;
- * `isOutputReported` adds the bounded stdout and stderr (csc writes its
- * diagnostics to stdout), for callers whose output is public, like compilers.
- */
+Bootstrap tier: the compiler builds the containment helper it cannot yet use.
+A failure always names its exit code, signal and whether it was stopped;
+`isOutputReported` adds the bounded stdout and stderr (csc writes its
+diagnostics to stdout), for callers whose output is public, like compilers.
+*/
 export async function runBootstrap(
   file: string,
   args: readonly string[],

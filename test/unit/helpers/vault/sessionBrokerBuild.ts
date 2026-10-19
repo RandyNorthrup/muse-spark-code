@@ -7,13 +7,13 @@ import { buildVaultPeer } from '../../../../scripts/build-vault-peer.mjs'
 import { buildLinuxHelper } from '../../../../scripts/build-linux-helper.mjs'
 
 /**
- * Stage the product's own created-directories helper beside the bundled
- * governor, where resourceGovernorEntry resolves it on macOS
- * (installRoot/native/darwin/muse-dictate). The binary is the one
- * native/darwin/build.sh produces for the native job; a source checkout
- * cannot build it, so its absence fails here naming the build instead of
- * deep in a governed launch.
- */
+Stage the product's own created-directories helper beside the bundled
+governor, where resourceGovernorEntry resolves it on macOS
+(installRoot/native/darwin/muse-dictate). The binary is the one
+native/darwin/build.sh produces for the native job; a source checkout
+cannot build it, so its absence fails here naming the build instead of
+deep in a governed launch.
+*/
 async function stageDarwinCreatedHelper(root: string): Promise<void> {
   const staged = path.join(root, 'native', 'darwin', 'muse-dictate')
   try {
@@ -29,12 +29,12 @@ async function stageDarwinCreatedHelper(root: string): Promise<void> {
 }
 
 /**
- * Compile the POSIX peer and bundle broker fixture children: each pair is a
- * helper entry and its dist output. The broker entry's resource admission
- * bundles as the real module, and the fixture children run the installed
- * entry's own governor wiring over their generated paths; no test double
- * is substituted.
- */
+Compile the POSIX peer and bundle broker fixture children: each pair is a
+helper entry and its dist output. The broker entry's resource admission
+bundles as the real module, and the fixture children run the installed
+entry's own governor wiring over their generated paths; no test double
+is substituted.
+*/
 export async function buildBrokerChildren(
   root: string,
   pairs: readonly (readonly [entry: string, output: string])[],

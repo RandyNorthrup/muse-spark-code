@@ -538,13 +538,10 @@ export function step(
       },
     })
   }
-  const fail = (
-    op: Operation,
-    reason: Reason,
-    outcome: Row['outcome'] = reason === 'expired' || reason === 'locked' ? reason : 'denied',
-  ): void => {
+  const fail = (op: Operation, reason: Reason): void => {
     // A terminal operation settles its recorded liability; it cannot wait on itself.
     if (op.command.kind === 'finish' && op.terminalOutcome !== undefined) return
+    const outcome: Row['outcome'] = reason === 'expired' || reason === 'locked' ? reason : 'denied'
     op.reason = reason
     op.result = denied(reason)
     if (state.unlockOwner === op.id) {
@@ -1540,7 +1537,7 @@ export function step(
                 }
                 case 'list': {
                   const metadata = requireValue(result.value)
-                  if (!Array.isArray(metadata)) throw new Error(UI_TEXT.vault.noAccess)
+                  if (!Array.isArray(metadata)) throw new TypeError(UI_TEXT.vault.noAccess)
                   const items = metadata.map((entry: unknown) =>
                     vaultItemMetadataSchema.parse(entry),
                   )
@@ -1625,7 +1622,7 @@ export function step(
                   break
                 }
                 case 'grants': {
-                  if (!Array.isArray(result.value)) throw new Error(UI_TEXT.vault.noAccess)
+                  if (!Array.isArray(result.value)) throw new TypeError(UI_TEXT.vault.noAccess)
                   state.grants.clear()
                   for (const entry of result.value) {
                     const grant = vaultGrantSchema.parse(entry)

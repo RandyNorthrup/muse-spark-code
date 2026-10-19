@@ -44,8 +44,8 @@ export class ZonedScheduleCalendar {
   }
 
   /** First occurrence in a fold; first valid civil minute after a gap.
-   * Samples span both sides even of a full skipped date (e.g. Pacific/Apia).
-   * Offset seconds are retained for historical IANA rules. */
+  Samples span both sides even of a full skipped date (e.g. Pacific/Apia).
+  Offset seconds are retained for historical IANA rules. */
   resolve(wanted: number): number {
     const offsets = new Set(
       [-MILLISECONDS_PER_DAY * 2, 0, 2 * MILLISECONDS_PER_DAY].map((distance) => {

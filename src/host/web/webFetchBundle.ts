@@ -70,9 +70,9 @@ function unavailable(): WebFetchResult {
 }
 
 /**
- * The window's fetch through the bundle, for the Model API backend's
- * `web_fetch` and Muse Code's `webFetch`: creating it loads nothing.
- */
+The window's fetch through the bundle, for the Model API backend's
+`web_fetch` and Muse Code's `webFetch`: creating it loads nothing.
+*/
 export function lazyWebFetcher(
   bundle: () => WebFetchBundle,
   log: Logger,
@@ -96,10 +96,10 @@ export function lazyWebFetcher(
 }
 
 /**
- * A URL's first checks through the bundle, before Muse Code's modal; one
- * that cannot be loaded throws `webFetchUnavailable`, which the `ide` server
- * answers as the call's error result.
- */
+A URL's first checks through the bundle, before Muse Code's modal; one
+that cannot be loaded throws `webFetchUnavailable`, which the `ide` server
+answers as the call's error result.
+*/
 export function lazyPageUrlCheck(bundle: () => WebFetchBundle): (raw: string) => PageUrlCheck {
   return (raw) => bundle().checkWebPageUrl(raw, UI_TEXT, uiLocale())
 }

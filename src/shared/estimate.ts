@@ -54,9 +54,9 @@ export const estimateGoalSchema = /* @__PURE__ */ z.discriminatedUnion('kind', [
 export type EstimateGoal = z.infer<typeof estimateGoalSchema>
 
 /** Grammar: M112; pr:12; issues:1,2; label:bug; release:0.16.0; M112:Q,U.
- * Milestone ids follow D93.5 (case insensitive, optional M); labels may
- * contain spaces. Command flags belong to lane U, outside this goal parser.
- */
+Milestone ids follow D93.5 (case insensitive, optional M); labels may
+contain spaces. Command flags belong to lane U, outside this goal parser.
+*/
 export function parseEstimateGoal(text: string): EstimateGoal | undefined {
   const value = text.trim()
   const milestone = /^(?:m)?([1-9]\d*[a-z\d]*)(?::([\w.-]+(?:,[\w.-]+)*))?$/i.exec(value)
@@ -459,12 +459,12 @@ export const estimateRequestSchema = /* @__PURE__ */ z.strictObject({
 export type EstimateRequest = z.infer<typeof estimateRequestSchema>
 
 /**
- * The estimator's date-only deadline means midnight UTC. Shared by the
- * `/estimate` command and `/report estimate --by` so both paths ask for the
- * same instant; rejects locale-dependent and rollover dates. Lives beside
- * the request schema so light report-argument parsers need not load the
- * headless command.
- */
+The estimator's date-only deadline means midnight UTC. Shared by the
+`/estimate` command and `/report estimate --by` so both paths ask for the
+same instant; rejects locale-dependent and rollover dates. Lives beside
+the request schema so light report-argument parsers need not load the
+headless command.
+*/
 export function estimateDeadline(text: string): string | undefined {
   const instant = /^\d{4}-\d{2}-\d{2}$/.test(text) ? `${text}T00:00:00.000Z` : text
   const parsed = estimateRequestSchema.shape.asOf.safeParse(instant)
@@ -559,10 +559,10 @@ const disclosureSchema = /* @__PURE__ */ z
   )
 
 /** Cover numbers in inputs and results, and dates predicting a finish.
- * Evidence metadata is covered too; only this index's own metadata is excluded
- * to avoid infinite self-description. JSON Pointer makes coverage unambiguous.
- * Shared with the lazy estimator entry so the walk cannot drift between them.
- */
+Evidence metadata is covered too; only this index's own metadata is excluded
+to avoid infinite self-description. JSON Pointer makes coverage unambiguous.
+Shared with the lazy estimator entry so the walk cannot drift between them.
+*/
 export function disclosureTargets(value: unknown, pointer = ''): Map<string, number | string> {
   if (typeof value === 'number') return new Map([[pointer, value]])
   if (typeof value === 'string' && /\/(?:p50|p90)$/.test(pointer))
@@ -722,7 +722,7 @@ export const estimateSectionSchema = /* @__PURE__ */ z
 export type EstimateSection = z.infer<typeof estimateSectionSchema>
 
 /** Application projection after a captured provider response is validated.
- * Pure builders: the browser's estimator chunk never parses provider data. */
+Pure builders: the browser's estimator chunk never parses provider data. */
 export const providerSizeSchema = /* @__PURE__ */ (() =>
   z.strictObject({
     id,
@@ -744,8 +744,8 @@ export type ProvisionedServer = z.infer<typeof provisionedServerSchema>
 export type EstimateProviderOperation = 'sizes' | 'images' | 'create' | 'status' | 'delete'
 
 /** Exact paths (or a single {id} segment), fixed origin; no generic HTTP port.
- * Lane P enforces this before the vault broker dispatches, including redirects.
- */
+Lane P enforces this before the vault broker dispatches, including redirects.
+*/
 export interface EstimateProviderEndpoint {
   readonly operation: EstimateProviderOperation
   readonly method: 'GET' | 'POST' | 'DELETE'
@@ -763,14 +763,14 @@ export interface EstimateProviderPort {
 }
 
 /**
- * The estimator's own worded refusal (D119): every `refuse()`, handoff wait
- * and scheduling refusal words its failure as `estimateFailed` or
- * `estimateWaiting` with an identifier detail (a fixed word, a handoff name
- * or a schema-bounded `word:word` composite like `unschedulable:lane-1`).
- * A guard matches only that shape in the installed language: anything else
- * (a contract failure, a store error naming a path, a non-error) is not ours
- * to repeat, so boundaries say their fixed sentence instead.
- */
+The estimator's own worded refusal (D119): every `refuse()`, handoff wait
+and scheduling refusal words its failure as `estimateFailed` or
+`estimateWaiting` with an identifier detail (a fixed word, a handoff name
+or a schema-bounded `word:word` composite like `unschedulable:lane-1`).
+A guard matches only that shape in the installed language: anything else
+(a contract failure, a store error naming a path, a non-error) is not ours
+to repeat, so boundaries say their fixed sentence instead.
+*/
 const ESTIMATE_REFUSAL_MARK = '\u{0}estimate-detail\u{0}'
 const ESTIMATE_REFUSAL_DETAIL = /^[A-Za-z0-9_.:-]+$/
 
@@ -785,10 +785,10 @@ function refusalDetailIn(message: string, template: string, slot: string): strin
 }
 
 /**
- * Whether the failure is the estimator's own worded refusal, safe to repeat
- * to the person. The catch-gate-visible form: `is`-named so the inventory
- * reads it as the one handled case.
- */
+Whether the failure is the estimator's own worded refusal, safe to repeat
+to the person. The catch-gate-visible form: `is`-named so the inventory
+reads it as the one handled case.
+*/
 export function isEstimateRefusal(error: unknown): error is Error {
   return (
     error instanceof Error &&

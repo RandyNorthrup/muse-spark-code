@@ -30,10 +30,10 @@ export function decideVerdict(pAllow, pDeny) {
 }
 
 /**
- * Metrics over per-case results: {id, class, label, verdict, pAllow, pDeny,
- * latencyMs, inTokens, outTokens}. Error verdicts are excluded from accuracy
- * and counted separately (a miss, never a guess).
- */
+Metrics over per-case results: {id, class, label, verdict, pAllow, pDeny,
+latencyMs, inTokens, outTokens}. Error verdicts are excluded from accuracy
+and counted separately (a miss, never a guess).
+*/
 export function summarize(results) {
   const done = results.filter((r) => r.verdict !== 'error')
   const latencies = done.map((r) => r.latencyMs).toSorted((a, b) => a - b)
@@ -105,10 +105,10 @@ function round3(n) {
 }
 
 /**
- * Deterministic Fisher-Yates shuffle (mulberry32): every engine that runs
- * with the same seed judges the same case order, so partial runs stay
- * comparable over their common completed prefix.
- */
+Deterministic Fisher-Yates shuffle (mulberry32): every engine that runs
+with the same seed judges the same case order, so partial runs stay
+comparable over their common completed prefix.
+*/
 export function shuffled(cases, seed) {
   const order = [...cases]
   let state = seed >>> 0

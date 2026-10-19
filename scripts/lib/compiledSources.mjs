@@ -54,10 +54,10 @@ const DEFAULT_LOADERS = {
 }
 
 /**
- * The last plugin of every shipped build: loads each file no earlier
- * plugin claimed from the bytes it hashes. Files with no loader at all
- * are left to esbuild, which refuses them.
- */
+The last plugin of every shipped build: loads each file no earlier
+plugin claimed from the bytes it hashes. Files with no loader at all
+are left to esbuild, which refuses them.
+*/
 const compiledSourceRecorder = {
   name: 'compiled-source-recorder',
   setup(build) {
@@ -95,9 +95,9 @@ function capture(buildRecord, args, contents) {
 }
 
 /**
- * The build options with every plugin's onLoad wrapped to record what it
- * hands esbuild into `buildRecord`, and the recorder appended last.
- */
+The build options with every plugin's onLoad wrapped to record what it
+hands esbuild into `buildRecord`, and the recorder appended last.
+*/
 export function withCompiledRecording(options, buildRecord) {
   const wrap = (plugin) => ({
     name: plugin.name,
@@ -118,11 +118,11 @@ export function withCompiledRecording(options, buildRecord) {
 }
 
 /**
- * One bundle's build record for its metafile: input and generated-module
- * hashes from `buildRecord`; unrecorded or conflicting entries are left
- * out, so the scanner names them. esbuild's empty stand-ins for disabled
- * modules (`(disabled):…`) are recorded as the empty contents they are.
- */
+One bundle's build record for its metafile: input and generated-module
+hashes from `buildRecord`; unrecorded or conflicting entries are left
+out, so the scanner names them. esbuild's empty stand-ins for disabled
+modules (`(disabled):…`) are recorded as the empty contents they are.
+*/
 export function compiledRecordFor(metafileInputs, buildRecord) {
   const inputs = {}
   const generated = {}

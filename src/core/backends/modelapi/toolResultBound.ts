@@ -41,10 +41,10 @@ export interface ToolResultCut {
   /** Whole lines actually kept in the tail part (0 when no middle was cut). */
   readonly tailLines: number
   /**
-   * Original characters not carried in the kept text: exactly
-   * `totalChars - keptChars`, net of the cut marker, so the kept and
-   * the omitted always add up to the total.
-   */
+  Original characters not carried in the kept text: exactly
+  `totalChars - keptChars`, net of the cut marker, so the kept and
+  the omitted always add up to the total.
+  */
   readonly omittedChars: number
 }
 
@@ -55,20 +55,20 @@ export interface BoundToolResult {
 }
 
 /**
- * Bounded text with its cut notice appended: still allowed into a request.
- * The only string-to-brand construction beside the bound itself and fixed
- * harness words (one mechanism: the brand is produced here or not at all).
- */
+Bounded text with its cut notice appended: still allowed into a request.
+The only string-to-brand construction beside the bound itself and fixed
+harness words (one mechanism: the brand is produced here or not at all).
+*/
 export function withCutNotice(bounded: BoundedToolText, notice: string): BoundedToolText {
   // Brand: the kept text already passed the bound; the notice is harness words (PLAN.md §8: TOOLCAP brand).
   return `${bounded}\n${notice}` as BoundedToolText
 }
 
 /**
- * Fixed harness words with no tool text in them (a cancellation, a refusal):
- * safe to send as-is. Never a wrapper for tool text: tool text goes through
- * `boundToolResultText`, and a misuse here reads as one at the call site.
- */
+Fixed harness words with no tool text in them (a cancellation, a refusal):
+safe to send as-is. Never a wrapper for tool text: tool text goes through
+`boundToolResultText`, and a misuse here reads as one at the call site.
+*/
 export function fixedHarnessText(text: string): BoundedToolText {
   // Brand: the caller names fixed harness words with no tool text; misuse reads as one (PLAN.md §8: TOOLCAP brand).
   return text as BoundedToolText
@@ -95,10 +95,10 @@ export interface ToolResultLimits {
 }
 
 /**
- * The session's limits for one byte guard (the setting or the exec flag,
- * already validated). D121: no trimming of ours — the person's guard and
- * the model's window share are the only bounds.
- */
+The session's limits for one byte guard (the setting or the exec flag,
+already validated). D121: no trimming of ours — the person's guard and
+the model's window share are the only bounds.
+*/
 export function limitsForByteGuard(
   maxBytes: number,
   windowTokens: number | undefined,
@@ -136,11 +136,11 @@ export function estimatePackTokens(chars: number): number {
 }
 
 /**
- * The result's guaranteed share of the remaining window, in BYTES against
- * tokens: a result of at most this many bytes is at most this many tokens,
- * whatever the text's density. This is the bound's true upper bound; the
- * per-result character cap beside it is only the friendlier estimate.
- */
+The result's guaranteed share of the remaining window, in BYTES against
+tokens: a result of at most this many bytes is at most this many tokens,
+whatever the text's density. This is the bound's true upper bound; the
+per-result character cap beside it is only the friendlier estimate.
+*/
 export function windowShareBytes(windowTokens: number): number {
   return Math.max(0, Math.floor(windowTokens * TOOL_RESULT_WINDOW_SHARE))
 }
@@ -151,16 +151,16 @@ export type ToolResultCapRefusal =
   | { readonly kind: 'above-window'; readonly windowTokens: number }
 
 /**
- * The configured byte guard, validated. D121: no fallback of ours — absent
- * or 0 passes the result to the window share alone; below the floor or
- * larger than the model's whole window is refused with the reason, and the
- * caller treats it as unset. Pure so the setting, the exec flag and the
- * host share it. Where the window is unknown the window fit cannot be
- * checked — said in the certification, not guessed.
- * `windowTokens` is the model's WHOLE window, never the room left: the
- * refusal sentence names the model's window, and a cap that fits it must
- * not be refused later merely because the conversation grew.
- */
+The configured byte guard, validated. D121: no fallback of ours — absent
+or 0 passes the result to the window share alone; below the floor or
+larger than the model's whole window is refused with the reason, and the
+caller treats it as unset. Pure so the setting, the exec flag and the
+host share it. Where the window is unknown the window fit cannot be
+checked — said in the certification, not guessed.
+`windowTokens` is the model's WHOLE window, never the room left: the
+refusal sentence names the model's window, and a cap that fits it must
+not be refused later merely because the conversation grew.
+*/
 export function validateToolResultCap(
   value: number | undefined,
   windowTokens: number | undefined,
@@ -186,10 +186,10 @@ export function capRefusalReason(refused: ToolResultCapRefusal): string {
 }
 
 /**
- * The one line a cut result carries; the spill holds the full text. When
- * the spill could not be written (`spill` undefined) the line says so
- * instead of naming a file that does not exist.
- */
+The one line a cut result carries; the spill holds the full text. When
+the spill could not be written (`spill` undefined) the line says so
+instead of naming a file that does not exist.
+*/
 export function cutNotice(cut: ToolResultCut, spill: string | undefined, id: string): string {
   return fill(
     spill === undefined
@@ -310,16 +310,16 @@ export function parsePromptTooLong(message: string): PromptTooLong | undefined {
 }
 
 /**
- * Whether a classified overflow may drive the trim-and-resend recovery.
- * Count-based kinds (preflight, input-above-window, empty-near-window) rest
- * on usage counts, not phrases. The phrase-based `error` kind recovers only
- * on the proven shape — the recorded `prompt is too long: N tokens >
- * M maximum` answer, with its numbers — so an unrecorded wire shape never
- * triggers a resend: the turn ends with the short sentence instead, until an
- * answer is recorded for its format. (TOOLCAP needs `ProviderRefusal`'s
- * `tooLarge` kind with the wire's own numbers when it lands; until then this
- * gate is the provenance record.)
- */
+Whether a classified overflow may drive the trim-and-resend recovery.
+Count-based kinds (preflight, input-above-window, empty-near-window) rest
+on usage counts, not phrases. The phrase-based `error` kind recovers only
+on the proven shape — the recorded `prompt is too long: N tokens >
+M maximum` answer, with its numbers — so an unrecorded wire shape never
+triggers a resend: the turn ends with the short sentence instead, until an
+answer is recorded for its format. (TOOLCAP needs `ProviderRefusal`'s
+`tooLarge` kind with the wire's own numbers when it lands; until then this
+gate is the provenance record.)
+*/
 export function canRecoverOverflow(
   kind: ContextOverflowKind,
   tokens: number | undefined,

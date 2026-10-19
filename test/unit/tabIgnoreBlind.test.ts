@@ -9,11 +9,11 @@ import { usingTempDir } from './helpers/temporaryFolders'
 
 const runExecFile = promisify(execFile)
 /**
- * A git that can actually answer on this machine: the PATH git where it
- * works, the Command Line Tools git where Apple's shim is broken (this
- * rig: `git init` through /usr/bin/git dies spawning a missing xcodebuild).
- * Each candidate is asked its real version; the first that answers wins.
- */
+A git that can actually answer on this machine: the PATH git where it
+works, the Command Line Tools git where Apple's shim is broken (this
+rig: `git init` through /usr/bin/git dies spawning a missing xcodebuild).
+Each candidate is asked its real version; the first that answers wins.
+*/
 const resolvedGit: Promise<string> = (async (): Promise<string> => {
   const candidates =
     process.platform === 'darwin'

@@ -65,14 +65,14 @@ class LineFramer {
 }
 
 /**
- * Serves until stdin ends or stdout closes, whichever is first: either side
- * closing is the client's disconnect. Work is admitted, not unbounded: at
- * most `transportTasks` frames at once (busy beyond that), with
- * `controlTasks` more kept for Stop, schedule cancel and cancellation
- * notices. Replies honour stdout's backpressure; a client that leaves more
- * than `outputQueueBytes` unread is disconnected. Resolves after the last
- * reply is written.
- */
+Serves until stdin ends or stdout closes, whichever is first: either side
+closing is the client's disconnect. Work is admitted, not unbounded: at
+most `transportTasks` frames at once (busy beyond that), with
+`controlTasks` more kept for Stop, schedule cancel and cancellation
+notices. Replies honour stdout's backpressure; a client that leaves more
+than `outputQueueBytes` unread is disconnected. Resolves after the last
+reply is written.
+*/
 export async function serveStdio(
   handles: StdioHandles,
   protocol: Pick<ConnectorProtocol, 'handle' | 'close' | 'refuse'>,

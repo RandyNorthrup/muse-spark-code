@@ -25,10 +25,10 @@ export interface LegalDependency {
   /** The scanner's own words for the lane 0 finding field. */
   readonly evidenceSource: string
   /**
-   * A licence text the reader identified the licence from (Cargo's
-   * `license-file`, a vendored Go licence), so the scan checks its
-   * exactness even when the file name is not a standard one.
-   */
+  A licence text the reader identified the licence from (Cargo's
+  `license-file`, a vendored Go licence), so the scan checks its
+  exactness even when the file name is not a standard one.
+  */
   readonly licenseTextFile?: string
 }
 

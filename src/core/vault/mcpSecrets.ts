@@ -146,7 +146,7 @@ export interface McpMovePort {
 }
 
 /** User-only review artifact. No disk write: the editor displays/saves this exact proposed edit.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export async function moveMcpSecretToVault(
   source: string,
   input: { server: string; field: 'env' | 'headers'; key: string; name: string; use: VaultUse },

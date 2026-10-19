@@ -94,10 +94,10 @@ function WizardNav({
 }
 
 /**
- * The closing block of every wizard step except confirm: the step's
- * errors and blockers, then Continue with Back and Cancel beside it.
- * Continue stays disabled with the blockers inline while any stands.
- */
+The closing block of every wizard step except confirm: the step's
+errors and blockers, then Continue with Back and Cancel beside it.
+Continue stays disabled with the blockers inline while any stands.
+*/
 function StepFoot({
   errors,
   blockers,
@@ -124,10 +124,10 @@ function StepFoot({
 }
 
 /**
- * The closing block of the suggestions and confirm steps: the draft's
- * errors and blockers, then Back, the step's own primary buttons, and
- * Cancel.
- */
+The closing block of the suggestions and confirm steps: the draft's
+errors and blockers, then Back, the step's own primary buttons, and
+Cancel.
+*/
 function StepActions({
   draft,
   post,
@@ -162,10 +162,10 @@ function StepActions({
 }
 
 /**
- * Why a subscription sign-in row cannot be picked, or undefined when it can.
- * A confidential workspace hides Copilot outright (the README's rule); any
- * other unavailable sign-in stays visible but disabled, with its reason.
- */
+Why a subscription sign-in row cannot be picked, or undefined when it can.
+A confidential workspace hides Copilot outright (the README's rule); any
+other unavailable sign-in stays visible but disabled, with its reason.
+*/
 function signInReason(
   panelState: ModelsPanelState,
   preset: PresetCard,
@@ -214,18 +214,16 @@ function PickStep({ panelState, post, onClose }: Omit<WizardProps, 'draft' | 'on
           if (availability.hidden) {
             return []
           }
-          return [
-            {
-              value: preset.id,
-              label: preset.label,
-              description: preset.description,
-              category: preset.category,
-              ...(availability.reason !== undefined && {
-                disabled: true,
-                disabledReason: availability.reason,
-              }),
-            },
-          ]
+          return {
+            value: preset.id,
+            label: preset.label,
+            description: preset.description,
+            category: preset.category,
+            ...(availability.reason !== undefined && {
+              disabled: true,
+              disabledReason: availability.reason,
+            }),
+          }
         })}
         chips={chips}
         activeChip={chip}

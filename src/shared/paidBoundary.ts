@@ -85,13 +85,13 @@ export const EMPTY_PAID_TALLY: PaidTally = {
 }
 
 /**
- * The paid features a window can use (M44, PLAN.md D37): every one on the
- * Model API backend; on Muse Code, the extension's features billed to a
- * stored key, including key-billed team tasks; none without that key. This
- * stays beside the schemas, without exact money arithmetic, so chat startup
- * (the composer badge, the dictate tooltip) can name features before the
- * lazy money chunk with the prices arrives.
- */
+The paid features a window can use (M44, PLAN.md D37): every one on the
+Model API backend; on Muse Code, the extension's features billed to a
+stored key, including key-billed team tasks; none without that key. This
+stays beside the schemas, without exact money arithmetic, so chat startup
+(the composer badge, the dictate tooltip) can name features before the
+lazy money chunk with the prices arrives.
+*/
 export function usablePaidFeatures(
   // The backends protocol.ts names; kept as literals so this module never
   // imports protocol (which imports this module for paidStateSchema).
@@ -147,10 +147,10 @@ export const paidStateSchema = z.object({
   /** The features that are on and allowed always in this workspace (M58): they no longer ask. */
   alwaysAllowed: z.array(z.enum(PAID_FEATURES)),
   /**
-   * Tab's day (M94, D73; RVM94HU 23–24): the configured daily budget, and
-   * today's total across every window from the ledger once Tab has run in
-   * this window (absent before: the ledger is read by dist/tab.js).
-   */
+  Tab's day (M94, D73; RVM94HU 23–24): the configured daily budget, and
+  today's total across every window from the ledger once Tab has run in
+  this window (absent before: the ledger is read by dist/tab.js).
+  */
   tab: z.optional(
     z.object({
       budgetUsd: nonnegativeUsdSchema,

@@ -69,10 +69,10 @@ const ATTESTED_JOB = {
 }
 
 /**
- * Only a record saying the helper drained the job (`emptied: true`) proves
- * whole-tree retirement and known usage. A missing record, an undrained job
- * or a killed helper is uncertain: the lease's uncertain path, never complete(true).
- */
+Only a record saying the helper drained the job (`emptied: true`) proves
+whole-tree retirement and known usage. A missing record, an undrained job
+or a killed helper is uncertain: the lease's uncertain path, never complete(true).
+*/
 async function settleAttested(
   resource: ResourceLease,
   control: AttestedJobControl,
@@ -234,14 +234,14 @@ function spawnInteractive(
 }
 
 /**
- * A hand-off is launched when its adapter exits 0, or when it is still
- * running at the named deadline: an opener may stay in the foreground with
- * what it opened (xdg-open with the browser), so it is then detached and
- * counted as launched, never killed. Exiting non-zero or failing to start
- * before the deadline is a failure. Only the caller's own cancel stops the
- * root. `until: 'spawn'` (a foreground handler) leads its own session with
- * no pipes and is launched once it has started.
- */
+A hand-off is launched when its adapter exits 0, or when it is still
+running at the named deadline: an opener may stay in the foreground with
+what it opened (xdg-open with the browser), so it is then detached and
+counted as launched, never killed. Exiting non-zero or failing to start
+before the deadline is a failure. Only the caller's own cancel stops the
+root. `until: 'spawn'` (a foreground handler) leads its own session with
+no pipes and is launched once it has started.
+*/
 function spawnHandoff(
   file: string,
   args: readonly string[],

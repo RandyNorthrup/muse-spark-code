@@ -40,8 +40,8 @@ function surface() {
 }
 
 /** The shipped bundle entry with production's adapter shape
- * (`playbookBundle` in `src/runtime/main.ts`): the entry's own parse, locale
- * installation and command wiring all run, not a hand-built double. */
+(`playbookBundle` in `src/runtime/main.ts`): the entry's own parse, locale
+installation and command wiring all run, not a hand-built double. */
 function entryBundle(): AcpPlaybookBundle {
   return {
     parsePlaybookCommand: (argv) => entryParsePlaybookCommand(argv),

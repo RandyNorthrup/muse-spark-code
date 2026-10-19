@@ -72,10 +72,10 @@ export function money(value: UsdAmount | undefined): string {
   return value === undefined ? USAGE_TEXT.unknown : formatUsd(value, 2)
 }
 /**
- * Exact cost label: the original amount, never a value rebuilt from plotted
- * geometry (geometry ceils sub-nano-dollars, so a label made from it would
- * overstate small charges; M121 P2-2).
- */
+Exact cost label: the original amount, never a value rebuilt from plotted
+geometry (geometry ceils sub-nano-dollars, so a label made from it would
+overstate small charges; M121 P2-2).
+*/
 export function costLabel(totals: UsageTotals): string {
   return money(billedCost(totals))
 }
@@ -97,9 +97,9 @@ export function remainingUsd(spent: UsdAmount, cap: UsdAmount): UsdAmount {
   return left.compare(Usd.from(0)) < 0 ? Usd.from(0).toAmount() : left.toAmount()
 }
 /**
- * Chart geometry for dollars: whole nano-dollars, rounded up. Labels, sorting
- * and period comparisons use the original amounts, never this projection.
- */
+Chart geometry for dollars: whole nano-dollars, rounded up. Labels, sorting
+and period comparisons use the original amounts, never this projection.
+*/
 export function costPlot(amount: UsdAmount | undefined): number | undefined {
   return amount === undefined
     ? undefined
@@ -115,8 +115,8 @@ export function duration(value: number | undefined): string {
 }
 export function dayLabel(day: string): string {
   // Parse a local calendar date, rather than moving midnight UTC into yesterday.
-  const [year, month, date] = day.split('-').map(Number)
-  return formatDate(new Date(year ?? 0, (month ?? 1) - 1, date ?? 1).getTime())
+  const [year = 0, month = 1, date = 1] = day.split('-').map(Number)
+  return formatDate(new Date(year, month - 1, date).getTime())
 }
 export function knownSum(values: readonly (number | undefined)[]): number | undefined {
   const known = values.filter((value) => value !== undefined)

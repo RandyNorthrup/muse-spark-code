@@ -19,12 +19,12 @@ import { verifyVaultSocketFile } from './socketDirectory'
 import { windowsVaultPipeNameSchema } from './windowsPipe'
 
 /**
- * A dead or corrupted channel names itself, never the vault's state. A
- * closed socket, a failed write and an invalid response previously all
- * threw the `locked` sentence, so the panel toasted "Locked" beside a
- * recovered unlocked section (RVCM1091G P3). The host maps every code here
- * to `unreachable` (the operation failed, Retry offered).
- */
+A dead or corrupted channel names itself, never the vault's state. A
+closed socket, a failed write and an invalid response previously all
+threw the `locked` sentence, so the panel toasted "Locked" beside a
+recovered unlocked section (RVCM1091G P3). The host maps every code here
+to `unreachable` (the operation failed, Retry offered).
+*/
 export class VaultChannelError extends Error {
   constructor(
     readonly code: 'closed' | 'writeFailed' | 'invalidResponse',
@@ -250,9 +250,9 @@ export class VaultBrokerClient {
     return await next
   }
   /**
-   * v2 watch: this connection then carries only pushed lock, revoke, approval
-   * and change events until close(); it accepts no further request.
-   */
+  v2 watch: this connection then carries only pushed lock, revoke, approval
+  and change events until close(); it accepts no further request.
+  */
   async watch(onEvent: (event: VaultBrokerEvent) => void): Promise<void> {
     this.isAwaitingWatch = true
     const response = await this.send({ kind: 'watch' })

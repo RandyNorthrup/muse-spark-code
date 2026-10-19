@@ -30,17 +30,17 @@ function Svg({ title, children }: IconProps & { readonly children: ReactNode }) 
 }
 
 /**
- * The product's own mark: the squiggled handwritten "m" of
- * media/marketplace-icon.svg (two humps and a flick, no loops), the same
- * geometry as media/icon.svg, drawn here as a stroke in the brand blue
- * (--ms-brand-mark, set by styles.css; currentColor keeps forced-colors honest).
- * The box matches the old logo's (24x16) so the empty state's layout does
- * not shift. Crop to the path bounds plus half the stroke on every side;
- * meet the existing box: fill it in the limiting dimension (the width) and
- * sit centred in the other, so the mark keeps the Marketplace proportions
- * without clipping the round caps. Decorative next to the product name:
- * no animation.
- */
+The product's own mark: the squiggled handwritten "m" of
+media/marketplace-icon.svg (two humps and a flick, no loops), the same
+geometry as media/icon.svg, drawn here as a stroke in the brand blue
+(--ms-brand-mark, set by styles.css; currentColor keeps forced-colors honest).
+The box matches the old logo's (24x16) so the empty state's layout does
+not shift. Crop to the path bounds plus half the stroke on every side;
+meet the existing box: fill it in the limiting dimension (the width) and
+sit centred in the other, so the mark keeps the Marketplace proportions
+without clipping the round caps. Decorative next to the product name:
+no animation.
+*/
 export function ProductMark({ title }: IconProps) {
   const isDecorative = title === undefined
   return (

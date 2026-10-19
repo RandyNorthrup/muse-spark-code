@@ -43,9 +43,9 @@ export interface BundledSkillsPaths {
   /** Its sibling `<config home>/muse/skill-sources`, where the copy goes. */
   readonly sourcesRoot: string
   /**
-   * The installed extension's own `skills/` (M97): its skills link straight
-   * at the extension, with no copy and no tag. Absent where none ship.
-   */
+  The installed extension's own `skills/` (M97): its skills link straight
+  at the extension, with no copy and no tag. Absent where none ship.
+  */
   readonly extensionSkillsRoot?: string | undefined
 }
 
@@ -134,12 +134,12 @@ const WINDOWS_VERBATIM_PREFIX = '\\\\?\\'
 const PARENT = '..'
 
 /**
- * A system error with the named code: an absent entry is ENOENT, anything
- * else (a refusal, a vanished parent) is not. Reads only `.code`, never the
- * message, so the check itself leaks nothing.
- */
-function isCode(error: unknown, code: string): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === code
+A system error with the named code: an absent entry is ENOENT, anything
+else (a refusal, a vanished parent) is not. Reads only `.code`, never the
+message, so the check itself leaks nothing.
+*/
+function isCode(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === NOT_FOUND
 }
 
 function describe(error: unknown): string {
@@ -156,10 +156,10 @@ function copyFolder(paths: BundledSkillsPaths): string {
 }
 
 /**
- * The installed extension's own skill ids (M97): every folder under its
- * `skills/` holding a SKILL.md with a matching id. A missing root lists as
- * empty, like a missing catalog root; anything else throws.
- */
+The installed extension's own skill ids (M97): every folder under its
+`skills/` holding a SKILL.md with a matching id. A missing root lists as
+empty, like a missing catalog root; anything else throws.
+*/
 async function extraSkillIds(extensionSkillsRoot: string | undefined): Promise<readonly string[]> {
   if (extensionSkillsRoot === undefined) {
     return []
@@ -168,7 +168,7 @@ async function extraSkillIds(extensionSkillsRoot: string | undefined): Promise<r
   try {
     names = await fs.readdir(extensionSkillsRoot)
   } catch (error: unknown) {
-    if (isCode(error, NOT_FOUND)) {
+    if (isCode(error)) {
       return []
     }
     throw error
@@ -183,7 +183,7 @@ async function extraSkillIds(extensionSkillsRoot: string | undefined): Promise<r
       const stat = await fs.stat(path.join(extensionSkillsRoot, name, SKILL_FILE_NAME))
       isFile = stat.isFile()
     } catch (error: unknown) {
-      if (!isCode(error, NOT_FOUND)) {
+      if (!isCode(error)) {
         throw error
       }
     }
@@ -209,7 +209,7 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
       file === SKILL_FILE_NAME &&
       parts.length === SKILL_FILE_PATH_PARTS &&
       SKILL_ID_PATTERN.test(id)
-      ? [id]
+      ? id
       : []
   })
   if (skillIds.length === 0) {
@@ -272,7 +272,7 @@ async function copyState(folder: string): Promise<CopyState> {
   try {
     stats = await fs.lstat(folder)
   } catch (error: unknown) {
-    if (isCode(error, NOT_FOUND)) {
+    if (isCode(error)) {
       return { kind: 'absent' }
     }
     throw error
@@ -285,7 +285,7 @@ async function copyState(folder: string): Promise<CopyState> {
   try {
     text = await fs.readFile(path.join(folder, BUNDLED_SKILLS_MARKER_FILE), 'utf8')
   } catch (error: unknown) {
-    if (isCode(error, NOT_FOUND)) {
+    if (isCode(error)) {
       return { kind: 'notOurs' }
     }
     throw error
@@ -372,7 +372,7 @@ async function linksInto(
   try {
     names = await fs.readdir(skillsRoot)
   } catch (error: unknown) {
-    if (isCode(error, NOT_FOUND)) {
+    if (isCode(error)) {
       return []
     }
     throw error
@@ -391,9 +391,9 @@ async function linksInto(
 }
 
 /**
- * The new copy renamed in: over nothing, or over the extension's earlier
- * copy, which steps aside first and comes back if the rename fails.
- */
+The new copy renamed in: over nothing, or over the extension's earlier
+copy, which steps aside first and comes back if the rename fails.
+*/
 async function renameIn(
   staging: string,
   folder: string,
@@ -514,7 +514,7 @@ export async function installBundledSkills(
       try {
         existing = await linkTarget(link)
       } catch (error: unknown) {
-        if (!isCode(error, NOT_FOUND)) {
+        if (!isCode(error)) {
           throw error
         }
         await makeLink(target, link, linkType)

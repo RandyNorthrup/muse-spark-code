@@ -74,10 +74,10 @@ export interface AuthorityState {
 }
 
 /**
- * The live authority (design §3a). `current` is read synchronously at every
- * gate; it changes as soon as the connector learns of a change (a watched
- * file, or `refresh`), and `watch` hears of each change at once.
- */
+The live authority (design §3a). `current` is read synchronously at every
+gate; it changes as soon as the connector learns of a change (a watched
+file, or `refresh`), and `watch` hears of each change at once.
+*/
 export interface AuthorityPort {
   readonly current: () => AuthorityState
   /** Reads the sources again; `current` answers what was read. */
@@ -249,11 +249,11 @@ export class ConnectorRegistry implements ConnectorServer {
   }
 
   /**
-   * The single authority, synchronous, read live: why `operation` must stop
-   * now. Before admission only the call itself and the connection count;
-   * after it, the kill switch and the grant it was admitted under
-   * (generation, scopes, workspace or user library, confidential policy).
-   */
+  The single authority, synchronous, read live: why `operation` must stop
+  now. Before admission only the call itself and the connection count;
+  after it, the kill switch and the grant it was admitted under
+  (generation, scopes, workspace or user library, confidential policy).
+  */
   private stopCause(operation: Operation): ConnectorCancelCause | undefined {
     if (this.isClosed) return 'disconnect'
     if (operation.signal?.aborted === true)
@@ -302,9 +302,9 @@ export class ConnectorRegistry implements ConnectorServer {
   }
 
   /**
-   * One receipt per transition: who, what, where, and why it ended. A
-   * required one (written ahead) is awaited; a best-effort one never waits.
-   */
+  One receipt per transition: who, what, where, and why it ended. A
+  required one (written ahead) is awaited; a best-effort one never waits.
+  */
   private async journal(
     operation: Operation,
     from: ConnectorCallState,
@@ -332,20 +332,20 @@ export class ConnectorRegistry implements ConnectorServer {
   }
 
   /**
-   * Applies the authority to every live operation at once: a revoked or
-   * changed grant, the kill switch or an expired approval stops each one it
-   * covers, and a pending approval leaves the page.
-   */
+  Applies the authority to every live operation at once: a revoked or
+  changed grant, the kill switch or an expired approval stops each one it
+  covers, and a pending approval leaves the page.
+  */
   private sweep(): void {
     this.ledger.expireDue()
     for (const operation of this.live) operation.check()
   }
 
   /**
-   * Reads the authority's sources again, then sweeps. Before an effect it is
-   * the caller's last wait: the caller then runs the final gate (a plain
-   * synchronous call) and starts the effect in that same synchronous block.
-   */
+  Reads the authority's sources again, then sweeps. Before an effect it is
+  the caller's last wait: the caller then runs the final gate (a plain
+  synchronous call) and starts the effect in that same synchronous block.
+  */
   private async refresh(): Promise<void> {
     await this.deps.authority.refresh()
     this.sweep()
@@ -664,10 +664,10 @@ export class ConnectorRegistry implements ConnectorServer {
   }
 
   /**
-   * A write request: inert until our page approves this exact intent. The
-   * call's own operation becomes the kept operation the client polls; each
-   * effect on the way (the claim, the intent) is gated.
-   */
+  A write request: inert until our page approves this exact intent. The
+  call's own operation becomes the kept operation the client polls; each
+  effect on the way (the claim, the intent) is gated.
+  */
   private async request(
     operation: Operation,
     tool: ConnectorToolSpec,
@@ -768,14 +768,14 @@ export class ConnectorRegistry implements ConnectorServer {
   }
 
   /**
-   * The approved write. The approved and dispatching receipts are written
-   * ahead (a failed one fails the operation: no write); then the target is
-   * read again; then the authority is read again as the last wait; then the
-   * final gate reads it live, with the one-use approval's compare-and-swap,
-   * and the write starts in that same tick. Revocation, the kill switch, a
-   * changed grant, a disconnect, Stop or a policy change at any point before
-   * the gate leaves no write. It never rejects.
-   */
+  The approved write. The approved and dispatching receipts are written
+  ahead (a failed one fails the operation: no write); then the target is
+  read again; then the authority is read again as the last wait; then the
+  final gate reads it live, with the one-use approval's compare-and-swap,
+  and the write starts in that same tick. Revocation, the kill switch, a
+  changed grant, a disconnect, Stop or a policy change at any point before
+  the gate leaves no write. It never rejects.
+  */
   private async dispatch(operation: Operation, plan: WritePlan): Promise<void> {
     try {
       if (!(await operation.writeAhead('approved'))) {
@@ -842,11 +842,11 @@ export class ConnectorRegistry implements ConnectorServer {
   }
 
   /**
-   * Stop's reserved path: authenticated by the grant, never queued or
-   * limited. Its authority follows the target operation's own scope: a
-   * user-library operation stops with the user-library grant, whatever
-   * workspace its save named.
-   */
+  Stop's reserved path: authenticated by the grant, never queued or
+  limited. Its authority follows the target operation's own scope: a
+  user-library operation stops with the user-library grant, whatever
+  workspace its save named.
+  */
   private async stopPath(
     operation: Operation,
     tool: ConnectorToolSpec,
@@ -889,10 +889,10 @@ export class ConnectorRegistry implements ConnectorServer {
   }
 
   /**
-   * The envelope, scrubbed leaf by leaf and then as a whole, within the
-   * result bound; a result over the bound or changed by the final scrub
-   * becomes a refusal, which the caller records as the call's end.
-   */
+  The envelope, scrubbed leaf by leaf and then as a whole, within the
+  result bound; a result over the bound or changed by the final scrub
+  becomes a refusal, which the caller records as the call's end.
+  */
   private render(
     callId: string,
     outcome: Outcome,
@@ -968,12 +968,12 @@ export class ConnectorRegistry implements ConnectorServer {
   }
 
   /**
-   * The call's answer the moment its operation ends, its signal aborts (a
-   * cancellation, the deadline) or the client goes, whatever its work still
-   * awaits (a lookup, an owner port, a page, a committed result's receipt,
-   * which finishes on its own). A settled operation answers its work's
-   * result.
-   */
+  The call's answer the moment its operation ends, its signal aborts (a
+  cancellation, the deadline) or the client goes, whatever its work still
+  awaits (a lookup, an owner port, a page, a committed result's receipt,
+  which finishes on its own). A settled operation answers its work's
+  result.
+  */
   private async stopped(
     operation: Operation,
     work: Promise<ConnectorCallResult>,
@@ -1000,13 +1000,13 @@ export class ConnectorRegistry implements ConnectorServer {
   }
 
   /**
-   * The reply. A kept write answers with what its operation is now. Every
-   * other call is delivered only through the gate: the authority is read
-   * again as the last wait (Stop excepted: its effect is done) and a call it
-   * stopped answers its own refusal. A result that passes is committed: its
-   * settled receipt is written before it is sent, and a failed receipt
-   * withholds it (`audit_unavailable`); Stop's receipt is best effort.
-   */
+  The reply. A kept write answers with what its operation is now. Every
+  other call is delivered only through the gate: the authority is read
+  again as the last wait (Stop excepted: its effect is done) and a call it
+  stopped answers its own refusal. A result that passes is committed: its
+  settled receipt is written before it is sent, and a failed receipt
+  withholds it (`audit_unavailable`); Stop's receipt is best effort.
+  */
   private async deliver(
     operation: Operation,
     outcome: Outcome,
@@ -1087,20 +1087,18 @@ export class ConnectorRegistry implements ConnectorServer {
       const backed = tool.availability
       if (backed.kind !== 'backed') return []
       if (tool.scopes.some((scope) => !grant.scopes.includes(scope))) return []
-      return [
-        {
-          name: tool.name,
-          description: CONNECTOR_MODEL_TEXT[backed.description],
-          inputSchema: backed.inputSchema,
-          // Hints describe real effects; they are information, never authority.
-          annotations: {
-            readOnlyHint: tool.toolClass === 'read',
-            destructiveHint: false,
-            idempotentHint: tool.toolClass !== 'write',
-            openWorldHint: false,
-          },
+      return {
+        name: tool.name,
+        description: CONNECTOR_MODEL_TEXT[backed.description],
+        inputSchema: backed.inputSchema,
+        // Hints describe real effects; they are information, never authority.
+        annotations: {
+          readOnlyHint: tool.toolClass === 'read',
+          destructiveHint: false,
+          idempotentHint: tool.toolClass !== 'write',
+          openWorldHint: false,
         },
-      ]
+      }
     })
   }
 
@@ -1139,9 +1137,9 @@ export class ConnectorRegistry implements ConnectorServer {
   }
 
   /**
-   * Resolves once every operation has ended (a started write, a committed
-   * result's receipt), or after one call deadline, whichever is first.
-   */
+  Resolves once every operation has ended (a started write, a committed
+  result's receipt), or after one call deadline, whichever is first.
+  */
   public async drained(): Promise<void> {
     const timer = new AbortController()
     try {
@@ -1155,10 +1153,10 @@ export class ConnectorRegistry implements ConnectorServer {
   }
 
   /**
-   * Disconnect: no call is admitted again, every call still answering
-   * settles at once, and every live operation not committed to its effect
-   * stops.
-   */
+  Disconnect: no call is admitted again, every call still answering
+  settles at once, and every live operation not committed to its effect
+  stops.
+  */
   public disconnect(): void {
     this.isClosed = true
     this.closing.abort()

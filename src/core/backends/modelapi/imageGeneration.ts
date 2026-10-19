@@ -68,11 +68,11 @@ export const editImageArgs = z.object({
 })
 
 /**
- * D121: the provider's documented edit-item cap for this call, from the
- * record that reached it (Meta's record carries Meta's documented 1–10).
- * Undefined states no cap: without a record Meta's own refusal reaches the
- * caller in words.
- */
+D121: the provider's documented edit-item cap for this call, from the
+record that reached it (Meta's record carries Meta's documented 1–10).
+Undefined states no cap: without a record Meta's own refusal reaches the
+caller in words.
+*/
 export function editImageLimit(record: ModelCapabilityRecord | undefined): number | undefined {
   const policy = record?.modalities.image
   return policy?.state === 'yes' ? policy.value.maxEditSources : undefined
@@ -197,9 +197,9 @@ async function sourceOf(
 }
 
 /**
- * Everything checked before the question (M34, M44): the arguments, the
- * output path and every source. A refusal names why; nothing was bought.
- */
+Everything checked before the question (M34, M44): the arguments, the
+output path and every source. A refusal names why; nothing was bought.
+*/
 export async function prepareImageCall(
   kind: ImagePlan['kind'],
   rawArgs: unknown,

@@ -28,10 +28,10 @@ interface Tunnel {
 type ProxySeen = Tunnel[]
 
 /**
- * The tunnels asked for this page, by its address or its name. The proxy is
- * VS Code's setting for the whole window while a test runs, so VS Code's own
- * requests may pass through it too; they are not the fetch's.
- */
+The tunnels asked for this page, by its address or its name. The proxy is
+VS Code's setting for the whole window while a test runs, so VS Code's own
+requests may pass through it too; they are not the fetch's.
+*/
 function pageTunnels(seen: ProxySeen): readonly Tunnel[] {
   return seen.filter(
     (tunnel) => tunnel.requestLine.includes(PINNED) || tunnel.requestLine.includes(NAME),
@@ -96,9 +96,9 @@ const TARGET: PinnedTarget = {
 }
 
 /**
- * The pinned request made through a recording proxy that answers CONNECT
- * with `status`; the proxy setting is put back afterwards.
- */
+The pinned request made through a recording proxy that answers CONNECT
+with `status`; the proxy setting is put back afterwards.
+*/
 async function throughProxy(
   status: number,
   check: (request: Promise<unknown>, seen: ProxySeen) => Promise<void>,

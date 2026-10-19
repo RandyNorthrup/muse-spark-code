@@ -10,10 +10,10 @@ function nothingHeld(): void {
 const NO_CLAIM: MediaClaim = { start: nothingHeld, release: nothingHeld }
 
 /**
- * A host's registry before its first attach (RVMEDIAV 8): the registry loads
- * with its own bundle, and until then nothing is attached and nothing
- * resolves. VS Code and the CLI/ACP runtime both hold their registry so.
- */
+A host's registry before its first attach (RVMEDIAV 8): the registry loads
+with its own bundle, and until then nothing is attached and nothing
+resolves. VS Code and the CLI/ACP runtime both hold their registry so.
+*/
 export function lazyAttachedMedia(current: () => AttachedMedia | undefined): AttachedMediaPort {
   return {
     resolve: (part) => current()?.resolve(part),

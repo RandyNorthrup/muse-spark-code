@@ -92,9 +92,9 @@ async function isUserPrivateGroup(gid: bigint, packageRoot: string): Promise<boo
 }
 
 /** OpenSSH misc.c safe_path / StrictModes, with the root-owned sticky exception.
- * https://github.com/openssh/openssh-portable/blob/master/misc.c
- * Inspect the real ancestry, never treat a selected XDG/home root as authority.
- */
+https://github.com/openssh/openssh-portable/blob/master/misc.c
+Inspect the real ancestry, never treat a selected XDG/home root as authority.
+*/
 export async function verifyTrustedPath(
   directory: string,
   isPrivateLeaf = true,
@@ -202,13 +202,13 @@ function executableRefusal(component: string, reason: string): TrustedExecutable
 }
 
 /**
- * An executable the product may launch: realpath first; every ancestor of
- * the canonical path passes `verifyTrustedPath`'s directory walk (root or the
- * current user, no group/other write beyond its sticky and user-private-group
- * rules); the target is a regular executable file owned by root or the
- * current user, with no group or other write. The caller launches the
- * returned canonical path, never the name it was given.
- */
+An executable the product may launch: realpath first; every ancestor of
+the canonical path passes `verifyTrustedPath`'s directory walk (root or the
+current user, no group/other write beyond its sticky and user-private-group
+rules); the target is a regular executable file owned by root or the
+current user, with no group or other write. The caller launches the
+returned canonical path, never the name it was given.
+*/
 export async function verifyTrustedExecutable(
   file: string,
   packageRoot = path.resolve(__dirname, '..'),

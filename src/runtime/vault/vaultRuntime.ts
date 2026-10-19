@@ -37,14 +37,14 @@ export function runtimeVaultLoader(
           path.join(context.distDir, VAULT_RUNTIME_BUNDLE_FILE),
         ) as Partial<RuntimeVaultModule>
         if (typeof module.createRuntimeVault !== 'function')
-          throw new Error(UI_TEXT.vault.brokerBlocked)
+          throw new TypeError(UI_TEXT.vault.brokerBlocked)
         const binding = await module.createRuntimeVault({
           ...context,
           uiText: UI_TEXT,
           locale: uiLocale(),
         })
         if (typeof binding.commands !== 'function' || typeof binding.exec.open !== 'function')
-          throw new Error(UI_TEXT.vault.brokerBlocked)
+          throw new TypeError(UI_TEXT.vault.brokerBlocked)
         return binding
       } catch (error: unknown) {
         if (error instanceof Error && 'code' in error && error.code === 'vaultDisabled')

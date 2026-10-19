@@ -110,11 +110,11 @@ function confirmDoubles(values: readonly string[], answers: readonly boolean[]) 
 type ConfirmDoubles = ReturnType<typeof confirmDoubles>
 
 /**
- * Both confirmation drills end the same way: the exit, one use-it-anyway
- * question, the refusing store's error and no standard output. A declined
- * key is asked for again first, so it reads two secrets; a confirmed key
- * reads one and reaches the store.
- */
+Both confirmation drills end the same way: the exit, one use-it-anyway
+question, the refusing store's error and no standard output. A declined
+key is asked for again first, so it reads two secrets; a confirmed key
+reads one and reaches the store.
+*/
 function expectConfirmOutcome(
   exit: number,
   doubles: ConfirmDoubles,

@@ -26,12 +26,12 @@ export interface ReportStoreProject {
 }
 
 /**
- * The manifest read, tolerant by contract: a missing, unreadable or
- * unparsable package.json leaves the stores source unbound rather than
- * failing the report. The file read itself stays at the call site (the
- * report's confined reader); only the failure policy lives here so it is
- * unit-testable without a built lazy bundle.
- */
+The manifest read, tolerant by contract: a missing, unreadable or
+unparsable package.json leaves the stores source unbound rather than
+failing the report. The file read itself stays at the call site (the
+report's confined reader); only the failure policy lives here so it is
+unit-testable without a built lazy bundle.
+*/
 export async function readStoreProject(
   read: () => Promise<string>,
 ): Promise<ReportStoreProject | undefined> {

@@ -16,9 +16,9 @@ export interface AcpReportsPort {
 }
 
 /**
- * The tokenizer's own failure: an unterminated quote reserves nothing. Its
- * message is the fixed sentence, never the text it failed on.
- */
+The tokenizer's own failure: an unterminated quote reserves nothing. Its
+message is the fixed sentence, never the text it failed on.
+*/
 class ReportTokensError extends Error {}
 
 /** One quote-aware tokenizer for the local slash boundary and CLI report arguments. */

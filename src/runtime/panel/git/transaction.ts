@@ -166,10 +166,10 @@ function unreadableLinkMark(own: string, error: unknown): string {
 }
 
 /**
- * One file's mark: its own entry, and for a link also the file git reads
- * through it (RVM123G3G: a linked configuration file rewritten behind an
- * unchanged link changes the mark).
- */
+One file's mark: its own entry, and for a link also the file git reads
+through it (RVM123G3G: a linked configuration file rewritten behind an
+unchanged link changes the mark).
+*/
 function markOf(file: string): string {
   let own: BigIntStats
   try {

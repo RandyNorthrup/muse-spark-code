@@ -57,16 +57,16 @@ export interface LinuxRecordingPort {
   /** Absolute gst-launch-1.0 path, with pipewiresrc/H.264/mp4/AAC plugins probed. */
   readonly findEncoder: () => Promise<string | undefined>
   /** A user/OS permission refusal rejects with an Error named NotAllowedError;
-   * transport, compositor and other portal failures keep their own identity. */
+  transport, compositor and other portal failures keep their own identity. */
   readonly openPortal: (
     options: ScreenRecordingOptions,
     signal: AbortSignal,
   ) => Promise<PortalSession>
   readonly createPrivateRecording: () => Promise<PrivateRecording>
   /** Verify trusted path at launch; no shell or credentials. Inherit exactly
-   * these fds, enforce hard output size and lifetime, and kill on parent exit.
-   * maxSeconds 0 enforces no lifetime: the run ends only at Stop, cancel or
-   * parent exit (D121). */
+  these fds, enforce hard output size and lifetime, and kill on parent exit.
+  maxSeconds 0 enforces no lifetime: the run ends only at Stop, cancel or
+  parent exit (D121). */
   readonly launchVerified: (request: {
     readonly command: string
     readonly args: readonly string[]
@@ -409,30 +409,30 @@ function recordingRun(
 
 export interface LatestRecordingPort {
   /** The OS recordings locations: Linux Videos roots, Windows Screen
-   * Recordings, or the macOS Desktop default. The host factory sets them. */
+  Recordings, or the macOS Desktop default. The host factory sets them. */
   readonly roots: readonly string[]
   /**
-   * An extra per-platform file-name gate for a general-purpose directory:
-   * macOS scans the Desktop, so only Screenshot names qualify. Absent means
-   * every recent media file qualifies (Linux Videos, Windows Screen
-   * Recordings are dedicated recordings folders).
-   */
+  An extra per-platform file-name gate for a general-purpose directory:
+  macOS scans the Desktop, so only Screenshot names qualify. Absent means
+  every recent media file qualifies (Linux Videos, Windows Screen
+  Recordings are dedicated recordings folders).
+  */
   readonly isRecordingFileName?: (fileName: string) => boolean
   /** Nonrecursive, confined regular files only; reject symlinks/special files. */
   readonly list: (
     root: string,
   ) => Promise<readonly { readonly path: string; readonly modifiedAt: number }[]>
   /** Copy privately under a hard byte cap, then sniff; source is never deleted.
-   * WebM is retained as WebM for M1's explicit conversion offer. */
+  WebM is retained as WebM for M1's explicit conversion offer. */
   readonly copyForPreview: (source: string, maxBytes: number) => Promise<ScreenRecordingPreview>
 }
 
 /**
- * Whether a discovered file sits directly inside a recordings root. Both
- * sides normalize to forward slashes first, so Windows drive-letter roots
- * confine the same way POSIX ones do; anything else (relative, traversal
- * outside the root) fails closed.
- */
+Whether a discovered file sits directly inside a recordings root. Both
+sides normalize to forward slashes first, so Windows drive-letter roots
+confine the same way POSIX ones do; anything else (relative, traversal
+outside the root) fails closed.
+*/
 export function isWithinRecordingRoot(root: string, file: string): boolean {
   const normalRoot = root.replaceAll('\\', '/').replace(/\/$/u, '')
   const normalFile = file.replaceAll('\\', '/')

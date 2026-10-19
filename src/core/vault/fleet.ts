@@ -79,7 +79,7 @@ export interface VaultFleetDelegationPort {
   /** U/H bind the authenticated host UI; no hook, reviewer or model answers this port. */
   approve(card: VaultDelegationCard, signal: AbortSignal): Promise<unknown>
   /** B installs no standing grant. It rechecks policy/presence/taint and calls canAdmit
-   * synchronously at admission for temporary task authority, before minting a ticket. */
+  synchronously at admission for temporary task authority, before minting a ticket. */
   request(
     requester: VaultRequester,
     proposal: Proposal,
@@ -219,10 +219,10 @@ export class VaultFleet {
     return this.workers.get(access) === worker && !worker.controller.signal.aborted
   }
   /**
-   * Rolls a failed access back: the worker stops, its route closes, its
-   * registration goes, and the broker ends the requester. The failure keeps
-   * its kind past the rollback.
-   */
+  Rolls a failed access back: the worker stops, its route closes, its
+  registration goes, and the broker ends the requester. The failure keeps
+  its kind past the rollback.
+  */
   private async abortAccess(
     worker: Worker,
     route: VaultWorkerRoute,

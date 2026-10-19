@@ -139,11 +139,11 @@ function filesFrom(changes: readonly Change[], untracked: readonly string[]): Re
 }
 
 /**
- * The diff within REVIEW_DIFF_MAX_CHARS, cut after the last whole line that
- * fits (its line break the last character kept). Git's diff opens with a
- * short `diff --git` line, so one always fits; text with no line break
- * before the cap would be cut at the cap itself.
- */
+The diff within REVIEW_DIFF_MAX_CHARS, cut after the last whole line that
+fits (its line break the last character kept). Git's diff opens with a
+short `diff --git` line, so one always fits; text with no line break
+before the cap would be cut at the cap itself.
+*/
 function bounded(diff: string): { readonly diff: string; readonly fullLength: number | undefined } {
   if (diff.length <= REVIEW_DIFF_MAX_CHARS) {
     return { diff, fullLength: undefined }
@@ -172,10 +172,10 @@ async function isSuccessful(git: ReviewGit, args: readonly string[]): Promise<bo
 }
 
 /**
- * The full commit a revision names; undefined when git knows no such commit.
- * A revision that would read as an option is none (the request schema
- * refuses it too).
- */
+The full commit a revision names; undefined when git knows no such commit.
+A revision that would read as an option is none (the request schema
+refuses it too).
+*/
 async function commitOf(git: ReviewGit, revision: string): Promise<string | undefined> {
   if (revision.startsWith(OPTION_START)) {
     return undefined
@@ -385,9 +385,7 @@ export async function commitChoices(git: ReviewGit): Promise<readonly CommitChoi
   return linesOf(
     await git(['log', '-n', String(REVIEW_PICK_COMMITS_MAX), `--format=${format}`, HEAD]),
   ).flatMap((line) => {
-    const [commit, shortCommit, subject] = line.split(FIELD_SEPARATOR)
-    return commit === undefined || shortCommit === undefined
-      ? []
-      : [{ commit, shortCommit, subject: subject ?? '' }]
+    const [commit, shortCommit, subject = ''] = line.split(FIELD_SEPARATOR)
+    return commit === undefined || shortCommit === undefined ? [] : { commit, shortCommit, subject }
   })
 }

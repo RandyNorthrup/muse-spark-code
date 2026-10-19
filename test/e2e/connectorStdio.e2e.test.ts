@@ -65,9 +65,9 @@ afterAll(async () => {
 })
 
 /**
- * One session: frames in; stdin stays open until `replies` lines arrived (a
- * client closes stdin to disconnect, which stops calls still in flight).
- */
+One session: frames in; stdin stays open until `replies` lines arrived (a
+client closes stdin to disconnect, which stops calls still in flight).
+*/
 function session(frames: readonly string[], replies: number, connection = 'default') {
   return new Promise<{ lines: string[]; stderr: string; code: number | null }>(
     (resolve, reject) => {
@@ -113,11 +113,7 @@ function structured(reply: Record<string, unknown> | undefined) {
   return (reply?.['result'] as { structuredContent: Record<string, unknown> }).structuredContent
 }
 
-async function grant(
-  scopes: readonly string[],
-  hasContent = true,
-  connection = 'default',
-): Promise<void> {
+async function grant(scopes: readonly string[], connection = 'default'): Promise<void> {
   const folder = path.join(dataFolder(), 'connector', 'grants')
   await mkdir(folder, { recursive: true })
   await writeFile(
@@ -131,7 +127,7 @@ async function grant(
       scopes,
       userLibrary: true,
       paidCapMicrousd: 0,
-      workspaces: [{ id: 'ws-test', root: directory, label: 'repo', content: hasContent }],
+      workspaces: [{ id: 'ws-test', root: directory, label: 'repo', content: true }],
     }),
   )
 }
@@ -288,7 +284,7 @@ describe('M124 connector over real stdio', () => {
     const batch = REPORT_KINDS.slice(start, start + REPORT_BATCH)
     it(`generates report kinds ${batch.map(([kind]) => kind).join(', ')} through the real runtime adapter (RVM124 P2-11)`, async () => {
       // Its own connection: authority is kept per grant, across processes.
-      await grant(['reports:read', 'content:read'], true, 'reports')
+      await grant(['reports:read', 'content:read'], 'reports')
       await rm(path.join(dataFolder(), 'connector', 'kill-switch.json'), { force: true })
       const result = await session(
         [

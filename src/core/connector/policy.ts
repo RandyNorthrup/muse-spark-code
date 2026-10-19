@@ -31,10 +31,10 @@ export interface Admission {
 }
 
 /**
- * The grant's answer for one call. `workspaceId` is the client's selector;
- * it resolves only inside the grant. Content needs the workspace's (or the
- * user library's) content flag; a confidential workspace shares nothing.
- */
+The grant's answer for one call. `workspaceId` is the client's selector;
+it resolves only inside the grant. Content needs the workspace's (or the
+user library's) content flag; a confidential workspace shares nothing.
+*/
 export function admit(
   grant: ConnectorGrant | undefined,
   tool: ConnectorToolSpec,

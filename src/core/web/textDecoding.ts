@@ -91,9 +91,9 @@ function decodeWindows1252(bytes: Uint8Array): string {
 }
 
 /**
- * The bytes as text in `encoding` (a name from encodingOf); throws
- * UndecodableText when this runtime has no decoder for it.
- */
+The bytes as text in `encoding` (a name from encodingOf); throws
+UndecodableText when this runtime has no decoder for it.
+*/
 export function decodeIn(bytes: Uint8Array, encoding: string): string {
   if (encoding === REPLACEMENT) {
     return bytes.byteLength === 0 ? '' : REPLACEMENT_CHARACTER

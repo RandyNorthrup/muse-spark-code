@@ -74,9 +74,9 @@ function compareIdentifierLists(a: readonly string[], b: readonly string[]): num
 }
 
 /**
- * Semver precedence: negative when `a` is older than `b`, positive when newer,
- * 0 when equal (build metadata aside). Throws on a text that is not a version.
- */
+Semver precedence: negative when `a` is older than `b`, positive when newer,
+0 when equal (build metadata aside). Throws on a text that is not a version.
+*/
 export function compareVersions(a: string, b: string): number {
   const left = parseVersion(a)
   const right = parseVersion(b)
@@ -125,15 +125,15 @@ export interface VersionedRelease {
 }
 
 /**
- * The releases a page shows, newest first.
- *
- * - After an upgrade from a known version: every release after it, up to and
- *   including `through`.
- * - Otherwise (the palette command, or an upgrade from a version before this
- *   feature): from the newest release at or below `through` that has
- *   Highlights, up to `through`, so a patch release still shows the minor
- *   release it builds on; only `through` when none has Highlights.
- */
+The releases a page shows, newest first.
+
+- After an upgrade from a known version: every release after it, up to and
+  including `through`.
+- Otherwise (the palette command, or an upgrade from a version before this
+  feature): from the newest release at or below `through` that has
+  Highlights, up to `through`, so a patch release still shows the minor
+  release it builds on; only `through` when none has Highlights.
+*/
 export function releasesToShow<T extends VersionedRelease>(
   releases: readonly T[],
   from: string | undefined,
@@ -152,10 +152,10 @@ export function releasesToShow<T extends VersionedRelease>(
 }
 
 /**
- * Whether an update opens the page (M99, D79): when any release it brings
- * has Highlights. Otherwise (a patch of fixes only) a quiet notification
- * offers the page instead.
- */
+Whether an update opens the page (M99, D79): when any release it brings
+has Highlights. Otherwise (a patch of fixes only) a quiet notification
+offers the page instead.
+*/
 export function hasHighlights(releases: readonly VersionedRelease[]): boolean {
   return releases.some((release) => release.highlights.length > 0)
 }

@@ -98,10 +98,10 @@ const variablesSchema = z.record(z.string(), z.string())
 const { ELECTRON_RUN_AS_NODE: _runAsNode, ...ELECTRON_ENV } = process.env
 
 /**
- * Resolves the workbench's `--vscode-*` values once it wears `themeClass`
- * and they have held still for SETTLE_MS: the theme a profile names is
- * applied after the default one has painted.
- */
+Resolves the workbench's `--vscode-*` values once it wears `themeClass`
+and they have held still for SETTLE_MS: the theme a profile names is
+applied after the default one has painted.
+*/
 function readVariablesScript(themeClass) {
   return `new Promise((resolve, reject) => {
   const started = Date.now()
