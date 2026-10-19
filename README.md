@@ -2089,15 +2089,16 @@ imported.
 
 - **Where they run.** Only on the Model API backend. Each call runs in a
   child process of its own, under your installed `node` (22.18 or later) for
-  Amp and `bun` for OpenCode, with the narrow hook environment:
-  - **Windows:** in a job object with a memory limit, which ends the plugin
-    and everything it started.
-  - **Linux:** in its own process group, with OpenCode's `bun` held to the
-    same memory limit by `prlimit`.
-  - **macOS:** `bun` runs directly, as OpenCode itself runs it: the same
-    per-call timeout, answer-size and process-tree bounds as everywhere else,
-    but no memory cap, so a plugin that outgrows the machine is ended with
-    its tree on timeout or by the operating system.
+  Amp and `bun` for OpenCode, with the narrow hook environment. No deadline,
+  heap flag, memory bound or answer-size bound of ours: a call waits for the
+  child's answer line, an explicit per-hook timeout, or Stop, and the runtime
+  answers whole. Containment still holds everywhere it did:
+  - **Windows:** in a job object, which ends the plugin and everything it
+    started.
+  - **Linux:** in its own process group, with OpenCode's `bun` run directly.
+  - **macOS:** `bun` runs directly, as OpenCode itself runs it.
+  - A plugin that outgrows the machine is ended with its tree on an explicit
+    timeout, by Stop, or by the operating system.
   - **The ACP agent:** plugin hooks are refused.
 - **What they can do.** A plugin can refuse a call, narrow its input, add
   context or replace a tool's output, as its own agent allows. It has no

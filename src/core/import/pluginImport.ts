@@ -18,11 +18,7 @@
 // which no name is found, registers every mapped hook: running more often is
 // never weaker than the source.
 
-import {
-  AGENT_IMPORT_FORMATS,
-  AGENT_IMPORT_PATHS,
-  PLUGIN_IMPORT_MAX_BYTES,
-} from '../../shared/constants'
+import { AGENT_IMPORT_FORMATS, AGENT_IMPORT_PATHS } from '../../shared/constants'
 import {
   PLUGIN_BUS_PREFIX,
   PLUGIN_ROUTES,
@@ -35,8 +31,12 @@ import type { ImportDirEntry } from './agentImport'
 export interface PluginScanIo {
   /** The folder's entries; empty when it is missing, unreadable or not confined. */
   readonly list: (directory: string) => Promise<readonly ImportDirEntry[]>
-  /** The file's text; undefined when missing, too large, unreadable or not confined. */
-  readonly read: (file: string, maxBytes: number) => Promise<string | undefined>
+  /**
+   * The file's text through the shared import reader (D121: no import bound
+   * of ours on plugin files — the reader's own bound applies, as for every
+   * other agent import); undefined when missing, unreadable or not confined.
+   */
+  readonly read: (file: string, maxBytes?: number) => Promise<string | undefined>
   /** Whether a canonical path lies in a folder open in the window. */
   readonly isInOpenWorkspace: (file: string) => Promise<boolean>
   readonly isWorkspaceTrusted: () => boolean
@@ -225,7 +225,10 @@ async function pluginFile(
   } catch {
     return []
   }
-  const text = await io.read(file, PLUGIN_IMPORT_MAX_BYTES)
+  // D121: no import bound of ours — the shared reader reads as it does for
+  // every other agent import (a file it cannot place registers every mapped
+  // hook, and running more often is never weaker than the source).
+  const text = await io.read(file)
   if (text === undefined) {
     return []
   }

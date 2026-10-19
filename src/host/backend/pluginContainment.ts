@@ -1,21 +1,18 @@
 // What Amp and OpenCode plugin children run in (M91b; RVM91X P1 5, P2 12).
 // On Windows each child starts through M50's compiled job launcher
 // (`spawnMcpJob`): the launcher creates the runtime suspended, assigns it to
-// a no-breakaway job with kill-on-close and a memory limit, and only then
-// resumes it, so everything the plugin starts is in that job from its first
-// instruction. Ending the launcher closes the job's only handle, which ends
-// every process in it (`jobProcessTree` in core). POSIX uses the child's own
-// process group.
+// a no-breakaway job with kill-on-close, and only then resumes it, so
+// everything the plugin starts is in that job from its first instruction.
+// Ending the launcher closes the job's only handle, which ends every process
+// in it (`jobProcessTree` in core). POSIX uses the child's own process
+// group. D121: no memory bound of ours — the job carries kill-on-close and
+// the OS's own limits, not a limit we set.
 //
 // A hook never runs without that containment. A failed preparation is tried
-// once more on a dispatch after a short delay; a second failure stays until
-// **Retry Plugin Hooks** (`reset`), with a notice in the user's language.
+// again on every dispatch past a short pacing delay, with a notice in the
+// user's language; **Retry Plugin Hooks** (`reset`) clears the count.
 
-import {
-  PLUGIN_CHILD_MAX_MEMORY_BYTES,
-  PLUGIN_JOB_RETRY_BACKOFF_MS,
-  UI_TEXT,
-} from '../../shared/constants'
+import { PLUGIN_JOB_RETRY_BACKOFF_MS, UI_TEXT } from '../../shared/constants'
 import type { PluginContainment } from '../../core/backends/modelapi/pluginHost'
 import { spawnMcpJob } from './mcpJobLaunch'
 
@@ -35,8 +32,8 @@ export interface PluginContainmentSource {
 }
 
 const EXECUTABLE_SUFFIX = '.exe'
-/** The first failure is retried once; the second stays until reset. */
-const MAX_FAILURES = 2
+// D121: no failure latch of ours — the backoff delay only paces retries,
+// and every dispatch past it prepares fresh and tries again.
 
 /** The platform's containment: process groups off Windows, M50's job launcher on it. */
 export function pluginContainment(deps: PluginContainmentDeps): PluginContainmentSource {
@@ -54,9 +51,8 @@ export function pluginContainment(deps: PluginContainmentDeps): PluginContainmen
     failedAt: number
   } = { prepare: undefined, failures: 0, failedAt: 0 }
   const executable = async (): Promise<string | undefined> => {
-    if (state.failures >= MAX_FAILURES) {
-      return undefined
-    }
+    // D121: no failure latch of ours — past the pacing delay every
+    // dispatch prepares fresh and tries again; only Retry resets the count.
     if (state.failures > 0) {
       if (deps.now() - state.failedAt < PLUGIN_JOB_RETRY_BACKOFF_MS) {
         return undefined
@@ -78,9 +74,9 @@ export function pluginContainment(deps: PluginContainmentDeps): PluginContainmen
     state.failures += 1
     state.failedAt = deps.now()
     deps.log(
-      state.failures >= MAX_FAILURES
-        ? 'Plugin hooks: the Windows job launcher failed again; they stay off until Retry Plugin Hooks'
-        : 'Plugin hooks: the Windows job launcher could not be prepared; it is tried once more shortly',
+      state.failures === 1
+        ? 'Plugin hooks: the Windows job launcher could not be prepared; it is tried once more shortly'
+        : 'Plugin hooks: the Windows job launcher failed again; it is tried again shortly',
     )
     return undefined
   }
@@ -98,6 +94,7 @@ export function pluginContainment(deps: PluginContainmentDeps): PluginContainmen
           if (!command.toLowerCase().endsWith(EXECUTABLE_SUFFIX)) {
             throw new Error('the plugin runtime is not an executable')
           }
+          // D121: no job memory limit of ours — the OS's own limits apply.
           return spawnMcpJob({
             executablePath,
             file: command,
@@ -106,7 +103,6 @@ export function pluginContainment(deps: PluginContainmentDeps): PluginContainmen
             cwd: options.cwd,
             env: options.env,
             log: deps.log,
-            jobMemoryLimit: PLUGIN_CHILD_MAX_MEMORY_BYTES,
             resource: options.resource,
             resourceAssembly,
           })

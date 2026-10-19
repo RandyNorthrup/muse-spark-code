@@ -36,7 +36,6 @@ import {
   HOOK_DELETE_CODE,
   MILLISECONDS_PER_SECOND,
   PLUGIN_FORMATS,
-  PLUGIN_HOOK_TIMEOUT_MS,
   PROJECT_HOOKS_SEGMENTS,
 } from '../../../shared/constants'
 import { type ContextIo, decodeContextText } from '../../context/contextFiles'
@@ -89,7 +88,12 @@ export interface HookDefinition {
   readonly mcpTool?: string | undefined
   /** `prompt` and `agent`: the configured model prompt. */
   readonly modelPrompt?: string | undefined
-  readonly timeoutSeconds: number
+  /**
+   * D121: no default deadline of ours — absent means the hook runs until it
+   * ends or the person stops it. Only an explicitly set per-hook timeout
+   * still bounds it (validated against HOOK_MAX_TIMEOUT_SECONDS).
+   */
+  readonly timeoutSeconds?: number | undefined
   readonly matcher: HookMatcher | undefined
   readonly extraEnvNames?: readonly string[]
   readonly isAsync: boolean
@@ -992,10 +996,9 @@ function pluginGroup(
     event,
     source,
     command: plugin,
-    timeoutSeconds: Math.max(
-      typeof timeout === 'number' ? timeout : PLUGIN_HOOK_TIMEOUT_MS / MILLISECONDS_PER_SECOND,
-      1,
-    ),
+    // D121: no default of ours — without an explicit timeout the plugin
+    // hook waits for the child's answer or Stop.
+    ...(typeof timeout === 'number' && { timeoutSeconds: Math.max(timeout, 1) }),
     matcher,
     isAsync: group.async === true,
     foreign: { ...spec, plugin },
@@ -1288,7 +1291,9 @@ async function runBoundedHook(
       hook.command,
       serialized,
       cwd,
-      hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
+      // D121: no default deadline of ours — absent runs until it ends or the
+      // person stops it; only an explicitly set per-hook timeout still bounds it.
+      hook.timeoutSeconds === undefined ? undefined : hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
       signal,
       hook.extraEnvNames,
     )
@@ -1320,8 +1325,21 @@ async function runTypedHook(
     warn(`${event}: ${type} hook runner is unavailable`)
     return undefined
   }
-  const timeout = AbortSignal.timeout(hook.timeoutSeconds * MILLISECONDS_PER_SECOND)
-  const combined = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
+  // D121: no default deadline of ours — only an explicitly set per-hook
+  // timeout still bounds the typed run; otherwise the caller's signal alone
+  // ends it.
+  const timeout =
+    hook.timeoutSeconds === undefined
+      ? undefined
+      : AbortSignal.timeout(hook.timeoutSeconds * MILLISECONDS_PER_SECOND)
+  // A hook with no explicit timeout and no caller signal waits on a signal
+  // that never aborts: nothing of ours bounds the run.
+  const combined =
+    timeout === undefined
+      ? (signal ?? AbortSignal.any([]))
+      : signal === undefined
+        ? timeout
+        : AbortSignal.any([signal, timeout])
   const runFallback = (): Promise<HookAnswer | undefined> =>
     runner === undefined || hook.onFailure === undefined
       ? Promise.resolve(undefined)
@@ -1364,7 +1382,7 @@ async function runTypedHook(
     warn(`${event}: ${hook.source} hook failed`)
     return await runFallback()
   }
-  if (timeout.aborted && signal?.aborted !== true) {
+  if (timeout !== undefined && timeout.aborted && signal?.aborted !== true) {
     warn(`${event}: ${hook.source} hook timed out`)
     return await runFallback()
   }
