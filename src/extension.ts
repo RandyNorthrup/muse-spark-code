@@ -1982,6 +1982,14 @@ async function activateWindow(
         for (const controller of controllers.values()) {
           controller.refreshDictation()
         }
+        if (message.status === 'signedIn') {
+          // A panel that opened cold (first open during the auth check, a
+          // later sign-in) never warmed: its host starts now, as when the
+          // panel opens, and the pill leaves "Starting Muse Code…".
+          for (const controller of controllers.values()) {
+            controller.warmUpAfterSignIn()
+          }
+        }
         // The walkthrough's sign-in step completes on this context key.
         void vscode.commands.executeCommand(
           VSCODE_COMMANDS.setContext,
