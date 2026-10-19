@@ -36,6 +36,8 @@ export function notify<T>(
     try {
       listener(value)
     } catch {
+      // A throwing listener is counted for the single backendNotice below;
+      // the log attempt is best effort, so a broken sink cannot stop the rest.
       hasFailed = true
       try {
         log.error(`Backend notification listener failed: ${site}`)

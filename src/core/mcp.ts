@@ -116,8 +116,12 @@ export function mcpRequestKeys(raw: string): {
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
-  } catch {
-    return { request: undefined, cancelled: undefined }
+  } catch (error: unknown) {
+    // Only malformed JSON has no keys: anything else keeps its kind past the parse.
+    if (error instanceof SyntaxError) {
+      return { request: undefined, cancelled: undefined }
+    }
+    throw error
   }
   const message = messageSchema.safeParse(parsed)
   const cancelled = cancelledSchema.safeParse(parsed)
@@ -146,8 +150,12 @@ export async function handleMcpMessage(
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
-  } catch {
-    return errorResponse(null, JSON_RPC_ERRORS.parseError, 'Parse error')
+  } catch (error: unknown) {
+    // Only malformed JSON is a parse error: anything else keeps its kind past the parse.
+    if (error instanceof SyntaxError) {
+      return errorResponse(null, JSON_RPC_ERRORS.parseError, 'Parse error')
+    }
+    throw error
   }
   const result = messageSchema.safeParse(parsed)
   if (!result.success) {

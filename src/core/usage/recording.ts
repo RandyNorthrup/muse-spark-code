@@ -80,6 +80,8 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
           if (options.isEnabled()) write(journal)
         }
       } catch {
+        // A failed journal write is reported once and dropped: the queue
+        // stays alive for the next note.
         report()
       }
     })()
@@ -138,9 +140,10 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         const { records } = await journal.read()
         const day = localUsageDay(options.now())
         return records.filter((record) => record.day === day)
-      } catch {
+      } catch (error) {
+        // The read failed after the report: fixed words carry the failure.
         report()
-        throw new Error('Usage history unavailable')
+        throw new Error('Usage history unavailable', { cause: error })
       }
     },
     async flush() {
@@ -154,6 +157,8 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
                 const journal = await writer
                 await journal.flush()
               } catch {
+                // A failed flush is reported once and dropped: shutdown
+                // still settles instead of hanging on the journal.
                 report()
               }
             }

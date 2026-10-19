@@ -124,8 +124,10 @@ export class PromptStore implements PromptStoragePort {
     let handle
     try {
       handle = await open(lock, 'wx', PROMPT_FILE_MODE)
-    } catch {
-      throw new Error(UI_TEXT.promptStoreBusy)
+    } catch (error) {
+      // A lock that cannot be taken is contention: the fixed words reach
+      // the caller, carrying the failure that proved it.
+      throw new Error(UI_TEXT.promptStoreBusy, { cause: error })
     }
     try {
       if (!sameFile(identity, await lstatIdentity(directory)))
@@ -141,8 +143,10 @@ export class PromptStore implements PromptStoragePort {
     try {
       const rows = await this.scan(scope)
       return rows.map((row) => row.prompt)
-    } catch {
-      throw new Error(UI_TEXT.promptStoreDamaged)
+    } catch (error) {
+      // An unreadable scope reads damaged in fixed words, carrying the
+      // failure that proved it; the library marks the scope for the person.
+      throw new Error(UI_TEXT.promptStoreDamaged, { cause: error })
     }
   }
 

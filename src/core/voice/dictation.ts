@@ -51,8 +51,11 @@ export function parseHelperLine(line: string): HelperLine | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(line)
-  } catch {
-    return undefined
+  } catch (error) {
+    // Only malformed text reads absent: anything else JSON.parse cannot
+    // shape (a stack overflow on hostile nesting) is raised, never silence.
+    if (error instanceof SyntaxError) return undefined
+    throw error
   }
   const result = helperLineSchema.safeParse(parsed)
   return result.success ? result.data : undefined

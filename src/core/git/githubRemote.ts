@@ -69,8 +69,11 @@ export function repositoryLabel(repository: GitHubRepository): string {
 function decoded(text: string): string {
   try {
     return decodeURIComponent(text)
-  } catch {
-    return text
+  } catch (error) {
+    // Only malformed percent-encoding keeps its spelling: decoding raises
+    // URIError for exactly that, so any other failure is raised, never kept.
+    if (error instanceof URIError) return text
+    throw error
   }
 }
 

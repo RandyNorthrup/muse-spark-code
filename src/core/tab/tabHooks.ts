@@ -113,7 +113,10 @@ function isReadAllowed(result: ShellResult): boolean {
     const raw: unknown = JSON.parse(result.stdout)
     const parsed = permissionSchema.safeParse(raw)
     return parsed.success && parsed.data.permission === 'allow'
-  } catch {
+  } catch (error) {
+    // Only a malformed hook answer denies the read: the parser raises
+    // SyntaxError for exactly that, so anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return false
   }
 }
@@ -198,6 +201,7 @@ export function createTabHooks(deps: TabHooksDeps) {
       try {
         state = await deps.hookState('beforeTabFileRead')
       } catch {
+        // No dispatch: a hook-state failure refuses the read outright.
         return false
       }
       if (state === 'invalid') {

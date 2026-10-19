@@ -6,7 +6,7 @@
 // the Model API's tool harness so the activation bundle can confine a path
 // without carrying the backend that loads on first use (M57, PLAN.md D6).
 
-import { pathModule } from './workspaceRoot'
+import { isCodedError, pathModule } from './workspaceRoot'
 import {
   isUncPath,
   normalWindowsPath,
@@ -81,20 +81,27 @@ export function normalizeModelPath(
   // `file://` by the URL's own rule, not the host's: the platform names the
   // path, so only an absolute path or a localhost one converts.
   if (path.startsWith('file://')) {
+    if (!URL.canParse(path)) {
+      return { ok: false, reason: `path ${given} is not a valid file URL` }
+    }
+    const url = new URL(path)
+    if (
+      url.protocol !== 'file:' ||
+      (url.hostname !== '' && url.hostname !== 'localhost') ||
+      url.search !== '' ||
+      url.hash !== '' ||
+      /%2f|%5c|%00/i.test(url.pathname)
+    ) {
+      return { ok: false, reason: `path ${given} is not a valid file URL` }
+    }
     try {
-      const url = new URL(path)
-      if (
-        url.protocol !== 'file:' ||
-        (url.hostname !== '' && url.hostname !== 'localhost') ||
-        url.search !== '' ||
-        url.hash !== '' ||
-        /%2f|%5c|%00/i.test(url.pathname)
-      ) {
+      path = decodeURIComponent(url.pathname)
+    } catch (error: unknown) {
+      // Only bad percent-encoding is not a valid file URL: anything else keeps its kind.
+      if (error instanceof URIError) {
         return { ok: false, reason: `path ${given} is not a valid file URL` }
       }
-      path = decodeURIComponent(url.pathname)
-    } catch {
-      return { ok: false, reason: `path ${given} is not a valid file URL` }
+      throw error
     }
   }
   if (platform === 'win32') {
@@ -165,8 +172,13 @@ export async function confineWorkspacePath(
       io.realPath(textual.absolute),
     ])
   } catch (error: unknown) {
-    const detail = error instanceof Error ? error.message : String(error)
-    return { ok: false, reason: `path ${given} could not be resolved: ${detail}` }
+    // Only a shaped store failure leaves the path unresolved: a refusal or
+    // anything else keeps its kind past the confinement.
+    if (isCodedError(error)) {
+      const detail = error instanceof Error ? error.message : String(error)
+      return { ok: false, reason: `path ${given} could not be resolved: ${detail}` }
+    }
+    throw error
   }
   const p = pathModule(platform)
   const relative = p.relative(realRoot, realTarget)

@@ -297,8 +297,12 @@ export class AttachmentStore {
     let content: string
     try {
       content = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    } catch {
-      return { ok: false, reason: UI_TEXT.textFileInvalid }
+    } catch (error: unknown) {
+      // Only undecodable bytes are invalid text: anything else keeps its kind past the decode.
+      if (error instanceof TypeError) {
+        return { ok: false, reason: UI_TEXT.textFileInvalid }
+      }
+      throw error
     }
     if (hasBinaryControlCharacters(content)) {
       return { ok: false, reason: UI_TEXT.textFileInvalid }
