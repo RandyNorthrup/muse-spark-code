@@ -3234,13 +3234,13 @@
       },
       "id": "museSpark.hooksMaxStopContinuations",
       "name": "museSpark.hooksMaxStopContinuations",
-      "description": "How many times in a row Stop hooks may keep a finished turn going (1–8; Muse Code's own bound 8, the default). Past that the turn ends. Higher values are refused, so no workspace can raise it.",
+      "description": "How many times in a row Stop hooks may keep a finished turn going. No limit unless you set one: 0 (the default) keeps going until the turn ends on its own; a set value stays within Muse Code's own 1–8, and higher values are refused, so no workspace can raise it.",
       "descriptionKey": "config.hooksMaxStopContinuations.description",
       "type": "number",
-      "default": 8,
+      "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 8, "minimum": 1, "maximum": 8 }
+      "schema": { "type": "number", "default": 0, "minimum": 0, "maximum": 8 }
     },
     {
       "text": {
@@ -3264,13 +3264,13 @@
       },
       "id": "museSpark.subagentMaxConcurrent",
       "name": "museSpark.subagentMaxConcurrent",
-      "description": "How many subagents work at once (1–64, Muse Code's default 8). Later ones queue.",
+      "description": "How many subagents work at once. No limit unless you set one: 0 (the default) starts every subagent at once, and a set value stays within 1–64. Later ones queue.",
       "descriptionKey": "config.subagentMaxConcurrent.description",
       "type": "number",
-      "default": 8,
+      "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 8, "minimum": 1, "maximum": 64 }
+      "schema": { "type": "number", "default": 0, "minimum": 0, "maximum": 64 }
     },
     {
       "id": "museSpark.modelApiShellKeepsDirectory",
@@ -3453,13 +3453,13 @@
       },
       "id": "museSpark.modelApiMaxToolOutputBytes",
       "name": "museSpark.modelApiMaxToolOutputBytes",
-      "description": "The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.",
+      "description": "The per-tool-result byte guard. No limit unless you set one: 0 (the default) keeps results whole within the model's window; a set value cuts a past-it result to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.",
       "descriptionKey": "config.modelApiMaxToolOutputBytes.description",
       "type": "integer",
-      "default": 64000,
+      "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "integer", "default": 64000 }
+      "schema": { "type": "integer", "default": 0 }
     },
     {
       "id": "museSpark.turnCheckpoints",
@@ -3962,13 +3962,13 @@
       },
       "id": "museSpark.resourceCpuMaxPercent",
       "name": "museSpark.resourceCpuMaxPercent",
-      "description": "Throttle when machine CPU use stays above this percentage for 30 seconds.",
+      "description": "Throttle when machine CPU use stays above this percentage for 30 seconds. Unset means no CPU limit.",
       "descriptionKey": "config.resourceCpuMaxPercent.description",
-      "type": "number",
-      "default": 85,
+      "type": ["number", "null"],
+      "default": null,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 85, "minimum": 30, "maximum": 100 }
+      "schema": { "type": ["number", "null"], "default": null, "minimum": 30, "maximum": 100 }
     },
     {
       "text": {
@@ -3981,13 +3981,13 @@
       },
       "id": "museSpark.resourceMemoryMaxPercent",
       "name": "museSpark.resourceMemoryMaxPercent",
-      "description": "Throttle when memory in use stays above this percentage for two samples.",
+      "description": "Throttle when memory in use stays above this percentage for two samples. Unset means no memory-use limit.",
       "descriptionKey": "config.resourceMemoryMaxPercent.description",
-      "type": "number",
-      "default": 90,
+      "type": ["number", "null"],
+      "default": null,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 90, "minimum": 40, "maximum": 98 }
+      "schema": { "type": ["number", "null"], "default": null, "minimum": 40, "maximum": 98 }
     },
     {
       "text": {
@@ -3997,13 +3997,13 @@
       },
       "id": "museSpark.resourceMemoryMinFreeGiB",
       "name": "museSpark.resourceMemoryMinFreeGiB",
-      "description": "Minimum available memory in GiB, capped at 15% of this machine’s RAM.",
+      "description": "Minimum available memory in GiB, capped at 15% of this machine’s RAM. Unset means no memory floor.",
       "descriptionKey": "config.resourceMemoryMinFreeGiB.description",
-      "type": "number",
-      "default": 2,
+      "type": ["number", "null"],
+      "default": null,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 2, "minimum": 0.5, "maximum": 64 }
+      "schema": { "type": ["number", "null"], "default": null, "minimum": 0.5, "maximum": 64 }
     },
     {
       "text": {
@@ -4045,7 +4045,7 @@
       },
       "id": "museSpark.resourceDiskMinFreeGiB",
       "name": "museSpark.resourceDiskMinFreeGiB",
-      "description": "Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.",
+      "description": "Free disk space floor in GiB. Unset means no floor; a set floor is at least 2 GiB.",
       "descriptionKey": "config.resourceDiskMinFreeGiB.description",
       "type": ["number", "null"],
       "default": null,
@@ -4116,13 +4116,13 @@
     {
       "id": "museSpark.questions.deferAfterSeconds",
       "name": "museSpark.questions.deferAfterSeconds",
-      "description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.",
+      "description": "Seconds before an unanswered question is deferred so Muse can keep working. No limit unless you set one: 0 (the default) never defers; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.",
       "descriptionKey": "config.questions.deferAfterSeconds.description",
       "type": "integer",
-      "default": 60,
+      "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "integer", "default": 60, "minimum": 0, "maximum": 3600 }
+      "schema": { "type": "integer", "default": 0, "minimum": 0, "maximum": 3600 }
     },
     {
       "id": "museSpark.suggestedProvider",
@@ -4197,13 +4197,13 @@
       },
       "id": "museSpark.webSearchMaxPerRequest",
       "name": "museSpark.webSearchMaxPerRequest",
-      "description": "Maximum hosted web searches per response (1–20; default 5). The price and shared daily budget are shown before the first charge.",
+      "description": "Maximum hosted web searches per response. No limit unless you set one: 0 (the default) sends no max and the provider decides; a set value stays within 1–20. The price and shared daily budget are shown before the first charge.",
       "descriptionKey": "config.webSearchMaxPerRequest.description",
       "type": "number",
-      "default": 5,
+      "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 5, "minimum": 1, "maximum": 20 }
+      "schema": { "type": "number", "default": 0, "minimum": 0, "maximum": 20 }
     },
     {
       "id": "museSpark.modelApiMaxRetries",
@@ -4324,13 +4324,13 @@
     {
       "id": "museSpark.mediaMaxUploadMiB",
       "name": "museSpark.mediaMaxUploadMiB",
-      "description": "Largest media file the extension opens for attach or recording, in MiB. 200 by default; no maximum. Larger files are refused before any read. Only this machine’s setting is used.",
+      "description": "Largest media file the extension opens for attach or recording, in MiB. No limit unless you set one: 0 (the default) opens any size, and a set value has no maximum. A file past a set value is refused before any read. Only this machine’s setting is used.",
       "descriptionKey": "config.mediaMaxUploadMiB.description",
       "type": "integer",
-      "default": 200,
+      "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "integer", "default": 200, "minimum": 1 }
+      "schema": { "type": "integer", "default": 0, "minimum": 0 }
     },
     {
       "id": "museSpark.mediaUploadExpiryDays",
@@ -4346,13 +4346,13 @@
     {
       "id": "museSpark.screenRecordingMaxSeconds",
       "name": "museSpark.screenRecordingMaxSeconds",
-      "description": "Longest screen recording the extension captures, in seconds. 120 by default; 10–600. The recorder stops at the limit and keeps what it captured. Only this machine’s setting is used.",
+      "description": "Longest screen recording the extension captures, in seconds. No limit unless you set one: 0 (the default) records until stopped, and a set value stays within 10–600. The recorder stops at a set limit and keeps what it captured. Only this machine’s setting is used.",
       "descriptionKey": "config.screenRecordingMaxSeconds.description",
       "type": "integer",
-      "default": 120,
+      "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "integer", "default": 120, "minimum": 10, "maximum": 600 }
+      "schema": { "type": "integer", "default": 0, "minimum": 0, "maximum": 600 }
     },
     {
       "id": "museSpark.mediaAudioAction",
@@ -5535,7 +5535,7 @@
     {
       "route": "serve",
       "name": "serve: --questions-defer-after <value>",
-      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
+      "description": "--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600)",
       "text": { "cli": "questions-defer-after" },
       "contract": { "type": "string", "repeatable": false }
     },
@@ -5796,7 +5796,7 @@
     {
       "route": "login",
       "name": "login: --questions-defer-after <value>",
-      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
+      "description": "--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600)",
       "text": { "cli": "questions-defer-after" },
       "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
@@ -6042,7 +6042,7 @@
     {
       "route": "setup",
       "name": "setup: --questions-defer-after <value>",
-      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
+      "description": "--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600)",
       "text": { "cli": "questions-defer-after" },
       "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
@@ -6308,7 +6308,7 @@
     {
       "route": "authSet",
       "name": "authSet: --questions-defer-after <value>",
-      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
+      "description": "--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600)",
       "text": { "cli": "questions-defer-after" },
       "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
@@ -6567,7 +6567,7 @@
     {
       "route": "authStatus",
       "name": "authStatus: --questions-defer-after <value>",
-      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
+      "description": "--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600)",
       "text": { "cli": "questions-defer-after" },
       "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
@@ -6826,7 +6826,7 @@
     {
       "route": "authClear",
       "name": "authClear: --questions-defer-after <value>",
-      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
+      "description": "--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600)",
       "text": { "cli": "questions-defer-after" },
       "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },

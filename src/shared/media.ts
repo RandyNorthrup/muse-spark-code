@@ -190,11 +190,13 @@ export const uploadedFilesReportSchema = /* @__PURE__ */ (() =>
   }))()
 export type UploadedFilesReport = z.infer<typeof uploadedFilesReportSchema>
 
-/** No implicit audio selection and no unbounded recording request. */
+/** No implicit audio selection; 0 records until stopped, otherwise 10–600. */
 export const screenRecordingOptionsSchema = z.strictObject({
-  maxSeconds: z
-    .int()
-    .check(z.gte(SCREEN_RECORDING_MIN_SECONDS), z.lte(SCREEN_RECORDING_MAX_SECONDS)),
+  maxSeconds: z.int().check(
+    z.gte(0),
+    z.lte(SCREEN_RECORDING_MAX_SECONDS),
+    z.refine((value) => value === 0 || value >= SCREEN_RECORDING_MIN_SECONDS),
+  ),
   microphone: z.boolean(),
   systemAudio: z.boolean(),
 })

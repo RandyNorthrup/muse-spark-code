@@ -10,8 +10,6 @@ import {
   MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
   MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS,
   MEDIA_NAME_MAX_CHARS,
-  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
-  BYTES_PER_MIB,
   SECONDS_PER_DAY,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -125,10 +123,14 @@ export class FilesApi {
     ) {
       throw new Error('Invalid upload expiry')
     }
+    // D121: no upload bound of ours — an absent cap admits any size and the
+    // provider refuses what it cannot take. The attach admission and the
+    // modality gate still enforce the person's setting and the model's
+    // own record before anything reaches here.
     if (
       !Number.isSafeInteger(source.bytes) ||
       source.bytes < 0 ||
-      source.bytes > (this.deps.maxBytes ?? MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB)
+      (this.deps.maxBytes !== undefined && source.bytes > this.deps.maxBytes)
     ) {
       throw new Error('Invalid upload size')
     }

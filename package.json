@@ -926,10 +926,10 @@
         },
         "museSpark.hooksMaxStopContinuations": {
           "type": "number",
-          "default": 8,
+          "default": 0,
           "scope": "machine",
           "description": "%config.hooksMaxStopContinuations.description%",
-          "minimum": 1,
+          "minimum": 0,
           "maximum": 8
         },
         "museSpark.hooksMaxRunningCommands": {
@@ -941,10 +941,10 @@
         },
         "museSpark.subagentMaxConcurrent": {
           "type": "number",
-          "default": 8,
+          "default": 0,
           "scope": "machine",
           "description": "%config.subagentMaxConcurrent.description%",
-          "minimum": 1,
+          "minimum": 0,
           "maximum": 64
         },
         "museSpark.modelApiShellKeepsDirectory": {
@@ -1051,7 +1051,7 @@
         },
         "museSpark.modelApiMaxToolOutputBytes": {
           "type": "integer",
-          "default": 64000,
+          "default": 0,
           "description": "%config.modelApiMaxToolOutputBytes.description%",
           "scope": "machine"
         },
@@ -1422,24 +1422,33 @@
           "scope": "machine"
         },
         "museSpark.resourceCpuMaxPercent": {
-          "type": "number",
-          "default": 85,
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
           "minimum": 30,
           "maximum": 100,
           "description": "%config.resourceCpuMaxPercent.description%",
           "scope": "machine"
         },
         "museSpark.resourceMemoryMaxPercent": {
-          "type": "number",
-          "default": 90,
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
           "minimum": 40,
           "maximum": 98,
           "description": "%config.resourceMemoryMaxPercent.description%",
           "scope": "machine"
         },
         "museSpark.resourceMemoryMinFreeGiB": {
-          "type": "number",
-          "default": 2,
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
           "minimum": 0.5,
           "maximum": 64,
           "description": "%config.resourceMemoryMinFreeGiB.description%",
@@ -1495,7 +1504,7 @@
         },
         "museSpark.questions.deferAfterSeconds": {
           "type": "integer",
-          "default": 60,
+          "default": 0,
           "minimum": 0,
           "maximum": 3600,
           "description": "%config.questions.deferAfterSeconds.description%",
@@ -1526,10 +1535,10 @@
         },
         "museSpark.webSearchMaxPerRequest": {
           "type": "number",
-          "default": 5,
+          "default": 0,
           "scope": "machine",
           "description": "%config.webSearchMaxPerRequest.description%",
-          "minimum": 1,
+          "minimum": 0,
           "maximum": 20
         },
         "museSpark.modelApiMaxRetries": {
@@ -1634,8 +1643,8 @@
         },
         "museSpark.mediaMaxUploadMiB": {
           "type": "integer",
-          "default": 200,
-          "minimum": 1,
+          "default": 0,
+          "minimum": 0,
           "description": "%config.mediaMaxUploadMiB.description%",
           "scope": "machine"
         },
@@ -1649,8 +1658,8 @@
         },
         "museSpark.screenRecordingMaxSeconds": {
           "type": "integer",
-          "default": 120,
-          "minimum": 10,
+          "default": 0,
+          "minimum": 0,
           "maximum": 600,
           "description": "%config.screenRecordingMaxSeconds.description%",
           "scope": "machine"

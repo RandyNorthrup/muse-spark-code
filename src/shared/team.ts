@@ -17,8 +17,6 @@ import {
   RUNNER_MAX_JOBS,
   RUNNER_PORT_MAX,
   TEAM_BOARD_MAX,
-  TEAM_MAX_REASSIGNMENTS,
-  TEAM_REVIEW_ROUNDS_MAX,
   TEAM_SCHED_HISTORY_MAX,
   TEAM_SCHED_ID_MAX_CHARS,
   TEAM_SCHED_TEXT_MAX_CHARS,
@@ -678,8 +676,10 @@ export const teamBoardTaskSchema = /* @__PURE__ */ z
     branch: z.optional(path),
     currentAttempt: count,
     attempts: z.array(teamAttemptSchema).check(z.maxLength(TEAM_SCHED_HISTORY_MAX)),
-    reassignments: count.check(z.lte(TEAM_MAX_REASSIGNMENTS)),
-    reviewRounds: count.check(z.lte(TEAM_REVIEW_ROUNDS_MAX)),
+    // Reassignments and review rounds are counted, never capped: the work
+    // continues until it converges or the person stops it (D121).
+    reassignments: count,
+    reviewRounds: count,
   })
   .check(
     z.refine(

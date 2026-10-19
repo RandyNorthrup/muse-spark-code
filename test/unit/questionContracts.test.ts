@@ -272,11 +272,13 @@ describe('M112 question boundary contracts', () => {
 
 describe('M112 policy constants and model text', () => {
   it('pins the owner-approved timing, count and size limits', () => {
+    // D121: no limit unless the person sets one — the deferral default is 0
+    // (never); the 10–3600 set range stays.
     expect([
       QUESTION_DEFER_DEFAULT_SECONDS,
       QUESTION_DEFER_MIN_SECONDS,
       QUESTION_DEFER_MAX_SECONDS,
-    ]).toEqual([60, 10, 3600])
+    ]).toEqual([0, 10, 3600])
     expect([
       QUESTION_REMINDERS_MAX,
       OPEN_QUESTIONS_MAX,

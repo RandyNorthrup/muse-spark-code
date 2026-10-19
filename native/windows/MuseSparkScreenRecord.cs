@@ -59,7 +59,8 @@ internal sealed class MuseSparkScreenRecord : Form
         directory = args[1]; byteLimit = ParseLimit(args[2], MaxBytes);
         parent = Int32.Parse(args[3], CultureInfo.InvariantCulture);
         maxSeconds = Int32.Parse(args[4], CultureInfo.InvariantCulture);
-        if (maxSeconds < MinSeconds || maxSeconds > MaxSeconds || parent <= 0)
+        // D121: 0 records until stopped (no stop of ours); otherwise 10-600.
+        if ((maxSeconds != 0 && (maxSeconds < MinSeconds || maxSeconds > MaxSeconds)) || parent <= 0)
             throw new ArgumentException();
         microphone = Boolean.Parse(args[5]); systemAudio = Boolean.Parse(args[6]);
         Text = args[7]; Width = 320; Height = 130; TopMost = true;
@@ -71,8 +72,9 @@ internal sealed class MuseSparkScreenRecord : Form
         FormClosing += delegate(object sender, FormClosingEventArgs closing) { if (!finished) { closing.Cancel = true; Stop(true); } };
         timer.Interval = ParentPollMilliseconds;
         timer.Tick += delegate {
-            clock.Text = Math.Max(0, maxSeconds - (int)elapsed.Elapsed.TotalSeconds).ToString(CultureInfo.CurrentCulture);
-            if (elapsed.IsRunning && elapsed.Elapsed.TotalSeconds >= maxSeconds) Stop(false);
+            int ticked = (int)elapsed.Elapsed.TotalSeconds;
+            clock.Text = (maxSeconds == 0 ? ticked : Math.Max(0, maxSeconds - ticked)).ToString(CultureInfo.CurrentCulture);
+            if (maxSeconds > 0 && elapsed.IsRunning && elapsed.Elapsed.TotalSeconds >= maxSeconds) Stop(false);
         };
         Shown += async delegate {
             bool success = false;
@@ -246,9 +248,11 @@ internal sealed class MuseSparkScreenRecord : Form
         TimeSpan stamp = frame.SystemRelativeTime;
         if (!videoStart.HasValue) videoStart = stamp;
         TimeSpan relative = stamp - videoStart.Value;
-        if (relative.TotalSeconds >= maxSeconds) { frame.Dispose(); Stop(false); return null; }
+        if (maxSeconds > 0 && relative.TotalSeconds >= maxSeconds) { frame.Dispose(); Stop(false); return null; }
         MediaStreamSample sample = MediaStreamSample.CreateFromDirect3D11Surface(frame.Surface, relative);
-        sample.Duration = TimeSpan.FromSeconds(Math.Min(1.0 / FramesPerSecond, maxSeconds - relative.TotalSeconds));
+        sample.Duration = maxSeconds == 0
+            ? TimeSpan.FromSeconds(1.0 / FramesPerSecond)
+            : TimeSpan.FromSeconds(Math.Min(1.0 / FramesPerSecond, maxSeconds - relative.TotalSeconds));
         sample.Processed += delegate { frame.Dispose(); };
         return sample;
     }
@@ -257,7 +261,7 @@ internal sealed class MuseSparkScreenRecord : Form
     {
         double seconds = (double)audioPosition / SampleRate;
         while (!stopping && seconds > elapsed.Elapsed.TotalSeconds) Thread.Sleep(PollMilliseconds);
-        if (stopping || seconds >= maxSeconds) return null;
+        if (stopping || (maxSeconds > 0 && seconds >= maxSeconds)) return null;
         short[] left = mic == null ? null : mic.Read(AudioFrames);
         short[] right = system == null ? null : system.Read(AudioFrames);
         byte[] pcm = new byte[AudioFrames * Channels * Bits / 8];

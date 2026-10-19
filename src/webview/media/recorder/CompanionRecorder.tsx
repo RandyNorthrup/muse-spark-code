@@ -36,9 +36,14 @@ export function CompanionRecorder({
   let statusText = ''
   switch (state.status) {
     case 'recording': {
-      statusText = fill(UI_TEXT.media.recordingCountdown, {
-        remaining: formatUnit(state.remaining, 'second'),
-      })
+      statusText =
+        maxSeconds === 0
+          ? fill(UI_TEXT.media.recordingElapsed, {
+              elapsed: formatUnit(state.remaining, 'second'),
+            })
+          : fill(UI_TEXT.media.recordingCountdown, {
+              remaining: formatUnit(state.remaining, 'second'),
+            })
       break
     }
     case 'requesting': {

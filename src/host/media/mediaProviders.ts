@@ -28,10 +28,18 @@ export interface MediaHostSettings {
   readonly mediaAudioAction: (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]
 }
 
+/**
+ * The attach admission from the person's settings (D121): 0 is no cap of
+ * ours, so it is left absent and the provider decides; a set value applies.
+ */
 export function mediaLimitsFromSettings(settings: MediaHostSettings): MediaLimits {
   return {
-    maxUploadBytes: settings.mediaMaxUploadMiB * BYTES_PER_MIB,
-    maxDurationSeconds: settings.screenRecordingMaxSeconds,
+    ...(settings.mediaMaxUploadMiB > 0 && {
+      maxUploadBytes: settings.mediaMaxUploadMiB * BYTES_PER_MIB,
+    }),
+    ...(settings.screenRecordingMaxSeconds > 0 && {
+      maxDurationSeconds: settings.screenRecordingMaxSeconds,
+    }),
   }
 }
 
