@@ -49,8 +49,9 @@ export class EstimateDiagnosticError extends Error {
   constructor(
     public readonly estimateDiagnostic: string,
     message?: string,
+    options?: { readonly cause?: unknown },
   ) {
-    super(message ?? fill(UI_TEXT.estimateFailed, { detail: estimateDiagnostic }))
+    super(message ?? fill(UI_TEXT.estimateFailed, { detail: estimateDiagnostic }), options)
   }
 }
 

@@ -1,4 +1,5 @@
 import { EstimateDiagnosticError } from '../../core/estimator/diagnostic'
+import { failureForLog } from '../../core/backends/musecode/logText'
 // The estimator as the activation bundle sees it (M117, PLAN.md D6):
 // dist/estimator.js, built from estimatorEntry.ts and required the first
 // time an estimate runs. Only types come from the entry here: a value
@@ -37,10 +38,6 @@ export interface LazyEstimatorDeps {
   readonly loadBundle?: ((file: string) => unknown) | undefined
 }
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
 /**
  * The estimator's run, the bundle required the first time any of it is used
  * and kept from then on. A missing or corrupt bundle throws
@@ -55,8 +52,10 @@ export function lazyEstimator(deps: LazyEstimatorDeps): EstimatorRun {
     try {
       bundle = loadBundle(bundlePath)
     } catch (error: unknown) {
-      deps.log.error(`The estimator ${bundlePath} could not be loaded: ${describe(error)}`)
-      throw new EstimateDiagnosticError('estimate-unavailable', UI_TEXT.estimateUnavailable)
+      deps.log.error(`The estimator ${bundlePath} could not be loaded: ${failureForLog(error)}`)
+      throw new EstimateDiagnosticError('estimate-unavailable', UI_TEXT.estimateUnavailable, {
+        cause: error,
+      })
     }
     if (!isEstimatorBundle(bundle)) {
       deps.log.error(`${bundlePath} does not export the estimator`)
