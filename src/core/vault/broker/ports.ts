@@ -19,6 +19,12 @@ import {
   type VaultResetChallenge,
 } from '../../../shared/vaultProtocol'
 import { type VaultCeiling } from './policy'
+import { type Duplex } from 'node:stream'
+
+export interface VaultSecuredListenerPort {
+  /** P creates an owner-only, remote-refusing pipe before handing over any accepted socket. */
+  listen(path: string, accepted: (socket: Duplex) => void): Promise<() => Promise<void>>
+}
 
 /** C binds open and these transactions to its single-writer/generation mechanism. */
 export interface VaultBrokerRepository {
@@ -125,8 +131,11 @@ export type VaultManagementRefusal = Extract<
   { kind: 'refused' }
 >['reason']
 export class VaultManagementError extends Error {
-  constructor(readonly reason: VaultManagementRefusal) {
-    super(reason)
+  constructor(
+    readonly reason: VaultManagementRefusal,
+    options?: { cause?: unknown },
+  ) {
+    super(reason, options)
     this.name = 'VaultManagementError'
   }
 }

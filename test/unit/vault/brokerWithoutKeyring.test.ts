@@ -1,12 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { lstat, mkdtemp, rm } from 'node:fs/promises'
+import { lstat, mkdtemp } from 'node:fs/promises'
 import { constants, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { buildBrokerChildren } from '../helpers/vault/sessionBrokerBuild'
+import {
+  awaitFixtureMessage,
+  sweepFixtureChildren,
+  trackFixtureChild,
+} from '../helpers/vault/fixtureChildren'
 import {
   VAULT_SOCKET_DIR_HASH_CHARS,
   VAULT_SOCKET_DIR_PREFIX,
@@ -86,19 +91,10 @@ beforeAll(async () => {
   ).toThrow()
   // The fixture must stand clear of every ancestor node_modules for the
   // binding to be genuinely absent; the shared builder compiles the peer
-  // and bundles the child with the generated admission.
-  await buildBrokerChildren(fixture.root, [
-    ['sessionBrokerNoKeyringChild', 'vaultBrokerNoKeyring.js'],
-  ])
+  // and bundles the real broker child with the generated admission.
+  await buildBrokerChildren(fixture.root, [['sessionBrokerChild', 'vaultBrokerNoKeyring.js']])
 })
-afterAll(async () => {
-  for (const child of children) {
-    child.kill('SIGKILL')
-    if (child.exitCode === null && child.signalCode === null) await once(child, 'exit')
-  }
-  if (!fixture.root) return
-  await rm(fixture.root, { recursive: true, force: true })
-})
+afterAll(() => sweepFixtureChildren(children, fixture.root))
 describe.skipIf(!hasSocketFit || process.platform === 'win32')(
   'vault broker without the OS keyring binding',
   () => {
@@ -129,27 +125,11 @@ describe.skipIf(!hasSocketFit || process.platform === 'win32')(
           stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
         },
       )
-      children.add(child)
-      if (child.stdout === null || child.stderr === null)
-        throw new Error('missing fixture diagnostic pipes')
-      child.stdout.resume()
-      const errors: Buffer[] = []
-      child.stderr.on('data', (bytes: Buffer) => {
-        errors.push(bytes)
-      })
+      const errors = trackFixtureChild(children, child)
       // A crashed child must fail fast with its diagnostics, never hang to
       // the test timeout: readiness and early exit race each other.
-      const ready = await Promise.race([
-        (async () => ({ kind: 'ready', message: await once(child, 'message') }) as const)(),
-        (async () => {
-          await once(child, 'exit')
-          return {
-            kind: 'exited',
-            diagnostics: Buffer.concat(errors).toString('utf8'),
-          } as const
-        })(),
-      ])
-      if (ready.kind === 'exited')
+      const ready = await awaitFixtureMessage(child, errors)
+      if ('diagnostics' in ready)
         throw new Error(`broker child exited before ready: ${ready.diagnostics}`)
       expect(ready.message[0]).toEqual({ ready: true })
       // Ready is sent only after the fixture connected to the broker

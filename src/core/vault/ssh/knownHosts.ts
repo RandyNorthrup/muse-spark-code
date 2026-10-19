@@ -77,6 +77,7 @@ export function resolveKnownHost(text: string, blob: Buffer, expectedHost?: stri
     try {
       if (parsePublicKey(key).algorithm !== algorithm) continue
     } catch {
+      // One undecodable entry skips; it must not deny the reviewed rest.
       continue
     }
     entries.push({ names, key, revoked: marker === '@revoked' })

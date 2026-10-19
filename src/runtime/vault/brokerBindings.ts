@@ -20,6 +20,7 @@ import {
   VAULT_AUDIT_MAX_BYTES,
 } from '../../shared/constants'
 import type { KeyringEntryFactory } from '../keyStore'
+import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
 import { KeyringVaultAnchor } from './keyringAnchor'
 import { FileVaultAnchor, vaultAnchorFile } from './fileAnchor'
 import type { VaultAnchorPort } from '../../core/vault/broker/repository'
@@ -27,7 +28,6 @@ import type { VaultBrokerBindings, VaultBrokerContext } from './vaultBrokerEntry
 import { isPosixVaultHost } from './posixHost'
 import { holdVaultStartupLock, vaultPeerExecutable, vaultProcessIdentity } from './posixNative'
 import type { WindowsBrokerPlatform } from './windowsHost'
-import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
 export { setUiText } from '../../shared/l10n/text'
 
 const count = z.number().check(z.int(), z.nonnegative(), z.refine(Number.isSafeInteger))

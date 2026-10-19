@@ -402,23 +402,6 @@ function readSetting<K extends SettingKey>(
   return fallback
 }
 
-/**
- * README's legacy vault switch: an explicitly stored `museSpark.vault`
- * boolean stays effective until `museSpark.vault.enabled` is explicitly
- * configured. Explicitness needs `inspect` (VS Code's `get` merges the true
- * default, so it cannot tell configured from defaulted); a source without
- * it reads the new flag alone.
- */
-function isVaultEnabled(config: SettingsSource, log: Logger): boolean {
-  // The new flag is machine-scoped, so only its global value can be set;
-  // the legacy key is unregistered, so `get` (which merges no default for
-  // it) reports exactly what is stored. A non-boolean legacy value is not a
-  // switch position, so the default stays in effect for it.
-  const explicit = config.inspect?.('vault.enabled')?.globalValue
-  const legacy = explicit === undefined ? config.get('vault') : undefined
-  return typeof legacy === 'boolean' ? legacy : readSetting(config, 'vault.enabled', log)
-}
-
 export function readSettings(config: SettingsSource, log: Logger): ExtensionSettings {
   // C-X-1: unbound settings retain their stored values, but have no runtime reader.
   // Typed contracts carry defaults until their actual owners bind.
@@ -518,7 +501,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     accountParallel: SETTING_DEFAULTS.accountParallel,
     'accounts.severalOnThisDevice': SETTING_DEFAULTS['accounts.severalOnThisDevice'],
     'github.useGhLogin': readSetting(config, 'github.useGhLogin', log),
-    'vault.enabled': isVaultEnabled(config, log),
+    // The live switch (with its legacy precedence) resolves where the vault
+    // runs; activation carries the configured flag for the round trip only.
+    'vault.enabled': readSetting(config, 'vault.enabled', log),
     'vault.protection': SETTING_DEFAULTS['vault.protection'],
     'vault.agentFence': readSetting(config, 'vault.agentFence', log),
     'vault.lockAfterIdleMinutes': SETTING_DEFAULTS['vault.lockAfterIdleMinutes'],

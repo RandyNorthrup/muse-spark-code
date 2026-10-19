@@ -72,6 +72,8 @@ export class VaultLockEpoch implements VaultEpochPort {
           if (!isClosed) listener(epoch)
         })
         .catch(() => {
+          // An unreadable epoch reads as the far future so the vault locks;
+          // the read failure keeps no cause.
           if (!isClosed) listener(Number.MAX_SAFE_INTEGER)
         })
     }

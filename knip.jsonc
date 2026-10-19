@@ -232,20 +232,10 @@
     // its only in-repo importer was the deleted KV-stand-in test).
     "infra/marketplace-hook/worker.js",
     "test/e2e/**/*.test.ts",
-    // POSIX broker SIGKILL fixture is another esbuild entry launched by path.
-    "test/unit/helpers/vault/brokerProcessChild.ts",
-    // esbuild replaces the production admission module with this generated-client entry.
-    "test/unit/helpers/vault/sessionAdmission.ts",
     "test/unit/helpers/vault/sessionClientChild.ts",
     "test/unit/helpers/vault/sessionBrokerChild.ts",
     // Built once by writerCrashPosix.test.ts; a real generated-only SIGKILL child.
     "test/unit/helpers/vault/writerCrashChild.ts",
-    // Built once by epochCrashPosix.test.ts; a real generated-only SIGKILL epoch child.
-    "test/unit/helpers/vault/epochCrashChild.ts",
-    // Built once by brokerWithoutKeyring.test.ts and launched by path; a real
-    // generated-only broker child with the OS-store admission replaced
-    // (esbuild entryPoints are not traced).
-    "test/unit/helpers/vault/sessionBrokerNoKeyringChild.ts",
     // Pipe-relay fixture child, bundled by windowsPipeRelay.test.ts and launched
     // by path; knip does not trace esbuild entryPoints.
     "test/unit/helpers/vault/windowsPipeRelayChild.ts",

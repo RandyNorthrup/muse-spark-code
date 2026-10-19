@@ -112,19 +112,23 @@ export class VaultBroker implements VaultBrokerPort {
           const change = changeSchema.parse(input)
           if (change.kind === 'item')
             void this.policyChanged(change.id).catch(() => {
+              // Fail closed: a policy failure locks the vault; the lock is the record.
               this.emergency()
             })
           else
             void this.call({ kind: 'revoked', grantId: change.id }).catch(() => {
+              // Fail closed: a revocation failure locks the vault; the lock is the record.
               this.emergency()
             })
         } catch {
+          // Fail closed: an unreadable change locks the vault; the lock is the record.
           this.emergency()
         }
       }),
       deps.epoch.subscribe((epoch) => {
         if (epoch > this.state.epoch)
           void this.call({ kind: 'lock', bump: false, epoch }).catch(() => {
+            // The lock failed after the epoch moved: the host's audit signal owns it.
             deps.onAuditFailure()
           })
       }),
@@ -133,12 +137,14 @@ export class VaultBroker implements VaultBrokerPort {
       this.unsubscribers.push(
         deps.unlock.onScreenLock(() => {
           void this.lock().catch(() => {
+            // The screen lock failed: the host's audit signal owns it.
             deps.onAuditFailure()
           })
         }),
       )
     this.timer = setInterval(() => {
       void this.tick().catch(() => {
+        // Fail closed: a failed tick locks the vault; the lock is the record.
         this.emergency()
       })
     }, MILLISECONDS_PER_SECOND)
@@ -146,6 +152,8 @@ export class VaultBroker implements VaultBrokerPort {
   }
   private emergency(): void {
     void this.call({ kind: 'lock', bump: false }).catch(() => {
+      // The emergency lock itself failed: the host's audit signal is the
+      // last record, and its own failure is moot.
       this.deps.onAuditFailure()
     })
   }
@@ -170,6 +178,7 @@ export class VaultBroker implements VaultBrokerPort {
     try {
       run()
     } catch {
+      // A failed effect is signaled to the host; the signal owns the failure.
       try {
         this.deps.onAuditFailure()
       } catch {
@@ -321,6 +330,7 @@ export class VaultBroker implements VaultBrokerPort {
     const operationId = id()
     const cancel = (): void => {
       void this.call({ kind: 'abort', operationId }).catch(() => {
+        // Fail closed: a failed abort locks the vault; the lock is the record.
         this.emergency()
       })
     }
@@ -347,6 +357,7 @@ export class VaultBroker implements VaultBrokerPort {
   beginConnection(): ConnectionToken {
     const connection: ConnectionToken = Object.freeze({ kind: 'connection', id: id() })
     void this.call({ kind: 'connect', connection }).catch(() => {
+      // Fail closed: a failed connect locks the vault; the lock is the record.
       this.emergency()
     })
     return connection

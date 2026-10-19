@@ -22,6 +22,19 @@ function owned(bytes: Uint8Array): Buffer {
   return copy
 }
 
+/** The terminal finish still closes the lifetime when it settles. */
+async function finishTerminalLease(
+  broker: Pick<VaultBroker, 'finish'>,
+  ticketId: string,
+  lifetime: Pick<VaultUseLifetime, 'close'>,
+): Promise<void> {
+  try {
+    await broker.finish(ticketId, false)
+  } finally {
+    lifetime.close()
+  }
+}
+
 /** Called only by B's private performer in the broker process, never by an agent tool. */
 export async function redeemVaultExecLease(
   deps: VaultExecBrokerLeaseDeps,
@@ -124,16 +137,13 @@ export async function redeemVaultExecLease(
         }
       },
     }
-  } catch {
+  } catch (error: unknown) {
     bytes.value?.fill(0)
     bytes.username?.fill(0)
     signal.removeEventListener('abort', abort)
     lifetime.revoked.removeEventListener('abort', erase)
-    try {
-      await deps.broker.finish(ticket.id, false)
-    } finally {
-      lifetime.close()
-    }
-    throw new Error(UI_TEXT.vault.noAccess)
+    // A failed lease denies with fixed words and the failure as its cause.
+    await finishTerminalLease(deps.broker, ticket.id, lifetime)
+    throw new Error(UI_TEXT.vault.noAccess, { cause: error })
   }
 }

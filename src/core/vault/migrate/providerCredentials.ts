@@ -47,8 +47,11 @@ function parse(text: string): ProviderSlotRecord {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
-  } catch {
-    throw new VaultMigrationFault('invalid')
+  } catch (error: unknown) {
+    // JSON.parse fails only as SyntaxError: a malformed record is invalid,
+    // never adopted, with the parsing failure as its cause.
+    if (!(error instanceof SyntaxError)) throw error
+    throw new VaultMigrationFault('invalid', { cause: error })
   }
   // The strict 6-key overlay first: the 4-key schema below is non-strict, so
   // testing it first would swallow an account record and then refuse it for

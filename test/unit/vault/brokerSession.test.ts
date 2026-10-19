@@ -1,19 +1,46 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { fork, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
+import { realpathSync } from 'node:fs'
 import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import * as z from 'zod/mini'
 import { setTimeout as delay } from 'node:timers/promises'
 import { vaultBrokerLockSchema } from '../../../src/shared/vaultProtocol'
+import {
+  VAULT_SOCKET_DIR_HASH_CHARS,
+  VAULT_SOCKET_DIR_PREFIX,
+  VAULT_SOCKET_FILE,
+  VAULT_SOCKET_PATH_LIMIT_BYTES,
+} from '../../../src/shared/constants'
 import { buildBrokerChildren } from '../helpers/vault/sessionBrokerBuild'
 
 const fixture = { root: '' }
 const children = new Set<ChildProcess>()
 const brokers = new Set<number>()
+// The socket base must stay within the bind limit: the leaf the broker adds
+// is fixed size, so a temporary root longer than the limit minus that leaf
+// cannot fit the socket on this OS. Rigs whose temporary root cannot fit it
+// would hang to the test timeout waiting for a readiness the refused broker
+// never sends, so the suite skips at collection with this reason instead.
+let runtimeBase = process.env['XDG_RUNTIME_DIR'] ?? os.tmpdir()
+try {
+  runtimeBase = realpathSync(runtimeBase)
+} catch {
+  /* The length check below skips when the base is unusable. */
+}
+const socketLength =
+  Buffer.byteLength(runtimeBase, 'utf8') +
+  1 +
+  VAULT_SOCKET_DIR_PREFIX.length +
+  VAULT_SOCKET_DIR_HASH_CHARS +
+  1 +
+  VAULT_SOCKET_FILE.length
+const hasSocketFit =
+  socketLength <= VAULT_SOCKET_PATH_LIMIT_BYTES[process.platform === 'darwin' ? 'darwin' : 'other']
 beforeAll(async () => {
-  if (process.platform === 'win32') return
+  if (!hasSocketFit || process.platform === 'win32') return
   fixture.root = await mkdtemp(path.join(os.tmpdir(), 'vs-'))
   await buildBrokerChildren(fixture.root, [
     ['sessionClientChild', 'client.cjs'],
@@ -40,11 +67,19 @@ afterAll(async () => {
   await rm(fixture.root, { recursive: true, force: true })
 })
 function client(data: string, id: string) {
+  const runtimeDir = process.env['XDG_RUNTIME_DIR']
   const child = fork(
     path.join(fixture.root, 'dist', 'client.cjs'),
     [data, fixture.root, id.repeat(32)],
     {
-      env: { HOME: fixture.root },
+      // The product forwards the session runtime directory to the broker
+      // (posixClientPlatform); the fixture passes the worker's own through,
+      // so the broker resolves its socket base the way an installed session
+      // does instead of falling back to the fixture root.
+      env: {
+        HOME: fixture.root,
+        ...(runtimeDir !== undefined && { XDG_RUNTIME_DIR: runtimeDir }),
+      },
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
     },
   )
@@ -89,7 +124,7 @@ async function cleaned(directory: string) {
     expect(sample.mode & 0o777).toBe(0o600)
   }
 }
-describe.skipIf(process.platform === 'win32')('session-owned POSIX broker', () => {
+describe.skipIf(!hasSocketFit || process.platform === 'win32')('session-owned POSIX broker', () => {
   it('survives orderly launcher resource shutdown and locks only after its last client leaves', async () => {
     const data = path.join(fixture.root, 'lifetime')
     const a = await client(data, 'a')

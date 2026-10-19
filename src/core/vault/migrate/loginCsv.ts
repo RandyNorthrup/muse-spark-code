@@ -1,5 +1,6 @@
 import { VAULT_LIMITS } from '../../../shared/constants'
 import { vaultMaterialSchema, type VaultItem } from '../../../shared/vault'
+import { wipeImportMaterial } from './material'
 import { VaultMigrationFault } from './ports'
 
 export interface LoginCsvColumns {
@@ -119,10 +120,11 @@ export function parseLoginCsv(
     if (imported.length === 0 || imported.length > VAULT_LIMITS.items)
       throw new VaultMigrationFault('invalid')
     return imported
-  } catch {
-    for (const login of imported)
-      for (const field of Object.values(login.material))
-        if (field instanceof Uint8Array) field.fill(0)
-    throw new VaultMigrationFault('invalid')
+  } catch (error: unknown) {
+    // A torn-down parse reads invalid whatever broke it; the failure rides
+    // along as the cause while the person keeps fixed words.
+    wipeImportMaterial(imported)
+    if (error instanceof VaultMigrationFault) throw error
+    throw new VaultMigrationFault('invalid', { cause: error })
   }
 }

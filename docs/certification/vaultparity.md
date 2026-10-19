@@ -366,3 +366,90 @@ anywhere; no check weakened to pass; no stand-in kept.
   179-192 vs clones at 91-104, 122-156, 169-178; broker-process hunk at
   220-229 vs clones at 116-185; no clones in the other touched files).
   This lane adds zero clones; the red predates it.
+
+## Grok re-review response (lane PR247FIX3, 2026-10-18, rig `linuxlt`)
+
+One line per finding, each fixed at its cause. No test timeout raised
+anywhere; no check weakened to pass; no stand-in kept.
+
+- F1 (Windows broker locks the vault every second): fix at cause —
+  `windowsBrokerProcess.ts` no longer calls `options.lock` on every
+  one-second tick. The interval only tracks `emptySince` and shuts an
+  empty broker down after the 30 s idle; the lock callback (cancel an
+  in-progress setup, then `broker.lock()`) runs once, from `close()`,
+  the way the POSIX broker runs its own lock from process shutdown
+  (`brokerProcess.ts:170`). Before, every tick bumped the lock epoch
+  and wiped the in-memory key even with clients connected, so an
+  unlock lasted about a second and Set Up Vault was cancelled on the
+  next tick. Gate-fire by reasoning from the code path (this rig is
+  Linux): `lock` with `bump: true` always appends an epoch bump
+  (`state.ts:868-883`), so the old interval raised `lockEpoch` every
+  second; the fixed one cannot — the only `options.lock` call site
+  left is `close()`.
+- F2 (Windows end-to-end suite expects `uncreated` from the broker):
+  fix at cause — the suite now asserts what its `{ kind: 'status' }`
+  request actually returns with no store open: `locked` with reason
+  `locked` (`state.ts:1499-1508`). `uncreated` is the management
+  view's answer over the data folder (`management.ts:428-429`, and the
+  codebase's own rule at `vaultRuntimeEntry.ts:78`: "The management
+  view knows `uncreated` and `setupPending`; the broker alone does
+  not"), which this request never reaches — the POSIX drill reads it
+  through `VaultManageSession.snapshot()`. The suite still proves the
+  dial: `broker.connect` (pipe verify plus hello binding the broker)
+  must succeed before any status is read, and any dial failure throws
+  before the assertion.
+- F1 regression coverage: the same suite reads status twice 1200 ms
+  apart (more than one 1 s tick, real delay, no fake timers) and
+  asserts a stable `lockEpoch`. Every lock bumps the epoch, so the
+  old interval fails this assertion and the fixed code passes it. The
+  1200 ms wait plus the broker launch fit the repository's own 5 s
+  test timeout; no timeout is set or raised.
+
+## Timer audit (same lane: nothing else drops the unlock on a timer)
+
+- macOS and Linux share `brokerProcess.ts`: `options.lock` is called
+  only from `close()` (line 170), never from the empty-idle arm
+  (`empty()` only schedules `close()`). Same rule as the fixed
+  Windows process. No change needed.
+- `VaultBroker`'s own one-second timer (`broker.ts:140-145`) calls
+  `tick()`, which locks only when a key is held past the 240-minute
+  idle (`VAULT_IDLE_MINUTES`); otherwise it sends a no-op `tick`
+  command — no lock, no epoch bump. The designed idle auto-lock,
+  identical on all three platforms. No change needed.
+- Remaining timers near the vault are lease renewals (`store.ts`),
+  approval TTLs (`fleet.ts`, `channel.ts`, `client.ts`) and watch
+  retries (`manageClient.ts`): none calls `lock`. No change needed.
+
+## Proofs, lane PR247FIX3 (linuxlt rig, repo-default timeout, `--maxWorkers=3`)
+
+- `npx vitest run test/unit/vault/windowsPipeRelay.test.ts
+test/unit/vault/windowsBrokerClient.test.ts
+test/unit/vault/migrationCodecRoundTrip.test.ts --maxWorkers=3`
+  (no `--testTimeout`, the repository's own 5 s timeout): 2 files
+  passed, 1 skipped (`windowsBrokerClient`, whole file `skipIf`
+  win32); 8 tests passed, 2 skipped (the win32 relay integration and
+  the broker end to end — no Windows host on this rig). The new
+  `locked` assertion and the `lockEpoch`-stability regression prove
+  on hosted Windows CI.
+- Which suite proves which fix on hosted Windows CI: `windowsBrokerClient`
+  end to end proves both — the `locked` status proves the dial (F2:
+  hello plus pipe verify must succeed before any status is read, and
+  any dial failure throws before the assertion), and the stable
+  `lockEpoch` across two ticks proves the interval no longer locks
+  (F1: the old interval raises `lockEpoch` every second, failing the
+  new assertion). `windowsPipeRelay` real-helper suite keeps proving
+  the FIX2 DACL fix.
+- `npm run typecheck` (all five projects) exit 0 with zero
+  `error TS` lines; `eslint --max-warnings=0` clean on both touched
+  TS files; `prettier --check` clean on all four touched files;
+  `check:plan` (0 drift), `check:l10n` (0 problems) and `check:host-api`
+  (0 problems) green; `knip` exit 0; `cycles` clean;
+  production `npm run build` green with budgets unraised.
+- Pre-existing, not this lane: `npm run check:reference` exits 1 with
+  the identical `Catalogue asserts conditional state:
+museSpark.vault.enabled` measured on the pristine base in FIX2 —
+  none of this lane's files feeds the catalogue. `npm run duplication`
+  still reports the same 37 clones (0.11%); the clone ranges touching
+  `windowsBrokerProcess.ts` are at 116-125, 149-158 and 178-185, all
+  below this lane's hunks (interval at 222-237, `close()` at 248-275)
+  — this lane adds zero clones.

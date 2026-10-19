@@ -265,7 +265,8 @@ export class NodeVaultFiles implements VaultFilePort {
       await this.verify(path.join(this.root, name), 'file')
       await this.syncDirectory()
     } catch (error: unknown) {
-      if (refusal) throw refusal.error
+      // A refused commit keeps its own failure, never a generic I/O failure.
+      if (refusal !== undefined) throw error
       throw new VaultError('io', { cause: error })
     } finally {
       await handle.close()
@@ -295,9 +296,11 @@ export class NodeVaultFiles implements VaultFilePort {
     try {
       await this.verify(file, 'file')
       identity = await lstatIdentity(file)
-    } catch (error) {
+    } catch (error: unknown) {
       if (error !== null && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
         return
+      // A missing file is already quarantined; anything else is not the
+      // absence and keeps its failure as the cause.
       throw new VaultError('io', { cause: error })
     }
     const retained = path.join(
@@ -352,7 +355,8 @@ export class NodeVaultFiles implements VaultFilePort {
       await this.verify(retained, 'file')
       await this.syncDirectory()
     } catch (error: unknown) {
-      if (refusal) throw refusal.error
+      // A refused quarantine keeps its own failure, never a generic I/O failure.
+      if (refusal !== undefined) throw error
       throw new VaultError('io', { cause: error })
     }
   }
@@ -459,13 +463,15 @@ export class NodeVaultFiles implements VaultFilePort {
       if (isBrokerRefusal(error)) throw error
       // A filesystem without hard links refuses every publication the same
       // way: the cause keeps its name, never a generic I/O failure.
-      if (error instanceof LeaseLinkUnsupportedError) throw new VaultError('filesystemUnsupported')
+      if (error instanceof LeaseLinkUnsupportedError)
+        throw new VaultError('filesystemUnsupported', { cause: error })
       if (error instanceof LeaseBusyError && error.holder) {
         const self = await exactCurrentProcessOwner()
-        throw new VaultWriterError(this.writerFacts(error.holder, self))
+        throw new VaultWriterError(this.writerFacts(error.holder, self), { cause: error })
       }
-      if (error instanceof LeaseBusyError) throw new VaultWriterError({ kind: 'unreadable' })
-      throw new VaultError('io')
+      if (error instanceof LeaseBusyError)
+        throw new VaultWriterError({ kind: 'unreadable' }, { cause: error })
+      throw new VaultError('io', { cause: error })
     }
     if (this.writer) {
       await lease.release()
@@ -489,6 +495,8 @@ export class NodeVaultFiles implements VaultFilePort {
       try {
         if (!(await lease.renew())) isLost = true
       } catch {
+        // A failed renewal loses the lease; the next guarded use denies as
+        // busy, so the renewal failure keeps no cause.
         isLost = true
       } finally {
         renewing = undefined
@@ -573,10 +581,12 @@ export class NodeVaultFiles implements VaultFilePort {
       if (!sameFile(held, after) || after.size !== held.size || after.mtimeNs !== held.mtimeNs)
         throw new VaultError('io')
       return bytes
-    } catch (error) {
+    } catch (error: unknown) {
       bytes?.fill(0)
       if (error !== null && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
         return null
+      // A missing file reads absent; anything else is not the absence and
+      // keeps its failure as the cause.
       throw new VaultError('io', { cause: error })
     } finally {
       await handle?.close()
@@ -706,8 +716,11 @@ function parseJson(bytes: Buffer): unknown {
   try {
     const parsed: unknown = JSON.parse(bytes.toString('utf8'))
     return parsed
-  } catch {
-    throw new VaultError('invalid')
+  } catch (error: unknown) {
+    // JSON.parse fails only as SyntaxError: a malformed document is invalid,
+    // never adopted, with the parsing failure as its cause.
+    if (!(error instanceof SyntaxError)) throw error
+    throw new VaultError('invalid', { cause: error })
   }
 }
 function stateMac(key: Uint8Array, vaultId: string, domain: string, body: object): Buffer {

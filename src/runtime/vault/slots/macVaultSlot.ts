@@ -11,7 +11,7 @@ import {
   type MacVaultIdentity,
   type MacVaultTransport,
 } from './macVaultProtocol'
-import { slotContextSchema, type SlotContext } from './slotIdentity'
+import { slotContextSchema, type SlotContext } from './slotEntries'
 import { wrapSlotKey } from './slotWrap'
 
 function hasSameIdentity(container: MacVaultContainer, identity: MacVaultIdentity): boolean {

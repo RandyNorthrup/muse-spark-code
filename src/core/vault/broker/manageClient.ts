@@ -266,12 +266,15 @@ export class VaultManageSession {
    * every caller reports it; only cancellation ends quietly (RVCM1091A F7).
    */
   async watch(onEvent: (event: VaultBrokerEvent) => void, signal: AbortSignal): Promise<void> {
-    while (!signal.aborted) {
+    for (;;) {
+      if (isCancelled(signal)) return
       let client: VaultBrokerConnection
       try {
         client = await this.connect()
       } catch (error: unknown) {
-        if (isCancelled(signal)) return
+        // Only cancellation ends quietly; a failed connection rejects so
+        // every caller reports it.
+        if (signal.aborted) return
         throw error
       }
       // Cancelled while the connection was being acquired: close the late
@@ -289,7 +292,9 @@ export class VaultManageSession {
         onEvent({ kind: 'changed', v: VAULT_PROTOCOL_VERSION })
         await client.closed()
       } catch (error: unknown) {
-        if (isCancelled(signal)) return
+        // Only cancellation ends quietly; a failed watch rejects so every
+        // caller reports it.
+        if (signal.aborted) return
         throw error
       } finally {
         signal.removeEventListener('abort', stop)

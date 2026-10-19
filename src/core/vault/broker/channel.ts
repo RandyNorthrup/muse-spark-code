@@ -35,6 +35,7 @@ import {
   VaultStoreUnavailableError,
   type VaultManagementPort,
   type VaultManagementRefusal,
+  type VaultSecuredListenerPort,
   type VaultUseLifetime,
   type VaultConnectionIdentity,
 } from './ports'
@@ -48,10 +49,6 @@ import {
   type VaultChannelResponse,
 } from './frames'
 export type { VaultConnectionIdentity } from './ports'
-export interface VaultSecuredListenerPort {
-  /** P creates an owner-only, remote-refusing pipe before handing over any accepted socket. */
-  listen(path: string, accepted: (socket: Duplex) => void): Promise<() => Promise<void>>
-}
 export interface VaultChannelDeps {
   listener?: VaultSecuredListenerPort
   /** T's trusted provenance, including Muse Code's sticky session taint; frame claims cannot clear it. */
@@ -637,8 +634,10 @@ export class VaultChannelServer {
         try {
           message = vaultChannelRequestSchema.parse(JSON.parse(line.toString('utf8')))
         } catch {
+          // No frame is decoded before native authentication: the connection
+          // closes and the requester reports its own failure.
           close()
-          return /* No frame is decoded before native authentication. */
+          return
         } finally {
           line.fill(0)
         }
@@ -649,7 +648,9 @@ export class VaultChannelServer {
             queuedBytes -= line.length
             if (!socket.destroyed) await authorize(message, peer)
           } catch {
-            close() /* Refuse without returning private diagnostics. */
+            // Refuse without returning private diagnostics: the connection
+            // closes and the requester reports its own failure.
+            close()
           }
         })()
         end = buffer.indexOf('\n')
@@ -677,7 +678,9 @@ export class VaultChannelServer {
         drain()
         socket.resume()
       } catch {
-        close() /* Native authentication failure closes before any frame is decoded. */
+        // Native authentication failure closes before any frame is decoded;
+        // the requester reports its own failure.
+        close()
       }
     })()
   }

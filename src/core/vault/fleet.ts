@@ -191,12 +191,16 @@ export class VaultFleet {
           try {
             this.retire(access)
           } catch {
+            // The sweep retires every worker whatever one costs it; the
+            // aggregate denial below reaches the broker's audit signal.
             hasFailed = true
           }
           const task = this.endRequesters(ids)
           this.cleanup.add(task)
           void task
             .catch(() => {
+              // A failed requester end is aggregate disposal state; the
+              // broker's audit signal below carries the denial.
               this.cleanupFailed = true
             })
             .finally(() => {
@@ -529,6 +533,8 @@ export class VaultFleet {
     try {
       this.unsubscribe()
     } catch {
+      // Disposal continues past a failing unsubscribe; the aggregate denial
+      // below is the report.
       hasFailed = true
     }
     const ids = Array.from(this.workers.values(), (worker) => worker.requester.id)
@@ -537,6 +543,8 @@ export class VaultFleet {
         try {
           this.retire(access)
         } catch {
+          // Disposal retires every worker whatever one costs it; the
+          // aggregate denial below is the report.
           hasFailed = true
         }
     } finally {
