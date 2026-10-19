@@ -257,15 +257,19 @@ export function parseExec(
     values['max-requests'] === undefined
       ? undefined
       : integer(values['max-requests'], 0, 1, Number.MAX_SAFE_INTEGER)
-  // TOOLCAP: absent keeps the setting default; the floor is the readable one
-  // (no 0-disables: one tool result can never end a conversation); the window
-  // fit is refused at runtime with its reason, where the model's window is known.
-  const maxToolOutputBytes = integer(
-    values['max-tool-output-bytes'],
-    SETTING_DEFAULTS.modelApiMaxToolOutputBytes,
-    TOOL_RESULT_MIN_BYTES,
-    Number.MAX_SAFE_INTEGER,
-  )
+  // TOOLCAP: absent keeps the setting default (D121: 0, no guard of ours);
+  // an explicit 0 keeps no guard either, while any other present value
+  // stays at or above the readable floor. The window fit is refused at
+  // runtime with its reason, where the model's window is known.
+  const maxToolOutputBytes =
+    values['max-tool-output-bytes'] === '0'
+      ? 0
+      : integer(
+          values['max-tool-output-bytes'],
+          SETTING_DEFAULTS.modelApiMaxToolOutputBytes,
+          TOOL_RESULT_MIN_BYTES,
+          Number.MAX_SAFE_INTEGER,
+        )
   // An absent flag keeps the policy cap; a present one only lowers it. The
   // parse-time ceiling is the absolute cap every policy cap sits at or
   // below; a larger value is refused here with its own sentence. The floor

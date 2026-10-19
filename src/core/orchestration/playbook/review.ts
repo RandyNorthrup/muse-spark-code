@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { PLAYBOOK_FINDING_CLASSES, PLAYBOOK_ID_MAX_CHARS } from '../../../shared/constants'
 import { redactSecrets } from '../../../shared/redact'
 import {
+  isPatchRoundsExceeded,
   knownFindingClass,
   playbookRoundSchema,
   type PlaybookModule,
@@ -156,9 +157,9 @@ export function reviewRounds(
 
 export function redesignBlock(
   state: ModuleState,
-  max: number,
+  patchRoundsMax: number,
 ): PlaybookWhyNote['code'] | undefined {
   if (state.escalated || state.design?.outcome === 'remains') return 'redesignEscalated'
   if (state.design && state.design.outcome !== 'impossible') return 'redesignOpen'
-  return state.strikes > max ? 'redesignRequired' : undefined
+  return isPatchRoundsExceeded(patchRoundsMax, state.strikes) ? 'redesignRequired' : undefined
 }

@@ -171,11 +171,13 @@ export type ToolResultCapRefusal =
 
 /**
  * The configured byte guard, validated. Unknown or absent keeps the default
- * (today's behaviour); below the floor or larger than the model's whole
- * window is refused with the reason, and the caller falls back to the
- * default. Pure so the setting, the exec flag and the host share it. Where
- * the window is unknown the window fit cannot be checked, so the bound is
- * then the per-result caps alone — said in the certification, not guessed.
+ * (today's behaviour); 0 (D121: no guard of ours, the default) passes the
+ * result to the window share and line caps alone; below the floor or larger
+ * than the model's whole window is refused with the reason, and the caller
+ * falls back to the default. Pure so the setting, the exec flag and the
+ * host share it. Where the window is unknown the window fit cannot be
+ * checked, so the bound is then the per-result caps alone — said in the
+ * certification, not guessed.
  * `windowTokens` is the model's WHOLE window, never the room left: the
  * refusal sentence names the model's window, and a cap that fits it must
  * not be refused later merely because the conversation grew.
@@ -188,6 +190,7 @@ export function validateToolResultCap(
   | { readonly bytes: number }
   | { readonly refused: ToolResultCapRefusal; readonly fallback: number } {
   if (value === undefined) return { bytes: fallbackBytes }
+  if (value === 0) return { bytes: Infinity }
   if (!Number.isSafeInteger(value) || value < TOOL_RESULT_MIN_BYTES) {
     return { refused: { kind: 'below-floor' }, fallback: fallbackBytes }
   }

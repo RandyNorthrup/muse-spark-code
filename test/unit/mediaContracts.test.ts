@@ -203,7 +203,8 @@ describe('M105 recorder contract', () => {
       systemAudio: false,
     }
     expect(screenRecordingOptionsSchema.parse(options)).toEqual(options)
-    for (const maxSeconds of [10, 600])
+    // D121: 0 records until stopped (the default); a set value stays 10–600.
+    for (const maxSeconds of [0, 10, 600])
       expect(screenRecordingOptionsSchema.safeParse({ ...options, maxSeconds }).success).toBe(true)
     for (const maxSeconds of [9, 601, 10.5, Infinity])
       expect(screenRecordingOptionsSchema.safeParse({ ...options, maxSeconds }).success).toBe(false)

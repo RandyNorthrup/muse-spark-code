@@ -36,10 +36,8 @@ import { readSettings, type SettingsSource } from '../../src/host/settings'
 import {
   HOOK_MAX_RUNNING_COMMANDS,
   HOOK_MAX_STOP_CONTINUATIONS,
-  HOOK_MAX_TASK_REFUSALS,
   SETTING_DEFAULTS,
   SUBAGENT_CAPACITY,
-  TEAMMATE_MAX_IDLE_KEEPS,
   museCodeLoadedSessionCeiling,
 } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -733,16 +731,17 @@ describe('recap, computer-use and workflow shapes', () => {
 })
 
 describe('hook and subagent setting defaults', () => {
-  it('ships Muse Code’s own defaults', () => {
-    expect(SETTING_DEFAULTS.hooksMaxStopContinuations).toBe(HOOK_MAX_STOP_CONTINUATIONS)
-    expect(SETTING_DEFAULTS.hooksMaxStopContinuations).toBe(8)
+  it('ships no limit of our own (D121)', () => {
+    expect(SETTING_DEFAULTS.hooksMaxStopContinuations).toBe(0)
     expect(SETTING_DEFAULTS.hooksMaxRunningCommands).toBe(0)
     expect(SETTING_DEFAULTS.subagentMaxConcurrent).toBe(SUBAGENT_CAPACITY)
-    expect(SETTING_DEFAULTS.subagentMaxConcurrent).toBe(8)
+    expect(SETTING_DEFAULTS.subagentMaxConcurrent).toBe(0)
+    expect(HOOK_MAX_STOP_CONTINUATIONS).toBe(8)
   })
 
   it('names the live subagent count in the spawn description', () => {
-    expect(subagentSpawnDescription()).toContain('Up to 8 work at once')
+    expect(subagentSpawnDescription()).not.toContain('Up to')
+    expect(subagentSpawnDescription(0)).not.toContain('Up to')
     expect(subagentSpawnDescription(3)).toContain('Up to 3 work at once')
     expect(subagentSpawnDescription(64)).toContain('Up to 64 work at once')
   })
@@ -764,18 +763,10 @@ describe('hook and subagent setting defaults', () => {
     expect(
       readSettings(settingSource({ hooksMaxStopContinuations: 1000 }), log)
         .hooksMaxStopContinuations,
-    ).toBe(8)
+    ).toBe(0)
     expect(warnings).toHaveLength(1)
     expect(
       readSettings(settingSource({ hooksMaxStopContinuations: 3 }), log).hooksMaxStopContinuations,
     ).toBe(3)
-  })
-
-  it('keeps the task-refusal and teammate-keep pauses off the Stop setting', () => {
-    // Before the M127 setting all four sites compared against the same
-    // bound of 8; the setting now governs only Stop-hook continuations,
-    // while the independent pauses keep their own measured bounds.
-    expect(HOOK_MAX_TASK_REFUSALS).toBe(8)
-    expect(TEAMMATE_MAX_IDLE_KEEPS).toBe(8)
   })
 })

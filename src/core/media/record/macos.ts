@@ -359,7 +359,7 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
               info.mediaType !== 'video/mp4' ||
               info.sizeBytes !== stat.size ||
               info.durationSeconds === null ||
-              info.durationSeconds > options.data.maxSeconds + 2 ||
+              (options.data.maxSeconds > 0 && info.durationSeconds > options.data.maxSeconds + 2) ||
               info.hasSoundtrack !== (options.data.microphone || options.data.systemAudio)
             ) {
               throw new Error('invalid recording metadata')
@@ -430,17 +430,28 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
                 isRecording = true
                 if (!isStopping) {
                   clearTimeout(watchdog)
-                  onCountdown(remaining)
+                  // D121: maxSeconds 0 records until stopped — the tick then
+                  // reports seconds recorded and no watchdog stops the run.
+                  const isUncapped = options.data.maxSeconds === 0
+                  let elapsed = options.data.maxSeconds - remaining
+                  onCountdown(isUncapped ? elapsed : remaining)
                   tick = setInterval(() => {
+                    if (isUncapped) {
+                      elapsed += 1
+                      onCountdown(elapsed)
+                      return
+                    }
                     remaining -= 1
                     onCountdown(remaining)
                     if (remaining === 0) void stop()
                   }, MILLISECONDS_PER_SECOND)
-                  watchdog = setTimeout(() => {
-                    remaining = 0
-                    onCountdown(remaining)
-                    void stop()
-                  }, remaining * MILLISECONDS_PER_SECOND)
+                  if (!isUncapped) {
+                    watchdog = setTimeout(() => {
+                      remaining = 0
+                      onCountdown(remaining)
+                      void stop()
+                    }, remaining * MILLISECONDS_PER_SECOND)
+                  }
                 }
               }
             } catch {

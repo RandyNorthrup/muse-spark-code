@@ -8,6 +8,7 @@ import {
 import {
   defaultPlaybookSettings,
   playbookDesignDecisionSchema,
+  isPatchRoundsExceeded,
   playbookRecordSchema,
   playbookRoundSchema,
   playbookSettingsSchema,
@@ -408,7 +409,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     if (!areFindingsAnswered(state, this.options.authorizeOverride, this.on('onePassReview')))
       return this.decide('refuse', 'onePassReview', 'answersPending', { module: module.key })
     return this.on('threeStrikes') &&
-      state.strikes > this.settings.patchRoundsMax &&
+      isPatchRoundsExceeded(this.settings.patchRoundsMax, state.strikes) &&
       (!state.design || state.design.outcome === 'impossible')
       ? this.decide('refuse', 'threeStrikes', 'designRequired', { module: module.key })
       : undefined
@@ -664,7 +665,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     if (
       this.on('threeStrikes') &&
       state.current?.findings.length &&
-      state.strikes > this.settings.patchRoundsMax &&
+      isPatchRoundsExceeded(this.settings.patchRoundsMax, state.strikes) &&
       (!state.design || state.design.outcome === 'impossible')
     )
       return this.decide('refuse', 'threeStrikes', 'designRequired', { module: module.key })
