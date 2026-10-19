@@ -1902,6 +1902,7 @@
     "schema:report": "node scripts/schema-report.mjs",
     "reference:generate": "node scripts/gen-reference.mjs",
     "lazy-registry:generate": "node scripts/gen-lazy-registry.mjs",
+    "real-life": "node scripts/real-life/run.mjs",
     "check:lazy-registry": "node scripts/gen-lazy-registry.mjs --check",
     "build:tokens": "node scripts/build-tokens.mjs",
     "check:tokens": "node scripts/check-tokens.mjs"

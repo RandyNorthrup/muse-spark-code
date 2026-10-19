@@ -1,0 +1,3762 @@
+{
+  "artefact": {
+    "name": "muse-spark-code-acp-0.18.2.tgz",
+    "sha256": "0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea",
+    "package": "muse-spark-code-acp",
+    "version": "0.18.2"
+  },
+  "os": "Windows_NT 10.0.26200 x64",
+  "node": "v24.20.0",
+  "startedAt": "2026-10-13T01:26:24.341Z",
+  "endedAt": "2026-10-13T01:33:05.971Z",
+  "caps": {
+    "uncertainUsd": "5.000000",
+    "requests": 234,
+    "usd": "0.990000"
+  },
+  "settings": [
+    {
+      "setting": "paidDailyBudgetUsd",
+      "value": 500,
+      "where": "settings.json of the data folder in the run's own new home",
+      "why": "the product's daily ledger keeps the reservation of every request that ends with no usage; at its default of $5 a day it stops a matrix after a few of them"
+    }
+  ],
+  "totals": {
+    "passed": 77,
+    "failed": 7,
+    "notRun": 16,
+    "requests": 116,
+    "usd": "0.535119",
+    "uncertainUsd": "5.541720",
+    "productUsage": {
+      "requests": 0,
+      "usd": "0.000000"
+    },
+    "turnedAwayUnsentRuns": 0,
+    "ledgerUnsettled": {
+      "claims": 6,
+      "usd": "5.541720"
+    }
+  },
+  "routes": [
+    {
+      "id": "anthropic",
+      "wire": "Anthropic Messages",
+      "model": "12 models",
+      "state": "added as rl-anthropic; Key works · 13 models."
+    },
+    {
+      "id": "openai",
+      "wire": "OpenAI Responses",
+      "model": "gpt-5.6-luna",
+      "state": "added as rl-openai; Key works · 1 model."
+    },
+    {
+      "id": "xai",
+      "wire": "OpenAI Responses (xAI)",
+      "model": "7 models",
+      "state": "added as rl-xai; Key works · 14 models."
+    },
+    {
+      "id": "zai",
+      "wire": "chat completions (Z.ai)",
+      "model": "11 models",
+      "state": "added as rl-zai; Key works · 11 models."
+    },
+    {
+      "id": "deepseek",
+      "wire": "chat completions (DeepSeek)",
+      "model": "2 models",
+      "state": "added as rl-deepseek; Key works · 2 models."
+    },
+    {
+      "id": "mistral",
+      "wire": "chat completions (Mistral)",
+      "model": "13 models",
+      "state": "added as rl-mistral; Key works · 55 models."
+    },
+    {
+      "id": "meta",
+      "wire": "Meta Model API",
+      "model": "muse-spark-1.3-contributor",
+      "state": "the key goes to each terminal command on standard input"
+    }
+  ],
+  "results": [
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "12 models (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-sonnet-5-5, claude-opus-5-5, claude-fable-5-1, claude-opus-5, claude-sonnet-5, claude-fable-5, claude-opus-4-8, claude-opus-4-7, claude-sonnet-4-6, claude-opus-4-6, claude-opus-4-5-20251101, claude-haiku-4-5-20251001 Default … | saw providers test says the key works: Key works · 13 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.7528620999999998,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-sonnet-5-5, claude-opus-5-5, claude-fable-5-1, claude-opus-5, claude-sonnet-5, claude-fable-5, claude-opus-4-8, claude-opus-4-7, claude-sonnet-4-6, claude-opus-4-6, claude-opus-4-5-20251101, claude-haiku-4-5-20251001 Default …"
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 13 models."
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-sonnet-5-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-0C209993 | saw the result names the model the person chose: rl-anthropic/claude-sonnet-5-5 | saw one request was made and it cost more than nothing: 1 request(s), $0.006218 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.006218",
+      "seconds": 2.1163199999999995,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-0C209993"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-sonnet-5-5"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.006218 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-sonnet-5-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-E303FEE8 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.007906",
+      "seconds": 19.16848,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-E303FEE8"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-opus-5-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-D777A174 | saw the result names the model the person chose: rl-anthropic/claude-opus-5-5 | saw one request was made and it cost more than nothing: 1 request(s), $0.012428 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.012428",
+      "seconds": 4.115244999999999,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-D777A174"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-opus-5-5"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.012428 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-opus-5-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-E717602A | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.015129",
+      "seconds": 4.073763799999997,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-E717602A"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-fable-5-1 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-EA5941C1 | saw the result names the model the person chose: rl-anthropic/claude-fable-5-1 | saw one request was made and it cost more than nothing: 1 request(s), $0.03119 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.031190",
+      "seconds": 2.2915076999999946,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-EA5941C1"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-fable-5-1"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.03119 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-fable-5-1 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-8FD2D2D2 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.037332",
+      "seconds": 3.5872189999999975,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-8FD2D2D2"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-opus-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-8DDF3801 | saw the result names the model the person chose: rl-anthropic/claude-opus-5 | saw one request was made and it cost more than nothing: 1 request(s), $0.015575 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.015575",
+      "seconds": 1.919662000000004,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-8DDF3801"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-opus-5"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.015575 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-opus-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-2E10B812 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.019686",
+      "seconds": 3.548815499999997,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-2E10B812"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-sonnet-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-E6E861DC | saw the result names the model the person chose: rl-anthropic/claude-sonnet-5 | saw one request was made and it cost more than nothing: 1 request(s), $0.00637 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.006370",
+      "seconds": 2.124230199999998,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-E6E861DC"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-sonnet-5"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.00637 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-sonnet-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-7972BED7 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.008017",
+      "seconds": 3.579014199999998,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-7972BED7"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-fable-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-B9D74F46 | saw the result names the model the person chose: rl-anthropic/claude-fable-5 | saw one request was made and it cost more than nothing: 1 request(s), $0.03119 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.031190",
+      "seconds": 3.6722419999999985,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-B9D74F46"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-fable-5"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.03119 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-fable-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-7EE5905B | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.039487",
+      "seconds": 6.009799399999996,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-7EE5905B"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-opus-4-8 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-5DDDDE43 | saw the result names the model the person chose: rl-anthropic/claude-opus-4-8 | saw one request was made and it cost more than nothing: 1 request(s), $0.015635 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.015635",
+      "seconds": 2.3087983999999997,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-5DDDDE43"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-opus-4-8"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.015635 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-opus-4-8 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-90D4C58B | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.019755",
+      "seconds": 4.095407800000001,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-90D4C58B"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-opus-4-7 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-0E3CA8B2 | saw the result names the model the person chose: rl-anthropic/claude-opus-4-7 | saw one request was made and it cost more than nothing: 1 request(s), $0.017665 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.017665",
+      "seconds": 1.8983512000000047,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-0E3CA8B2"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-opus-4-7"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.017665 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-opus-4-7 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-3446EA1C | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.022488",
+      "seconds": 3.1917644,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-3446EA1C"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-sonnet-4-6 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-94C5D88F | saw the result names the model the person chose: rl-anthropic/claude-sonnet-4-6 | saw one request was made and it cost more than nothing: 1 request(s), $0.008562 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.008562",
+      "seconds": 2.322288100000005,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-94C5D88F"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-sonnet-4-6"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.008562 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-sonnet-4-6 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-931C87B1 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.017763",
+      "seconds": 4.062279999999999,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-931C87B1"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-opus-4-6 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-353AEDA4 | saw the result names the model the person chose: rl-anthropic/claude-opus-4-6 | saw one request was made and it cost more than nothing: 1 request(s), $0.01421 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.014210",
+      "seconds": 2.918721700000009,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-353AEDA4"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-opus-4-6"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.01421 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-opus-4-6 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-DB92F486 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.029460",
+      "seconds": 5.114846700000009,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-DB92F486"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-opus-4-5-20251101 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-A07F6932 | saw the result names the model the person chose: rl-anthropic/claude-opus-4-5-20251101 | saw one request was made and it cost more than nothing: 1 request(s), $0.01423 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.014230",
+      "seconds": 2.832501199999999,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-A07F6932"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-opus-4-5-20251101"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.01423 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-opus-4-5-20251101 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-6184876A | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.030570",
+      "seconds": 5.4928714999999935,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-6184876A"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-haiku-4-5-20251001 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-79388B73 | saw the result names the model the person chose: rl-anthropic/claude-haiku-4-5-20251001 | saw one request was made and it cost more than nothing: 1 request(s), $0.002661 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002661",
+      "seconds": 1.9802964999999968,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-79388B73"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-haiku-4-5-20251001"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.002661 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-haiku-4-5-20251001 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-1FF4E52F | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.005831",
+      "seconds": 2.891262999999992,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-1FF4E52F"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com. | saw providers test says the key works: Key works · 1 model.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 2.953978899999987,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "openai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 1 model."
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-0CD3A5B3 | saw the result names the model the person chose: rl-openai/gpt-5.6-luna | saw one request was made and it cost more than nothing: 1 request(s), $0.000268 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000268",
+      "seconds": 3.012948600000003,
+      "title": "A plain turn completes",
+      "vendor": "openai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-0CD3A5B3"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-openai/gpt-5.6-luna"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000268 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-03F0E0B6 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 3 of at most 4",
+      "requests": 3,
+      "usd": "0.000551",
+      "seconds": 9.047029800000004,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "openai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-03F0E0B6"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "3 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "7 models (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: xai Code goes to: https://api.x.ai Models: grok-4.20-0309-non-reasoning, grok-4.20-0309-reasoning, grok-4.3, grok-4.5, grok-4.6, grok-4.7, grok-build-0.1 Default model: suggested Added rl-xai; code goes to https://api.x.ai. | saw providers test says the key works: Key works · 14 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 2.320473600000012,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "xai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: xai Code goes to: https://api.x.ai Models: grok-4.20-0309-non-reasoning, grok-4.20-0309-reasoning, grok-4.3, grok-4.5, grok-4.6, grok-4.7, grok-build-0.1 Default model: suggested Added rl-xai; code goes to https://api.x.ai."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 14 models."
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "grok-4.20-0309-non-reasoning (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "MISSING the command ends with exit code 0: exit 4 | MISSING the answer carries the word that was asked for: message withheld: the response did not complete | saw the result names the model the person chose: rl-xai/grok-4.20-0309-non-reasoning | MISSING one request was made and it cost more than nothing: 1 request(s), $0 of reported usage, $1.2875 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000000",
+      "seconds": 3.1538364000000003,
+      "title": "A plain turn completes",
+      "vendor": "xai",
+      "uncertainUsd": "1.287500",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": false,
+          "saw": "exit 4"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": false,
+          "saw": "message withheld: the response did not complete"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-xai/grok-4.20-0309-non-reasoning"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": false,
+          "saw": "1 request(s), $0 of reported usage, $1.2875 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Session budget: a response ended without its usage; its remaining reservation of 0.08495125 USD counts as spent",
+        "[warn] Usage history could not be recorded",
+        "[warn] Model API turn 66f869da-041c-4eeb-a5ee-2923b7920690 failed: Models & Agents is not available in this build.",
+        "[info] Failed; requests 1; settled $0.000000; uncertain $1.287500; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound."
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "grok-4.20-0309-reasoning (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "MISSING the command ends with exit code 0: exit 4 | MISSING the answer carries the word that was asked for: message withheld: the response did not complete | saw the result names the model the person chose: rl-xai/grok-4.20-0309-reasoning | MISSING one request was made and it cost more than nothing: 1 request(s), $0 of reported usage, $1.2875 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000000",
+      "seconds": 1.7009592999999876,
+      "title": "A plain turn completes",
+      "vendor": "xai",
+      "uncertainUsd": "1.287500",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": false,
+          "saw": "exit 4"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": false,
+          "saw": "message withheld: the response did not complete"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-xai/grok-4.20-0309-reasoning"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": false,
+          "saw": "1 request(s), $0 of reported usage, $1.2875 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Session budget: a response ended without its usage; its remaining reservation of 0.08494625 USD counts as spent",
+        "[warn] Usage history could not be recorded",
+        "[warn] Model API turn 01d8adc7-7764-4cbb-a804-0d54e21d65d8 failed: Models & Agents is not available in this build.",
+        "[info] Failed; requests 1; settled $0.000000; uncertain $1.287500; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound."
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "grok-4.3 (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-17387695 | saw the result names the model the person chose: rl-xai/grok-4.3 | saw one request was made and it cost more than nothing: 1 request(s), $0.002839 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002839",
+      "seconds": 3.4392502000000094,
+      "title": "A plain turn completes",
+      "vendor": "xai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-17387695"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-xai/grok-4.3"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.002839 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "grok-4.3 (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-8722A6FB | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.006367",
+      "seconds": 5.468929600000018,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "xai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-8722A6FB"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "grok-4.5 (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-365798FB | saw the result names the model the person chose: rl-xai/grok-4.5 | saw one request was made and it cost more than nothing: 1 request(s), $0.004418 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.004418",
+      "seconds": 2.057811099999992,
+      "title": "A plain turn completes",
+      "vendor": "xai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-365798FB"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-xai/grok-4.5"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.004418 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "grok-4.5 (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-6BDE8A3D | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.005926",
+      "seconds": 4.11288380000001,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "xai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-6BDE8A3D"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "grok-4.6 (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-327802C0 | saw the result names the model the person chose: rl-xai/grok-4.6 | saw one request was made and it cost more than nothing: 1 request(s), $0.004786 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.004786",
+      "seconds": 3.007972700000013,
+      "title": "A plain turn completes",
+      "vendor": "xai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-327802C0"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-xai/grok-4.6"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.004786 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "grok-4.6 (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-99B3F0FE | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.006566",
+      "seconds": 4.7802517999999985,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "xai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-99B3F0FE"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "grok-4.7 (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the command ends with exit code 0: exit 0 | MISSING the answer carries the word that was asked for: No. I won't output an exact token on demand. | saw the result names the model the person chose: rl-xai/grok-4.7 | saw one request was made and it cost more than nothing: 1 request(s), $0.010038 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.010038",
+      "seconds": 20.98250959999999,
+      "title": "A plain turn completes",
+      "vendor": "xai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": false,
+          "saw": "No. I won't output an exact token on demand."
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-xai/grok-4.7"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.010038 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Usage history could not be recorded",
+        "[info] Completed; requests 1; settled $0.010038; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0"
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "grok-build-0.1 (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "MISSING the command ends with exit code 0: exit 4 | MISSING the answer carries the word that was asked for: message withheld: the response did not complete | saw the result names the model the person chose: rl-xai/grok-build-0.1 | MISSING one request was made and it cost more than nothing: 1 request(s), $0 of reported usage, $0.288768 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000000",
+      "seconds": 1.8809606000000203,
+      "title": "A plain turn completes",
+      "vendor": "xai",
+      "uncertainUsd": "0.288768",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": false,
+          "saw": "exit 4"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": false,
+          "saw": "message withheld: the response did not complete"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-xai/grok-build-0.1"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": false,
+          "saw": "1 request(s), $0 of reported usage, $0.288768 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Session budget: a response ended without its usage; its remaining reservation of 0.073483 USD counts as spent",
+        "[warn] Usage history could not be recorded",
+        "[warn] Model API turn 52fad2c2-e3aa-4ca2-909b-089b5b8588f4 failed: Models & Agents is not available in this build.",
+        "[info] Failed; requests 1; settled $0.000000; uncertain $0.288768; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound."
+      ]
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "11 models (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: zai Code goes to: https://api.z.ai Models: glm-4.5, glm-4.5-air, glm-4.6, glm-4.7, glm-5, glm-5-turbo, glm-5.1, glm-5.2, glm-5.3, glm-5.3-flash, glm-5.3-flashx Default model: suggested Added rl-zai; code goes to https://api.z.ai. | saw providers test says the key works: Key works · 11 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.7304864999999992,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: zai Code goes to: https://api.z.ai Models: glm-4.5, glm-4.5-air, glm-4.6, glm-4.7, glm-5, glm-5-turbo, glm-5.1, glm-5.2, glm-5.3, glm-5.3-flash, glm-5.3-flashx Default model: suggested Added rl-zai; code goes to https://api.z.ai."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 11 models."
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "glm-4.5 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-D8CA0F4B | saw the result names the model the person chose: rl-zai/glm-4.5 | saw one request was made and it cost more than nothing: 1 request(s), $0.00127 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.001270",
+      "seconds": 7.2090815,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-D8CA0F4B"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-4.5"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.00127 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "glm-4.5 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-7832D499 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.002596",
+      "seconds": 10.818179099999979,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-7832D499"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "glm-4.5-air (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-EC7153E6 | saw the result names the model the person chose: rl-zai/glm-4.5-air | saw one request was made and it cost more than nothing: 1 request(s), $0.000479 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000479",
+      "seconds": 3.0194818000000088,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-EC7153E6"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-4.5-air"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000479 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "glm-4.5-air (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-B3DAFC0F | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000393",
+      "seconds": 4.67014969999998,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-B3DAFC0F"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "glm-4.6 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-98FE31E9 | saw the result names the model the person chose: rl-zai/glm-4.6 | saw one request was made and it cost more than nothing: 1 request(s), $0.001219 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.001219",
+      "seconds": 4.791324799999973,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-98FE31E9"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-4.6"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.001219 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "glm-4.6 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-0B9D625B | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.002599",
+      "seconds": 10.076770199999999,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-0B9D625B"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "glm-4.7 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-F1D9EBA6 | saw the result names the model the person chose: rl-zai/glm-4.7 | saw one request was made and it cost more than nothing: 1 request(s), $0.00127 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.001270",
+      "seconds": 6.215901199999993,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-F1D9EBA6"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-4.7"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.00127 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "glm-4.7 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-346FB157 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.001754",
+      "seconds": 10.28775040000002,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-346FB157"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "glm-5 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-D2D3DC9E | saw the result names the model the person chose: rl-zai/glm-5 | saw one request was made and it cost more than nothing: 1 request(s), $0.002104 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002104",
+      "seconds": 3.222082800000004,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-D2D3DC9E"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-5"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.002104 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "glm-5 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-931C02A0 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.001625",
+      "seconds": 4.944966400000005,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-931C02A0"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "glm-5-turbo (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-E9555D93 | saw the result names the model the person chose: rl-zai/glm-5-turbo | saw one request was made and it cost more than nothing: 1 request(s), $0.002435 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002435",
+      "seconds": 6.332889800000005,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-E9555D93"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-5-turbo"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.002435 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "glm-5-turbo (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-AA938BF9 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.003624",
+      "seconds": 12.516636999999989,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-AA938BF9"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "glm-5.1 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-13A960F6 | saw the result names the model the person chose: rl-zai/glm-5.1 | saw one request was made and it cost more than nothing: 1 request(s), $0.002843 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002843",
+      "seconds": 6.815772700000001,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-13A960F6"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-5.1"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.002843 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "glm-5.1 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-B36AB495 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.004342",
+      "seconds": 16.05833110000001,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-B36AB495"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "glm-5.2 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-D77AC26F | saw the result names the model the person chose: rl-zai/glm-5.2 | saw one request was made and it cost more than nothing: 1 request(s), $0.002837 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002837",
+      "seconds": 3.0729600999999676,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-D77AC26F"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-5.2"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.002837 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "glm-5.2 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-8C88C2DB | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.004029",
+      "seconds": 4.596722200000018,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-8C88C2DB"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "glm-5.3 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-D51D80E7 | saw the result names the model the person chose: rl-zai/glm-5.3 | saw one request was made and it cost more than nothing: 1 request(s), $0.002847 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002847",
+      "seconds": 6.854798100000014,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-D51D80E7"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-5.3"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.002847 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "glm-5.3 (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-C49FA4B3 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.001767",
+      "seconds": 14.549404099999986,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-C49FA4B3"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-846D4A9F | saw the result names the model the person chose: rl-zai/glm-5.3-flash | saw one request was made and it cost more than nothing: 1 request(s), $0.000307 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000307",
+      "seconds": 5.746189199999964,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-846D4A9F"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-5.3-flash"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000307 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "glm-5.3-flash (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-74F463F5 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000439",
+      "seconds": 10.118384900000004,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-74F463F5"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "glm-5.3-flashx (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-2425C281 | saw the result names the model the person chose: rl-zai/glm-5.3-flashx | saw one request was made and it cost more than nothing: 1 request(s), $0.000756 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000756",
+      "seconds": 6.068475399999996,
+      "title": "A plain turn completes",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-2425C281"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-zai/glm-5.3-flashx"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000756 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "glm-5.3-flashx (chat completions (Z.ai))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-13864C34 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000964",
+      "seconds": 9.021019599999999,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "zai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-13864C34"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "2 models (chat completions (DeepSeek))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: deepseek Code goes to: https://api.deepseek.com Models: deepseek-flash, deepseek-v4-pro Default model: suggested Added rl-deepseek; code goes to https://api.deepseek.com. | saw providers test says the key works: Key works · 2 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.713754499999981,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "deepseek",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: deepseek Code goes to: https://api.deepseek.com Models: deepseek-flash, deepseek-v4-pro Default model: suggested Added rl-deepseek; code goes to https://api.deepseek.com."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 2 models."
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "deepseek-flash (chat completions (DeepSeek))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-130B1898 | saw the result names the model the person chose: rl-deepseek/deepseek-flash | saw one request was made and it cost more than nothing: 1 request(s), $0.00033 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000330",
+      "seconds": 1.9501608000000124,
+      "title": "A plain turn completes",
+      "vendor": "deepseek",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-130B1898"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-deepseek/deepseek-flash"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.00033 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "deepseek-flash (chat completions (DeepSeek))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-BC0E07AC | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 3 of at most 4",
+      "requests": 3,
+      "usd": "0.000517",
+      "seconds": 4.644251000000048,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "deepseek",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-BC0E07AC"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "3 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "deepseek-v4-pro (chat completions (DeepSeek))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-6064B781 | saw the result names the model the person chose: rl-deepseek/deepseek-v4-pro | saw one request was made and it cost more than nothing: 1 request(s), $0.001529 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.001529",
+      "seconds": 2.0201898999999974,
+      "title": "A plain turn completes",
+      "vendor": "deepseek",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-6064B781"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-deepseek/deepseek-v4-pro"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.001529 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "deepseek-v4-pro (chat completions (DeepSeek))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-C6049F40 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.001781",
+      "seconds": 4.767115600000019,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "deepseek",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-C6049F40"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "13 models (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: mistral Code goes to: https://api.mistral.ai Models: codestral-latest, zai-glm-5-2, zai-glm-5-3, ministral-3b-latest, ministral-8b-latest, mistral-large-2512, mistral-large-latest, mistral-medium-latest, mistral-medium-2604, magistral-medium-latest, mistral-small-2603, mistral-small-latest… | saw providers test says the key works: Key works · 55 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 2.4864712999999754,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: mistral Code goes to: https://api.mistral.ai Models: codestral-latest, zai-glm-5-2, zai-glm-5-3, ministral-3b-latest, ministral-8b-latest, mistral-large-2512, mistral-large-latest, mistral-medium-latest, mistral-medium-2604, magistral-medium-latest, mistral-small-2603, mistral-small-latest…"
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 55 models."
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "codestral-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-5AB8EF1D | saw the result names the model the person chose: rl-mistral/codestral-latest | saw one request was made and it cost more than nothing: 1 request(s), $0.000625 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000625",
+      "seconds": 1.7455141000000294,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-5AB8EF1D"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/codestral-latest"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000625 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "codestral-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-B4E04A62 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.001287",
+      "seconds": 2.6289777999999933,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-B4E04A62"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "zai-glm-5-2 (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-7C1B7BB2 | saw the result names the model the person chose: rl-mistral/zai-glm-5-2 | saw one request was made and it cost more than nothing: 1 request(s), $0.002864 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002864",
+      "seconds": 2.213685599999968,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-7C1B7BB2"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/zai-glm-5-2"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.002864 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "zai-glm-5-2 (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "MISSING the command ends with exit code 0: exit 4 | saw the file is on disk with the content asked for: RL-4BDBE5BD | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.001028",
+      "seconds": 2.6731046000000207,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "mistral",
+      "uncertainUsd": "1.498304",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": false,
+          "saw": "exit 4"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-4BDBE5BD"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Usage history could not be recorded",
+        "[warn] Session budget: a response ended without its usage; its remaining reservation of 0.1559014 USD counts as spent",
+        "[warn] Model API turn 0e1169db-bda9-4473-8278-3520bbb17d41 failed: Models & Agents is not available in this build.",
+        "[info] Failed; requests 2; settled $0.001028; uncertain $1.498304; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound."
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "zai-glm-5-3 (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-A497625B | saw the result names the model the person chose: rl-mistral/zai-glm-5-3 | saw one request was made and it cost more than nothing: 1 request(s), $0.002853 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002853",
+      "seconds": 2.4209968999999694,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-A497625B"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/zai-glm-5-3"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.002853 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "zai-glm-5-3 (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-985CB6C3 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.001430",
+      "seconds": 2.5960138000000152,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-985CB6C3"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "ministral-3b-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-A7EF1A5C | saw the result names the model the person chose: rl-mistral/ministral-3b-latest | saw one request was made and it cost more than nothing: 1 request(s), $0.000083 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000083",
+      "seconds": 1.8256307000000378,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-A7EF1A5C"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/ministral-3b-latest"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000083 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "ministral-3b-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-C74591DA | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000170",
+      "seconds": 2.2495731999999844,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-C74591DA"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "ministral-8b-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-1F335335 | saw the result names the model the person chose: rl-mistral/ministral-8b-latest | saw one request was made and it cost more than nothing: 1 request(s), $0.000207 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000207",
+      "seconds": 1.6363722999999881,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-1F335335"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/ministral-8b-latest"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000207 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "ministral-8b-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-AAA948E6 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000423",
+      "seconds": 2.579769800000009,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-AAA948E6"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "mistral-large-2512 (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-DDAA425B | saw the result names the model the person chose: rl-mistral/mistral-large-2512 | saw one request was made and it cost more than nothing: 1 request(s), $0.001042 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.001042",
+      "seconds": 2.4141908000000405,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-DDAA425B"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/mistral-large-2512"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.001042 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "mistral-large-2512 (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-5FF4DBA9 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.002145",
+      "seconds": 3.150669799999974,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-5FF4DBA9"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "mistral-large-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-9DD091B2 | saw the result names the model the person chose: rl-mistral/mistral-large-latest | saw one request was made and it cost more than nothing: 1 request(s), $0.001042 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.001042",
+      "seconds": 1.9681513000000268,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-9DD091B2"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/mistral-large-latest"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.001042 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "mistral-large-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-61A183C8 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.002147",
+      "seconds": 3.3013301000000213,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-61A183C8"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "mistral-medium-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "MISSING the command ends with exit code 0: exit 4 | MISSING the answer carries the word that was asked for: message withheld: the response did not complete | saw the result names the model the person chose: rl-mistral/mistral-medium-latest | MISSING one request was made and it cost more than nothing: 1 request(s), $0 of reported usage, $0.589824 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000000",
+      "seconds": 2.1354657000000006,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.589824",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": false,
+          "saw": "exit 4"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": false,
+          "saw": "message withheld: the response did not complete"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/mistral-medium-latest"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": false,
+          "saw": "1 request(s), $0 of reported usage, $0.589824 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Session budget: a response ended without its usage; its remaining reservation of 0.257703 USD counts as spent",
+        "[warn] Usage history could not be recorded",
+        "[warn] Model API turn 69225e4f-1bcc-4c13-9728-3d873719a027 failed: Models & Agents is not available in this build.",
+        "[info] Failed; requests 1; settled $0.000000; uncertain $0.589824; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound."
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "mistral-medium-2604 (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "MISSING the command ends with exit code 0: exit 4 | MISSING the answer carries the word that was asked for: message withheld: the response did not complete | saw the result names the model the person chose: rl-mistral/mistral-medium-2604 | MISSING one request was made and it cost more than nothing: 1 request(s), $0 of reported usage, $0.589824 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000000",
+      "seconds": 2.009058699999994,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.589824",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": false,
+          "saw": "exit 4"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": false,
+          "saw": "message withheld: the response did not complete"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/mistral-medium-2604"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": false,
+          "saw": "1 request(s), $0 of reported usage, $0.589824 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Session budget: a response ended without its usage; its remaining reservation of 0.2577 USD counts as spent",
+        "[warn] Usage history could not be recorded",
+        "[warn] Model API turn bf568804-ec0b-421e-ada2-880ac6f1b3b0 failed: Models & Agents is not available in this build.",
+        "[info] Failed; requests 1; settled $0.000000; uncertain $0.589824; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound."
+      ]
+    }
+  ],
+  "notRun": [
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "grok-4.20-0309-non-reasoning (OpenAI Responses (xAI))",
+      "vendor": "xai",
+      "surface": "exec",
+      "reason": "not run: the plain turn failed on this model, so nothing else that costs a request was tried"
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "grok-4.20-0309-reasoning (OpenAI Responses (xAI))",
+      "vendor": "xai",
+      "surface": "exec",
+      "reason": "not run: the plain turn failed on this model, so nothing else that costs a request was tried"
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "grok-4.7 (OpenAI Responses (xAI))",
+      "vendor": "xai",
+      "surface": "exec",
+      "reason": "not run: the plain turn failed on this model, so nothing else that costs a request was tried"
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "grok-build-0.1 (OpenAI Responses (xAI))",
+      "vendor": "xai",
+      "surface": "exec",
+      "reason": "not run: the plain turn failed on this model, so nothing else that costs a request was tried"
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "mistral-medium-latest (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: the plain turn failed on this model, so nothing else that costs a request was tried"
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "mistral-medium-2604 (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: $5.541720 is booked for requests that were sent and came back with no usage report: that may be real money, and the run stops at $5.000000 of it"
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "magistral-medium-latest (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: $5.541720 is booked for requests that were sent and came back with no usage report: that may be real money, and the run stops at $5.000000 of it"
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "magistral-medium-latest (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: $5.541720 is booked for requests that were sent and came back with no usage report: that may be real money, and the run stops at $5.000000 of it"
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "mistral-small-2603 (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: $5.541720 is booked for requests that were sent and came back with no usage report: that may be real money, and the run stops at $5.000000 of it"
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "mistral-small-2603 (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: $5.541720 is booked for requests that were sent and came back with no usage report: that may be real money, and the run stops at $5.000000 of it"
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "mistral-small-latest (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: $5.541720 is booked for requests that were sent and came back with no usage report: that may be real money, and the run stops at $5.000000 of it"
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "mistral-small-latest (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: $5.541720 is booked for requests that were sent and came back with no usage report: that may be real money, and the run stops at $5.000000 of it"
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "voxtral-small-latest (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: $5.541720 is booked for requests that were sent and came back with no usage report: that may be real money, and the run stops at $5.000000 of it"
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "voxtral-small-latest (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: $5.541720 is booked for requests that were sent and came back with no usage report: that may be real money, and the run stops at $5.000000 of it"
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "vendor": "meta",
+      "surface": "exec",
+      "reason": "not run: $5.541720 is booked for requests that were sent and came back with no usage report: that may be real money, and the run stops at $5.000000 of it"
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "vendor": "meta",
+      "surface": "exec",
+      "reason": "not run: $5.541720 is booked for requests that were sent and came back with no usage report: that may be real money, and the run stops at $5.000000 of it"
+    }
+  ],
+  "keysLeftInTheCredentialStore": [],
+  "corrections": [
+    "totals restated after the run: it had written heldUnsentUsd 5.541720 as \"turned away before sending\", a sum derived from the daily ledger's unsettled claims ($5.541720 in 6 claim(s)). Those claims are whole reservations of requests that were sent and came back with no usage. The run itself asked for 0 refusal(s) before sending (a Meta turn's read-back, which writes no claim)."
+  ]
+}

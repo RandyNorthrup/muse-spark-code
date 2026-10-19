@@ -1,0 +1,59 @@
+{
+  "route": "mistral",
+  "model": "mistral-small-2603",
+  "product": "muse-spark-code-acp 0.18.2",
+  "exec": {
+    "exit": 4,
+    "status": "failed",
+    "requests": 1,
+    "costUsd": {
+      "settled": "0",
+      "uncertain": "0.053146",
+      "reserved": "0",
+      "total": "0.053146",
+      "isUpperBound": true
+    },
+    "error": {
+      "kind": "failed",
+      "message": "Internal error: Models & Agents is not available in this build."
+    }
+  },
+  "fetches": [
+    {
+      "url": "https://api.mistral.ai/v1/chat/completions",
+      "query": [],
+      "method": "POST",
+      "requestHeaders": {
+        "accept": "text/event-stream",
+        "authorization": "<credential>",
+        "content-type": "application/json"
+      },
+      "requestBody": "{\"model\":\"mistral-small-2603\",\"messages\":[{\"role\":\"system\",\"content\":\"You are rlq-mistral/mistral-small-2603, served by rlq-mistral, a coding agent working inside Visual Studio Code through the Muse Spark Code (Unofficial) extension.\\n\\nThe workspace root is <run>\\\\ws on win32. Every path you give a tool is relative to it (or absolute inside it); paths outside the workspace are refused.\\n\\nUse the tools for everything that touches the workspace: read_file before editing a file, edit_file for changes inside a file (find must match exactly once), write_file to create or replace a file, search and list_files to look around.\\n\\nThere is no shell tool: the workspace is in VS Code's Restricted Mode, so commands cannot run until the user trusts it. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it.\\n\\nUse ask_user when you need a decision from the user; when you offer the user a choice between options, ask through ask_user instead of listing the options in prose. Use todo_write to keep a short task list while working on several steps.\\n\\nNever invent file contents or command output; report what the tools returned. Answer in GitHub-flavoured Markdown, briefly, with code in fenced blocks.\\n\\n# Environment\\n\\n- Today's date: 2026-10-12\\n- Git: not a repository, or git could not answer.\\n\\n# How to work\\n\\n- Read a file before editing it, and prefer edit_file over write_file for a file that exists. write_file replaces an existing file only after you have read it, and only if it has not changed since.\\n- Stay within what the user asked for: no extra features, refactors or files.\\n- Never create commits, branches or pushes unless the user asks for them.\\n- Refer to code as path:line so the user can open it.\\n- Keep answers short: lead with the outcome, then what changed and what is next.\\n- When something could not be verified, say so instead of guessing.\"},{\"role\":\"user\",\"content\":\"This is a connection check. Please confirm that you received this message by quoting its reference code back to me. The reference code is RL-PROBE01.\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"description\":\"Read a file from the workspace. A text file comes back numbered by line (use offset and limit for long files); a PDF or an image (PNG, JPEG, GIF, WebP) comes back whole, for you to see.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Workspace-relative path\"},\"offset\":{\"type\":\"integer\",\"description\":\"1-based first line to return\"},\"limit\":{\"type\":\"integer\",\"description\":\"Maximum lines to return\"}},\"required\":[\"path\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"edit_file\",\"description\":\"Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique. Pass `edits` (a list of `find`/`replace` pairs) instead for several replacements in one call: every entry must match exactly once, entries must not overlap, and either all of them are applied or none is.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Workspace-relative path\"},\"find\":{\"type\":\"string\",\"description\":\"The exact text to replace\"},\"replace\":{\"type\":\"string\",\"description\":\"The replacement text\"},\"edits\":{\"type\":\"array\",\"description\":\"Several replacements, applied together or not at all\",\"items\":{\"type\":\"object\",\"properties\":{\"find\":{\"type\":\"string\",\"description\":\"The exact text to replace\"},\"replace\":{\"type\":\"string\",\"description\":\"The replacement text\"}},\"required\":[\"find\",\"replace\"]}}},\"required\":[\"path\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"write_file\",\"description\":\"Create or overwrite a file with the given content.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Workspace-relative path\"},\"content\":{\"type\":\"string\"}},\"required\":[\"path\",\"content\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"search\",\"description\":\"Search file contents with a regular expression, optionally within files matching a glob.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"JavaScript regular expression\"},\"glob\":{\"type\":\"string\",\"description\":\"Only files matching this glob, e.g. src/**/*.ts\"},\"output_mode\":{\"type\":\"string\",\"enum\":[\"content\",\"files_with_matches\",\"count\"],\"description\":\"content (default): matching lines; files_with_matches: paths; count: matches per file\"},\"max_results\":{\"type\":\"integer\"}},\"required\":[\"pattern\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"list_files\",\"description\":\"List workspace files, optionally those matching a glob.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"glob\":{\"type\":\"string\"},\"limit\":{\"type\":\"integer\"}},\"required\":[],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"ask_user\",\"description\":\"Ask the user one or more questions and wait for the answers. Use it for decisions only the user can make.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"questions\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"header\":{\"type\":\"string\",\"description\":\"Short label (a few words)\"},\"question\":{\"type\":\"string\"},\"selection\":{\"type\":\"object\",\"properties\":{\"mode\":{\"type\":\"string\",\"enum\":[\"single\",\"multiple\"]}},\"required\":[\"mode\"]},\"options\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\"},\"description\":{\"type\":\"string\"}},\"required\":[\"label\"]}}},\"required\":[\"id\",\"header\",\"question\",\"selection\",\"options\"]}}},\"required\":[\"questions\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"todo_write\",\"description\":\"Replace your task list, shown to the user while you work.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"items\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"},\"status\":{\"type\":\"string\",\"enum\":[\"pending\",\"inProgress\",\"completed\"]},\"activeForm\":{\"type\":\"string\",\"description\":\"Present-tense form shown while in progress\"}},\"required\":[\"text\",\"status\"]}}},\"required\":[\"items\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"create_goal\",\"description\":\"Start a session goal only when requested. Fails if this session already has an unfinished goal; the failure message names the way out.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"objective\":{\"type\":\"string\",\"description\":\"What the goal is done by, in a sentence\"},\"token_budget\":{\"type\":\"integer\",\"description\":\"Optional: the tokens the goal may use before it stops\"}},\"required\":[\"objective\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"get_goal\",\"description\":\"Read the active session goal and progress. Returns {\\\"goal\\\": null} when no goal is set. Do not call to orient yourself, to check whether a goal exists, or on a greeting; only call when you are already working on an explicit goal and need its current state.\",\"parameters\":{\"type\":\"object\",\"properties\":{},\"required\":[],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"update_goal\",\"description\":\"Mark the active goal complete or blocked. Use complete only when no required work remains.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\",\"enum\":[\"complete\",\"blocked\"],\"description\":\"The terminal goal status to set\"}},\"required\":[\"status\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"report_progress\",\"description\":\"Report active goal progress. percent_complete=100 is equivalent to update_goal(status=\\\"complete\\\").\",\"parameters\":{\"type\":\"object\",\"properties\":{\"current_work\":{\"type\":\"string\",\"description\":\"What you are doing now\"},\"next_work\":{\"type\":\"string\",\"description\":\"What comes next\"},\"percent_complete\":{\"type\":\"integer\",\"description\":\"From 0 to 100\"}},\"required\":[\"current_work\",\"next_work\",\"percent_complete\"],\"additionalProperties\":false}}}],\"tool_choice\":\"auto\",\"stream\":true,\"stream_options\":{\"include_usage\":true},\"max_tokens\":32768,\"reasoning_effort\":\"high\"}",
+      "status": 200,
+      "statusText": "OK",
+      "responseHeaders": {
+        "access-control-allow-origin": "*",
+        "alt-svc": "h3=\":443\"; ma=86400",
+        "cf-cache-status": "DYNAMIC",
+        "cf-ray": "a49aaabd1f9498ae-SJC",
+        "connection": "keep-alive",
+        "content-type": "text/event-stream; charset=utf-8",
+        "date": "Tue, 13 Oct 2026 01:45:48 GMT",
+        "mistral-correlation-id": "01a132ef-f285-7ef0-9578-94239d3945b8",
+        "server": "cloudflare",
+        "set-cookie": "<credential>",
+        "strict-transport-security": "max-age=15552000; includeSubDomains; preload",
+        "transfer-encoding": "chunked",
+        "x-content-type-options": "nosniff",
+        "x-envoy-upstream-service-time": "274",
+        "x-kong-proxy-latency": "15",
+        "x-kong-request-id": "01a132ef-f285-7ef0-9578-94239d3945b8",
+        "x-kong-upstream-latency": "275",
+        "x-max-retry-attempts-reached": "false"
+      },
+      "responseBody": "data: {\"id\":\"6e0b06ee004b46c38c25002b9d58c56d\",\"object\":\"chat.completion.chunk\",\"created\":1791855948,\"model\":\"mistral-small-2603\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"6e0b06ee004b46c38c25002b9d58c56d\",\"object\":\"chat.completion.chunk\",\"created\":1791855948,\"model\":\"mistral-small-2603\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\"},\"finish_reason\":null}],\"p\":\"abcdefghijklmnopqrstuvwxyz0123456789\"}\n\ndata: {\"id\":\"6e0b06ee004b46c38c25002b9d58c56d\",\"object\":\"chat.completion.chunk\",\"created\":1791855948,\"model\":\"mistral-small-2603\",\"choices\":[{\"index\":0,\"delta\":{\"content\":[{\"type\":\"thinking\",\"thinking\":[{\"type\":\"text\",\"text\":\"The\"}]}]},\"finish_reason\":null}],\"p\":\"abcdefghijklm\"}\n\n",
+      "responseBytes": 743,
+      "responseEnd": "cut: This operation was aborted"
+    }
+  ]
+}

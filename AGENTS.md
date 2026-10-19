@@ -130,13 +130,22 @@ above.
    green on the commit that merges, and a red job is read and its cause
    measured, never rerun into green. Local runs are for fast feedback: format,
    lint, typecheck, the suites you touched and the packed product itself
-   (its commands, its help, its errors, its files on disk). Before a release,
-   real conversations go through the packed product in the real-life run
-   (CONTRIBUTING.md, "Before you open a pull request"). Never weaken a gate
-   (rule levels, ignores) to get green; fix the code or record a justified
-   deferral in `PLAN.md` §7. An exact-size assertion may move with the
-   measured number and a one-line reason in the same change. A limit on what
-   the product does follows the standing rule above (models only).
+   (its commands, its help, its errors, its files on disk). The product's test
+   is the real-life run (the owner, 2026-10-12: "test the app in real life
+   thats the tests"; nothing is tested against fake code):
+   `node scripts/real-life/run.mjs` installs the packed candidate into a new
+   empty folder and uses it as a person and an editor do, against real
+   providers on their cheapest models (`docs/testing/real-life.md`). Before a
+   release, real conversations go through it (CONTRIBUTING.md, "Before you
+   open a pull request"); its record is the release's gate and the proof
+   behind every claim. It spends real money on the owner's standing word:
+   state the requests it may make and its dollar cap first, run it in an
+   empty workspace, count afterwards and report; buying credits is the
+   owner's. Never weaken a gate (thresholds, rule levels, ignores) to get
+   green; fix the code or record a justified deferral in `PLAN.md` §7. An
+   exact-size assertion may move with the measured number and a one-line
+   reason in the same change. A limit on what the product does follows the
+   standing rule above (models only).
 3. **Prove new gates and tests fire.** A test or lint rule that has never been
    seen to fail is a decoration. Break the thing on purpose, watch it fail,
    revert, and note it in the milestone's certification record under
@@ -570,6 +579,13 @@ scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
                       changelog notes, What's New's content (lib/), VS Code
                       versions for CI, the ACP
                       agent's package
+scripts/real-life/    the real-life run: the packed product installed into a
+                      new empty folder and used for real, by the terminal
+                      agent and the editor protocol (run.mjs, lib/, one
+                      small file per scenario in scenarios/)
+docs/testing/         real-life.md (what the run is, how to run it, what it
+                      costs, how to add a scenario); real-life/<version>/
+                      holds a release's records
 docs/certification/   per-milestone gate-fire records and screenshots
 docs/plan-archive/    closed history moved out of PLAN.md, byte for byte
                       (decisions.md, milestones.md, gates.md); each passage
@@ -620,6 +636,7 @@ media/                icons, banner, social preview, README screenshots
 | Production build + size budget | `npm run build`                                      |
 | Package `.vsix`                | `npm run package`                                    |
 | Package the ACP agent (D62)    | `npm run package:acp`                                |
+| The real-life run              | `npm run real-life -- --list` (docs/testing)         |
 | Exec schemas (M80)             | `npm run schema:exec` (`-- --check`)                 |
 | Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>`            |
 | Host checks (hosts.yml)        | `sh test/hosts/<script>.sh`                          |
