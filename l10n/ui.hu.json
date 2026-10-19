@@ -1949,6 +1949,7 @@
     "footer": "Megjelenítő {version}; ICU {icu}; nyelv {locale}",
     "notFound": "Nem található: {id}. Legközelebbi egyezések: {nearest}",
     "generationFailed": "A jelentés nem hozható létre.",
+    "gitXcodeStub": "A Git nem futtatható ezen a Macen: az Apple Xcode-helyőrzőjére mutat, amelynek fejlesztőeszközei nem tudnak elindulni. Telepítse a Command Line Tools eszközt (xcode-select --install), vagy váltson át a telepített eszközökre (sudo xcode-select --switch /Library/Developer/CommandLineTools), majd próbálja újra.",
     "noHistory": "Még nincs jelentéselőzmény.",
     "networkOff": "A jelentések hálózati forrásai ki vannak kapcsolva.",
     "signInRequired": "A forrás olvasásához jelentkezzen be a GitHubra.",

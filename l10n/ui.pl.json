@@ -2009,6 +2009,7 @@
     "footer": "Moduł renderowania {version}; ICU {icu}; język {locale}",
     "notFound": "Nie znaleziono: {id}. Najbliższe dopasowania: {nearest}",
     "generationFailed": "Nie udało się wygenerować raportu.",
+    "gitXcodeStub": "Git nie może działać na tym Macu: wskazuje na zaślepkę Xcode firmy Apple, której narzędzia deweloperskie nie mogą się uruchomić. Zainstaluj Command Line Tools (xcode-select --install) albo przełącz się na zainstalowane narzędzia (sudo xcode-select --switch /Library/Developer/CommandLineTools), a następnie spróbuj ponownie.",
     "noHistory": "Brak historii raportów.",
     "networkOff": "Sieciowe źródła raportów są wyłączone.",
     "signInRequired": "Zaloguj się do GitHub, aby odczytać to źródło.",

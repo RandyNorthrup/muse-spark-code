@@ -4,6 +4,7 @@ import {
   GIT_METADATA_OPTIONS,
   REPORT_GIT_MAX_COMMITS,
   REPORT_MAX_TEXT_CHARS,
+  XCODE_STUB_GIT_EXIT_CODE,
 } from '../../../shared/constants'
 import {
   codeUnitCompare,
@@ -16,6 +17,51 @@ import type { GitFacts } from './types'
 
 export interface ReportGitIo {
   run(args: readonly string[], signal: AbortSignal): Promise<{ stdout: string; code: number }>
+}
+
+/**
+ * The resolved git is Apple's Xcode stub whose developer tools cannot start:
+ * the file exists on PATH, but no git command can run. A boolean brand, not
+ * `instanceof`: the report IO runs in the runtime bundle while this source
+ * reads in the lazy inputs bundle, and each carries its own copy of this
+ * class (as with LocalSourceError, C-M113-2).
+ */
+export class XcodeStubGitError extends Error {
+  readonly isXcodeStubGitError = true
+  public constructor() {
+    super('xcode-stub-git')
+    this.name = 'XcodeStubGitError'
+  }
+}
+
+export function isXcodeStubGitError(value: unknown): value is XcodeStubGitError {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'isXcodeStubGitError' in value &&
+    value.isXcodeStubGitError === true
+  )
+}
+
+/**
+ * Whether a failed git call is the Xcode stub refusing to run: on a Mac, the
+ * stub's exit code together with its xcodebuild/xcode-select complaint. The
+ * recorded shape (2026-10-18, `/usr/bin/git --version` on a Mac whose
+ * developer directory points at a missing Xcode): exit 71 with "couldn't
+ * spawn '.../xcodebuild'", "unable to locate xcodebuild" and the
+ * `xcode-select -switch` hint on stderr. A bare code match would misdiagnose
+ * a genuine git failure, so the complaint is required.
+ */
+export function isXcodeStubGitFailure(
+  platform: NodeJS.Platform,
+  code: number | undefined,
+  stderr: string,
+): boolean {
+  return (
+    platform === 'darwin' &&
+    code === XCODE_STUB_GIT_EXIT_CODE &&
+    /xcode(?:build|-select)/iu.test(stderr)
+  )
 }
 const shaSchema = z.string().check(z.regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u))
 const atSchema = z.iso.datetime({ offset: true })
@@ -68,7 +114,15 @@ export function gitSource(io: ReportGitIo, scrub: SourceScrub, roots: readonly s
   return localSource('git', async ({ signal, reportText }) => {
     const run = async (args: readonly string[]) => {
       signal.throwIfAborted()
-      return await io.run([...GIT_METADATA_OPTIONS, ...args], signal)
+      try {
+        return await io.run([...GIT_METADATA_OPTIONS, ...args], signal)
+      } catch (error) {
+        // The stub diagnosis owns its wording: the record names the cause
+        // and the fix instead of a raw exit code.
+        if (isXcodeStubGitError(error))
+          throw new LocalSourceError('failed', reportText.reportUi.gitXcodeStub)
+        throw error
+      }
     }
     const required = async (args: readonly string[]) => {
       const result = await run(args)

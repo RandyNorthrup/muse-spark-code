@@ -2009,6 +2009,7 @@
     "footer": "Vykreslovač {version}; ICU {icu}; jazyk {locale}",
     "notFound": "Nenalezeno: {id}. Nejbližší shody: {nearest}",
     "generationFailed": "Zprávu se nepodařilo vytvořit.",
+    "gitXcodeStub": "Git nelze na tomto Macu spustit: odkazuje na zástupný program Xcode společnosti Apple, jehož vývojářské nástroje nelze spustit. Nainstalujte Command Line Tools (xcode-select --install), nebo přepněte na nainstalované nástroje (sudo xcode-select --switch /Library/Developer/CommandLineTools) a zkuste to znovu.",
     "noHistory": "Historie zpráv je zatím prázdná.",
     "networkOff": "Síťové zdroje zpráv jsou vypnuté.",
     "signInRequired": "Pro čtení tohoto zdroje se přihlaste ke GitHubu.",

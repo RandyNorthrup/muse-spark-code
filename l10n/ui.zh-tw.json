@@ -1919,6 +1919,7 @@
     "footer": "轉譯器 {version}；ICU {icu}；地區設定 {locale}",
     "notFound": "找不到：{id}。最接近的結果：{nearest}",
     "generationFailed": "無法產生報告。",
+    "gitXcodeStub": "Git無法在此Mac上執行：它指向Apple的Xcode stub，而其開發者工具無法啟動。請安裝Command Line Tools（xcode-select --install），或切換到已安裝的工具（sudo xcode-select --switch /Library/Developer/CommandLineTools），然後重試。",
     "noHistory": "尚無報告歷程記錄。",
     "networkOff": "報告的網路來源已關閉。",
     "signInRequired": "登入 GitHub 後才能讀取此來源。",

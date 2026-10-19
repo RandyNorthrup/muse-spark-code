@@ -1919,6 +1919,7 @@
     "footer": "渲染器 {version}；ICU {icu}；语言区域 {locale}",
     "notFound": "未找到：{id}。最接近的匹配：{nearest}",
     "generationFailed": "无法生成报告。",
+    "gitXcodeStub": "Git无法在此Mac上运行：它指向Apple的Xcode存根，而其开发者工具无法启动。请安装Command Line Tools（xcode-select --install），或切换到已安装的工具（sudo xcode-select --switch /Library/Developer/CommandLineTools），然后重试。",
     "noHistory": "暂无报告历史记录。",
     "networkOff": "报告的网络来源已关闭。",
     "signInRequired": "登录 GitHub 后才能读取此来源。",
