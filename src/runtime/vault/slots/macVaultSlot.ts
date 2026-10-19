@@ -1,4 +1,3 @@
-import * as z from 'zod/mini'
 import { UI_TEXT, VAULT_FORMAT_VERSION, VAULT_LIMITS } from '../../../shared/constants'
 import {
   vaultSlotRecordSchema,
@@ -13,27 +12,7 @@ import {
   type MacVaultTransport,
 } from './macVaultProtocol'
 import { wrapSlotKey } from './slotWrap'
-
-/** C supplies authenticated slot identity and generation metadata; P owns wrapping only. */
-interface MacSlotContext {
-  readonly id: string
-  readonly vaultId: string
-  readonly lastGeneration: number
-  readonly auditGeneration: number
-  readonly auditHead: string
-  readonly createdAt: number
-}
-
-const slotId = z.string().check(z.regex(/^[a-f0-9]{32}$/u))
-const generation = z.number().check(z.int(), z.nonnegative())
-const contextSchema = z.strictObject({
-  id: slotId,
-  vaultId: slotId,
-  lastGeneration: generation,
-  auditGeneration: generation,
-  auditHead: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
-  createdAt: generation,
-})
+import { slotContextSchema, type SlotContext } from './slotEntries'
 
 function hasSameIdentity(container: MacVaultContainer, identity: MacVaultIdentity): boolean {
   return (
@@ -45,13 +24,13 @@ function hasSameIdentity(container: MacVaultContainer, identity: MacVaultIdentit
 
 /** Shared by every editor: inject the trusted packaged helper transport at binding. */
 export class MacVaultSlot implements VaultSlotPort {
-  private readonly context: MacSlotContext
+  private readonly context: SlotContext
   constructor(
     readonly tier: 'osStore' | 'hardware' | 'presence',
-    context: MacSlotContext,
+    context: SlotContext,
     private readonly transport: MacVaultTransport,
   ) {
-    const parsed = contextSchema.safeParse(context)
+    const parsed = slotContextSchema.safeParse(context)
     if (!parsed.success) throw new Error(UI_TEXT.vault.useChanged)
     this.context = parsed.data
   }

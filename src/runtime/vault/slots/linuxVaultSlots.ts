@@ -1,9 +1,14 @@
-import { VAULT_LIMITS } from '../../../shared/constants'
 import { VaultError } from '../../../core/vault/crypto'
 import type { VaultSlotProvider } from '../../../core/vault/broker/repository'
 import type { VaultSlotRecord } from '../../../shared/vault'
-import { OsStoreVaultSlot } from './osStoreVaultSlot'
+import { type OsStoreVaultSlot } from './osStoreVaultSlot'
 import { LinuxTpm2Slot, linuxTpm2Capabilities, type LinuxTpm2Runner } from './linuxTpm2Slot'
+import {
+  freshOsStoreSlot,
+  freshSlotEntry,
+  openOsStoreSlot,
+  slotEntryFromRecord,
+} from './slotEntries'
 
 type OpenEntry = ConstructorParameters<typeof OsStoreVaultSlot>[2]
 
@@ -30,60 +35,16 @@ export class LinuxVaultSlots implements VaultSlotProvider {
   }
   slotFor(record: VaultSlotRecord): OsStoreVaultSlot | LinuxTpm2Slot | null {
     if (record.tier === 'osStore' && record.provider === 'secretService')
-      return new OsStoreVaultSlot(
-        {
-          id: record.id,
-          vaultId: record.vaultId,
-          lastGeneration: record.lastGeneration,
-          auditGeneration: record.auditGeneration,
-          auditHead: record.auditHead,
-          createdAt: record.createdAt,
-        },
-        this.platform,
-        this.deps.open,
-      )
-    if (record.tier === 'hardware' && record.provider === 'linuxTpm2')
-      return new LinuxTpm2Slot(
-        {
-          id: record.id,
-          vaultId: record.vaultId,
-          lastGeneration: record.lastGeneration,
-          auditGeneration: record.auditGeneration,
-          auditHead: record.auditHead,
-          createdAt: record.createdAt,
-        },
-        this.deps.runner,
-        this.platform,
-      )
-    return null
+      return openOsStoreSlot(record, this.platform, this.deps.open)
+    return record.tier === 'hardware' && record.provider === 'linuxTpm2'
+      ? new LinuxTpm2Slot(slotEntryFromRecord(record), this.deps.runner, this.platform)
+      : null
   }
   osStore(vaultId: string, slotId: string): OsStoreVaultSlot {
-    return new OsStoreVaultSlot(
-      {
-        id: slotId,
-        vaultId,
-        lastGeneration: 0,
-        auditGeneration: 0,
-        auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
-        createdAt: Date.now(),
-      },
-      this.platform,
-      this.deps.open,
-    )
+    return freshOsStoreSlot(vaultId, slotId, this.platform, this.deps.open)
   }
   hardware(vaultId: string, slotId: string): LinuxTpm2Slot {
-    return new LinuxTpm2Slot(
-      {
-        id: slotId,
-        vaultId,
-        lastGeneration: 0,
-        auditGeneration: 0,
-        auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
-        createdAt: Date.now(),
-      },
-      this.deps.runner,
-      this.platform,
-    )
+    return new LinuxTpm2Slot(freshSlotEntry(vaultId, slotId), this.deps.runner, this.platform)
   }
   /** The TPM2 slot where the device opens and systemd seals, else null. */
   async hardwareIfAvailable(vaultId: string, slotId: string): Promise<LinuxTpm2Slot | null> {

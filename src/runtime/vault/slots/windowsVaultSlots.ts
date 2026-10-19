@@ -1,8 +1,12 @@
-import { UI_TEXT, VAULT_LIMITS } from '../../../shared/constants'
+import {
+  freshSlotEntry,
+  hardwareSlotIfAvailable,
+  presenceGate,
+  slotEntryFromRecord,
+} from './slotEntries'
 import { VaultError } from '../../../core/vault/crypto'
 import type { VaultSlotProvider } from '../../../core/vault/broker/repository'
-import type { VaultSlotRecord, VaultUse } from '../../../shared/vault'
-import { type vaultPrivateReadSchema } from '../../../shared/vaultProtocol'
+import type { VaultSlotRecord } from '../../../shared/vault'
 import {
   WindowsVaultSlot,
   windowsVaultProtectionFacts,
@@ -21,6 +25,16 @@ import type { PresenceRecords } from './slotIdentity'
  */
 export class WindowsVaultSlots implements VaultSlotProvider {
   private readonly transport: ReturnType<typeof windowsVaultTransport>
+  /**
+   * A fresh Windows Hello signature over a new challenge: the helper prompts
+   * (naming this exact use) and the signature is verified against the
+   * presence slot's key before the operation proceeds.
+   */
+  readonly presence: VaultSlotProvider['presence'] = presenceGate(
+    () => this.deps.presenceRecords,
+    'windowsTpm',
+    (record) => new WindowsVaultSlot('presence', slotEntryFromRecord(record), this.transport),
+  )
   constructor(
     private readonly helper: WindowsVaultExecutable,
     private readonly deps: {
@@ -33,94 +47,22 @@ export class WindowsVaultSlots implements VaultSlotProvider {
     this.transport = windowsVaultTransport(helper)
   }
   slotFor(record: VaultSlotRecord): WindowsVaultSlot | null {
-    if (
-      (record.tier === 'osStore' && record.provider === 'windowsDpapi') ||
+    return (record.tier === 'osStore' && record.provider === 'windowsDpapi') ||
       ((record.tier === 'hardware' || record.tier === 'presence') &&
         record.provider === 'windowsTpm')
-    )
-      return new WindowsVaultSlot(
-        record.tier,
-        {
-          id: record.id,
-          vaultId: record.vaultId,
-          lastGeneration: record.lastGeneration,
-          auditGeneration: record.auditGeneration,
-          auditHead: record.auditHead,
-          createdAt: record.createdAt,
-        },
-        this.transport,
-      )
-    return null
+      ? new WindowsVaultSlot(record.tier, slotEntryFromRecord(record), this.transport)
+      : null
   }
   osStore(vaultId: string, slotId: string): WindowsVaultSlot {
-    return new WindowsVaultSlot(
-      'osStore',
-      {
-        id: slotId,
-        vaultId,
-        lastGeneration: 0,
-        auditGeneration: 0,
-        auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
-        createdAt: Date.now(),
-      },
-      this.transport,
-    )
+    return new WindowsVaultSlot('osStore', freshSlotEntry(vaultId, slotId), this.transport)
   }
   /** The CNG TPM slot where the helper reports it, else null. */
   async hardwareIfAvailable(vaultId: string, slotId: string): Promise<WindowsVaultSlot | null> {
-    if ((this.deps.platform ?? process.platform) !== 'win32') return null
-    try {
-      const facts = await windowsVaultProtectionFacts(this.transport)
-      if (!facts.hardwareAvailable) return null
-      return new WindowsVaultSlot(
-        'hardware',
-        {
-          id: slotId,
-          vaultId,
-          lastGeneration: 0,
-          auditGeneration: 0,
-          auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
-          createdAt: Date.now(),
-        },
-        this.transport,
-      )
-    } catch {
-      return null
-    }
-  }
-  /**
-   * A fresh Windows Hello signature over a new challenge: the helper prompts
-   * (naming this exact use) and the signature is verified against the
-   * presence slot's key before the operation proceeds.
-   */
-  async presence(
-    _itemId: string,
-    _challenge: string,
-    _use: VaultUse | ReturnType<typeof vaultPrivateReadSchema.parse>,
-  ): Promise<boolean> {
-    try {
-      const records = (await this.deps.presenceRecords?.()) ?? []
-      const record = records.find(
-        (candidate) => candidate.tier === 'presence' && candidate.provider === 'windowsTpm',
-      )
-      if (!record) return false
-      const slot = new WindowsVaultSlot(
-        'presence',
-        {
-          id: record.id,
-          vaultId: record.vaultId,
-          lastGeneration: record.lastGeneration,
-          auditGeneration: record.auditGeneration,
-          auditHead: record.auditHead,
-          createdAt: record.createdAt,
-        },
-        this.transport,
-      )
-      await slot.unwrap(record, UI_TEXT.vault.presenceWarning)
-      return true
-    } catch {
-      return false
-    }
+    return await hardwareSlotIfAvailable(
+      (this.deps.platform ?? process.platform) === 'win32',
+      () => windowsVaultProtectionFacts(this.transport),
+      () => new WindowsVaultSlot('hardware', freshSlotEntry(vaultId, slotId), this.transport),
+    )
   }
   onScreenLock(listener: () => void): () => void {
     // Abort during the wait rejects the exchange (return above); after it
