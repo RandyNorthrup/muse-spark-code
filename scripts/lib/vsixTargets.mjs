@@ -2,7 +2,11 @@
 // the release ships, which native files each target's package keeps, and
 // the artifact filename each is packed under. `native/runner/*` ships in
 // every target because the SSH runner copies the helper to the remote
-// side; everything not named below ships everywhere.
+// side; everything not named below ships everywhere. Beside the six, the
+// release ships the untargeted universal package (no `--target`): VS Code
+// serves it as the fallback on every platform without its own package
+// (Alpine, linux-armhf and any later one), exactly what those servers ran
+// before. It carries every allowlisted helper and meets the same budget.
 export const VSIX_TARGETS = [
   'win32-x64',
   'win32-arm64',
@@ -30,6 +34,13 @@ export function targetFromArgs(argv) {
 export function vsixArtifactName(name, version, target) {
   if (!VSIX_TARGETS.includes(target)) throw new Error(`Unknown VSIX target: ${target}`)
   return `${name}-${target}-${version}.vsix`
+}
+
+// vsce's own filename for the untargeted universal package:
+// `<name>-<version>.vsix`. The release ships it beside the six targeted
+// packages as the fallback for platforms without their own target.
+export function vsixFallbackName(name, version) {
+  return `${name}-${version}.vsix`
 }
 
 // The target a packed artifact was built for, from vsce's filename above;

@@ -5,7 +5,7 @@ import { appendFileSync, existsSync, readFileSync, readdirSync, writeFileSync } 
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
-import { VSIX_TARGETS, vsixArtifactName } from './lib/vsixTargets.mjs'
+import { VSIX_TARGETS, vsixArtifactName, vsixFallbackName } from './lib/vsixTargets.mjs'
 
 const SHA = z.string().regex(/^[a-f\d]{40}$/)
 const REPOSITORY = z.object({ full_name: z.string() })
@@ -46,11 +46,13 @@ function execute(command, args) {
 function sha256(file) {
   return createHash('sha256').update(readFileSync(file)).digest('hex')
 }
-// One package per platform (PLAN.md D123): the release carries every
-// target's VSIX beside the agent tarball and the SBOMs.
+// One package per platform (PLAN.md D123) plus the universal fallback:
+// the release carries every target's VSIX and the untargeted VSIX beside
+// the agent tarball and the SBOMs.
 function assetNames(version) {
   return [
     ...VSIX_TARGETS.map((target) => vsixArtifactName('muse-spark-code', version, target)),
+    vsixFallbackName('muse-spark-code', version),
     `muse-spark-code-acp-${version}.tgz`,
     'muse-spark-code.cdx.json',
     'muse-spark-code-acp.cdx.json',
@@ -175,19 +177,18 @@ export function verifyBuild(directory, tree, version, run = execute, isLegacyRec
       throw new Error('asset SHA-256 mismatch')
   }
   // Every target's package carries the release's own manifest: same name
-  // and version in each, so no target ships a stale or foreign build.
-  for (const target of VSIX_TARGETS) {
+  // and version in each, so no target ships a stale or foreign build. The
+  // universal fallback carries it too.
+  const fallback = vsixFallbackName('muse-spark-code', version)
+  for (const [label, file] of [
+    ...VSIX_TARGETS.map((target) => [target, vsixArtifactName('muse-spark-code', version, target)]),
+    ['universal', fallback],
+  ]) {
     const vsix = MANIFEST.parse(
-      JSON.parse(
-        run('unzip', [
-          '-p',
-          path.join(directory, vsixArtifactName('muse-spark-code', version, target)),
-          'extension/package.json',
-        ]),
-      ),
+      JSON.parse(run('unzip', ['-p', path.join(directory, file), 'extension/package.json'])),
     )
     if (vsix.version !== version || vsix.name !== 'muse-spark-code') {
-      throw new Error(`package version or identity mismatch: ${target}`)
+      throw new Error(`package version or identity mismatch: ${label}`)
     }
   }
   const acp = MANIFEST.parse(
