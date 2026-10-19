@@ -1294,7 +1294,7 @@ Attach files by selecting or dropping them, and paste images into the composer. 
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.scheduleDefaultDelivery`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
+Commands: —. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.scheduleDefaultDelivery`, `museSpark.schedulePauseAfterFailures`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
 
 ### Runtime schedules
 
@@ -2397,6 +2397,20 @@ Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
 - `"queue"`:
 - `"whenIdle"`:
 - `"newConversation"`:
+
+### museSpark.schedulePauseAfterFailures
+
+scheduleDeliveryCertified=true: How many consecutive failures pause a schedule. No pause unless you set one: 0 (the default) never pauses a schedule on failures, and every failure is still recorded in its run history.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
 
 ### museSpark.modelApiSubagents
 

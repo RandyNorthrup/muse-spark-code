@@ -164,6 +164,7 @@
   "config.schedules.description": "控制 Muse Code 聊天中的 /loop。计划提示的发送需要认证。",
   "config.schedules.defaultDelivery.description": "选择写入新计划草稿的交付方式；不会启用计划执行。",
   "config.schedules.agentCreation.description": "为兼容性保留；此偏好设置在此构建中不起作用。",
+  "config.schedulePauseAfterFailures.description": "使日程暂停的连续失败次数。不设置则从不暂停：0（默认值）表示失败时从不暂停日程，所有失败仍会记录在其运行历史中。",
   "command.tabLanguages.title": "Tab 语言",
   "command.openPullRequestInConversation.title": "在对话中打开拉取请求…",
   "config.judge.engine.description": "`auto`（您自己的聊天模型；第1阶段即`same`）和`same`只能给没有规则决定的有风险的Auto操作增加谨慎：就绪的提醒会将允许变为提问，或在审批卡上添加备注。`off`不运行评判器。在Model API后端，每次评判计入您的密钥并先询问一次；在Muse Code上改走您的订阅。",

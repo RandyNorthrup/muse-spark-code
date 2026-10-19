@@ -2606,6 +2606,10 @@ Its host defaults are `museSpark.scheduleDefaultDelivery` (`whenIdle`) and
 avoid VS Code's scalar-parent conflict; the reader still validates previous
 `schedules.defaultDelivery` and `schedules.agentCreation` values when a new key
 is absent. Paid consent and the shared daily budget still apply.
+A schedule never pauses itself on failures unless you set
+`museSpark.schedulePauseAfterFailures` (`0`, the default, keeps firing and
+every failure stays in its run history); a set count pauses the schedule
+after that many failures in a row.
 
 The v2 commands (**Schedule this prompt…**, **Show schedules** and
 **Show schedule timeline**) are not in the Command Palette yet: they stay

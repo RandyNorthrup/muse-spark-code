@@ -11,6 +11,9 @@ happened, not what was planned; superseded entries are kept.
 - `scan-secrets` runs with no deadline of ours: the scan continues until it
   finishes or a signal stops it, and a caller that wants a deadline (such as
   CI) sets one per run with `--timeout <seconds>`.
+- Schedules never pause themselves on failures: `museSpark.schedulePauseAfterFailures`
+  (`0`, the default) keeps firing with every failure in the run history, and a
+  set count pauses the schedule after that many consecutive failures.
 - The schedules bundle defers its editor-delivery binding: `dist/schedules.js`
   is 179,540 B against its 250 KiB budget, and the binding (workspace
   targets, run dispatch, grant checks) loads as the new

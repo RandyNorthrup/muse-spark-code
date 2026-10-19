@@ -164,6 +164,7 @@
   "config.schedules.description": "Ovládá /loop v chatu Muse Code. Doručování plánovaných výzev vyžaduje certifikaci.",
   "config.schedules.defaultDelivery.description": "Volí způsob doručení zapsaný do nových návrhů plánů; nepovoluje naplánované spouštění.",
   "config.schedules.agentCreation.description": "Uloženo kvůli kompatibilitě; tato předvolba nemá v tomto sestavení žádný účinek.",
+  "config.schedulePauseAfterFailures.description": "Kolik po sobě jdoucích selhání pozastaví plán. Bez nastavené hodnoty se nepozastavuje: 0 (výchozí hodnota) nikdy nepozastaví plán kvůli selháním a každé selhání zůstane v historii běhů.",
   "command.tabLanguages.title": "Jazyky Tab",
   "command.openPullRequestInConversation.title": "Otevřít žádost o přijetí změn v konverzaci…",
   "config.judge.engine.description": "`auto` (váš vlastní chatovací model; ve fázi 1 `same`) a `same` mohou k rizikové akci Auto, kterou nerozhodne žádné pravidlo, jen přidat opatrnost: připravená výstraha změní povolení na dotaz nebo na poznámku na schvalovací kartě. `off` žádného posuzovatele nespouští. Na back-endu Model API se každé posouzení účtuje vašemu klíči a nejprve se jednou zeptá; na Muse Code běží na vaše předplatné.",

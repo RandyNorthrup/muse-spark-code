@@ -684,6 +684,9 @@ export const SETTING_DEFAULTS = {
   schedules: ARE_SCHEDULES_ON_BY_DEFAULT,
   scheduleDefaultDelivery: 'whenIdle' as (typeof SCHEDULE_DELIVERIES)[number],
   scheduleAgentCreation: 'ask' as (typeof SCHEDULE_AGENT_CREATIONS)[number],
+  // D121 (owner 2026-10-16): a schedule never pauses itself by default —
+  // 0 means failures never pause it; the person sets a count to pause one.
+  schedulePauseAfterFailures: 0,
   modelApiSubagents: true,
   // Best-of-N parallel attempts (M77, PLAN.md D49): N worktree-rooted
   // conversations per run, each billed to the key.
@@ -4825,7 +4828,9 @@ export const SCHEDULE_NATIVE_MAX_OUTPUT_BYTES = 64 * 1024
  * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes)
  */
 export const SCHEDULE_COLLISION_WINDOW_MS = SCHEDULE_MIN_INTERVAL_MS
-export const SCHEDULE_PAUSE_AFTER_FAILURES = 3
+// D121 (owner 2026-10-16): no auto-pause of ours — a schedule pauses
+// after failures only at the count the person sets in
+// `museSpark.schedulePauseAfterFailures` (0, the default, never pauses).
 /** Lead flips after the complete VS Code/OS/review receipts, never per-path enablement. */
 export const SCHEDULE_EDITOR_DELIVERY_CERTIFICATION: Readonly<{ isReady: boolean }> = {
   isReady: false,

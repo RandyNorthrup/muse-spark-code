@@ -164,6 +164,7 @@
   "config.schedules.description": "Contrôle /loop dans le chat Muse Code. La livraison des requêtes planifiées exige une certification.",
   "config.schedules.defaultDelivery.description": "Choisit le mode de livraison enregistré dans les nouveaux brouillons de planification ; n’active pas l’exécution planifiée.",
   "config.schedules.agentCreation.description": "Conservée pour la compatibilité ; cette préférence est sans effet dans cette version.",
+  "config.schedulePauseAfterFailures.description": "Nombre d’échecs consécutifs qui mettent un programme en pause. Aucune pause sans valeur définie : 0 (la valeur par défaut) ne met jamais un programme en pause sur échec, et chaque échec reste consigné dans son historique d’exécutions.",
   "command.tabLanguages.title": "Langues de Tab",
   "command.openPullRequestInConversation.title": "Ouvrir une demande de tirage dans une conversation…",
   "config.judge.engine.description": "`auto` (votre propre modèle de conversation ; `same` en phase 1) et `same` ne peuvent qu’ajouter de la prudence à une action Auto risquée qu’aucune règle ne tranche : un avertissement prêt transforme une autorisation en question, ou en note sur la carte d’approbation. `off` n’exécute aucun évaluateur. Sur le backend Model API, chaque jugement est facturé sur votre clé et demande d’abord votre accord une fois ; sur Muse Code, il passe par votre abonnement.",
