@@ -4944,7 +4944,7 @@ export const EN = {
   execProviderNotReady:
     'Provider runs need the provider transport lane; request validation passed for {provider}.',
   execUsage: 'exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -',
-  execScanUsage: 'scan-secrets <file> [--key-stdin]',
+  execScanUsage: 'scan-secrets <file> [--key-stdin] [--timeout <seconds>]',
   scanSecretsExits: 'Exits 0 when clean, 10 when a secret is found, 2 for misuse.',
   execExits:
     'Exits 0 completed, 1 internal, 2 usage, 3 sign-in or backend unavailable, 4 failed, 5 budget or request limit, 6 timeout, 7 denied, 8 incomplete, 9 accounting unverified, 10 output schema mismatch, 130 on SIGINT, 143 on SIGTERM.',

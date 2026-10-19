@@ -160,6 +160,8 @@ const EXEC_OPTIONS = {
 
 const SCAN_OPTIONS = {
   'key-stdin': { type: 'boolean' },
+  // D121: the CI-set deadline in seconds; absent runs until the scan finishes.
+  timeout: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const satisfies CliParserOptions
 

@@ -5435,7 +5435,7 @@ positive number of billable HTTP attempts, retries included.
 muse-spark-code-acp exec [options] <prompt>
 muse-spark-code-acp exec [options] --prompt-file <path>
 muse-spark-code-acp exec [options] -
-muse-spark-code-acp scan-secrets <file> [--key-stdin]
+muse-spark-code-acp scan-secrets <file> [--key-stdin] [--timeout <seconds>]
 ```
 
 | Exec flag                | Default / range        | Limit behavior                                                                                                                                                   |
@@ -5474,9 +5474,10 @@ verified completed response plus ACP `end_turn` exits 0; unverified accounting
 exits 9. Tool output text never leaves exec, and a cut-short agent message is
 withheld whole.
 
-`scan-secrets <file> [--key-stdin]` scans one bounded UTF-8 file locally,
+`scan-secrets <file> [--key-stdin] [--timeout <seconds>]` scans one bounded UTF-8 file locally,
 prints only a count and exits 0 when clean, 10 on matches or 2 on refusal or
-error. Its 30-second lifetime includes reading the key and flushing output.
+error. The scan runs until it finishes or a signal stops it; `--timeout <seconds>`
+sets a deadline per run for callers (such as CI) that want one.
 Only known literals and patterns are covered.
 
 `prompts use <id> [--chat active|new]` prints the prepared prompt text after

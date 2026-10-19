@@ -4025,7 +4025,7 @@
   "execProviderModelRequired": "Cette exécution de fournisseur nécessite --model provider/model.",
   "execProviderNotReady": "Les exécutions de fournisseur nécessitent la couche de transport des fournisseurs ; la vérification de la demande pour {provider} a réussi.",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
-  "execScanUsage": "scan-secrets <file> [--key-stdin]",
+  "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "Sortie 0 si propre, 10 si un secret est trouvé, 2 en cas de mauvais usage.",
   "execExits": "Codes de sortie : 0 terminé, 1 erreur interne, 2 usage incorrect, 3 connexion ou backend indisponible, 4 échec, 5 limite de budget ou de requêtes, 6 délai dépassé, 7 refusé, 8 incomplet, 9 comptabilité non vérifiée, 10 schéma de sortie incompatible, 130 sur SIGINT, 143 sur SIGTERM.",
   "reportExits": "Codes de sortie : 0 quand le rapport est écrit, 1 en cas d'échec, 2 pour usage incorrect.",

@@ -3857,7 +3857,7 @@
   "execProviderModelRequired": "このプロバイダー実行には --model provider/model が必要です。",
   "execProviderNotReady": "プロバイダーの実行にはプロバイダー転送層が必要です。{provider} のリクエスト検証は成功しました。",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
-  "execScanUsage": "scan-secrets <file> [--key-stdin]",
+  "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "クリーンなら 0、シークレット検出で 10、誤用で 2 で終了します。",
   "execExits": "終了コード: 0 完了、1 内部エラー、2 誤用、3 サインインまたはバックエンド使用不可、4 失敗、5 予算またはリクエスト上限、6 タイムアウト、7 拒否、8 不完全、9 会計未検証、10 出力スキーマ不一致、SIGINT で 130、SIGTERM で 143。",
   "reportExits": "終了コード: レポート作成で 0、失敗で 1、誤用で 2。",

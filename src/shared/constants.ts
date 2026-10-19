@@ -4614,7 +4614,9 @@ export const EXEC_RESPONSE_MAX_BYTES = 33_554_432
 export const EXEC_SSE_FRAME_MAX_BYTES = 16_777_216
 export const EXEC_OBSERVER_HIGH_WATER_BYTES = 16_777_216
 export const EXEC_SCAN_MAX_BYTES = 16_777_216
-export const EXEC_SCAN_TIMEOUT_MS = 30_000
+// D121 (owner 2026-10-16): no deadline of ours on the secret scan — it runs
+// until it finishes or a signal stops it. A CI job that wants a deadline
+// sets one per run with `scan-secrets --timeout`.
 export const EXEC_SCAN_EXIT_FOUND = 10
 // Headless runs refuse smaller caps at the same floor Meta enforces.
 /** @alias the Model API's floor under the headless name */

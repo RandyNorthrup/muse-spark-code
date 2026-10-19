@@ -3857,7 +3857,7 @@
   "execProviderModelRequired": "이 제공자 실행에는 --model provider/model이 필요합니다.",
   "execProviderNotReady": "공급자 실행에는 공급자 전송 계층이 필요합니다. {provider} 요청 검사는 통과했습니다.",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
-  "execScanUsage": "scan-secrets <file> [--key-stdin]",
+  "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "정상일 때 0, 비밀 발견 시 10, 오용 시 2로 종료됩니다.",
   "execExits": "종료 코드: 0 완료, 1 내부 오류, 2 잘못된 사용, 3 로그인 또는 백엔드 사용 불가, 4 실패, 5 예산 또는 요청 한도, 6 시간 초과, 7 거부됨, 8 불완전, 9 회계 미확인, 10 출력 스키마 불일치, SIGINT 130, SIGTERM 143.",
   "reportExits": "종료 코드: 보고서 작성 시 0, 실패 시 1, 잘못된 사용 시 2.",

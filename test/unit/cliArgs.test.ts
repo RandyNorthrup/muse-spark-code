@@ -50,3 +50,37 @@ describe('parseCommandLine failure rules', () => {
     expect(command.exitCode).toBe(2)
   })
 })
+
+describe('scan-secrets deadline', () => {
+  it('runs until the scan finishes with no flag set', () => {
+    const command = parseCommandLine(['scan-secrets', 'patch.diff'])
+    expect(command).toMatchObject({
+      command: 'scan-secrets',
+      file: 'patch.diff',
+      keyFromStdin: false,
+    })
+    if (command.command !== 'scan-secrets') throw new Error('expected scan-secrets')
+    expect(command.timeoutMs).toBeUndefined()
+  })
+
+  it('takes a CI-set deadline in whole seconds', () => {
+    expect(parseCommandLine(['scan-secrets', 'patch.diff', '--timeout', '30'])).toMatchObject({
+      command: 'scan-secrets',
+      file: 'patch.diff',
+      timeoutMs: 30_000,
+    })
+  })
+
+  it('refuses a deadline it cannot hold, naming the flag', () => {
+    for (const argv of [
+      ['scan-secrets', 'patch.diff', '--timeout', '0'],
+      ['scan-secrets', 'patch.diff', '--timeout', 'ten'],
+      ['scan-secrets', 'patch.diff', '--timeout', '1.5'],
+    ]) {
+      const command = parseCommandLine(argv)
+      invalid(command)
+      expect(command.reason).toContain('--timeout')
+      expect(command.exitCode).toBe(2)
+    }
+  })
+})
