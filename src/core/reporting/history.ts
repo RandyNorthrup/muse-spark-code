@@ -78,6 +78,11 @@ const lockOwnerSchema = z.strictObject({
   startedAt: z.string().check(z.minLength(1), z.maxLength(REPORT_MAX_ID_CHARS)),
   token: z.uuid(),
 })
+// A lock owner's birth when no process table answers it. Real births are
+// digits on every platform (the probe enforces it), so this value can never
+// collide with one; isDead skips birth comparison for it and lets the
+// signal govern.
+const BIRTH_UNAVAILABLE = 'birth-unavailable'
 const execFileAsync = execResourceFile
 const processBirth: { own?: Promise<string | undefined> } = {}
 
@@ -127,26 +132,26 @@ async function processStart(pid: number, probeBudgetMs: number): Promise<string 
   return stdout.trim() || undefined
 }
 
+// This process's lock identity. The OS birth when the table answers;
+// BIRTH_UNAVAILABLE when it does not (a sandboxed or hardened machine with
+// no process table). A birthless owner still locks safely: death is proven
+// by signal, and an unreadable birth never authorizes removal (see isDead).
 async function ownStart(): Promise<string> {
-  const reportUi = UI_TEXT.reportUi
-
   const deadline = performance.now() + REPORT_WRITER_LOCK_PROBE_MS
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const remaining = deadline - performance.now()
-      if (remaining <= 0) throw new Error(reportUi.saveFailed)
+      if (remaining <= 0) return BIRTH_UNAVAILABLE
       const startedAt = await processStart(
         process.pid,
         Math.max(1, Math.floor(remaining / (2 - attempt))),
       )
-      if (startedAt === undefined) throw new Error(reportUi.saveFailed)
-      return startedAt
-    } catch (error: unknown) {
-      if (attempt === 1 || performance.now() >= deadline)
-        throw new Error(reportUi.saveFailed, { cause: error })
+      return startedAt ?? BIRTH_UNAVAILABLE
+    } catch {
+      if (attempt === 1 || performance.now() >= deadline) return BIRTH_UNAVAILABLE
     }
   }
-  throw new Error(reportUi.saveFailed)
+  return BIRTH_UNAVAILABLE
 }
 
 async function startOf(
@@ -358,9 +363,27 @@ export class ReportStorage {
       const names = await files.list()
       return names.filter((name) => name.startsWith('lease-'))
     }
-    const isDead = async (recorded: z.infer<typeof lockOwnerSchema>) =>
-      (await startOf(recorded.pid, Math.max(1, Math.floor(deadline - performance.now())))) !==
-      recorded.startedAt
+    // Death is proven by signal; birth comparison only refines a live
+    // process (PID reuse). An unreadable birth — ours, theirs, or a
+    // birthless record — never authorizes removal: doubt keeps the lock.
+    const isDead = async (recorded: z.infer<typeof lockOwnerSchema>) => {
+      try {
+        process.kill(recorded.pid, 0)
+      } catch (error: unknown) {
+        return hasCode(error, 'ESRCH')
+      }
+      if (recorded.startedAt === BIRTH_UNAVAILABLE) return false
+      try {
+        const live = await startOf(
+          recorded.pid,
+          Math.max(1, Math.floor(deadline - performance.now())),
+        )
+        return live !== undefined && live !== recorded.startedAt
+      } catch {
+        // A failed probe proves nothing about a live process: doubt keeps.
+        return false
+      }
+    }
     // Rename creates a barrier at the same instant the lock name becomes free.
     // Unique tombstone names are never reused, so deletion cannot hit a replacement.
     const didRetire = async (
