@@ -4,21 +4,34 @@ import path from 'node:path'
 import { type Metafile } from 'esbuild'
 import {
   VAULT_ACTIONS_BUDGET_KIB,
+  VAULT_MIGRATION_BUDGET_KIB,
   VAULT_PANEL_BUDGET_KIB,
   VAULT_HOST_BUDGET_KIB,
 } from '../../../src/shared/constants'
 import { buildVaultSurfaces } from '../../harness/vault/build.mjs'
 
-const built: { dir?: string; browser?: Metafile; host?: Metafile; actions?: Metafile } = {}
+const built: {
+  dir?: string
+  browser?: Metafile
+  host?: Metafile
+  actions?: Metafile
+  migration?: Metafile
+} = {}
 beforeAll(async () => {
   await mkdir(path.join(process.cwd(), 'temp'), { recursive: true })
   built.dir = await mkdtemp(path.join(process.cwd(), 'temp', 'vault-build-'))
   const result = await buildVaultSurfaces(built.dir)
-  if (result.browser === undefined || result.host === undefined || result.actions === undefined)
+  if (
+    result.browser === undefined ||
+    result.host === undefined ||
+    result.actions === undefined ||
+    result.migration === undefined
+  )
     throw new Error('missing metafile')
   built.browser = result.browser
   built.host = result.host
   built.actions = result.actions
+  built.migration = result.migration
 })
 afterAll(async () => {
   if (built.dir !== undefined) await rm(built.dir, { recursive: true, force: true })
@@ -119,6 +132,24 @@ it('RVAPP-CM1091D5 BYTES the explicit-action code ships only in vaultActions.js 
     'src/host/vault/vaultNativeEditor.ts',
     'src/core/vault/crypto.ts',
     'src/core/vault/migrate/ports.ts',
+    'src/host/vault/migrateCredentials.ts',
+    'src/host/vault/vaultMigrationEntry.ts',
   ])
     expect(Object.keys(host.inputs)).not.toContain(member)
+})
+it('U migration ships its own lazy chunk under its own cap; the opening bundle stays lean', async () => {
+  const migration = built.migration!
+  const file = Object.keys(migration.outputs)[0]!
+  const stats = await stat(file)
+  expect(stats.size / 1024).toBeLessThanOrEqual(VAULT_MIGRATION_BUDGET_KIB)
+  // The engine, its codecs and the first-party reader travel here, on the
+  // first unlock edge only — never with the panel, never at activation.
+  for (const member of [
+    'src/host/vault/vaultMigrationEntry.ts',
+    'src/host/vault/migrateCredentials.ts',
+    'src/core/vault/migrate/migrate.ts',
+    'src/core/vault/migrate/ports.ts',
+    'src/core/vault/broker/firstParty.ts',
+  ])
+    expect(Object.keys(migration.inputs)).toContain(member)
 })

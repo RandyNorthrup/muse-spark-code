@@ -805,6 +805,13 @@ if (!vaultPosix.has('src/runtime/vault/posixClientPlatform.ts'))
 for (const [output, inputs] of [...loaders, [VAULT.output, vault]])
   if (inputs.has('src/runtime/vault/posixClientPlatform.ts'))
     problems.push(`${output} duplicates the first-use POSIX vault platform`)
+const VAULT_WINDOWS = { output: 'dist/vaultWindows.js', metafile: 'dist/meta/vaultWindows.json' }
+const vaultWindows = inputsOf(VAULT_WINDOWS)
+if (!vaultWindows.has('src/runtime/vault/windowsClientPlatform.ts'))
+  problems.push(`${VAULT_WINDOWS.output} no longer carries Windows discovery and launch`)
+for (const [output, inputs] of [...loaders, [VAULT.output, vault]])
+  if (inputs.has('src/runtime/vault/windowsClientPlatform.ts'))
+    problems.push(`${output} duplicates the first-use Windows vault platform`)
 // RVAPP-CM1091D5 BYTES: the vault's explicit-action code loads on the first
 // action that needs it, never with the panel, the activation or the agents.
 const vaultActions = inputsOf(VAULT_ACTIONS)
@@ -845,6 +852,35 @@ if (activationText.includes('Duplicate media path token'))
   problems.push(`${BUNDLES.activation.output} carries the attached-media registry`)
 if (/\.contributorQuestion\b/u.test(activationText))
   problems.push(`${BUNDLES.activation.output} carries the contributor consent`)
+// The key-store migration's own chunk (D89.14 lane M, dist/vaultMigration.js)
+// loads on the first unlock edge, never with the panel or at activation:
+// the engine, its codecs and the first-party reader travel here.
+const VAULT_MIGRATION = {
+  output: 'dist/vaultMigration.js',
+  metafile: 'dist/meta/vaultMigration.json',
+}
+const VAULT_MIGRATION_ONLY = [
+  'src/host/vault/vaultMigrationEntry.ts',
+  'src/host/vault/migrateCredentials.ts',
+  'src/core/vault/migrate/migrate.ts',
+  'src/core/vault/broker/firstParty.ts',
+]
+const vaultMigration = inputsOf(VAULT_MIGRATION)
+for (const file of VAULT_MIGRATION_ONLY) {
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [VAULT.output, vault],
+    [VAULT_ACTIONS.output, vaultActions],
+  ]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which loads only on the first unlock edge`)
+    }
+  }
+  if (!vaultMigration.has(file)) {
+    problems.push(`${VAULT_MIGRATION.output} no longer carries ${file}`)
+  }
+}
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
@@ -1166,6 +1202,15 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             !(output === BUNDLES.subscriptions.output && SUBSCRIPTION_ONLY.includes(input)) &&
             !(
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
+            ) &&
+            // D89.14 lane M: the migration codecs parse the installed
+            // provider records, so the migration chunk carries their
+            // schemas beside the engine.
+            !(
+              output === VAULT_MIGRATION.output &&
+              ['modelRef.ts', 'accountCredentialRecord.ts'].some(
+                (file) => input === `src/core/providers/${file}`,
+              )
             ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
             // C-M113-2: the session and usage inputs read M102's journal

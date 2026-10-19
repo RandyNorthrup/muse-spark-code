@@ -209,13 +209,16 @@ function auditLog(
 }
 
 /** The OS store is missing where the binding is not installed; the file anchor keeps the broker up. */
-function missingOsKeyring(context: VaultBrokerContext): {
+function missingOsKeyring(
+  context: VaultBrokerContext,
+  protect?: (file: string, kind: 'directory' | 'file') => Promise<void>,
+): {
   readonly keyring: KeyringEntryFactory
   readonly anchor: VaultAnchorPort
 } {
   return {
     keyring: unavailableKeyring(),
-    anchor: new FileVaultAnchor(vaultAnchorFile(context.dataDir)),
+    anchor: new FileVaultAnchor(vaultAnchorFile(context.dataDir), protect),
   }
 }
 
@@ -231,6 +234,7 @@ async function resolveBrokerKeyring(
     readonly keyring: KeyringEntryFactory
     readonly anchor: VaultAnchorPort
   }>,
+  protect?: (file: string, kind: 'directory' | 'file') => Promise<void>,
 ): Promise<{
   readonly keyring: KeyringEntryFactory
   readonly anchor?: VaultAnchorPort | undefined
@@ -241,7 +245,7 @@ async function resolveBrokerKeyring(
     const created = await create()
     return { keyring: created.keyring, anchor: overrides.anchor ?? created.anchor }
   } catch {
-    const fallback = missingOsKeyring(context)
+    const fallback = missingOsKeyring(context, protect)
     return { keyring: fallback.keyring, anchor: overrides.anchor ?? fallback.anchor }
   }
 }
@@ -431,6 +435,9 @@ async function createWindowsVaultBrokerBindings(
     context,
     overrides,
     createCredentialManagerKeyring,
+    // Modes set no DACL on Windows: the pipe-helper guard protects the
+    // anchor directory and file after each write, like the vault files.
+    (file, kind) => platform.guard.protect(file, kind),
   )
   const isHost = async (pid: number, hostId: string, hostSession?: string) => {
     const identity = await platform.identify(pid)

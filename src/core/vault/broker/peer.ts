@@ -27,6 +27,17 @@ export interface VaultPeerVerifier {
   /** OS credentials and pinned process start/image identity; never a claimed token or pid. */
   verify(socket: Duplex): Promise<VaultProcessIdentity>
 }
+/**
+ * The Windows client's pipe dialer (lane C-M109-1c): a raw pipe socket
+ * carries no inspectable server end, so the client platform verifies the
+ * pipe's owner through its files-mode helper before connecting.
+ */
+export interface VaultPipeDialPort {
+  /** The pipe's trusted server identity, or a refusal. Never a raw answer. */
+  verifyPipe(pipe: string): Promise<VaultProcessIdentity>
+  /** Connect this user's pipe; the hello still binds the broker. */
+  connectPipe(pipe: string): Socket
+}
 /** Compile peer.c as a trusted shipped helper in W. fd 3 is the accepted OS socket. */
 export interface VaultSocketDescriptorPort {
   /** Native listener adapter's descriptor of this exact connected socket. Never a frame field. */

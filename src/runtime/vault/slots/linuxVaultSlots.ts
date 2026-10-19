@@ -41,6 +41,16 @@ export class LinuxVaultSlots implements VaultSlotProvider {
   hardware(vaultId: string, slotId: string): LinuxTpm2Slot {
     return new LinuxTpm2Slot(freshSlotContext(vaultId, slotId), this.deps.runner, this.platform)
   }
+  /** The TPM2 slot where the device opens and systemd seals, else null. */
+  async hardwareIfAvailable(vaultId: string, slotId: string): Promise<LinuxTpm2Slot | null> {
+    if (this.platform !== 'linux') return null
+    try {
+      const capabilities = await linuxTpm2Capabilities(this.deps.runner)
+      return capabilities.canSeal ? this.hardware(vaultId, slotId) : null
+    } catch {
+      return null
+    }
+  }
   /** Refused after a real probe: nothing on Linux can prompt per-use presence. */
   async presence(): Promise<boolean> {
     try {

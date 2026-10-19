@@ -6103,7 +6103,7 @@
     "resetTypeWord": "Napište {word} pro obnovení trezoru.",
     "resetDone": "Trezor byl obnoven do výchozího stavu. Pro ukládání tajných údajů ho znovu nastavte.",
     "vaultLost": "Trezor nelze otevřít: soubory chybí nebo jsou poškozené, nebo nelze určit vlastníka zápisu. Chcete-li začít znovu, zkontrolujte možnost Reset.",
-    "storeUnavailable": "Úložiště pověření operačního systému není k dispozici. V Linuxu se přihlaste do desktopové relace s odemčenou klíčenkou (Secret Service); v macOS odemkněte přihlašovací Klíčenku; ve Windows se přihlaste interaktivně. Pak to zkuste znovu.",
+    "storeUnavailable": "Úložiště pověření operačního systému není k dispozici: buď tato verze neobsahuje jeho komponentu úložiště pověření, nebo je úložiště uzamčeno. Pokud komponenta chybí, může trezor používat pouze hardwarový slot tam, kde jej počítač zapečetí; v opačném případě se v Linuxu přihlaste do desktopové relace s odemčenou klíčenkou (Secret Service); v macOS odemkněte přihlašovací Klíčenku; ve Windows se přihlaste interaktivně. Pak to zkuste znovu.",
     "remoteWarning": "Z jiného zařízení lze požádat jen o podpis nebo jednorázový kód. Jeho uživatel musí každé použití schválit tam.",
     "approvalExpired": "Platnost schválení vypršela. Požádejte o použití znovu.",
     "useChanged": "Použití se po schválení změnilo. Požádejte o schválení nového použití.",

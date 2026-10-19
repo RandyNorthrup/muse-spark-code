@@ -38,8 +38,12 @@ describe('file vault anchor', () => {
       const reopened = new FileVaultAnchor(file)
       await reopened.advance(vaultId, state(2), state(1))
       expect(await anchor.minimum(vaultId)).toEqual(state(2))
-      const sample = await stat(file)
-      expect(sample.mode & 0o777).toBe(0o600)
+      // Modes are POSIX only: on Windows the pipe-helper guard owns the
+      // DACL (Node reports 0o666 for a writable file there).
+      if (process.platform !== 'win32') {
+        const sample = await stat(file)
+        expect(sample.mode & 0o777).toBe(0o600)
+      }
     } finally {
       await rm(root, { recursive: true, force: true })
     }
@@ -68,6 +72,35 @@ describe('file vault anchor', () => {
       await expect(anchor.minimum(vaultId)).rejects.toThrow(VaultError)
       const raw = await readFile(file, 'utf8')
       expect(raw.length).toBeGreaterThan(0)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('protects the directory and the file through the Windows guard', async () => {
+    // The Windows bindings pass the pipe-helper guard: each write protects
+    // the anchor directory first, then the file after the atomic rename.
+    const root = await mkdtemp(path.join(tmpdir(), 'vs-anchor-guard-'))
+    try {
+      const file = vaultAnchorFile(path.join(root, 'vault'))
+      const guarded: [string, string][] = []
+      const anchor = new FileVaultAnchor(file, (name, kind) => {
+        guarded.push([name, kind])
+        return Promise.resolve()
+      })
+      const vaultId = randomBytes(16).toString('hex')
+      await anchor.advance(vaultId, state(1), null)
+      expect(guarded).toEqual([
+        [path.dirname(file), 'directory'],
+        [file, 'file'],
+      ])
+      // A failed guard fails the write as storeUnavailable, never silently.
+      const refused = new FileVaultAnchor(vaultAnchorFile(path.join(root, 'other')), () =>
+        Promise.reject(new Error('guard refused')),
+      )
+      await expect(refused.advance(vaultId, state(1), null)).rejects.toThrow(
+        VaultStoreUnavailableError,
+      )
     } finally {
       await rm(root, { recursive: true, force: true })
     }

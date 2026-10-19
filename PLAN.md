@@ -30842,6 +30842,7 @@ and admission have deliberate failing regressions.
 **Status 2026-10-09: released.** Shipped in 0.17.0 (merged via INT0180).
 **Status 2026-10-10 (corrects 2026-10-09: the broker-backed panel service is still unbound, so both vault commands refuse closed): building.** Vault slots, the broker process, MCP routes and scrub ports merged and certified; the C/B/P/M adapter over the broker channel remains an open handoff (`docs/certification/m109.md`). Not usable in a release yet.
 **Status 2026-10-17 (MSM109): complete.** Merged `main-now`, purged every stand-in-based vault test per the 10-17 testing rules (the overhaul deletions stay deleted; crash recovery and broker sessions stay proven through real child processes), bound the Models & Agents vault section and the window commands to the lazy vault bundle, enabled the reviewed availability switch, composed SSH key add in the action dialogs, published vault Help, and passed all gates. The Windows pipe helper (lane C-M109-1c), the key-store migration, the companion vault surface and the macOS replay still wait and are not claimed here; see `docs/certification/msm109.md`.
+**Status 2026-10-18 (VAULTOPEN, macmini): building.** The key-store migration is built for apiKey-shaped keys (Model API key, apiKey provider records; opaque records, retire/undo and pooled accounts stay follow-ups) behind the lazy `dist/vaultMigration.js` chunk with its own budget; the macOS replay is recorded with its sandbox blocks; the companion vault surface stays open with the measured gap. See `docs/certification/msm109.md` (lane VAULTOPEN). M109 stays open.
 
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
@@ -38941,6 +38942,32 @@ then rerun the check. API policy is unchanged; the snapshot gate is neither
 weakened nor claimed green. This is a documentation gate deferral, not an
 unfixed RVM98J finding.
 
+**VAULTOPEN duplication deferral (2026-10-18, macmini).** `jscpd` is red on
+the untouched base: a scratch worktree at `f44f54120d` reports 37 clones
+(0.1%) over the 0.0% threshold, all in the stacked vault lanes' runtime and
+tests (POSIX/Windows/macOS/Linux platform parallels, broker bindings, the
+broker-session/pipe-relay test setups). This lane added 5 pairs of its own
+and consolidated all of them into `test/unit/helpers/vault/migrationFixtures.ts`
+(`mapSecrets`, `capturingLog`) plus two local builders, preserving every
+assertion (credentialMigration 6/6, credentialMigrationStore reaches only the
+sandbox's lease-birth denial, rulesFileBundle 6/6, vaultEnabledSettings 6/6);
+sharing the logger also dissolved one pre-existing pair, leaving 36, none in
+this lane's files. The platform duplication may be deliberate separation and
+the Windows lane (C-M109-1c) is active in those files, so their restructuring
+is deferred to the owning lanes; the gate configuration is unchanged, no
+ignore or threshold change. The lead reruns the unmodified gate on the
+integrated tree.
+
+**VAULTOPEN activation-budget note (2026-10-18, macmini).**
+`modelsActivationBudget` is red on the untouched base: growth 3086 bytes
+against the 3072 cap in a scratch worktree at `f44f54120d`. On this lane
+the growth is 3494: the key-store migration's reviewed shell (one import,
+one shared store, the installed-minor closure and the binding record in
+`src/extension.ts`, all D89.14 lane M) adds 408 minified bytes, with no
+vault read or broker start at activation. Restructuring the reviewed shell
+for bytes is declined; the cap is unchanged. The lead owns the base
+overage with the owning lane.
+
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **Deferred 2026-10-02, until 2026-11-01: GHSA-vfj7-8cjw-p6xm (`braces`,
@@ -39522,6 +39549,10 @@ No new escape hatch is introduced.
 | Real-life diagnostic                                      | Escape hatch                                                            | Reason                                                                                                           |
 | --------------------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `docs/testing/real-life/0.18.2/diagnostics/fetch-tap.mjs` | `eslint-disable-next-line unicorn/no-global-object-property-assignment` | The diagnostic is that assignment: a recording pass-through for the process's own `fetch`. No scenario loads it. |
+
+| VAULTMIGFIX location                                 | Escape hatch                                                     | Reason                                                                                                                                                                                                                      | Removal                                          |
+| ---------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `src/host/vault/migrationShell.ts` (`MigrationLock`) | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The installed Node 20 host lacks `Promise.withResolvers` (same reason as `src/core/vault/store.ts` `withWriter` in §8). The Promise executor assigns the release callback synchronously; `finally` releases the next owner. | A supported `Promise.withResolvers` on the host. |
 
 ## 9. Security assumptions and accepted residual risk
 

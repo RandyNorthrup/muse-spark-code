@@ -89,6 +89,7 @@ export const ACP_BUNDLES = [
   'vaultBoundaries.js',
   'vaultStore.js',
   'vaultPosix.js',
+  'vaultWindows.js',
   'vaultRuntime.js',
   'vaultActions.js',
   'vaultBroker.js',

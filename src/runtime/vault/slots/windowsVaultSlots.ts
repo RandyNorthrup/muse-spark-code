@@ -1,9 +1,13 @@
-import { UI_TEXT } from '../../../shared/constants'
+import { UI_TEXT, VAULT_LIMITS } from '../../../shared/constants'
 import { VaultError } from '../../../core/vault/crypto'
 import type { VaultSlotProvider } from '../../../core/vault/broker/repository'
 import type { VaultSlotRecord, VaultUse } from '../../../shared/vault'
 import { type vaultPrivateReadSchema } from '../../../shared/vaultProtocol'
-import { WindowsVaultSlot, windowsVaultScreenLock } from './windowsVaultSlot'
+import {
+  WindowsVaultSlot,
+  windowsVaultProtectionFacts,
+  windowsVaultScreenLock,
+} from './windowsVaultSlot'
 import type { WindowsVaultExecutable } from './windowsVaultTransport'
 import { windowsVaultTransport } from './windowsVaultTransport'
 import {
@@ -42,6 +46,28 @@ export class WindowsVaultSlots implements VaultSlotProvider {
   }
   osStore(vaultId: string, slotId: string): WindowsVaultSlot {
     return new WindowsVaultSlot('osStore', freshSlotContext(vaultId, slotId), this.transport)
+  }
+  /** The CNG TPM slot where the helper reports it, else null. */
+  async hardwareIfAvailable(vaultId: string, slotId: string): Promise<WindowsVaultSlot | null> {
+    if ((this.deps.platform ?? process.platform) !== 'win32') return null
+    try {
+      const facts = await windowsVaultProtectionFacts(this.transport)
+      if (!facts.hardwareAvailable) return null
+      return new WindowsVaultSlot(
+        'hardware',
+        {
+          id: slotId,
+          vaultId,
+          lastGeneration: 0,
+          auditGeneration: 0,
+          auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
+          createdAt: Date.now(),
+        },
+        this.transport,
+      )
+    } catch {
+      return null
+    }
   }
   /**
    * A fresh Windows Hello signature over a new challenge: the helper prompts

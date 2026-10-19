@@ -94,6 +94,7 @@ import {
   sharedRedaction,
   sharedVaultStore,
   sharedVaultPosix,
+  sharedVaultWindows,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -283,6 +284,10 @@ const VAULT_OUTFILE = 'dist/vault.js'
 // loaded on the first action that needs it instead of when the panel opens.
 const VAULT_ACTIONS_ENTRY = 'src/host/vault/vaultActionsEntry.ts'
 const VAULT_ACTIONS_OUTFILE = 'dist/vaultActions.js'
+// The key-store migration's own chunk (D89.14 lane M, dist/vaultMigration.js),
+// loaded on the first unlock edge instead of with the panel or at activation.
+const VAULT_MIGRATION_ENTRY = 'src/host/vault/vaultMigrationEntry.ts'
+const VAULT_MIGRATION_OUTFILE = 'dist/vaultMigration.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
@@ -951,6 +956,7 @@ const vaultOptions = {
     sharedResourceAdmission,
     sharedVaultStore,
     sharedVaultPosix,
+    sharedVaultWindows,
   ],
   entryPoints: [VAULT_ENTRY],
   outfile: VAULT_OUTFILE,
@@ -968,6 +974,20 @@ const vaultActionsOptions = {
   plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [VAULT_ACTIONS_ENTRY],
   outfile: VAULT_ACTIONS_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+// The key-store migration's own chunk, loaded on the first unlock edge.
+// Same shape as the explicit-action bundle above.
+const vaultMigrationOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  entryPoints: [VAULT_MIGRATION_ENTRY],
+  outfile: VAULT_MIGRATION_OUTFILE,
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
@@ -1275,7 +1295,7 @@ const runtimeAccountsOptions = {
 }
 const vaultRuntimeOptions = {
   ...acpQuestionsOptions,
-  plugins: [...acpQuestionsOptions.plugins, sharedVaultStore, sharedVaultPosix],
+  plugins: [...acpQuestionsOptions.plugins, sharedVaultStore, sharedVaultPosix, sharedVaultWindows],
   entryPoints: [VAULT_RUNTIME_ENTRY],
   outfile: VAULT_RUNTIME_OUTFILE,
 }
@@ -1326,6 +1346,13 @@ const vaultPosixOptions = {
   plugins: [...modelApiOptions.plugins, sharedVaultStore],
   entryPoints: ['src/runtime/vault/posixEntry.ts'],
   outfile: 'dist/vaultPosix.js',
+}
+
+const vaultWindowsOptions = {
+  ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, sharedVaultStore],
+  entryPoints: ['src/runtime/vault/windowsEntry.ts'],
+  outfile: 'dist/vaultWindows.js',
 }
 
 const vaultStoreOptions = {
@@ -1660,8 +1687,10 @@ if (isWatch) {
     esbuild.context(vaultBrokerOptions),
     esbuild.context(vaultStoreOptions),
     esbuild.context(vaultPosixOptions),
+    esbuild.context(vaultWindowsOptions),
     esbuild.context(vaultBrokerBindingsOptions),
     esbuild.context(vaultActionsOptions),
+    esbuild.context(vaultMigrationOptions),
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
     esbuild.context(planSnapshotOptions),
@@ -1805,8 +1834,10 @@ if (isWatch) {
     vaultBroker: recorded('vaultBroker', vaultBrokerOptions),
     vaultStore: recorded('vaultStore', vaultStoreOptions),
     vaultPosix: recorded('vaultPosix', vaultPosixOptions),
+    vaultWindows: recorded('vaultWindows', vaultWindowsOptions),
     vaultBrokerBindings: recorded('vaultBrokerBindings', vaultBrokerBindingsOptions),
     vaultActions: recorded('vaultActions', vaultActionsOptions),
+    vaultMigration: recorded('vaultMigration', vaultMigrationOptions),
     report: recorded('report', reportOptions),
     estimator: recorded('estimator', estimatorOptions),
     recorder: recorded('recorder', recorderOptions),

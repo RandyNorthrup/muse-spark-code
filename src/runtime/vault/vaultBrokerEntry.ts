@@ -36,8 +36,13 @@ import { WindowsVaultSlots } from './slots/windowsVaultSlots'
 import { macVaultTransport } from './slots/macVaultTransport'
 import { macVaultSlotExecutable } from './posixNative'
 import { startVaultBrokerProcess, type VaultBrokerProcessOptions } from './brokerProcess'
-import { startWindowsVaultBrokerProcess } from './windowsBrokerProcess'
-import { WindowsPipeFiles } from './windowsPipeRelay'
+import {
+  startWindowsVaultBrokerOnServe,
+  startWindowsVaultBrokerProcess,
+  type WindowsVaultBrokerServe,
+} from './windowsBrokerProcess'
+import { WindowsPipeFiles, startWindowsPipeServe, windowsVaultPipeName } from './windowsPipeRelay'
+import { windowsBrokerPlatform, type WindowsBrokerPlatform } from './windowsHost'
 import { VaultError } from '../../core/vault/crypto'
 import { vaultPeerExecutable, vaultProcessIdentity, vaultSocketDescriptors } from './posixNative'
 import { bumpVaultEpoch } from './epochContender'
@@ -77,6 +82,10 @@ const contextSchema = z.strictObject({
   // Windows only: the host-built slot helper (DPAPI/CNG/Hello). The broker
   // refuses integrity failures instead of rebuilding: the host owns the build.
   windowsHelper: z.optional(windowsHelperSchema),
+  // Windows only: the host-built pipe helper (serve/files relay). One file
+  // never serves both roles: the pipe helper owns the pipe and the
+  // owner-only files, the slot helper seals and unseals.
+  pipeHelper: z.optional(windowsHelperSchema),
 })
 export type VaultBrokerContext = z.infer<typeof contextSchema>
 /** Trusted runtime supplies execution, identity and scrub bindings; no substitute or empty success. */
@@ -284,10 +293,12 @@ export async function buildBrokerChannel(
 export async function createVaultBrokerProcess(
   input: VaultBrokerContext,
   bindings: VaultBrokerBindings,
+  serve?: WindowsVaultBrokerServe,
 ) {
   if (bindings.lockOnScreenLock && !bindings.slots) throw new Error(UI_TEXT.vault.noAccess)
   const context = contextSchema.parse(input)
-  if (process.platform === 'win32') return await createWindowsVaultBrokerProcess(context, bindings)
+  if (process.platform === 'win32')
+    return await createWindowsVaultBrokerProcess(context, bindings, serve)
   const helper = vaultPeerExecutable(context.installRoot)
   const owned: { broker?: VaultBroker; management?: VaultManagement } = {}
   return await startVaultBrokerProcess({
@@ -334,24 +345,33 @@ export async function createVaultBrokerProcess(
 async function createWindowsVaultBrokerProcess(
   context: VaultBrokerContext,
   bindings: VaultBrokerBindings,
+  serve?: WindowsVaultBrokerServe,
 ) {
-  const helper = context.windowsHelper
+  const helper = context.pipeHelper
   if (!helper) throw new Error(UI_TEXT.vault.noAccess)
   const owned: { broker?: VaultBroker; management?: VaultManagement } = {}
-  return await startWindowsVaultBrokerProcess({
+  const pipeExecutable = {
+    ...helper,
+    rebuild: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
+    report: () => {
+      process.stderr.write('vault-slot-rebuild-refused\n')
+    },
+  }
+  const options = {
     runDirectory: context.runDirectory,
     dataDir: context.dataDir,
     userSession: context.userSession,
-    pipeHelper: {
-      ...helper,
-      rebuild: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
-      report: () => {
-        process.stderr.write('vault-slot-rebuild-refused\n')
-      },
-    },
     ...(bindings.idleMs !== undefined && { idleMs: bindings.idleMs }),
     ...brokerProcessLock(owned),
-    channel: async (location, endpoint) => {
+    pipeHelper: pipeExecutable,
+    channel: async (
+      location: VaultBrokerLocation,
+      endpoint: {
+        readonly listener: VaultSecuredListenerPort
+        readonly peers: VaultPeerVerifier
+        readonly platform: WindowsBrokerPlatform
+      },
+    ) => {
       const security = new WindowsPipeFiles(endpoint.platform.relay, () => new VaultError('io'))
       const files = new NodeVaultFiles(context.dataDir, VAULT_LIMITS.frameBytes, security, 'win32')
       let keyring = bindings.keyring
@@ -369,7 +389,10 @@ async function createWindowsVaultBrokerProcess(
         listener: endpoint.listener,
       })
     },
-  })
+  }
+  return serve
+    ? await startWindowsVaultBrokerOnServe({ ...options, helperFile: helper.file }, serve)
+    : await startWindowsVaultBrokerProcess(options)
 }
 
 /**
@@ -447,7 +470,10 @@ async function main(): Promise<void> {
     throw new Error(UI_TEXT.vault.noAccess)
   // Installed sibling module is a typed build boundary; validate its export before calling (PLAN §8).
   const runtime = createRequire(__filename)(path.join(__dirname, 'vaultRuntime.js')) as {
-    createVaultBrokerBindings?: (context: VaultBrokerContext) => Promise<VaultBrokerBindings>
+    createVaultBrokerBindings?: (
+      context: VaultBrokerContext,
+      platform?: WindowsBrokerPlatform,
+    ) => Promise<VaultBrokerBindings>
   }
   if (typeof runtime.createVaultBrokerBindings !== 'function')
     throw new Error(UI_TEXT.vault.brokerBlocked)
@@ -486,6 +512,36 @@ async function main(): Promise<void> {
       disposeResources = () => {
         disposeAdmission()
         resources.dispose()
+      }
+      // Windows serves its pipe before the bindings exist: the serve
+      // platform feeds the bindings, and the broker starts on that same
+      // serve instead of serving twice. POSIX builds no serve here.
+      if (process.platform === 'win32') {
+        const pipe = context.pipeHelper
+        if (!pipe) throw new Error(UI_TEXT.vault.noAccess)
+        const pipeExecutable = {
+          ...pipe,
+          rebuild: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
+          report: () => {
+            process.stderr.write('vault-slot-rebuild-refused\n')
+          },
+        }
+        const serve = await startWindowsPipeServe(pipeExecutable, windowsVaultPipeName())
+        try {
+          const platform = windowsBrokerPlatform(serve.relay, serve.ownerSid, pipe.file)
+          return await createVaultBrokerProcess(
+            context,
+            await createBindings(context, platform),
+            serve,
+          )
+        } catch (error: unknown) {
+          try {
+            await serve.stop()
+          } catch {
+            /* Startup already failed; the stop is best-effort. */
+          }
+          throw error
+        }
       }
       return await createVaultBrokerProcess(context, await createBindings(context))
     })

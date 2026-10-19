@@ -376,6 +376,7 @@ import { mediaBundleLoader, mediaHostBundleLoader } from './host/media/mediaBund
 import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
 import type { ScreenRecordingPreview } from './core/media/record/driver'
 import { registerVaultCommands, vaultBundleLoader } from './host/vault/vaultPanelBundle'
+import { createMigrationShell, type MigrationShell } from './host/vault/migrationShell'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { askPaidUse } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
@@ -1110,6 +1111,20 @@ async function activateWindow(
       .fsPath,
     log,
   })
+  // The key-store migration's shell (D89.14, lane M): every host
+  // credential path below shares this store instead of SecretStorage
+  // directly. Reads always pass through, so activation and a vault-less
+  // window behave exactly as now; writes mirror into the vault once the
+  // Models & Agents binding binds the migration after an unlock.
+  const migrationShell: MigrationShell = createMigrationShell(context.secrets)
+  const secrets = migrationShell.store
+  const migrationMinorRelease = (): number => {
+    // A damaged manifest ordinal refuses the migration (the engine records
+    // it as storage failure and the keys keep working in SecretStorage).
+    const minor = Number(version.split('.', 2)[1])
+    if (!Number.isSafeInteger(minor) || minor < 0) throw new Error('Invalid installed version')
+    return minor
+  }
   const providerConfigFile = path.join(
     process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
     PROVIDERS_CONFIG_DIR_NAME,
@@ -1122,7 +1137,7 @@ async function activateWindow(
   const subscriptionFeatures = () =>
     (subscriptions ??= modelsSubscriptionsBundle().createSubscriptionFeatures({
       log,
-      secrets: context.secrets,
+      secrets,
       globalStorageUri: context.globalStorageUri,
       globalState: context.globalState,
       l10n,
@@ -1151,7 +1166,7 @@ async function activateWindow(
       },
     }))
   const providersSeamBundle = () => subscriptionFeatures().seam
-  const credentials = providerCredentials(context.secrets, log, async () => {
+  const credentials = providerCredentials(secrets, log, async () => {
     const features = subscriptionFeatures()
     const entries = await features.seam.store.list()
     // Only a live, non-confidential host grant supplies credential-free readiness.
@@ -2966,7 +2981,7 @@ async function activateWindow(
     createProviderClient: async (meta) =>
       subscriptions === undefined &&
       !existsSync(providerConfigFile) &&
-      (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
+      (await secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
         ? meta
         : await subscriptionFeatures().createClient(meta),
     getProviderAccountId: () => subscriptionFeatures().accountId(),
@@ -4894,6 +4909,15 @@ async function activateWindow(
           isConfidential: () => currentSettings().confidentialWorkspace,
           secrets: bundle.credentialLeaseSecrets(context.secrets),
           extensionUri: context.extensionUri,
+          // The key-store migration's source material: the raw store for
+          // its legacy port (never the shell above — the shell mirrors
+          // through the migration and would deadlock it), the shell to
+          // bind the controller to, and the installed minor ordinal.
+          credentialMigration: {
+            shell: migrationShell,
+            rawSecrets: context.secrets,
+            minorRelease: migrationMinorRelease,
+          },
           l10n,
           log,
           globalState: context.globalState,

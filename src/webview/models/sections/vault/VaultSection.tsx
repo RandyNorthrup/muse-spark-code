@@ -208,6 +208,11 @@ export function VaultSection({
       (kindFilter === '' || row.kind === kindFilter) &&
       (outcomeFilter === '' || row.outcome === outcomeFilter),
   )
+  // Migrated credentials (journal rows and copied keys) are hidden
+  // first-party rows: the key-store migration owns them, so the section
+  // lists neither them nor their count, and offers no Edit or Remove for
+  // them. The grant picker below reads the same list.
+  const visibleItems = state.items.filter((item) => !item.hidden && !item.firstParty)
   return (
     <section
       className="vault-section"
@@ -304,9 +309,9 @@ export function VaultSection({
       <p>{UI_TEXT.vault.labelWarning}</p>
       <p>{UI_TEXT.vault.passwordEntry}</p>
       <p>{UI_TEXT.vault.presenceAdvice}</p>
-      <p>{plural(UI_TEXT.vault.itemsCount, state.items.length)}</p>
-      {state.items.length === 0 && <p>{UI_TEXT.vault.empty}</p>}
-      {state.items.map((item) => (
+      <p>{plural(UI_TEXT.vault.itemsCount, visibleItems.length)}</p>
+      {visibleItems.length === 0 && <p>{UI_TEXT.vault.empty}</p>}
+      {visibleItems.map((item) => (
         <details key={item.id}>
           <summary>
             {item.label} ({item.handle})
@@ -353,7 +358,7 @@ export function VaultSection({
       ))}
       {editingGrant && isUnlocked && (
         <VaultGrantEditor
-          items={state.items.filter((item) => !item.hidden && !item.firstParty)}
+          items={visibleItems}
           now={now}
           newId={newId}
           onClose={() => {
@@ -486,7 +491,7 @@ export function VaultSection({
       )}
       <p>{UI_TEXT.vault.paidWarning}</p>
       <p>
-        {UI_TEXT.vault.status}: {formatNumber(state.status.itemCount)}
+        {UI_TEXT.vault.status}: {formatNumber(visibleItems.length)}
       </p>
     </section>
   )

@@ -5789,7 +5789,7 @@
     "resetTypeWord": "Geben Sie {word} ein, um den Tresor zurückzusetzen.",
     "resetDone": "Der Tresor wurde zurückgesetzt. Richten Sie ihn erneut ein, um Geheimnisse zu speichern.",
     "vaultLost": "Der Tresor lässt sich nicht öffnen: Dateien fehlen oder sind beschädigt, oder die Schreibersperre lässt sich keinem Eigentümer zuordnen. Prüfen Sie Zurücksetzen, um neu zu beginnen.",
-    "storeUnavailable": "Der Anmeldeinformationsspeicher des Betriebssystems ist nicht verfügbar. Melden Sie sich unter Linux in einer Desktopsitzung mit entsperrtem Schlüsselbund (Secret Service) an, entsperren Sie unter macOS den Anmeldeschlüsselbund und melden Sie sich unter Windows interaktiv an. Versuchen Sie es dann erneut.",
+    "storeUnavailable": "Der Anmeldeinformationsspeicher des Betriebssystems ist nicht verfügbar: Entweder enthält dieser Build seine Anmeldeinformationsspeicher-Komponente nicht, oder der Speicher ist gesperrt. Wo die Komponente fehlt, kann der Tresor nur einen Hardware-Slot verwenden, wo die Maschine versiegelt; melden Sie sich andernfalls unter Linux in einer Desktopsitzung mit entsperrtem Schlüsselbund (Secret Service) an, entsperren Sie unter macOS den Anmeldeschlüsselbund und melden Sie sich unter Windows interaktiv an. Versuchen Sie es dann erneut.",
     "remoteWarning": "Von einem anderen Gerät können nur Signaturen oder Einmalcodes angefordert werden. Dort muss der Benutzer jeder Nutzung zustimmen.",
     "approvalExpired": "Diese Zustimmung ist abgelaufen. Fordern Sie die Nutzung erneut an.",
     "useChanged": "Die Nutzung hat sich nach der Zustimmung geändert. Fordern Sie eine Zustimmung für die neue Nutzung an.",

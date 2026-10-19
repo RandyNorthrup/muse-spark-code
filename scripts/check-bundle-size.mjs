@@ -286,6 +286,10 @@ const BUDGETS = [
   // RVAPP-CM1091D5 BYTES: the vault's explicit-action code; measured below,
   // plus D6 headroom.
   { path: 'dist/vaultActions.js', budgetKiB: 25 },
+  // The key-store migration's own chunk (D89.14 lane M); 36.75 KiB measured
+  // in the harness build, plus headroom (production splitting only shrinks
+  // it); a new cap, no existing cap moves.
+  { path: 'dist/vaultMigration.js', budgetKiB: 45 },
   // INT0180: shared vault boundary closure; measured plus D6 headroom.
   { path: 'dist/vaultBoundaries.js', budgetKiB: 50 },
   // MSM109: 120,644 bytes measured on linuxlt after the joined lease/store
@@ -301,6 +305,10 @@ const BUDGETS = [
   // reviews; exactly 15% headroom, rounded to one byte.
   { path: 'dist/vaultStore.js', budgetKiB: 66_850 / 1024 },
   { path: 'dist/vaultPosix.js', budgetKiB: 25 },
+  // PR247FIX: 40,706 bytes measured on maclt with the Windows vault
+  // platform (helper builds, pipe discovery and dial); exactly 15%
+  // headroom.
+  { path: 'dist/vaultWindows.js', budgetKiB: 46_812 / 1024 },
   // The report dialog (M93): the builder, its second scrub, the export paths
   // and the handler, loaded on the first open. 63.6 KiB when split out (its
   // own zod), plus 15%, rounded up to 25 KiB (PLAN.md D6).
