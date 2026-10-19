@@ -230,7 +230,7 @@
   "config.accounts.severalOnThisDevice.description": "Stored for compatibility; no runtime effect.",
   "command.vault.title": "Vault",
   "command.lockVault.title": "Lock Vault Now",
-  "config.vault.enabled.description": "Turn the per-user credential vault on or off. A stored legacy museSpark.vault value applies until this setting is configured.",
+  "config.vault.enabled.description": "Turn the per-user credential vault on or off. On: the vault stores secrets and serves its panel section, commands and agent uses. Off: the section stays hidden and every vault use refuses before anything loads. A stored legacy museSpark.vault value applies until an explicit value for this setting exists.",
   "config.vault.protection.description": "Stored for compatibility; no runtime effect.",
   "config.vault.agentFence.description": "Controls the credential fence for interactive Model API shell commands. Verification, schedules, workers and hooks remain fenced.",
   "config.vault.lockAfterIdleMinutes.description": "Stored for compatibility; no runtime effect.",
