@@ -15,7 +15,15 @@ export const BUNDLES = {
 }
 export const SUBSCRIPTION_ONLY = [
   'src/core/providers/subscriptions/chatgpt.ts',
+  'src/core/providers/subscriptions/chatgptHostId.ts',
   'src/core/providers/subscriptions/registry.ts',
+  // D119 (2026-10-17): the Copilot adapter's failure rides with the
+  // subscription dispatch, like ChatGptSignInError rides in chatgpt.ts. The
+  // host adapter reads it through subscriptionsEntry so both bundles share
+  // the subscriptions bundle's copy (one `instanceof` across the boundary).
+  'src/core/providers/subscriptions/copilotFailure.ts',
+  // The plan catalogue's entry parse, read by the registry beside it.
+  'src/core/providers/subscriptions/chatgptPlanFacts.ts',
 ]
 export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
 export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
@@ -789,6 +797,35 @@ export const ON_FIRST_USE = [
       'src/shared/whatsNewMessages.ts',
     ],
   },
+  // The sign-in gate (CIFIX161B, PLAN.md D6): activation keeps only the
+  // bundle loader; AuthService and the three-valued credential
+  // read load the first time a credential, money or consent path needs
+  // them.
+  {
+    output: 'dist/auth.js',
+    metafile: 'dist/meta/auth.json',
+    use: 'the first credential, money or consent read',
+    files: [
+      'src/host/auth/authEntry.ts',
+      'src/host/auth/authService.ts',
+      'src/host/auth/credentialRead.ts',
+    ],
+  },
+  // The paid features (CIFIX161B, PLAN.md D6): activation keeps only the
+  // bundle loader; the gate, consent, usage and quote authority
+  // load the first time a paid path needs them.
+  {
+    output: 'dist/paid.js',
+    metafile: 'dist/meta/paid.json',
+    use: 'the first paid consent, gate or usage read',
+    files: [
+      'src/host/paid/paidEntry.ts',
+      'src/host/paid/paidHost.ts',
+      'src/core/paid/paidConsent.ts',
+      'src/core/paid/paidFeatures.ts',
+      'src/core/paid/paidAuthority.ts',
+    ],
+  },
 ]
 /** The same parent exclusions and destination requirements used by the CLI. */
 export function checkDeferredBundles(inputsOf) {
@@ -1090,6 +1127,8 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
   [path.resolve('src/core/backends/modelapi/modelApiVerifyEntry.ts'), 'dist/modelApiVerify.js'],
   [path.resolve('src/host/commands/commandsEntry.ts'), 'dist/commands.js'],
+  [path.resolve('src/host/auth/authEntry.ts'), 'dist/auth.js'],
+  [path.resolve('src/host/paid/paidEntry.ts'), 'dist/paid.js'],
 ])
 /** @type {import('esbuild').Plugin} */
 export const deferredCohort = {
@@ -1097,6 +1136,19 @@ export const deferredCohort = {
   setup(build) {
     // The shared request/framing implementations stay in the existing backend
     // bundle; providers and ACP require its exported API only when used.
+    // The refusal classifier rides the lazy provider bundle: the Model API
+    // bundle reads it across the boundary only on an error, keeping its pin.
+    // Static imports keep bundling it locally everywhere else.
+    build.onResolve({ filter: /\/refusal(?:\.ts)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+      if (
+        args.kind !== 'dynamic-import' ||
+        source !== path.resolve('src/core/refusal.ts') ||
+        path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/modelApi.js')
+      )
+        return
+      return { path: './configuredProviders.js', external: true }
+    })
     // Lane PROVERR's typed refusal rides the same way: one copy in the
     // backend bundle, required from it by providers, configured and report.
     build.onResolve(
@@ -1118,7 +1170,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|webFetchEntry|commandsEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|webFetchEntry|commandsEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
@@ -1170,25 +1222,30 @@ export const sharedWire = {
 // Admission's state and the lazy launch shims (launcher.ts) ship once, in
 // dist/resourceAdmission.js (admissionEntry.ts re-exports both).
 const RESOURCE_ADMISSION_SOURCES = new Set(
-  ['src/core/resources/admission.ts', 'src/core/resources/launcher.ts'].map((file) =>
-    path.resolve(file),
-  ),
+  [
+    'src/core/resources/admission.ts',
+    'src/core/resources/launcher.ts',
+    'src/core/locks/processOwner.ts',
+  ].map((file) => path.resolve(file)),
 )
 export const sharedResourceAdmission = {
   name: 'shared-resource-admission',
   setup(build) {
-    build.onResolve({ filter: /(?:^|\/)(?:admission|launcher)(?:\.[jt]s)?$/ }, (args) => {
-      if (
-        args.kind === 'entry-point' ||
-        path.resolve(build.initialOptions.outfile ?? '') ===
-          path.resolve('dist/resourceAdmission.js')
-      )
-        return
-      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
-      return RESOURCE_ADMISSION_SOURCES.has(source)
-        ? { path: './resourceAdmission.js', external: true }
-        : undefined
-    })
+    build.onResolve(
+      { filter: /(?:^|\/)(?:admission|launcher|processOwner)(?:\.[jt]s)?$/ },
+      (args) => {
+        if (
+          args.kind === 'entry-point' ||
+          path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve('dist/resourceAdmission.js')
+        )
+          return
+        const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        return RESOURCE_ADMISSION_SOURCES.has(source)
+          ? { path: './resourceAdmission.js', external: true }
+          : undefined
+      },
+    )
   },
 }
 

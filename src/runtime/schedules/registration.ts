@@ -14,13 +14,13 @@ import { fill } from '../../shared/l10n/text'
 
 class UnsafeScheduleLauncherError extends Error {
   override name = 'UnsafeScheduleLauncherError'
-  constructor(file: string) {
-    super(fill(UI_TEXT.scheduleV2.runtime.unsafeLauncher, { path: file }))
+  constructor(file: string, cause?: unknown) {
+    super(fill(UI_TEXT.scheduleV2.runtime.unsafeLauncher, { path: file }), { cause })
   }
 }
 
-export function unsafeScheduleLauncher(file: string): Error {
-  return new UnsafeScheduleLauncherError(file)
+export function unsafeScheduleLauncher(file: string, cause?: unknown): Error {
+  return new UnsafeScheduleLauncherError(file, cause)
 }
 
 export { scheduleLauncherReason } from './settle'

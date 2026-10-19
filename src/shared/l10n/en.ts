@@ -59,6 +59,14 @@ export const EN = {
   resourcePeakMemory: 'Peak Memory',
   resourceHistoryEmpty: 'No resource history recorded yet.',
   resourceHistoryInvalid: 'Resource history could not be read.',
+  // A damaged usage-history choice (CATCHMONEY R3): one sentence per damaged
+  // thing, saying what is damaged, what the product does because of it, and
+  // what to do. Shown as a notice in the editor, on stderr once in the
+  // terminal, and as a session notification on the editor protocol.
+  resourceHistoryChoiceUnreadable:
+    'Usage-history recording is off: usage-settings.json could not be read. Check its permissions, or delete it and set your choice again.',
+  resourceHistoryChoiceInvalid:
+    'Usage-history recording is off: usage-settings.json is not valid. Delete it and set your choice again.',
   resourceHistoryObserved:
     'Minute averages and observed harness work. Missing readings stay unknown; unobserved work is not estimated.',
   resourceHistoryThreshold: 'Limit',
@@ -415,10 +423,12 @@ export const EN = {
       '--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.',
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
-    'max-budget-usd': 'Set the hard spending limit in USD for this run.',
+    'max-budget-usd': 'Set the spending reservation limit in USD for this run.',
     'max-requests':
       'Set the maximum number of model requests; without it, there is no request limit.',
     'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
+    'max-output-tokens':
+      'Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
     ephemeral: 'Keep the session in memory without saving it.',
@@ -460,6 +470,7 @@ export const EN = {
     'share-to': '--to <message>: Last message to include.',
     'share-out': '--out <file>: Write the shared text to a file instead of stdout.',
     'sharing-json': '--json: Print the machine-readable result instead of the human preview.',
+    fast: '--fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
@@ -468,7 +479,8 @@ export const EN = {
   referenceVaultPanel: 'In progress.',
   referenceVaultLock: 'In progress.',
   referenceAuthClear: 'Remove the stored Model API key.',
-  referenceAuthStatus: 'Check whether a Model API key is stored.',
+  referenceAuthStatus:
+    'List the stored keys (the Model API key and every configured provider key); the exit code reports whether any key is stored.',
   referenceAuthGitHub:
     'Sign in to GitHub for pull requests with GitHub’s device flow: enter the printed code at github.com/login/device; the token stays in this computer’s credential store. logout deletes it, status says whether one is stored.',
   referenceAccountsTitle: 'Several Accounts per Provider',
@@ -489,7 +501,7 @@ export const EN = {
   referenceInstallSkills:
     "Copy project_setup, feature_delivery and quality_retrofit into Muse Code's configuration and link them as skills.",
   referenceExecContract:
-    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.',
+    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.',
   referenceBriefHelp:
     'help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceKeyStdin:
@@ -558,7 +570,7 @@ export const EN = {
   referenceBrowser:
     'The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts. The browser check is off in Restricted Mode. Trust the workspace to use it.',
   referenceBudget:
-    'Shared daily budget for interactive paid extras: museSpark.paidDailyBudgetUsd. Tab has its own separate budget.',
+    'Shared daily budget: museSpark.paidDailyBudgetUsd, a limit you set (none by default); a session limit you set also applies. Tab has its own separate budget. Nothing is held for a request in flight: a request without reported usage counts as cost unknown, never as its estimate. A response can cost more than its estimate; the next request is then stopped.',
   referenceCache: 'Settings (modelApiPromptCacheRetention).',
   referenceMcp:
     'MCP servers: Muse Code runs its own servers; on Model API this window runs configured servers. ACP Model API has no editor MCP servers.',
@@ -659,6 +671,7 @@ export const EN = {
   playbookClassLabel: 'Finding Class',
   playbookOutcomeLabel: 'Redesign Outcome',
   playbookUnavailable: 'The playbook is unavailable in this session.',
+  playbookCommandFailed: 'The playbook command could not be completed.',
   playbookHelpDescription:
     'Show review strikes, design decisions, safety refusals and rule settings.',
   playbookCommandUsage: 'Use `playbook status|record|settings`.',
@@ -948,6 +961,7 @@ export const EN = {
     messages: {
       targetUnavailable: 'This schedule’s target is unavailable in this host.',
       targetClosed: 'The target closed or this held fire was skipped.',
+      deliveryFailed: 'Delivery failed: {reason}',
       catchUpSkipped: 'Missed fire skipped by this schedule’s catch-up policy.',
       backgroundNotice: 'Schedule {name} opened a conversation in the background.',
       conversationTitle: 'Schedule {name} · {date}',
@@ -1099,16 +1113,18 @@ export const EN = {
   },
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
+  // D121: a daily budget shown where none is set; the person sets one, none by default.
+  paidDailyBudgetNone: 'none set',
   paidDailyLedgerUnavailable:
-    'Daily paid budget reached: its ledger is unreadable, incomplete, or cannot admit this request. No paid request was sent.',
+    'The daily paid spend ledger is unavailable. Repair it before another paid request.',
   paidDailyStopped: 'Paid extras are stopped until tomorrow.',
   paidDailyReached: 'Daily paid budget reached',
   paidDailyReachedDetail:
-    'Today’s limit is {budget}. This request and existing reservations need {needed}. Raise the limit for today, or stop paid extras until tomorrow.',
+    'Today’s limit is {budget}. What is spent today plus this request’s estimate comes to {needed}. Raise the limit for today, or stop paid extras until tomorrow.',
   paidDailyRaise: 'Raise for Today',
   paidDailyStop: 'Stop Until Tomorrow',
   paidDailyRaisePrompt:
-    'Enter today’s limit in USD (0.50–500), enough for the pending reservations.',
+    'Enter today’s limit in USD, at least what is spent today plus this request’s estimate.',
   planUi: {
     copilotConnect: 'Use My Copilot Models',
     copilotUnavailable: 'Copilot models are unavailable. Enable Copilot and try again.',
@@ -1154,6 +1170,19 @@ export const EN = {
     aiContent:
       'AI content can be inaccurate. Copilot adds rules and uses AI credits. Unreported token usage is estimated.',
     reportContent: 'Report Harmful Content',
+    // {description}: the catalogue's own words for the priority tier.
+    fastDetail: '{description}. Off by default: it uses more of your plan allowance.',
+    // {message}: OpenAI's own error message for the failed plan request,
+    // or the HTTP status where it sent none.
+    requestFailed: 'The ChatGPT plan request failed: {message}',
+    // OpenAI's 403 subscription_sharing_user_not_eligible: retrying or signing in again cannot fix it.
+    notEligible:
+      'OpenAI does not allow ChatGPT plan use for this account, workspace or policy. Choose an API-key model.',
+    // OpenAI answered with no body at all.
+    noReply: 'OpenAI answered the ChatGPT plan request without a reply. Try again.',
+    // {reason}: this app's own word for what it could not build or read.
+    requestNotBuilt:
+      'This app could not prepare the ChatGPT plan request ({reason}). Nothing was sent.',
   },
   untitledConversation: 'Untitled',
   crashTitle: 'The Panel Hit an Error',
@@ -1225,6 +1254,18 @@ export const EN = {
     'Could not clear the stored Model API key. The extension host stopped; check VS Code secret storage and sign out again.',
   signOutStopFailed:
     'Backend shutdown failed. This window is gated; close VS Code and check credentials before reopening.',
+  // A credential store that cannot be read (CATCHMONEY R3): the sentence says
+  // what happened, what the product does because of it, and the next step.
+  // `{reason}` is one of the credentialStoreReason* kind words below, never
+  // an errno or an internal name.
+  credentialStoreUnreadable:
+    'Saved credentials could not be read: {reason}. The safe state is kept: nothing was signed out or released. Check keychain access and try again.',
+  credentialStoreReasonCrypto: 'a stored entry cannot be decoded',
+  credentialStoreReasonLocked: 'the keychain is locked',
+  credentialStoreReasonNoService: 'no keychain answered',
+  credentialStoreReasonDenied: 'access to the keychain was refused',
+  credentialStoreReasonTimeout: 'reading the keychain timed out',
+  credentialStoreReasonOther: 'the cause is unknown',
   retryAction: 'Check Again',
   apiKeyPrompt: 'Meta Model API Key',
   apiKeyPlaceholder: 'LLM_…',
@@ -3185,18 +3226,37 @@ export const EN = {
     'The full tool result could not be kept in {spill}; only the cut text remains.',
   toolResultCutPreviewUnkept:
     'Tool result cut: {total} characters, kept the start and end ({omitted} left out). The full result could not be kept.',
-  // The Model API session budget (M82): a request that cannot fit is not
-  // sent, and the turn's cost is shown against the cap afterwards.
+  // The Model API session budget (M82, D121): a limit the person set. A
+  // request whose estimate would pass it is not sent, and the turn's cost is
+  // shown against it afterwards.
   sessionBudgetStopped:
     'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent.',
+  // D121: said once when what is left no longer fits a request like the last one.
+  sessionBudgetNearLimit:
+    'Session budget: {spent} of {cap} used. What is left may not fit the next request.',
+  // D121: a response that ended without its usage adds nothing; {spent} is what the conversation counts.
+  sessionBudgetCostUnknown:
+    'A response ended without reporting its usage, so its cost is unknown. It was not added to what this conversation spent ({spent} so far).',
+  spendLedgerDamaged:
+    'The {scope} spend ledger is damaged ({file}). No new request can be sent; restore or repair this ledger.',
+  spendLedgerUnreadable:
+    'The {scope} spend ledger cannot be read or saved ({file}: {errno}). No new request can be sent; correct the file access or storage problem.',
+  spendLedgerIntegrity:
+    'The {scope} spend ledger has conflicting ownership or amounts ({file}). No new request can be sent; repair this ledger.',
+  spendLedgerMidnight:
+    'Local midnight passed. Nothing was sent; restart with today’s daily budget.',
+  execContextLimit:
+    'The request exceeds this model’s context limit. Nothing was sent; reduce the input or output allowance.',
+  execBudgetImpossible:
+    'This request is too large for any spend cap this run accepts. Reduce its input or output allowance.',
+  execEstimateBound:
+    'Input reservation: provider estimate + {margin}, capped by the upper bound from size.',
   sessionBudgetStoreUnavailable:
     'The session spend ledger could not be read or saved. No new request can be sent until it is available.',
-  sessionBudgetLegacyFeesUnknown:
-    'The conversation’s spending is not fully verified. Wait for pending requests to finish, or start a new conversation to use a spend cap.',
   sessionBudgetSearchUnavailable:
     'Web search is unavailable under a finite spend cap: its billed query count has no verified limit. Ordinary chat and free web fetch remain available.',
   sessionBudgetRetryUnavailable:
-    'The previous request may have been billed. Its full reservation was kept; send a new prompt to retry with a fresh allowance.',
+    'The previous request may have been billed, so it is not sent again. Send a new prompt to retry.',
   sessionBudgetUnknownCharge:
     'Usage was not verified. {amount} remains reserved as a possible charge; this is not a confirmed bill.',
   sessionBudgetVoiceUnavailable:
@@ -3353,7 +3413,11 @@ export const EN = {
   agentRecoveryConfirm: '{action}: {objective}? The current permissions and budgets apply.',
   agentRetryUnavailable:
     'Retry is unavailable: this backend provides no isolated worktree checkpoint. Shared workspace changes are kept.',
+  agentRetryNoSubagent: 'Retry is unavailable for this agent: it has no subagent to retry.',
+  agentRetryNoCheckpoint:
+    'Retry is unavailable for this agent: it has no isolated checkpoint. Shared workspace changes are kept.',
   agentContinueUnavailable: 'Continue is unavailable for this agent or its current state.',
+  agentGone: 'That agent is no longer in this conversation.',
   referenceAgentOutcomes:
     'Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.',
   agentMapHint: 'click an agent for details',
@@ -4005,6 +4069,14 @@ export const EN = {
   scheduleNextRun: 'Next run {date}',
   scheduleFired: forms({ one: 'Ran {count} time', other: 'Ran {count} times' }),
   scheduleNone: 'No scheduled prompts',
+  // A schedule consent file that cannot be read (CATCHMONEY R3, P3-4): the
+  // errno reaches the person through a closed kind word, never raw. `{reason}`
+  // is one of the scheduleStoreReason* words below.
+  scheduleConsentUnreadable:
+    'Scheduled prompts are off: their saved consent {reason}. Fix its permissions or delete it, then set up schedules again.',
+  scheduleStoreReasonDenied: 'could not be read; permission was refused',
+  scheduleStoreReasonDiskFull: 'could not be read; the disk is full or read-only',
+  scheduleStoreReasonUnknown: 'could not be read',
   // M52: extension-owned schedules on the Model API backend. Muse Code's cron
   // jobs stay model-mediated until its MSP exposes scheduler verbs.
   loopItem: '/loop',
@@ -4046,6 +4118,8 @@ export const EN = {
     'Other enabled paid tools may add their own charges. Bypass does not skip this confirmation.',
   scheduleConfirmationExpired:
     'The model, conversation or prompt changed during confirmation. Review the schedule and choose Run again.',
+  // P3-2: a rotated key is not a changed mind: the refusal says the key moved.
+  execKeyRotated: 'The key was rotated during the run; the request was not sent.',
   requestStaleTurn: 'The model or conversation changed while sending. Send your message again.',
   requestStaleCompaction: 'The model or conversation changed while compacting. Compact again.',
   requestStaleRetry: 'The model or conversation changed before the request was sent. Try again.',
@@ -4382,10 +4456,19 @@ export const EN = {
       'Usage: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]',
   },
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
+  execProgressStarted: 'Request {request} started; {reserved} reserved.',
+  execProgressSettled:
+    'Request {request} ended; run input {input}, output {output}; {settled} spent, {uncertain} uncertain.',
+  execProgressTokens: forms({ one: '{count} token in total', other: '{count} tokens in total' }),
+  execTokenCount: forms({ one: 'at most {count} token', other: 'at most {count} tokens' }),
+  execBudgetQuote:
+    'Input {inputTokens} ({inputCost}) + output cap {outputTokens} ({outputCost}) = {estimate}; run cap {cap}, {spent} used. Request not sent.',
+  execBudgetMinimum: 'This run requires at least {minimum}.',
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
   execValueInvalid:
     'Invalid value for {option}; run exec --help for the accepted values and bounds.',
+  execLimitInvalid: 'Invalid number or limit for {flag}.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',
   execModeRefused: 'Headless runs permit only plan or acceptEdits.',
   execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',
@@ -4405,9 +4488,66 @@ export const EN = {
   execTooManyChunks: 'The input exceeds the chunk limit.',
   execUnknownModel: 'This model is not available for this run.',
   execEffortUnavailable: 'This effort is not available for this model.',
+  execFastUnavailable: 'Fast is not available for this model.',
   execTimedOut: 'The run reached its deadline.',
   execBudgetRefused: 'The next request exceeds the remaining budget.',
-  execBudgetMinimum: 'This run requires at least {minimum}.',
+  // EXECPROV round 5: a budget refusal names both remedies with numbers. The
+  // cap remedy is a complete clause on its own, so ACP and the editor show
+  // the same reason through the shared scope without the terminal-only flag
+  // half. {admitCap} is the cap that admits the request, rounded up to the
+  // cent; {maxTokens} is the largest --max-output-tokens value that fits the
+  // remaining cap; {inputCost} and {remaining} feed the input-alone note.
+  execBudgetRemedyCap: 'Raise --max-budget-usd to at least {admitCap} to admit it.',
+  execBudgetRemedyOutput: 'Or retry with --max-output-tokens {maxTokens}.',
+  execBudgetRemedyInput: 'The input alone costs {inputCost}, above the {remaining} left.',
+  // EXECPROV round 6: the provider variant states the rule, since its
+  // first body is not built yet ({output} is the output cap every request
+  // reserves).
+  execBudgetStartRule:
+    'Capped run: cap {cap}, {remaining} left. Each request reserves its counted input plus up to {output} output tokens.',
+  // EXECPROV round 7 (R2): a wire with no counter reserves the byte
+  // bound, and the start line says so — never "counted input".
+  execBudgetStartBytes:
+    'Capped run: cap {cap}, {remaining} left. Each request reserves its byte-bound input plus up to {output} output tokens.',
+  // A budget stop with nothing produced yet: the run was still reading, so
+  // no answer exists. The remedies follow as their own sentences.
+  execBudgetStillReading:
+    'The budget stopped the run while it was still reading, so no answer exists yet.',
+  // An exact provider count was tried and failed: the fixed reason the byte
+  // bound is used instead. The provider's own error never reaches this line.
+  execCountBytesFallback:
+    'The provider input count failed, so the byte bound reserves this request instead.',
+  // A --max-output-tokens value above the policy cap is refused at parsing.
+  // {cap} is the absolute ceiling every policy cap sits at or below.
+  execOutputCapExceeded: '--max-output-tokens exceeds the output cap of {cap} tokens.',
+  // EXECPROV round 5 (5a): a missing price is not a budget stop. {model} is
+  // the requested ref; {file} is the runner's own providers file, where a
+  // price for the model is added. The second sentence is the backend without
+  // a providers file.
+  execUnpricedProvider:
+    'This model has no known tariff, so a capped run cannot reserve for {model}. Add a price for this model in {file}, or choose a priced model.',
+  execUnpricedModel:
+    'This model has no known tariff, so a capped run cannot reserve for it. Choose a priced model.',
+  // D1, D121: a daily stop names its numbers: the request's estimate, the
+  // limit the person set, what is spent today, when the day resets, and the
+  // setting that raises it. Nothing is held, so nothing else is counted.
+  execPaidDailyStopped:
+    'Stopped: the next request (about {estimate}) would pass the daily budget of {cap} ({spent} used today). It was not sent. The budget resets {reset}; raise {setting} to continue.',
+  // D3: a budget-stopped turn keeps its work; the final message says what was
+  // reached ({count} is the completed request count).
+  execBudgetProgress: forms({
+    one: 'The budget stopped the run after {count} request; work so far is kept.',
+    other: 'The budget stopped the run after {count} requests; work so far is kept.',
+  }),
+  // D4: three causes, three sentences. {available} names what can run.
+  execModelNeedsProvider:
+    'Model {model} belongs to provider {provider}; run again with --provider {provider}. Available models: {available}.',
+  execModelNotOnProvider:
+    'Model {model} is not on provider {provider}. Available models: {available}.',
+  execModelAvailable:
+    'Model {model} is not available on this backend. Available models: {available}.',
+  execBudgetOverage:
+    'The last request exceeded its reservation by {overage} ({cost} charged, {reserved} reserved). The run stopped before another request.',
   execBudgetBreach: 'Observed accounting exceeded its reservation.',
   execIncomplete: 'The response did not complete.',
   execDeniedStop: 'An approval denial stopped this run.',
@@ -4424,6 +4564,7 @@ export const EN = {
     cancelled: 'Cancelled',
     timeout: 'Timed Out',
     budget_exceeded: 'Budget Exceeded',
+    unpriced: 'Unpriced',
     request_cap: 'Request Cap Reached',
     denied: 'Denied',
     auth_required: 'Authentication Required',
@@ -4471,7 +4612,7 @@ export const EN = {
   providerKeyStored: 'The {provider} key is stored in {store}.',
   providerKeyNotStored: 'No key was entered, so nothing was stored.',
   providerKeyNotText: 'That input is not text (it is not valid UTF-8), so it was not used.',
-  providerKeyPresent: 'A {provider} key is stored in {store}, bound to {origin}.',
+  providerKeyPresent: 'The {provider} key is stored in {store}, bound to {origin}.',
   providerKeyAbsent: 'No {provider} key is stored.',
   providerKeyCleared: 'The {provider} key was removed from this computer’s credential store.',
   // {provider}: the id as typed.
@@ -4619,6 +4760,8 @@ export const EN = {
   // {reason}: the endpoint policy's refusal.
   providerEndpointRefused: 'That address cannot be used ({reason}).',
   providerNoRequestPath: '{provider} cannot run here yet; its wire capture is still pending.',
+  // D4: a listed model without a price card cannot run; add/test/list say why.
+  providerModelNoPrice: '{ref} cannot run: it has no price card, so no run can reserve for it.',
   execProviderNeedsModelApi: '--provider needs --backend modelApi.',
   execProviderModelRequired: 'This provider run needs --model provider/model.',
   // {provider}: the provider id the run asked for.
@@ -4770,6 +4913,15 @@ export const EN = {
   paidDeny: 'Deny',
   paidUseWebSearchTitle: 'Let Muse search the web for this prompt?',
   paidSearchQuote: 'Provider: {provider} · Model: {model}.',
+  paidQuoteChoicesUnreadable:
+    'Saved "always" choices could not be read ({kind}), so this use asks again.',
+  paidAlwaysNotKept:
+    '"Always" for {feature} applied this time, but it could not be saved ({kind}): you will be asked again.',
+  // `{kind}` above and in `paidQuoteChoicesUnreadable` is one of these
+  // closed words, never an errno or an error name.
+  paidStoreReasonDenied: 'permission was refused',
+  paidStoreReasonDiskFull: 'the disk is full or read-only',
+  paidStoreReasonUnknown: 'the cause is unknown',
   paidUseWebSearchDetail:
     'Muse may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add. Deny sends the prompt without web search.',
   paidUseVoiceTitle: 'Record with Muse Voice?',
@@ -5517,8 +5669,6 @@ export const EN = {
   sessionBudgetScopeGlobal: 'this computer',
   wizardSessionBudgetInvalid:
     'Enter a non-negative amount in dollars, for example 2 (0 means no limit).',
-  // {detail}: why the setting write failed, in the settings' own words.
-  sessionBudgetWriteFailed: 'The spending limit was not saved: {detail}',
   // {detail}: why the limit could not change after provider persistence succeeded.
   sessionBudgetPartialSave: 'Provider saved; the spending limit was not changed: {detail}',
   // {amount}: the concurrent current limit; {requested}: the user's retained edit.
@@ -5564,15 +5714,23 @@ export const EN = {
   acpProviderAdded: 'Added provider {id}.',
   acpProviderRemoved: 'Removed provider {id}.',
   acpChatGpt: {
-    usage: 'Usage: muse-spark-code-acp providers add|remove|status chatgpt',
+    usage: 'Usage: muse-spark-code-acp providers add|remove|status chatgpt [--new-account]',
     actions: {
       add: 'Continue With ChatGPT',
+      // A new registration for another ChatGPT account (`providers add chatgpt --new-account`).
+      'add-new-account': 'Use a Different ChatGPT Account',
       remove: 'Remove ChatGPT Sign-In',
       status: 'Check ChatGPT Sign-In',
     },
     notice:
       'ChatGPT Plus or Pro is required. Requests use your plan allowance; OpenAI may spend additional credits if you enabled them in ChatGPT. Continue in your browser to sign in.',
     alreadyAdded: 'ChatGPT is already added. Remove it before signing in again.',
+    // The browser signed in to another account than the saved registration's.
+    accountMismatch:
+      'This is not the ChatGPT account this app registered here. Sign in with that account, or choose “Use a Different ChatGPT Account”.',
+    // OpenAI answered invalid_client for the saved registration.
+    clientRefused:
+      'OpenAI no longer accepts this app’s saved ChatGPT registration. Remove ChatGPT if it is added, then choose “Use a Different ChatGPT Account”.',
     states: {
       'signed-in': 'ChatGPT is signed in.',
       expired:
@@ -5581,7 +5739,70 @@ export const EN = {
     },
     callback: 'ChatGPT sign-in is complete. Return to your editor or terminal.',
     failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
+    // Each sign-in, refresh or catalogue failure says its own cause; none is general.
+    discoveryInvalid:
+      'OpenAI’s sign-in configuration at auth.openai.com was not in the documented form. Try again later.',
+    callbackInvalid: 'The browser’s answer did not match this ChatGPT sign-in. Try again.',
+    callbackTimeout:
+      'No answer from the browser reached this app in time, so the ChatGPT sign-in stopped. Try again.',
+    stateMismatch:
+      'The browser’s answer belonged to a different ChatGPT sign-in attempt. Try again.',
+    tokenAnswerInvalid:
+      'OpenAI’s token answer for this ChatGPT sign-in was not in the documented form. Try again.',
+    idTokenInvalid:
+      'OpenAI’s identity token for this ChatGPT sign-in could not be verified. Try again.',
+    missingPlanScope:
+      'This ChatGPT sign-in does not allow plan use: OpenAI did not grant chatgpt.tokens.use.direct. Remove ChatGPT, sign in again and allow plan use.',
+    originMismatch:
+      'This app refused to send the ChatGPT sign-in anywhere but https://api.openai.com.',
+    // {reason}: OpenAI's own refresh error code, such as invalid_grant.
+    signInRefused:
+      'OpenAI no longer accepts this ChatGPT sign-in ({reason}). Remove ChatGPT and sign in again.',
+    grantUnreadable:
+      'The ChatGPT sign-in stored on this computer could not be read. Remove ChatGPT and sign in again.',
+    registrationUnreadable:
+      'This app’s saved ChatGPT registration could not be read. Choose “Use a Different ChatGPT Account” to register again.',
+    // {reason}: where the host identifier is kept (a credential-store entry or a file name).
+    hostIdUnreadable:
+      'The ChatGPT host identifier stored on this computer ({reason}) could not be read, so no ChatGPT sign-in can start. Delete it to start over.',
+    // {reason}: the HTTP status and OpenAI's own error code.
+    catalogueRefused: 'OpenAI refused the ChatGPT plan’s model list ({reason}).',
+    catalogueUnreadable:
+      'OpenAI’s model list for this ChatGPT plan was not in the documented form.',
+    catalogueEmpty: 'OpenAI lists no model this ChatGPT plan can use in this app.',
+    addedModelsUnlisted:
+      'None of the ChatGPT models added here is in the plan’s current model list. Remove ChatGPT and add it again to choose from the current list.',
+    // {model}: the model reference asked for, as written.
+    modelNotAdded:
+      '{model} is not among the plan models added here. Choose one from the plan’s list.',
+    // {reason}: the HTTP status, or Node's own network codes.
+    requestFailed: 'A request to OpenAI failed ({reason}). Try again.',
+    storeUnavailable:
+      'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
+    // {reason}: the operating system's own code for the failure.
+    lockUnavailable: 'The local sign-in lock could not be opened ({reason}). Try again.',
+    // {reason}: OpenAI's own error code for refusing the authorize request.
+    authorizeRefused:
+      'OpenAI refused the ChatGPT sign-in request ({reason}). Try again or remove it and sign in again.',
+    // Another window or process kept the sign-in lock past the wait.
+    lockBusy:
+      'Another window or process is signing in to ChatGPT or refreshing the sign-in. Wait for it to finish and try again.',
+    // The person or the editor ended the wait.
+    cancelled: 'The ChatGPT sign-in was cancelled before it finished.',
+    // Said when the editor or terminal could not show the sign-in address.
+    browserUnavailable:
+      'The sign-in address could not be opened in a browser. Open it yourself, or try again from a desktop session.',
+    // {reason}: the operating system's code, or this app's own word, for the local failure.
+    localFailed: 'A local step of the ChatGPT sign-in failed ({reason}). Try again.',
+    // {reason}: why the providers file could not be read: unparseable or invalid.
+    providersFileUnreadable:
+      'The providers file could not be read ({reason}). Fix or remove it, then try again.',
+    // {reason}: why the providers file could not be saved: invalid or io-error.
+    providersFileUnwritable:
+      'The providers file could not be saved ({reason}). Check that its folder is writable, then try again.',
   },
+  // D119: each sign-in failure below says its own cause; the general line
+  // stays for the callers the merges kept.
   // GitHub sign-in outside VS Code (M123 lane A, PLAN.md D104): the device
   // flow's code, shown by the CLI, the ACP notice and the panel alike.
   githubSignIn: {
@@ -5612,6 +5833,10 @@ export const EN = {
       reply: 'GitHub’s reply could not be read.',
     },
   },
+  execProviderNotCatalogue: 'This model is not in this build’s catalogue: {model}.',
+  providerCliModelsRequired: 'Use --model <id> (repeat for more models). Available: {models}.',
+  providerCliConfigure:
+    'Check these flags: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.',
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.
   providerText: {
@@ -6488,7 +6713,12 @@ export const EN = {
       'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
     unavailable:
       'Accounts are unavailable until this runtime is connected to the shared account service.',
-    providerUnavailable: 'Accounts for {provider} are not available in this terminal yet.',
+    unavailableReason: 'Accounts are unavailable ({reason}).',
+    changed: 'Accounts changed while updating. Try again.',
+    notReady: 'Accounts are not ready yet. Try again.',
+    invalidReply: 'The account service answered with an unexpected reply.',
+    noticeFailed: 'The account notice could not be shown ({reason}).',
+    revokeUnsupported: 'Removing this sign-in is not supported in this runtime.',
     providersInvalid:
       'The providers file is invalid, so its entries were refused and the file was left unchanged.',
     poolUnavailable:

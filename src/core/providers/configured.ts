@@ -21,6 +21,7 @@ import {
   priceCard,
   providersFile,
   responses,
+  tokenCount,
   createProviderRegistry,
   recordPlanUsage,
   metaResolvedModel,
@@ -29,9 +30,10 @@ import { outputTokenMinimumMessage, providerOutputMinimum } from '../../shared/p
 import { pinnedHttpsRequest, pinnedPostRequest } from '../../host/backend/modelApiEntry'
 import type { PinnedResponse, PinnedTarget } from '../web/webFetch'
 import type { ProviderClient } from '../backends/modelapi/client'
-import type { StreamEvent, Usage } from '../backends/modelapi/schemas'
+import type { CreateResponseBody, StreamEvent, Usage } from '../backends/modelapi/schemas'
 import type { ProviderEntry, ProviderFormat } from './providersFile'
 import type { RegistryModel } from './providerRegistry'
+import { providersFileUnreadable } from '../accountStoreError'
 import type { ModelCapabilityRecord } from './capabilityRecord'
 import type { NativeModelMetadata } from './modelMetadata'
 import { parseNdjson } from '../backends/modelapi/ndjson'
@@ -46,6 +48,7 @@ import {
   assertConfirmedAllowed,
   isModelApiError,
 } from '../backends/modelapi/transport'
+import { isUserRefusal, UserRefusalError } from '../refusal'
 import {
   boundProviderMessage,
   isRefusalRetryable,
@@ -56,7 +59,7 @@ import {
 import { isConnectionFailure, networkFailureCodes } from '../networkFailure'
 import type { CoreLogger } from '../logging'
 import { withDeadline } from '../timeouts'
-import { Usd } from '../../shared/usd'
+import { Usd, type UsdAmount } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
 import {
   ADDRESS_FAMILIES,
@@ -119,16 +122,31 @@ const secretSchema = z.object({
   secret: z.string().check(z.minLength(1)),
 })
 const catalogSchema = z.object({
+  unpriced: z.optional(
+    z.record(z.string(), z.record(z.string(), modelMetadata.nativeModelMetadataSchema)),
+  ),
+  fetchedAt: z.optional(z.string()),
   providers: z.record(
     z.string(),
     z.object({ models: z.record(z.string(), modelMetadata.nativeModelMetadataSchema) }),
   ),
 })
-const costSchema = z.object({
+const costRates = {
   input: z.number().check(z.nonnegative()),
   output: z.number().check(z.nonnegative()),
   cache_read: z.optional(z.number().check(z.nonnegative())),
   cache_write: z.optional(z.number().check(z.nonnegative())),
+}
+const costSchema = z.object({
+  ...costRates,
+  tiers: z.optional(
+    z.array(
+      z.object({
+        ...costRates,
+        tier: z.object({ type: z.literal('context'), size: z.int().check(z.minimum(1)) }),
+      }),
+    ),
+  ),
 })
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
 /**
@@ -351,10 +369,6 @@ export function configuredTransportLog(log: CoreLogger | undefined): CoreLogger 
   }
 }
 
-function ignoreProviderCache(): void {
-  // Provider requests do not maintain a page cache.
-}
-
 async function* chunks(response: PinnedResponse, idleMs: number | undefined, provider: string) {
   let size = 0
   const iterator = response.body[Symbol.asyncIterator]()
@@ -432,8 +446,9 @@ export function createConfiguredProviderServices(
     const result = await providersFile.readProvidersFile(options.configFile)
     if (!result.ok) {
       if (result.reason === 'missing') return providersFile.emptyProvidersFile()
-      if (result.reason === 'invalid') throw new RangeError(result.detail)
-      throw new ModelApiError(UI_TEXT.actionFailed, 0, undefined, undefined)
+      // The providers-file refusal, with its own sentence: the account check
+      // and the editor say the file's fault, never the credential store's.
+      throw providersFileUnreadable(result.reason)
     }
     revision = digest(JSON.stringify(result.file))
     return result.file
@@ -566,32 +581,53 @@ export function createConfiguredProviderServices(
           // `sendFailure` above (the network codes, and the send's unknown
           // fate). Its status stays 0, so any liability is kept uncertain.
           let response: PinnedResponse
-          if (options.send !== undefined)
-            response = await options.send(target, body, headers, signal)
-          else if (body === undefined) {
-            response = await pinnedHttpsRequest(
-              target,
-              signal,
-              ignoreProviderCache,
-              (requestOptions, callback) => {
-                const request = target?.url.protocol === 'http:' ? httpRequest : httpsGet
-                return request(
-                  { ...requestOptions, headers: { host: base.host, ...headers } },
-                  callback,
-                )
-              },
-              target.url.protocol !== 'http:',
-            )
-          } else {
-            response = await pinnedPostRequest(
-              target,
-              body,
-              headers,
-              signal,
-              ignoreProviderCache,
-              target.url.protocol === 'http:' ? httpRequest : undefined,
-              target.url.protocol !== 'http:',
-            )
+          const connection = { isConnected: false }
+          const connected = () => {
+            connection.isConnected = true
+          }
+          try {
+            if (options.send !== undefined)
+              response = await options.send(target, body, headers, signal)
+            else if (body === undefined) {
+              response = await pinnedHttpsRequest(
+                target,
+                signal,
+                connected,
+                (requestOptions, callback) => {
+                  const request = target?.url.protocol === 'http:' ? httpRequest : httpsGet
+                  return request(
+                    { ...requestOptions, headers: { host: base.host, ...headers } },
+                    callback,
+                  )
+                },
+                target.url.protocol !== 'http:',
+              )
+            } else {
+              response = await pinnedPostRequest(
+                target,
+                body,
+                headers,
+                signal,
+                connected,
+                target.url.protocol === 'http:' ? httpRequest : undefined,
+                target.url.protocol !== 'http:',
+              )
+            }
+          } catch (error: unknown) {
+            // An injected send reports no dispatch, so a failure after it
+            // was called may have reached the provider: it keeps ambiguous
+            // liability below instead of `not_sent`, which would release
+            // the run's ticket and record zero.
+            if (!connection.isConnected && options.send === undefined)
+              throw new UserRefusalError(
+                isUserRefusal(error) ? error.message : UI_TEXT.providerProbeUnreachable,
+                'not_sent',
+                error,
+              )
+            if (isUserRefusal(error) || signal.aborted) throw error
+            // A pinned send can have reached the provider; retain its liability
+            // and refuse an ambiguous retry, with no echoed diagnostic text.
+            throw new ModelApiError(UI_TEXT.modelsPanelUnavailable, 0, undefined, undefined)
           }
           const iterator = chunks(response, idleMs, providerDisplayName(entry, preset))[
             Symbol.asyncIterator
@@ -771,7 +807,9 @@ export function createConfiguredProviderServices(
       const preset = presetFor(entry)
       for (const nativeModel of entry.models) {
         const ref = `${entry.id}/${nativeModel}`
-        const native = catalogue.providers[preset.id.replace('-plan', '')]?.models[nativeModel]
+        const native =
+          catalogue.providers[preset.id.replace('-plan', '')]?.models[nativeModel] ??
+          catalogue.unpriced?.[preset.id.replace('-plan', '')]?.[nativeModel]
         // Dated provider-documentation facts the snapshot lacks (lane
         // REASONSHAPES): `preset`-kind evidence, shadowing the pinned
         // catalogue where it speaks and losing to the live list, a
@@ -800,6 +838,7 @@ export function createConfiguredProviderServices(
         const four = capabilities.capabilitiesOf({ capabilityRecord: record })
         const entered = entry.prices?.[nativeModel]
         const cost = costSchema.safeParse(native?.['cost'])
+        const tier = cost.success ? cost.data.tiers?.[0] : undefined
         const card = priceCard.resolvePriceCard([
           ...(cost.success
             ? [
@@ -810,6 +849,26 @@ export function createConfiguredProviderServices(
                     cost.data.cache_read === undefined
                       ? undefined
                       : cost.data.cache_read / TOKENS_PER_MILLION,
+                  cacheWrite:
+                    cost.data.cache_write === undefined
+                      ? undefined
+                      : cost.data.cache_write / TOKENS_PER_MILLION,
+                  fetchedAt: catalogue.fetchedAt,
+                  ...(tier !== undefined && {
+                    longContextTier: {
+                      fromTokens: tier.tier.size,
+                      input: tier.input / TOKENS_PER_MILLION,
+                      output: tier.output / TOKENS_PER_MILLION,
+                      cachedInput:
+                        tier.cache_read === undefined
+                          ? undefined
+                          : tier.cache_read / TOKENS_PER_MILLION,
+                      cacheWrite:
+                        tier.cache_write === undefined
+                          ? undefined
+                          : tier.cache_write / TOKENS_PER_MILLION,
+                    },
+                  }),
                   source: 'catalogue' as const,
                 },
               ]
@@ -825,6 +884,11 @@ export function createConfiguredProviderServices(
         if (origin === undefined) throw invalidEntry(entry, { kind: 'missingAddress' })
         const model: RegistryModel = {
           ref,
+          catalogueMissing:
+            native === undefined &&
+            preset.id !== 'custom' &&
+            entry.auth !== 'none' &&
+            entered === undefined,
           origin,
           evidence: {
             capabilities: four,
@@ -1152,28 +1216,43 @@ export function createConfiguredProviderServices(
         if (response.body === null)
           throw new ModelApiError(UI_TEXT.actionFailed, response.status, undefined, undefined)
         for await (const event of decode(response.body, response.status)) {
-          let failure: { message: string; code: string | undefined } | undefined
-          if (event.type === 'error')
-            failure = { message: event.message, code: event.code ?? undefined }
-          else if ('response' in event && event.response.error != null)
-            failure = {
-              message: event.response.error.message,
-              code: event.response.error.code ?? undefined,
-            }
-          if (failure !== undefined) {
+          if (event.type === 'error') {
             // A refusal inside the stream is its own kind (round 2,
             // finding 8): the provider ended its answer with an error, at
             // the answer's own status (200 when the stream carried it). The
             // sentence is built once, by the `streamResponse` catch below,
             // after the credential scrub; liability stays uncertain.
-            throw new ModelApiError(failure.message, response.status, 'streamError', failure.code)
+            throw new ModelApiError(
+              event.message,
+              response.status,
+              'streamError',
+              event.code ?? undefined,
+            )
           }
           yield 'response' in event
             ? { ...event, response: { ...event.response, model: ref } }
             : event
+          // A failed terminal can still carry final billed usage. Deliver that
+          // receipt before surfacing its error so accounting never loses it.
+          if ('response' in event && event.response.error != null) {
+            // Same kind as above: the answer ended with an error after its
+            // final usage, at the stream's own status.
+            throw new ModelApiError(
+              event.response.error.message,
+              response.status,
+              'streamError',
+              event.response.error.code ?? undefined,
+            )
+          }
         }
       },
     }
+    const providerModel = () => ({
+      id: ref,
+      capabilities: capabilities.capabilitiesOf({ capabilityRecord: record }),
+      contextWindow: record.limits.contextTokens ?? 0,
+      maxOutputTokens: record.output.maxTokens ?? 0,
+    })
     const client = new CodecClient({
       provider: {
         id: entry.id,
@@ -1193,13 +1272,80 @@ export function createConfiguredProviderServices(
       // envelope code (e.g. a quota 429's) reaches the real classifier.
       transport: { ...connection.transport, retryTable: presets.quirksOf(preset).retry },
       ...(idleMs !== undefined && { streamIdleMs: idleMs }),
-      modelFor: () => ({
-        id: ref,
-        capabilities: capabilities.capabilitiesOf({ capabilityRecord: record }),
-        contextWindow: record.limits.contextTokens ?? 0,
-        maxOutputTokens: record.output.maxTokens ?? 0,
-      }),
+      modelFor: providerModel,
     })
+    /**
+     * EXECPROV round 7: the exact same-body input count for every wire
+     * that documents one, declared per preset/format in data
+     * (`FormatQuirks.exactCount`, preset overrides where only some
+     * providers of a format document one) and off-switchable per entry.
+     * The count request is built from the already-built native request by
+     * buildExactCountRequest (drop these fields, send to this path), so it
+     * cannot drift from what is sent. It rides the same pinned-address,
+     * proxy and credential path as the real request (no second network
+     * path), carries the request's own headers (auth, version, beta), is
+     * never recorded as a model call, and any failure throws so the
+     * accounting layer falls back to the byte bound with the fixed reason.
+     * A count is never retried for send failures (`rateLimitOnly`: only a
+     * pre-work 429 may retry inside the short deadline); its failure text
+     * never carries the body. Counts are free on every wire that has one,
+     * so no billed cost rides along.
+     */
+    // Through the externalized providers entry (never a static edge into
+    // tokenCount.ts: the split gate forbids carrying provider modules).
+    const exactCountKind = tokenCount.exactCountKindFor(entry, preset)
+    const exactInputCount =
+      exactCountKind === undefined
+        ? undefined
+        : async (
+            body: CreateResponseBody,
+            signal?: AbortSignal,
+          ): Promise<{
+            readonly tokens: number
+            readonly costUsd?: UsdAmount | undefined
+            readonly accuracy: 'exact' | 'estimate'
+          }> => {
+            signal?.throwIfAborted()
+            const encoded = codec.encode(body, providerModel())
+            // Built from the request path the request itself takes — never
+            // a fixed string — so a custom prefix or model still addresses
+            // its own counting sibling, or keeps the byte bound.
+            const count = tokenCount.buildExactCountRequest(exactCountKind, {
+              path: encoded.path,
+              body: encoded.body,
+              ...(encoded.headers !== undefined && { headers: encoded.headers }),
+            })
+            if (count === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+            if (entry.address === undefined) throw invalidEntry(entry, { kind: 'missingAddress' })
+            const transport = new RequestTransport({
+              ...connection.transport,
+              auth: connection.auth,
+              verifyEndpoint: connection.verifyEndpoint,
+              baseUrl: new URL(entry.address).origin,
+            })
+            // No deadline of our own (owner 2026-10-16): the count ends at
+            // the provider's answer, a network failure, or the caller's stop.
+            const result = await transport.request(
+              count.path,
+              {
+                method: 'POST',
+                body: count.body,
+                ...(encoded.headers !== undefined && { headers: encoded.headers }),
+                accept: 'application/json',
+                retries: 'rateLimitOnly',
+              },
+              signal,
+            )
+            const tokens = await parseJsonResponse(result, (json) =>
+              tokenCount.parseExactCountResponse(exactCountKind, json),
+            )
+            if (tokens === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+            return {
+              tokens,
+              costUsd: undefined,
+              accuracy: exactCountKind === 'anthropic-count-tokens' ? 'estimate' : 'exact',
+            }
+          }
     return {
       ...base,
       currentKeyDigest: client.currentKeyDigest,
@@ -1211,6 +1357,7 @@ export function createConfiguredProviderServices(
       listModels: () => Promise.resolve([ref]),
       // UTF-8 bytes bound text tokens conservatively and include tool schemas.
       countInputTokens: (body) => Promise.resolve(Buffer.byteLength(JSON.stringify(body))),
+      ...(exactInputCount !== undefined && { countInputTokensDetailed: exactInputCount }),
       streamResponse: async function* (body, signal, onRetry, budget, admitAttempt, confirmed) {
         const minimum = providerOutputMinimum(
           entry.address,
@@ -1307,16 +1454,30 @@ export function createConfiguredProviderServices(
         ? []
         : await delegate().listModels(signal),
     models: {
+      defaultModel: async () => {
+        const file = await read()
+        return file.defaultModel
+      },
       list: registry.list,
       resolve: async (ref) =>
         modelRef.parseModelRef(ref)?.providerId === 'meta' || meta?.isPlanModel?.(ref) === true
-          ? metaResolvedModel(ref, delegate())
+          ? metaResolvedModel(ref, delegate(), await delegate().planModelFacts?.(ref))
           : await registry.resolve(ref),
     },
     isPlanModel: (ref) =>
       presets.planKeyPresetById(records.get(ref)?.entry.preset ?? '') !== undefined ||
       meta?.isPlanModel?.(ref) === true,
     readPlanUsage: () => [...(meta?.readPlanUsage?.() ?? []), ...plans],
+    // The plan client's catalogue facts and its Meta-free listing, so a plan
+    // model listed through this client keeps its effort levels, default and
+    // Fast tier (finding F79: they stopped here, and every plan model offered
+    // no effort level).
+    ...(meta?.planModelFacts !== undefined && {
+      planModelFacts: async (ref: string) => await delegate().planModelFacts?.(ref),
+    }),
+    ...(meta?.listPlanModels !== undefined && {
+      listPlanModels: async () => (await delegate().listPlanModels?.()) ?? [],
+    }),
     streamResponse: async function* (body, ...args) {
       if (body.model.includes('/') && !meta?.isPlanModel?.(body.model)) {
         const resolved = await registry.resolve(body.model)
@@ -1356,7 +1517,9 @@ export function createConfiguredProviderServices(
           .check(z.minLength(1))
           .parse(native['id'] ?? native['name'])
         const source = { kind: 'models-list' as const, ref: entry.address }
-        const known = catalogue.providers[preset.id.replace('-plan', '')]?.models[id]
+        const known =
+          catalogue.providers[preset.id.replace('-plan', '')]?.models[id] ??
+          catalogue.unpriced?.[preset.id.replace('-plan', '')]?.[id]
         const record = capabilities.resolveModelCapabilities(
           { provider: entry.id, nativeModel: id, format: entry.format ?? preset.format },
           [

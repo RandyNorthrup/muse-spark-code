@@ -1,3 +1,4 @@
+import { UserRefusalError } from './refusal'
 import { tokenRatePrice } from './tokenRatePrice'
 export { autoReviewPrice } from './reviewPriceText'
 import * as z from 'zod/mini'
@@ -88,6 +89,47 @@ export function searchSettlement(
   })
 }
 export type PaidUseDecision = boolean | PaidQuote | undefined
+
+/**
+ * Why the paid-choice store could not be read or written, as a closed kind:
+ * the person is told its translated word (`paidStoreReasonText`), never an
+ * errno or an error's name.
+ */
+export type PaidStoreFailureKind = 'denied' | 'diskFull' | 'unknown'
+
+/** Maps a store throw onto the closed kind, from its errno code only. */
+export function paidStoreFailureKind(error: unknown): PaidStoreFailureKind {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : undefined
+  if (code !== undefined && ['EACCES', 'EPERM'].includes(code)) return 'denied'
+  return code !== undefined && ['ENOSPC', 'EDQUOT', 'EROFS'].includes(code) ? 'diskFull' : 'unknown'
+}
+
+/** The kind word for people: a closed translated phrase, read at call time. */
+export function paidStoreReasonText(kind: PaidStoreFailureKind): string {
+  switch (kind) {
+    case 'denied': {
+      return UI_TEXT.paidStoreReasonDenied
+    }
+    case 'diskFull': {
+      return UI_TEXT.paidStoreReasonDiskFull
+    }
+    case 'unknown': {
+      return UI_TEXT.paidStoreReasonUnknown
+    }
+  }
+}
+
+/**
+ * Saved "always" choices the quote store could not list when the question
+ * was asked: the store failure's closed kind, never its message. The surface
+ * shows its word with the question, so asking again never looks unexplained.
+ */
+export interface PaidQuoteNotice {
+  readonly kind: PaidStoreFailureKind
+}
 
 export interface SubagentTaskConfirmation {
   readonly role: string
@@ -221,6 +263,7 @@ export type PaidUseRequest =
       readonly feature: 'webSearch'
       readonly priceUsd: UsdAmount
       readonly quote?: PaidQuote
+      readonly quoteNotice?: PaidQuoteNotice
       readonly isCurrent?: () => boolean
     }
   | { readonly feature: 'voice' }
@@ -370,7 +413,7 @@ export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: UsdAmoun
         !nonnegativeUsdSchema.safeParse(price).success ||
         Usd.from(price).compare(Usd.from(0)) < 0
       )
-        throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
       return fill(UI_TEXT.paidWebSearchPrice, {
         price: formatUsd(multiplyUsd(price, SEARCHES_PER_PRICE_UNIT), 2),
       })

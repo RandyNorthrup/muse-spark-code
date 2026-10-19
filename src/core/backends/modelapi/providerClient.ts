@@ -11,6 +11,7 @@ import {
   canRetryWithinBudget,
   ignoreClosingError,
   redactModelApiError,
+  rethrowStreamError,
   ModelApiError,
   parseJsonResponse,
   type TransportDeps,
@@ -313,7 +314,7 @@ export class CodecClient implements ProviderClient {
           (isAmbiguous && allowed === undefined) ||
           retries.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
         )
-          throw failure
+          await rethrowStreamError(error, redact, response.status)
         const attempt = retries.retriesUsed
         retries.retriesUsed = attempt + 1
         const delayMs = this.retryDelayMs(attempt)

@@ -137,11 +137,18 @@
   "certaintyReported": "Nahlášeno",
   "certaintyComputed": "Vypočteno",
   "certaintyUncertain": "Nejisté",
+  "reservedLabel": "Rezervováno",
   "certaintyPlan": "Plán",
   "certaintyLocal": "Místní",
   "certaintyUnpriced": "Bez ceny",
   "certaintyEstimated": "Odhad",
   "uncertainNote": "Požadavek byl odeslán, ale využití nebylo vráceno. Odpovědnost za náklady trvá.",
+  "unknownCalls": {
+    "one": "{count} požadavek s neznámou cenou",
+    "few": "{count} požadavky s neznámou cenou",
+    "many": "{count} požadavků s neznámou cenou",
+    "other": "{count} požadavků s neznámou cenou"
+  },
   "unpricedNote": "Není k dispozici žádný ceník. Neznámé náklady nejsou nula.",
   "estimatedNote": "Počty tokenů jsou odhady.",
   "localNote": "Místní model: bez poplatků za API.",

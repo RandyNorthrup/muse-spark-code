@@ -1,7 +1,7 @@
 // The paid popup's formatter loads with the existing imported-hook runtime on first use.
 import { UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, uiLocale } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { formatDailyBudget, formatUsd } from '../../shared/l10n/exactUsd'
 import { Usd } from '../../shared/usd'
 import {
   paidFeaturePrice,
@@ -9,6 +9,7 @@ import {
   bestOfNPrice,
   modelApiPaidTier,
   hookModelPrice,
+  paidStoreReasonText,
   scheduledRunPrice,
   subagentTaskPrice,
   type PaidUseRequest,
@@ -23,7 +24,7 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
     case 'autoCompaction': {
       return {
         title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.autoCompactionName }),
-        detail: `${request.modelId}: ${scheduledRunPrice(request.modelId)}\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(request.dailyBudgetUsd, 2) })}`,
+        detail: `${request.modelId}: ${scheduledRunPrice(request.modelId)}\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatDailyBudget(request.dailyBudgetUsd) })}`,
       }
     }
     case 'judge': {
@@ -34,7 +35,7 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
         title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidJudgeName }),
         detail: fill(UI_TEXT.paidConfirmJudge, {
           price,
-          budget: formatUsd(request.dailyBudgetUsd, 2),
+          budget: formatDailyBudget(request.dailyBudgetUsd),
         }),
       }
     }
@@ -51,6 +52,13 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
                 fill(UI_TEXT.paidSearchQuote, {
                   provider: request.quote.provider,
                   model: request.quote.model,
+                }),
+              ]),
+          ...(request.quoteNotice === undefined
+            ? []
+            : [
+                fill(UI_TEXT.paidQuoteChoicesUnreadable, {
+                  kind: paidStoreReasonText(request.quoteNotice.kind),
                 }),
               ]),
         ].join('\n'),
@@ -139,7 +147,7 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
           price:
             request.dailyBudgetUsd === undefined
               ? hookModelPrice(request.modelId)
-              : `${hookModelPrice(request.modelId)} ${fill(UI_TEXT.paidHookModelDailyBudget, { budget: formatUsd(request.dailyBudgetUsd, 2) })}`,
+              : `${hookModelPrice(request.modelId)} ${fill(UI_TEXT.paidHookModelDailyBudget, { budget: formatDailyBudget(request.dailyBudgetUsd) })}`,
         }),
       }
     }

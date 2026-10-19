@@ -400,6 +400,13 @@ export function rollupUsageRecords(records: readonly UsageRecord[]): UsageRollup
   return result
 }
 
+/**
+ * The lock went away mid-read: the snapshot may mix generations, so the
+ * read retries once with cold caches instead of returning it. Caught by
+ * identity in `read` only; it never surfaces to a caller.
+ */
+class UsageLockRacedError extends Error {}
+
 export class UsageJournalStore {
   private readonly cache = new Map<string, FileCache>()
   private readonly rollupCache = new Map<
@@ -628,18 +635,30 @@ export class UsageJournalStore {
     // A stale lease may be reclaimed while a process is paused. Never return
     // bytes gathered across generations; retry once, including a raced parse.
     for (let attempt = 0; attempt < 2; attempt += 1) {
-      const lock = await this.fs.acquireLock(LOCK_FILE, USAGE_ROLLUP_LOCK_STALE_MS)
-      if (lock === undefined) throw new Error('usageLocked')
       try {
-        const snapshot = await this.readSnapshot()
-        if (await lock.isHeld()) return snapshot
+        const lock = await this.fs.acquireLock(LOCK_FILE, USAGE_ROLLUP_LOCK_STALE_MS)
+        if (lock === undefined) throw new Error('usageLocked')
+        try {
+          const snapshot = await this.readSnapshot()
+          if (await lock.isHeld()) return snapshot
+        } catch (error) {
+          // The lock went away mid-read: the snapshot may mix generations,
+          // so it never returns. A held lock means the read itself failed,
+          // which keeps its kind.
+          if (await lock.isHeld()) throw error
+          throw new UsageLockRacedError('usageLockRaced', { cause: error })
+        } finally {
+          await lock.release()
+        }
+        this.cache.clear()
+        this.rollupCache.clear()
       } catch (error) {
-        if (await lock.isHeld()) throw error
-      } finally {
-        await lock.release()
+        // A raced lock retries once with cold caches; anything else,
+        // including a second race, keeps its kind.
+        if (!(error instanceof UsageLockRacedError)) throw error
+        this.cache.clear()
+        this.rollupCache.clear()
       }
-      this.cache.clear()
-      this.rollupCache.clear()
     }
     throw new Error('usageLockLost')
   }

@@ -127,11 +127,17 @@
   "certaintyReported": "Comunicado",
   "certaintyComputed": "Calculado",
   "certaintyUncertain": "Incierto",
+  "reservedLabel": "Reservado",
   "certaintyPlan": "Plan",
   "certaintyLocal": "Local",
   "certaintyUnpriced": "Sin precio",
   "certaintyEstimated": "Estimado",
   "uncertainNote": "La solicitud se envió sin que se devolviera el uso. Su coste sigue vigente.",
+  "unknownCalls": {
+    "one": "{count} solicitud con coste desconocido",
+    "many": "{count} solicitudes con coste desconocido",
+    "other": "{count} solicitudes con coste desconocido"
+  },
   "unpricedNote": "No hay tarjeta de precios disponible. Un coste desconocido no es cero.",
   "estimatedNote": "Los recuentos de tokens son estimaciones.",
   "localNote": "Modelo local: sin cargo de API.",

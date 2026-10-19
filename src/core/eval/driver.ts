@@ -35,7 +35,6 @@ import {
   MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
   SETTING_DEFAULTS,
-  UI_TEXT,
 } from '../../shared/constants'
 import type { ApprovalMode } from '../../shared/permissionModes'
 import { EVAL_HELD_DEPS } from './heldDeps'
@@ -83,7 +82,6 @@ export function bindEvalAdmission(
       dailyBudgetUsd: admission.dailyBudgetUsd,
       notePaidUse: admission.notePaidUse,
       log,
-      storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
     }),
   }
 }
@@ -180,7 +178,7 @@ export function createEvalCompactionLedger(
       tally.reservedUsd = sumUsd(tally.reservedUsd, amount)
       let isOpen = true
       return Promise.resolve({
-        reservedUsd: amount,
+        estimateUsd: amount,
         check(): void {
           signal.throwIfAborted()
           if (budget.hasUnknownUsage === true)
@@ -188,17 +186,18 @@ export function createEvalCompactionLedger(
           if (headroom().compare(Usd.from(0)) < 0)
             throw evalLedgerRefusal('the run budget is spent')
         },
-        settle: (actual, hasUnknown) => {
+        settle: (costUsd) => {
           if (isOpen) {
             isOpen = false
             tally.outstandingUsd = Usd.from(tally.outstandingUsd)
               .subtract(Usd.from(amount))
               .toAmount()
-            if (hasUnknown) tally.retainedUsd = sumUsd(tally.retainedUsd, actual)
-            else tally.settledUsd = sumUsd(tally.settledUsd, actual)
+            // D121: a call without its usage adds nothing; the unknown
+            // stops the run through the flag below, like the wire's rule.
+            if (costUsd !== undefined) tally.settledUsd = sumUsd(tally.settledUsd, costUsd)
             tally.settled += 1
           }
-          if (hasUnknown) budget.hasUnknownUsage = true
+          if (costUsd === undefined) budget.hasUnknownUsage = true
           return Promise.resolve()
         },
       })

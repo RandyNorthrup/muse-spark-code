@@ -196,12 +196,12 @@ describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, 
   })
 
   it('starts the verifier with none of the run’s environment', async () => {
-    // The verifier must not inherit these, so they are set on the real
-    // environment for the run and restored afterwards.
-    const savedProbe = process.env['MUSE_EVAL_PROBE']
-    const savedCredential = process.env['META_API_KEY']
-    process.env['MUSE_EVAL_PROBE'] = 'inherited'
-    process.env['META_API_KEY'] = 'not-a-real-eval-credential'
+    // The run's own environment, set for real and put back afterwards.
+    const inherited = { MUSE_EVAL_PROBE: 'inherited', META_API_KEY: 'not-a-real-eval-credential' }
+    const before = Object.fromEntries(
+      Object.keys(inherited).map((name) => [name, process.env[name]] as const),
+    )
+    Object.assign(process.env, inherited)
     try {
       // CoreFoundation generates this even with env:{} and no parent value.
       const posixAllowed = process.platform === 'darwin' ? ['__CF_USER_TEXT_ENCODING'] : []
@@ -219,10 +219,13 @@ describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, 
       )
       expect(verdict).toEqual({ passed: true, detail: '' })
     } finally {
-      if (savedProbe === undefined) delete process.env['MUSE_EVAL_PROBE']
-      else process.env['MUSE_EVAL_PROBE'] = savedProbe
-      if (savedCredential === undefined) delete process.env['META_API_KEY']
-      else process.env['META_API_KEY'] = savedCredential
+      for (const [name, value] of Object.entries(before)) {
+        if (value === undefined) {
+          Reflect.deleteProperty(process.env, name)
+        } else {
+          process.env[name] = value
+        }
+      }
     }
   })
 

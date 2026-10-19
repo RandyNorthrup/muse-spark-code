@@ -6,18 +6,19 @@ import * as z from 'zod/mini'
 import {
   createResponsesCodec,
   ResponsesDecodeError,
-  type ResponsesDecodeSink,
 } from '../../src/core/backends/modelapi/codecs/responses'
 import { restoredToolText, type CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
+import { CHATGPT_TOOL_NAMESPACE_DESCRIPTION } from '../../src/shared/constants'
+import { testPlanStreamBody } from './helpers/chatGptGrant'
 
 const encoder = new TextEncoder()
-const codec = createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' })
-// The error/created fixtures produce no output tokens.
-const sink: ResponsesDecodeSink = {
-  outputCap: { maxOutputTokens: 512, countOutputTokens: () => 0, abort: () => undefined },
-}
+const codec = createResponsesCodec({
+  profile: 'chatgpt',
+  toolNamespace: 'functions',
+  toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+})
 function decode(chunks: AsyncIterable<Uint8Array>) {
-  return codec.decodeStream(chunks, sink)
+  return codec.decodeStream(chunks)
 }
 const limitMessage =
   'The ChatGPT user has reached their Subscription Sharing usage limit. Ask the user to try again after their usage limit resets or use an API key instead.'
@@ -60,39 +61,7 @@ const captureSchema = z.object({
 })
 
 function body(): CreateResponseBody {
-  return {
-    model: 'gpt-6-astra',
-    input: [
-      {
-        type: 'message',
-        role: 'user',
-        content: [{ type: 'input_text', text: 'What time is it?' }],
-      },
-    ],
-    instructions: 'Use the time tool.',
-    tools: [
-      {
-        type: 'function',
-        name: 'get_time',
-        description: 'Get the time in a timezone.',
-        parameters: {
-          type: 'object',
-          properties: { timezone: { type: 'string' } },
-          required: ['timezone'],
-          additionalProperties: false,
-        },
-        strict: false,
-      },
-    ],
-    tool_choice: 'auto',
-    reasoning: { effort: 'low', summary: 'auto' },
-    stream: true,
-    store: false,
-    include: ['reasoning.encrypted_content'],
-    max_output_tokens: 512,
-    prompt_cache_key: 'm95b-capture',
-    prompt_cache_retention: 'in_memory',
-  }
+  return testPlanStreamBody('gpt-6-astra')
 }
 
 function frame(event: unknown): string {
@@ -108,6 +77,13 @@ function stream(...frames: readonly string[]): ReadableStream<Uint8Array> {
   })
 }
 
+function completed(output: readonly unknown[]) {
+  return {
+    type: 'response.completed',
+    response: { id: 'resp_scrubbed', status: 'completed', output, usage: null },
+  }
+}
+
 function failed(error: unknown = limitError) {
   return {
     type: 'response.failed',
@@ -116,6 +92,30 @@ function failed(error: unknown = limitError) {
 }
 
 describe('chatgpt Responses request profile', () => {
+  it('always sends the namespace description the plan endpoint requires', () => {
+    // The plan endpoint answers HTTP 400
+    // (`missing_required_parameter: tools[0].description`, measured
+    // 2026-10-14) when the namespace tool carries no description.
+    expect(codec.encodeRequest(body())['tools']).toEqual([
+      {
+        type: 'namespace',
+        name: 'functions',
+        description: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+        tools: expect.any(Array),
+      },
+    ])
+    expect(CHATGPT_TOOL_NAMESPACE_DESCRIPTION.length).toBeGreaterThan(0)
+  })
+
+  it('sends the Fast tier only while the switch is on', () => {
+    // The conversation's Fast switch rides as `service_tier: "priority"`;
+    // off the switch the field stays out of the request entirely.
+    const on = codec.encodeRequest({ ...body(), service_tier: 'priority' })
+    expect(on['service_tier']).toBe('priority')
+    const off = codec.encodeRequest(body())
+    expect('service_tier' in off).toBe(false)
+  })
+
   it('matches the preview-rule namespace golden without changing the canonical body', () => {
     const original = body()
     const before = JSON.stringify(original)
@@ -204,7 +204,12 @@ describe('chatgpt Responses request profile', () => {
     const before = JSON.stringify(history)
     expect(codec.encodeRequest(history)['input']).toEqual(history.input)
     expect(codec.encodeRequest(history)['tools']).toEqual([
-      { type: 'namespace', name: 'functions', tools: original.tools },
+      {
+        type: 'namespace',
+        name: 'functions',
+        description: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+        tools: original.tools,
+      },
     ])
     expect(JSON.stringify(history)).toBe(before)
     const growing: CreateResponseBody = {
@@ -292,6 +297,126 @@ describe('chatgpt Responses stream profile', () => {
     expect(await Array.fromAsync(decode(stream(frame({ type: 'error', error }))))).toEqual([
       { type: 'error', code: 'other_error', message: 'Other error' },
     ])
+  })
+
+  // Finding F87 (2026-10-14): the plan's stream delivered a read_file call in
+  // its own output_item.done frame and ended with `output: []` (the frame
+  // shapes below are the measured ones; values scrubbed), so the call never
+  // reached the turn and the review job made no tool calls in 11 turns.
+  const readCall = {
+    type: 'function_call',
+    id: 'fc_scrubbed',
+    call_id: 'call_scrubbed',
+    name: 'read_file',
+    arguments: '{"path":"probe-note.txt"}',
+    status: 'completed',
+  }
+  const reply = {
+    type: 'message',
+    id: 'msg_scrubbed',
+    role: 'assistant',
+    content: [{ type: 'output_text', text: 'Reading it.' }],
+    status: 'completed',
+  }
+  it('takes the response output from the streamed items when the terminal frame lists none (F87)', async () => {
+    const events = await Array.fromAsync(
+      decode(
+        stream(
+          frame({ type: 'response.output_item.done', output_index: 1, item: readCall }),
+          frame({ type: 'response.output_item.done', output_index: 0, item: reply }),
+          frame(completed([])),
+        ),
+      ),
+    )
+    expect(events.at(-1)).toMatchObject({
+      type: 'response.completed',
+      response: { output: [reply, readCall] },
+    })
+  })
+
+  it.each([-1, 0.5, Number.MAX_SAFE_INTEGER + 1])(
+    'refuses an invalid output index %s before retaining a tool call',
+    async (outputIndex) => {
+      await expect(
+        Array.fromAsync(
+          decode(
+            stream(
+              frame({
+                type: 'response.output_item.done',
+                output_index: outputIndex,
+                item: readCall,
+              }),
+              frame(completed([])),
+            ),
+          ),
+        ),
+      ).rejects.toThrow(ResponsesDecodeError)
+    },
+  )
+
+  it('refuses a repeated output index instead of executing the same terminal call twice', async () => {
+    const done = frame({ type: 'response.output_item.done', output_index: 0, item: readCall })
+    await expect(Array.fromAsync(decode(stream(done, done, frame(completed([])))))).rejects.toThrow(
+      ResponsesDecodeError,
+    )
+  })
+
+  it.each([readCall, { ...readCall, id: 'fc_other' }])(
+    'refuses a repeated call identity at a different output index (%j)',
+    async (repeated) => {
+      await expect(
+        Array.fromAsync(
+          decode(
+            stream(
+              frame({ type: 'response.output_item.done', output_index: 0, item: readCall }),
+              frame({ type: 'response.output_item.done', output_index: 1, item: repeated }),
+              frame(completed([])),
+            ),
+          ),
+        ),
+      ).rejects.toThrow(ResponsesDecodeError)
+    },
+  )
+
+  it('does not infer a missing index that can collide with an explicitly indexed call', async () => {
+    await expect(
+      Array.fromAsync(
+        decode(
+          stream(
+            frame({ type: 'response.output_item.done', output_index: 1, item: reply }),
+            frame({ type: 'response.output_item.done', item: readCall }),
+            frame(completed([])),
+          ),
+        ),
+      ),
+    ).rejects.toThrow(ResponsesDecodeError)
+  })
+
+  it('refuses a gap in the streamed output indices instead of compacting the order', async () => {
+    await expect(
+      Array.fromAsync(
+        decode(
+          stream(
+            frame({ type: 'response.output_item.done', output_index: 0, item: reply }),
+            frame({ type: 'response.output_item.done', output_index: 2, item: readCall }),
+            frame(completed([])),
+          ),
+        ),
+      ),
+    ).rejects.toThrow(ResponsesDecodeError)
+  })
+
+  it('refuses a terminal frame whose items differ in number from the streamed ones', async () => {
+    await expect(
+      Array.fromAsync(
+        decode(
+          stream(
+            frame({ type: 'response.output_item.done', output_index: 0, item: readCall }),
+            frame(completed([readCall, reply])),
+          ),
+        ),
+      ),
+    ).rejects.toThrow(ResponsesDecodeError)
   })
 
   it('rejects malformed nested errors without exposing their contents', async () => {

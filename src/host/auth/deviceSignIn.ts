@@ -225,7 +225,7 @@ export async function runDeviceSignIn(deps: DeviceSignInDeps): Promise<DeviceSig
   try {
     session = await deps.connect(deps.signal)
   } catch (error: unknown) {
-    if (isAborted()) {
+    if (deps.signal.aborted) {
       return 'cancelled'
     }
     throw error
@@ -290,7 +290,7 @@ export async function runDeviceSignIn(deps: DeviceSignInDeps): Promise<DeviceSig
       return 'cancelled'
     }
     // The account before the flow, so a sign-in shows as a change.
-    const initial = await untilStopped(readAccountState(session.connection))
+    const initial = await untilStopped(readAccountState(session.connection, deps.log))
     if (initial === STOPPED) {
       return stoppedEarly()
     }
@@ -327,7 +327,7 @@ export async function runDeviceSignIn(deps: DeviceSignInDeps): Promise<DeviceSig
     const hasLanded = async () => {
       // Read before the question, so an answer refutes only a write it saw.
       const modified = deps.credentialFileModifiedAt()
-      const current = await untilStopped(readAccountState(session.connection))
+      const current = await untilStopped(readAccountState(session.connection, deps.log))
       // A stop (Cancel, an ending) decides the flow: a file change alone
       // must not turn it into a sign-in (the review of PR #49).
       if (current === STOPPED) {

@@ -284,18 +284,25 @@ export interface ModelSummary {
   readonly trainsOnContent?: boolean | undefined
   readonly planLimitsUrl?: string | undefined
   /**
+  /**
    * Why this model cannot run the coding agent (tool calling unconfirmed):
    * lists show it with this limit stated instead of hiding it, and an
    * agent turn on it is refused with this sentence. Absent when it can.
    */
   readonly agentLimit?: string | undefined
   /**
-   * Muse Code's per-model effort tiers (lane REASONSHAPES, META-G05): the
-   * tiers the model serves and its default, normalized to the UI range.
-   * Absent where the host reports none (the static family table applies).
+   * The effort levels this model serves, where the backend knows them (a
+   * plan model reports its catalogue's levels, Muse Code its per-model
+   * tiers normalized to the UI range); absent where unknown, and the
+   * pickers fall back to the shared default range (the static family table
+   * applies). `defaultEffort` is the level a new session selects unless
+   * the person chose one. `fastTier` is the provider's priority tier where
+   * the model lists one.
    */
   readonly effortLevels?: readonly EffortLevel[] | undefined
   readonly defaultEffort?: EffortLevel | undefined
+  readonly fastTier?:
+    { readonly id: string; readonly name: string; readonly description: string } | undefined
 }
 
 export interface SkillSummary {
@@ -554,6 +561,12 @@ export interface AgentSession {
   setModel(modelId: string): Promise<void>
   /** The session's standing reasoning-effort default (wire vocabulary). */
   setReasoningEffort(reasoningEffort: string): Promise<void>
+  /**
+   * The conversation's Fast tier: the plan catalogue's priority tier id
+   * while on, undefined while off. Plan sessions only; sessions without it
+   * never offer the switch.
+   */
+  setServiceTier?: (serviceTier: string | undefined) => Promise<void>
   /** One of the four MSP approval modes (shared/permissionModes.ts). */
   setApprovalMode(mode: string): Promise<void>
   compact(): Promise<CompactOutcome>

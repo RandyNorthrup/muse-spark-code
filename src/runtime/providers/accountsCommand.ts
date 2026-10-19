@@ -5,7 +5,7 @@ import {
   AccountStoreError,
   accountBindingSchema,
 } from '../../core/providers/accountCredentialRecord'
-import { isStoreUnavailable } from '../keyStore'
+import { isRevokeUnsupportedError } from '../../acp/accountText'
 import { isValidModelApiKey } from '../../host/auth/credentialStore'
 import { inspectProviderKey, providerKeyNoticeText } from '../../core/providers/keyInspection'
 import { UI_TEXT } from '../../shared/constants'
@@ -22,22 +22,11 @@ export interface AccountsCommandDeps {
   readonly metadata: AccountsMetadataPort
   readonly print: (text: string) => void
   readonly printError: (text: string) => void
-  /**
-   * Whether the provider is configured in the runner's own providers file.
-   * The account service reads its own metadata rows: a configured provider
-   * without a row needs its accounts provisioned, not another `providers
-   * add`, so the advice differs. Absent, every unknown provider reads as
-   * unconfigured, as before.
-   */
-  readonly isProviderConfigured?: (provider: string) => Promise<boolean>
 }
 
-async function commandError(
-  deps: AccountsCommandDeps,
-  provider: string,
-  error: unknown,
-): Promise<string> {
-  if (isStoreUnavailable(error)) return UI_TEXT.acpStoreDown
+export function commandError(error: unknown): string {
+  // A refused revocation names its refusal: removing the sign-in never ran.
+  if (isRevokeUnsupportedError(error)) return UI_TEXT.accounts.revokeUnsupported
   if (error instanceof AccountStoreError) {
     if (error.code === 'notOffered') return UI_TEXT.accounts.notOffered
     if (error.code === 'invalidAccount' || error.code === 'invalidCredential')
@@ -45,20 +34,19 @@ async function commandError(
     // A refused providers file is not a connection problem: the runtime is
     // already on the account service, and the file was left untouched.
     if (error.code === 'invalidProvidersFile') return UI_TEXT.accounts.providersInvalid
-    // The terminal is the account service in this process: an unknown
-    // provider is not configured, not waiting on a connection. A provider
-    // the runner already added still has no account metadata here, so it
-    // says its accounts are not served in this terminal yet instead of
-    // repeating the add advice or claiming the runtime is unconnected.
-    if (error.code === 'unavailable') {
-      const template =
-        (await deps.isProviderConfigured?.(provider)) === true
-          ? UI_TEXT.accounts.providerUnavailable
-          : UI_TEXT.providerNotConfigured
-      return fill(template, { provider })
-    }
+    // Every other store refusal names the concrete cause it kept: an
+    // unreadable providers file keeps its disk failure. A refusal that
+    // kept none stays on the plain unavailable sentence instead of
+    // printing its code word. The terminal runs on the account service,
+    // so the connection sentence would lie.
+    return error.cause instanceof Error && error.cause.message !== ''
+      ? fill(UI_TEXT.accounts.unavailableReason, { reason: error.cause.message })
+      : UI_TEXT.accounts.unavailable
   }
-  return UI_TEXT.accounts.unavailable
+  // A credential-store or disk failure names itself for the same reason.
+  return error instanceof Error && error.message !== ''
+    ? fill(UI_TEXT.accounts.unavailableReason, { reason: error.message })
+    : UI_TEXT.accounts.unavailable
 }
 
 export async function runAccountsCommand(
@@ -97,7 +85,7 @@ export async function runAccountsCommand(
     }
     return 0
   } catch (error: unknown) {
-    deps.printError(await commandError(deps, command.provider, error))
+    deps.printError(commandError(error))
     return 1
   }
 }
@@ -157,7 +145,7 @@ export async function runAccountAuthSet(
     deps.print(fill(UI_TEXT.acpKeyStored, { store: deps.storeName }))
     return 0
   } catch (error: unknown) {
-    deps.printError(await commandError(deps, target.provider, error))
+    deps.printError(commandError(error))
     return 1
   } finally {
     pending.value = ''

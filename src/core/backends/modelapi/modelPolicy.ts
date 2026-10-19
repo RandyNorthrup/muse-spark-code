@@ -24,6 +24,7 @@ import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
 import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 import { effortLevelsFor, resolveReasoning, type ReasoningControl } from '../../../shared/effort'
 import { modelApiPaidTier } from '../../../shared/paid'
+import { planOfferedLevels, resolvePlanEffort, type ChatGptPlanFacts } from './planFacts'
 
 /** The configured provider and exact model that produced opaque reasoning. */
 export interface ReplayProducer {
@@ -82,6 +83,8 @@ export interface ModelPolicyEvidence extends ReasoningPolicyFields {
   /** A captured provider minimum for max_output_tokens; unknown keeps 1. */
   readonly minOutputTokens?: number | undefined
   readonly effortLevels?: readonly string[] | undefined
+  /** The plan catalogue's own facts for this model, where the catalogue named it. */
+  readonly planFacts?: ChatGptPlanFacts | undefined
   readonly canDisableReasoning?: boolean | undefined
   readonly webSearch?: boolean | undefined
   readonly pricing?: ModelPricing | undefined
@@ -93,6 +96,9 @@ export interface ModelPolicy {
   readonly reasoning: ReasoningPolicyFields & {
     readonly effortLevels: Known<readonly string[]>
     readonly canDisable: Known<true>
+    readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
+    /** The plan catalogue's own facts, carried for the plan send path only. */
+    readonly planFacts?: ChatGptPlanFacts | undefined
   }
   readonly output: {
     readonly maxTokens?: number | undefined
@@ -117,7 +123,11 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
   const capabilities = isMeta
     ? { toolCalling: true, vision: true, reasoning: true, parallelToolCalls: true }
     : evidence.capabilities
-  const levels = isMeta ? effortLevelsFor(model) : evidence.effortLevels
+  const planFacts = isMeta ? undefined : evidence.planFacts
+  const levels = isMeta
+    ? effortLevelsFor(model)
+    : (evidence.effortLevels ??
+      (planFacts === undefined ? undefined : planOfferedLevels(planFacts)))
   // BYO native hosted routes/prices are a captured M95 follow-up. A native
   // capability alone cannot authorize Meta's tool shape or search fee.
   const webSearch: Known<true> = { state: evidence.webSearch === false ? 'no' : 'unknown' }
@@ -155,6 +165,7 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
       ...(evidence.manualOnly !== undefined && { manualOnly: evidence.manualOnly }),
       ...(!isMeta && evidence.thinkingOff !== undefined && { thinkingOff: evidence.thinkingOff }),
       ...(!isMeta && evidence.sendUndeclaredEffort === true && { sendUndeclaredEffort: true }),
+      ...(!isMeta && planFacts !== undefined && { planFacts }),
     },
     output: {
       maxTokens: isMeta ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS : evidence.maxOutputTokens,
@@ -263,7 +274,11 @@ export function effortForPolicy(policy: ModelPolicy, requested: string): string 
   if (routed !== undefined) {
     return routed
   }
-  const { effortLevels, canDisable, offSwitch, thinkingOff } = policy.reasoning
+  const { effortLevels, canDisable, offSwitch, thinkingOff, planFacts } = policy.reasoning
+  // Plan models resolve from the catalogue's own levels: a listed level
+  // rides as named (`xhigh` stays `xhigh`), never `none` to a model that
+  // does not list it.
+  if (planFacts !== undefined) return resolvePlanEffort(planFacts, requested)
   const decision = resolveReasoning(reasoningControlForPolicy(policy), requested)
   if (decision.kind === 'effort') return decision.effort
   if (thinkingOff !== undefined) {
@@ -325,11 +340,15 @@ export function modelPricedUsage(usage: Usage): ModelPricedUsage {
   }
 }
 
-export function metaResolvedModel(ref: string, client: ProviderClient): ResolvedModel {
+export function metaResolvedModel(
+  ref: string,
+  client: ProviderClient,
+  planFacts?: ChatGptPlanFacts,
+): ResolvedModel {
   const isPlan = client.isPlanModel?.(ref) === true
   const policy = modelPolicyFor(
     ref,
-    isPlan ? { capabilities: { toolCalling: true }, pricing: { kind: 'plan' } } : {},
+    isPlan ? { capabilities: { toolCalling: true }, pricing: { kind: 'plan' }, planFacts } : {},
   )
   const estimate = (usage: PricedUsage) => {
     if (isPlan) return Usd.from(0).toAmount()
@@ -339,7 +358,9 @@ export function metaResolvedModel(ref: string, client: ProviderClient): Resolved
   }
   return {
     ref,
-    contextTokens: MODEL_API_CONTEXT_WINDOW,
+    // A plan model the catalogue named reports its own window; unknown
+    // keeps today's Meta constant.
+    contextTokens: planFacts?.contextTokens ?? MODEL_API_CONTEXT_WINDOW,
     client,
     origin: client.provider?.origin ?? new URL(MODEL_API_BASE_URL).origin,
     policy,
@@ -370,7 +391,22 @@ export type ModelClient = Pick<
   | 'waitBeforeRetry'
   | 'maxRetries'
   | 'personCap'
->
+> & {
+  /**
+   * EXECPROV round 6: an exact same-body input count where the provider
+   * documents one, with the count call's own billed cost when the provider
+   * bills it (undefined when the count is free). Absent keeps the byte bound
+   * and sends no count request.
+   */
+  readonly countInputTokensDetailed?: (
+    body: CreateResponseBody,
+    signal?: AbortSignal,
+  ) => Promise<{
+    readonly tokens: number
+    readonly costUsd?: UsdAmount | undefined
+    readonly accuracy?: 'exact' | 'estimate'
+  }>
+}
 
 export interface ResolvedModel {
   readonly contextTokens?: number | undefined
@@ -384,6 +420,7 @@ export interface ResolvedModel {
 }
 
 export interface ModelResolver {
+  readonly defaultModel?: () => Promise<string | undefined>
   readonly list?: (() => Promise<readonly ModelSummary[]>) | undefined
   readonly resolve: (ref: string) => Promise<ResolvedModel>
 }

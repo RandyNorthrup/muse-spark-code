@@ -135,7 +135,11 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
   {
     name: 'surface English',
     entries: ['browser-surface-english:browser-surface-english'],
-    // RC 2026-10-17: 25,777 bytes (merged M91/M93, M99, M101, M124 English) +15%, rounded up to 29 KiB.
+    // TRAIN15H: 21,695 bytes +15%, rounded up to 25 KiB. Release 0.19.0:
+    // 25,638 bytes (the merged truth lanes' sentences) +15%, rounded up to
+    // 29 KiB.
+    // JOIN0190 final: the 25 KiB budget stands (brief item 6); the merged
+    // sentences are shortened back to it before release preparation.
     budgetKiB: 29,
   },
   {
@@ -319,6 +323,13 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     // The capacity estimator's panel and submit composer (M117): 9.6 KiB
     // when split out (2026-10-06); the composer loads on the first
     // `/estimate` ahead of the panel; plus 15%, rounded up to 25 KiB.
+    // D119 (2026-10-17): the estimator's own worded refusal
+    // (`isEstimateRefusal`/`estimateRefusalDetail` in `src/shared/estimate.ts`)
+    // runs in the panel's and composer's catch handlers, so it stays in this
+    // closure; the panel hands a foreign failure to the host log through the
+    // port's `report` (2026-10-18), which lands in the same closure:
+    // 26,418 bytes measured on `fix/catch-money-final` x 1.15 = 30,380.7
+    // bytes = 29.67 KiB, so 30 KiB by the same rule.
     name: 'estimator panel',
     entries: [
       'src/webview/estimator/EstimatorPanel.tsx',
@@ -326,7 +337,7 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
       'src/shared/estimate.ts',
       'src/shared/estimatorProtocol.ts',
     ],
-    budgetKiB: 25,
+    budgetKiB: 30,
   },
 ]
 

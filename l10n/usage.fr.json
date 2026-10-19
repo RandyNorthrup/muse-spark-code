@@ -127,11 +127,17 @@
   "certaintyReported": "Signalé",
   "certaintyComputed": "Calculé",
   "certaintyUncertain": "Incertain",
+  "reservedLabel": "Réservé",
   "certaintyPlan": "Forfait",
   "certaintyLocal": "En local",
   "certaintyUnpriced": "Sans prix",
   "certaintyEstimated": "Estimé",
   "uncertainNote": "La requête a été envoyée, mais sans retour d’utilisation. Son coût reste dû.",
+  "unknownCalls": {
+    "one": "{count} requête au coût inconnu",
+    "many": "{count} de requêtes au coût inconnu",
+    "other": "{count} requêtes au coût inconnu"
+  },
   "unpricedNote": "Aucune grille tarifaire disponible. Un coût inconnu n’est pas zéro.",
   "estimatedNote": "Les nombres de jetons sont des estimations.",
   "localNote": "Modèle local : aucun frais d’API.",

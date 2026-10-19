@@ -9,7 +9,6 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
-  PAID_DAILY_BUDGET,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
   type BackendMode,
   VAULT_PROTECTION_MODES,
@@ -303,13 +302,8 @@ const settingSchemas = {
   showWhatsNewOnUpdate: z.boolean(),
   notifyOnBackgroundTurn: z.boolean(),
   modelApiReplyUsage: z.boolean(),
-  paidDailyBudgetUsd: legacyUsdSchema.check(
-    z.refine(
-      (value) =>
-        Usd.from(value).compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) >= 0 &&
-        Usd.from(value).compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) <= 0,
-    ),
-  ),
+  // D121: a limit the person sets; 0 is none (the default), and no upper bound is ours.
+  paidDailyBudgetUsd: legacyUsdSchema,
   dictationEngine: z.enum(['system', 'museVoice']),
   modelApiSessionBudgetUsd: legacyUsdSchema,
   legalRegistryLookups: z.boolean(),

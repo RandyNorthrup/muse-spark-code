@@ -12,6 +12,7 @@
     {
       "type": "namespace",
       "name": "functions",
+      "description": "Tools of the Muse Spark Code agent in this workspace.",
       "tools": [
         {
           "type": "function",

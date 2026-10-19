@@ -443,7 +443,9 @@ export function modelLabelFor(state: UiState): string {
 async function loadSchedulePrompt(): Promise<typeof SchedulePromptModule | undefined> {
   try {
     return await import('./schedules/prompt')
-  } catch {
+  } catch (error: unknown) {
+    // An unloadable mapping answers nothing: anything else keeps its kind.
+    if (!(error instanceof Error)) throw error
     return undefined
   }
 }
@@ -737,7 +739,10 @@ export function App({
         .then((channel) => {
           if (isActive) stop = channel.subscribeChanges(listener)
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          // An unloadable surface reads failed: only a non-error keeps its
+          // kind past the panel.
+          if (!(error instanceof Error)) throw error
           if (isActive)
             dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.surfaceLoadFailed })
         })
@@ -1078,6 +1083,12 @@ export function App({
           estimateSubscribers.current.delete(listener)
         }
       },
+      // A foreign estimate failure the panel already said in words keeps its
+      // kind past the panel through the host log (D119), like any other
+      // rejected webview promise.
+      report: (error) => {
+        postMessage(webviewErrorReport('promise', error))
+      },
       startExisting: (_section, setup) =>
         new Promise<void>((resolve, reject) => {
           const requestId = `estimate-start-${String(++estimateSequence.current)}`
@@ -1229,7 +1240,10 @@ export function App({
             },
           })
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          // An unloadable estimator reads unavailable: only a non-error
+          // keeps its kind past the composer.
+          if (!(error instanceof Error)) throw error
           dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.estimateUnavailable })
         })
       return
@@ -1343,10 +1357,13 @@ export function App({
                 dispatch({ type: 'noticeRaised', level: 'warning', text: response.reason })
             })
             .catch((error: unknown) => {
+              // A failed schedule command never shows its cause: only a
+              // non-error keeps its kind past the composer.
+              if (!(error instanceof Error)) throw error
               dispatch({
                 type: 'noticeRaised',
                 level: 'warning',
-                text: error instanceof Error ? error.message : UI_TEXT.scheduleCommandFailed,
+                text: UI_TEXT.scheduleCommandFailed,
               })
             })
           return
@@ -2300,6 +2317,9 @@ export function App({
     },
     [postMessage],
   )
+  const onToggleFast = useCallback(() => {
+    postMessage({ type: 'setFast', enabled: !store.getState().isFastEnabled })
+  }, [postMessage, store])
   const onSelectMode = useCallback(
     (id: string) => {
       const mode = availablePermissionModes(canBypass).find((candidate) => candidate === id)
@@ -2571,7 +2591,10 @@ export function App({
       .then(([, module]) => {
         if (isActive) setPaletteModule(module)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        // An unloadable palette reads failed: only a non-error keeps its
+        // kind past the panel.
+        if (!(error instanceof Error)) throw error
         if (isActive) setPaletteFailure(true)
       })
     return () => {
@@ -2741,6 +2764,7 @@ export function App({
   const effortLevels =
     state.models.find((model) => model.modelId === state.model?.modelId)?.effortLevels ??
     effortLevelsFor(state.model?.modelId)
+  const fastTier = state.models.find((model) => model.modelId === state.model?.modelId)?.fastTier
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
       if (effortLevels.length === 0) return false
@@ -2965,17 +2989,41 @@ export function App({
           entries={modeEntries}
           align="right"
           footer={
-            effortLevels.length === 0 ? undefined : (
-              <div className="effort-row">
-                <span className="effort-row-label">
-                  {UI_TEXT.effortItem} ({effortLabel(state.effort)})
-                </span>
-                <EffortSlider
-                  levels={effortLevels}
-                  current={state.effort}
-                  onSelect={onSelectEffort}
-                />
-              </div>
+            fastTier === undefined && effortLevels.length === 0 ? undefined : (
+              <>
+                {effortLevels.length === 0 ? undefined : (
+                  <div className="effort-row">
+                    <span className="effort-row-label">
+                      {UI_TEXT.effortItem} ({effortLabel(state.effort)})
+                    </span>
+                    <EffortSlider
+                      levels={effortLevels}
+                      current={state.effort}
+                      onSelect={onSelectEffort}
+                    />
+                  </div>
+                )}
+                {fastTier === undefined ? undefined : (
+                  <div className="effort-row">
+                    <span className="effort-row-label" aria-hidden="true">
+                      {fastTier.name}
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={state.isFastEnabled}
+                      aria-label={`${fastTier.name}. ${fill(UI_TEXT.planUi.fastDetail, { description: fastTier.description })}`}
+                      className={state.isFastEnabled ? 'toggle toggle-on' : 'toggle'}
+                      onClick={onToggleFast}
+                    >
+                      <span className="toggle-knob" />
+                    </button>
+                    <span className="effort-row-label" aria-hidden="true">
+                      {fill(UI_TEXT.planUi.fastDetail, { description: fastTier.description })}
+                    </span>
+                  </div>
+                )}
+              </>
             )
           }
           onSelect={onSelectMode}

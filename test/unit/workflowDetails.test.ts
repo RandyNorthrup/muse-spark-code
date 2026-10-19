@@ -144,3 +144,11 @@ describe('the words of a workflow run (M47)', () => {
     )
   })
 })
+
+it('keeps malformed workflow output unlaunched', () => {
+  expect(workflowLaunch('not json', 'not json')).toEqual({
+    script: undefined,
+    isLaunched: false,
+    scriptPath: undefined,
+  })
+})

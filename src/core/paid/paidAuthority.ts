@@ -1,3 +1,5 @@
+import { UserRefusalError } from '../refusal'
+import { SpendLedgerError } from './spendLedgerError'
 import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { UI_TEXT } from '../../shared/constants'
@@ -17,22 +19,11 @@ interface QuoteState extends PaidGrant {
   readonly status: 'asking' | 'saving' | 'approved'
 }
 interface ClaimState {
-  readonly quote?: PaidQuote
-  readonly actualUsd?: UsdAmount
-  readonly retainedUsd?: UsdAmount
-  readonly pending?: MoneyEffect
+  readonly quote: PaidQuote
   readonly reservedUsd: UsdAmount
   readonly settlement?: SearchSettlement
 }
-interface MoneyEffect {
-  readonly type: 'persistMoney'
-  readonly claimId: string
-  readonly amount: UsdAmount
-  readonly isFinal: boolean
-  readonly hasUnknownCost: boolean
-}
 export interface PaidAuthorityState {
-  readonly days: ReadonlyMap<string, { readonly capUsd: UsdAmount; readonly spentUsd: UsdAmount }>
   readonly generations: ReadonlyMap<string, string>
   readonly quotes: ReadonlyMap<string, QuoteState>
   readonly grants: ReadonlyMap<string, PaidGrant>
@@ -42,22 +33,6 @@ export interface PaidAuthorityState {
 export type PaidAuthorityEvent =
   | { readonly type: 'observedGrant'; readonly grant: PaidGrant }
   | { readonly type: 'invalidate'; readonly grant: PaidGrant }
-  | {
-      readonly type: 'day'
-      readonly day: string
-      readonly capUsd: UsdAmount
-      readonly spentUsd: UsdAmount
-    }
-  | { readonly type: 'moneyReserve'; readonly claimId: string; readonly reservedUsd: UsdAmount }
-  | {
-      readonly type: 'moneySettle'
-      readonly claimId: string
-      readonly amount: UsdAmount
-      readonly isFinal: boolean
-      readonly hasUnknownCost: boolean
-    }
-  | { readonly type: 'moneySaved'; readonly effect: MoneyEffect }
-  | { readonly type: 'moneyFailed'; readonly effect: MoneyEffect }
   | {
       readonly type: 'quote'
       readonly order?: number | undefined
@@ -93,8 +68,6 @@ export type PaidAuthorityEvent =
       readonly isTerminal: boolean
     }
 export type PaidAuthorityEffect =
-  | MoneyEffect
-  | { readonly type: 'persistReserve'; readonly claimId: string; readonly amount: UsdAmount }
   | { readonly type: 'ask' | 'save'; readonly grant: PaidGrant }
   | { readonly type: 'settled'; readonly claimId: string; readonly settlement: SearchSettlement }
 
@@ -106,7 +79,6 @@ function requestKey(quote: PaidQuote): string {
 }
 export function initialPaidAuthorityState(): PaidAuthorityState {
   return {
-    days: new Map(),
     generations: new Map(),
     quotes: new Map(),
     grants: new Map(),
@@ -155,60 +127,6 @@ export function step(
     const quotes = new Map(state.quotes)
     quotes.delete(id)
     return { state: { ...state, quotes }, effects: [] }
-  }
-  if (event.type === 'day') {
-    const days = new Map(state.days)
-    days.set(event.day, { capUsd: event.capUsd, spentUsd: event.spentUsd })
-    return { state: { ...state, days }, effects: [] }
-  }
-  if (event.type === 'moneyReserve') {
-    if (state.claims.has(event.claimId)) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-    const claims = new Map(state.claims)
-    claims.set(event.claimId, { reservedUsd: event.reservedUsd })
-    return {
-      state: { ...state, claims },
-      effects: [{ type: 'persistReserve', claimId: event.claimId, amount: event.reservedUsd }],
-    }
-  }
-  if ('effect' in event || event.type === 'moneySettle') {
-    const effect: MoneyEffect =
-      event.type === 'moneySettle' ? { ...event, type: 'persistMoney' } : event.effect
-    const claim = state.claims.get(effect.claimId)
-    if (claim === undefined) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-    const previous = claim.pending
-    const isSame = (other: MoneyEffect) =>
-      other.amount === effect.amount &&
-      other.isFinal === effect.isFinal &&
-      other.hasUnknownCost === effect.hasUnknownCost
-    if (event.type !== 'moneySettle' && (previous === undefined || !isSame(previous)))
-      return { state, effects: [] }
-    if (event.type === 'moneySettle') {
-      if (claim.actualUsd !== undefined && claim.actualUsd !== effect.amount)
-        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-      if (
-        !effect.isFinal &&
-        Usd.from(effect.amount).compare(Usd.from(claim.retainedUsd ?? claim.reservedUsd)) < 0
-      )
-        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-      if (previous !== undefined && !isSame(previous))
-        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-      if (previous !== undefined) return { state, effects: [] }
-    }
-    const claims = new Map(state.claims)
-    if (event.type === 'moneySettle') claims.set(effect.claimId, { ...claim, pending: effect })
-    else {
-      const { pending: _completed, ...settled } = claim
-      claims.set(
-        effect.claimId,
-        event.type === 'moneyFailed'
-          ? settled
-          : {
-              ...settled,
-              ...(effect.isFinal ? { actualUsd: effect.amount } : { retainedUsd: effect.amount }),
-            },
-      )
-    }
-    return { state: { ...state, claims }, effects: event.type === 'moneySettle' ? [effect] : [] }
   }
   if (event.type === 'inherit') {
     const parent = state.quotes.get(requestKey(event.parent))
@@ -318,23 +236,25 @@ export function step(
   if (event.type === 'reserve') {
     const current = state.quotes.get(requestKey(event.quote))
     if (current?.status !== 'approved' || current.quote.id !== event.quote.id)
-      throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
-    if (state.claims.has(event.claimId)) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
+    if (state.claims.has(event.claimId))
+      throw new SpendLedgerError('integrity', { scope: 'session', file: 'claim or amount' })
     const claims = new Map(state.claims)
     claims.set(event.claimId, { quote: current.quote, reservedUsd: event.reservedUsd })
     return { state: { ...state, claims }, effects: [] }
   }
   const claim = state.claims.get(event.claimId)
-  if (claim?.quote === undefined) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+  if (claim === undefined)
+    throw new SpendLedgerError('integrity', { scope: 'session', file: 'claim or amount' })
   const settlement = searchSettlement(claim.quote, event.returnedCalls, event.isTerminal)
   const previous = claim.settlement
   if (
     previous?.isTerminal === true &&
     (previous.returnedCalls !== settlement.returnedCalls || !settlement.isTerminal)
   )
-    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    throw new SpendLedgerError('integrity', { scope: 'session', file: 'claim or amount' })
   if (previous !== undefined && settlement.returnedCalls < previous.returnedCalls)
-    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    throw new SpendLedgerError('integrity', { scope: 'session', file: 'claim or amount' })
   const delta = Usd.from(settlement.costUsd)
     .subtract(Usd.from(previous?.costUsd ?? 0))
     .toAmount()
@@ -361,9 +281,7 @@ export class PaidAuthority {
     this.bind(quote, () => this.canSpend(parent))
     return true
   }
-  public day(scope: string) {
-    return this.state.days.get(scope)
-  }
+
   public bind(quote: PaidQuote, isCurrent: () => boolean): void {
     this.validators.set(requestKey(quote), isCurrent)
   }
@@ -457,9 +375,11 @@ export function nextPaidApprovalOrder(directory: string): number {
   mkdirSync(directory, { recursive: true })
   let order = 0
   for (const name of readdirSync(directory)) {
-    if (!/^[1-9][0-9]*\.order$/u.test(name)) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    if (!/^[1-9][0-9]*\.order$/u.test(name))
+      throw new SpendLedgerError('integrity', { scope: 'session', file: 'claim or amount' })
     const value = Number(name.slice(0, -'.order'.length))
-    if (!Number.isSafeInteger(value)) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    if (!Number.isSafeInteger(value))
+      throw new SpendLedgerError('integrity', { scope: 'session', file: 'claim or amount' })
     order = Math.max(order, value)
   }
   while (Number.isSafeInteger(order + 1)) {
@@ -471,5 +391,5 @@ export function nextPaidApprovalOrder(directory: string): number {
       if (!(error instanceof Error) || !('code' in error) || error.code !== 'EEXIST') throw error
     }
   }
-  throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+  throw new SpendLedgerError('integrity', { scope: 'session', file: 'claim or amount' })
 }

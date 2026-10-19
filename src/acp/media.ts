@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../shared/refusal'
 // Portable ACP entry points. Runtime binds approved sources to M2's replay;
 // no provider wire or recorder is guessed here (PLAN.md D85.9).
 import { createHash } from 'node:crypto'
@@ -119,7 +120,8 @@ export class AcpMedia implements AcpMediaPort {
     if (input.name === '' || input.name.length > MEDIA_NAME_MAX_CHARS) throw unknown(info.mediaType)
     if (this.deps.backend !== 'modelApi') throw new Error(UI_TEXT.media.museCodeRefusal)
     const model = this.deps.model()
-    if (model.modelId !== this.deps.modelId()) throw new Error(UI_TEXT.execUnknownModel)
+    if (model.modelId !== this.deps.modelId())
+      throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
     const gate = modalityGate(info, model)
     if (!gate.ok) throw new Error(gate.reason)
     if (info.kind === 'video' || info.kind === 'audio') {
@@ -225,8 +227,10 @@ export class AcpMedia implements AcpMediaPort {
         let given: string
         try {
           given = fileURLToPath(block.uri, { windows: this.deps.platform === 'win32' })
-        } catch {
-          throw new Error(UI_TEXT.textFilePrivate)
+        } catch (error: unknown) {
+          // Only an unmappable URI is private: anything else keeps its kind.
+          if (!(error instanceof TypeError)) throw error
+          throw new Error(UI_TEXT.textFilePrivate, { cause: error })
         }
         const attached = await this.attach(given, signal, block.mimeType ?? undefined)
         return attached.part

@@ -22,6 +22,7 @@
       "memoryNamePlaceholder",
       "scheduleV2.editor.defaultName",
       "scheduleV2.editor.defaultPrompt",
+      "scheduleV2.messages.deliveryFailed",
       "paletteTips.schedule",
       "paletteTips.schedulePrompt",
       "paletteTips.scheduleTimeline",

@@ -349,6 +349,20 @@ Native functions are exercised in hookRuntime, foreignHooks, reviewer,
 session board, report and plugin bundles where shipped, through both loaders.
 Workers isolate CLI/host state with fake services and a credential-free
 environment; no network/model call. Browser ESM assets stay ordinary files.
+
+## Withdrawn proof (lane STANDINS, 2026-10-17)
+
+The `foreignHooks`, `reviewer`, `sessionBoard` and `report` exercise
+branches are deleted from `test/packaging/moduleExports.test.mjs`: each
+drove its bundle through hand-written stand-ins (a throwing provider
+client, a literal model/policy record, a literal host, scripted deps), so
+these claims are UNPROVEN — the reviewer's paid-call path, the session
+board read, the report handler, and foreign-hook adapter creation through
+the packaged bundles. The remaining branches (boundaries, hookRuntime,
+pluginHooks, modelApiTools) drive real schemas/parsers and keep proving
+packaged-vs-baseline parity. Real-use proof: exercise each removed path
+through the packed product (a real review turn, the session board, a
+problem report, a foreign hook) on the packaged VSIX/ACP build.
 The separate package suite does not add a prerequisite to unit CI.
 
 Baseline regressions: 25/34 VSIX and 6/15 ACP module tests fail, including

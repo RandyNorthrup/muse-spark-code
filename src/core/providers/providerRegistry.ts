@@ -9,13 +9,15 @@ import {
   type ModelResolver,
   type ResolvedModel,
 } from '../backends/modelapi/modelPolicy'
-import { TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
+import { UserRefusalError } from '../refusal'
 import { fill } from '../../shared/l10n/text'
+import { TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
 import { isEffortLevel } from '../../shared/effort'
 import { parseModelRef, sanitizeModelLabel } from './modelRef'
 import { reserveRequestAmount, settleUsageAmount, type ModelPricing } from './priceCard'
 
 export interface RegistryModel {
+  readonly catalogueMissing?: boolean
   readonly ref: string
   readonly origin: string
   readonly evidence: ModelPolicyEvidence
@@ -96,13 +98,20 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
       const models = await deps.models()
       const model = models.find((model) => model.ref === ref)
       if (model === undefined || parsed === undefined || parsed.providerId === 'meta') {
-        throw new Error(UI_TEXT.execUnknownModel)
+        throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
       }
+      if (model.catalogueMissing === true)
+        throw new UserRefusalError(
+          fill(UI_TEXT.execProviderNotCatalogue, { model: ref }),
+          'model_not_catalogue',
+        )
       // Selecting a model without confirmed tool calling for an agent
       // turn is refused with the same sentence its list row states (F83).
-      const policy = modelPolicyFor(ref, { ...model.evidence, pricing: model.pricing })
-      if (policy.tools.calling.state !== 'yes') {
-        throw new Error(fill(UI_TEXT.providerModelNoToolCalling, { model: ref }))
+      {
+        const policy = modelPolicyFor(ref, { ...model.evidence, pricing: model.pricing })
+        if (policy.tools.calling.state !== 'yes') {
+          throw new Error(fill(UI_TEXT.providerModelNoToolCalling, { model: ref }))
+        }
       }
       const client = await deps.createClient(model)
       if (!deps.isCurrent(model)) {
