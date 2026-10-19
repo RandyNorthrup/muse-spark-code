@@ -348,3 +348,36 @@ Lane close (2026-10-19, rig linuxlt, worktree NOLIMITSINPUT):
 - Final gates on the lane tree: `tsc --noEmit` 0, eslint 0 warnings on all
   touched paths, prettier clean, `check:l10n` 0 problems, `check:reference`
   current, cycles none, `check:plan` exit 0 with the size warning above.
+- Follow-up dedup (same day): the new suite first copied png/store/record
+  and fetch-deps setup from three older suites (jscpd 19 vs base 13). The
+  builders now live in `test/unit/helpers/` (`media/fixtures` gains
+  `pngFixture`; new `attachedRecords`, `webfetchRecord`) and the older
+  suites use the same copies: jscpd back to the base 13, none from this
+  lane (gate still red at threshold 0, pre-existing). All four suites
+  re-green after the move (52 + 3 tests).
+- `npm run typecheck`: host and webview clean; unit reports 19 errors in
+  estimate/pacing/pull-request files, byte-identical on the pre-lane base
+  (`341a9424d3`, same 19 in the same files) — pre-existing, none from this
+  lane. (An early lane note said only "`tsc --noEmit` 0": that was the host
+  project; the full run is the record above. e2e and integration run
+  separately (`run-s` stops after the unit failure): integration clean
+  (exit 0); e2e reports the same pre-existing `estimateFailures` error
+  counted in the unit 19.)
+- Related suites (every unit suite importing a changed module): noLimitsInput
+  16, attachments + acpMediaPort 36, webFetchBomb 3, noDefaultLimits +
+  companionWav 18, noticesInput + voiceBatchSeams + recordingLatest 55,
+  museCodeLatest + localServerCaptures + composerFocusOwnership 65,
+  elicitationHookSeam + pathGuardSpawns + startupWords 25,
+  vendorMediaCodecs + questionAttentionOwnership 42 — all green with the
+  repo's own timeout. (`vitest related` itself cannot run here: its set
+  pulls a production-build suite whose shared build fails on this rig;
+  each related file passes by direct run.)
+- SAST (`security:sast`): 533 rules on 3902 files, 0 findings, exit 0.
+  `security:audit`: exit 0 (2 advisories, 1 documented exception).
+- `npm run build` stops at the pre-existing What's New bound, as briefed:
+  `CHANGELOG.md 0.19.0` notes decode to 326,993 bytes over the 76,800-byte
+  bound. The base tree already carries ~269 KB of 0.19.0 notes; this lane
+  adds 10 lines (~1 KB). Not worked around; bundle-size budgets unverified
+  behind it. Deadcode exit 0, host-api 0 problems, cycles none,
+  `check:reference` current, `check:l10n` 0 problems, `check:plan` exit 0
+  with the size warning above, `check:catches` pre-existing red above.
