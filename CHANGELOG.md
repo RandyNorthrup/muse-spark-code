@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Muse Voice consent wording now matches what the product asks: every paid
+  recording asks, and Allow once covers one recording.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights
