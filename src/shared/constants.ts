@@ -1767,6 +1767,11 @@ export const UNTRUSTED_CHECKOUT_MIN_GIT_MINOR = 36
 export const GIT_WORKTREE_TIMEOUT_MS = 5 * 60 * 1000
 // What a failed git call's error keeps of its stderr (M72's process runner).
 export const GIT_STDERR_MAX_CHARS = 4096
+// Apple's Xcode stub exits with this code while naming xcodebuild when its
+// developer tools cannot start (a Mac without the Command Line Tools, or one
+// whose developer directory points at a missing Xcode): the file exists on
+// PATH, but no git command can run.
+export const XCODE_STUB_GIT_EXIT_CODE = 71
 // Automatic prompt facts suppress configured programs; ordinary user Git keeps its policy.
 export const GIT_METADATA_OPTIONS = [
   '--no-replace-objects',

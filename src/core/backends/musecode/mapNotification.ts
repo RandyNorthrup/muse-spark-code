@@ -188,7 +188,11 @@ const schemas = {
   // one completion's own counters (`usage`, counted-once `promptTokens`, the
   // call's `durationMs` and the effective `modelId`): the journal records
   // those per completion, and the cumulative pair keeps its session-total
-  // meaning for every surface that sums it.
+  // meaning for every surface that sums it. The raw per-completion counters
+  // beside it do not sum across providers, so they are not shown. The
+  // cumulative cache reads sum on the same basis as the prompt total, so
+  // they are carried where the wire reports them (live 2026-10-08); the
+  // cumulative never carries reasoning, which stays unreported.
   'session/tokenUsage': z.object({
     ...sessionScoped,
     modelId: z.optional(z.nullable(z.string())),
@@ -208,6 +212,7 @@ const schemas = {
     cumulative: z.object({
       promptTokens: z.int().check(z.gte(0)),
       outputTokens: z.int().check(z.gte(0)),
+      cacheReadTokens: z.optional(z.nullable(z.int().check(z.gte(0)))),
     }),
   }),
   'session/contextUsage': z.object({
@@ -495,6 +500,9 @@ function rawNotification(notification: WireNotification): MapOutcome {
           type: 'tokenUsage',
           inputTokens: cumulative.promptTokens,
           outputTokens: cumulative.outputTokens,
+          ...(typeof cumulative.cacheReadTokens === 'number' && {
+            cachedTokens: cumulative.cacheReadTokens,
+          }),
           ...(typeof modelId === 'string' && { modelId }),
           ...(usage !== undefined && {
             completion: {

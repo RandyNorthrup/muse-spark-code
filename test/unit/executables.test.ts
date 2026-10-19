@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   absolutePathEntries,
   isFullyQualifiedWindowsPath,
+  resolveAllExecutables,
   resolveExecutable,
 } from '../../src/core/executables'
 
@@ -77,6 +78,25 @@ describe('resolveExecutable', () => {
         fileExists: isPosixInstalled,
       }),
     ).toBe('/usr/local/bin/git')
+  })
+
+  it('lists every absolute entry that has the program, in PATH order', () => {
+    // A caller that executes what it resolves tries each until one runs:
+    // the first file need not work (macOS's Xcode stub).
+    expect(
+      resolveAllExecutables('git', {
+        platform: 'linux',
+        pathVariable: '.:/usr/local/bin:/usr/bin:/bin',
+        fileExists: isPosixInstalled,
+      }),
+    ).toEqual(['/usr/local/bin/git', '/usr/bin/git'])
+    expect(
+      resolveAllExecutables('git', {
+        platform: 'linux',
+        pathVariable: '.:/bin',
+        fileExists: isPosixInstalled,
+      }),
+    ).toEqual([])
   })
 
   it('finds a Windows program as .exe or .com, never a batch file or one in the workspace', () => {

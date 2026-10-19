@@ -2071,6 +2071,7 @@
     "footer": "Formattatore {version}; ICU {icu}; lingua {locale}",
     "notFound": "Non trovato: {id}. Corrispondenze più vicine: {nearest}",
     "generationFailed": "Impossibile generare il rapporto.",
+    "gitXcodeStub": "Git non può essere eseguito su questo Mac: punta allo stub Xcode di Apple, i cui strumenti di sviluppo non possono avviarsi. Installa i Command Line Tools (xcode-select --install) oppure passa agli strumenti installati (sudo xcode-select --switch /Library/Developer/CommandLineTools), quindi riprova.",
     "noHistory": "Nessuna cronologia dei rapporti.",
     "networkOff": "Le fonti di rete dei rapporti sono disattivate.",
     "signInRequired": "Accedi a GitHub per leggere questa fonte.",

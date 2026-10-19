@@ -2042,6 +2042,7 @@
     "footer": "Darstellung {version}; ICU {icu}; Sprache {locale}",
     "notFound": "Nicht gefunden: {id}. Ähnliche Einträge: {nearest}",
     "generationFailed": "Der Bericht konnte nicht erstellt werden.",
+    "gitXcodeStub": "Git kann auf diesem Mac nicht ausgeführt werden: Es wird auf Apples Xcode-Stub aufgelöst, dessen Entwicklerwerkzeuge nicht starten können. Installieren Sie die Command Line Tools (xcode-select --install) oder wechseln Sie zu den installierten Werkzeugen (sudo xcode-select --switch /Library/Developer/CommandLineTools) und versuchen Sie es erneut.",
     "noHistory": "Noch kein Berichtsverlauf.",
     "networkOff": "Netzwerkquellen für Berichte sind ausgeschaltet.",
     "signInRequired": "Melden Sie sich bei GitHub an, um diese Quelle zu lesen.",
