@@ -63,10 +63,10 @@ describe('chatgpt catalogue facts', () => {
     expect(planFastTier({ ...facts(), serviceTiers: [] })).toBeUndefined()
   })
 
-  it('offers low through max, leaving ultra out of every picker', () => {
-    // `ultra` ("Maximum reasoning with automatic task delegation") is not
-    // in the app's effort vocabulary, so no surface can honestly offer it.
-    expect(planOfferedLevels(facts())).toEqual(['low', 'medium', 'high', 'xhigh', 'max'])
+  it('offers low through ultra, the catalogue order in our vocabulary', () => {
+    // `ultra` ("Maximum reasoning with automatic task delegation") is in
+    // the app's effort vocabulary, so the picker offers it as named.
+    expect(planOfferedLevels(facts())).toEqual(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'])
   })
 
   it('defaults to the catalogue default', () => {
@@ -81,12 +81,18 @@ describe('chatgpt catalogue facts', () => {
     expect(resolvePlanEffort(parsed, 'none')).toBe('none')
   })
 
-  it('maps ultra the way the provider client does: multi-agent, else max', () => {
-    // The catalogue names no multi-agent effort for this entry, so ultra
-    // rides as the highest listed level.
-    expect(resolvePlanEffort(facts(), 'ultra')).toBe('max')
-    const withMultiAgent: ChatGptPlanFacts = {
+  it('rides a listed ultra as named, mapping only an unlisted one', () => {
+    // This entry lists ultra, so it rides as named. The provider-client
+    // mapping (multi-agent where listed, else max) applies where the
+    // catalogue does not list ultra.
+    expect(resolvePlanEffort(facts(), 'ultra')).toBe('ultra')
+    const unlisted: ChatGptPlanFacts = {
       ...facts(),
+      reasoningLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+    }
+    expect(resolvePlanEffort(unlisted, 'ultra')).toBe('max')
+    const withMultiAgent: ChatGptPlanFacts = {
+      ...unlisted,
       multiAgentReasoningEffort: 'high',
     }
     expect(resolvePlanEffort(withMultiAgent, 'ultra')).toBe('high')
@@ -102,11 +108,11 @@ describe('chatgpt plan policy', () => {
     const policy = policyFor(facts())
     expect(policy.reasoning.effortLevels).toEqual({
       state: 'yes',
-      value: ['low', 'medium', 'high', 'xhigh', 'max'],
+      value: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
     })
     expect(effortForPolicy(policy, 'xhigh')).toBe('xhigh')
     expect(effortForPolicy(policy, 'low')).toBe('low')
-    expect(effortForPolicy(policy, 'ultra')).toBe('max')
+    expect(effortForPolicy(policy, 'ultra')).toBe('ultra')
   })
 
   it('omits the summary only where the catalogue refuses the parameter', () => {
