@@ -27,6 +27,7 @@ import {
   REPORT_EXIT_CODES,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
+  THINKING_OFF_EFFORT,
 } from '../shared/constants'
 import type { UiText } from '../shared/l10n/en'
 import { fill } from '../shared/l10n/text'
@@ -112,7 +113,9 @@ function factFor(name: string): CliOptionFact | undefined {
       return { kind: 'enum', values: EXEC_OUTPUTS, default: EXEC_DEFAULT_OUTPUT }
     }
     case 'effort': {
-      return { kind: 'enum', values: EFFORT_LEVELS }
+      // `none` (Thinking off) rides beside the tiers: parseExec takes it and
+      // the record decides what the wire carries (lane REASONSHAPESR2).
+      return { kind: 'enum', values: [...EFFORT_LEVELS, THINKING_OFF_EFFORT] }
     }
     case 'max-requests': {
       // No default of ours: unset, a run has no request limit.
@@ -191,6 +194,7 @@ const SERVE_FAMILY_OPTIONS: readonly CliHelpOption[] = [
   { name: 'questions-defer-after', shape: '<seconds>' },
   { name: 'web-search', shape: '' },
   { name: 'image-generation', shape: '' },
+  { name: 'muse-voice', shape: '' },
   { name: 'auto-compaction', shape: '' },
   { name: 'no-auto-compaction', shape: '' },
   { name: 'usage-history', shape: '', fact: factFor('usage-history') },
@@ -287,6 +291,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       },
       { name: 'private-ok', shape: '' },
       { name: 'key-stdin', shape: '' },
+      { name: 'context-window', shape: '<tokens>' },
       { name: 'add', shape: '<model>' },
       { name: 'remove', shape: '<model>' },
       { name: 'force', shape: '<reason>' },
@@ -773,6 +778,7 @@ const AUTH_STATUS_CLEAR_NON_TOPIC: readonly string[] = [
   'auto-compaction',
   'web-search',
   'image-generation',
+  'muse-voice',
   'verbose',
   'questions-defer-after',
   'account',
@@ -784,6 +790,7 @@ const AUTH_STATUS_CLEAR_NON_TOPIC: readonly string[] = [
   'privacy',
   'private-ok',
   'key-stdin',
+  'context-window',
 ]
 
 export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> = {
@@ -798,6 +805,7 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'privacy',
     'private-ok',
     'key-stdin',
+    'context-window',
     'maintenance',
   ],
   login: [
@@ -811,6 +819,7 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'privacy',
     'private-ok',
     'key-stdin',
+    'context-window',
     'maintenance',
   ],
   authSet: [
@@ -826,6 +835,7 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'auto-compaction',
     'web-search',
     'image-generation',
+    'muse-voice',
     'verbose',
     'questions-defer-after',
     'preset',
@@ -836,6 +846,7 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'privacy',
     'private-ok',
     'key-stdin',
+    'context-window',
   ],
   authStatus: AUTH_STATUS_CLEAR_NON_TOPIC,
   authClear: AUTH_STATUS_CLEAR_NON_TOPIC,
@@ -849,6 +860,7 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'privacy',
     'private-ok',
     'key-stdin',
+    'context-window',
     'provider',
     'backend',
     'no-auto-compaction',
@@ -860,9 +872,18 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'auto-compaction',
     'web-search',
     'image-generation',
+    'muse-voice',
     'questions-defer-after',
   ],
-  exec: ['trust-workspace', 'allow-dangerously-skip-permissions', 'web-search', 'record'],
+  exec: [
+    'trust-workspace',
+    'allow-dangerously-skip-permissions',
+    'web-search',
+    'record',
+    // Parsed and reference-documented, but off the one screen: the setting
+    // text carries the guard/spill/removal description (lane TOOLCAP).
+    'max-tool-output-bytes',
+  ],
   providersAdd: [],
   providersModels: [],
   usage: [],
