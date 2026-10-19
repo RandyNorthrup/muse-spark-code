@@ -17,10 +17,10 @@ const CLIP = 300
 const LOG_LINES = 12
 
 /**
- * A function that takes what must not be shown out of a text: each secret
- * by a fixed word, each private folder by its role.
- * @param {ReadonlyMap<string, string>} replacements text to its stand-in
- */
+A function that takes what must not be shown out of a text: each secret
+by a fixed word, each private folder by its role.
+@param {ReadonlyMap<string, string>} replacements text to its stand-in
+*/
 export function scrubber(replacements) {
   const pairs = [...replacements]
     .filter(([text]) => text.length > 2)
@@ -37,12 +37,12 @@ export function scrubber(replacements) {
 }
 
 /**
- * What `usage --json` printed, read fail-closed: a failed command, an
- * output that is no JSON, or a shape with no records array is spend nobody
- * knows, never an empty reading.
- * @param {{ code: number | null, stdout: string }} run the finished command
- * @returns {{ ok: true, records: object[] } | { ok: false, reason: string }}
- */
+What `usage --json` printed, read fail-closed: a failed command, an
+output that is no JSON, or a shape with no records array is spend nobody
+knows, never an empty reading.
+@param {{ code: number | null, stdout: string }} run the finished command
+@returns {{ ok: true, records: object[] } | { ok: false, reason: string }}
+*/
 export function parseUsageOutput(run) {
   if (run.code !== 0) return { ok: false, reason: `usage ended with exit ${String(run.code)}` }
   let printed
@@ -57,16 +57,14 @@ export function parseUsageOutput(run) {
 }
 
 /** A short form of what was seen, on one line. */
-export const clip = (text) => {
-  const line = String(text ?? '')
-    .replaceAll(/\s+/gu, ' ')
-    .trim()
+export const clip = (text = '') => {
+  const line = String(text).replaceAll(/\s+/gu, ' ').trim()
   return line.length > CLIP ? `${line.slice(0, CLIP)}…` : line
 }
 
 /** The last lines of the product's own log, for a scenario that failed. */
-export const logExcerpt = (text) =>
-  String(text ?? '')
+export const logExcerpt = (text = '') =>
+  String(text)
     .split('\n')
     .map((line) => line.trimEnd())
     .filter((line) => line !== '')
@@ -83,7 +81,7 @@ export const tableRoute = (route) => {
   return route.kind === 'meta' ? 'modelapi' : 'musecode'
 }
 
-const isBooked = (usd) => /[1-9]/u.test(usd ?? '')
+const isBooked = (usd = '') => /[1-9]/u.test(usd)
 
 const line = (result) =>
   `${result.outcome === 'pass' ? 'PASS' : 'FAIL'}  ${result.scenario} · ${result.vendor} · ${result.model} · ${result.surface} · ${String(result.requests)} req · $${result.usd}${isBooked(result.uncertainUsd) ? ` (+$${result.uncertainUsd} booked with no usage)` : ''} · ${result.seconds.toFixed(1)} s`
@@ -146,15 +144,15 @@ export function summaryOf(record) {
 }
 
 /**
- * The totals of a run. `usd` is settled (usage the providers reported).
- * `uncertainUsd` is what the product booked for requests that were sent
- * and came back with no usage. `ledgerUnsettled` is what its daily ledger
- * holds with no settlement: a whole reservation for each such request (more
- * than it booked for a request an editor session stopped), and for a run
- * turned away for its budget on a provider's route. `turnedAwayUnsentRuns`
- * counts the refusals the run itself asked for (lib/admission.mjs).
- * @param {{ claims: number, micro: number, unread: string[] }} unsettled lib/ledger.mjs
- */
+The totals of a run. `usd` is settled (usage the providers reported).
+`uncertainUsd` is what the product booked for requests that were sent
+and came back with no usage. `ledgerUnsettled` is what its daily ledger
+holds with no settlement: a whole reservation for each such request (more
+than it booked for a request an editor session stopped), and for a run
+turned away for its budget on a provider's route. `turnedAwayUnsentRuns`
+counts the refusals the run itself asked for (lib/admission.mjs).
+@param {{ claims: number, micro: number, unread: string[] }} unsettled lib/ledger.mjs
+*/
 export function totalsOf(results, notRun, spent, productUsage, unsettled) {
   return {
     passed: results.filter((result) => result.outcome === 'pass').length,
@@ -174,10 +172,10 @@ export function totalsOf(results, notRun, spent, productUsage, unsettled) {
 }
 
 /**
- * Makes the folder a record is written in, so a run that cannot write its
- * record stops before anything is spent, not after paid calls.
- * @param {string} file the record file (`<file>.json` and `<file>.txt`)
- */
+Makes the folder a record is written in, so a run that cannot write its
+record stops before anything is spent, not after paid calls.
+@param {string} file the record file (`<file>.json` and `<file>.txt`)
+*/
 export function ensureRecordDir(file) {
   mkdirSync(path.dirname(file), { recursive: true })
 }

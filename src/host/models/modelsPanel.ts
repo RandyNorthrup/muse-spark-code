@@ -69,10 +69,10 @@ export interface ModelsPanelDeps {
   readonly log: Logger
   readonly providers: ProvidersHost
   /**
-   * The conversation spending limit setting: read for the suggestions
-   * step's prefill and written when the wizard's number changed. Backed by
-   * VS Code's configuration in production, by memory in tests.
-   */
+  The conversation spending limit setting: read for the suggestions
+  step's prefill and written when the wizard's number changed. Backed by
+  VS Code's configuration in production, by memory in tests.
+  */
   readonly sessionBudget: SessionBudgetConfig
   readonly isRemote?: boolean
   readonly writeExportFile: (text: string) => Promise<void>
@@ -80,9 +80,9 @@ export interface ModelsPanelDeps {
   readonly confirmImport: (preview: ImportPreview) => Promise<boolean>
   readonly onWizardSaved: (outcome: WizardSaveOutcome) => void
   /**
-   * The vault binding factory (C-M109-1 P1). Without it the section stays
-   * hidden; a factory that throws leaves the panel without the section too.
-   */
+  The vault binding factory (C-M109-1 P1). Without it the section stays
+  hidden; a factory that throws leaves the panel without the section too.
+  */
   readonly vault?: ModelsVaultFactory | undefined
 }
 export interface ModelsPanelNavigate {
@@ -91,12 +91,12 @@ export interface ModelsPanelNavigate {
   readonly wizard?: boolean | undefined
 }
 /**
- * The vault section's host side (C-M109-1 P1): built in dist/vault.js and
- * owned by this panel while its tab lives. The factory and the binding
- * never import this file, and this file never imports the vault's host
- * files, so the bundle-split gate keeps them in their own bundles; only
- * the shared message schemas are carried by both.
- */
+The vault section's host side (C-M109-1 P1): built in dist/vault.js and
+owned by this panel while its tab lives. The factory and the binding
+never import this file, and this file never imports the vault's host
+files, so the bundle-split gate keeps them in their own bundles; only
+the shared message schemas are carried by both.
+*/
 export interface ModelsVaultBinding {
   readonly handle: (raw: unknown) => Promise<void>
   readonly refresh: () => Promise<void>
@@ -516,8 +516,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     if (deps.connectCopilot === undefined) throw new Error(UI_TEXT.actionFailed)
     await deps.connectCopilot()
   }
-  const draftSecret = (entry: ProviderEntry, id?: string): string | undefined => {
-    const record = credentials.get(id ?? 'wizard')
+  const draftSecret = (entry: ProviderEntry, id = 'wizard'): string | undefined => {
+    const record = credentials.get(id)
     if (record !== undefined && record.origin !== new URL(entry.address).origin) {
       throw new Error(UI_TEXT.importNeedsKey)
     }
@@ -627,25 +627,23 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         return parsed.success ? [parsed.data] : []
       }
       const isBound = origin === undefined || origin === new URL(entry.address).origin
-      return [
-        {
-          id: entry.id,
-          presetId: entry.preset,
-          label: preset.label,
-          address: entry.address,
-          format: entry.format ?? preset.format,
-          auth: entry.auth,
-          key: {
-            state: hasKey ? (isBound ? 'stored' : 'needs-again') : 'missing',
-            origin,
-            actualOrigin: isBound ? undefined : new URL(entry.address).origin,
-          },
-          test: { status: 'untested' },
-          models: [...entry.models],
-          modelLimits: entry.modelLimits,
-          pinned: [...(entry.pinned ?? [])],
+      return {
+        id: entry.id,
+        presetId: entry.preset,
+        label: preset.label,
+        address: entry.address,
+        format: entry.format ?? preset.format,
+        auth: entry.auth,
+        key: {
+          state: hasKey ? (isBound ? 'stored' : 'needs-again') : 'missing',
+          origin,
+          actualOrigin: isBound ? undefined : new URL(entry.address).origin,
         },
-      ]
+        test: { status: 'untested' },
+        models: [...entry.models],
+        modelLimits: entry.modelLimits,
+        pinned: [...(entry.pinned ?? [])],
+      }
     })
     await refreshUsage(
       state.providers,

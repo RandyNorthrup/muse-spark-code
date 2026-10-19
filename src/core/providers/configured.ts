@@ -64,12 +64,12 @@ import {
 } from '../backends/modelapi/pacing'
 
 /**
- * The rate-limit header reader for a preset (PROVM95): each provider's own
- * header names with their real meaning, from the 2026-10-04 captures.
- * Presets whose providers send no limit headers get none, so only a 429
- * pause applies; Groq's per-day scope, xAI's per-second scope and
- * DeepSeek's concurrency need a capture that names them.
- */
+The rate-limit header reader for a preset (PROVM95): each provider's own
+header names with their real meaning, from the 2026-10-04 captures.
+Presets whose providers send no limit headers get none, so only a 429
+pause applies; Groq's per-day scope, xAI's per-second scope and
+DeepSeek's concurrency need a capture that names them.
+*/
 function pacingReaderFor(
   presetId: string,
 ): ((headers: Headers) => PacingLimits | undefined) | undefined {
@@ -133,26 +133,26 @@ export interface ConfiguredProviderOptions {
     signal: AbortSignal,
   ) => Promise<PinnedResponse>
   /**
-   * How long an inference stream may send nothing, headers or frames,
-   * before it is ended; absent, the stream ends at Stop, never at an
-   * invented kill (owner 2026-10-16). It is the only time limit on an
-   * inference stream: there is no limit on its total.
-   */
+  How long an inference stream may send nothing, headers or frames,
+  before it is ended; absent, the stream ends at Stop, never at an
+  invented kill (owner 2026-10-16). It is the only time limit on an
+  inference stream: there is no limit on its total.
+  */
   readonly streamIdleMs?: number
   /**
-   * Where the transport's notices go (PR #214 review): without one its
-   * still-waiting notices during an indefinite stream wait reach the
-   * no-op logger below and the request looks hung until Stop. Per-request
-   * timing still never reaches a log, named or not.
-   */
+  Where the transport's notices go (PR #214 review): without one its
+  still-waiting notices during an indefinite stream wait reach the
+  no-op logger below and the request looks hung until Stop. Per-request
+  timing still never reaches a log, named or not.
+  */
   readonly log?: CoreLogger
   /**
-   * Lane RETRYLIMITS: the person's `museSpark.modelApiMaxRetries` setting,
-   * read live so a change applies without a restart. Set, it caps every
-   * configured provider's retries; unset, each preset's documented maximum
-   * governs, and a preset that documents none retries until the provider's
-   * own wait or stop answer ends it.
-   */
+  Lane RETRYLIMITS: the person's `museSpark.modelApiMaxRetries` setting,
+  read live so a change applies without a restart. Set, it caps every
+  configured provider's retries; unset, each preset's documented maximum
+  governs, and a preset that documents none retries until the provider's
+  own wait or stop answer ends it.
+  */
   readonly personCap?: () => number | undefined
 }
 const secretSchema = z.object({
@@ -190,10 +190,10 @@ const costSchema = z.object({
 })
 // GET /api/v1/key: m95-captures/openrouter/02-key-usage.json (2026-10-04).
 /**
- * An exact decimal the response tokenizer minted. A class instance, never a
- * plain object: response JSON parses to plain objects only, so no wire
- * shape can forge one (a `{"decimal": "1e101"}` object is refused below).
- */
+An exact decimal the response tokenizer minted. A class instance, never a
+plain object: response JSON parses to plain objects only, so no wire
+shape can forge one (a `{"decimal": "1e101"}` object is refused below).
+*/
 class ExactDecimal {
   public constructor(public readonly decimal: string) {}
 }
@@ -213,10 +213,10 @@ function exactDecimalToAmount(value: ExactDecimal) {
 }
 const keyDollars = z.pipe(z.instanceof(ExactDecimal), z.transform(exactDecimalToAmount))
 /**
- * Replaces per-call tokenizer markers with their minted amounts. A
- * marker-shaped wire string cannot match the call's nonce, so it survives
- * as a string and the usage schema refuses it.
- */
+Replaces per-call tokenizer markers with their minted amounts. A
+marker-shaped wire string cannot match the call's nonce, so it survives
+as a string and the usage schema refuses it.
+*/
 function materializeExactDecimals(value: unknown, nonce: string): unknown {
   const prefix = `exact-decimal:${nonce}:`
   if (typeof value === 'string')
@@ -244,14 +244,14 @@ const openRouterUsageSchema = z.object({
 const openRouterExchangeSchema = z.object({ key: z.string().check(z.minLength(1)) })
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
 /**
- * A provider entry the services cannot use, as a closed cause (round 2,
- * finding 6): every cause a person can meet gets its own translated
- * sentence, with technical values (ids, origins, paths) as slots and no
- * English prose inside; a cause only a programming error can reach is one
- * defect sentence. Typed, with no HTTP status, so the `streamResponse` catch
- * below keeps its words instead of the generic error, and the ledger (which
- * only releases answered refusals) leaves it uncertain.
- */
+A provider entry the services cannot use, as a closed cause (round 2,
+finding 6): every cause a person can meet gets its own translated
+sentence, with technical values (ids, origins, paths) as slots and no
+English prose inside; a cause only a programming error can reach is one
+defect sentence. Typed, with no HTTP status, so the `streamResponse` catch
+below keeps its words instead of the generic error, and the ledger (which
+only releases answered refusals) leaves it uncertain.
+*/
 type InvalidEntryCause =
   | { readonly kind: 'unknownPreset'; readonly preset: string }
   | { readonly kind: 'unsupportedAuth'; readonly auth: string }
@@ -345,16 +345,16 @@ const invalidEntry = (entry: ProviderEntry, cause: InvalidEntryCause): ModelApiE
   }
 }
 /** The name a refusal sentence shows: the provider's own label, or the entry
- * id for a user's own server. */
+id for a user's own server. */
 const providerDisplayName = (
   entry: ProviderEntry,
   preset: { readonly label: string; readonly category: string },
 ): string => (preset.category === 'custom' || preset.category === 'local' ? entry.id : preset.label)
 /** Chat Completions, Responses, every chat-format quirk and the
- * ChatGPT-plan and Copilot routes share one shape-driven extractor with all
- * other formats (round 2, finding 2): it reads the body by what it IS, never
- * by a vendor's name. Anything else in it carries `parsed: false`, never a
- * product sentence. */
+ChatGPT-plan and Copilot routes share one shape-driven extractor with all
+other formats (round 2, finding 2): it reads the body by what it IS, never
+by a vendor's name. Anything else in it carries `parsed: false`, never a
+product sentence. */
 const openAiRefusal = (status: number, value: unknown): ModelApiError => {
   const refusal = parseRefusalError(status, value)
   // A documented reason or error code (Anthropic's `details.error_code`,
@@ -390,7 +390,7 @@ const parseFormatError = (
   return parse(status, value)
 }
 /** An answered refusal with the sentence the person reads, keeping its
- * status, kind, code, request id and wait for the ledger and the log. */
+status, kind, code, request id and wait for the ledger and the log. */
 const refusalError = (
   entry: ProviderEntry,
   preset: { readonly label: string; readonly category: string },
@@ -407,13 +407,13 @@ const refusalError = (
   return out
 }
 /**
- * How a configured provider's failure is read, wherever that provider is
- * asked (lane PROVERRORS): its own format's parser for an answer, the
- * sentence for a send that produced no answer (the provider, Node's own
- * failure codes, and that whether the request arrived is unknown), and the
- * sentence for an answered refusal. The turn, the key check and the
- * runtime's `providers test` all read failures through this one reader.
- */
+How a configured provider's failure is read, wherever that provider is
+asked (lane PROVERRORS): its own format's parser for an answer, the
+sentence for a send that produced no answer (the provider, Node's own
+failure codes, and that whether the request arrived is unknown), and the
+sentence for an answered refusal. The turn, the key check and the
+runtime's `providers test` all read failures through this one reader.
+*/
 export function providerFailureReader(
   entry: ProviderEntry,
   preset: { readonly label: string; readonly category: string; readonly format: ProviderFormat },
@@ -1426,22 +1426,22 @@ export function createConfiguredProviderServices(
       modelFor: providerModel,
     })
     /**
-     * EXECPROV round 7: the exact same-body input count for every wire
-     * that documents one, declared per preset/format in data
-     * (`FormatQuirks.exactCount`, preset overrides where only some
-     * providers of a format document one) and off-switchable per entry.
-     * The count request is built from the already-built native request by
-     * buildExactCountRequest (drop these fields, send to this path), so it
-     * cannot drift from what is sent. It rides the same pinned-address,
-     * proxy and credential path as the real request (no second network
-     * path), carries the request's own headers (auth, version, beta), is
-     * never recorded as a model call, and any failure throws so the
-     * accounting layer falls back to the byte bound with the fixed reason.
-     * A count is never retried for send failures (`rateLimitOnly`: only a
-     * pre-work 429 may retry inside the short deadline); its failure text
-     * never carries the body. Counts are free on every wire that has one,
-     * so no billed cost rides along.
-     */
+    EXECPROV round 7: the exact same-body input count for every wire
+    that documents one, declared per preset/format in data
+    (`FormatQuirks.exactCount`, preset overrides where only some
+    providers of a format document one) and off-switchable per entry.
+    The count request is built from the already-built native request by
+    buildExactCountRequest (drop these fields, send to this path), so it
+    cannot drift from what is sent. It rides the same pinned-address,
+    proxy and credential path as the real request (no second network
+    path), carries the request's own headers (auth, version, beta), is
+    never recorded as a model call, and any failure throws so the
+    accounting layer falls back to the byte bound with the fixed reason.
+    A count is never retried for send failures (`rateLimitOnly`: only a
+    pre-work 429 may retry inside the short deadline); its failure text
+    never carries the body. Counts are free on every wire that has one,
+    so no billed cost rides along.
+    */
     // Through the externalized providers entry (never a static edge into
     // tokenCount.ts: the split gate forbids carrying provider modules).
     const exactCountKind = tokenCount.exactCountKindFor(entry, preset)
@@ -1876,7 +1876,7 @@ export function createConfiguredProviderServices(
                 card.longContextTier?.input,
                 card.longContextTier?.output,
                 card.longContextTier?.cachedInput,
-              ].every((rate) => (rate ?? 0) === 0)))
+              ].every((rate = 0) => rate === 0)))
         let priceFingerprint = 'unpriced'
         if (isPlan) priceFingerprint = 'plan'
         else if (isLocal) priceFingerprint = 'local'
