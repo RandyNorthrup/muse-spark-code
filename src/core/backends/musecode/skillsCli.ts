@@ -64,8 +64,8 @@ export interface ActivationChange {
 function parseJson(stdout: string, what: string): unknown {
   try {
     return JSON.parse(stdout)
-  } catch {
-    throw new Error(`Muse Code's ${what} output is not JSON`)
+  } catch (error: unknown) {
+    throw new Error(`Muse Code's ${what} output is not JSON`, { cause: error })
   }
 }
 

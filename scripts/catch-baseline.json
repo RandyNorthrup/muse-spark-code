@@ -7,8 +7,8 @@
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 222,
-      "GENERIC": 514,
+      "SWALLOW": 221,
+      "GENERIC": 506,
       "CLEANUP": 152
     },
     "host": {
@@ -1121,51 +1121,6 @@
     {
       "file": "src/core/backends/modelapi/verifyTools.ts",
       "identity": "256b495b888854baf66aa0f39e4f3310f5790e40063ce9ae06fda47822c463b0",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/musecode/MuseCodeHost.ts",
-      "identity": "a17eacadac68ff15cdc0a9b310a9bb026bb82ce5cf1ace6defcead59f071d46c",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/musecode/MuseCodeHost.ts",
-      "identity": "d7d5d31a68104727acc3fa3abfc3baa15be9428e20690a8009031b9f929b3380",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/musecode/MuseCodeHost.ts",
-      "identity": "31f310394d1885b4b3a2b728c076154e38d92adb8376c434ffe3ba603e59633a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/musecode/MuseCodeHost.ts",
-      "identity": "d39c0a696f6c876808c24043ce82fca8d9a48837590c62f5c2eab3b2fdeedb72",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/musecode/MuseCodeHost.ts",
-      "identity": "26db12fe4225ee6de98a2a8b18dad34053c34087e6cb213b9b66efbcb2160784",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/musecode/MuseCodeHost.ts",
-      "identity": "551c334cf61b3081063f1a1be5e0d6a35cc1cc45ae13fc6b05fc8fd530a0362a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/musecode/museConfigView.ts",
-      "identity": "b6f2a1c901ef5cdc0bb56a744f2aacecb4786cce51ccd67b28a3c46598b25188",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/musecode/museConfigView.ts",
-      "identity": "49346eee032874bfbafddff109f5dd8902a0c7614574f11868f25a3528c50a59",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/musecode/skillsCli.ts",
-      "identity": "1f475587918ff071d4f334c130402949a3c4379a4bdb2b00691454c32027acd0",
       "class": "GENERIC"
     },
     {

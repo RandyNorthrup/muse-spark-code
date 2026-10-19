@@ -1443,6 +1443,7 @@
   "mcpRestartDetail": "Probíhající odpověď se zastaví; konverzace bude pokračovat vaší další zprávou",
   "mcpInvalidUrl": "neplatná adresa URL",
   "mcpNoCommand": "žádný příkaz",
+  "mcpInvalidJson": "soubor není platný JSON",
   "mcpRestarted": "Muse Code se restartoval; vaše další zpráva načte nastavení v aktuální podobě.",
   "mcpDocs": "Servery MCP v Muse Code (dokumentace)",
   "mcpSignIn": "Přihlásit se",

@@ -1410,6 +1410,7 @@
   "mcpRestartDetail": "実行中の応答は停止します。会話は次のメッセージで続行されます",
   "mcpInvalidUrl": "無効な URL",
   "mcpNoCommand": "コマンドなし",
+  "mcpInvalidJson": "ファイルは有効な JSON ではありません",
   "mcpRestarted": "Muse Code が再起動しました。次のメッセージで現在の設定が読み込まれます。",
   "mcpDocs": "Muse Code の MCP サーバー (ドキュメント)",
   "mcpSignIn": "サインイン",
