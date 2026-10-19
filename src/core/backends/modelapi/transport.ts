@@ -389,6 +389,27 @@ export function providerWaitMs(headers: Headers, now: number): number | undefine
 }
 
 /**
+ * What one retry tells the person: the plain `HTTP …` reason, or, for a
+ * wait the provider named, that wait's sentence with when it ends in
+ * absolute time and plain words. Pure — the request loop calls this per
+ * retry — so the telling is provable with header values as plain input
+ * and no provider answering.
+ */
+export function providerRetryReason(
+  status: number,
+  message: string,
+  delayMs: number | undefined,
+  now: number,
+): string {
+  const reason = `HTTP ${String(status)}: ${message}`
+  if (delayMs === undefined) return reason
+  return fill(UI_TEXT.modelApiProviderRetryWait, {
+    reason,
+    time: formatDateTime(now + delayMs),
+  })
+}
+
+/**
  * Which requests join the pacing bucket. Meta governs only its inference
  * path with a model id; a configured provider's inference travels a native
  * path (never `/responses`) with the codec-supplied model id, so any of its
@@ -1269,13 +1290,12 @@ export class RequestTransport {
       // absolute time and plain words, so a long provider wait never stalls
       // silently; the pause after it stays Stop-abortable. The `HTTP …`
       // prefix stays first, as the rate-limited retry readers match on it.
-      const reason =
-        waitMs === undefined
-          ? `HTTP ${String(response.status)}: ${failure.message}`
-          : fill(UI_TEXT.modelApiProviderRetryWait, {
-              reason: `HTTP ${String(response.status)}: ${failure.message}`,
-              time: formatDateTime(this.deps.now() + delay),
-            })
+      const reason = providerRetryReason(
+        response.status,
+        failure.message,
+        waitMs === undefined ? undefined : delay,
+        this.deps.now(),
+      )
       if (
         response.status === PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout &&
         admitAttempt?.prepareRetry !== undefined
