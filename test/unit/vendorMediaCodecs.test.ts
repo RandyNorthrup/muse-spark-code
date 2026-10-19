@@ -23,6 +23,7 @@ import { modalityGate } from '../../src/core/media/modalityGate'
 import { sniffMediaBytes } from '../../src/core/media/limits'
 import { videoFixture } from './helpers/media/fixtures'
 import { EN } from '../../src/shared/l10n/en'
+import { CHATGPT_TOOL_NAMESPACE_DESCRIPTION } from '../../src/shared/constants'
 import { setUiText } from '../../src/shared/l10n/text'
 import type { CreateResponseBody, InputContentPart } from '../../src/core/backends/modelapi/schemas'
 
@@ -153,7 +154,11 @@ describe('M105 lane V vendor video refusals', () => {
         }).encodeRequest({ ...chatBody([HELD_VIDEO]), model: 'm' }),
       ).toThrow('m nimmt.m')
       expect(() =>
-        createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' }).encodeRequest({
+        createResponsesCodec({
+          profile: 'chatgpt',
+          toolNamespace: 'functions',
+          toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+        }).encodeRequest({
           ...chatBody([HELD_VIDEO]),
           model: 'm',
         }),
@@ -264,7 +269,11 @@ function encodeRoute(route: string, kind: string, model: string, body: CreateRes
       return
     }
     case 'chatgpt': {
-      createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' }).encodeRequest({
+      createResponsesCodec({
+        profile: 'chatgpt',
+        toolNamespace: 'functions',
+        toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+      }).encodeRequest({
         ...body,
         model,
       })
