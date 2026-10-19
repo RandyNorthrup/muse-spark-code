@@ -122,10 +122,10 @@ async function placedFiles(
 }
 
 /**
- * One entry per file, however the edit groups its changes. D121: a rename
- * touches as many files as the language service names — the removed 200-file
- * ceiling was invented, so files past it merge like any other.
- */
+One entry per file, however the edit groups its changes. D121: a rename
+touches as many files as the language service names — the removed 200-file
+ceiling was invented, so files past it merge like any other.
+*/
 export function mergePlacedEdits(
   placed: readonly { file: PlacedFile | undefined; edits: readonly TextEdit[] }[],
 ): { file: PlacedFile; edits: TextEdit[] }[] {

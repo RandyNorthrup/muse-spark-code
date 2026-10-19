@@ -48,7 +48,7 @@ export interface MediaCostItem {
   readonly fps?: number | undefined
   readonly detail?: 'auto' | 'low' | 'high' | 'original' | undefined
   /** Inline-priced visuals (image/PDF reads): the bound reserves, but the
-   * provider-counted inline bytes never become a calibration observation. */
+  provider-counted inline bytes never become a calibration observation. */
   readonly inlinePriced?: boolean
 }
 

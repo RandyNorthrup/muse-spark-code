@@ -60,12 +60,12 @@ export const CI_LAUNCHER_SOURCES = [
 ]
 
 /**
- * The native sources the ACP package stages for a target: only that
- * platform's pieces, so a platform's package never demands a helper only
- * another OS builds. The runner ships everywhere (the SSH runner copies
- * the helper to the remote side, as in the .vsix). No argument is the
- * universal package, which keeps every platform's helpers.
- */
+The native sources the ACP package stages for a target: only that
+platform's pieces, so a platform's package never demands a helper only
+another OS builds. The runner ships everywhere (the SSH runner copies
+the helper to the remote side, as in the .vsix). No argument is the
+universal package, which keeps every platform's helpers.
+*/
 export function acpNativeFiles(target) {
   if (target === undefined)
     return [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS, ...VOICE_WINDOWS_HELPERS]

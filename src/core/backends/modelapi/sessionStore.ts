@@ -147,16 +147,16 @@ export interface StoredSession {
   /** The conversation's running total (M82, D121): what its calls reported, saved after each; absent when none. */
   readonly budgetSpentUsd?: UsdAmount
   /**
-   * The spend total counts settled spend only (D121): the file was written
-   * reservation-free, so a resume adopts its total whole. Absent on files
-   * saved before the legacy migration, whose totals may hold an open
-   * reservation the store rebuilds from settled claims on load.
-   */
+  The spend total counts settled spend only (D121): the file was written
+  reservation-free, so a resume adopts its total whole. Absent on files
+  saved before the legacy migration, whose totals may hold an open
+  reservation the store rebuilds from settled claims on load.
+  */
   readonly spendSettledOnly?: true
   /**
-   * Calls that went out and reported no usage: their cost is unknown and
-   * not in `budgetSpentUsd`. Absent where the session had none.
-   */
+  Calls that went out and reported no usage: their cost is unknown and
+  not in `budgetSpentUsd`. Absent where the session had none.
+  */
   readonly unknownChargeCalls?: number
   /**
   Observation packing's ledger (M73): the estimated tokens packed sends
@@ -465,19 +465,19 @@ export function spillName(sessionId: string, callId: string): string {
 }
 
 /**
- * TOOLCAP: one session's spill file-name prefix. A session's spills are
- * exactly the `.txt` files under this prefix in `TOOL_RESULT_SPILL_DIR`, so
- * deleting the session can remove them.
- */
+TOOLCAP: one session's spill file-name prefix. A session's spills are
+exactly the `.txt` files under this prefix in `TOOL_RESULT_SPILL_DIR`, so
+deleting the session can remove them.
+*/
 export function spillPrefix(sessionId: string): string {
   return `${spillSafePart(sessionId)}-`
 }
 
 /**
- * TOOLCAP: whether a directory entry is shaped like a spill file
- * (`<safe>-<safe>.txt`). The age sweep removes only these; anything else a
- * person put in the spill directory is left alone.
- */
+TOOLCAP: whether a directory entry is shaped like a spill file
+(`<safe>-<safe>.txt`). The age sweep removes only these; anything else a
+person put in the spill directory is left alone.
+*/
 const SPILL_FILE_PATTERN = /^[A-Za-z0-9_-]{1,80}-[A-Za-z0-9_-]{1,80}\.txt$/
 
 export function isSpillFile(name: string): boolean {
@@ -485,10 +485,10 @@ export function isSpillFile(name: string): boolean {
 }
 
 /**
- * TOOLCAP: a spill file's age rule. Past TOOL_RESULT_SPILL_MAX_AGE_DAYS it is
- * pruned, whatever session it belonged to. An unreadable clock is kept: only
- * a known age deletes anything.
- */
+TOOLCAP: a spill file's age rule. Past TOOL_RESULT_SPILL_MAX_AGE_DAYS it is
+pruned, whatever session it belonged to. An unreadable clock is kept: only
+a known age deletes anything.
+*/
 export function isSpillStale(mtimeMs: number, nowMs: number): boolean {
   return (
     Number.isFinite(mtimeMs) &&
@@ -498,10 +498,10 @@ export function isSpillStale(mtimeMs: number, nowMs: number): boolean {
 }
 
 /**
- * TOOLCAP: one parsed replay item re-entering the live session. Stored tool
- * text takes the restore brand (see the call site for why); every other item
- * already matches the live shape.
- */
+TOOLCAP: one parsed replay item re-entering the live session. Stored tool
+text takes the restore brand (see the call site for why); every other item
+already matches the live shape.
+*/
 function restoreReplayItem(item: z.infer<typeof storedInputItemSchema>): InputItem {
   switch (item.type) {
     case 'function_call_output': {

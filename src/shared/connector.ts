@@ -88,10 +88,10 @@ export type ConnectorOperationState =
   'awaitingApproval' | 'running' | 'completed' | 'failed' | 'cancelled' | 'expired'
 
 /**
- * The one state machine every call walks (design §3a): received → admitted
- * → (awaitingApproval → approved →) dispatching → settled, or refused,
- * cancelled or failed. Its transition table is operations.ts's.
- */
+The one state machine every call walks (design §3a): received → admitted
+→ (awaitingApproval → approved →) dispatching → settled, or refused,
+cancelled or failed. Its transition table is operations.ts's.
+*/
 export const CONNECTOR_CALL_STATES = [
   'received',
   'admitted',
@@ -132,10 +132,10 @@ const workspaceGrantSchema = z.strictObject({
 })
 
 /**
- * A connection's name. It is also a file name (the grant, its audit journal
- * and its limits), so it admits no separator or dot: anything else is refused
- * where the command is parsed, before any path is built from it.
- */
+A connection's name. It is also a file name (the grant, its audit journal
+and its limits), so it admits no separator or dot: anything else is refused
+where the command is parsed, before any path is built from it.
+*/
 export const connectorConnectionIdSchema = z
   .string()
   .check(
@@ -229,11 +229,11 @@ export const connectorInputSchemas = {
 export type ConnectorBackedTool = keyof typeof connectorInputSchemas
 
 /**
- * One scrubbed, schema-versioned audit line (design §6); no raw text or
- * token. A call's line is one transition (`from` → `event`); `transport`
- * is a frame refused before any call existed (its JSON-RPC code only);
- * `control` is the owner's own command.
- */
+One scrubbed, schema-versioned audit line (design §6); no raw text or
+token. A call's line is one transition (`from` → `event`); `transport`
+is a frame refused before any call existed (its JSON-RPC code only);
+`control` is the owner's own command.
+*/
 export const connectorAuditSchema = z.strictObject({
   schemaVersion: z.literal(CONNECTOR_SCHEMA_VERSION),
   at: z.iso.datetime({ offset: true }),

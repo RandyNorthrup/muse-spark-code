@@ -54,18 +54,18 @@ export interface ExecOptions {
   readonly untrustedFiles: readonly string[]
   readonly mode: ExecMode
   /**
-   * The BYO provider to run on (M95, PLAN.md D74): resolved only from the
-   * runner's own user file or a built-in preset's fixed origin, never a
-   * repository file. `model` is then the qualified `<provider>/<model>` ref.
-   */
+  The BYO provider to run on (M95, PLAN.md D74): resolved only from the
+  runner's own user file or a built-in preset's fixed origin, never a
+  repository file. `model` is then the qualified `<provider>/<model>` ref.
+  */
   readonly provider: string | undefined
   readonly model: string | undefined
   /**
-   * The requested tier, or `none` for Thinking off (lane REASONSHAPESR2:
-   * the terminal agent can be told to send none; the record decides what
-   * the wire carries). `EffortLevel` excludes `none`, so it is widened
-   * here, never in the shared union.
-   */
+  The requested tier, or `none` for Thinking off (lane REASONSHAPESR2:
+  the terminal agent can be told to send none; the record decides what
+  the wire carries). `EffortLevel` excludes `none`, so it is widened
+  here, never in the shared union.
+  */
   readonly effort: EffortLevel | typeof THINKING_OFF_EFFORT | undefined
   /** The plan route's Fast tier while on; off by default, refused where unoffered. */
   readonly fast: boolean
@@ -79,10 +79,10 @@ export interface ExecOptions {
   /** TOOLCAP: raise the per-tool-result byte guard for this run only. */
   readonly maxToolOutputBytes: number | undefined
   /**
-   * Optional lowering limit for the run's output cap (round 5): absent is
-   * the policy cap; present never exceeds it (larger values are refused at
-   * parsing). Carried into the request's output limit and its reservation.
-   */
+  Optional lowering limit for the run's output cap (round 5): absent is
+  the policy cap; present never exceeds it (larger values are refused at
+  parsing). Carried into the request's output limit and its reservation.
+  */
   readonly maxOutputTokens?: number | undefined
   readonly timeoutMs: number
   readonly paidFeatures: readonly ExecPaidFeature[]
@@ -163,10 +163,10 @@ function invalid(reason: string): { readonly ok: false; readonly reason: string 
 }
 
 /**
- * Bare single-segment IDs qualify immediately. Slash-containing IDs remain
- * intact until assembly can distinguish a configured native ID from a qualified
- * reference. Without a provider the model passes through untouched.
- */
+Bare single-segment IDs qualify immediately. Slash-containing IDs remain
+intact until assembly can distinguish a configured native ID from a qualified
+reference. Without a provider the model passes through untouched.
+*/
 export function qualifyProviderModel(
   provider: string | undefined,
   model: string | undefined,
@@ -413,12 +413,12 @@ export function parseExec(
 }
 
 /**
- * Headless paid-use admission for one feature: nobody can be asked, so
- * image generation needs its flag, acceptEdits and an affordable hard run
- * budget, and automatic compaction needs its flag and any remaining run
- * budget (no `--max-budget-usd` means no ledger, so no compaction). Pure,
- * so the run and its tests decide identically.
- */
+Headless paid-use admission for one feature: nobody can be asked, so
+image generation needs its flag, acceptEdits and an affordable hard run
+budget, and automatic compaction needs its flag and any remaining run
+budget (no `--max-budget-usd` means no ledger, so no compaction). Pure,
+so the run and its tests decide identically.
+*/
 export function isHeadlessPaidUseAllowed(
   options: Pick<ExecOptions, 'paidFeatures' | 'mode'>,
   remainingUsd: UsdAmount,

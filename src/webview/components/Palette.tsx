@@ -205,12 +205,12 @@ function modelDetail(
 }
 
 /**
- * A model's tier as the picker names it (F62): contributor-tier models carry
- * the `-contributor` suffix, whose price is the lower contributor rate for
- * training on what it is sent. Any other model's tier is the CLI's or the
- * provider's to report, never guessed here; the contributor switch (F8 lane)
- * reads the same suffix.
- */
+A model's tier as the picker names it (F62): contributor-tier models carry
+the `-contributor` suffix, whose price is the lower contributor rate for
+training on what it is sent. Any other model's tier is the CLI's or the
+provider's to report, never guessed here; the contributor switch (F8 lane)
+reads the same suffix.
+*/
 function modelTier(model: ModelOption): string | undefined {
   return model.modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
     ? UI_TEXT.pickerContributorTier
@@ -364,10 +364,10 @@ function bareDescription(text: string): string {
 }
 
 /**
- * A row's hover tip, unless it only repeats the visible detail (F69): rows
- * whose tip and detail are the same sentence read it twice (once seen, once
- * through the description), so the tip stays silent then.
- */
+A row's hover tip, unless it only repeats the visible detail (F69): rows
+whose tip and detail are the same sentence read it twice (once seen, once
+through the description), so the tip stays silent then.
+*/
 function rowTip(detail: string | undefined, tip: string | undefined): string | undefined {
   if (tip === undefined) {
     return undefined

@@ -18,12 +18,12 @@ function closedPipe() {
 }
 
 /**
- * The installed agent. It runs under the Node that runs this run, started
- * with no shell: the script and its arguments go as they are.
- * @typedef {object} Product
- * @property {string} agent the installed agent script
- * @property {NodeJS.ProcessEnv} env its environment (the new home)
- */
+The installed agent. It runs under the Node that runs this run, started
+with no shell: the script and its arguments go as they are.
+@typedef {object} Product
+@property {string} agent the installed agent script
+@property {NodeJS.ProcessEnv} env its environment (the new home)
+*/
 
 // Every process of the product the run has started and that has not ended:
 // a run that is cut short ends them before it cleans up.
@@ -41,11 +41,11 @@ export function endAll() {
 }
 
 /**
- * One command, run to its end.
- * @param {Product} product
- * @param {readonly string[]} args
- * @param {{ cwd: string, stdin?: string, timeoutMs?: number, isCleanUp?: boolean }} options `isCleanUp`: a command that removes what the run stored; a run that is cut short ends every other process and lets this one finish
- */
+One command, run to its end.
+@param {Product} product
+@param {readonly string[]} args
+@param {{ cwd: string, stdin?: string, timeoutMs?: number, isCleanUp?: boolean }} options `isCleanUp`: a command that removes what the run stored; a run that is cut short ends every other process and lets this one finish
+*/
 export function runCommand(product, args, options) {
   const clock = performance.now()
   const spawned = spawn(process.execPath, [product.agent, ...args], {
@@ -102,14 +102,14 @@ export function jsonLines(text) {
 }
 
 /**
- * The agent started as an editor starts it, and a client that speaks to it.
- * The client answers what an editor answers: a permission request by the
- * choice the scenario makes, anything else it was not asked to offer by
- * "method not found".
- * @param {Product} product
- * @param {readonly string[]} args the agent's arguments (`--backend modelApi`, ...)
- * @param {{ cwd: string }} options
- */
+The agent started as an editor starts it, and a client that speaks to it.
+The client answers what an editor answers: a permission request by the
+choice the scenario makes, anything else it was not asked to offer by
+"method not found".
+@param {Product} product
+@param {readonly string[]} args the agent's arguments (`--backend modelApi`, ...)
+@param {{ cwd: string }} options
+*/
 export function startEditor(product, args, options) {
   const child = started(
     spawn(process.execPath, [product.agent, ...args], {

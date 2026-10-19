@@ -164,10 +164,10 @@ const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
 const META_API_KEY_VARIABLE = 'META_API_KEY'
 /**
- * The headless deadlines beside exec's own (`scan-secrets` only): the
- * `legal` scan runs until it is done or a signal stops it (owner
- * 2026-10-16: no arbitrary limits).
- */
+The headless deadlines beside exec's own (`scan-secrets` only): the
+`legal` scan runs until it is done or a signal stops it (owner
+2026-10-16: no arbitrary limits).
+*/
 const HEADLESS_FIXED_TIMEOUT_MS = {
   'scan-secrets': EXEC_SCAN_TIMEOUT_MS,
 } as const
@@ -305,11 +305,11 @@ const secrets: SecretStore = {
 }
 
 /**
- * A held regular-file descriptor bounds both stat size and growth while
- * reading. NOLIMITS1FIX: an infinite `maxBytes` reads to end-of-file —
- * the removed 16 MiB report-source bound was invented. Finite callers
- * (exec's own file bounds) behave exactly as before.
- */
+A held regular-file descriptor bounds both stat size and growth while
+reading. NOLIMITS1FIX: an infinite `maxBytes` reads to end-of-file —
+the removed 16 MiB report-source bound was invented. Finite callers
+(exec's own file bounds) behave exactly as before.
+*/
 async function readBoundedFile(
   file: string,
   maxBytes: number,
@@ -544,18 +544,18 @@ function resourcesFor(
 }
 
 /**
- * Owned LocalSourceError brand (localFailureOf), like the conversation
- * bundle's: a failed report read is a failure with its reason, never a
- * silent miss (RVCM1132B finding 4).
- */
+Owned LocalSourceError brand (localFailureOf), like the conversation
+bundle's: a failed report read is a failure with its reason, never a
+silent miss (RVCM1132B finding 4).
+*/
 function reportReadFailed(): Error {
   return Object.assign(new Error('failed'), { isLocalSourceError: true, code: 'failed' })
 }
 
 /**
- * No account or backend is touched; W ships this entry in its own lazy chunk.
- * The connector's reads keep no history and make no network request (M124).
- */
+No account or backend is touched; W ships this entry in its own lazy chunk.
+The connector's reads keep no history and make no network request (M124).
+*/
 interface ReportsPolicy {
   readonly keepHistory: boolean
   readonly allowEgress: () => Promise<boolean>
@@ -901,10 +901,10 @@ async function setupHooks(
 }
 
 /**
- * The stored credential's identity for a provider id, or undefined when none
- * is stored, unreadable or damaged. The usage service shows only the budgets
- * of the key in use, so a rotated or removed key's numbers disappear.
- */
+The stored credential's identity for a provider id, or undefined when none
+is stored, unreadable or damaged. The usage service shows only the budgets
+of the key in use, so a rotated or removed key's numbers disappear.
+*/
 async function currentProviderCredentialId(providerId: string): Promise<string | undefined> {
   const account = providerSecretAccount(providerId)
   if (account === undefined) return undefined

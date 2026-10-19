@@ -94,9 +94,9 @@ function imageWeight(summary: AttachmentSummary): number {
 }
 
 /**
- * The record's byte limit when it names one, else Meta's published number
- * while no record reached attach, else none (the platform refuses the rest).
- */
+The record's byte limit when it names one, else Meta's published number
+while no record reached attach, else none (the platform refuses the rest).
+*/
 function recordByteLimit(
   recordBytes: number | undefined,
   isMeta: boolean,
@@ -106,9 +106,9 @@ function recordByteLimit(
 }
 
 /**
- * Bytes past the record's limit are refused; undefined when they fit, so
- * both adders share one gate instead of mirroring it.
- */
+Bytes past the record's limit are refused; undefined when they fit, so
+both adders share one gate instead of mirroring it.
+*/
 function refuseOverLimit(
   recordBytes: number | undefined,
   isMeta: boolean,
@@ -146,9 +146,9 @@ export class AttachmentStore {
   }
 
   /**
-   * The held Model API text in tokens, estimated high: the admission unit
-   * the provider's window is counted in.
-   */
+  The held Model API text in tokens, estimated high: the admission unit
+  the provider's window is counted in.
+  */
   private modelApiTextTokens(): number {
     return Math.ceil(this.modelApiTextBytes() / MODEL_API_CONTEXT_BYTES_PER_TOKEN)
   }

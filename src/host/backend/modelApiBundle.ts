@@ -40,10 +40,10 @@ export interface ModelApiBundleDeps {
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
   readonly createProviderClient?: (meta: ProviderClient) => Promise<ProviderClient>
   /**
-   * The host's, but for what the bundle makes itself: the client, the hooks,
-   * the MCP pool and audio preparation, which is the bundle's own binding and
-   * never a caller's (RVMEDIAW2 2).
-   */
+  The host's, but for what the bundle makes itself: the client, the hooks,
+  the MCP pool and audio preparation, which is the bundle's own binding and
+  never a caller's (RVMEDIAW2 2).
+  */
   readonly host: Omit<
     ModelApiHostDeps,
     'client' | 'loadHooks' | 'mcpServers' | 'prepareAudioMessage'

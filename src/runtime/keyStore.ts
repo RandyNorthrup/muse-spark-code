@@ -39,10 +39,10 @@ export interface KeyringEntry {
 export type KeyringEntryFactory = (service: string, account: string) => KeyringEntry
 
 /**
- * Native failures may contain account or credential text: the message stays
- * the fixed word and the failure rides only on `cause`, which no log or
- * sentence renders.
- */
+Native failures may contain account or credential text: the message stays
+the fixed word and the failure rides only on `cause`, which no log or
+sentence renders.
+*/
 export class StoreUnavailableError extends Error {
   public constructor(options?: { readonly cause?: unknown }) {
     super('store-unavailable', options)
@@ -51,10 +51,10 @@ export class StoreUnavailableError extends Error {
 }
 
 /**
- * Whether the store cannot be used. Name-based, not `instanceof`: lazy
- * bundles carry their own copy of this module, so an error thrown by one
- * copy is not an instance of another's class.
- */
+Whether the store cannot be used. Name-based, not `instanceof`: lazy
+bundles carry their own copy of this module, so an error thrown by one
+copy is not an instance of another's class.
+*/
 export function isStoreUnavailable(error: unknown): boolean {
   return (
     error instanceof StoreUnavailableError ||
@@ -143,22 +143,22 @@ interface KeyringStoreOptions {
 }
 
 /**
- * The credential store as the key's `SecretStore`, each call on a freshly
- * opened entry. A value longer than one entry holds on every platform
- * (Windows: 1,280 characters), or one that starts with the parts tag, is
- * kept as parts behind a header; a short value is read and written exactly
- * as before.
- *
- * One owner per account, across processes (docs/certification/
- * chatgpt-grant-lock.md, "PLANFIX R1 + R5"): every write and delete, and the
- * read, runs under that account's named lock. A long write first
- * records every generation of parts that may exist, writes the new parts,
- * then publishes the header (the one point a reader can see), then removes
- * the generation the header stopped naming, then deletes the record. Each
- * owner, before its own work, removes what a crashed or failed owner left:
- * the parts of every recorded generation the header does not name. A read of
- * any value also reclaims before returning, even when the primary is absent.
- */
+The credential store as the key's `SecretStore`, each call on a freshly
+opened entry. A value longer than one entry holds on every platform
+(Windows: 1,280 characters), or one that starts with the parts tag, is
+kept as parts behind a header; a short value is read and written exactly
+as before.
+
+One owner per account, across processes (docs/certification/
+chatgpt-grant-lock.md, "PLANFIX R1 + R5"): every write and delete, and the
+read, runs under that account's named lock. A long write first
+records every generation of parts that may exist, writes the new parts,
+then publishes the header (the one point a reader can see), then removes
+the generation the header stopped naming, then deletes the record. Each
+owner, before its own work, removes what a crashed or failed owner left:
+the parts of every recorded generation the header does not name. A read of
+any value also reclaims before returning, even when the primary is absent.
+*/
 export function keyringSecretStore(
   openEntry: KeyringEntryFactory,
   options: KeyringStoreOptions = {},

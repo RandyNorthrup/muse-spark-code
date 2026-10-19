@@ -52,15 +52,15 @@ export const OBSERVATION_PACKING_ARM: EvalArm = {
 }
 
 /**
- * Automatic compaction (M74): the eval host admits automatic compaction as
- * evaluated, prices the summary from the catalogue card and settles every
- * extra attempt through the real shared D78 admission and the run's own
- * ledger, both bound by the parent (lane E). The window it compacts under
- * is harness condition, not part of this mechanism (M101 R2): the driver
- * holds the same window on both arms of the pair, so the pair isolates
- * compaction alone — a window override here would also move file-read
- * truncation.
- */
+Automatic compaction (M74): the eval host admits automatic compaction as
+evaluated, prices the summary from the catalogue card and settles every
+extra attempt through the real shared D78 admission and the run's own
+ledger, both bound by the parent (lane E). The window it compacts under
+is harness condition, not part of this mechanism (M101 R2): the driver
+holds the same window on both arms of the pair, so the pair isolates
+compaction alone — a window override here would also move file-read
+truncation.
+*/
 export const AUTO_COMPACTION_ARM: EvalArm = {
   name: 'auto-compaction',
   mechanism:
@@ -70,10 +70,10 @@ export const AUTO_COMPACTION_ARM: EvalArm = {
 }
 
 /**
- * Strict tool schemas (M101 item 24): the eval host declares the strict
- * subset as the shipped host does for a capable selected model. The
- * baseline declares the same tools non-strict.
- */
+Strict tool schemas (M101 item 24): the eval host declares the strict
+subset as the shipped host does for a capable selected model. The
+baseline declares the same tools non-strict.
+*/
 export const STRICT_TOOLS_ARM: EvalArm = {
   name: 'strict-tools',
   mechanism: 'M101 strict-subset schemas for a capable selected model',
@@ -113,12 +113,12 @@ const armOptionsSchema = z.strictObject({
 const EVAL_ADMISSION_ERROR_NAME = 'MissingEvalAdmissionError'
 
 /**
- * The frozen evaluation arm ran without the admission its parent binds.
- * Harness-only: the shipped bundles carry none of this marker (bundle
- * diet pin), so the turn's driver — not the product — owns the fail-closed
- * verdict below. The arm fails closed, never as a normal turn that proves
- * nothing (M101 lane E R2).
- */
+The frozen evaluation arm ran without the admission its parent binds.
+Harness-only: the shipped bundles carry none of this marker (bundle
+diet pin), so the turn's driver — not the product — owns the fail-closed
+verdict below. The arm fails closed, never as a normal turn that proves
+nothing (M101 lane E R2).
+*/
 export class MissingEvalAdmissionError extends Error {
   public constructor(message: string) {
     super(message)
@@ -249,32 +249,32 @@ function compilerFiles(repo: string, inputs: readonly string[]): string[] {
 }
 
 /**
- * The digest's path form (M101 R6): repository-relative forward slashes
- * on every platform. Git lists forward slashes; Windows checkouts,
- * metafiles and directory walks use backslashes.
- */
+The digest's path form (M101 R6): repository-relative forward slashes
+on every platform. Git lists forward slashes; Windows checkouts,
+metafiles and directory walks use backslashes.
+*/
 export function canonicalDigestPath(file: string): string {
   return file.replaceAll('\\', '/')
 }
 
 /**
- * The digest's byte form (M101 R6, R8): the bytes Git stores are LF, but
- * a checkout may convert line endings, so CRLF pairs fold to LF before
- * hashing. A lone CR is program text (a string or template literal may
- * hold one), so it hashes as it is: folding it would let two different
- * programs hash equal. LF bytes hash unchanged.
- */
+The digest's byte form (M101 R6, R8): the bytes Git stores are LF, but
+a checkout may convert line endings, so CRLF pairs fold to LF before
+hashing. A lone CR is program text (a string or template literal may
+hold one), so it hashes as it is: folding it would let two different
+programs hash equal. LF bytes hash unchanged.
+*/
 export function canonicalDigestText(text: string): string {
   return text.replaceAll('\r\n', '\n')
 }
 
 /**
- * The digest's order (M101 R6): UTF-8 byte order, the same on every
- * platform and locale. UTF-16 code-unit comparison agrees with it on
- * ASCII but disagrees past the Basic Multilingual Plane, so the hashed
- * list never relies on it. Relation comparison itself is already
- * locale-independent; this makes it byte-explicit.
- */
+The digest's order (M101 R6): UTF-8 byte order, the same on every
+platform and locale. UTF-16 code-unit comparison agrees with it on
+ASCII but disagrees past the Basic Multilingual Plane, so the hashed
+list never relies on it. Relation comparison itself is already
+locale-independent; this makes it byte-explicit.
+*/
 export function compareDigestPath(left: string, right: string): number {
   return Buffer.from(left, 'utf8').compare(Buffer.from(right, 'utf8'))
 }
@@ -285,10 +285,10 @@ export interface FrozenSourceEntry {
 }
 
 /**
- * The hashed source list from raw entries: canonical paths, canonical
- * bytes, byte order. Pure, so tests feed it CRLF and LF trees and
- * backslash paths directly.
- */
+The hashed source list from raw entries: canonical paths, canonical
+bytes, byte order. Pure, so tests feed it CRLF and LF trees and
+backslash paths directly.
+*/
 export function frozenSourceDigests(
   entries: readonly FrozenSourceEntry[],
 ): { path: string; sha256: string }[] {
@@ -301,12 +301,12 @@ export function frozenSourceDigests(
 }
 
 /**
- * The committed source family under `src/` (M101 R6): the digest covers
- * committed content only, so the working-tree walk is intersected with
- * the files Git tracks. Untracked scratch, editor backups and merge
- * leftovers never move the digest; a file the run actually loads stays
- * hashed through the resolver graph, tracked or not.
- */
+The committed source family under `src/` (M101 R6): the digest covers
+committed content only, so the working-tree walk is intersected with
+the files Git tracks. Untracked scratch, editor backups and merge
+leftovers never move the digest; a file the run actually loads stays
+hashed through the resolver graph, tracked or not.
+*/
 export function trackedSourceFamily(repo: string): Set<string> {
   const listed = execFileSync('git', ['-C', repo, 'ls-files', '-z', 'src'], {
     encoding: 'utf8',

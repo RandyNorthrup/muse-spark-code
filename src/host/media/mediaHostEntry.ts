@@ -24,9 +24,9 @@ export function createAttachedMedia(): AttachedMedia {
 }
 
 /**
- * D85.7 in VS Code: a modal with Send, Use the Standard model and Remove;
- * dismissing it is Remove, so nothing is sent unasked.
- */
+D85.7 in VS Code: a modal with Send, Use the Standard model and Remove;
+dismissing it is Remove, so nothing is sent unasked.
+*/
 async function askContributor(question: {
   readonly title: string
   readonly detail: string
@@ -46,10 +46,10 @@ async function askContributor(question: {
 }
 
 /**
- * The attach port's deps for one conversation: settings supply the limits,
- * binding registers with the window's registry, the contributor question is
- * the modal above, and Muse Voice transcribes WAV and MP3 while it is on.
- */
+The attach port's deps for one conversation: settings supply the limits,
+binding registers with the window's registry, the contributor question is
+the modal above, and Muse Voice transcribes WAV and MP3 while it is on.
+*/
 export function windowMediaAttachDeps(options: {
   readonly settings: () => MediaHostSettings
   /** The open hook's confinement and the recorder's own folder. */

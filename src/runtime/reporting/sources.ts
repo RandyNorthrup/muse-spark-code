@@ -40,13 +40,13 @@ function isPrivatePath(file: string): boolean {
     )
 }
 /**
- * One confined, regular-file descriptor. NOLIMITS1FIX: the removed 16 MiB
- * bound was invented — the default reads at any size. The chunks decode
- * straight into the returned string through one streaming decoder, so a
- * large source is never held as retained chunks plus a second concatenated
- * buffer plus the string on top. An explicit finite `maxBytes` (the
- * untrusted-file bound one caller passes) still refuses past itself.
- */
+One confined, regular-file descriptor. NOLIMITS1FIX: the removed 16 MiB
+bound was invented — the default reads at any size. The chunks decode
+straight into the returned string through one streaming decoder, so a
+large source is never held as retained chunks plus a second concatenated
+buffer plus the string on top. An explicit finite `maxBytes` (the
+untrusted-file bound one caller passes) still refuses past itself.
+*/
 export function reportFileIo(
   root: string,
   platform: NodeJS.Platform,

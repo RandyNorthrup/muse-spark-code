@@ -61,16 +61,16 @@ export interface LaunchProbe {
   /** `serve` plus the host-posture flags (`serveArguments`, sandbox.ts). */
   readonly serveArgs: readonly string[]
   /**
-   * The workspace the child runs in: PATH entries inside it are never
-   * probed, so a planted `muse` on an absolute workspace PATH entry never
-   * resolves. Absent probes every fully qualified entry, as before.
-   */
+  The workspace the child runs in: PATH entries inside it are never
+  probed, so a planted `muse` on an absolute workspace PATH entry never
+  resolves. Absent probes every fully qualified entry, as before.
+  */
   readonly workspaceRoot?: string
   /**
-   * Resolves links for the workspace comparison; injected so the Windows,
-   * macOS and Linux branches are all unit-tested on any OS. Absent means
-   * lexical comparison only.
-   */
+  Resolves links for the workspace comparison; injected so the Windows,
+  macOS and Linux branches are all unit-tested on any OS. Absent means
+  lexical comparison only.
+  */
   readonly realpath?: ((filePath: string) => string) | undefined
 }
 
@@ -94,11 +94,11 @@ function pathModule(platform: NodeJS.Platform): path.PlatformPath {
 }
 
 /**
- * The PATH entries worth probing: an empty or relative entry means the
- * current directory, which for `muse serve` is the workspace (PLAN.md D24).
- * On Windows a rooted `\foo` entry is drive-relative and resolves on the
- * working directory's drive, so only fully qualified entries are probed.
- */
+The PATH entries worth probing: an empty or relative entry means the
+current directory, which for `muse serve` is the workspace (PLAN.md D24).
+On Windows a rooted `\foo` entry is drive-relative and resolves on the
+working directory's drive, so only fully qualified entries are probed.
+*/
 function absoluteEntries(probe: LaunchProbe, p: path.PlatformPath): readonly string[] {
   const workspace =
     probe.workspaceRoot === undefined
@@ -170,10 +170,10 @@ function resolveWindows(probe: LaunchProbe): LaunchResolution {
 }
 
 /**
- * The `muse-bin-<version>.exe` of an install folder: the version
- * `.muse-version` names, else the newest one present (version order, so
- * 1.10 beats 1.9); undefined when there is none.
- */
+The `muse-bin-<version>.exe` of an install folder: the version
+`.muse-version` names, else the newest one present (version order, so
+1.10 beats 1.9); undefined when there is none.
+*/
 function windowsExecutableIn(
   probe: LaunchProbe,
   p: path.PlatformPath,
@@ -249,44 +249,44 @@ export interface ChildEnvironmentInput {
   /** Supplied only by the capture-gated account owner, never settings or a page. */
   readonly accountHome?: MuseCodeAccountHome
   /**
-   * The workspace the child runs in. When defined, PATH entries that are
-   * relative, empty, or inside it (resolved through links) are dropped, so
-   * no workspace program runs from PATH when Muse Code starts
-   * (docs/certification/pathguard.md). Undefined leaves PATH untouched.
-   */
+  The workspace the child runs in. When defined, PATH entries that are
+  relative, empty, or inside it (resolved through links) are dropped, so
+  no workspace program runs from PATH when Muse Code starts
+  (docs/certification/pathguard.md). Undefined leaves PATH untouched.
+  */
   readonly workspaceRoot?: string
   /**
-   * Resolves links for the PATH guard; injected so the Windows, macOS and
-   * Linux branches are all unit-tested on any OS. Absent means lexical
-   * comparison only (relative, empty and lexically-inside entries still go).
-   */
+  Resolves links for the PATH guard; injected so the Windows, macOS and
+  Linux branches are all unit-tested on any OS. Absent means lexical
+  comparison only (relative, empty and lexically-inside entries still go).
+  */
   readonly realpath?: ((filePath: string) => string) | undefined
 }
 
 /**
- * The environment for `muse serve`. On Windows `PSModulePath` is reset to the
- * Windows PowerShell module directories: the CLI's launcher runs under
- * powershell.exe 5.1, which cannot load its own modules when a pwsh 7 module
- * path is inherited (verified failure: `Get-FileHash` not recognised).
- *
- * The Model API key from secret storage is deliberately NOT injected: the
- * CLI prefers `META_API_KEY` over its browser session, which would bill the
- * subscription's work to the key (PLAN.md D1, M7). A key already in the
- * user's own environment is inherited untouched, as the CLI documents.
- */
+The environment for `muse serve`. On Windows `PSModulePath` is reset to the
+Windows PowerShell module directories: the CLI's launcher runs under
+powershell.exe 5.1, which cannot load its own modules when a pwsh 7 module
+path is inherited (verified failure: `Get-FileHash` not recognised).
+
+The Model API key from secret storage is deliberately NOT injected: the
+CLI prefers `META_API_KEY` over its browser session, which would bill the
+subscription's work to the key (PLAN.md D1, M7). A key already in the
+user's own environment is inherited untouched, as the CLI documents.
+*/
 /**
- * PATH entries that would let a workspace program run are dropped from a
- * copied environment: relative, empty, or inside `workspaceRoot` (resolved
- * through links). On Windows every spelling of PATH is guarded, since names
- * are case-insensitive there. Keys holding no PATH are never added, and a
- * PATH with nothing left is deleted: an empty PATH makes POSIX `execvp`
- * search the working directory, while a missing one does not.
- *
- * On Windows the child also gets `NoDefaultCurrentDirectoryInExePath`, so
- * CreateProcess does not try the working directory before PATH (probed on
- * Windows 11, Node 24.20: docs/certification/m21.md). Sanitizing PATH alone
- * does not close that lookup.
- */
+PATH entries that would let a workspace program run are dropped from a
+copied environment: relative, empty, or inside `workspaceRoot` (resolved
+through links). On Windows every spelling of PATH is guarded, since names
+are case-insensitive there. Keys holding no PATH are never added, and a
+PATH with nothing left is deleted: an empty PATH makes POSIX `execvp`
+search the working directory, while a missing one does not.
+
+On Windows the child also gets `NoDefaultCurrentDirectoryInExePath`, so
+CreateProcess does not try the working directory before PATH (probed on
+Windows 11, Node 24.20: docs/certification/m21.md). Sanitizing PATH alone
+does not close that lookup.
+*/
 function guardWorkspacePath(env: NodeJS.ProcessEnv, input: ChildEnvironmentInput): void {
   if (input.workspaceRoot === undefined) {
     return
@@ -352,12 +352,12 @@ export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.Proc
 }
 
 /**
- * `museSpark.environmentVariables` for a terminal that runs the CLI (`muse
- * logout`, `muse mcp login`, Open in Terminal). VS Code adds them to the
- * terminal's own environment, so the CLI there reads the same config home
- * as `muse serve` (the review of PR #49). On Windows one spelling per name,
- * the last one given winning, as for `muse serve`.
- */
+`museSpark.environmentVariables` for a terminal that runs the CLI (`muse
+logout`, `muse mcp login`, Open in Terminal). VS Code adds them to the
+terminal's own environment, so the CLI there reads the same config home
+as `muse serve` (the review of PR #49). On Windows one spelling per name,
+the last one given winning, as for `muse serve`.
+*/
 export function terminalEnvironment(
   variables: readonly EnvironmentVariable[],
   platform: NodeJS.Platform,
@@ -370,15 +370,15 @@ export function terminalEnvironment(
 }
 
 /**
- * Keeps loopback off the proxy (M56, PLAN.md D43). Muse Code sends every
- * HTTP request through the proxy its environment names, including its
- * connection to the extension's `ide` server on 127.0.0.1, which a corporate
- * proxy cannot reach (captured 2026-09-25: `POST http://127.0.0.1:<port>/mcp`
- * arrived at the proxy until NO_PROXY listed the address). So wherever a
- * proxy is set, from VS Code or the user's own environment, the loopback
- * names are added to each NO_PROXY spelling already there, or to a new
- * NO_PROXY; entries already listed stay as they are.
- */
+Keeps loopback off the proxy (M56, PLAN.md D43). Muse Code sends every
+HTTP request through the proxy its environment names, including its
+connection to the extension's `ide` server on 127.0.0.1, which a corporate
+proxy cannot reach (captured 2026-09-25: `POST http://127.0.0.1:<port>/mcp`
+arrived at the proxy until NO_PROXY listed the address). So wherever a
+proxy is set, from VS Code or the user's own environment, the loopback
+names are added to each NO_PROXY spelling already there, or to a new
+NO_PROXY; entries already listed stay as they are.
+*/
 export function withLoopbackBypass(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
@@ -418,11 +418,11 @@ export interface CredentialPathInput {
 }
 
 /**
- * Where the CLI stores its browser-login credential. The binary honours
- * `XDG_CONFIG_HOME` on every platform (Windows included) and otherwise uses
- * `~/.config`; `MUSE_AUTH_PATH` is honoured only by the POSIX launcher, so it
- * is deliberately not consulted here.
- */
+Where the CLI stores its browser-login credential. The binary honours
+`XDG_CONFIG_HOME` on every platform (Windows included) and otherwise uses
+`~/.config`; `MUSE_AUTH_PATH` is honoured only by the POSIX launcher, so it
+is deliberately not consulted here.
+*/
 export function credentialFilePath(input: CredentialPathInput): string {
   const p = pathModule(input.platform)
   const configHome = input.xdgConfigHome ?? p.join(input.homeDir, '.config')

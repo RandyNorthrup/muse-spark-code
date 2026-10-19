@@ -784,10 +784,10 @@ export class BestOfNRunner {
   }
 
   /**
-   * Failed setup tears down only what it made: the empty worktrees from
-   * before launch, never a force-delete after a host could have written to
-   * an attempt. Every attempt left behind reads cancelled.
-   */
+  Failed setup tears down only what it made: the empty worktrees from
+  before launch, never a force-delete after a host could have written to
+  an attempt. Every attempt left behind reads cancelled.
+  */
   private async cancelSetup(
     run: LiveRun,
     created: readonly RunningAttempt[],

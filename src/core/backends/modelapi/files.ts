@@ -41,10 +41,10 @@ const deletionSchema = z.object({ id: fileId, object: z.literal('file'), deleted
 export type ProviderFile = z.infer<typeof fileSchema>
 
 /**
- * `museSpark.mediaUploadExpiryDays` as Files `expires_after` seconds,
- * clamped to the setting's 1–30 days and the wire's bounds; anything else
- * keeps the 7-day default.
- */
+`museSpark.mediaUploadExpiryDays` as Files `expires_after` seconds,
+clamped to the setting's 1–30 days and the wire's bounds; anything else
+keeps the 7-day default.
+*/
 export function uploadExpirySeconds(days: unknown): number {
   const fallback = MEDIA_FILE_EXPIRY_DEFAULT_S
   if (typeof days !== 'number' || !Number.isSafeInteger(days)) return fallback
@@ -61,12 +61,12 @@ export function uploadExpirySeconds(days: unknown): number {
 }
 
 /**
- * A provider receipt the cleanup DELETE could not remove (RVM105 1): the
- * upload failed after the provider answered with this id, and the bounded
- * clean-up route was closed or failed too. The owner records it durably as
- * a clean-up intent; the ledger's next sweep deletes it. The cause is the
- * original upload failure the caller sees.
- */
+A provider receipt the cleanup DELETE could not remove (RVM105 1): the
+upload failed after the provider answered with this id, and the bounded
+clean-up route was closed or failed too. The owner records it durably as
+a clean-up intent; the ledger's next sweep deletes it. The cause is the
+original upload failure the caller sees.
+*/
 export class UploadCleanupPendingError extends Error {
   public readonly fileId: string
   public constructor(fileId: string, options?: ErrorOptions) {

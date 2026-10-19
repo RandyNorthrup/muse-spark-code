@@ -41,10 +41,10 @@ export interface UiTableDeps {
   /** The table a display language reads; the shipped list decides unless a test gives its own. */
   readonly tableLocaleFor?: (language: string) => string | undefined
   /**
-   * What the log names when it reports the installed language. The VS Code
-   * panel keeps the panel wording; a headless run has no panel, so it names
-   * the terminal's messages instead.
-   */
+  What the log names when it reports the installed language. The VS Code
+  panel keeps the panel wording; a headless run has no panel, so it names
+  the terminal's messages instead.
+  */
   readonly surface?: 'panel' | 'terminal'
 }
 

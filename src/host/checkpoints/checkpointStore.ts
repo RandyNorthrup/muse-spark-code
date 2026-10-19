@@ -351,10 +351,10 @@ function foldedCase(relative: string): string {
 }
 
 /**
- * A path lookup's unavailable vocabulary: the spelling is retained when
- * the path cannot be resolved, not only when it is missing. Anything
- * else is not this lookup's to keep.
- */
+A path lookup's unavailable vocabulary: the spelling is retained when
+the path cannot be resolved, not only when it is missing. Anything
+else is not this lookup's to keep.
+*/
 const PATH_LOOKUP_CODES: ReadonlySet<string> = new Set([
   'ENOENT',
   'ENOTDIR',

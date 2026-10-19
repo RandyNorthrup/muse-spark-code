@@ -18,9 +18,9 @@ import { providerSecretAccount } from './keyStore'
 type CredentialLock = (operation: () => Promise<number>) => Promise<number>
 
 /**
- * A held credential lease: the lease's own busy error, or the shared
- * directory lock's EEXIST while another writer (possibly crashed) holds it.
- */
+A held credential lease: the lease's own busy error, or the shared
+directory lock's EEXIST while another writer (possibly crashed) holds it.
+*/
 export function isCredentialLockBusy(error: unknown): boolean {
   // The lease's class loads with its bundle, so this synchronous predicate
   // matches the busy error by name instead of holding a static import of
@@ -46,12 +46,12 @@ export interface OpenRouterJournalReport {
 }
 
 /**
- * Recovers the OpenRouter Connect journal. Call with the credential lease
- * held. Compares staged with primary: committed deletes the journal (say
- * nothing about removing the key in use); discarded means the created key
- * was not kept (label and removal page); a refused delete keeps the
- * journal and fails, with the notice already composed.
- */
+Recovers the OpenRouter Connect journal. Call with the credential lease
+held. Compares staged with primary: committed deletes the journal (say
+nothing about removing the key in use); discarded means the created key
+was not kept (label and removal page); a refused delete keeps the
+journal and fails, with the notice already composed.
+*/
 export async function recoverOpenRouterJournalReport(
   secrets: Pick<AuthCommandDeps, 'secrets'>['secrets'],
 ): Promise<OpenRouterJournalReport> {
@@ -140,10 +140,10 @@ export async function runAuthClearProvider(
 }
 
 /**
- * `auth status --provider <id>` inside the one credential lease. A reader
- * never fails on a live writer's lease: without the lock it reports from
- * the primary and leaves another attempt's journal alone.
- */
+`auth status --provider <id>` inside the one credential lease. A reader
+never fails on a live writer's lease: without the lock it reports from
+the primary and leaves another attempt's journal alone.
+*/
 export async function runAuthStatusProvider(
   deps: AuthCommandDeps,
   providerId: string,
@@ -161,10 +161,10 @@ export async function runAuthStatusProvider(
 }
 
 /**
- * Plain `auth status` also surfaces a crashed Connect journal (R5) before
- * reporting the Model API key. A live Connect's lease is left alone: the
- * status reports without touching another attempt's journal.
- */
+Plain `auth status` also surfaces a crashed Connect journal (R5) before
+reporting the Model API key. A live Connect's lease is left alone: the
+status reports without touching another attempt's journal.
+*/
 export async function runAuthStatusWithRecovery(
   deps: AuthCommandDeps,
   withLock: CredentialLock,

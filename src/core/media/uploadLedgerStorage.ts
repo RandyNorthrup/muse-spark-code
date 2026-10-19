@@ -23,11 +23,11 @@ const OWNER_DIRECTORY_MODE = 0o700
 const OWNER_FILE_MODE = 0o600
 
 /**
- * Remember the last keyed account beneath the uploads root: only the
- * digest, never the key (it already names the account's directory). A
- * corrupt or missing pointer reads as none and is rewritten on the next
- * keyed open.
- */
+Remember the last keyed account beneath the uploads root: only the
+digest, never the key (it already names the account's directory). A
+corrupt or missing pointer reads as none and is rewritten on the next
+keyed open.
+*/
 export async function writeLastAccountId(root: string, accountId: string): Promise<void> {
   await writeStateAtomically(root, LAST_ACCOUNT_FILE, { version: 1, accountId })
 }

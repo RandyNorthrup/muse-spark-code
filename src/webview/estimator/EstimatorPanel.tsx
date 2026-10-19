@@ -39,11 +39,11 @@ export interface EstimatorPanelPort {
   /** Validated refreshed sections from U's view session, bound to M115 by W. */
   subscribe(listener: (state: EstimateViewState) => void): () => void
   /**
-   * The host log's copy of a failure the panel already said in words: the
-   * run and spin-up boundaries hand a foreign failure here with its kind
-   * (D119). The host reports it through its webview-error channel, so the
-   * kind never depends on the document's ambient unhandled-rejection hook.
-   */
+  The host log's copy of a failure the panel already said in words: the
+  run and spin-up boundaries hand a foreign failure here with its kind
+  (D119). The host reports it through its webview-error channel, so the
+  kind never depends on the document's ambient unhandled-rejection hook.
+  */
   report(error: unknown): void
   startExisting?(
     section: EstimateSection,

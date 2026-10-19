@@ -17,12 +17,12 @@ export function recoveryStamp(item: ItemSnapshot | undefined): string {
 }
 
 /**
- * The panel's pre-flight for a confirmed Agent-map continue/retry: a missing
- * agent says the agent is gone, never a checkpoint problem (only a backend
- * without a checkpoint may say that), and an agent that changed under the
- * dialog refuses with the stale-state message. Anything else proceeds, so the
- * backend's own failure carries its own cause.
- */
+The panel's pre-flight for a confirmed Agent-map continue/retry: a missing
+agent says the agent is gone, never a checkpoint problem (only a backend
+without a checkpoint may say that), and an agent that changed under the
+dialog refuses with the stale-state message. Anything else proceeds, so the
+backend's own failure carries its own cause.
+*/
 export function panelRecoveryRefusal(
   agent: ItemSnapshot | undefined,
   current: ItemSnapshot | undefined,
@@ -34,8 +34,8 @@ export function panelRecoveryRefusal(
 }
 
 /** Every current child shares a workspace or lacks a captured checkpoint. A
- * refused retry names this agent's missing checkpoint, never the backend's:
- * only the backend with no checkpoint of its own may say that. */
+refused retry names this agent's missing checkpoint, never the backend's:
+only the backend with no checkpoint of its own may say that. */
 export function recoveryRefusal(
   agent: AgentSignals,
   action: 'continue' | 'retry',

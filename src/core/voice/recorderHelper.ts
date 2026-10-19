@@ -22,10 +22,10 @@ export interface RecorderProcess {
   /** Fires once, when the process has really exited. Never on a failed stop. */
   onExit(listener: (description: string) => void): void
   /**
-   * Fires when the recorder could not be launched, or an explicit kill was
-   * refused (the process may still be recording). The adapter tells those
-   * apart by whether a recorder is running.
-   */
+  Fires when the recorder could not be launched, or an explicit kill was
+  refused (the process may still be recording). The adapter tells those
+  apart by whether a recorder is running.
+  */
   onError(listener: (description: string) => void): void
   kill(): void
 }
@@ -58,9 +58,9 @@ export function recorderHelper(recorderName: string, start: () => RecorderProces
   let exitListener: ((description: string) => void) | undefined
   let hasExited = false
   /**
-   * No recorder process exists: report the exit once. A quit with a
-   * recorder running waits for its real end instead (RVCM352B P1-b).
-   */
+  No recorder process exists: report the exit once. A quit with a
+  recorder running waits for its real end instead (RVCM352B P1-b).
+  */
   const exit = (description: string) => {
     if (hasExited) {
       return

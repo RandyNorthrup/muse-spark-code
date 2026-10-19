@@ -100,9 +100,9 @@ interface SideSession {
   /** How each turn ended. */
   readonly endings: Map<string, string>
   /**
-   * Turns that ended at the model-call limit (completed with the typed
-   * limit outcome): their replies are truncated, never verdicts.
-   */
+  Turns that ended at the model-call limit (completed with the typed
+  limit outcome): their replies are truncated, never verdicts.
+  */
   readonly limited: Set<string>
   /** The turn the latest review sent. */
   lastTurnId: string | undefined

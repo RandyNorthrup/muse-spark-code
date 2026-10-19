@@ -112,15 +112,15 @@ export async function writeVaultFile(
 /** The fixed owner-only temporary an exclusive claim publishes through. */
 export const VAULT_CLAIM_PENDING_SUFFIX = '.pending'
 /**
- * Publish the complete record, or nothing a reader can see. The bytes are
- * written to the owner-only temporary name and synced then published with
- * link(), which fails when the name exists: a publisher killed before the
- * link leaves only the temporary (no reader opens it), killed after it
- * leaves the complete record, whose provably dead holder the contender
- * retires by rule. Never an empty or partial record (RVCM109JE P2-1).
- * Cleanup only the file we created; never unlink a replacement from a
- * competing process.
- */
+Publish the complete record, or nothing a reader can see. The bytes are
+written to the owner-only temporary name and synced then published with
+link(), which fails when the name exists: a publisher killed before the
+link leaves only the temporary (no reader opens it), killed after it
+leaves the complete record, whose provably dead holder the contender
+retires by rule. Never an empty or partial record (RVCM109JE P2-1).
+Cleanup only the file we created; never unlink a replacement from a
+competing process.
+*/
 export async function vaultExclusiveFile(
   path: string,
   bytes: Uint8Array,
@@ -184,11 +184,11 @@ export interface VaultFileWriter {
   close(): void
 }
 /**
- * Publish `bytes` under `path` through a temporary file: write, rename over
- * the record, adopt the new descriptor and sync the directory. The platform
- * supplies its temporary-file open, directory open and descriptor adoption;
- * a failure before adoption closes the unpublished file.
- */
+Publish `bytes` under `path` through a temporary file: write, rename over
+the record, adopt the new descriptor and sync the directory. The platform
+supplies its temporary-file open, directory open and descriptor adoption;
+a failure before adoption closes the unpublished file.
+*/
 export function replaceFileContent(
   path: string,
   bytes: Uint8Array,
@@ -228,9 +228,9 @@ export function replaceFileContent(
 }
 
 /**
- * The monitored descriptor, reopened where the path now names another file.
- * A null descriptor is locked; anything else proves itself first.
- */
+The monitored descriptor, reopened where the path now names another file.
+A null descriptor is locked; anything else proves itself first.
+*/
 export function monitoredDescriptor(
   get: () => number | null,
   set: (fd: number | null) => void,
@@ -252,9 +252,9 @@ export function monitoredDescriptor(
 }
 
 /**
- * A monitored-descriptor writer shell: appends write fully through the
- * current descriptor; the platform supplies replace and close.
- */
+A monitored-descriptor writer shell: appends write fully through the
+current descriptor; the platform supplies replace and close.
+*/
 export function monitoredFileWriter(parts: {
   readonly current: () => number
   readonly replace: (bytes: Uint8Array) => void

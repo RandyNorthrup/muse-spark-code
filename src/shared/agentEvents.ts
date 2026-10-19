@@ -381,12 +381,12 @@ export const sessionGoalSchema = z.object({
 export type SessionGoal = z.infer<typeof sessionGoalSchema>
 
 /**
- * One model completion's own counters, where the backend reports them per
- * completion (Muse Code's `session/tokenUsage` since 1.4, SDK 1.4.4
- * SessionTokenUsageParams): raw counters verbatim, counted-once prompt
- * tokens, the call's own wall time and the effective model that produced
- * it. All but input/output stay optional so older frames still parse.
- */
+One model completion's own counters, where the backend reports them per
+completion (Muse Code's `session/tokenUsage` since 1.4, SDK 1.4.4
+SessionTokenUsageParams): raw counters verbatim, counted-once prompt
+tokens, the call's own wall time and the effective model that produced
+it. All but input/output stay optional so older frames still parse.
+*/
 export const tokenUsageCompletionSchema = z.object({
   inputTokens: numberSchema,
   outputTokens: numberSchema,

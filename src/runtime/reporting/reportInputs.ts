@@ -82,12 +82,12 @@ import type { UsageAggregateRow } from '../../core/usage/aggregate'
 import type { UsageBudgetRead } from '../../core/usage/usageService'
 
 /**
- * The installed manifest for the keybindings report (M113 C-M113-5, D93.4):
- * each host passes its own install's package.json path, so VS Code, ACP and
- * the CLI report the same installed bindings. Read at generation time, never
- * at import, and parsed by the source's schema; a missing or broken file is
- * an unavailable source with its reason, never an empty report.
- */
+The installed manifest for the keybindings report (M113 C-M113-5, D93.4):
+each host passes its own install's package.json path, so VS Code, ACP and
+the CLI report the same installed bindings. Read at generation time, never
+at import, and parsed by the source's schema; a missing or broken file is
+an unavailable source with its reason, never an empty report.
+*/
 export function keybindingsManifestReader(packageJsonPath: string): () => unknown {
   return () => {
     let raw: string
@@ -127,22 +127,22 @@ function errorCode(error: unknown): string | undefined {
 }
 
 /**
- * Name one true failure reason on a reader's partial list (RVCM1133): a
- * partly unreadable source keeps its good rows and carries the same
- * sentence a whole-read failure would show, instead of collapsing the
- * good rows into a generic failure or reporting success with silently
- * dropped rows.
- */
+Name one true failure reason on a reader's partial list (RVCM1133): a
+partly unreadable source keeps its good rows and carries the same
+sentence a whole-read failure would show, instead of collapsing the
+good rows into a generic failure or reporting success with silently
+dropped rows.
+*/
 function keepReason(partials: string[], reason: string): void {
   if (!partials.includes(reason)) partials.push(reason)
 }
 
 /**
- * The true sentence for a sub-source that threw: its own failure code when
- * it names one, otherwise the generic read failure. Only fixed sentences
- * ever enter a partial; a record's own text never does, so no secret, key
- * material or vault item value can reach a reason (RVCM1133B).
- */
+The true sentence for a sub-source that threw: its own failure code when
+it names one, otherwise the generic read failure. Only fixed sentences
+ever enter a partial; a record's own text never does, so no secret, key
+material or vault item value can reach a reason (RVCM1133B).
+*/
 function failureReason(error: unknown, reportText: UiText): string {
   const code = localFailureOf(error)
   return code === undefined ? reportText.reportSourceReasons.failed : sourceReason(code, reportText)
@@ -190,18 +190,18 @@ function collectValidRows<T>(
 }
 
 /**
- * Every sub-source createAccountsReportReader consumes. The resilience
- * table in reportSourceReasons.test.ts covers each one in every way it can
- * fail; a new sub-source is added here first, which fails that test until
- * its cases exist (RVCM1133B).
- */
+Every sub-source createAccountsReportReader consumes. The resilience
+table in reportSourceReasons.test.ts covers each one in every way it can
+fail; a new sub-source is added here first, which fails that test until
+its cases exist (RVCM1133B).
+*/
 export const ACCOUNTS_REPORT_SUB_SOURCES = ['registry', 'usage', 'events'] as const
 
 /**
- * Every sub-source createSecurityReportReader consumes: the vault view and
- * its audit from the injected snapshot, and each developer audit rotation
- * file. Same coverage rule as the accounts inventory (RVCM1133B).
- */
+Every sub-source createSecurityReportReader consumes: the vault view and
+its audit from the injected snapshot, and each developer audit rotation
+file. Same coverage rule as the accounts inventory (RVCM1133B).
+*/
 export const SECURITY_REPORT_SUB_SOURCES = [
   'vault',
   'vaultAudit',
@@ -253,11 +253,11 @@ export async function readUsageReportJournal(
 const reportOffsetByRun = new WeakMap<object, number>()
 
 /**
- * One machine-local offset per report run, shared by the budget day and the
- * period day: a DST change or midnight between the two samples must not
- * stamp them on different days (RVCM1132C finding 3). Runs are fresh objects
- * per generation, so entries never outlive their report.
- */
+One machine-local offset per report run, shared by the budget day and the
+period day: a DST change or midnight between the two samples must not
+stamp them on different days (RVCM1132C finding 3). Runs are fresh objects
+per generation, so entries never outlive their report.
+*/
 export function reportTimezoneOffset(context: SourceReadContext): number {
   const key = context.run ?? context.options
   let offset = reportOffsetByRun.get(key)
@@ -282,10 +282,10 @@ export function createReportJournalReader(input: {
   readonly readBudgets?: () => Promise<readonly UsageBudgetRead[]>
   readonly now?: () => number
   /**
-   * Machine-local day, like M102's page. Callers pass reportTimezoneOffset
-   * so the budget stamp shares the report's single sample (RVCM1132C
-   * finding 3); a plain number keeps a fixed day for tests.
-   */
+  Machine-local day, like M102's page. Callers pass reportTimezoneOffset
+  so the budget stamp shares the report's single sample (RVCM1132C
+  finding 3); a plain number keeps a fixed day for tests.
+  */
   readonly timezoneOffsetMins?: number | ((context: SourceReadContext) => number)
 }): (context: SourceReadContext) => Promise<UsageReportJournal> {
   const runs = new WeakMap<object, Promise<UsageReportJournal>>()
@@ -345,10 +345,10 @@ export function createUsageReportReader(input: {
   readonly dataFolder: string
   readonly readJournal?: (context: SourceReadContext) => Promise<UsageReportJournal>
   /**
-   * Machine-local day, like M102's page. Callers pass reportTimezoneOffset
-   * so the period shares the budget stamp's single sample (RVCM1132C
-   * finding 3); a plain number keeps a fixed day for tests.
-   */
+  Machine-local day, like M102's page. Callers pass reportTimezoneOffset
+  so the period shares the budget stamp's single sample (RVCM1132C
+  finding 3); a plain number keeps a fixed day for tests.
+  */
   readonly timezoneOffsetMins: number | ((context: SourceReadContext) => number)
   readonly now?: () => number
 }): NonNullable<LocalReportSourceDeps['usage']> {
@@ -376,11 +376,11 @@ export function createUsageReportReader(input: {
 }
 
 /**
- * The stored session envelope the report reads: the same field names and item
- * shape as M84's storedSessionFields, with items validated by the owned
- * itemSnapshotSchema (the report source validates the export again). Anything
- * else the store keeps never enters a report.
- */
+The stored session envelope the report reads: the same field names and item
+shape as M84's storedSessionFields, with items validated by the owned
+itemSnapshotSchema (the report source validates the export again). Anything
+else the store keeps never enters a report.
+*/
 const storedReportSessionSchema = z.object({
   version: z.literal(STORED_SESSION_VERSION),
   sessionId: z.string(),
@@ -494,11 +494,11 @@ export async function readStoredReportSession(
 }
 
 /**
- * The reporting `estimate` source from M117's run: the host owns the engine
- * (VS Code's lazy estimator bundle, the headless one per workspace root), so
- * only the validated request crosses into this bundle and only the run's
- * result crosses back. The core source validates, scrubs and projects it.
- */
+The reporting `estimate` source from M117's run: the host owns the engine
+(VS Code's lazy estimator bundle, the headless one per workspace root), so
+only the validated request crosses into this bundle and only the run's
+result crosses back. The core source validates, scrubs and projects it.
+*/
 export function createEstimateReportReader(
   input: {
     readonly run: (request: EstimateRequest, signal: AbortSignal) => Promise<unknown>
@@ -532,14 +532,14 @@ export function createEstimateReportReader(
 }
 
 /**
- * The reporting `session` source from M84's history: the transcript as the
- * export source, turns retained before the portable projection drops their
- * ids, and the session's own journal usage. Checks run arrive through the
- * workspace check-run source, which the collector prefers; the payload keeps
- * an empty list so a second journal read never diverges from it. History
- * items carry no approval decisions, so approvals stay explicitly unavailable
- * instead of inferred.
- */
+The reporting `session` source from M84's history: the transcript as the
+export source, turns retained before the portable projection drops their
+ids, and the session's own journal usage. Checks run arrive through the
+workspace check-run source, which the collector prefers; the payload keeps
+an empty list so a second journal read never diverges from it. History
+items carry no approval decisions, so approvals stay explicitly unavailable
+instead of inferred.
+*/
 export function createSessionReportReader(input: {
   readonly resolveSession: (
     sessionId: string | undefined,
@@ -616,11 +616,11 @@ export function createSessionReportReader(input: {
 }
 
 /**
- * M108's account registry file: metadata only, never a credential (the
- * runtime's providers file keeps secrets and vendor responses on separate
- * injected ports). A missing file is a fresh install, never an error; a
- * corrupt one is invalid, never an empty registry.
- */
+M108's account registry file: metadata only, never a credential (the
+runtime's providers file keeps secrets and vendor responses on separate
+injected ports). A missing file is a fresh install, never an error; a
+corrupt one is invalid, never an empty registry.
+*/
 const registryEntrySchema = z.object({
   id: accountIdSchema,
   product: accountIdSchema,
@@ -773,15 +773,15 @@ function projectThresholds(
 }
 
 /**
- * The reporting `accounts` source from M108's registry on disk, with use,
- * swaps and confirmations from injected adapters. Facets no adapter supplies
- * stay empty and are named in the partial, never invented. No sub-source
- * discards another's rows: a registry entry that fails validation is
- * skipped with the invalid reason while the good entries still report, and
- * a registry or adapter that fails outright keeps its own reason beside
- * the rows the other sub-sources still return (RVCM1133B P2). Only a
- * missing registry file is a fresh install that reads as null.
- */
+The reporting `accounts` source from M108's registry on disk, with use,
+swaps and confirmations from injected adapters. Facets no adapter supplies
+stay empty and are named in the partial, never invented. No sub-source
+discards another's rows: a registry entry that fails validation is
+skipped with the invalid reason while the good entries still report, and
+a registry or adapter that fails outright keeps its own reason beside
+the rows the other sub-sources still return (RVCM1133B P2). Only a
+missing registry file is a fresh install that reads as null.
+*/
 export function createAccountsReportReader(input: {
   readonly dataDir: string
   readonly readUsage?: (
@@ -960,7 +960,7 @@ export function createAccountsReportReader(input: {
 }
 
 /** An unlock-capable vault view. Raw records never leave the report bundle:
- * the reader projects them to counts and kinds before returning. */
+the reader projects them to counts and kinds before returning. */
 export interface SecurityVaultSnapshot {
   readonly state: VaultStatus['state']
   readonly tier: VaultStatus['tier']
@@ -993,18 +993,18 @@ function readSnapshotFacet(
 }
 
 /**
- * The reporting `security` source from the developer audit on disk and an
- * injected unlock-capable vault view. Without values throughout: the vault
- * contributes its tier, item counts by kind, grant scopes and audit
- * aggregates; the developer audit contributes action counts. A locked or
- * unbound vault leaves the vault facets empty with its reason; without the
- * developer audit either, both reasons travel in the partial instead of a
- * generic missing file (RVCM1133). No record or sub-source discards what
- * the read already accepted: each vault record and each audit line parses
- * on its own, a bad one is skipped with the invalid reason, and a vault
- * view or audit file that fails outright keeps its own reason beside the
- * rows the other sub-sources still return (RVCM1133B P2).
- */
+The reporting `security` source from the developer audit on disk and an
+injected unlock-capable vault view. Without values throughout: the vault
+contributes its tier, item counts by kind, grant scopes and audit
+aggregates; the developer audit contributes action counts. A locked or
+unbound vault leaves the vault facets empty with its reason; without the
+developer audit either, both reasons travel in the partial instead of a
+generic missing file (RVCM1133). No record or sub-source discards what
+the read already accepted: each vault record and each audit line parses
+on its own, a bad one is skipped with the invalid reason, and a vault
+view or audit file that fails outright keeps its own reason beside the
+rows the other sub-sources still return (RVCM1133B P2).
+*/
 export function createSecurityReportReader(input: {
   readonly dataDir: string
   readonly readVault?: (context: SourceReadContext) => Promise<SecurityVaultSnapshot | null>

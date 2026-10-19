@@ -207,7 +207,7 @@ const legacyRollupSchema = rollupSchemaWith(
   usageLegacyLimitSnapshotSchema,
 )
 /** An older month reads as current with the same exact decimals (M121, T7);
- * the next retention that changes it writes it back as current. */
+the next retention that changes it writes it back as current. */
 function rollupToCurrent(
   rollup: z.infer<typeof previousRollupSchema> | z.infer<typeof legacyRollupSchema>,
 ): Rollup {
@@ -303,9 +303,9 @@ function sum(a: number | undefined, b: number | undefined): number | undefined {
   return a === undefined && b === undefined ? undefined : (a ?? 0) + (b ?? 0)
 }
 /**
- * Adapt a validated stored rollup without inventing unknown paired rates
- * (C-M113-2 shares this with the usage service instead of copying it).
- */
+Adapt a validated stored rollup without inventing unknown paired rates
+(C-M113-2 shares this with the usage service instead of copying it).
+*/
 export function toAggregateRow(row: UsageRollupRow): UsageAggregateRow {
   return {
     day: row.day,
@@ -437,10 +437,10 @@ export function rollupUsageRecords(records: readonly UsageRecord[]): UsageRollup
 }
 
 /**
- * The lock went away mid-read: the snapshot may mix generations, so the
- * read retries once with cold caches instead of returning it. Caught by
- * identity in `read` only; it never surfaces to a caller.
- */
+The lock went away mid-read: the snapshot may mix generations, so the
+read retries once with cold caches instead of returning it. Caught by
+identity in `read` only; it never surfaces to a caller.
+*/
 class UsageLockRacedError extends Error {}
 
 export class UsageJournalStore {

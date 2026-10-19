@@ -140,12 +140,12 @@ function candidatesFor(
 }
 
 /**
- * The file the command names, absolute; throws with the reason when there
- * is none. A bare name is resolved on the absolute PATH entries outside the
- * server's working directory (resolved through links), so a planted `node`
- * there never wins; a command with a directory is the file the person's
- * config names, resolved against that directory.
- */
+The file the command names, absolute; throws with the reason when there
+is none. A bare name is resolved on the absolute PATH entries outside the
+server's working directory (resolved through links), so a planted `node`
+there never wins; a command with a directory is the file the person's
+config names, resolved against that directory.
+*/
 export function resolveServerCommand(
   command: string,
   cwd: string,

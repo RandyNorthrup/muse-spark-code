@@ -105,11 +105,11 @@ describe('the pull request draft reads, against real repositories', () => {
   const logged: string[] = []
 
   /**
-   * The service over `folder`, with what a host gives it: the folder, the
-   * user's git, the window's signal, its trust, the user's Git environment
-   * (here the fixture's, with no user or system configuration), and the
-   * runtime's logger.
-   */
+  The service over `folder`, with what a host gives it: the folder, the
+  user's git, the window's signal, its trust, the user's Git environment
+  (here the fixture's, with no user or system configuration), and the
+  runtime's logger.
+  */
   const serviceAt = (folder: string): NativeGitService => {
     if (gitPath === undefined) {
       throw new Error('git is not on PATH')

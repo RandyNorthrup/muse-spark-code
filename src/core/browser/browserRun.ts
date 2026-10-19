@@ -450,13 +450,13 @@ async function networkServiceId(page: PageCheck): Promise<number | undefined> {
 }
 
 /**
- * The network service's process id once the browser has started it, read
- * before any request. The browser launches the service after its own
- * process already answers on the pipe, so it is asked again until it is
- * listed. The wait has no bound of its own: the check's lifetime (its
- * deadline, the person's Stop, admission) closes the pipe when it ends,
- * which wakes the wait at once and fails the next ask.
- */
+The network service's process id once the browser has started it, read
+before any request. The browser launches the service after its own
+process already answers on the pipe, so it is asked again until it is
+listed. The wait has no bound of its own: the check's lifetime (its
+deadline, the person's Stop, admission) closes the pipe when it ends,
+which wakes the wait at once and fails the next ask.
+*/
 async function startedNetworkServiceId(page: PageCheck): Promise<number> {
   for (;;) {
     const serviceId = await networkServiceId(page)

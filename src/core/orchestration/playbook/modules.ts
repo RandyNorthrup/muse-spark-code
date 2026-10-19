@@ -40,7 +40,7 @@ export interface ModuleState {
 }
 
 /** Only workspace-relative selectors enter the registry. Segment-wise
- * normalization also makes Windows spelling and ./ aliases equivalent. */
+normalization also makes Windows spelling and ./ aliases equivalent. */
 export function modulePath(value: string): string {
   const path = value.replaceAll('\\', '/').replace(/^\.\//u, '')
   if (
@@ -65,8 +65,8 @@ export function normalizedModule(module: PlaybookModule): PlaybookModule {
 }
 
 /** Trusted adapters can declare lane/team selectors; without either, use
- * the first two directories under the source root. The registry journals
- * this returned id before dispatch; adapters retain it on subsequent calls. */
+the first two directories under the source root. The registry journals
+this returned id before dispatch; adapters retain it on subsequent calls. */
 export function newPlaybookModule(
   files: readonly string[],
   declaration?: { readonly source: 'lane' | 'team'; readonly key: string },
@@ -112,7 +112,7 @@ export function hasOverlappingFiles(left: PlaybookModule, right: PlaybookModule)
 }
 
 /** Internal technical journal tags, not user-supplied evidence. Fingerprints,
- * user decisions and legacy lease notes remain mandatory retention evidence. */
+user decisions and legacy lease notes remain mandatory retention evidence. */
 export const PLAYBOOK_IDENTITY_NOTE = 'playbook-file-identity'
 export const PLAYBOOK_LEASE_NOTE = 'playbook-patch-lease'
 export const PLAYBOOK_RELEASE_NOTE = 'playbook-patch-release'
@@ -157,7 +157,7 @@ export function fileIdentities(
 }
 
 /** Bounded line fingerprints retain no file text. Similarity catches edited
- * untracked moves too; Git history supplies path evidence after commit. */
+untracked moves too; Git history supplies path evidence after commit. */
 function contentIdentity(content: string): string {
   const lines = [
     ...new Set(
@@ -187,8 +187,8 @@ export function hasSimilarContent(left: string, right: string): boolean {
 }
 
 /** Git supplies similarity-based rename evidence even when moved code changed
- * bytes. Hashes separately cover untracked moves and copies. Never consult an
- * agent's claim about identity. Both staged and unstaged moves are inspected. */
+bytes. Hashes separately cover untracked moves and copies. Never consult an
+agent's claim about identity. Both staged and unstaged moves are inspected. */
 export function renamedFiles(
   workspace: string,
   admission: PlaybookHookAdmission,
@@ -304,8 +304,8 @@ function validateRound(round: PlaybookRound, state: ModuleState): void {
 }
 
 /** Replay in publication order. Class records carry their independent
- * lifetime counters; the aggregate retains the active findings and identities.
- * No current state comes from a lane name, branch or display key. */
+lifetime counters; the aggregate retains the active findings and identities.
+No current state comes from a lane name, branch or display key. */
 function applyRecord(record: PlaybookRecord, states: Map<string, ModuleState>): void {
   switch (record.kind) {
     case 'module': {

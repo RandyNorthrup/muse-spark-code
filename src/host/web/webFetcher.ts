@@ -110,9 +110,9 @@ export async function discoverNat64(lookups: Nat64Lookups, log: Logger): Promise
 }
 
 /**
- * The URL's host for the log. Only the URL parser's own malformed-input
- * failure (`TypeError`) reads as "not a URL"; anything else still throws.
- */
+The URL's host for the log. Only the URL parser's own malformed-input
+failure (`TypeError`) reads as "not a URL"; anything else still throws.
+*/
 export function hostOf(url: string): string {
   try {
     return new URL(url).host

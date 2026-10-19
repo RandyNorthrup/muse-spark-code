@@ -42,10 +42,10 @@ export interface WorktreeApprovalDecision {
 export interface WorktreeSession {
   readonly sessionId: string
   /**
-   * Bind the attempt's remaining request allowance; every implementer
-   * carries it, so a ceiling always reserves the wrap-up instead of
-   * cancelling the turn.
-   */
+  Bind the attempt's remaining request allowance; every implementer
+  carries it, so a ceiling always reserves the wrap-up instead of
+  cancelling the turn.
+  */
   setModelCallAllowance(remaining: (() => number) | undefined): void
   onEvent(listener: (event: WorktreeSessionEvent) => void): () => void
   sendTurn(parts: readonly [{ readonly type: 'text'; readonly text: string }]): Promise<unknown>
@@ -117,12 +117,12 @@ export class WorktreeCeilingError extends Error {
 const noListener = (): void => undefined
 
 /**
- * A conversation confined to its worktree. `requireTrusted` throws in
- * Restricted Mode before anything runs; `run` binds the ceiling through the
- * session's allowance port, declines every approval and question (counted),
- * and reads the ceiling from the turn's typed outcome (a completed turn
- * carrying `max_turn_requests`), never from a cancellation.
- */
+A conversation confined to its worktree. `requireTrusted` throws in
+Restricted Mode before anything runs; `run` binds the ceiling through the
+session's allowance port, declines every approval and question (counted),
+and reads the ceiling from the turn's typed outcome (a completed turn
+carrying `max_turn_requests`), never from a cancellation.
+*/
 export class WorktreeConversationHost {
   public constructor(private readonly deps: WorktreeConversationDeps) {}
 

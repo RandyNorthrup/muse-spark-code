@@ -35,11 +35,11 @@ function reloadPanel(): void {
 }
 
 /**
- * The vault host message's envelope, routed without reading its contents:
- * the full zod validation happens where the state is used, in the lazily
- * loaded vault surface, so the panel body keeps its size budget. Anything
- * else unknown is still reported as a host-message error below.
- */
+The vault host message's envelope, routed without reading its contents:
+the full zod validation happens where the state is used, in the lazily
+loaded vault surface, so the panel body keeps its size budget. Anything
+else unknown is still reported as a host-message error below.
+*/
 function vaultEnvelopeOf(raw: unknown): unknown {
   return typeof raw === 'object' &&
     raw !== null &&
@@ -131,9 +131,9 @@ export interface ModelsPanelProps {
   readonly post: (message: PanelToHostMessage) => void
   readonly dispatch: (action: PanelUiAction) => void
   /**
-   * The vault host message's raw envelope (C-M109-1 P1); undefined before
-   * the host's first vault answer. The vault mount validates it before use.
-   */
+  The vault host message's raw envelope (C-M109-1 P1); undefined before
+  the host's first vault answer. The vault mount validates it before use.
+  */
   readonly vaultRaw?: unknown
   /** The vault section's post port into the host's vault binding. */
   readonly vaultPost?: ((message: VaultClientMessage) => void) | undefined

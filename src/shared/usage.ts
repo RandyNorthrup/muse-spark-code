@@ -163,10 +163,10 @@ export function planLabel(tier: string): string {
 }
 
 /**
- * Whose plan the spend rode on: the latest observed Muse Code meter's own
- * plan name. Undefined when no stored meter names one, and plan rows keep
- * their generic label then rather than guessing.
- */
+Whose plan the spend rode on: the latest observed Muse Code meter's own
+plan name. Undefined when no stored meter names one, and plan rows keep
+their generic label then rather than guessing.
+*/
 export function planDisplayName(
   limits: readonly {
     readonly provider: string
@@ -184,12 +184,12 @@ export function planDisplayName(
 }
 
 /**
- * An hour bucket's label in the timezone its records were written in. The
- * bucket keeps its hour-start instant; shifting it back by the recorded
- * offset recovers the recorded-local wall clock, so a later timezone change
- * (or DST) cannot move the hour onto another day. Buckets without a
- * recorded offset (rollup months) keep the viewer's local rendering.
- */
+An hour bucket's label in the timezone its records were written in. The
+bucket keeps its hour-start instant; shifting it back by the recorded
+offset recovers the recorded-local wall clock, so a later timezone change
+(or DST) cannot move the hour onto another day. Buckets without a
+recorded offset (rollup months) keep the viewer's local rendering.
+*/
 export function bucketHourLabel(bucket: {
   readonly at: number
   readonly timezoneOffsetMins?: number | undefined

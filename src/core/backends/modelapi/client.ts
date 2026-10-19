@@ -118,31 +118,31 @@ export type ProviderClient = Pick<
   readonly models?: ModelResolver
   readonly modelContextLimit?: (model: string) => number | undefined
   /**
-   * C-M95-4 R3: the registry's live window for a configured model, read
-   * synchronously from its last listing for compaction sizing. Undefined
-   * when the registry never listed the model (the previous fallback
-   * stands) or its window is unknown (the request refuses instead).
-   */
+  C-M95-4 R3: the registry's live window for a configured model, read
+  synchronously from its last listing for compaction sizing. Undefined
+  when the registry never listed the model (the previous fallback
+  stands) or its window is unknown (the request refuses instead).
+  */
   readonly peekContextModel?: (model: string) => ContextModel | undefined
   readonly isPlanModel?: (model: string) => boolean
   /**
-   * The plan models this client serves without any Meta request (the
-   * signed-in ChatGPT and Copilot plans), listed on a computer that stores
-   * no Meta key. Absent on clients without a plan route.
-   */
+  The plan models this client serves without any Meta request (the
+  signed-in ChatGPT and Copilot plans), listed on a computer that stores
+  no Meta key. Absent on clients without a plan route.
+  */
   readonly listPlanModels?: () => Promise<string[]>
   /**
-   * The plan catalogue's facts for one model reference. Resolves them from
-   * the client's cache, fetching the catalogue when no listing warmed it;
-   * undefined where the catalogue names nothing. Absent on clients without
-   * a plan route, where the policy keeps today's behaviour.
-   */
+  The plan catalogue's facts for one model reference. Resolves them from
+  the client's cache, fetching the catalogue when no listing warmed it;
+  undefined where the catalogue names nothing. Absent on clients without
+  a plan route, where the policy keeps today's behaviour.
+  */
   readonly planModelFacts?: (model: string) => Promise<ChatGptPlanFacts | undefined>
   readonly readPlanUsage?: () => readonly PlanUsageRow[]
   /**
-   * EXECPROV round 6: an exact same-body input count where the provider
-   * documents one (type-only; implementations live in lazy bundles).
-   */
+  EXECPROV round 6: an exact same-body input count where the provider
+  documents one (type-only; implementations live in lazy bundles).
+  */
   readonly countInputTokensDetailed?: (
     body: CreateResponseBody,
     signal?: AbortSignal,
@@ -185,10 +185,10 @@ export interface ModelApiClientDeps {
   /** Read per request so a key pasted later applies without a restart. */
   readonly apiKey: () => Promise<string | undefined>
   /**
-   * Lane RETRYLIMITS: the person's `museSpark.modelApiMaxRetries` setting,
-   * read live so a change applies without a restart; undefined (or absent)
-   * leaves Meta's documented 3–5 attempts in force.
-   */
+  Lane RETRYLIMITS: the person's `museSpark.modelApiMaxRetries` setting,
+  read live so a change applies without a restart; undefined (or absent)
+  leaves Meta's documented 3–5 attempts in force.
+  */
   readonly personCap?: (() => number | undefined) | undefined
   /** Absent, the transport waits with `abortableSleep` (see `TransportDeps.sleep`). */
   readonly sleep?: ((ms: number) => Promise<void>) | undefined
@@ -409,10 +409,10 @@ export class ModelApiClient implements TransportProviderClient {
   }
 
   /**
-   * This client's effective retry limit (see `ProviderClient.maxRetries`).
-   * Meta serves its own models only, so the selected model does not change
-   * the answer; an aggregate client reads it instead (PR #225).
-   */
+  This client's effective retry limit (see `ProviderClient.maxRetries`).
+  Meta serves its own models only, so the selected model does not change
+  the answer; an aggregate client reads it instead (PR #225).
+  */
   public maxRetries(_modelId?: string): number | undefined {
     return this.transport.maxRetries()
   }

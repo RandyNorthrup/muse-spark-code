@@ -82,9 +82,9 @@ function unavailable(): string {
 }
 
 /**
- * Whether the removal failure is a lock a scanner may still hold: busy,
- * denied, or not yet empty. Anything else is not worth the bounded wait.
- */
+Whether the removal failure is a lock a scanner may still hold: busy,
+denied, or not yet empty. Anything else is not worth the bounded wait.
+*/
 function isRemoveRetriable(error: unknown): boolean {
   return (
     isErrno(error, 'EBUSY') ||

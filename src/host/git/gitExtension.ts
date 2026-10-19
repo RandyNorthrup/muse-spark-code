@@ -71,10 +71,10 @@ export interface GitRepository {
 }
 
 /**
- * The part of a repository the pull request checkout reads: VS Code's Git
- * extension's, or the user's own git where the extension is missing (M123,
- * nativeRepository.ts).
- */
+The part of a repository the pull request checkout reads: VS Code's Git
+extension's, or the user's own git where the extension is missing (M123,
+nativeRepository.ts).
+*/
 export type CheckoutRepository = Pick<GitRepository, 'rootUri' | 'status' | 'fetch'> & {
   readonly state: Pick<GitRepository['state'], 'HEAD' | 'remotes'>
 }

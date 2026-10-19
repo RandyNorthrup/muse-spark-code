@@ -8,11 +8,11 @@ import type { UsdAmount } from '../shared/usdSchema'
 import { type MoneyImporter, useMoneyDisplay } from './money'
 
 /**
- * An exact feature price, or undefined while the money chunk loads. The
- * tariff states every price it can compute and throws when it cannot; a
- * price failure keeps its kind past this hook to the error boundary — it
- * is never read as unpriced.
- */
+An exact feature price, or undefined while the money chunk loads. The
+tariff states every price it can compute and throws when it cannot; a
+price failure keeps its kind past this hook to the error boundary — it
+is never read as unpriced.
+*/
 export function usePaidFeaturePrice(
   feature: PaidFeature | undefined,
   importer?: MoneyImporter,
@@ -25,10 +25,10 @@ export function usePaidFeaturePrice(
 }
 
 /**
- * Exact prices for several features, or undefined until every one is known.
- * A price failure keeps its kind past this hook to the error boundary;
- * it is never read as unpriced.
- */
+Exact prices for several features, or undefined until every one is known.
+A price failure keeps its kind past this hook to the error boundary;
+it is never read as unpriced.
+*/
 export function usePaidFeaturePrices(
   features: readonly PaidFeature[],
   importer?: MoneyImporter,

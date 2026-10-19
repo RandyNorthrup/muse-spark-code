@@ -106,9 +106,9 @@ interface ParsedRecall {
 }
 
 /**
- * The recall arguments, validated exactly as offered. Undefined when the
- * arguments are not JSON; an `outcome` when they parse but are invalid.
- */
+The recall arguments, validated exactly as offered. Undefined when the
+arguments are not JSON; an `outcome` when they parse but are invalid.
+*/
 function parseRecallArgs(
   argsJson: string,
 ): ParsedRecall | { readonly outcome: RecallOutcome } | undefined {
@@ -131,11 +131,11 @@ function parseRecallArgs(
 }
 
 /**
- * TOOLCAP: one character page of a full result, framed exactly as a packed
- * page. The host serves spill files through this when the pack store holds
- * only the cut text (or nothing): every bounded piece stays reachable,
- * including inside megabyte lines that line-paged file reads cannot reach.
- */
+TOOLCAP: one character page of a full result, framed exactly as a packed
+page. The host serves spill files through this when the pack store holds
+only the cut text (or nothing): every bounded piece stays reachable,
+including inside megabyte lines that line-paged file reads cannot reach.
+*/
 export function pageRecalledText(
   text: string,
   tool: string | undefined,
@@ -198,10 +198,10 @@ export function pageRecalledText(
 /** Estimated tokens for `chars` characters (the ledger's rule of thumb; lives in toolResultBound.ts, beside the bound). */
 
 /**
- * TOOLCAP: a background completion note's recall id for its text. The host
- * registers cut notes under this id too, so their spills page back under
- * the same id the placeholder names.
- */
+TOOLCAP: a background completion note's recall id for its text. The host
+registers cut notes under this id too, so their spills page back under
+the same id the placeholder names.
+*/
 export function backgroundNoteId(text: string): string {
   return `background-${createHash('sha256').update(text).digest('hex')}`
 }

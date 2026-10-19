@@ -1,7 +1,7 @@
 /** Baseline-then-busiest finish shared by the per-OS disk deltas. Counters
- * arrive in milliseconds of busy time; the busiest whole device wins, capped
- * at 100. A missing baseline, still or reversed time, a changed device set
- * or a regressed counter stores the new baseline and reads unknown. */
+arrive in milliseconds of busy time; the busiest whole device wins, capped
+at 100. A missing baseline, still or reversed time, a changed device set
+or a regressed counter stores the new baseline and reads unknown. */
 export interface DiskDeltaBaseline {
   readonly atMs: number
   readonly counters: ReadonlyMap<string, number>

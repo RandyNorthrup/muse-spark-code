@@ -35,11 +35,11 @@ import {
 const LIMITS = { maxTokens: 16_000, maxLineChars: 8000, maxBytes: 64_000, windowTokens: undefined }
 
 /**
- * Every cut's kept and omitted add up to the total, and `keptChars` counts
- * ORIGINAL characters carried in the kept text: the `…` markers the cut
- * itself added are not original characters. These inputs contain no `…`,
- * so every one in the kept text is a marker, counted here independently.
- */
+Every cut's kept and omitted add up to the total, and `keptChars` counts
+ORIGINAL characters carried in the kept text: the `…` markers the cut
+itself added are not original characters. These inputs contain no `…`,
+so every one in the kept text is a marker, counted here independently.
+*/
 function expectSums(
   text: string,
   limits: typeof LIMITS,

@@ -17,10 +17,10 @@ export function isValidModelApiKey(candidate: string): boolean {
 }
 
 /**
- * Whether the credential store itself cannot be used. Name-based, not
- * `instanceof`: lazy bundles carry their own copy of the store error, so an
- * error thrown by one copy is not an instance of another's class.
- */
+Whether the credential store itself cannot be used. Name-based, not
+`instanceof`: lazy bundles carry their own copy of the store error, so an
+error thrown by one copy is not an instance of another's class.
+*/
 export function isCredentialStoreDown(error: unknown): boolean {
   return error instanceof Error && error.name === 'StoreUnavailableError'
 }
@@ -33,18 +33,18 @@ export class CredentialStore {
     /** The store's name in that report: the ACP agent's is the OS store (D61). */
     private readonly storeName = "VS Code's secret storage",
     /**
-     * The configured provider ids (lane P's providers file). Absent until
-     * that lane merges: only the Meta key counts meanwhile.
-     */
+    The configured provider ids (lane P's providers file). Absent until
+    that lane merges: only the Meta key counts meanwhile.
+    */
     private readonly providerIds?: () => PromiseLike<readonly CredentialProviderId[]>,
   ) {}
 
   /**
-   * The stored key for operational use (backend key reads); undefined when
-   * there is none or the store cannot be read (PLAN.md D25). The read
-   * itself loads with the credential bundle (dist/auth.js); behaviour is
-   * unchanged, including the once-only notice and its re-arm.
-   */
+  The stored key for operational use (backend key reads); undefined when
+  there is none or the store cannot be read (PLAN.md D25). The read
+  itself loads with the credential bundle (dist/auth.js); behaviour is
+  unchanged, including the once-only notice and its re-arm.
+  */
   public async getApiKey(): Promise<string | undefined> {
     const { getApiKey } = await import('./authEntry')
     return await getApiKey({
@@ -69,12 +69,12 @@ export class CredentialStore {
   }
 
   /**
-   * A Model API credential of either kind (M95, PLAN.md D74): the Meta key
-   * or any provider's secret. Backend selection and the sign-in gate read
-   * this, never the key alone, and switch on all three states. The scan
-   * itself loads with the credential bundle (dist/auth.js); behaviour is
-   * unchanged, including the provider scan's results.
-   */
+  A Model API credential of either kind (M95, PLAN.md D74): the Meta key
+  or any provider's secret. Backend selection and the sign-in gate read
+  this, never the key alone, and switch on all three states. The scan
+  itself loads with the credential bundle (dist/auth.js); behaviour is
+  unchanged, including the provider scan's results.
+  */
   public async readModelApiCredential(): Promise<CredentialRead> {
     const { readModelApiCredential } = await import('./authEntry')
     return await readModelApiCredential({

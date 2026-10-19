@@ -518,9 +518,9 @@ async function isPresent(filePath: string): Promise<boolean> {
 }
 
 /**
- * A rename's lost-race vocabulary: the target exists (EEXIST, ENOTEMPTY,
- * EPERM on Windows). Anything else is the rename's own failure.
- */
+A rename's lost-race vocabulary: the target exists (EEXIST, ENOTEMPTY,
+EPERM on Windows). Anything else is the rename's own failure.
+*/
 const RENAME_RACE_CODES: ReadonlySet<string> = new Set(['EEXIST', 'ENOTEMPTY', 'EPERM'])
 
 function isRenameRace(error: unknown): boolean {

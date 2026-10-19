@@ -20,7 +20,7 @@ import { workspaceKey } from '../dataFolder'
 import type { createWorkspaceRegistry } from './registry'
 
 /** The ACP-side engine module a caller installs; the schedules bundle never
- * loads it from VS Code, so the VSIX need not carry the runtime engine. */
+loads it from VS Code, so the VSIX need not carry the runtime engine. */
 export interface RuntimeScheduleEngineModule {
   readonly createRuntimeScheduleDelivery: typeof createRuntimeScheduleDelivery
   setUiText(table: UiText, locale: string): void

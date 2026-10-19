@@ -99,14 +99,14 @@ export function mspApprovalMode(mode: PermissionMode): ApprovalMode {
 }
 
 /**
- * The native permission profile a Muse Code session selects for an MSP
- * approval mode (stable `session/start.permissionProfile` on Muse Code
- * 1.4.7, amendment 42624): the asking modes take the human reviewer so Muse
- * Code's LLM judge cannot allow an action instead; Auto keeps the AI
- * reviewer its words describe; the denying and allowing modes need none,
- * the mode itself decides. Undefined means the host default (today
- * `:auto-review`); an older host ignores the member and keeps the default.
- */
+The native permission profile a Muse Code session selects for an MSP
+approval mode (stable `session/start.permissionProfile` on Muse Code
+1.4.7, amendment 42624): the asking modes take the human reviewer so Muse
+Code's LLM judge cannot allow an action instead; Auto keeps the AI
+reviewer its words describe; the denying and allowing modes need none,
+the mode itself decides. Undefined means the host default (today
+`:auto-review`); an older host ignores the member and keeps the default.
+*/
 const PROFILE_FOR_MODE: Readonly<Record<string, string>> = {
   promptUnmatched: MUSE_ASK_ME_PROFILE,
   onRequest: MUSE_AUTO_REVIEW_PROFILE,

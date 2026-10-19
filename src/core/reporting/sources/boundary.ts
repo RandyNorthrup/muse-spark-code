@@ -48,9 +48,9 @@ function problem(
 }
 
 /**
- * A named problem for a repeated row the reader kept first: the later copy
- * is the damage, with the same sentence a whole-read failure would show.
- */
+A named problem for a repeated row the reader kept first: the later copy
+is the damage, with the same sentence a whole-read failure would show.
+*/
 export function duplicateProblem(
   reportText: UiText,
   facet: ReportLabelKey,
@@ -135,12 +135,12 @@ export function readReportRows<T>(
 }
 
 /**
- * Partial reasons are a set of sentences that must fit the source-reason
- * bound: exact duplicates join once, short lists join whole, and an
- * over-long list keeps a count plus the first few examples plus the
- * localized remainder, so problem text can never exceed the schema bound
- * and drop the evidence beside it (RVREPORTJOIN P2-2).
- */
+Partial reasons are a set of sentences that must fit the source-reason
+bound: exact duplicates join once, short lists join whole, and an
+over-long list keeps a count plus the first few examples plus the
+localized remainder, so problem text can never exceed the schema bound
+and drop the evidence beside it (RVREPORTJOIN P2-2).
+*/
 export function joinPartialReasons(
   reportText: UiText,
   reasons: readonly (string | undefined)[],
@@ -178,11 +178,11 @@ export function joinPartialReasons(
 }
 
 /**
- * Recover whole facts through the engine boundary and join the reader's
- * partial with one named problem per damaged facet. Throws invalid when
- * nothing valid remains, so kinds share one recovery shape instead of
- * cloning it per source.
- */
+Recover whole facts through the engine boundary and join the reader's
+partial with one named problem per damaged facet. Throws invalid when
+nothing valid remains, so kinds share one recovery shape instead of
+cloning it per source.
+*/
 export function recoverSourceFacts<T>(
   reportText: UiText,
   facet: ReportLabelKey,
@@ -251,8 +251,8 @@ export async function readReportSource<K extends ReportSourceKind>(
 }
 
 /** Decode an application schema by facet, so one invalid array/record cannot
- * veto its independently valid siblings. Essential scalar damage rejects only
- * its own record; nullable facets remain explicitly unknown with a problem. */
+veto its independently valid siblings. Essential scalar damage rejects only
+its own record; nullable facets remain explicitly unknown with a problem. */
 export function readReportFacts<T>(
   reportText: UiText,
   facet: ReportLabelKey,

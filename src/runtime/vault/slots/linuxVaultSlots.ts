@@ -8,13 +8,13 @@ import { freshSlotContext, slotContextFromRecord } from './slotIdentity'
 type OpenEntry = ConstructorParameters<typeof OsStoreVaultSlot>[2]
 
 /**
- * Linux slots: the Secret Service for the OS store (D89: labelled as
- * protecting data at rest only) and the TPM2 sealed object where the machine
- * has one. Presence has no platform prompter on Linux — a sealed object
- * unseals silently — so it stays refused after a real capability probe: the
- * person's presence mechanism on Linux is the vault passphrase, prompted per
- * use by the host (a later lane owns that round-trip).
- */
+Linux slots: the Secret Service for the OS store (D89: labelled as
+protecting data at rest only) and the TPM2 sealed object where the machine
+has one. Presence has no platform prompter on Linux — a sealed object
+unseals silently — so it stays refused after a real capability probe: the
+person's presence mechanism on Linux is the vault passphrase, prompted per
+use by the host (a later lane owns that round-trip).
+*/
 export class LinuxVaultSlots implements VaultSlotProvider {
   constructor(
     private readonly deps: {

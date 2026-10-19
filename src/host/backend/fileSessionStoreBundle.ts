@@ -46,11 +46,11 @@ export function isFileSessionStoreBundle(value: unknown): value is FileSessionSt
 }
 
 /**
- * The sessions bundle itself, required the first time it is asked for and
- * kept from then on. The uploaded-files binding ships beside the store, so
- * activation builds the conversation port and runs the delete command
- * through this handle instead of carrying the binding.
- */
+The sessions bundle itself, required the first time it is asked for and
+kept from then on. The uploaded-files binding ships beside the store, so
+activation builds the conversation port and runs the delete command
+through this handle instead of carrying the binding.
+*/
 export function fileSessionBundleApi(deps: {
   readonly bundlePath: string
   readonly log: Logger
@@ -67,9 +67,9 @@ export function fileSessionBundleApi(deps: {
 }
 
 /**
- * The window's one session store, made in the bundle the first time it is
- * asked for and kept from then on.
- */
+The window's one session store, made in the bundle the first time it is
+asked for and kept from then on.
+*/
 export function lazyFileSessionStore(deps: {
   readonly bundlePath: string
   readonly log: Logger

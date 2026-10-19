@@ -17,9 +17,9 @@ import { CredentialStore, type SecretStore } from '../auth/credentialStore'
 import type { ProviderEntry } from '../providers/providerPorts'
 
 /**
- * The configured providers: an unreadable providers file reads as none,
- * with the log naming only the failure's kind, never the file's words.
- */
+The configured providers: an unreadable providers file reads as none,
+with the log naming only the failure's kind, never the file's words.
+*/
 export async function readConfiguredProviders(
   readProviders: () => Promise<readonly ProviderEntry[]>,
   log: Logger,

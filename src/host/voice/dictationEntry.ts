@@ -23,9 +23,9 @@ export {
 export { voiceLinuxLoader, voiceLoader, type VoiceLoaderDeps } from './voiceBundle'
 
 /**
- * Installs the caller's display table in this bundle before the setups are
- * made, as the other split bundles do per use.
- */
+Installs the caller's display table in this bundle before the setups are
+made, as the other split bundles do per use.
+*/
 export function installDictationText(table: UiText, locale: string): void {
   setUiText(table, locale)
 }

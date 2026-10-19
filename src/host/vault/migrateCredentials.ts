@@ -37,9 +37,9 @@ import { withMigrationLock, type MigrationMirror } from './migrationShell'
 /** The ChatGPT subscription record owns its codec in its own lane; never taken here. */
 const CHATGPT_PROVIDER_ID = 'chatgpt'
 /**
- * Never dereferenced or fetched: the private channel compares it for
- * equality only, binding journal rows the way a provider origin binds a key.
- */
+Never dereferenced or fetched: the private channel compares it for
+equality only, binding journal rows the way a provider origin binds a key.
+*/
 const JOURNAL_ORIGIN = 'https://vault.internal'
 const JOURNAL_NAME_HASH_CHARS = 24
 /** Stable legacy-source identity for the journal rows (one SecretStorage per user). */
@@ -149,17 +149,17 @@ function journalItem(key: string, record: MigrationRecord, now: number, label: s
 }
 
 /**
- * The owner every controller shares. Engine ops run one at a time under the
- * shell's lock — a newer op never overlaps an older one, so an older op can
- * never commit over it — and each op still carries its lease: an op a newer
- * op overtook aborts at its next checkpoint instead of committing. That
- * stays safe because every engine op is self-verifying: a persist writes the
- * journal, commits the vault item, then decrypts the committed bytes back
- * and compares digests before it records anything, and a store whose legacy
- * copy moved underneath it refuses instead of writing the older bytes back.
- * The generation only ever advances, so a finished op can never look
- * current to a later check the way a counter that counts back down could.
- */
+The owner every controller shares. Engine ops run one at a time under the
+shell's lock — a newer op never overlaps an older one, so an older op can
+never commit over it — and each op still carries its lease: an op a newer
+op overtook aborts at its next checkpoint instead of committing. That
+stays safe because every engine op is self-verifying: a persist writes the
+journal, commits the vault item, then decrypts the committed bytes back
+and compares digests before it records anything, and a store whose legacy
+copy moved underneath it refuses instead of writing the older bytes back.
+The generation only ever advances, so a finished op can never look
+current to a later check the way a counter that counts back down could.
+*/
 class SharedMigrationOwner implements MigrationOwnerPort {
   private generation = 0
   async run<T>(work: (lease: MigrationLease) => Promise<T>): Promise<T> {
@@ -342,10 +342,10 @@ export class CredentialMigrationController implements MigrationMirror {
   }
 
   /**
-   * Copy every stored key (idempotent; safe to run on every unlock). Never
-   * throws: a key that cannot migrate stays in SecretStorage, working, with
-   * the reason logged.
-   */
+  Copy every stored key (idempotent; safe to run on every unlock). Never
+  throws: a key that cannot migrate stays in SecretStorage, working, with
+  the reason logged.
+  */
   /** SecretStorage is the read source of truth: the vault adopts its value. */
   private async healDiverged(migration: VaultMigration, key: string): Promise<void> {
     const value = await this.deps.secrets.get(key)
@@ -473,15 +473,15 @@ export class CredentialMigrationController implements MigrationMirror {
   }
 
   /**
-   * Drop a removed key's migrated slot. Resolves true when the engine owned
-   * the delete: it journals `deleting` before it removes either copy, so a
-   * failure before that journal write leaves SecretStorage untouched and
-   * the shell surfaces it instead of resolving a half-finished sign-out. A
-   * key the migration never took — or whose sign-out already finished —
-   * resolves false, and the shell clears SecretStorage the plain way. The
-   * person's own removal takes both copies. The engine still refuses a
-   * mid-state delete with a conflict instead of destroying half a slot.
-   */
+  Drop a removed key's migrated slot. Resolves true when the engine owned
+  the delete: it journals `deleting` before it removes either copy, so a
+  failure before that journal write leaves SecretStorage untouched and
+  the shell surfaces it instead of resolving a half-finished sign-out. A
+  key the migration never took — or whose sign-out already finished —
+  resolves false, and the shell clears SecretStorage the plain way. The
+  person's own removal takes both copies. The engine still refuses a
+  mid-state delete with a conflict instead of destroying half a slot.
+  */
   async mirrorDelete(key: string): Promise<boolean> {
     const { migration, providerIds } = await this.engine()
     if (!listMigrationKeys(providerIds).includes(key)) return false

@@ -49,13 +49,13 @@ function pdfWeight(part: InputFilePart): number {
 type OmissionReason = 'support' | 'mime' | 'limit' | 'budget'
 
 /**
- * Fresh media must fit whole: required parts above the resolved record's
- * image count or PDF page cap are refused here, before the protection in
- * `fit` exempts them from the record-driven replay checks. Only the caps
- * the record states are enforced; support, MIME and byte caps stay the
- * attach path's job, and a record without caps (or no record) refuses
- * nothing.
- */
+Fresh media must fit whole: required parts above the resolved record's
+image count or PDF page cap are refused here, before the protection in
+`fit` exempts them from the record-driven replay checks. Only the caps
+the record states are enforced; support, MIME and byte caps stay the
+attach path's job, and a record without caps (or no record) refuses
+nothing.
+*/
 function assertRequiredFitsRecord(
   required: readonly InputContentPart[],
   record: ModelCapabilityRecord,
@@ -148,13 +148,13 @@ export class MediaBudget {
   }
 
   /**
-   * Fresh media must fit whole in the provider's per-request image budget;
-   * only older replay can be elided. The 50-slot budget is Meta's own
-   * (MODEL_API_MEDIA_PER_REQUEST): a configured provider answers for its
-   * own counts, so its fresh media never meets Meta's number here
-   * (RVPROVM95). No aggregate character budget: the record carries none,
-   * so the platform refuses what it cannot take.
-   */
+  Fresh media must fit whole in the provider's per-request image budget;
+  only older replay can be elided. The 50-slot budget is Meta's own
+  (MODEL_API_MEDIA_PER_REQUEST): a configured provider answers for its
+  own counts, so its fresh media never meets Meta's number here
+  (RVPROVM95). No aggregate character budget: the record carries none,
+  so the platform refuses what it cannot take.
+  */
   public assertMessageFits(
     content: readonly InputContentPart[],
     queued?: number | { readonly slots: number },

@@ -49,11 +49,11 @@ const RESET_DURATION_UNIT_MS: Readonly<Record<string, number>> = {
 }
 
 /**
- * A reset duration in milliseconds (`120ms`, `15.254s`, `1m26.4s`): the
- * time until the bucket resets, as OpenAI and Groq send it (captured
- * 2026-10-04: `docs/certification/m95-captures/{openai,groq}/*-stream.json`).
- * Anything else is not a duration: undefined, so the default window stands.
- */
+A reset duration in milliseconds (`120ms`, `15.254s`, `1m26.4s`): the
+time until the bucket resets, as OpenAI and Groq send it (captured
+2026-10-04: `docs/certification/m95-captures/{openai,groq}/*-stream.json`).
+Anything else is not a duration: undefined, so the default window stands.
+*/
 export function resetDurationMs(header: string | null): number | undefined {
   if (header === null || header.trim() === '') {
     return undefined
@@ -96,13 +96,13 @@ function pacingLimits(
 }
 
 /**
- * A bucket's window from its reset: the reset is the time until the bucket
- * is full again, so a continuously refilling bucket gives
- * window = reset * limit / (limit - remaining). The captures pin this
- * down exactly (Groq requests 1m26.4s at 999/1000 is one day, its tokens
- * 15.254s at 5966/8000 one minute; OpenAI 120ms at 499/500 one minute).
- * A full bucket or a missing reset says nothing: undefined.
- */
+A bucket's window from its reset: the reset is the time until the bucket
+is full again, so a continuously refilling bucket gives
+window = reset * limit / (limit - remaining). The captures pin this
+down exactly (Groq requests 1m26.4s at 999/1000 is one day, its tokens
+15.254s at 5966/8000 one minute; OpenAI 120ms at 499/500 one minute).
+A full bucket or a missing reset says nothing: undefined.
+*/
 function derivedWindowMs(
   pair: { readonly limit: number; readonly remaining: number } | undefined,
   resetMs: number | undefined,
@@ -113,16 +113,16 @@ function derivedWindowMs(
 }
 
 /**
- * OpenAI and Groq (captured 2026-10-04): request/token buckets with
- * Go-duration resets until each bucket is full again. Each bucket keeps
- * its own derived window (Groq's requests are per day, its tokens per
- * minute), so the token bucket refills at its own rate instead of the
- * slower request one; no derivable window keeps the default.
- */
+OpenAI and Groq (captured 2026-10-04): request/token buckets with
+Go-duration resets until each bucket is full again. Each bucket keeps
+its own derived window (Groq's requests are per day, its tokens per
+minute), so the token bucket refills at its own rate instead of the
+slower request one; no derivable window keeps the default.
+*/
 /**
- * The request/token header pairs the OpenAI-style readers share (captured
- * 2026-10-04): both buckets must parse before either reader answers.
- */
+The request/token header pairs the OpenAI-style readers share (captured
+2026-10-04): both buckets must parse before either reader answers.
+*/
 function requestTokenPair(headers: Headers):
   | {
       readonly requests: { readonly limit: number; readonly remaining: number }
@@ -151,9 +151,9 @@ export function openaiPacingLimits(headers: Headers): PacingLimits | undefined {
 }
 
 /**
- * xAI (captured 2026-10-04): request/token limits with no reset headers,
- * so the default window stands.
- */
+xAI (captured 2026-10-04): request/token limits with no reset headers,
+so the default window stands.
+*/
 export function xaiPacingLimits(headers: Headers): PacingLimits | undefined {
   const pair = requestTokenPair(headers)
   return pair === undefined
@@ -162,13 +162,13 @@ export function xaiPacingLimits(headers: Headers): PacingLimits | undefined {
 }
 
 /**
- * Anthropic (captured 2026-10-04): request and total-token buckets across
- * four limit families, with absolute RFC 3339 resets. The token bucket is
- * the all-tokens total; the input/output splits ride the usage headers.
- * Every captured bucket resets at the same instant (a fixed window
- * boundary), so a reset names when the window ends, never its length:
- * the default window stands rather than shrinking to the time left in it.
- */
+Anthropic (captured 2026-10-04): request and total-token buckets across
+four limit families, with absolute RFC 3339 resets. The token bucket is
+the all-tokens total; the input/output splits ride the usage headers.
+Every captured bucket resets at the same instant (a fixed window
+boundary), so a reset names when the window ends, never its length:
+the default window stands rather than shrinking to the time left in it.
+*/
 export function anthropicPacingLimits(headers: Headers): PacingLimits | undefined {
   const requests = limitPair(
     headers,
@@ -186,10 +186,10 @@ export function anthropicPacingLimits(headers: Headers): PacingLimits | undefine
 }
 
 /**
- * Azure's 429 carries `retry-after-ms` (integer milliseconds; research
- * `docs/certification/m95-research.md` §1.2 [AZ5]), where other providers
- * send `retry-after` seconds. Anything else is not a wait: undefined.
- */
+Azure's 429 carries `retry-after-ms` (integer milliseconds; research
+`docs/certification/m95-research.md` §1.2 [AZ5]), where other providers
+send `retry-after` seconds. Anything else is not a wait: undefined.
+*/
 export function azureRetryAfterMs(headers: Headers): number | undefined {
   const value = headers.get('retry-after-ms')
   if (value === null || !/^\d+$/.test(value.trim())) return undefined

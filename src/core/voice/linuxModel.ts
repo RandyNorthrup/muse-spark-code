@@ -53,11 +53,11 @@ export interface PinnedDownloadDeps {
 }
 
 /**
- * One pinned download: a crash leaves resumable bytes, never usable
- * unchecked bytes. The model and every helper file share this path, and
- * one lock directory per folder, so their integrity, redirect, resume and
- * ownership behaviour stay identical.
- */
+One pinned download: a crash leaves resumable bytes, never usable
+unchecked bytes. The model and every helper file share this path, and
+one lock directory per folder, so their integrity, redirect, resume and
+ownership behaviour stay identical.
+*/
 export class PinnedFileDownload {
   private readonly lock: string
 

@@ -32,9 +32,9 @@ import type {
 
 /** The file access the tools need: `ToolIo` satisfies it. */
 /**
- * A shaped store failure: it carries an errno code, never just words. Only
- * one reads as an unresolvable path; anything else keeps its kind.
- */
+A shaped store failure: it carries an errno code, never just words. Only
+one reads as an unresolvable path; anything else keeps its kind.
+*/
 function isCodedError(error: unknown): boolean {
   return (
     typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'

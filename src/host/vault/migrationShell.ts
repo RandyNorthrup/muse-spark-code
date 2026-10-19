@@ -8,31 +8,31 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import type { SecretStore } from '../auth/credentialStore'
 
 /**
- * The one serialization all migration work shares, across every controller
- * the panel binds: one promise queue, re-entered but never overlapped. A
- * save and a sign-out each hold the lane across both of their phases (the
- * SecretStorage commit and its vault mirror), so whichever arrives second
- * sees the first's committed result instead of landing between the other's
- * phases. Module-level because controllers come and go with the panel
- * binding while the shell lives with the window.
- */
+The one serialization all migration work shares, across every controller
+the panel binds: one promise queue, re-entered but never overlapped. A
+save and a sign-out each hold the lane across both of their phases (the
+SecretStorage commit and its vault mirror), so whichever arrives second
+sees the first's committed result instead of landing between the other's
+phases. Module-level because controllers come and go with the panel
+binding while the shell lives with the window.
+*/
 /**
- * One FIFO lane for migration work. The tail promise always resolves, so a
- * failed op never blocks the lane. Work that starts inside the lane runs in
- * it instead of behind it: the mirror's engine ops re-enter the lane their
- * save or sign-out already holds, and queueing there would wait on the
- * holder itself.
- */
+One FIFO lane for migration work. The tail promise always resolves, so a
+failed op never blocks the lane. Work that starts inside the lane runs in
+it instead of behind it: the mirror's engine ops re-enter the lane their
+save or sign-out already holds, and queueing there would wait on the
+holder itself.
+*/
 class MigrationLock {
   private tail: Promise<void> = Promise.resolve()
   /**
-   * The async ancestry of the lane's current holder. Only work descended
-   * from the holder re-enters the lane: the mirror's engine ops run inside
-   * the save or sign-out that already holds it, and queueing there would
-   * wait on the holder itself. An independent op that merely arrives while
-   * the lane is busy has no such ancestry and still queues behind it, so a
-   * save racing a sign-out can never slip between the other's phases.
-   */
+  The async ancestry of the lane's current holder. Only work descended
+  from the holder re-enters the lane: the mirror's engine ops run inside
+  the save or sign-out that already holds it, and queueing there would
+  wait on the holder itself. An independent op that merely arrives while
+  the lane is busy has no such ancestry and still queues behind it, so a
+  save racing a sign-out can never slip between the other's phases.
+  */
   private readonly holder = new AsyncLocalStorage<true>()
   async run<T>(work: () => Promise<T>): Promise<T> {
     if (this.holder.getStore() === true) return await work()
@@ -65,11 +65,11 @@ export interface MigrationMirror {
   /** Copy a written value into its migrated slot; throws when it cannot. */
   mirrorWrite(key: string, value: string): Promise<void>
   /**
-   * Drop a removed key's migrated slot. Resolves true when the engine owned
-   * the delete (both copies); false for a key it never took, whose
-   * SecretStorage entry the shell still clears. Throws when it cannot: the
-   * shell leaves SecretStorage as it is and the failure surfaces.
-   */
+  Drop a removed key's migrated slot. Resolves true when the engine owned
+  the delete (both copies); false for a key it never took, whose
+  SecretStorage entry the shell still clears. Throws when it cannot: the
+  shell leaves SecretStorage as it is and the failure surfaces.
+  */
   mirrorDelete(key: string): Promise<boolean>
 }
 
@@ -78,10 +78,10 @@ export interface MigrationShell {
   /** The store every host credential path shares (reads always pass through). */
   readonly store: SecretStore
   /**
-   * Bound when a vault binding builds; a newer binding replaces the older
-   * one (the panel rebuilds its binding while its tab lives). A disposed
-   * binding's mirror fails contained, back to plain SecretStorage.
-   */
+  Bound when a vault binding builds; a newer binding replaces the older
+  one (the panel rebuilds its binding while its tab lives). A disposed
+  binding's mirror fails contained, back to plain SecretStorage.
+  */
   bind(mirror: MigrationMirror): void
 }
 

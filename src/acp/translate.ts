@@ -281,10 +281,10 @@ export class UpdateTranslator {
     private readonly readCost?: () => UsageCost | undefined,
     private readonly backend: 'modelApi' | 'museCode' = 'museCode',
     /**
-     * The client advertised `session.notices`: backend notices go out as
-     * their own `notice` update, never as the model's words. Otherwise the
-     * protocol's sanctioned fallback is an agent message.
-     */
+    The client advertised `session.notices`: backend notices go out as
+    their own `notice` update, never as the model's words. Otherwise the
+    protocol's sanctioned fallback is an agent message.
+    */
     private readonly areNoticesSupported = false,
   ) {}
 

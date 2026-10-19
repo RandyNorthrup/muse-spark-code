@@ -104,11 +104,11 @@ async function clearStaleWindowsBroker(
 export type WindowsVaultBrokerServe = Awaited<ReturnType<typeof startWindowsPipeServe>>
 
 /**
- * Start (or adopt) the vault broker on Windows: one serve helper owns the
- * pipe and the owner-only files; the claim publishes the pipe name where
- * POSIX publishes the socket path. A racing starter loses the claim and its
- * child exits: discovery then finds the winner.
- */
+Start (or adopt) the vault broker on Windows: one serve helper owns the
+pipe and the owner-only files; the claim publishes the pipe name where
+POSIX publishes the socket path. A racing starter loses the claim and its
+child exits: discovery then finds the winner.
+*/
 export async function startWindowsVaultBrokerProcess(
   options: WindowsVaultBrokerProcessOptions,
 ): Promise<{
@@ -134,10 +134,10 @@ export async function startWindowsVaultBrokerProcess(
 }
 
 /**
- * The broker on an already-serving pipe: the installed entry builds the
- * serve relay first (its platform feeds the bindings), then starts the
- * broker on it instead of serving twice.
- */
+The broker on an already-serving pipe: the installed entry builds the
+serve relay first (its platform feeds the bindings), then starts the
+broker on it instead of serving twice.
+*/
 export async function startWindowsVaultBrokerOnServe(
   options: WindowsVaultBrokerProcessOptions & {
     /** The serve helper's own file: the files port verifies integrity against it. */

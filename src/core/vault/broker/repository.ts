@@ -115,10 +115,10 @@ export interface VaultSlotProvider {
   /** The OS-store slot a new vault is wrapped in (lead decisions 6 and 8). */
   osStore(vaultId: string, slotId: string): VaultSlotPort
   /**
-   * D89 protection:auto: the hardware slot where this machine seals, for a
-   * new vault beside its OS-store slot (or alone where the OS store is
-   * unusable). Null where the machine cannot seal; never throws.
-   */
+  D89 protection:auto: the hardware slot where this machine seals, for a
+  new vault beside its OS-store slot (or alone where the OS store is
+  unusable). Null where the machine cannot seal; never throws.
+  */
   hardwareIfAvailable?(vaultId: string, slotId: string): Promise<VaultSlotPort | null>
   presence(
     itemId: string,

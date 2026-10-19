@@ -162,11 +162,11 @@ const hintSchema = z.strictObject({
 })
 
 /**
- * Whether a hint read failed fatally: a conflicting lock, a loop, an unsafe
- * file or a path that changed under the read still surfaces, while a torn,
- * malformed, linked or concurrently removed hint carries no authority and
- * is skipped.
- */
+Whether a hint read failed fatally: a conflicting lock, a loop, an unsafe
+file or a path that changed under the read still surfaces, while a torn,
+malformed, linked or concurrently removed hint carries no authority and
+is skipped.
+*/
 function isFatalHintFailure(error: unknown): boolean {
   return (
     storeErrorCode(error) === 'EACCES' ||

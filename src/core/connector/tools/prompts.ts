@@ -13,10 +13,10 @@ export interface PromptsPort {
     signal?: AbortSignal,
   ) => Promise<readonly SavedPrompt[]>
   /**
-   * The approved save; with `expectedGeneration` the store recomputes the
-   * library generation under its write lock and throws instead of landing a
-   * save the library moved under (Codex on PR #227).
-   */
+  The approved save; with `expectedGeneration` the store recomputes the
+  library generation under its write lock and throws instead of landing a
+  save the library moved under (Codex on PR #227).
+  */
   readonly write: (
     root: string | undefined,
     prompt: SavedPrompt,
@@ -100,10 +100,10 @@ export interface PromptDraftInput {
 }
 
 /**
- * Whether a draft fits M118's own limits, before anything is shown or saved
- * (D121: a scope holds prompts of any title/body length; only a blank title
- * refuses).
- */
+Whether a draft fits M118's own limits, before anything is shown or saved
+(D121: a scope holds prompts of any title/body length; only a blank title
+refuses).
+*/
 export function isDraftWithinLimits(draft: PromptDraftInput): boolean {
   return draft.title.trim() !== ''
 }

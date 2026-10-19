@@ -56,10 +56,10 @@ function ignore(): void {
 }
 
 /**
- * A system error: an object with a string `.code`. Reads only the code,
- * never the message, so the check itself leaks nothing. Anything else is a
- * bug, which must not read as an absent folder.
- */
+A system error: an object with a string `.code`. Reads only the code,
+never the message, so the check itself leaks nothing. Anything else is a
+bug, which must not read as an absent folder.
+*/
 function isSystemError(error: unknown): boolean {
   return (
     typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'

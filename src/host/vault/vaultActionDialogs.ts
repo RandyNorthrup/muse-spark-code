@@ -19,10 +19,10 @@ export interface VaultActionDialogDeps {
 type SshKeyResult = Awaited<ReturnType<VaultNativeInput['sshKey']>>
 
 /**
- * The key module's own fixed refusal (an unreadable or unusable key file).
- * Exact match only: anything else keeps its cause instead of asking for a
- * passphrase over an unrelated failure.
- */
+The key module's own fixed refusal (an unreadable or unusable key file).
+Exact match only: anything else keeps its cause instead of asking for a
+passphrase over an unrelated failure.
+*/
 function isSshRefusal(error: unknown): boolean {
   return error instanceof Error && error.message === UI_TEXT.vault.noAccess
 }

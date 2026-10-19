@@ -44,10 +44,10 @@ export const accountsThresholdsSchema = z.strictObject({
 })
 
 /**
- * One injected usage, event or confirmation row, exported so the runtime
- * reader can validate each row on its own: a bad row is skipped with the
- * invalid reason while the good rows still report (RVCM1133B).
- */
+One injected usage, event or confirmation row, exported so the runtime
+reader can validate each row on its own: a bad row is skipped with the
+invalid reason while the good rows still report (RVCM1133B).
+*/
 export const accountsUsageRowSchema = z.strictObject({
   provider: name,
   account: name,

@@ -151,7 +151,7 @@ export function sectionById(data: readonly ReportSection[] | null, id: string): 
 }
 
 /** All trigger alternatives in the store schema, shared by the lifecycle
- * and overlapping-language matrices. Each suite checks its own behavior. */
+and overlapping-language matrices. Each suite checks its own behavior. */
 export function scheduleTriggerFixtures(atMs = 2000) {
   const event = { kind: 'event', source: 'github', event: 'pullRequestOpened', conditions: [] }
   return [
@@ -167,7 +167,7 @@ export function scheduleTriggerFixtures(atMs = 2000) {
 }
 
 /** A playbook view with one row in every section, for suites that must run
- * the real section builders (duplicate-source coverage). */
+the real section builders (duplicate-source coverage). */
 export function playbookProbeView(): PlaybookView {
   return {
     modules: [
@@ -248,7 +248,7 @@ function probeEntry(
 }
 
 /** A schedules view with running, paused and fired rows, for suites that
- * must run the real section builders (duplicate-source coverage). */
+must run the real section builders (duplicate-source coverage). */
 export function schedulesProbeView(): SchedulesView {
   return {
     schedules: [

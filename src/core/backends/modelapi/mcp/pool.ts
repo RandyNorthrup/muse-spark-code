@@ -49,10 +49,10 @@ import {
 import { type McpChildProcess, McpStdioTransport } from './stdio'
 
 /**
- * The listed tools the server's entry keeps: its enabled/disabled filter
- * only. Every kept tool is offered to the model; the provider's own request
- * limits decide what fits. Pure.
- */
+The listed tools the server's entry keeps: its enabled/disabled filter
+only. Every kept tool is offered to the model; the provider's own request
+limits decide what fits. Pure.
+*/
 export function offeredTools(
   listed: readonly McpToolInfo[],
   spec: Pick<McpServerSpec, 'enabledTools' | 'disabledTools'>,

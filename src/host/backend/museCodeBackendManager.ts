@@ -88,11 +88,11 @@ export interface ProxySettings {
 }
 
 /**
- * What the window does when Muse Code stops answering (the watchdog, CLI
- * recovery 2026-10-03): whether a turn runs on Muse Code in any of its
- * conversations, Muse Code's own restart (the conversations hear it first,
- * then the next message resumes them), and what the panels on it say.
- */
+What the window does when Muse Code stops answering (the watchdog, CLI
+recovery 2026-10-03): whether a turn runs on Muse Code in any of its
+conversations, Muse Code's own restart (the conversations hear it first,
+then the next message resumes them), and what the panels on it say.
+*/
 export interface UnresponsiveHostDeps {
   readonly isTurnRunning: () => boolean
   readonly restart: () => Promise<void>
@@ -115,10 +115,10 @@ export interface BackendManagerDeps {
   /** Awaited before any agent host process can edit this workspace. */
   readonly beforeWorkspaceHostStart: () => Promise<void>
   /**
-   * The window's answer to a Muse Code that stopped answering. The ACP agent
-   * has none (its editor owns its lifetime): there, while Muse Code answers
-   * nothing, commands fail at once and the log says why.
-   */
+  The window's answer to a Muse Code that stopped answering. The ACP agent
+  has none (its editor owns its lifetime): there, while Muse Code answers
+  nothing, commands fail at once and the log says why.
+  */
   readonly unresponsive?: UnresponsiveHostDeps
   readonly log: Logger
   readonly extensionVersion: string
@@ -151,10 +151,10 @@ const META_API_KEY = 'META_API_KEY'
 const PROXY_VARIABLES = ['HTTPS_PROXY', 'HTTP_PROXY'] as const
 
 /**
- * The CLI lookup's reads (M39): a missing file or folder is simply absent,
- * but one that cannot be read is said in the log, or "CLI not found" would
- * hide a permission problem.
- */
+The CLI lookup's reads (M39): a missing file or folder is simply absent,
+but one that cannot be read is said in the log, or "CLI not found" would
+hide a permission problem.
+*/
 function unlessMissing<T>(log: Logger, what: string, read: () => T, absent: T): T {
   try {
     return read()
@@ -180,12 +180,12 @@ function listDirectoryOrEmpty(log: Logger, directory: string): readonly string[]
 }
 
 /**
- * The feature ports the host is built with: while contributor mode is on,
- * the host's `serve` runs with `--contributor-mode on` (see `resolveLaunch`
- * and `contributorModeEnabled`), so its catalogue carries each listed
- * model's `-contributor` counterpart. Off leaves the caller's ports
- * untouched.
- */
+The feature ports the host is built with: while contributor mode is on,
+the host's `serve` runs with `--contributor-mode on` (see `resolveLaunch`
+and `contributorModeEnabled`), so its catalogue carries each listed
+model's `-contributor` counterpart. Off leaves the caller's ports
+untouched.
+*/
 function withContributorMode(
   ports: MuseCodeFeaturePorts | undefined,
   isEnabled: boolean,
@@ -195,11 +195,11 @@ function withContributorMode(
 
 export class MuseCodeBackendManager {
   /**
-   * The runtime's journal when no manager carries its own (the ACP agent
-   * installs it through `installUsageRecording`): forwarded onto the
-   * bundle's host class at every bundle load, since dist/museCode.js
-   * carries its own copy of that class and its static.
-   */
+  The runtime's journal when no manager carries its own (the ACP agent
+  installs it through `installUsageRecording`): forwarded onto the
+  bundle's host class at every bundle load, since dist/museCode.js
+  carries its own copy of that class and its static.
+  */
   public static usageRecording: UsageRecording | undefined
   private hostPromise: Promise<MuseCodeHost> | undefined
   /** The Linux capability probe of the last started host (F91); one probe per start. */
@@ -209,20 +209,20 @@ export class MuseCodeBackendManager {
   private resourceStop = new AbortController()
   private launchCache: { readonly key: string; readonly resolution: LaunchResolution } | undefined
   /**
-   * How the last host's run ended in failure (`HostExit.isFailure`): the
-   * replacement host carries it, so the first turn that fails for a lost
-   * sign-in names the restart instead of failing quietly (F94). Only the
-   * restart that carries it clears it: a fault's Restart goes through
-   * `dispose`, and the failure it follows must still name the next start.
-   */
+  How the last host's run ended in failure (`HostExit.isFailure`): the
+  replacement host carries it, so the first turn that fails for a lost
+  sign-in names the restart instead of failing quietly (F94). Only the
+  restart that carries it clears it: a fault's Restart goes through
+  `dispose`, and the failure it follows must still name the next start.
+  */
   private failedExit: string | undefined
   /**
-   * The spawn generation the watchdog's own restart is stopping: that
-   * stop answers an unresponsive backend, so its exit still names the
-   * next start (Codex on PR #211). Stamped in `hostUnresponsive`, consumed
-   * by the stale exit. A user-asked Restart or an account-ending stop
-   * never stamps it; a stale stamp can never match a later generation.
-   */
+  The spawn generation the watchdog's own restart is stopping: that
+  stop answers an unresponsive backend, so its exit still names the
+  next start (Codex on PR #211). Stamped in `hostUnresponsive`, consumed
+  by the stale exit. A user-asked Restart or an account-ending stop
+  never stamps it; a stale stamp can never match a later generation.
+  */
   private recoveryStopGeneration: number | undefined
 
   private readonly loadBackend: () => MuseCodeBundle
@@ -252,11 +252,11 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * Whether any of `names` is set, non-empty, in what the CLI would see
-   * without VS Code's proxy: the inherited environment and
-   * `museSpark.environmentVariables`, in either case on POSIX, so a
-   * lowercase `https_proxy` set either way is never contradicted.
-   */
+  Whether any of `names` is set, non-empty, in what the CLI would see
+  without VS Code's proxy: the inherited environment and
+  `museSpark.environmentVariables`, in either case on POSIX, so a
+  lowercase `https_proxy` set either way is never contradicted.
+  */
   private isOwnVariableSet(names: readonly string[]): boolean {
     const own = buildChildEnvironment({
       platform: process.platform,
@@ -282,10 +282,10 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * The SDK reports a host whose schema fingerprint differs from its pin. A
-   * build known to be an additive successor is an info line naming it; any
-   * other difference stays a warning (0.9.1: every 1.4.0 start warned).
-   */
+  The SDK reports a host whose schema fingerprint differs from its pin. A
+  build known to be an additive successor is an info line naming it; any
+  other difference stays a warning (0.9.1: every 1.4.0 start warned).
+  */
   private logFingerprint(warning: FingerprintWarning | undefined): void {
     if (warning === undefined) {
       return
@@ -540,11 +540,11 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * Muse Code stopped answering (the watchdog, CLI recovery), told once an
-   * episode: new commands already fail at once. With no turn running in any
-   * conversation of this window, it is restarted now and that is said;
-   * while one runs, its panel offers the restart, which stops that turn.
-   */
+  Muse Code stopped answering (the watchdog, CLI recovery), told once an
+  episode: new commands already fail at once. With no turn running in any
+  conversation of this window, it is restarted now and that is said;
+  while one runs, its panel offers the restart, which stops that turn.
+  */
   private async hostUnresponsive(unresponsive: UnresponsiveHostDeps): Promise<void> {
     if (unresponsive.isTurnRunning()) {
       this.deps.log.warn('Muse Code is not answering while a turn runs: its panel offers a restart')
@@ -579,15 +579,15 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * The environment `muse serve` runs in: the extension host's, the
-   * Windows PowerShell module path, VS Code's proxy when none is set, and
-   * `museSpark.environmentVariables` on top; with any proxy, loopback
-   * bypasses it so Muse Code reaches the extension's `ide` server (M56).
-   */
+  The environment `muse serve` runs in: the extension host's, the
+  Windows PowerShell module path, VS Code's proxy when none is set, and
+  `museSpark.environmentVariables` on top; with any proxy, loopback
+  bypasses it so Muse Code reaches the extension's `ide` server (M56).
+  */
   /**
-   * The Muse Code backend's bundle (dist/museCode.js), required the first
-   * time the backend starts: the host class and the two SDK spawn paths.
-   */
+  The Muse Code backend's bundle (dist/museCode.js), required the first
+  time the backend starts: the host class and the two SDK spawn paths.
+  */
   public museCodeBundle(): MuseCodeBundle {
     return this.loadBackend()
   }
@@ -614,11 +614,11 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * Where `muse serve` gets its proxy, for the Diagnostics report (M56):
-   * its own environment (inherited or `environmentVariables`), VS Code's
-   * `http.proxy`, or nowhere. Muse Code reads the proxy variables only; a
-   * proxy VS Code finds in the system settings or a PAC file does not reach it.
-   */
+  Where `muse serve` gets its proxy, for the Diagnostics report (M56):
+  its own environment (inherited or `environmentVariables`), VS Code's
+  `http.proxy`, or nowhere. Muse Code reads the proxy variables only; a
+  proxy VS Code finds in the system settings or a PAC file does not reach it.
+  */
   public proxySource(): 'environment' | 'vscode' | 'none' {
     if (this.isOwnVariableSet(PROXY_VARIABLE_SPELLINGS)) {
       return 'environment'
@@ -642,12 +642,12 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * What the Linux capability probe measured (F91): whether Muse Code's
-   * sandbox can start on this machine. Undefined where the probe does not
-   * apply (off Linux, or the sandbox off) or while no host has started. A
-   * stale cache never answers while the current posture is off: turning
-   * `museSpark.shellSandbox` off after a probe ran reads as not checked.
-   */
+  What the Linux capability probe measured (F91): whether Muse Code's
+  sandbox can start on this machine. Undefined where the probe does not
+  apply (off Linux, or the sandbox off) or while no host has started. A
+  stale cache never answers while the current posture is off: turning
+  `museSpark.shellSandbox` off after a probe ran reads as not checked.
+  */
   public shellSandboxReadiness(): LinuxSandboxReadiness | undefined {
     return process.platform !== 'linux' || !this.shellSandboxPosture().isSandboxed
       ? undefined
@@ -655,11 +655,11 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * The cached probe, or one fresh probe when it applies and none ran yet
-   * (the Diagnostics report reads this before any host has started).
-   * Applicability is checked before the cache, so a posture change is
-   * honoured even when only an earlier run populated it.
-   */
+  The cached probe, or one fresh probe when it applies and none ran yet
+  (the Diagnostics report reads this before any host has started).
+  Applicability is checked before the cache, so a posture change is
+  honoured even when only an earlier run populated it.
+  */
   public async readShellSandboxReadiness(
     posture?: ShellSandboxPosture,
   ): Promise<LinuxSandboxReadiness | undefined> {
@@ -675,19 +675,19 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * Where the CLI is, or why it could not be found. Resolved once per set of
-   * inputs (the setting, PATH, the serve flags); a found CLI is re-checked
-   * with one file probe, so an uninstall is noticed. `invalidateLaunch`
-   * forgets the answer (a retry, a sign-in).
-   */
+  Where the CLI is, or why it could not be found. Resolved once per set of
+  inputs (the setting, PATH, the serve flags); a found CLI is re-checked
+  with one file probe, so an uninstall is noticed. `invalidateLaunch`
+  forgets the answer (a retry, a sign-in).
+  */
   /**
-   * Whether the person's own Muse Code settings enable contributor mode, as
-   * the `serve` this manager starts will see them: the settings file in the
-   * config home of the child's own environment (an account home moves it,
-   * like the credential file). Read at each spawn — a running host keeps
-   * its lifetime posture — and never defaulted on: missing, unreadable or
-   * malformed reads as off.
-   */
+  Whether the person's own Muse Code settings enable contributor mode, as
+  the `serve` this manager starts will see them: the settings file in the
+  config home of the child's own environment (an account home moves it,
+  like the credential file). Read at each spawn — a running host keeps
+  its lifetime posture — and never defaulted on: missing, unreadable or
+  malformed reads as off.
+  */
   public contributorModeEnabled(): boolean {
     return isContributorModeEnabled({
       platform: process.platform,
@@ -748,10 +748,10 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * Where the CLI keeps its sign-in, as `muse serve` will see it: an
-   * `XDG_CONFIG_HOME` in `museSpark.environmentVariables` moves it (the
-   * check and the CLI would otherwise disagree, Claude Code #66499).
-   */
+  Where the CLI keeps its sign-in, as `muse serve` will see it: an
+  `XDG_CONFIG_HOME` in `museSpark.environmentVariables` moves it (the
+  check and the CLI would otherwise disagree, Claude Code #66499).
+  */
   public credentialFilePath(): string {
     return credentialFilePath({
       platform: process.platform,

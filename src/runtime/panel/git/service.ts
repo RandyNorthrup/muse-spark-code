@@ -484,10 +484,10 @@ function slashed(folder: string): string {
 }
 
 /**
- * A store error that leaves a path unreadable: missing, denied or
- * unresolvable. Anything else (a bug above the store) is not a probe's
- * answer to give.
- */
+A store error that leaves a path unreadable: missing, denied or
+unresolvable. Anything else (a bug above the store) is not a probe's
+answer to give.
+*/
 export function isUnreadableStoreError(error: unknown): boolean {
   return (
     isMissingPath(error) ||
@@ -569,10 +569,10 @@ function headBranch(gitDir: string): string | undefined {
 }
 
 /**
- * What the service reads of the host's deps: the bound root and its git,
- * the window's signal and trust, the push's environment, the host's
- * admission, the data folder for held checkouts, and the log.
- */
+What the service reads of the host's deps: the bound root and its git,
+the window's signal and trust, the push's environment, the host's
+admission, the data folder for held checkouts, and the log.
+*/
 export type NativeGitServiceDeps = Pick<
   RuntimeGitDeps,
   | 'repositoryRoot'
@@ -1190,12 +1190,12 @@ export class NativeGitService {
   }
 
   /**
-   * What a pull request's draft prompt names (M71's `pullRequestPrompt`):
-   * the subjects of the branch's commits since `remote/base` (at most
-   * GIT_PROMPT_COMMITS_MAX) and the files it changed. When git has no
-   * `remote/base` yet, the base is fetched first, in the user's Git
-   * environment and through the repository's transaction, as M71 does.
-   */
+  What a pull request's draft prompt names (M71's `pullRequestPrompt`):
+  the subjects of the branch's commits since `remote/base` (at most
+  GIT_PROMPT_COMMITS_MAX) and the files it changed. When git has no
+  `remote/base` yet, the base is fetched first, in the user's Git
+  environment and through the repository's transaction, as M71 does.
+  */
   public async branchSince(
     remote: string,
     base: string,

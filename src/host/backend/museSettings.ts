@@ -37,14 +37,14 @@ export function museSettingsPath(input: CredentialPathInput): string {
 }
 
 /**
- * Whether the person's own Muse Code settings enable contributor mode:
- * top-level `contributor_mode_enabled` exactly `true` (read 2026-10-18 on
- * CLI 1.4.10: the installed settings hold `"contributor_mode_enabled":
- * true` beside `schema_version`, and `muse --help` / `muse serve --help`
- * document `--contributor-mode <on|off>` as the per-run override of it).
- * Missing, unreadable, malformed or any other value reads as off: nothing
- * of ours defaults it on. Read only; the extension never writes this file.
- */
+Whether the person's own Muse Code settings enable contributor mode:
+top-level `contributor_mode_enabled` exactly `true` (read 2026-10-18 on
+CLI 1.4.10: the installed settings hold `"contributor_mode_enabled":
+true` beside `schema_version`, and `muse --help` / `muse serve --help`
+document `--contributor-mode <on|off>` as the per-run override of it).
+Missing, unreadable, malformed or any other value reads as off: nothing
+of ours defaults it on. Read only; the extension never writes this file.
+*/
 export function isContributorModeEnabled(deps: MuseSettingsDeps): boolean {
   const text = deps.readTextFile(museSettingsPath(deps))
   if (text === undefined) {

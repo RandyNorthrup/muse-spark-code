@@ -16,10 +16,10 @@ export interface ConnectorScrub {
 }
 
 /**
- * Our own projections' enum fields: protocol words, not user text, so an
- * account name such as "user" cannot turn them into a marker (as M118's
- * prompt share keeps `scope`). Every other string is scrubbed.
- */
+Our own projections' enum fields: protocol words, not user text, so an
+account name such as "user" cannot turn them into a marker (as M118's
+prompt share keeps `scope`). Every other string is scrubbed.
+*/
 const PROTOCOL_KEYS: ReadonlySet<string> = new Set([
   'scope',
   'state',

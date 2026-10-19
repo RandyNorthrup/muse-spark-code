@@ -26,10 +26,10 @@ function withoutTrailingSlash(normal: string): string {
 }
 
 /**
- * Whether a recorder-produced file may bypass workspace confinement in the
- * media open hook. Only the host's own recording temp root qualifies; a
- * workspace file never takes this path.
- */
+Whether a recorder-produced file may bypass workspace confinement in the
+media open hook. Only the host's own recording temp root qualifies; a
+workspace file never takes this path.
+*/
 export function isRecordingTempPath(recordingTempRoot: string, fsPath: string): boolean {
   const root = withoutTrailingSlash(normalPath(recordingTempRoot))
   const normal = normalPath(fsPath)
@@ -41,16 +41,16 @@ export interface LatestRecordingHost {
   /** Owner-only directory for private latest-copy previews. */
   readonly tempRoot: string
   /**
-   * Redirect-aware Videos folder (Windows known folder). Absent means
-   * `homeDir/Videos`; the caller resolves it on win32 with
-   * `resolveWindowsVideosDir`.
-   */
+  Redirect-aware Videos folder (Windows known folder). Absent means
+  `homeDir/Videos`; the caller resolves it on win32 with
+  `resolveWindowsVideosDir`.
+  */
   readonly videosDir?: string
   /**
-   * Fresh owner-only directory for one preview copy. Required on Windows:
-   * `chmod` cannot set its ACL (mirrors `convert.ts`). Absent means
-   * `mkdtemp` under `tempRoot` plus `chmod`, which is owner-only on POSIX.
-   */
+  Fresh owner-only directory for one preview copy. Required on Windows:
+  `chmod` cannot set its ACL (mirrors `convert.ts`). Absent means
+  `mkdtemp` under `tempRoot` plus `chmod`, which is owner-only on POSIX.
+  */
   readonly createPrivateDirectory?: () => Promise<string>
 }
 
@@ -59,9 +59,9 @@ export interface LatestRecordingPlatformHost extends LatestRecordingHost {
 }
 
 /**
- * Best-effort disposal after a failed preview copy: a disposal that fails
- * too is moot, since the copy's own error is the news that crosses.
- */
+Best-effort disposal after a failed preview copy: a disposal that fails
+too is moot, since the copy's own error is the news that crosses.
+*/
 async function settleCopyDispose(dispose: () => Promise<void>): Promise<void> {
   try {
     await dispose()
@@ -71,12 +71,12 @@ async function settleCopyDispose(dispose: () => Promise<void>): Promise<void> {
 }
 
 /**
- * Real fs-backed latest-recording discovery (the core `findLatestRecording`
- * port): nonrecursive scans of the OS recordings locations, symlinks and
- * special files rejected, private owner-only copies under the host's
- * recording temp root, sniffed with M1 before return. Failures carry fixed
- * words only; the caller's reasons name no path.
- */
+Real fs-backed latest-recording discovery (the core `findLatestRecording`
+port): nonrecursive scans of the OS recordings locations, symlinks and
+special files rejected, private owner-only copies under the host's
+recording temp root, sniffed with M1 before return. Failures carry fixed
+words only; the caller's reasons name no path.
+*/
 function createLatestPort(
   roots: readonly string[],
   host: Pick<LatestRecordingHost, 'tempRoot' | 'createPrivateDirectory'>,
@@ -163,21 +163,21 @@ export function createLinuxLatestPort(host: LatestRecordingHost): LatestRecordin
 }
 
 /**
- * The Snipping Tool location: `Screen Recordings` under the Videos known
- * folder. `host.videosDir` carries the redirected folder (OneDrive, Group
- * Policy, the Location setting) resolved with `resolveWindowsVideosDir`;
- * absent means the profile's Videos folder.
- */
+The Snipping Tool location: `Screen Recordings` under the Videos known
+folder. `host.videosDir` carries the redirected folder (OneDrive, Group
+Policy, the Location setting) resolved with `resolveWindowsVideosDir`;
+absent means the profile's Videos folder.
+*/
 export function createWindowsLatestPort(host: LatestRecordingHost): LatestRecordingPort {
   const videos = host.videosDir ?? path.join(host.homeDir ?? homedir(), 'Videos')
   return createLatestPort([path.join(videos, 'Screen Recordings')], host)
 }
 
 /**
- * Whether a Desktop file name is a Screenshot recording: the app saves
- * `Screen Recording <date> at <time>.mov` (a bare `Screen Recording.mov`
- * also qualifies); exports and downloads never match.
- */
+Whether a Desktop file name is a Screenshot recording: the app saves
+`Screen Recording <date> at <time>.mov` (a bare `Screen Recording.mov`
+also qualifies); exports and downloads never match.
+*/
 export function isScreenshotRecordingName(fileName: string): boolean {
   return /^Screen Recording(?: \d{4}-\d{2}-\d{2} at .+)?\.mov$/u.test(fileName)
 }
@@ -189,14 +189,14 @@ export function createMacosLatestPort(host: LatestRecordingHost): LatestRecordin
 }
 
 /**
- * The Videos known folder (FOLDERID_Videos, the same folder the native
- * helper's `--latest` reads) through the operating system, so OneDrive,
- * Group Policy and Location-setting redirects resolve: .NET's
- * `GetFolderPath('MyVideos')` calls `SHGetKnownFolderPath` underneath.
- * Absolute system PowerShell, no shell, bounded; anything the system will
- * not say (other platforms included) is undefined and the caller keeps its
- * homedir fallback. Never throws.
- */
+The Videos known folder (FOLDERID_Videos, the same folder the native
+helper's `--latest` reads) through the operating system, so OneDrive,
+Group Policy and Location-setting redirects resolve: .NET's
+`GetFolderPath('MyVideos')` calls `SHGetKnownFolderPath` underneath.
+Absolute system PowerShell, no shell, bounded; anything the system will
+not say (other platforms included) is undefined and the caller keeps its
+homedir fallback. Never throws.
+*/
 export interface WindowsVideosDeps {
   readonly systemRoot?: string
   readonly run?: (executable: string, args: readonly string[]) => Promise<string>
@@ -263,13 +263,13 @@ export interface WindowsPrivateDirectoryDeps {
 }
 
 /**
- * A fresh owner-only directory for one preview copy on Windows: `mkdtemp`
- * under `tempRoot`, then the inherited ACL is replaced with a single grant
- * to the object's owner (OWNER RIGHTS, `*S-1-3-4`), verified through the
- * operating system before the copy starts. Absolute system tools, no shell,
- * bounded; anything the system will not confirm throws and the caller keeps
- * its fixed-word refusal. Never returns an unprotected directory.
- */
+A fresh owner-only directory for one preview copy on Windows: `mkdtemp`
+under `tempRoot`, then the inherited ACL is replaced with a single grant
+to the object's owner (OWNER RIGHTS, `*S-1-3-4`), verified through the
+operating system before the copy starts. Absolute system tools, no shell,
+bounded; anything the system will not confirm throws and the caller keeps
+its fixed-word refusal. Never returns an unprotected directory.
+*/
 export async function createWindowsPrivateDirectory(
   tempRoot: string,
   deps: WindowsPrivateDirectoryDeps = {},

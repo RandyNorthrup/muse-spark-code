@@ -39,9 +39,9 @@ export interface SessionBudgetState {
 export interface SessionBudgetConfig {
   read(): SessionBudgetState
   /**
-   * Throws `SessionBudgetInvalidError` for an invalid value; anything else
-   * it throws is the store's failure and reaches the caller with its cause.
-   */
+  Throws `SessionBudgetInvalidError` for an invalid value; anything else
+  it throws is the store's failure and reaches the caller with its cause.
+  */
   write(value: UsdAmount, scope: SessionBudgetScope): Promise<void>
 }
 
@@ -102,10 +102,10 @@ export type SessionBudgetApplyOutcome =
   | { readonly status: 'failed'; readonly error: string }
 
 /**
- * The budget value itself is invalid (the setting's own schema refused
- * it). Anything else a write throws is the store's failure, which still
- * throws so the saver reports it with its cause.
- */
+The budget value itself is invalid (the setting's own schema refused
+it). Anything else a write throws is the store's failure, which still
+throws so the saver reports it with its cause.
+*/
 export class SessionBudgetInvalidError extends Error {
   public constructor() {
     super(UI_TEXT.wizardSessionBudgetInvalid)

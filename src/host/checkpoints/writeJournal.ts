@@ -383,9 +383,9 @@ export class WriteJournal {
   }
 
   /**
-   * Best-effort stage removal after a failed blob write: the failure that
-   * stopped the blob stays the one reported; a stage left is never read.
-   */
+  Best-effort stage removal after a failed blob write: the failure that
+  stopped the blob stays the one reported; a stage left is never read.
+  */
   private async removeStage(stage: string): Promise<void> {
     try {
       await this.fs.rm(stage, { force: true })

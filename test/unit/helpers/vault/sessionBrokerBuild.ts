@@ -5,9 +5,9 @@ import { build } from 'esbuild'
 import { vaultPeerExecutable } from '../../../../src/runtime/vault/posixNative'
 
 /**
- * Compile the POSIX peer and bundle broker fixture children: each pair is a
- * helper entry and its dist output, built with the generated admission.
- */
+Compile the POSIX peer and bundle broker fixture children: each pair is a
+helper entry and its dist output, built with the generated admission.
+*/
 export async function buildBrokerChildren(
   root: string,
   pairs: readonly (readonly [entry: string, output: string])[],

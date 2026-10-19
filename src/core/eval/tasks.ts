@@ -44,16 +44,16 @@ export const evalTaskSchema = z.object({
   /** Successful assertions required before the verifier can report completion. */
   assertions: z.number().check(z.int(), z.minimum(0)),
   /**
-   * Built so one tool output is long enough to pack and is needed again
-   * after it would be (M73): a packing arm must engage on it.
-   */
+  Built so one tool output is long enough to pack and is needed again
+  after it would be (M73): a packing arm must engage on it.
+  */
   isLongOutput: z.optional(z.literal(true)),
   /**
-   * Built so the first request already fills nine tenths of the
-   * auto-compaction arm's window (M101): the prompt carries the long log
-   * itself, since file reads are capped at half a window in characters. An
-   * auto-compaction arm must engage on it.
-   */
+  Built so the first request already fills nine tenths of the
+  auto-compaction arm's window (M101): the prompt carries the long log
+  itself, since file reads are capped at half a window in characters. An
+  auto-compaction arm must engage on it.
+  */
   isLongContext: z.optional(z.literal(true)),
 })
 export type EvalTask = z.infer<typeof evalTaskSchema>
@@ -67,10 +67,10 @@ export function isEvalPath(path: string): boolean {
 }
 
 /**
- * What every verifier starts with. It runs with the workspace as its first
- * argument and its own folder (beside the workspace) as the working folder,
- * where it may write scratch files.
- */
+What every verifier starts with. It runs with the workspace as its first
+argument and its own folder (beside the workspace) as the working folder,
+where it may write scratch files.
+*/
 export const EVAL_VERIFY_PRELUDE = [
   "import rawAssert from 'node:assert/strict'",
   "import { existsSync, readFileSync, writeFileSync, writeSync } from 'node:fs'",
@@ -110,10 +110,10 @@ export const EVAL_VERIFY_PRELUDE = [
 const PACKAGE_JSON = { path: 'package.json', content: '{\n  "type": "module"\n}\n' }
 
 /**
- * A long evidence file (M73): numbered records padded to one width, with
- * the one that matters in the middle, outside the first and last lines a
- * packed placeholder keeps.
- */
+A long evidence file (M73): numbered records padded to one width, with
+the one that matters in the middle, outside the first and last lines a
+packed placeholder keeps.
+*/
 function evidenceFile(middle: string): string {
   const lines = Array.from({ length: EVAL_LONG_EVIDENCE_LINES }, (_, index) =>
     (index + 1 === EVAL_LONG_EVIDENCE_MIDDLE_LINE
@@ -142,9 +142,9 @@ const LONG_OUTPUT_PROMPT =
   'Read evidence.txt entirely first. Then read phase-one.txt and follow its instructions; each phase read must be a separate response. Recover the middle record as phase-two.txt directs, then'
 
 /**
- * A long log carried by the prompt itself (M101): numbered lines padded to
- * one width, with the one that matters on the value line.
- */
+A long log carried by the prompt itself (M101): numbered lines padded to
+one width, with the one that matters on the value line.
+*/
 function compactBulk(middle: string): string {
   const lines = Array.from({ length: EVAL_COMPACT_BULK_LINES }, (_, index) =>
     (index + 1 === EVAL_COMPACT_VALUE_LINE
@@ -500,14 +500,14 @@ export function evalTasksOfSplit(split: EvalSplit): readonly EvalTask[] {
 }
 
 /**
- * The context window a task runs under, on every arm alike (M101 R2): the
- * evaluation window for a long-context task, so the first request fills it
- * and the arm can compact at its first settled tool boundary; undefined
- * elsewhere, so the driver keeps the shipped window (a long-output task's
- * evidence needs whole file reads). The window is harness condition, never
- * a mechanism: the frozen digest pins this rule's source and each task's
- * resolved window beside the arm behaviour.
- */
+The context window a task runs under, on every arm alike (M101 R2): the
+evaluation window for a long-context task, so the first request fills it
+and the arm can compact at its first settled tool boundary; undefined
+elsewhere, so the driver keeps the shipped window (a long-output task's
+evidence needs whole file reads). The window is harness condition, never
+a mechanism: the frozen digest pins this rule's source and each task's
+resolved window beside the arm behaviour.
+*/
 export function evalWindowTokens(task: EvalTask): number | undefined {
   return task.isLongContext === true ? EVAL_COMPACT_WINDOW_TOKENS : undefined
 }

@@ -215,10 +215,10 @@ export class VaultFleet {
     return this.workers.get(access) === worker && !worker.controller.signal.aborted
   }
   /**
-   * Rolls a failed access back: the worker stops, its route closes, its
-   * registration goes, and the broker ends the requester. The failure keeps
-   * its kind past the rollback.
-   */
+  Rolls a failed access back: the worker stops, its route closes, its
+  registration goes, and the broker ends the requester. The failure keeps
+  its kind past the rollback.
+  */
   private async abortAccess(
     worker: Worker,
     route: VaultWorkerRoute,

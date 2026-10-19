@@ -102,10 +102,10 @@ type ExportAnswer =
   ReportExportOutcome | { readonly ok: false; readonly reason: ReportExportReason }
 
 /**
- * The VS Code issue reporter after our preview (D72): supported fields only,
- * never `data`. A refused open throws to `run`, which answers the dialog in
- * its fixed word and records the failure's kind.
- */
+The VS Code issue reporter after our preview (D72): supported fields only,
+never `data`. A refused open throws to `run`, which answers the dialog in
+its fixed word and records the failure's kind.
+*/
 async function openVscodeReporter(
   draft: SealedReportDraft,
   io: ReportEditorIo,

@@ -42,7 +42,7 @@ const catalogSchema = z.strictObject({
 })
 export interface AccountUsageSource {
   /** Return each current projection once: period history plus every unresolved
-   * reservation/uncertainty before end, even when created before start. */
+  reservation/uncertainty before end, even when created before start. */
   records(range: Range & { readonly includeOutstanding: true }): unknown
   events(range: Range): unknown
 }

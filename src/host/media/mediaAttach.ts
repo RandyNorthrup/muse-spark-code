@@ -64,7 +64,7 @@ export interface MediaAttachDeps {
   readonly capabilities: (modelId: string) => MediaModelCapabilities
   readonly limits: () => MediaLimits
   /** Register the approved source and its digest with the host's attached-media
-   * registry; `release` lets go of it when its chip is discarded. */
+  registry; `release` lets go of it when its chip is discarded. */
   readonly bind: (
     file: PickedFile,
     info: MediaFileInfo,
@@ -76,19 +76,19 @@ export interface MediaAttachDeps {
   /** The conversation ends: every registration this port made and no turn holds goes. */
   readonly release?: () => void
   /**
-   * D85.7: one `MediaContributorConsent` per port over the editor's own
-   * modal (built by the host, so this bundle stays small). On a contributor
-   * model, video and audio ask once per conversation; a screen recording
-   * always asks. Absent there, the attachment is refused rather than sent
-   * unasked.
-   */
+  D85.7: one `MediaContributorConsent` per port over the editor's own
+  modal (built by the host, so this bundle stays small). On a contributor
+  model, video and audio ask once per conversation; a screen recording
+  always asks. Absent there, the attachment is refused rather than sent
+  unasked.
+  */
   readonly chooseContributor?: MediaContributorConsent['choose']
   /**
-   * Lane V seam 3B: whether this host transcribes attached sound for the
-   * model (Muse Voice on, the Model API key's transcription POST). A
-   * standalone audio file the model does not hear is then admitted, and the
-   * caller says it will be transcribed; absent, the gate's refusal stands.
-   */
+  Lane V seam 3B: whether this host transcribes attached sound for the
+  model (Muse Voice on, the Model API key's transcription POST). A
+  standalone audio file the model does not hear is then admitted, and the
+  caller says it will be transcribed; absent, the gate's refusal stands.
+  */
   readonly transcribesSound?: (info: MediaFileInfo, modelId: string) => boolean
 }
 

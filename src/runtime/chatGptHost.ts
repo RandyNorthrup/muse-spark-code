@@ -18,11 +18,11 @@ const RECORD_ACCOUNT = `${PROVIDER_SECRET_PREFIX}chatgpt`
 const HOST_ACCOUNT = `${RECORD_ACCOUNT}.host-id`
 
 /**
- * The grant's OS-store calls. A refusal is the credential store's and is
- * said as such: the sign-in core's guard would otherwise report any foreign
- * error as a temporary ChatGPT failure (findings F14 and F78: a Windows
- * Credential Manager size refusal read "ChatGPT is temporarily unavailable").
- */
+The grant's OS-store calls. A refusal is the credential store's and is
+said as such: the sign-in core's guard would otherwise report any foreign
+error as a temporary ChatGPT failure (findings F14 and F78: a Windows
+Credential Manager size refusal read "ChatGPT is temporarily unavailable").
+*/
 async function grantStore<T>(work: () => Promise<T>): Promise<T> {
   try {
     return await storeOperation(work)
@@ -49,9 +49,9 @@ export async function createRuntimeChatGptHost(
 ): Promise<ChatGptHostPort> {
   const lock = { ...options.lock, ...(options.signal !== undefined && { signal: options.signal }) }
   /**
-   * One JSON entry of the grant's store, validated on the way in and out;
-   * `code` names which entry could not be read or kept.
-   */
+  One JSON entry of the grant's store, validated on the way in and out;
+  `code` names which entry could not be read or kept.
+  */
   const readStored = async <T>(
     account: string,
     schema: z.ZodMiniType<T>,

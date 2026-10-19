@@ -546,10 +546,10 @@ async function settled(promise: Promise<unknown>): Promise<void> {
 }
 
 /**
- * Parses one file line: undefined for a crashed writer's partial tail.
- * Only the parser's own malformed-input failure reads that way; anything
- * else still throws.
- */
+Parses one file line: undefined for a crashed writer's partial tail.
+Only the parser's own malformed-input failure reads that way; anything
+else still throws.
+*/
 export function safeParseLine(line: string): TeamLedgerRow | undefined {
   let value: unknown
   try {

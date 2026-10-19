@@ -144,18 +144,18 @@ export interface ProductionMediaDeps {
 }
 
 /** One upload ledger per account (provider plus account id): a switched key
- * starts in its own empty directory, so a fresh upload never fails on
- * another account's state, and another account's files are never replayed.
- * The ledger's own account check still guards a replaced directory. */
+starts in its own empty directory, so a fresh upload never fails on
+another account's state, and another account's files are never replayed.
+The ledger's own account check still guards a replaced directory. */
 export function productionMediaDirectory(directory: string, accountId: string): string {
   return accountLedgerDirectory(directory, accountId)
 }
 
 /**
- * The uploads' authorization (the header's D85.6/D85.7 rule): the gate's
- * own refusal, and Meta's Files API only. It lives in this lazy bundle
- * rather than the Model API bundle's host wiring (RVMEDIAV3 sizes).
- */
+The uploads' authorization (the header's D85.6/D85.7 rule): the gate's
+own refusal, and Meta's Files API only. It lives in this lazy bundle
+rather than the Model API bundle's host wiring (RVMEDIAV3 sizes).
+*/
 const authorizeMetaUpload: ReplayMediaDeps['authorize'] = (_media, model, gate, signal) => {
   signal.throwIfAborted()
   if (!gate.ok) throw new Error(gate.reason)
@@ -217,10 +217,10 @@ export function createProductionMediaReplay(deps: ProductionMediaDeps): ReplayMe
 }
 
 /**
- * An attached record's own token's reverifying source (RVMEDIAV2: by the
- * token it resolved through, never by matching bytes), else the workspace
- * reopen a tool-read file uses. Neither guesses a path.
- */
+An attached record's own token's reverifying source (RVMEDIAV2: by the
+token it resolved through, never by matching bytes), else the workspace
+reopen a tool-read file uses. Neither guesses a path.
+*/
 export function attachedOrWorkspaceSource(
   attached: Pick<AttachedMediaPort, 'source'> | undefined,
   workspace: ReplayMediaDeps['source'],

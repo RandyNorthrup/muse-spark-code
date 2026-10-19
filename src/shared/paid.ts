@@ -91,10 +91,10 @@ export function searchSettlement(
 export type PaidUseDecision = boolean | PaidQuote | undefined
 
 /**
- * Why the paid-choice store could not be read or written, as a closed kind:
- * the person is told its translated word (`paidStoreReasonText`), never an
- * errno or an error's name.
- */
+Why the paid-choice store could not be read or written, as a closed kind:
+the person is told its translated word (`paidStoreReasonText`), never an
+errno or an error's name.
+*/
 export type PaidStoreFailureKind = 'denied' | 'diskFull' | 'unknown'
 
 /** Maps a store throw onto the closed kind, from its errno code only. */
@@ -123,10 +123,10 @@ export function paidStoreReasonText(kind: PaidStoreFailureKind): string {
 }
 
 /**
- * Saved "always" choices the quote store could not list when the question
- * was asked: the store failure's closed kind, never its message. The surface
- * shows its word with the question, so asking again never looks unexplained.
- */
+Saved "always" choices the quote store could not list when the question
+was asked: the store failure's closed kind, never its message. The surface
+shows its word with the question, so asking again never looks unexplained.
+*/
 export interface PaidQuoteNotice {
   readonly kind: PaidStoreFailureKind
 }
