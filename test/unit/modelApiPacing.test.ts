@@ -28,7 +28,8 @@ function observed(pacing: ModelApiPacing, account: string) {
       remainingRequests: 0,
       tokens: 1000,
       remainingTokens: 1000,
-      windowMs: 100,
+      requestWindowMs: 100,
+      tokenWindowMs: 100,
     },
     0,
   )
@@ -89,7 +90,14 @@ describe('pacing follows the provider, not our own pace (NOLIMITS2 C2)', () => {
     const pacing = pacer()
     pacing.observe(
       'small',
-      { requests: 10, remainingRequests: 10, tokens: 1000, remainingTokens: 0, windowMs: 100 },
+      {
+        requests: 10,
+        remainingRequests: 10,
+        tokens: 1000,
+        remainingTokens: 0,
+        requestWindowMs: 100,
+        tokenWindowMs: 100,
+      },
       0,
     )
     const waits: number[] = []
@@ -108,7 +116,14 @@ describe('pacing follows the provider, not our own pace (NOLIMITS2 C2)', () => {
     // A minute's window with no request left: the wait is seconds long.
     pacing.observe(
       'stuck',
-      { requests: 10, remainingRequests: 0, tokens: 1000, remainingTokens: 0, windowMs: 60_000 },
+      {
+        requests: 10,
+        remainingRequests: 0,
+        tokens: 1000,
+        remainingTokens: 0,
+        requestWindowMs: 60_000,
+        tokenWindowMs: 60_000,
+      },
       0,
     )
     const controller = new AbortController()
