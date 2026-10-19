@@ -289,7 +289,7 @@ Designed baselines with reasons (accepted, not forgotten):
 | src/host/browser       | 10      | 6       |
 | src/host/checkpoints   | 14      | 6       |
 | src/host/commands      | 17      | 2       |
-| src/host/conversation  | 102     | 9       |
+| src/host/conversation  | 6       | 0       |
 | src/host/editor        | 9       | 0       |
 | src/host/estimator     | 1       | 0       |
 | src/host/git           | 20      | 5       |

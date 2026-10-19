@@ -6680,6 +6680,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/extensionHooks.js',
   'dist/pluginHooks.js',
   'dist/conversationGit.js',
+  'dist/conversationTransfer.js',
   'dist/judge.js',
   'dist/uiTextRuntime.js',
   'dist/uiTextHooks.js',

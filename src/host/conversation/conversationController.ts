@@ -252,7 +252,7 @@ import type { DescribedFile, EditReviewActions, ReviewNotice } from '../editor/e
 import { LegalFixPreviews, type LegalFixFileAccess, type LegalFixApplier } from '../legalFix'
 import type { ReviewCollection } from '../review/reviewCollector'
 import type { ReviewTurnFeatures } from '../review/reviewBundle'
-import { errorDetail, type Logger } from '../logger'
+import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import type { TasksTabPort, TasksTabView } from '../views/tasksTabPort'
 
@@ -296,11 +296,8 @@ import {
   type NoticeLevel,
   type PendingMark,
 } from './conversationCheckpoints'
-import {
-  type ConversationExports,
-  exportConversation,
-  type ExportOutcome,
-} from './exportConversation'
+import type { ConversationExports, ExportOutcome } from './exportConversation'
+import type * as TransferBundle from './conversationTransferEntry'
 import type { BestOfNManager } from '../bestOfN/bestOfNManager'
 import type * as SessionBoardBundle from '../sessionBoardEntry'
 
@@ -308,12 +305,8 @@ import type { BestOfNRun } from '../../shared/bestOfN'
 
 import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 import { type AttentionNotice, attentionNotice, notifyOpenQuestions } from './turnNotifications'
-import { importRefusal, messageCount, type SessionExport } from '../../core/export/sessionTransfer'
-import {
-  type PickedTransferFile,
-  readTransferDocument,
-  type SessionTransferFiles,
-} from './sessionImport'
+import type { SessionExport } from '../../core/export/sessionTransfer'
+import type { PickedTransferFile, SessionTransferFiles } from './sessionImport'
 import type { ReportDataSource, ReportProblemMessage } from './reportProblemHandler'
 import type { ReportEditorIo } from '../support/reportProblem'
 import type * as ReportBundle from '../support/reportEntry'
@@ -1511,6 +1504,8 @@ export class ConversationController {
   /** Report a problem (M93): the dialog's handler, one per surface, loaded with dist/report.js. */
   private reportHandler:
     Promise<{ handle: (message: ReportProblemMessage) => Promise<void> }> | undefined
+  /** Session transfer (M30, M84): the export and import flows, one per surface, loaded with dist/conversationTransfer.js. */
+  private transferBundlePromise: Promise<typeof TransferBundle> | undefined
   /**
    * Messages of this session accepted as queued or steered that may still be
    * taken back (M87, PLAN.md D66), by their card's local id: the only ids an
@@ -1949,6 +1944,7 @@ export class ConversationController {
     try {
       port.open(this.tasksTabView(sessionId))
     } catch (error: unknown) {
+      this.deps.log.warn(`Opening the tasks tab failed: ${failureForLog(error)}`)
       this.notice('error', `${failed}: ${describe(error)}`)
       return
     }
@@ -2013,7 +2009,7 @@ export class ConversationController {
     try {
       await session.cancel()
     } catch (error: unknown) {
-      this.deps.log.warn(`turn/cancel before leaving the session failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`turn/cancel before leaving the session failed: ${failureForLog(error)}`)
     }
   }
 
@@ -2207,7 +2203,7 @@ export class ConversationController {
       })
     } catch (error: unknown) {
       this.autoApproved.delete(event.approvalId)
-      this.deps.log.warn(`Edit automatically could not approve: ${describeForLog(error)}`)
+      this.deps.log.warn(`Edit automatically could not approve: ${failureForLog(error)}`)
       this.forward(event)
     }
   }
@@ -2297,7 +2293,7 @@ export class ConversationController {
       })
     } catch (error: unknown) {
       this.deps.log.warn(
-        `The Auto reviewer could not be loaded; the user decides: ${describeForLog(error)}`,
+        `The Auto reviewer could not be loaded; the user decides: ${failureForLog(error)}`,
       )
       const card = { ...event, note: UI_TEXT.autoReviewerFailed }
       this.forward(card)
@@ -2469,6 +2465,9 @@ export class ConversationController {
         )
         this.notice('info', UI_TEXT.viewGapReloaded)
       } catch (error: unknown) {
+        this.deps.log.warn(
+          `The transcript reload after dropped events failed: ${failureForLog(error)}`,
+        )
         if (generation === this.sendInvalidationEpoch && this.session === session) {
           this.notice(
             'warning',
@@ -2556,7 +2555,7 @@ export class ConversationController {
         this.forward(shown)
         this.track(shown)
       } catch (error: unknown) {
-        this.deps.log.warn(`An assistant message could not be shown: ${describe(error)}`)
+        this.deps.log.warn(`An assistant message could not be shown: ${failureForLog(error)}`)
       }
     })()
     return true
@@ -2707,7 +2706,8 @@ export class ConversationController {
               this.forward(shown)
               this.track(shown)
             })
-            .catch(() => {
+            .catch((error: unknown) => {
+              this.deps.log.warn(`A question answer could not be shown: ${failureForLog(error)}`)
               this.say('error', UI_TEXT.questionAnswerFailed)
             })
           return
@@ -2720,7 +2720,8 @@ export class ConversationController {
           void sessionQuestions
             .get(this.session)
             ?.settle(event.userInputId, event.outcome)
-            .catch(() => {
+            .catch((error: unknown) => {
+              this.deps.log.warn(`A question answer could not be settled: ${failureForLog(error)}`)
               this.say('error', UI_TEXT.questionAnswerFailed)
             })
         }
@@ -2740,7 +2741,10 @@ export class ConversationController {
               if (reminder !== undefined && this.session === session && !this.isDisposed)
                 this.deps.notifyAttention(notifyOpenQuestions(session.sessionId, event.turnId))
             })
-            .catch(() => {
+            .catch((error: unknown) => {
+              this.deps.log.warn(
+                `A question turn-end could not be recorded: ${failureForLog(error)}`,
+              )
               this.say('error', UI_TEXT.questionAnswerFailed)
             })
         }
@@ -3156,7 +3160,8 @@ export class ConversationController {
     let scheme: string
     try {
       scheme = new URL(url).protocol
-    } catch {
+    } catch (error: unknown) {
+      this.deps.log.warn(`A link could not be opened: ${failureForLog(error)}`)
       this.notice('warning', UI_TEXT.linkSchemeRefused)
       return
     }
@@ -3213,6 +3218,7 @@ export class ConversationController {
       // run on. The card offers the choice again only when the host still
       // waits on this stage (one decision per stage, D26); otherwise it
       // follows the host's own events.
+      this.deps.log.warn(`An approval decision failed: ${failureForLog(error)}`)
       this.notice('warning', `${UI_TEXT.decisionErrorNotice}: ${describe(error)}`, undefined, error)
       if (isDecisionNotAppliedError(error)) {
         this.post({ type: 'approvalReopened', approvalId: message.approvalId })
@@ -3271,6 +3277,7 @@ export class ConversationController {
     } catch (error: unknown) {
       // A refused answer unlocks the form, as a refused question answer
       // does (M25): the user fixes the named field and sends again.
+      this.deps.log.warn(`An elicitation answer failed: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`)
     }
   }
@@ -3396,6 +3403,7 @@ export class ConversationController {
         this.promptSettled(error, { userInputId })
         return
       }
+      this.deps.log.warn(`Cancelling a question failed: ${failureForLog(error)}`)
       this.say('error', `${UI_TEXT.questionCancelFailed}: ${describe(error)}`)
     }
   }
@@ -3420,6 +3428,7 @@ export class ConversationController {
         this.promptSettled(error, { userInputId: message.userInputId })
         return
       }
+      this.deps.log.warn(`Answering a question failed: ${failureForLog(error)}`)
       this.say('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`)
     }
   }
@@ -3445,6 +3454,7 @@ export class ConversationController {
         return
       }
       // An error notice unlocks the card, as a refused answer does (M25).
+      this.deps.log.warn(`Explaining a question failed: ${failureForLog(error)}`)
       this.say('error', `${UI_TEXT.clarifyNotAccepted}: ${describe(error)}`)
     }
   }
@@ -3467,6 +3477,7 @@ export class ConversationController {
     try {
       await run(session)
     } catch (error: unknown) {
+      this.deps.log.warn(`A task command failed: ${failureForLog(error)}`)
       this.notice('warning', `${failure}: ${describe(error)}`, undefined, error)
       this.post({ type: 'taskRefused', itemId })
     }
@@ -3494,6 +3505,7 @@ export class ConversationController {
     try {
       await this.session.stopAllTasks()
     } catch (error: unknown) {
+      this.deps.log.warn(`Stopping every background task failed: ${failureForLog(error)}`)
       this.notice('warning', `${UI_TEXT.stopTaskFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -3548,11 +3560,11 @@ export class ConversationController {
         this.noteActivity()
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A command the user typed failed: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || !this.isAuthAdmitted()) {
         return
       }
       const reason = `${UI_TEXT.userShellFailed}: ${describe(error)}`
-      this.deps.log.warn(reason)
       this.post({ type: 'userShellRefused', command: trimmed, reason })
     } finally {
       this.turnSubmissionsInFlight -= 1
@@ -3619,13 +3631,14 @@ export class ConversationController {
         eof: page.eof,
       })
     } catch (error: unknown) {
+      this.deps.log.warn(`A stored-output page could not be read: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || this.session !== session) {
         return
       }
       const text = `${UI_TEXT.outputLoadFailed}: ${describe(error)}`
       if (this.hasSaidOutputFailure) {
         this.deps.log.warn(
-          `${describeForLog(error)} (item ${message.itemId}; said once in the panel)`,
+          `${failureForLog(error)} (item ${message.itemId}; said once in the panel)`,
         )
         return
       }
@@ -3660,6 +3673,7 @@ export class ConversationController {
     try {
       result = await this.deps.readToolImage(imagePath)
     } catch (error: unknown) {
+      this.deps.log.warn(`A tool row's picture could not be read: ${failureForLog(error)}`)
       result = { ok: false, reason: describe(error) }
     }
     if (generation !== this.sendInvalidationEpoch) {
@@ -3701,6 +3715,7 @@ export class ConversationController {
           : { startLine: message.startLine, endLine: message.endLine },
       )
     } catch (error: unknown) {
+      this.deps.log.warn(`A tool row's file could not be opened: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.openFileFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -3732,6 +3747,7 @@ export class ConversationController {
       }
       await this.deps.openDocument(title, stored ?? message.text)
     } catch (error: unknown) {
+      this.deps.log.warn(`A tool row's output could not be opened: ${failureForLog(error)}`)
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.openOutputFailed}: ${describe(error)}`, undefined, error)
       }
@@ -3929,6 +3945,7 @@ export class ConversationController {
       }
       return notices.every((notice) => notice.level === 'info')
     } catch (error: unknown) {
+      this.deps.log.warn(`A review of git's changes failed: ${failureForLog(error)}`)
       if (this.isCurrentSessionAction(session, generation)) {
         if (action === 'revert' && this.isRevertRefused(turnStartEpoch)) {
           this.notice('info', UI_TEXT.restoreTurnRunning)
@@ -4127,10 +4144,10 @@ export class ConversationController {
         ...(skill.argumentHint !== undefined && { argumentHint: skill.argumentHint }),
       }))
     } catch (error: unknown) {
+      this.deps.log.warn(`skill/list failed: ${failureForLog(error)}`)
       if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
         return
       }
-      this.deps.log.warn(`skill/list failed: ${describeForLog(error)}`)
       this.skills = []
     }
     this.postSkills()
@@ -4316,7 +4333,7 @@ export class ConversationController {
     void this.refreshSkills(session)
     if (session.schedules !== undefined) {
       void session.schedules.list().catch((error: unknown) => {
-        this.deps.log.warn(`Scheduled prompts could not be loaded: ${describeForLog(error)}`)
+        this.deps.log.warn(`Scheduled prompts could not be loaded: ${failureForLog(error)}`)
       })
     }
   }
@@ -4440,7 +4457,7 @@ export class ConversationController {
       // A broken package is said, not swallowed: without the read there is
       // no offer, and the conversation would otherwise continue silently on
       // stale links (GROK-m116k P2).
-      this.deps.log.warn(`The bundled skills could not be offered: ${describeForLog(error)}`)
+      this.deps.log.warn(`The bundled skills could not be offered: ${failureForLog(error)}`)
       this.say('warning', fill(UI_TEXT.bundledSkillsOfferFailed, { reason: describe(error) }))
     }
   }
@@ -4529,6 +4546,7 @@ export class ConversationController {
         this.ideSessions.add(loaded.session)
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A session could not be continued: ${failureForLog(error)}`)
       this.resumeTarget = undefined
       this.notice('warning', `${UI_TEXT.sessionNotContinued}: ${describe(error)}`, undefined, error)
       return undefined
@@ -4577,6 +4595,7 @@ export class ConversationController {
         approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
       )
     } catch (error: unknown) {
+      this.deps.log.warn(`The permission mode was not applied: ${failureForLog(error)}`)
       this.notice(
         'warning',
         `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
@@ -4792,10 +4811,10 @@ export class ConversationController {
               record.sessionId,
               questions.filter((entry) => entry.state === 'open').length,
             )
-          } catch {
+          } catch (error: unknown) {
+            this.deps.log.warn(`A history question count is unavailable: ${failureForLog(error)}`)
             if (generation !== this.sendInvalidationEpoch) return
             this.historyQuestionCounts.delete(record.sessionId)
-            this.deps.log.warn('History question count unavailable')
           }
         }
       }
@@ -4825,7 +4844,7 @@ export class ConversationController {
       }
       return bundle
     } catch (error: unknown) {
-      this.deps.log.error(`The session board bundle could not be loaded: ${describeForLog(error)}`)
+      this.deps.log.error(`The session board bundle could not be loaded: ${failureForLog(error)}`)
       throw new Error(UI_TEXT.boardUnavailable, { cause: error })
     }
   }
@@ -4986,6 +5005,7 @@ export class ConversationController {
       }
       this.post({ type: 'sessionBoard', rows: [...rows] })
     } catch (error: unknown) {
+      this.deps.log.warn(`The session board could not be read: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
         this.notice('error', `${UI_TEXT.boardTitle}: ${describe(error)}`, undefined, error)
       }
@@ -5014,6 +5034,7 @@ export class ConversationController {
         })
       } else await start()
     } catch (error: unknown) {
+      this.deps.log.warn(`A best-of-N run could not be started: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -5036,6 +5057,7 @@ export class ConversationController {
         this.notice('info', fill(UI_TEXT.bestOfNTaken, { branch: run.takenBranch }))
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A best-of-N attempt could not be taken: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -5049,6 +5071,7 @@ export class ConversationController {
       const manager = await this.bestOfN()
       await manager.cancel(runId)
     } catch (error: unknown) {
+      this.deps.log.warn(`A best-of-N run could not be cancelled: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -5232,6 +5255,7 @@ export class ConversationController {
     try {
       await loaded.session.setApprovalMode(target)
     } catch (error: unknown) {
+      this.deps.log.warn(`The permission mode was not applied: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
         this.notice(
           'warning',
@@ -5280,13 +5304,14 @@ export class ConversationController {
       }
       await this.adopt(host, loaded, UI_TEXT.resumedNotice, 'resumed')
     } catch (error: unknown) {
+      this.deps.log.warn(`A session could not be resumed: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch) {
         return
       }
       if (this.isFirstShowing(error)) {
         this.notice('error', `${UI_TEXT.resumeFailed}: ${describe(error)}`, undefined, error)
       } else {
-        this.deps.log.error(`resumeSession failed (shown already): ${describeForLog(error)}`)
+        this.deps.log.error(`resumeSession failed (shown already): ${failureForLog(error)}`)
       }
     }
   }
@@ -5325,6 +5350,7 @@ export class ConversationController {
       }
       await this.adopt(host, loaded, UI_TEXT.forkedNotice, 'forked')
     } catch (error: unknown) {
+      this.deps.log.warn(`A session could not be forked: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
         this.notice('error', `${UI_TEXT.forkFailed}: ${describe(error)}`, undefined, error)
       }
@@ -5440,6 +5466,7 @@ export class ConversationController {
       }
       return { message, source, host, generation, images }
     } catch (error: unknown) {
+      this.deps.log.warn(`A conversation could not be rewound: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
         this.notice(
           'error',
@@ -5477,6 +5504,7 @@ export class ConversationController {
       this.post({ type: 'restoreDraft', text: message.text })
       return true
     } catch (error: unknown) {
+      this.deps.log.warn(`A rewound conversation could not be applied: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
         this.notice(
           'error',
@@ -5547,6 +5575,7 @@ export class ConversationController {
         loaded.session.dispose()
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A side chat could not be opened: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
         this.notice('error', `${UI_TEXT.sideChatFailed}: ${describe(error)}`, undefined, error)
       }
@@ -5799,6 +5828,7 @@ export class ConversationController {
         this.say('warning', fill(UI_TEXT.planHiddenMarkup, { path }))
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`Saving a plan failed: ${failureForLog(error)}`)
       this.planFailed(UI_TEXT.planSaveFailed, error)
     }
   }
@@ -5980,6 +6010,7 @@ export class ConversationController {
         this.say('info', UI_TEXT.planTodosByModel)
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`Implementing a plan failed: ${failureForLog(error)}`)
       if (this.accountStopsInFlight === 0) {
         this.planFailed(UI_TEXT.planImplementFailed, error)
       }
@@ -6067,6 +6098,7 @@ export class ConversationController {
       }
       choice = await plans.choose(saved)
     } catch (error: unknown) {
+      this.deps.log.warn(`The saved plans could not be listed: ${failureForLog(error)}`)
       this.planFailed(UI_TEXT.plansFailed, error)
       return
     }
@@ -6075,6 +6107,7 @@ export class ConversationController {
         await this.deps.openFile(choice.plan.relativePath, undefined)
       } catch (error: unknown) {
         // Deleted after the pick, say: the reason in the panel, only its kind in the log (M39).
+        this.deps.log.warn(`A saved plan could not be opened: ${failureForLog(error)}`)
         this.planFailed(UI_TEXT.planOpenFailed, error)
       }
     } else if (choice?.action === 'implement') {
@@ -6261,6 +6294,7 @@ export class ConversationController {
       }
       return true
     } catch (error: unknown) {
+      this.deps.log.warn(`A handoff turn could not be distilled: ${failureForLog(error)}`)
       if (this.isCurrentHandoff(pending)) {
         this.handoffFailed(error)
       }
@@ -6326,6 +6360,7 @@ export class ConversationController {
       pending.todos = history.todos.filter((todo) => HANDOFF_OPEN_TODO_STATUSES.has(todo.status))
       this.postHandoffReady()
     } catch (error: unknown) {
+      this.deps.log.warn(`A handoff brief could not be read: ${failureForLog(error)}`)
       if (this.isStillCurrent(pending)) {
         this.pendingHandoff = undefined
         this.handoffFailed(error)
@@ -6427,6 +6462,7 @@ export class ConversationController {
     try {
       started = await this.startFromBrief(seeded, generation, () => this.isCurrentHandoff(pending))
     } catch (error: unknown) {
+      this.deps.log.warn(`A handoff could not be started: ${failureForLog(error)}`)
       this.post({ type: 'handoffCommandResult', requestId, accepted: false })
       if (this.isCurrentHandoff(pending)) {
         this.handoffFailed(error)
@@ -6484,6 +6520,7 @@ export class ConversationController {
         this.post({ type: 'agentEvent', event: { type: 'sessionNamed', name: canonical } })
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A session could not be renamed: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch && this.session === session) {
         this.notice('error', `${UI_TEXT.renameFailed}: ${describe(error)}`, undefined, error)
       }
@@ -6654,7 +6691,7 @@ export class ConversationController {
         message.turnId,
       )
     } catch (error: unknown) {
-      this.deps.log.warn(`The transcript for a restore could not be read: ${describeForLog(error)}`)
+      this.deps.log.warn(`The transcript for a restore could not be read: ${failureForLog(error)}`)
     }
     if (turnIds === undefined || this.session !== session || this.isTurnRunning()) {
       this.notice(
@@ -6719,7 +6756,7 @@ export class ConversationController {
         )
         return this.session === session && !this.isTurnRunning() ? ids : undefined
       } catch (error: unknown) {
-        this.deps.log.warn(`The transcript for a Redo could not be read: ${describeForLog(error)}`)
+        this.deps.log.warn(`The transcript for a Redo could not be read: ${failureForLog(error)}`)
         return
       }
     })
@@ -6867,7 +6904,7 @@ export class ConversationController {
       try {
         await this.deps.saveAll()
       } catch (error: unknown) {
-        this.deps.log.warn(`Autosave before the turn failed: ${describeForLog(error)}`)
+        this.deps.log.warn(`Autosave before the turn failed: ${failureForLog(error)}`)
       }
     }
     this.noteUnsaved()
@@ -7200,9 +7237,7 @@ export class ConversationController {
           question.outcome === 'notTaken'
             ? UI_TEXT.questionAnswerFailed
             : UI_TEXT.questionAnswerUncertain
-      this.deps.log.error(
-        `sendMessage failed: ${isComposerMessage ? describeForLog(error) : errorKind(error)}`,
-      )
+      this.deps.log.error(`sendMessage failed: ${failureForLog(error)}`)
       if (seededSession !== undefined) {
         this.takeBackTodos(seededSession)
       }
@@ -7704,6 +7739,7 @@ export class ConversationController {
         return
       }
       if (!this.deps.isWorkspaceTrusted()) {
+        this.deps.log.warn(`A legal scan was refused on untrusted content: ${failureForLog(error)}`)
         this.notice('warning', UI_TEXT.legalScanUntrusted)
         return
       }
@@ -7782,6 +7818,7 @@ export class ConversationController {
       try {
         ticket.cancel()
       } catch (error) {
+        this.deps.log.warn(`Cancelling a playbook review failed: ${failureForLog(error)}`)
         this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
       }
     }
@@ -7796,6 +7833,7 @@ export class ConversationController {
           ticket.observe(event)
           if (ticket.isClosed) stop()
         } catch (error) {
+          this.deps.log.warn(`A playbook review event could not be read: ${failureForLog(error)}`)
           failed(error)
         }
       })
@@ -7805,6 +7843,7 @@ export class ConversationController {
         ticket.bind(submission.turnId)
         if (ticket.isClosed) stop()
       } catch (error) {
+        this.deps.log.warn(`A playbook review turn could not be bound: ${failureForLog(error)}`)
         failed(error)
       }
       return submission
@@ -8197,8 +8236,9 @@ export class ConversationController {
       try {
         const patch = await this.fetchPatch(session, generation, edit.itemId, edit.outputRef)
         described = patch === undefined ? undefined : await this.deps.editReview.describe(patch)
-      } catch {
+      } catch (error: unknown) {
         if (!this.isCurrentSessionAction(session, generation)) {
+          this.deps.log.warn(`The review pane stopped while reading: ${failureForLog(error)}`)
           stopped()
           return
         }
@@ -8307,6 +8347,7 @@ export class ConversationController {
       }
       answer(outcome.isReverted, outcome.isReverted ? undefined : said)
     } catch (error: unknown) {
+      this.deps.log.warn(`A review hunk could not be reverted: ${failureForLog(error)}`)
       if (!this.isCurrentSessionAction(session, generation)) {
         stopped()
         return
@@ -8359,11 +8400,13 @@ export class ConversationController {
         result,
       })
     } catch (error: unknown) {
-      if (!stop.signal.aborted)
+      if (!stop.signal.aborted) {
+        this.deps.log.warn(`A legal explanation failed: ${failureForLog(error)}`)
         this.notice(
           'warning',
           fill(UI_TEXT.legalScanFailed, { reason: redactSecrets(describe(error)) }),
         )
+      }
     } finally {
       if (this.legalScanStop === stop) this.legalScanStop = undefined
     }
@@ -8444,7 +8487,9 @@ export class ConversationController {
       if (!this.isCurrentSessionAction(session, generation)) {
         throw error
       }
-      this.deps.log.info(`Session ${error.sessionId} was not loaded; resuming it`)
+      // Read off the narrowed error: the log names the session, never the failure text.
+      const missingSessionId: string = error.sessionId
+      this.deps.log.info(`Session ${missingSessionId} was not loaded; resuming it`)
       this.resumeTarget = { sessionId: error.sessionId, kind: host.info.kind }
       this.dropSession(false, true)
       const resumed = await this.ensureSession(this.deps.workspaceRoot)
@@ -8528,6 +8573,7 @@ export class ConversationController {
       this.noteActivity()
       result(true)
     } catch (error: unknown) {
+      this.deps.log.warn(`A goal command failed: ${failureForLog(error)}`)
       if (
         generation !== this.sendInvalidationEpoch ||
         this.accountStopsInFlight > 0 ||
@@ -8543,8 +8589,10 @@ export class ConversationController {
         return
       }
       if (isGoalRefusedError(error)) {
-        this.deps.log.info(`Goal ${verb} refused: ${error.refusal}`)
-        this.say('warning', goalRefusalText(verb, error.refusal))
+        // Read off the narrowed error: the log names the refusal, never the failure text.
+        const refusal: GoalRefusal = error.refusal
+        this.deps.log.info(`Goal ${verb} refused: ${refusal}`)
+        this.say('warning', goalRefusalText(verb, refusal))
         result(false)
         return
       }
@@ -8605,7 +8653,7 @@ export class ConversationController {
       }
       this.post({ type: 'agentEvent', event: { type: 'goalChanged', goal } })
     } catch (error: unknown) {
-      this.deps.log.warn(`goal refresh failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`goal refresh failed: ${failureForLog(error)}`)
     }
   }
 
@@ -8629,6 +8677,7 @@ export class ConversationController {
         this.say('info', fill(UI_TEXT.scheduleCreated, { id: job.id }))
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A schedule could not be created: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -8641,6 +8690,7 @@ export class ConversationController {
         this.say('info', UI_TEXT.scheduleNone)
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`The schedules could not be listed: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -8657,6 +8707,7 @@ export class ConversationController {
         fill(isRemoved ? UI_TEXT.scheduleCancelled : UI_TEXT.scheduleUnknown, { id }),
       )
     } catch (error: unknown) {
+      this.deps.log.warn(`A schedule could not be cancelled: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -8686,6 +8737,7 @@ export class ConversationController {
         })
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A schedules message could not be answered: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -8796,6 +8848,7 @@ export class ConversationController {
       this.requireNonConfidentialModel(session.modelId)
       await session.schedules.run(id, occurrenceMs, confirmed)
     } catch (error: unknown) {
+      this.deps.log.warn(`A scheduled run could not start: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
         this.notice(
           'error',
@@ -8815,7 +8868,7 @@ export class ConversationController {
     try {
       await this.session.cancel()
     } catch (error: unknown) {
-      this.deps.log.warn(`turn/cancel failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`turn/cancel failed: ${failureForLog(error)}`)
     }
   }
 
@@ -8859,7 +8912,10 @@ export class ConversationController {
           this.notice('warning', UI_TEXT.trainingBlocked)
           return false
         }
-      } catch {
+      } catch (error: unknown) {
+        this.deps.log.warn(
+          `The training check failed; the model is refused: ${failureForLog(error)}`,
+        )
         this.notice('warning', UI_TEXT.trainingBlocked)
         return false
       }
@@ -8915,6 +8971,7 @@ export class ConversationController {
           return
         }
       } catch (error: unknown) {
+        this.deps.log.warn(`The model could not be switched: ${failureForLog(error)}`)
         this.modelId = previous
         this.notice('error', `${UI_TEXT.modelSwitchFailed}: ${describe(error)}`, undefined, error)
         return
@@ -9013,6 +9070,7 @@ export class ConversationController {
       try {
         await session.setServiceTier(tierId)
       } catch (error: unknown) {
+        this.deps.log.warn(`Fast could not be switched: ${failureForLog(error)}`)
         this.fast = false
         this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
       }
@@ -9132,6 +9190,7 @@ export class ConversationController {
       try {
         await this.setSessionPermissionMode(session, target)
       } catch (error: unknown) {
+        this.deps.log.warn(`The permission mode could not be applied: ${failureForLog(error)}`)
         if (!isCurrent()) {
           return
         }
@@ -9231,6 +9290,7 @@ export class ConversationController {
         this.notice('info', UI_TEXT.compactionStoppedNotice)
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A conversation could not be compacted: ${failureForLog(error)}`)
       if (!this.isCurrentSessionAction(session, generation)) {
         return
       }
@@ -9257,7 +9317,7 @@ export class ConversationController {
     try {
       session = await this.sessionForAction()
     } catch (error: unknown) {
-      this.deps.log.warn(`The skills were not listed: ${describeForLog(error)}`)
+      this.deps.log.warn(`The skills were not listed: ${failureForLog(error)}`)
       return
     }
     if (session !== undefined) {
@@ -9270,7 +9330,7 @@ export class ConversationController {
       const items = await this.deps.mentions.search(query, MENTION_RESULT_LIMIT)
       this.post({ type: 'mentionResults', requestId, items: [...items] })
     } catch (error: unknown) {
-      this.deps.log.warn(`mention search failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`mention search failed: ${failureForLog(error)}`)
       this.post({ type: 'mentionResults', requestId, items: [] })
     }
   }
@@ -9291,6 +9351,7 @@ export class ConversationController {
     try {
       host = await this.deps.ensureHost()
     } catch (error: unknown) {
+      this.deps.log.warn(`An attachment could not be admitted: ${failureForLog(error)}`)
       if (
         this.isDisposed ||
         generation !== this.attachmentGeneration ||
@@ -9361,11 +9422,8 @@ export class ConversationController {
     try {
       checked = await this.deps.files.canonicalRelativePath(file.fsPath)
     } catch (error: unknown) {
-      if (!this.isCurrentAttachmentGeneration(generation)) {
-        return { kind: 'stale' }
-      }
-      this.deps.log.warn(`text attachment path check failed: ${describeForLog(error)}`)
-      return { kind: 'mention' }
+      this.deps.log.warn(`A text attachment path could not be checked: ${failureForLog(error)}`)
+      return { kind: this.isCurrentAttachmentGeneration(generation) ? 'mention' : 'stale' }
     }
     if (!this.isCurrentAttachmentGeneration(generation)) {
       return { kind: 'stale' }
@@ -9382,6 +9440,7 @@ export class ConversationController {
     try {
       isIndexed = await this.deps.mentions.contains(canonical)
     } catch (error: unknown) {
+      this.deps.log.warn(`A text attachment index check could not be read: ${failureForLog(error)}`)
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return { kind: 'stale' }
       }
@@ -9415,6 +9474,7 @@ export class ConversationController {
         [UI_TEXT.mentionFile]: ['*'],
       })
     } catch (error: unknown) {
+      this.deps.log.warn(`The file dialog failed: ${failureForLog(error)}`)
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return
       }
@@ -9481,10 +9541,10 @@ export class ConversationController {
             read = await this.deps.files.readFile(pathToRead, maxBytes)
           }
         } catch (error: unknown) {
+          this.deps.log.warn(`An attachment could not be read: ${failureForLog(error)}`)
           if (!this.isCurrentAttachmentGeneration(generation)) {
             return
           }
-          this.deps.log.warn(`attachment read failed: ${describeForLog(error)}`)
           this.post({
             type: 'attachmentRejected',
             name: file.name,
@@ -9555,7 +9615,7 @@ export class ConversationController {
     try {
       checked = await this.deps.files.canonicalRelativePath(file.fsPath)
     } catch (error: unknown) {
-      this.deps.log.warn(`media attachment path check failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`A media attachment path could not be checked: ${failureForLog(error)}`)
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return false
       }
@@ -9704,7 +9764,7 @@ export class ConversationController {
     try {
       await entry.dispose()
     } catch (error: unknown) {
-      this.deps.log.warn(`Recording cleanup failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`Recording cleanup failed: ${failureForLog(error)}`)
     }
   }
 
@@ -9721,7 +9781,7 @@ export class ConversationController {
       try {
         await entry.dispose()
       } catch (error: unknown) {
-        this.deps.log.warn(`Recording cleanup failed: ${describeForLog(error)}`)
+        this.deps.log.warn(`Recording cleanup failed: ${failureForLog(error)}`)
       }
     }
   }
@@ -9739,7 +9799,7 @@ export class ConversationController {
     this.recordingCancels.clear()
     for (const cancel of runs) {
       void cancel().catch((error: unknown) => {
-        this.deps.log.warn(`Recording cancel failed: ${describeForLog(error)}`)
+        this.deps.log.warn(`Recording cancel failed: ${failureForLog(error)}`)
       })
     }
   }
@@ -9750,6 +9810,7 @@ export class ConversationController {
     try {
       relativePath = await this.deps.files.pickMentionFile()
     } catch (error: unknown) {
+      this.deps.log.warn(`The mention file dialog failed: ${failureForLog(error)}`)
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return
       }
@@ -9769,7 +9830,9 @@ export class ConversationController {
       let name: string
       try {
         name = path.posix.basename(decodeURIComponent(new URL(uri).pathname).replaceAll('\\', '/'))
-      } catch {
+      } catch (error: unknown) {
+        // Named never: the dropped text is the user's own, not for the log.
+        this.deps.log.warn(`A dropped link could not be read: ${failureForLog(error)}`)
         continue
       }
       const extension = path.extname(name).toLowerCase()
@@ -9792,7 +9855,8 @@ export class ConversationController {
         checked = await this.deps.files.canonicalRelativePath(
           path.join(this.deps.workspaceRoot, relativePath),
         )
-      } catch {
+      } catch (error: unknown) {
+        this.deps.log.warn(`A dropped link could not be confined: ${failureForLog(error)}`)
         if (this.isCurrentAttachmentGeneration(generation))
           this.post({ type: 'attachmentRejected', name, reason: UI_TEXT.textFilePrivate })
         continue
@@ -9834,6 +9898,7 @@ export class ConversationController {
     try {
       await this.deps.runHostAction(action)
     } catch (error: unknown) {
+      this.deps.log.warn(`A host action failed: ${failureForLog(error)}`)
       this.notice(
         'error',
         `${fill(UI_TEXT.hostActionFailed, { action })}: ${describe(error)}`,
@@ -9884,6 +9949,7 @@ export class ConversationController {
       }
       await this.postUsage(host, subscription)
     } catch (error: unknown) {
+      this.deps.log.warn(`The usage could not be read: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`, undefined, error)
     } finally {
       await this.readUploadedFiles()
@@ -10024,6 +10090,7 @@ export class ConversationController {
       }
       await session.controlSubagent(subagentId, action)
     } catch (error: unknown) {
+      this.deps.log.warn(`A subagent could not be controlled: ${failureForLog(error)}`)
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
       }
@@ -10052,6 +10119,7 @@ export class ConversationController {
         })
       } else await send()
     } catch (error: unknown) {
+      this.deps.log.warn(`A subagent message could not be sent: ${failureForLog(error)}`)
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
       }
@@ -10072,20 +10140,27 @@ export class ConversationController {
       this.notice('info', UI_TEXT.exportWaitForTurn)
       return
     }
+    const transfer = await this.transferFlows(UI_TEXT.actionFailed)
+    if (transfer === undefined) {
+      return
+    }
     try {
       const host = await this.deps.ensureHost()
-      const outcome = await exportConversation(
+      const outcome = await transfer.exportConversationFlow(
         host,
         session,
         format,
         new Date(this.deps.now()),
         this.deps.exports,
+        UI_TEXT,
+        uiLocale(),
       )
       const notice = exportNotice(outcome)
       if (notice !== undefined) {
         this.notice(notice.level, notice.text)
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A conversation could not be exported: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.exportFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -10102,13 +10177,18 @@ export class ConversationController {
     try {
       picked = await this.deps.transferFiles.pickTransferFile(title)
     } catch (error: unknown) {
+      this.deps.log.warn(`A session-export file could not be picked: ${failureForLog(error)}`)
       this.notice('error', `${failure}: ${describe(error)}`, undefined, error)
       return undefined
     }
     if (this.isDisposed || picked.kind === 'dismissed') {
       return undefined
     }
-    const parsed = readTransferDocument(picked.content)
+    const transfer = await this.transferFlows(failure)
+    if (transfer === undefined) {
+      return undefined
+    }
+    const parsed = transfer.readTransferDocumentFlow(picked.content, UI_TEXT, uiLocale())
     if (!parsed.ok) {
       this.notice('error', `${failure}: ${parsed.reason}`)
       return undefined
@@ -10165,6 +10245,7 @@ export class ConversationController {
         this.lastEstimateSection = section
         this.post({ type: 'estimatorSection', ...correlation, section })
       } catch (error: unknown) {
+        this.deps.log.error(`The estimate failed: ${failureForLog(error)}`)
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
           return
         const diagnostic = estimateDiagnostic(error)
@@ -10193,6 +10274,7 @@ export class ConversationController {
       this.post({ type: 'estimatorStarted', ...correlation })
       this.notice('info', fill(UI_TEXT.estimateWaveStarted, { lanes: started.join(', ') }))
     } catch (error: unknown) {
+      this.deps.log.error(`The first wave failed: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
       const diagnostic = estimateDiagnostic(error)
       const reason = estimateFailureText(diagnostic)
@@ -10221,11 +10303,54 @@ export class ConversationController {
       handler = await this.reportProblemHandler(reports)
     } catch (error: unknown) {
       this.reportHandler = undefined
-      this.deps.log.error(`The report bundle could not be loaded: ${describe(error)}`)
+      this.deps.log.error(`The report bundle could not be loaded: ${failureForLog(error)}`)
       this.notice('error', UI_TEXT.actionFailed)
       return
     }
     await handler.handle(message)
+  }
+
+  /**
+   * Session transfer (M30, M84, PLAN.md D49) as the controller sees it: the
+   * export and import flows, required the first time one runs. Only types
+   * come from the transfer modules here: a value imported from one would
+   * carry the transfer back into dist/conversation.js, which the bundle-split
+   * gate refuses.
+   *
+   * There is no export or import without it: flows that cannot load their
+   * bundle are refused with the reason, the log has the cause, and the next
+   * flow tries again.
+   */
+  private transferBundle(): Promise<typeof TransferBundle> {
+    this.transferBundlePromise ??= (async () => {
+      const bundle: typeof TransferBundle = await import('./conversationTransferEntry')
+      if (
+        typeof bundle.exportConversationFlow !== 'function' ||
+        typeof bundle.readTransferDocumentFlow !== 'function' ||
+        typeof bundle.transferRefusalFlow !== 'function' ||
+        typeof bundle.transferMessageCountFlow !== 'function'
+      ) {
+        throw new TypeError('The transfer bundle does not export its transfer flows')
+      }
+      return bundle
+    })()
+    return this.transferBundlePromise
+  }
+
+  /**
+   * The session-transfer flows, loaded on first use: a bundle that cannot
+   * load posts the flow's fixed failure words (the log has the cause) and is
+   * tried again on the next run.
+   */
+  private async transferFlows(failure: string): Promise<typeof TransferBundle | undefined> {
+    try {
+      return await this.transferBundle()
+    } catch (error: unknown) {
+      this.transferBundlePromise = undefined
+      this.deps.log.error(`The transfer bundle could not be loaded: ${failureForLog(error)}`)
+      this.notice('error', failure)
+      return undefined
+    }
   }
 
   private reportProblemHandler(reports: ConversationReports): Promise<{
@@ -10292,7 +10417,11 @@ export class ConversationController {
       }
       // Refused before the confirmation (RV84 #10): a file past what the
       // model can read is not offered for import at all.
-      const refusal = importRefusal(doc)
+      const transfer = await this.transferFlows(UI_TEXT.importSessionFailed)
+      if (transfer === undefined) {
+        return
+      }
+      const refusal = transfer.transferRefusalFlow(doc, UI_TEXT, uiLocale())
       if (refusal !== undefined) {
         this.notice('error', `${UI_TEXT.importSessionFailed}: ${refusal}`)
         return
@@ -10306,7 +10435,10 @@ export class ConversationController {
         UI_TEXT.importPreviewTitle,
         fill(UI_TEXT.importPreviewDetail, {
           source: backendLabel(doc.sourceBackend),
-          messages: plural(UI_TEXT.exportPreviewMessages, messageCount(doc.transcript)),
+          messages: plural(
+            UI_TEXT.exportPreviewMessages,
+            transfer.transferMessageCountFlow(doc.transcript, UI_TEXT, uiLocale()),
+          ),
           model: this.modelId,
           mode: UI_TEXT.permissionModes[mode],
         }),
@@ -10325,6 +10457,7 @@ export class ConversationController {
       }
       await this.adopt(host, loaded, UI_TEXT.importedNotice, 'imported')
     } catch (error: unknown) {
+      this.deps.log.warn(`A session could not be imported: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
         this.notice('error', `${UI_TEXT.importSessionFailed}: ${describe(error)}`, undefined, error)
       }
@@ -10378,6 +10511,7 @@ export class ConversationController {
         items: [...items],
       })
     } catch (error: unknown) {
+      this.deps.log.warn(`A subagent transcript could not be read: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
         this.notice(
           'warning',
@@ -10673,7 +10807,7 @@ export class ConversationController {
         this.postSessionInfo(this.modelId)
       }
     } catch (error: unknown) {
-      this.deps.log.warn(`model warm-up failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`model warm-up failed: ${failureForLog(error)}`)
       // Whatever else waited on the same start fails with it now; a message's
       // own card says it better, so this says it only if nothing else did.
       await new Promise((resolve) => setImmediate(resolve))
@@ -10701,7 +10835,8 @@ export class ConversationController {
           throw new Error(UI_TEXT.reportUi.generationFailed)
         await this.showDeterministicReport(message.argumentsText)
         isAccepted = true
-      } catch {
+      } catch (error: unknown) {
+        this.deps.log.warn(`A deterministic report failed: ${failureForLog(error)}`)
         this.notice('warning', UI_TEXT.reportUi.generationFailed)
       }
       this.post({ type: 'reportCommandResult', requestId: message.requestId, accepted: isAccepted })
@@ -10834,7 +10969,8 @@ export class ConversationController {
         }
         try {
           await this.answerRegisteredQuestion(registry, message.userInputId, message.reply)
-        } catch {
+        } catch (error: unknown) {
+          this.deps.log.warn(`A late answer could not be sent: ${failureForLog(error)}`)
           this.say('error', UI_TEXT.answerNotAccepted)
         }
         break
@@ -10859,7 +10995,8 @@ export class ConversationController {
               false,
             )
           }
-        } catch {
+        } catch (error: unknown) {
+          this.deps.log.warn(`A question could not be dismissed: ${failureForLog(error)}`)
           this.say('error', UI_TEXT.questionDismissFailed)
         }
         break
@@ -11205,6 +11342,7 @@ export class ConversationController {
           this.beginBrowserSessionChange()
           await this.resumeSession(message.sessionId)
         } catch (error: unknown) {
+          this.deps.log.warn(`A best-of-N session change failed: ${failureForLog(error)}`)
           if (generation === this.sendInvalidationEpoch && !this.isDisposed)
             this.noticeBestOfNFailure(error)
         }
@@ -11223,6 +11361,7 @@ export class ConversationController {
           const manager = await this.bestOfN()
           await manager.open(message.attemptId, message.runId)
         } catch (error: unknown) {
+          this.deps.log.warn(`A best-of-N attempt could not be opened: ${failureForLog(error)}`)
           if (this.isDisposed) break
           this.noticeBestOfNFailure(error, message.attemptId)
         }
@@ -11531,16 +11670,14 @@ export class ConversationController {
   /**
    * Runs one message from the webview. The caller does not wait (a `void`
    * call), so a failure no step in `dispatch` caught would reach only VS Code's
-   * Extension Host log: it is logged here, with its stack, and said (M39),
+   * Extension Host log: it is logged here, by kind only, and said (M39),
    * unless the panel showed this very failure already (a shared start).
    */
   public async handle(message: ConversationMessage): Promise<void> {
     try {
       await this.dispatch(message)
     } catch (error: unknown) {
-      this.deps.log.error(
-        `${message.type} failed: ${isMspFailure(error) ? describeForLog(error) : errorDetail(error)}`,
-      )
+      this.deps.log.error(`${message.type} failed: ${failureForLog(error)}`)
       if (this.isFirstShowing(error)) {
         this.say('error', `${UI_TEXT.actionFailed}: ${describe(error)}`)
       }
@@ -11634,10 +11771,10 @@ export class ConversationController {
           approvalModeFor(FALLBACK_MODE, this.deps.hasApprovalUi),
         )
       } catch (error: unknown) {
+        this.deps.log.warn(`Bypass revocation: the mode change failed (${failureForLog(error)})`)
         if (!this.isCurrentSessionAction(session, generation)) {
           return
         }
-        this.deps.log.warn(`Bypass revocation: the mode change failed (${describeForLog(error)})`)
         this.retireBypassSession()
         return
       }
@@ -11967,7 +12104,7 @@ export class ConversationController {
         try {
           await session.cancel()
         } catch (error: unknown) {
-          this.deps.log.warn(`turn/cancel before the restart failed: ${describeForLog(error)}`)
+          this.deps.log.warn(`turn/cancel before the restart failed: ${failureForLog(error)}`)
         }
         this.endTurnLocally('cancelled', UI_TEXT.turnStoppedByRestart)
       }

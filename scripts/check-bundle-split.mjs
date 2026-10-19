@@ -1344,6 +1344,8 @@ const TEXT_BLOCKS = [
       // M124's prompt share preview reuses M118's share contract with it.
       CONNECTOR.output,
       'dist/conversation.js',
+      // CONVBUDGET: the session-transfer flows read the export redactions.
+      'dist/conversationTransfer.js',
       BUNDLES.modelApi.output,
       'dist/reporting.js',
       'dist/reportingNetwork.js',
