@@ -309,11 +309,20 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
         let tick: ReturnType<typeof setInterval> | undefined
         let killTimer: ReturnType<typeof setTimeout> | undefined
         let watchdog: ReturnType<typeof setTimeout>
+        const endHelper = () => {
+          try {
+            child.kill()
+          } catch {
+            // Already exited: nothing to end.
+          }
+        }
         const send = (command: string) => {
           try {
             child.send(command)
           } catch {
-            child.kill()
+            // The command channel is dead: ending the helper still delivers
+            // onExit, which settles the run.
+            endHelper()
           }
         }
         const terminate = (reason: string) => {
@@ -357,6 +366,8 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
             }
             settle({ ok: true, preview: { path: output, info, dispose } })
           } catch {
+            // An unverifiable recording delivers nothing: dispose and settle
+            // the mp4 refusal together, however disposal ends.
             try {
               await dispose()
             } finally {
@@ -433,6 +444,7 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
                 }
               }
             } catch {
+              // A malformed frame ends the run; the exit grace still settles it.
               terminate('protocol')
             }
             newline = pending.indexOf('\n')

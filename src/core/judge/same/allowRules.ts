@@ -159,7 +159,10 @@ export function checkStandingAllowRules(settingsText: string | undefined): Stand
   let settings: unknown
   try {
     settings = JSON.parse(settingsText) as unknown
-  } catch {
+  } catch (error: unknown) {
+    // JSON.parse throws only SyntaxError for text input: malformed settings
+    // fail closed, and anything else is a caller bug that must surface.
+    if (!(error instanceof SyntaxError)) throw error
     return { allowed: false, reason: 'settings-unreadable' }
   }
   const parsedSettings = settingsSchema.safeParse(settings)

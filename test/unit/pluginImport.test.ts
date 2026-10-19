@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 import { parseForeignHooks } from '../../src/core/backends/modelapi/hooks'
 import {
   type ImportCandidate,
+  type ImportScan,
   type ImportScanInput,
   scanAgentImports,
 } from '../../src/core/import/agentImport'
@@ -40,6 +41,11 @@ function input(
     ...overrides,
     io: memoryImportIo(tree),
   }
+}
+
+/** An Amp-only scan of a tree with failing reads or listings. */
+function scanFailingAmp(tree: MemoryImportTree): Promise<ImportScan> {
+  return scanAgentImports(input(tree, {}, ['amp']))
 }
 
 function summary(candidates: readonly ImportCandidate[]): readonly string[] {
@@ -197,6 +203,33 @@ describe('scanAgentImports: Amp and OpenCode plugins', () => {
     const lines = summary(scan.candidates)
     expect(lines.length).toBeGreaterThan(0)
     expect(lines.every((line) => line.includes('g.js'))).toBe(true)
+  })
+
+  it('warns and continues when a plugin file cannot be read', async () => {
+    const scan = await scanFailingAmp({
+      files: {
+        [`${HOME}/.config/amp/plugins/guard.ts`]: AMP_GUARD,
+        [`${HOME}/.config/amp/plugins/locked.ts`]: 'unreadable',
+      },
+      failing: { [`${HOME}/.config/amp/plugins/locked.ts`]: 'EACCES' },
+    })
+    // The readable plugin still imports; the unreadable one warns and skips.
+    expect(summary(scan.candidates).some((line) => line.includes('guard.ts'))).toBe(true)
+    expect(summary(scan.candidates).some((line) => line.includes('locked.ts'))).toBe(false)
+    expect(scan.warnings.some((warning) => warning.includes('could not be read'))).toBe(true)
+  })
+
+  it('warns and continues when a plugin folder cannot be listed', async () => {
+    const scan = await scanFailingAmp({
+      files: {
+        [`${HOME}/.config/amp/plugins/guard.ts`]: AMP_GUARD,
+        [`${WS}/.amp/plugins/team.js`]: `export default function (amp) { amp.on('session.start', () => {}) }`,
+      },
+      failing: { [`${WS}/.amp/plugins`]: 'EACCES' },
+    })
+    expect(summary(scan.candidates).some((line) => line.includes('guard.ts'))).toBe(true)
+    expect(summary(scan.candidates).some((line) => line.includes('team.js'))).toBe(false)
+    expect(scan.warnings.some((warning) => warning.includes('could not be listed'))).toBe(true)
   })
 
   it('refuses a personal plugin that leads into the open project, and reads no project plugin untrusted', async () => {

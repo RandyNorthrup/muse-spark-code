@@ -282,7 +282,9 @@ export function openCodeNpmPlugins(text: string): readonly string[] | undefined 
   let document: unknown
   try {
     document = JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    // JSON.parse throws only SyntaxError for text input.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   if (typeof document !== 'object' || document === null || !('plugin' in document)) {

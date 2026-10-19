@@ -316,6 +316,8 @@ function recordingRun(
     onCountdown(remaining)
     if (remaining === 0)
       void stop().catch(async () => {
+        // A failed automatic stop escalates to cancel; the encoder result
+        // owns cleanup however termination settles.
         try {
           // A failed automatic Stop terminates the writer, not the user's consent.
           await recording.cancel()
@@ -349,6 +351,8 @@ function recordingRun(
         else preview = { path: file.path, info, dispose }
       }
     } catch {
+      // A failed result attempt cancels the writer; the finally below still
+      // closes the session and disposes the file.
       try {
         await recording.cancel()
       } catch {
@@ -360,6 +364,8 @@ function recordingRun(
       try {
         await session.close()
       } catch {
+        // A close failure after a result keeps no preview: the file is
+        // disposed below, so nothing unverified is delivered.
         preview = undefined
         reason = UI_TEXT.media.recordingFailed
       } finally {
@@ -371,6 +377,8 @@ function recordingRun(
           try {
             await dispose()
           } catch {
+            // A failed private-file removal still reports failure; the
+            // owner-only directory bounds what stays behind.
             reason = UI_TEXT.media.recordingFailed
           }
       }
