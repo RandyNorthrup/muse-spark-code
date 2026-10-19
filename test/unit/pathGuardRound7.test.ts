@@ -51,6 +51,41 @@ describe('round-7 Windows team payload environment (real builder)', () => {
     expect(block.some((entry) => entry.startsWith('DROPPED='))).toBe(false)
   })
 
+  it('guards every PATH spelling, not just the first', () => {
+    // A second raw spelling used to survive the first sanitizing empty:
+    // the child reads the first spelling in block order, so the raw one
+    // became the payload PATH.
+    const guarded = workspaceChildEnvironment(
+      'win32',
+      { PATH: String.raw`C:\work\repo\bin`, Path: String.raw`C:\work\repo\tools` },
+      { workspaceRoot: WORKSPACE, realpath: (filePath) => filePath },
+    )
+    expect(guardedEnvironmentBlock(guarded)).toEqual(['NoDefaultCurrentDirectoryInExePath=1'])
+    const mixed = workspaceChildEnvironment(
+      'win32',
+      { PATH: String.raw`C:\work\repo\bin`, Path: SYSTEM_DIR },
+      { workspaceRoot: WORKSPACE, realpath: (filePath) => filePath },
+    )
+    expect(guardedEnvironmentBlock(mixed)).toEqual([
+      `Path=${SYSTEM_DIR}`,
+      'NoDefaultCurrentDirectoryInExePath=1',
+    ])
+  })
+
+  it('drops a preset current-directory-exclusion variable before setting it', () => {
+    // A preset `0` would otherwise shadow the canonical `1` in block
+    // order and re-enable working-directory-first resolution.
+    const guarded = workspaceChildEnvironment(
+      'win32',
+      { PATH: SYSTEM_DIR, nodefaultcurrentdirectoryinexepath: '0' },
+      { workspaceRoot: WORKSPACE, realpath: (filePath) => filePath },
+    )
+    expect(guardedEnvironmentBlock(guarded)).toEqual([
+      `PATH=${SYSTEM_DIR}`,
+      'NoDefaultCurrentDirectoryInExePath=1',
+    ])
+  })
+
   it('only a guarded environment serializes to a helper block', () => {
     // The block builder takes the branded type: a raw environment cannot
     // reach a native helper payload without going through the guard. A

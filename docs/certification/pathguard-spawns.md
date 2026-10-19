@@ -1,4 +1,4 @@
-# PATHGUARD spawn inventory — every program start and its guard (2026-10-18, lane PR249FIX5)
+# PATHGUARD spawn inventory — every program start and its guard (2026-10-18, lane PR249FIX6)
 
 One comparison (`isSameOrInsideDirectory` in `src/core/executables.ts`:
 device/verbatim prefixes stripped, `.\UNC\` mapped like `?\UNC\`,
@@ -10,11 +10,16 @@ a distinct name), `.`/`..` collapsed, case-insensitive on Windows, then
 realpath where the path exists), one lookup (every product name resolved
 outside a required workspace scope, links followed — the explicit
 `NO_WORKSPACE` sentinel where no folder is known), one child environment
-(`workspaceChildEnvironment` / `noWorkspaceChildEnvironment`: PATH
-sanitised, empty/relative/drive-relative/workspace entries dropped,
-`NoDefaultCurrentDirectoryInExePath=1` on Windows, branded
-`GuardedChildEnv` only they can produce, which the `runProgram` /
-`runTreeSync` runners and the plugin spawn require).
+(`workspaceChildEnvironment` / `noWorkspaceChildEnvironment`: every
+`PATH` spelling sanitised, empty/relative/drive-relative/workspace
+entries dropped, any preset `NoDefaultCurrentDirectoryInExePath`
+dropped before the canonical `=1` on Windows, branded `GuardedChildEnv`
+only they can produce, which every starter requires: the one guarded
+wrapper `spawnGuarded`/`execFileGuarded`
+(`src/core/guardedChildProcess.ts`), the `runProgram` / `runTreeSync`
+runners, the plugin spawn, the governed launch, and every native
+helper payload, which serializes only from the brand
+(`guardedEnvironmentBlock`)).
 `test/unit/pathGuardSpawns.test.ts` enumerates every direct
 child-process start in `src/` from the source itself (TypeScript AST: bare
 calls and references of names value-imported from `node:child_process`,
@@ -23,10 +28,12 @@ including `require`), every wrapper that ends in one (`runProgram`,
 `handoffResourceFile`, literal or variable command alike, including
 one-level aliases), every embedded supervisor script (a backtick literal
 spawning a process, where the playbook's `git` variable used to hide),
-and every raw governed launch, and fails on any file outside the lists
-below, on any listed file that loses its anchor, on any loosened branded
-signature, and on any `exec`/`execSync` import (shell strings stay
-banned, D4).
+and every raw governed launch. Only two modules may start a process
+directly — the guarded wrapper and the tree helpers — so the test fails
+on any direct starter anywhere else, on any listed file that loses its
+anchor, on any loosened branded signature, on any second cast to the
+brand, and on any `exec`/`execSync` import (shell strings stay
+banned, D4). Each start below names the guard the types enforce on it.
 
 ## Guarded in the file (lookup + child env)
 
@@ -62,7 +69,11 @@ banned, D4).
   `systemctl` resolve outside each launch's own working directory
   (links followed), with the guarded child env for the scope queries — a
   tool the probe saw but the launch directory shadows fails the launch
-  closed. Windows runs absolute PowerShell with the same guarded env.
+  closed. Windows runs absolute PowerShell with the same guarded env,
+  and the `RunTeam` payload block (`windowsTeamPayloadEnvironment`)
+  is the same guarded environment the POSIX launch uses — only a
+  branded environment serializes, so the raw request env cannot reach
+  `CreateProcessW`.
 - Playbook git (`src/core/orchestration/playbook/outcomes.ts`,
   `modules.ts`): every effect's command is `processGitPath(workspace)`
   (links followed), admitted and spawned absolute, with the guarded child
@@ -185,3 +196,14 @@ with a workspace working directory inherits a raw PATH.
   inventory additionally enumerates the governed command boundary and
   its one-level aliases (`exec`, `execFileAsync`), and pins the branded
   signatures it rests on.
+- Round-7 hunt (lane PR249FIX6): the compiler lists every starter or
+  payload that skips the brand (the one guarded wrapper, the governed
+  launch, the job payload, the serve spawn, the git/checkout/macos
+  ports, the login and schedule launch options). Grep over every
+  `string[]` environment serialization in `src/` (native-helper
+  payloads): the Windows team block and the MCP job payload build
+  only from the brand. Grep over every `PATH` spelling read on
+  Windows: the producers guard every casing and drop a preset
+  current-directory-exclusion variable. The inventory proves both
+  directions by breaking once (a planted raw `spawn`, a planted
+  `as GuardedChildEnv`).

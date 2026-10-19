@@ -375,3 +375,82 @@ never `--testTimeout`):
   `node scripts/check-host-api.mjs`: exit 0; `knip`: exit 0;
   `node scripts/cycles.mjs`: no cycles; `jscpd`: 0 clones;
   `npm run build`: exit 0 with budgets unchanged.
+
+## Fix (round 7, lane PR249FIX6, Grok re-review of PR #249)
+
+Round 6 branded `runProgram` / `runTreeSync` / plugin spawn, but the
+Windows team payload environment is a `string[]` the compiler does not
+see: `windowsTeamDriver` sanitized only the PowerShell helper while
+`CreateProcessW` received the raw `request.env`, so a team worker whose
+cwd is the workspace searched the workspace first for a bare
+`request.command` and kept absolute workspace `PATH` entries for the
+helpers it starts by bare name. The spawn inventory stayed green
+because the guard name still appeared in the file (on the helper).
+
+- `src/host/team/processLifetime.ts`: `windowsTeamPayloadEnvironment`
+  builds the `RunTeam` block from
+  `workspaceChildEnvironment('win32', request.env, ...)` — the same
+  object the POSIX launch uses — dropping workspace/`PATH` entries and
+  setting `NoDefaultCurrentDirectoryInExePath=1` on the payload.
+- The class, not the instance: direct `child_process` calls move behind
+  one guarded wrapper (`src/core/guardedChildProcess.ts`:
+  `spawnGuarded`/`execFileGuarded` take only the branded
+  `GuardedChildEnv`), and a native helper payload serializes only from
+  the brand (`guardedEnvironmentBlock`, `McpJobLaunch.env`). The
+  serve/login builder (`buildChildEnvironment`) returns the brand
+  through the same producers; `ResourceProcessOptions`,
+  `ResourceTreeRun`, the git/checkout/macos ports and the login and
+  schedule launch options all require it — the compiler lists every
+  site (29 errors across 14 files on the first typecheck, each fixed
+  at its cause).
+- Two spelling games closed in the producers themselves: on Windows
+  every `PATH` casing is guarded (a second raw spelling no longer
+  survives the first sanitizing empty), and a preset
+  `NoDefaultCurrentDirectoryInExePath=0` is dropped before the
+  canonical `1` is set.
+- `test/unit/pathGuardRound7.test.ts` drives the real payload builder
+  against a workspace planting (seen to fail with the builder
+  reverted: the planting and the missing guard variable fail, the
+  pass-through assertions still pass). The inventory now lists only
+  the two sanctioned direct starters (the wrapper and the tree
+  helpers), fails on any direct starter anywhere else (proven with a
+  planted raw `spawn`), and fails on any second cast to the brand
+  (proven with a planted `as GuardedChildEnv`).
+
+## Proof (round 7)
+
+`test/unit/pathGuardRound7.test.ts` (6 tests) and the extended
+`test/unit/pathGuardSpawns.test.ts` (7 tests), plus the guard suites
+`pathGuard` (17), `pathGuardRound4` (19), `pathGuardRound6` (4) and
+`executables` (9), all passing on the rig with the repository's own
+timeout (never `--testTimeout`):
+
+- The payload block keeps the system directory, drops the workspace
+  planting with every casing, empty and relative entries, sets
+  `NoDefaultCurrentDirectoryInExePath=1`, and passes other variables
+  through while dropping `undefined` ones.
+- The planted-`spawn` break fails the inventory with the file and
+  line; the planted-cast break fails the brand pin; both probes
+  removed after.
+- Related suites of every touched file pass: `treesLifecycleNative`,
+  `fileLease`, `nativeProcessDefaults`, `teamGitClassifier`,
+  `teamRefFence`, `sandbox`, `nativeGitCore`, `browserLaunch`,
+  `runtimePullRequestRecords`, `evalTasks`, `pluginDispatch`,
+  `heldTree`, `scheduleRegistration`, `mcpServers`, `handoff`,
+  `heldCheckoutCore`, `reservationLock`, `foreignHooks`, `worktrees`,
+  `supportReport`, `checkCommands`, `bestOfN`, `schedules`,
+  `importConvert`, `mediaContracts`. `inspectNative` fails 18
+  identically on the untouched base (the native confine helper
+  refuses on the rig) — measured, not assumed.
+- `npm run typecheck` (all five projects): exit 0. eslint zero
+  warnings (full `lint:js`); prettier clean; `check:l10n`:
+  0 problems; `check:plan`: 0 drift; `check:host-api`: refreshed
+  (`node:child_process` 29→22, `node:fs` 88→97, `node:util` 10→9)
+  then exit 0; `knip`: only pre-existing hints; `cycles.mjs`:
+  no cycles; `jscpd`: 0 clones (a shared producer-entries helper
+  plus the recorder test on the guarded starter; measured 2 clones
+  against 0 at base first); `npm run build`: exit 0 with budgets
+  unchanged; `security:sast` and `security:audit` as recorded on the
+  lane. (`check:reference` crashes identically on the untouched
+  base — pre-existing, unrelated: no command, setting or feature
+  changes in this lane.)
