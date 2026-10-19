@@ -3984,7 +3984,7 @@
     "few": "Limit plików wejściowych: {count}.",
     "many": "Limit plików wejściowych: {count}."
   },
-  "referenceTurnLimit": "Tury Model API mają domyślnie 200 wywołań modelu. Obowiązują istniejące limity wywołań wywołujących. Pierwsze wywołanie zawsze działa z narzędziami: odpowiedź kończy turę normalnie, żądanie narzędzia kończy ją na limicie żądań. Ostatnie wywołanie tury, która uruchamiała narzędzia, daje podsumowanie bez narzędzi; wyślij wiadomość, aby kontynuować.",
+  "referenceTurnLimit": "Żadna nasza liczba rund nie kończy tury Model API: trwa, dopóki model nie odpowie bez wywołania narzędzia, nie naciśniesz Stop, nie zatrzyma jej hook, nie odmówi dostawca albo nie wyczerpie się ustawiony przez ciebie limit. Własny przydział wywołującego nadal ją ogranicza: exec --max-requests albo pułap prób best-of-N. Pierwsze wywołanie zawsze używa narzędzi: odpowiedź kończy turę, żądanie narzędzia kończy ją na limicie żądań. Ostatnie wywołanie limitowanej tury z narzędziami odpowiada bez narzędzi i kończy się wynikiem max_turn_requests (headless exec zgłasza request_cap, exit 5); wyślij wiadomość, aby kontynuować.",
   "modelApiWrapUpReserved": "Pozostałe żądanie jest zarezerwowane na końcową odpowiedź. Obraz nie został wygenerowany.",
   "modelApiTurnLimit": {
     "one": "Tura zatrzymała się po {count} wywołaniu modelu. Wyślij wiadomość, aby kontynuować.",

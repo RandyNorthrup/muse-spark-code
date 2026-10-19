@@ -3826,7 +3826,7 @@
     "one": "Höchstens {count} Eingabedatei ist erlaubt.",
     "other": "Höchstens {count} Eingabedateien sind erlaubt."
   },
-  "referenceTurnLimit": "Model-API-Durchgänge haben standardmäßig 200 Modellaufrufe. Bestehende Aufruflimits von Aufrufern gewinnen. Der erste Aufruf läuft immer mit Werkzeugen: Eine Antwort schließt den Durchgang normal ab, eine Werkzeuganfrage beendet ihn am Anfrage-Limit. Der letzte Aufruf eines Durchgangs mit Werkzeugrunden liefert eine Zusammenfassung ohne Werkzeuge; senden Sie eine Nachricht, um fortzufahren.",
+  "referenceTurnLimit": "Keine Rundenanzahl von uns beendet einen Model-API-Durchgang: Er läuft, bis das Modell ohne Werkzeugaufruf antwortet, Sie Stop drücken, ein Hook ihn stoppt, der Anbieter ablehnt oder ein von Ihnen gesetztes Limit aufgebraucht ist. Eine eigene Vorgabe des Aufrufers begrenzt ihn weiterhin: exec --max-requests oder eine Best-of-N-Versuchsobergrenze. Der erste Aufruf läuft immer mit Werkzeugen: Eine Antwort schließt den Durchgang ab, eine Werkzeuganfrage beendet ihn am Anfrage-Limit. Der letzte Aufruf eines begrenzten Durchgangs mit Werkzeugrunden antwortet ohne Werkzeuge und endet mit max_turn_requests (headless exec meldet request_cap, Exit 5); senden Sie eine Nachricht, um fortzufahren.",
   "modelApiWrapUpReserved": "Die verbleibende Anfrage ist für die abschließende Antwort reserviert. Das Bild wurde nicht erzeugt.",
   "modelApiTurnLimit": {
     "one": "Der Durchgang wurde nach {count} Modellaufruf angehalten. Senden Sie eine Nachricht, um fortzufahren.",

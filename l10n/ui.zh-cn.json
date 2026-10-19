@@ -3747,7 +3747,7 @@
   "execTooManyFiles": {
     "other": "最多允许 {count} 个输入文件。"
   },
-  "referenceTurnLimit": "Model API 每轮默认可调用模型 200 次。调用方现有的请求上限优先。首次调用始终携带工具执行：有回答则本轮正常完成，有工具请求则在本轮达到请求上限时结束。运行过工具的轮次，其最后一次调用生成不带工具的摘要；发送消息以继续。",
+  "referenceTurnLimit": "没有我方轮次计数会结束 Model API 对话：它会一直运行，直到模型无需调用工具即可作答、您按下“停止”、钩子将其停止、提供方拒绝，或您设定的上限用尽。调用方自己的配额仍会约束其运行：exec --max-requests 或 best-of-N 尝试上限。首次调用始终携带工具：答复即完成本轮，工具请求则在请求上限处结束。受限且运行过工具的本轮最后一次调用将不带工具作答，并以 max_turn_requests 结束（headless exec 报告 request_cap，exit 5）；请发送消息以继续。",
   "modelApiWrapUpReserved": "剩余请求已保留用于最终回答。图像未生成。",
   "modelApiTurnLimit": {
     "other": "本轮在调用模型 {count} 次后停止。发送消息以继续。"

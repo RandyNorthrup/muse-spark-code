@@ -120,7 +120,6 @@ import {
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
   MODEL_API_CONTEXT_WINDOW,
-  MODEL_API_MAX_TOOL_ROUNDS,
   MODEL_API_TEXT_BUDGET_TOKENS,
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
@@ -14750,10 +14749,10 @@ export class ModelApiSession implements ScheduledAgentSession {
   /**
    * The one transition into the wrap-up phase, and the one writer of
    * `wrapUpLimit`: every other site reads it. Given the calls already
-   * counted and every allowance that applies — the turn's own limit (bound
-   * at turn start from the caller's allowance), the live caller allowance,
-   * and the default cap folded together by `modelCallsLeft` — once a call
-   * went out and one remains, the next request answers without tools. The
+   * counted and every allowance that applies — the turn's own limit (a
+   * caller's allowance, or unbounded) folded with the live caller allowance
+   * by `modelCallsLeft` — once a call went out and one remains, the next
+   * request answers without tools. The
    * first call is always ordinary, even when it is also the last one
    * allowed. Called wherever a request is built (`streamAttempt`, so first
    * attempts, HTTP retries, whole-stream retries, media recovery and
@@ -15339,7 +15338,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       steered: [],
       acceptedTextAttachmentBytes: textAttachmentBytes(queued.parts),
       modelCalls: 0,
-      modelCallLimit: this.callerModelCallsLeft() ?? MODEL_API_MAX_TOOL_ROUNDS,
+      // D121: no round count of ours — the turn runs until the model answers
+      // without a tool call, the person stops it, a hook stops it, the
+      // provider refuses, or a limit the person set is spent. Only a
+      // caller's own allowance still bounds its run.
+      modelCallLimit: this.callerModelCallsLeft() ?? Infinity,
       modelFailure: undefined,
       goalWakePending: false,
       isWebSearchAllowed: false,

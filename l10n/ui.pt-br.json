@@ -3905,7 +3905,7 @@
     "other": "São permitidos no máximo {count} arquivos de entrada.",
     "many": "São permitidos no máximo {count} arquivos de entrada."
   },
-  "referenceTurnLimit": "Os turnos da API de modelos têm 200 chamadas ao modelo por padrão. Os limites de chamada existentes dos chamadores prevalecem. A primeira chamada sempre executa com ferramentas: uma resposta conclui o turno normalmente, uma solicitação de ferramenta o encerra no limite de solicitações. A última chamada de um turno que executou ferramentas produz um resumo sem ferramentas; envie uma mensagem para continuar.",
+  "referenceTurnLimit": "Nenhuma contagem de rodadas nossa encerra um turno da API de modelos: ele continua até o modelo responder sem chamar ferramentas, você pressionar Parar, um hook interrompê-lo, o provedor recusá-lo ou um limite que você definiu se esgotar. A cota própria da chamada ainda o limita: exec --max-requests ou um teto de tentativas best-of-N. A primeira chamada sempre usa ferramentas: uma resposta conclui o turno, uma solicitação de ferramenta o encerra no limite de solicitações. A última chamada de um turno limitado com ferramentas responde sem ferramentas e termina com max_turn_requests (headless exec informa request_cap, saída 5); envie uma mensagem para continuar.",
   "modelApiWrapUpReserved": "A solicitação restante está reservada para a resposta final. A imagem não foi gerada.",
   "modelApiTurnLimit": {
     "one": "O turno parou após {count} chamada ao modelo. Envie uma mensagem para continuar.",

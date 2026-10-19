@@ -3826,7 +3826,7 @@
     "one": "Legfeljebb {count} bemeneti fájl engedélyezett.",
     "other": "Legfeljebb {count} bemeneti fájl engedélyezett."
   },
-  "referenceTurnLimit": "A Model API-körök alapértelmezésben 200 modellhívást kapnak. A hívók meglévő híváskorlátai az irányadók. Az első hívás mindig eszközökkel fut: a válasz normálisan lezárja a kört, az eszközhívás a kéréskorlátnál fejezi be. Az eszközöket futtató kör utolsó hívása eszközök nélküli összefoglalót ad; a folytatáshoz küldjön üzenetet.",
+  "referenceTurnLimit": "Egyik körszámlálónk sem vet véget a Model API-körnek: addig fut, amíg a modell eszközhívás nélkül nem válaszol, meg nem nyomja a Stop gombot, egy hook meg nem állítja, a szolgáltató el nem utasítja, vagy el nem fogy az ön által beállított korlát. A hívó saját kerete továbbra is korlátozza: exec --max-requests vagy best-of-N próbálkozási plafon. Az első hívás mindig eszközökkel fut: a válasz befejezi a kört, az eszközkérés a kéréskorlátnál vet neki véget. A korlátozott, eszközöket futtató kör utolsó hívása eszközök nélkül válaszol, és max_turn_requests kóddal zárul (a headless exec request_cap kódot jelent, 5-ös kilépéssel); üzenet küldésével folytathatja.",
   "modelApiWrapUpReserved": "A fennmaradó kérés a végső válaszhoz van fenntartva. A kép nem készült el.",
   "modelApiTurnLimit": {
     "one": "A kör {count} modellhívás után leállt. A folytatáshoz küldjön üzenetet.",

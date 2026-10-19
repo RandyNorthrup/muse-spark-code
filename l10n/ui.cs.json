@@ -3984,7 +3984,7 @@
     "few": "Limit vstupních souborů: {count}.",
     "many": "Limit vstupních souborů: {count}."
   },
-  "referenceTurnLimit": "Tahy Model API mají ve výchozím nastavení 200 volání modelu. Přednost mají existující limity volání volajících. První volání probíhá vždy s nástroji: odpověď tah normálně dokončí, požadavek na nástroj ho ukončí na limitu požadavků. Poslední volání tahu, který spouštěl nástroje, vytvoří shrnutí bez nástrojů; pokračujte odesláním zprávy.",
+  "referenceTurnLimit": "Žádný náš počet kol tah Model API neukončí: běží, dokud model neodpoví bez volání nástroje, nestisknete Stop, nezastaví ho hák, neodmítne ho poskytovatel, nebo dokud se nevyčerpá vámi nastavený limit. Vlastní limit volajícího jeho běh stále omezuje: exec --max-requests nebo strop pokusů best-of-N. První volání probíhá vždy s nástroji: odpověď tah dokončí, požadavek na nástroj ho ukončí na limitu požadavků. Poslední volání omezeného tahu, který spouštěl nástroje, odpoví bez nástrojů a skončí s max_turn_requests (headless exec hlásí request_cap, exit 5); pokračujte odesláním zprávy.",
   "modelApiWrapUpReserved": "Zbývající požadavek je vyhrazen pro závěrečnou odpověď. Obrázek nebyl vygenerován.",
   "modelApiTurnLimit": {
     "one": "Tah se zastavil po {count} volání modelu. Pokračujte odesláním zprávy.",

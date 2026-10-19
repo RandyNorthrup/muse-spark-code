@@ -3826,7 +3826,7 @@
     "one": "En fazla {count} girdi dosyasına izin verilir.",
     "other": "En fazla {count} girdi dosyasına izin verilir."
   },
-  "referenceTurnLimit": "Model API turları varsayılan olarak 200 model çağrısı alır. Arayanların mevcut çağrı sınırları geçerlidir. İlk çağrı her zaman araçlarla çalışır: bir yanıt turu normal şekilde tamamlar, bir araç isteği onu istek sınırında bitirir. Araç çalıştıran bir turun son çağrısı araçsız bir özet üretir; devam etmek için bir mesaj gönderin.",
+  "referenceTurnLimit": "Model API turunu bitiren tur sayısı bizden gelmez: model araç çağırmadan yanıt verene, Durdur’a basana, bir kanca durdurana, sağlayıcı reddedene ya da belirlediğiniz limit tükenene kadar sürer. Arayanın kendi payı hâlâ sınırlar: exec --max-requests veya best-of-N deneme tavanı. İlk çağrı her zaman araçlarla çalışır: yanıt turu tamamlar, araç isteği istek sınırında bitirir. Araç çalıştıran sınırlı turun son çağrısı araçsız yanıt verir ve max_turn_requests ile biter (headless exec request_cap bildirir, çıkış 5); devam etmek için mesaj gönderin.",
   "modelApiWrapUpReserved": "Kalan istek son yanıt için ayrılmıştır. Görsel oluşturulmadı.",
   "modelApiTurnLimit": {
     "one": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin.",
