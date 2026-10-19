@@ -255,3 +255,19 @@ U-host module-graph assertion, three `brokerSocketDirectory` cases under
 this sandbox's long TMPDIR plus umask 077, four `brokerSession` spawn
 timeouts). Full record, tests and gates: `docs/certification/msm109.md`
 §VAULTMIGFIX3. No parity-surface change.
+
+## Lane VAULTMIGFIX4 note (2026-10-19, appended by the VAULTMIGFIX4 lane)
+
+Grok's third security review (GRVVAULTMIG3) confirms the earlier findings
+fixed and the save/sign-out race closed, and finds two more paths, fixed
+here at their cause on branch `ms/msm109-open-fix4`: a non-apiKey save over
+a migrated slot now drops the orphaned vault copy (engine
+`removeStaleVaultCopy`, live SecretStorage record untouched), and a
+sign-out runs the journaled engine delete before clearing SecretStorage,
+so a failure surfaces with the key still readable instead of stranding the
+vault copy. Proven by two new tests driving the real shell, the real
+controller, persisted SecretStorage files and the real VaultStore (each
+red on the lane base, green after). Full record, tests and gates:
+`docs/certification/msm109.md` §VAULTMIGFIX4. Parity-surface change: a
+sign-out the locked vault cannot complete now fails loudly instead of
+resolving half-finished.
