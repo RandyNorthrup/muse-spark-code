@@ -111,8 +111,9 @@ export class MemoryScheduleFs implements ScheduleFsPort {
     // The deadline binds first: a valid holder past the wait is busy, never
     // an abandon that later publishes; an explicit abort ends the wait. The
     // wakeup below only interrupts; this check names the word.
-    const checkWaiting = () => {
-      if (deadlineMs !== undefined && Date.now() >= deadlineMs) throw new Error('scheduleLeaseBusy')
+    const checkWaiting = (isDeadlineElapsed = false) => {
+      if (isDeadlineElapsed || (deadlineMs !== undefined && Date.now() >= deadlineMs))
+        throw new Error('scheduleLeaseBusy')
       signal?.throwIfAborted()
     }
     try {
@@ -120,6 +121,7 @@ export class MemoryScheduleFs implements ScheduleFsPort {
       if (signal !== undefined || deadlineMs !== undefined) {
         let timer: ReturnType<typeof setTimeout> | undefined
         let onAbort: (() => void) | undefined
+        let isDeadlineElapsed = false
         try {
           const wakeups: Promise<unknown>[] = [previous]
           if (signal !== undefined) {
@@ -139,9 +141,14 @@ export class MemoryScheduleFs implements ScheduleFsPort {
             wakeups.push(
               new Promise<never>((_resolve, reject) => {
                 if (remaining <= 0) {
+                  isDeadlineElapsed = true
                   reject(new Error('scheduleLockWaitInterrupted'))
                 } else {
                   timer = setTimeout(() => {
+                    // The timer firing is the deadline event itself: it runs
+                    // on the monotonic clock, while a wall re-read below can
+                    // still land before the deadline on the same turn.
+                    isDeadlineElapsed = true
                     reject(new Error('scheduleLockWaitInterrupted'))
                   }, remaining)
                 }
@@ -154,7 +161,7 @@ export class MemoryScheduleFs implements ScheduleFsPort {
             // A rejected race skips straight to the outer catch, so the
             // terminal word is named here on the rejection path: the wakeup
             // only interrupts, and the sentinel must never escape.
-            checkWaiting()
+            checkWaiting(isDeadlineElapsed)
             throw error
           }
         } finally {
