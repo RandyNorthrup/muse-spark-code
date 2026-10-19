@@ -11,7 +11,7 @@ import { editAutomaticallyChoice } from '../../agent/approvalRules'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import { SessionOwner, type SessionToken, type SessionEffect } from '../../schedules/sessionOwner'
 import type { ScheduleApprovalAction } from '../../../shared/scheduleV2'
-import { mspApprovalMode } from '../../../shared/permissionModes'
+import { mspApprovalMode, mspPermissionProfile } from '../../../shared/permissionModes'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
@@ -66,6 +66,8 @@ import {
   MSP_USER_SHELL_CAPABILITY,
   MUSE_APPROVAL_LEDGER_FAULT,
   MUSE_APPROVAL_REPLAY_FAULT,
+  MUSE_DELETE_FIRST_VERSION,
+  MUSE_DELETE_REMOVED_VERSION,
   MUSE_EVENT_LOG_FAULT,
   MUSE_EXIT_PERSISTENT_CODES,
   type EffortLevel,
@@ -75,6 +77,7 @@ import {
 } from '../../../shared/constants'
 import { isEffortLevel } from '../../../shared/effort'
 import { fill } from '../../../shared/l10n/text'
+import { compareVersions, isVersion } from '../../whatsNew/whatsNewVersions'
 import { DeadlineError, startStillWaiting, stillWaitingText, withDeadline } from '../../timeouts'
 import { textFileInput } from '../../textAttachment'
 import {
@@ -287,6 +290,27 @@ const initializeResultSchema = z.object({
 
 const WINDOWS_OS = 'windows'
 const DURABLE_SESSIONS = 'durable'
+// Installed build labels (`1.4.4-R5419.1`) name the same release, not a
+// semver prerelease (the controller strips them the same way for D26).
+const BUILD_LABEL_SUFFIX = /-R\d+\.\d+$/
+
+/**
+ * Whether History may offer Delete on a Muse Code host: its CLI serves
+ * `session/delete` (new in 1.4.0, gone from 1.4.4 on, PLAN.md D26) and the
+ * lifecycle reader that waits for its terminal notification is injected.
+ * Unknown versions stay refused: nothing is sent that the CLI cannot answer.
+ */
+export function canDeleteMuseSession(serverVersion: string, hasLifecycleReader: boolean): boolean {
+  if (!hasLifecycleReader) {
+    return false
+  }
+  const version = serverVersion.replace(BUILD_LABEL_SUFFIX, '')
+  return (
+    isVersion(version) &&
+    compareVersions(version, MUSE_DELETE_FIRST_VERSION) >= 0 &&
+    compareVersions(version, MUSE_DELETE_REMOVED_VERSION) < 0
+  )
+}
 
 const approvalDecideResultSchema = z.object({ terminal: z.optional(z.boolean()) })
 
@@ -1278,6 +1302,8 @@ export class MuseSession implements ScheduledAgentSession {
     }
   >()
   private drainingSchedules = false
+  /** Set on the first `methodNotFound` from `session/setPermissionProfile`: the host predates it. */
+  private profileSyncUnsupported = false
   private readonly leaseGeneration: number
 
   public constructor(
@@ -1729,6 +1755,36 @@ export class MuseSession implements ScheduledAgentSession {
     await this.applyModeEffect(effect)
   }
 
+  /**
+   * Keep the session's native permission profile on the mode's reviewer
+   * (Muse Code 1.4.7, amendment 42624): a switch into an asking mode must
+   * take the human reviewer, or the judge keeps allowing; a switch back to
+   * Auto restores the AI reviewer its words describe. Modes without a
+   * reviewer leave the profile alone. Only the interactive surfaces call
+   * this (panel, ACP agent, Plan-hold restore); headless sessions never
+   * switch modes, so they keep the host default and cannot stall. A host
+   * without `session/setPermissionProfile` answers `methodNotFound` and the
+   * mode change stands without the profile; any other refusal surfaces, so
+   * a managed profile exclusion fails loudly instead of silently judging.
+   */
+  private async syncPermissionProfile(mode: string): Promise<void> {
+    if (this.profileSyncUnsupported) return
+    const profileId = mspPermissionProfile(mode)
+    if (profileId === undefined) return
+    try {
+      await this.command('session/setPermissionProfile', { profileId })
+    } catch (error: unknown) {
+      if (error instanceof MspError && error.kind === 'methodNotFound') {
+        this.profileSyncUnsupported = true
+        this.log.info(
+          `Muse Code runs approval mode ${wireWordForLog(mode)} without a permission profile on this host; Manual asks only on Muse Code 1.4.7 and later`,
+        )
+        return
+      }
+      throw error
+    }
+  }
+
   /** Merge captured native attempt history for both live updates and local inspection. */
   public observeAgent(item: ItemSnapshot): ItemSnapshot {
     if (item.kind !== 'subagent' && item.kind !== 'workflow') return item
@@ -2135,6 +2191,7 @@ export class MuseSession implements ScheduledAgentSession {
     const token = this.owner.token()
     await this.restoringScheduleMode
     await this.changeApprovalMode(mode, token)
+    await this.syncPermissionProfile(mode)
   }
 
   /** Summarise older context; `status` is `noop` with a reason when nothing to do. */
@@ -2530,6 +2587,11 @@ export class MuseCodeHost implements AgentHost {
       // is limited there until one is verified (D26). A 1.3.0 ceiling showed
       // the failing actions again on 1.4.0 (0.9.1, release-0.9.1.md).
       canEditSessions: parsed.platformOs !== WINDOWS_OS,
+      // `session/delete` is gone from 1.4.4 on (PLAN.md D26): the 1.4.4
+      // probe answered `methodNotFound` (docs/certification/sdk144.md), and
+      // the 1.4.10 probe and schema export of 2026-10-18 agree. Nothing is
+      // sent there; the reader's injection opens Delete below that floor.
+      canDeleteSessions: canDeleteMuseSession(serverVersion, this.features.lifecycle !== undefined),
     }
     this.log.info(
       `MSP host on ${parsed.platformOs ?? 'an unreported OS'}, schema v${String(parsed.schema?.version ?? 'unreported')} ${parsed.schema?.fingerprint ?? ''}, sessions ${parsed.sessionDurability ?? DURABLE_SESSIONS}`,
@@ -3106,10 +3168,16 @@ export class MuseCodeHost implements AgentHost {
     }
   }
 
-  /** The caller confirms permanent deletion before invoking this operation. */
-  public async deleteSession(sessionId: string): Promise<MuseCodeLifecycleEvent> {
+  /**
+   * The caller confirms permanent deletion before invoking this operation.
+   * Resolves once the terminal `deleteCompleted` notification arrives; that
+   * terminal itself reaches `onMuseCodeLifecycleEvent` listeners.
+   */
+  public async deleteSession(sessionId: string): Promise<void> {
     const reader = this.features.lifecycle
-    if (reader === undefined) throw new Error(UI_TEXT.memoryDeleteAction)
+    if (reader === undefined) {
+      throw new Error(fill(UI_TEXT.sessionDeleteUnsupported, { version: this.info.serverVersion }))
+    }
     const signal = this.deletionStopped.signal
     signal.throwIfAborted()
     const commandId = this.channel.connection.mintCommandId()
@@ -3169,14 +3237,15 @@ export class MuseCodeHost implements AgentHost {
       this.log.info(stillWaitingText({ key: 'sessionDeletion' }, elapsedMs))
     })
     try {
-      return await raced
+      await raced
+      return
     } catch (error: unknown) {
       // Dispatch validated the terminal before shutdown; async admission may still be resuming.
       if (deletion.state.phase === 'terminalValidated') {
         this.log.info(
           `session/delete for session ${sessionId} failed after its terminal was validated (${failureForLog(error)}); the validated terminal stands`,
         )
-        return deletion.state.event
+        return
       }
       throw error
     } finally {
@@ -3368,6 +3437,8 @@ export class MuseCodeHost implements AgentHost {
           modelId: options.modelId,
           approvalMode: options.approvalMode,
           // The initial permission profile (1.4.6): select, never create.
+          // An older host ignores the unknown member and keeps its default
+          // profile; 1.4.7 commits it (amendment 42624).
           ...(options.permissionProfile !== undefined && {
             permissionProfile: options.permissionProfile,
           }),

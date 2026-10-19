@@ -501,6 +501,7 @@
   "sessionDeleteConnectionClosed": "Соединение закрылось до подтверждения удаления. Сеанс остаётся в истории.",
   "sessionDeleteHostExited": "Muse Code завершился до подтверждения удаления. Сеанс остаётся в истории.",
   "sessionDeleteHostClosed": "Хост закрылся до подтверждения удаления. Сеанс остаётся в истории.",
+  "sessionDeleteUnsupported": "Muse Code {version} не может удалять беседы.",
   "playbookTitle": "Регламент оркестратора",
   "playbookStatus": "Состояние",
   "playbookRecord": "Журнал",
@@ -2614,6 +2615,10 @@
   "historyShowArchived": "Показать архивные",
   "historyArchive": "Архивировать",
   "historyUnarchive": "Разархивировать",
+  "historyDeleteConfirm": "Удалить беседу {name}?",
+  "historyDeleteConfirmDetail": "Она навсегда исчезнет из истории. Это действие нельзя отменить.",
+  "historyDeleted": "Удалено: {name}",
+  "historyDeleteFailed": "Не удалось удалить беседу",
   "historyCurrent": "Текущий",
   "historyForkMark": "Ответвление",
   "historyTurns": {

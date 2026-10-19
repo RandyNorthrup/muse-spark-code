@@ -204,6 +204,7 @@ import {
   type TodoItem,
 } from '../../shared/agentEvents'
 import { fill, plural, uiLocale } from '../../shared/l10n/text'
+import { sessionTitle } from '../../shared/sessions'
 import type { GitDraftOutputPort } from '../../core/git/gitText'
 import type { GitAction, GitDraftKind } from '../../shared/git'
 import { backendLabel } from '../../shared/paletteFormatting'
@@ -216,7 +217,11 @@ import type { UnattendedRun } from '../../core/schedules/unattended'
 import type { ScheduleRunContext, ScheduleV2 } from '../../shared/scheduleV2'
 import { parseScheduleHostMessage } from '../../shared/scheduleProtocol'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
-import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
+import {
+  approvalModeFor,
+  mspPermissionProfile,
+  untrustedStartMode,
+} from '../../shared/permissionModes'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
 
 import type { ReviewedApprovals } from '../review/reviewedApprovals'
@@ -814,6 +819,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'subagentMessage',
   'resumeSession',
   'setSessionArchived',
+  'deleteSession',
   'forkSession',
   'renameSession',
   'readUsage',
@@ -1399,6 +1405,8 @@ export class ConversationController {
   private readonly finishedTurns = new Set<string>()
   /** Whether the attached session's host renames and forks (D26: not Muse Code 1.3.0 on Windows). */
   private canEditSessions = true
+  /** Whether the listed sessions' host deletes (D26: no Muse Code CLI from 1.4.4 on). */
+  private canDeleteSessions = true
   /** The unsaved files last warned about, so the same set is not repeated (D27). */
   private unsavedNoticeKey = ''
   /** A transcript reload after a delivery gap, and the gaps heard so far. */
@@ -1895,6 +1903,8 @@ export class ConversationController {
       sessions,
       archivedIds: [...this.deps.sessions.archivedIds()],
       openQuestionCounts: Object.fromEntries(this.historyQuestionCounts),
+      // Said only where it is so (D26): the panel then offers no Delete.
+      ...(!this.canDeleteSessions && { canDeleteSessions: false }),
     })
   }
 
@@ -4252,6 +4262,7 @@ export class ConversationController {
     }
     if (this.session !== session || this.attachmentGeneration !== generation) return
     this.canEditSessions = host.info.canEditSessions
+    this.canDeleteSessions = host.info.canDeleteSessions
     const eventGeneration = this.sendInvalidationEpoch
     const stopEvents = session.onEvent((event) => {
       if (
@@ -4365,10 +4376,16 @@ export class ConversationController {
     }
     this.requireCurrentOpening(generation)
     this.requireNonConfidentialModel(modelId)
+    const approvalMode = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
+    // Manual asks the person because the session reviews with `:ask-me`
+    // instead of Muse Code's judge (Muse Code 1.4.7); Auto keeps the judge
+    // its words describe. Omitted profiles keep the host default.
+    const permissionProfile = mspPermissionProfile(approvalMode)
     const session = await host.startSession({
       workspaceRoot,
       modelId,
-      approvalMode: approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
+      approvalMode,
+      ...(permissionProfile !== undefined && { permissionProfile }),
       ...(this.isSideChat && { sideChat: true }),
       ...(mcpServers !== undefined && { mcpServers }),
     })
@@ -4746,6 +4763,7 @@ export class ConversationController {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
+      this.canDeleteSessions = host.info.canDeleteSessions
       this.watchList(host)
       const records: SessionRecord[] = []
       let cursor: string | undefined
@@ -4783,8 +4801,11 @@ export class ConversationController {
       }
       this.postSessionList()
     } catch (error: unknown) {
+      // The cause reaches the record on every path; the panel is told only
+      // while its generation is still the latest.
+      this.deps.log.warn(`History question counts unavailable: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('error', `${UI_TEXT.historyUnavailable}: ${describe(error)}`, undefined, error)
+        this.notice('error', UI_TEXT.historyUnavailable, undefined, error)
       }
     }
   }
@@ -6476,6 +6497,61 @@ export class ConversationController {
     // An archived conversation's checkpoints go with it (M72); an unarchived
     // one's archives go, so its new checkpoints are kept.
     await (isArchived ? this.checkpoints.forget(sessionId) : this.checkpoints.unforget(sessionId))
+  }
+
+  /**
+   * History's Delete: after a confirmation naming the conversation, the
+   * backend's store loses it for good (Muse Code through `deleteSession`,
+   * the Model API through its session store) and the list is read again, so
+   * the row is gone. A failure names its real cause and keeps the row.
+   */
+  private async deleteSession(sessionId: string): Promise<void> {
+    const generation = this.sendInvalidationEpoch
+    try {
+      const host = await this.deps.ensureHost()
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        return
+      }
+      if (!host.info.canDeleteSessions) {
+        this.notice(
+          'info',
+          fill(UI_TEXT.sessionDeleteUnsupported, { version: host.info.serverVersion }),
+        )
+        return
+      }
+      const record = this.sessionRecords?.get(sessionId)
+      const name = record === undefined ? sessionId : sessionTitle(record)
+      const isConfirmed = await this.deps.confirmFileAction(
+        fill(UI_TEXT.historyDeleteConfirm, { name }),
+        UI_TEXT.historyDeleteConfirmDetail,
+        UI_TEXT.memoryDeleteAction,
+      )
+      if (!isConfirmed || generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      await host.deleteSession(sessionId)
+      if (generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      const others = this.deps.sessions.archivedIds().filter((id) => id !== sessionId)
+      await this.deps.sessions.setArchivedIds(others)
+      this.historyQuestionCounts.delete(sessionId)
+      this.sessionRecords?.delete(sessionId)
+      // A deleted conversation's checkpoints go with it (M72).
+      await this.checkpoints.forget(sessionId)
+      if (this.session?.sessionId === sessionId) {
+        this.clear()
+      }
+      this.notice('info', fill(UI_TEXT.historyDeleted, { name }))
+      await this.listSessions()
+    } catch (error: unknown) {
+      // The cause reaches the record on every path; the panel is told only
+      // while its generation is still the latest.
+      this.deps.log.warn(`History delete failed: ${failureForLog(error)}`)
+      if (generation === this.sendInvalidationEpoch && !this.isDisposed) {
+        this.notice('error', UI_TEXT.historyDeleteFailed, undefined, error)
+      }
+    }
   }
 
   /**
@@ -11175,6 +11251,10 @@ export class ConversationController {
       }
       case 'setSessionArchived': {
         await this.setSessionArchived(message.sessionId, message.isArchived)
+        break
+      }
+      case 'deleteSession': {
+        await this.deleteSession(message.sessionId)
         break
       }
       case 'forkSession': {

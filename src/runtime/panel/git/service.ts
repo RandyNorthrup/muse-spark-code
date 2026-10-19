@@ -46,7 +46,7 @@
 //   git's words to the caller, which redacts them before any cut.
 
 import { spawn } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import {
@@ -60,6 +60,7 @@ import {
   type FileIdentity,
 } from '../../../core/fs/fileIdentity'
 import { withoutCredentials } from '../../../core/credentialEnvironment'
+import { isWorkspacePath } from '../../../core/executables'
 import { canonicalPath, isMissingPath } from '../../../host/canonicalPath'
 import { createGitProcess, quietGitEnvironment, type GitProcess } from '../../../host/git'
 import {
@@ -369,10 +370,17 @@ export function nativeWorktreeAddArgs(wtPath: string, commit: string): readonly 
 export function fixedGitLocator(
   platform: NodeJS.Platform,
   executable: string,
+  workspace?: {
+    readonly workspaceRoot: string
+    readonly realpath?: (filePath: string) => string
+  },
 ): () => string | undefined {
-  const isAbsolute =
-    platform === 'win32' ? path.win32.isAbsolute(executable) : path.posix.isAbsolute(executable)
-  return () => (isAbsolute ? executable : undefined)
+  const p = platform === 'win32' ? path.win32 : path.posix
+  return () =>
+    !p.isAbsolute(executable) ||
+    (workspace !== undefined && isWorkspacePath(platform, workspace, executable))
+      ? undefined
+      : executable
 }
 
 export class CommitRefusedError extends Error {
@@ -594,9 +602,14 @@ export class NativeGitService {
         platform: process.platform,
         env: process.env,
         fileExists: existsSync,
+        realpath: realpathSync,
         spawn,
-        // The git the host resolved, never another one on PATH.
-        locate: fixedGitLocator(process.platform, deps.gitPath),
+        // The git the host resolved, never another one on PATH; refused
+        // when it names the bound repository itself.
+        locate: fixedGitLocator(process.platform, deps.gitPath, {
+          workspaceRoot: deps.repositoryRoot,
+          realpath: realpathSync,
+        }),
       })
     // The directory approved now is the one every later operation must
     // find: its identity is taken in this same tick.

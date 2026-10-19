@@ -1,5 +1,5 @@
 import { execResourceFile } from '../../core/resources/launcher'
-import { constants as fsConstants, existsSync } from 'node:fs'
+import { constants as fsConstants, existsSync, realpathSync } from 'node:fs'
 import { open, opendir, realpath } from 'node:fs/promises'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
@@ -11,7 +11,7 @@ import {
 } from '../../shared/constants'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { withoutCredentials } from '../../core/credentialEnvironment'
-import { resolveExecutable } from '../../core/executables'
+import { resolveExecutable, workspaceChildEnvironment } from '../../core/executables'
 import { handleIdentity, lstatIdentity, sameFile, statIdentity } from '../../core/fs/fileIdentity'
 import { pathModule } from '../../core/workspaceRoot'
 import { isBelow, resolveWorkspacePath } from '../../core/workspacePath'
@@ -207,11 +207,17 @@ export function reportGitIo(
     platform,
     pathVariable: env['PATH'] ?? env['Path'],
     fileExists: existsSync,
+    workspaceRoot: root,
+    realpath: realpathSync,
   })
-  const childEnvironment = Object.fromEntries(
-    Object.entries(withoutCredentials(env, [], platform)).filter(
-      ([name]) => !/^(?:GIT_|GCM_)/iu.test(name),
+  const childEnvironment = workspaceChildEnvironment(
+    platform,
+    Object.fromEntries(
+      Object.entries(withoutCredentials(env, [], platform)).filter(
+        ([name]) => !/^(?:GIT_|GCM_)/iu.test(name),
+      ),
     ),
+    { workspaceRoot: root, realpath: realpathSync },
   )
   // Only these read commands are admitted by the source port; no shell, check or hook.
   return {

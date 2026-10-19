@@ -342,11 +342,17 @@ export interface ExitingProcess {
 export interface LoginDeps {
   readonly resolveLaunch: () => LaunchResolution
   readonly environment: () => NodeJS.ProcessEnv
+  /**
+   * The directory the login child runs in: the same directory the
+   * environment is guarded for, so no workspace program resolves from PATH.
+   */
+  readonly cwd: string
   /** Governed launch with terminal streams forwarded after admission. */
   readonly spawnInTerminal: (
     command: string,
     args: readonly string[],
     env: NodeJS.ProcessEnv,
+    cwd: string,
   ) => ExitingProcess | Promise<ExitingProcess>
   readonly printError: (line: string) => void
 }
@@ -366,6 +372,7 @@ export function login(deps: LoginDeps): Promise<number> {
     launch.command,
     [...prefix, ...MUSE_LOGIN_ARGS],
     deps.environment(),
+    deps.cwd,
   )
   const waitForExit = (process: ExitingProcess): Promise<number> =>
     new Promise((resolve) => {

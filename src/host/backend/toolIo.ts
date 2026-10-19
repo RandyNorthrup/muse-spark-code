@@ -11,7 +11,7 @@
 import { fileReadIdentity } from '../../core/fs/fileIdentity'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, type BigIntStats } from 'node:fs'
+import { existsSync, realpathSync, type BigIntStats } from 'node:fs'
 import { type FileHandle, lstat, mkdir, open, rm } from 'node:fs/promises'
 import path from 'node:path'
 import {
@@ -42,7 +42,12 @@ import type {
 import { contentHash, type ContentSource } from '../../core/schedules/provenance'
 import { refusedShellEntry, unstartedShell } from '../../core/shellResult'
 import { setLongTimeout, startStillWaiting, stillWaitingText } from '../../core/timeouts'
-import { resolveExecutable } from '../../core/executables'
+import {
+  isFullyQualifiedWindowsPath,
+  isWorkspacePath,
+  resolveExecutable,
+  workspaceChildEnvironment,
+} from '../../core/executables'
 import { isPdf } from '../../core/pdf'
 import type { ToolImageIo } from '../../core/toolImages'
 import { isSamePath } from '../../core/paths'
@@ -158,6 +163,13 @@ export interface ToolIoDeps {
    * Code's documents give (D27).
    */
   readonly unsavedFiles: () => readonly string[]
+  /**
+   * The workspace shell commands and hooks run in: interpreter lookups
+   * never resolve a file inside it, and child environments carry the
+   * guarded child PATH for it. Absent falls back to each call's own
+   * working directory.
+   */
+  readonly workspaceRoot?: string | undefined
   /** Runtime workspace identity, sampled at mutation and command boundaries. */
   readonly assertWorkspaceCurrent?: (() => void) | undefined
   /** Windows: the job helper's assembly, undefined where jobs are unavailable (M27). */
@@ -357,6 +369,10 @@ export function shellEnvironment(
   passNames: readonly string[] = [],
   isFenced = true,
   vault: VaultFenceOptions = {},
+  workspace?: {
+    readonly workspaceRoot: string
+    readonly realpath?: ((filePath: string) => string) | undefined
+  },
 ): NodeJS.ProcessEnv {
   const clean: NodeJS.ProcessEnv = {}
   const entries = Object.entries(withoutCredentials(env, passNames, platform))
@@ -373,13 +389,23 @@ export function shellEnvironment(
       windowsPowerShellModulePath(systemRoot, environmentValue(env, platform, PROGRAM_FILES)),
     )
   }
-  return isFenced ? vaultFenceEnvironment(clean, { ...vault, passNames, platform }) : clean
+  const fenced = isFenced ? vaultFenceEnvironment(clean, { ...vault, passNames, platform }) : clean
+  // Shell commands run with the workspace as their working directory: the
+  // guarded child PATH plus `NoDefaultCurrentDirectoryInExePath` on
+  // Windows, so a planted helper there never runs by bare name.
+  return workspace === undefined
+    ? fenced
+    : { ...workspaceChildEnvironment(platform, fenced, workspace) }
 }
 
 export function hookEnvironment(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
   extraNames: readonly string[] = [],
+  workspace?: {
+    readonly workspaceRoot: string
+    readonly realpath?: ((filePath: string) => string) | undefined
+  },
 ): NodeJS.ProcessEnv {
   const clean: NodeJS.ProcessEnv = {}
   const names: readonly string[] =
@@ -404,31 +430,49 @@ export function hookEnvironment(
         name,
         value
           .split(delimiter)
-          .filter((entry) => pathApi.isAbsolute(entry))
+          .filter(
+            (entry) =>
+              pathApi.isAbsolute(entry) &&
+              (platform !== 'win32' || isFullyQualifiedWindowsPath(entry)) &&
+              (workspace === undefined || !isWorkspacePath(platform, workspace, entry)),
+          )
           .join(delimiter),
       )
     } else if (normalizedName !== 'COMSPEC' || path.win32.isAbsolute(value)) {
       setEnvironmentVariable(clean, platform, name, value)
     }
   }
-  return vaultFenceEnvironment(clean, { platform })
+  const fenced = vaultFenceEnvironment(clean, { platform })
+  // Hooks run with the workspace as their working directory: the guarded
+  // child PATH plus `NoDefaultCurrentDirectoryInExePath` on Windows, so a
+  // planted helper there never runs by bare name.
+  return workspace === undefined
+    ? fenced
+    : { ...workspaceChildEnvironment(platform, fenced, workspace) }
 }
 
 /**
  * The interpreter for the shell tool, by absolute path: Windows PowerShell
  * under `%SystemRoot%` (else the first on the absolute PATH), bash from the
- * absolute PATH elsewhere. Undefined when there is none.
+ * absolute PATH elsewhere. With the workspace, entries inside it are never
+ * probed, so a planted `bash` there never resolves. Undefined when there is
+ * none.
  */
 export function shellInterpreter(
   platform: NodeJS.Platform,
   systemRoot: string | undefined,
   env: NodeJS.ProcessEnv,
   isExistingFile: (filePath: string) => boolean,
+  workspace?: {
+    readonly workspaceRoot: string
+    readonly realpath?: ((filePath: string) => string) | undefined
+  },
 ): string | undefined {
   const probe = {
     platform,
     pathVariable: environmentValue(env, platform, PATH_VARIABLE),
     fileExists: isExistingFile,
+    ...(workspace !== undefined && { ...workspace }),
   }
   if (platform === 'win32') {
     return systemRoot === undefined
@@ -464,13 +508,24 @@ export function shellArguments(
   return isFenced ? ['--noprofile', '--norc', '-c', command] : ['-lc', command]
 }
 
-function hookProgramFor(deps: ToolIoDeps, configuredShell: string | undefined): string | undefined {
+function hookProgramFor(
+  deps: ToolIoDeps,
+  configuredShell: string | undefined,
+  workspace?: {
+    readonly workspaceRoot: string
+    readonly realpath?: ((filePath: string) => string) | undefined
+  },
+): string | undefined {
+  const probe = {
+    ...(workspace !== undefined && { ...workspace }),
+  }
   if (deps.platform === 'win32') {
     return deps.systemRoot === undefined
       ? resolveExecutable('cmd', {
           platform: deps.platform,
           pathVariable: deps.env()['PATH'],
           fileExists: existsSync,
+          ...probe,
         })
       : path.win32.join(deps.systemRoot, 'System32', 'cmd.exe')
   }
@@ -482,6 +537,7 @@ function hookProgramFor(deps: ToolIoDeps, configuredShell: string | undefined): 
         platform: deps.platform,
         pathVariable: deps.env()['PATH'],
         fileExists: existsSync,
+        ...probe,
       })
 }
 
@@ -663,11 +719,28 @@ export function toolImagePreviewIo(
 }
 
 export function createToolIo(deps: ToolIoDeps): ToolIo {
-  const interpreter = shellInterpreter(deps.platform, deps.systemRoot, deps.env(), existsSync)
+  // Shells and hooks run with the workspace as their working directory, so
+  // their interpreters are resolved outside it (resolved through links).
+  const lookupWorkspace =
+    deps.workspaceRoot === undefined
+      ? undefined
+      : { workspaceRoot: deps.workspaceRoot, realpath: realpathSync }
+  const interpreter = shellInterpreter(
+    deps.platform,
+    deps.systemRoot,
+    deps.env(),
+    existsSync,
+    lookupWorkspace,
+  )
   const hasUnsavedChanges = (absolutePath: string) =>
     deps.unsavedFiles().some((open) => isSamePath(open, absolutePath, deps.platform))
   const configuredHookShell = deps.env()['SHELL']
-  const hookProgram = hookProgramFor(deps, configuredHookShell)
+  const hookProgram = hookProgramFor(deps, configuredHookShell, lookupWorkspace)
+  // Each call's child environment is guarded for the workspace it runs in.
+  const workspaceFor = (cwd: string): { workspaceRoot: string; realpath: typeof realpathSync } => ({
+    workspaceRoot: deps.workspaceRoot ?? cwd,
+    realpath: realpathSync,
+  })
   const prepareResourceJob = async (
     resource: ResourceLease | undefined,
     job: ShellJob | undefined,
@@ -1027,6 +1100,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           isInteractive ? (deps.passEnvironmentVariables?.() ?? []) : [],
           isFenced,
           deps.vaultFence?.(),
+          workspaceFor(cwd),
         ),
         timeoutMs,
         signal,
@@ -1119,7 +1193,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           file,
           args,
           cwd,
-          env: hookEnvironment(deps.env(), deps.platform, extraEnvNames),
+          env: hookEnvironment(deps.env(), deps.platform, extraEnvNames, workspaceFor(cwd)),
           timeoutMs,
           signal,
           tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },

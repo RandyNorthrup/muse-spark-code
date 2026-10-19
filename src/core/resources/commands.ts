@@ -1,7 +1,7 @@
 import type { ExecFileOptionsWithStringEncoding } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
-import { resolveExecutable } from '../executables'
+import { resolveExecutable, workspaceChildEnvironment } from '../executables'
 import { environmentValue } from '../childEnvironment'
 import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
 import { spawnResourceProcess } from './process'
@@ -11,16 +11,39 @@ import {
   type ResourceHandoffUntil,
 } from './launch'
 
-function resolveCommand(command: string, env: NodeJS.ProcessEnv): string {
+/**
+ * The workspace a governed child runs in: product lookups (`xdg-open`,
+ * `open`, `rundll32.exe`, the governed probes) never resolve to a file
+ * inside it, and the child's PATH is the guarded child PATH for it.
+ */
+export interface GovernedWorkspace {
+  readonly workspaceRoot: string
+}
+
+function resolveCommand(
+  command: string,
+  env: NodeJS.ProcessEnv,
+  workspace: GovernedWorkspace,
+): string {
   const file = path.isAbsolute(command)
     ? command
     : resolveExecutable(command, {
         platform: process.platform,
         pathVariable: environmentValue(env, process.platform, 'PATH'),
         fileExists: existsSync,
+        workspaceRoot: workspace.workspaceRoot,
+        realpath: realpathSync,
       })
   if (file === undefined || !existsSync(file)) throw new Error('Governed command unavailable')
   return file
+}
+
+/** The child's environment: the guarded child PATH for its workspace. */
+function childEnvironment(env: NodeJS.ProcessEnv, workspace: GovernedWorkspace): NodeJS.ProcessEnv {
+  return workspaceChildEnvironment(process.platform, env, {
+    workspaceRoot: workspace.workspaceRoot,
+    realpath: realpathSync,
+  })
 }
 
 /**
@@ -38,11 +61,17 @@ export async function handoffResourceFile(
     readonly input?: string
     signal?: AbortSignal
     readonly until?: ResourceHandoffUntil
+    /**
+     * The workspace the child runs in (guards its lookup and PATH).
+     * Defaults to the spawn's own working directory, else this process's.
+     */
+    readonly workspaceRoot?: string | undefined
   },
 ): Promise<void> {
-  const file = resolveCommand(command, options.env)
+  const workspace = { workspaceRoot: options.workspaceRoot ?? process.cwd() }
+  const file = resolveCommand(command, options.env, workspace)
   const { child, handedOff } = await spawnResourceProcess('handoff', file, args, {
-    env: options.env,
+    env: childEnvironment(options.env, workspace),
     ...(options.signal !== undefined && { signal: options.signal }),
     ...(options.until !== undefined && { handoffUntil: options.until }),
   })
@@ -72,15 +101,26 @@ export async function execResourceFile(
   profile: 'contained' | 'probe',
   command: string,
   args: readonly string[],
-  options: ExecFileOptionsWithStringEncoding,
+  options: ExecFileOptionsWithStringEncoding & {
+    /**
+     * The workspace the child runs in (guards its lookup and PATH).
+     * Defaults to the spawn's own working directory, else this process's.
+     */
+    readonly workspaceRoot?: string | undefined
+  },
 ): Promise<{ stdout: string; stderr: string }> {
   const env = options.env ?? process.env
-  const file = resolveCommand(command, env)
+  const workspace = {
+    workspaceRoot:
+      options.workspaceRoot ?? (typeof options.cwd === 'string' ? options.cwd : process.cwd()),
+  }
+  const file = resolveCommand(command, env, workspace)
+  const childEnv = childEnvironment(env, workspace)
   const deadline = AbortSignal.timeout(options.timeout ?? PROCESS_TABLE_TIMEOUT_MS)
   const signal =
     options.signal === undefined ? deadline : AbortSignal.any([options.signal, deadline])
   const launched = await spawnResourceProcess(profile, file, args, {
-    env,
+    env: childEnv,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
     signal,
   })

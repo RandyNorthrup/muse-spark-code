@@ -26,7 +26,7 @@ import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvid
 // through the client (M63c).
 
 import { createHash, randomUUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
@@ -215,6 +215,7 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
           extraVariables: [],
           systemRoot: environmentValue(env, deps.platform, 'SystemRoot'),
           programFiles: environmentValue(env, deps.platform, 'ProgramFiles'),
+          ...(workspaceRoot !== undefined && { workspaceRoot, realpath: realpathSync }),
         }),
         deps.platform,
       )
@@ -794,7 +795,13 @@ function modelApiManager(
 
 /** The backend `--backend` names, its managers created per folder on first use. */
 export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
-  const museCode = museCodeManager(deps, undefined)
+  // The shared manager serves `login` and the account host, whose children
+  // keep this process's working directory: it is the directory they run in,
+  // so the PATH guard and the CLI lookup treat it as their workspace —
+  // otherwise a project directory they start from is still searched
+  // (docs/certification/pathguard.md).
+  const launchDirectory = process.cwd()
+  const museCode = museCodeManager(deps, launchDirectory)
   const museCodeHosts = new Map<string, MuseCodeBackendManager>()
   const modelApiHosts = new Map<
     string,
@@ -851,7 +858,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   // Muse Code's account methods on a short-lived host of their own, as the
   // panel asks them (PR #49): `account/read` when the file cannot say.
   const accountHosts = new AccountHosts(
-    (signal) => connectAccountSession(museCode, deps.version, deps.log, undefined, signal),
+    (signal) => connectAccountSession(museCode, deps.version, deps.log, launchDirectory, signal),
     deps.log,
   )
   const cliAccount = new CliAccount({

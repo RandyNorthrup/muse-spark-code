@@ -40,7 +40,7 @@ import {
   PLUGIN_RESPONSE_MAX_BYTES,
   PLUGIN_RUNTIME_PROBE_TIMEOUT_MS,
 } from '../../../shared/constants'
-import { resolveExecutable } from '../../executables'
+import { resolveExecutable, workspaceChildEnvironment } from '../../executables'
 import { environmentValue } from '../../childEnvironment'
 import type { ForeignHookAnswer } from './hookFormats/contract'
 import { pluginChildSource } from './pluginChild'
@@ -99,6 +99,18 @@ export interface PluginRunDeps {
    * and the child see; the extension host's own never reaches either.
    */
   readonly env: NodeJS.ProcessEnv
+  /**
+   * The workspace the plugin runs for: `node`, `bun` and `prlimit` are
+   * never resolved to a file inside it, and the child's PATH carries the
+   * guarded child environment for it. Absent leaves every absolute entry
+   * probed, as before.
+   */
+  readonly workspaceRoot?: string | undefined
+  /**
+   * Resolves links for the workspace comparison. Absent means lexical
+   * comparison only.
+   */
+  readonly realpath?: ((filePath: string) => string) | undefined
   readonly platform?: NodeJS.Platform | undefined
   /** `node --version` / `bun --version` output for an absolute command. */
   readonly runVersion?: ((command: string, env: NodeJS.ProcessEnv) => Promise<string>) | undefined
@@ -215,6 +227,25 @@ function isAtLeast(have: readonly [number, number, number], want: string): boole
 }
 
 /**
+ * One runtime name by absolute path on the allowlisted PATH, never a file
+ * inside the workspace the plugin runs for (resolved through links).
+ */
+function probeRuntime(
+  name: string,
+  deps: PluginRunDeps,
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform,
+): string | undefined {
+  return resolveExecutable(name, {
+    platform,
+    pathVariable: environmentValue(env, platform, 'PATH'),
+    fileExists: deps.fileExists ?? isExistingFile,
+    ...(deps.workspaceRoot !== undefined && { workspaceRoot: deps.workspaceRoot }),
+    ...(deps.realpath !== undefined && { realpath: deps.realpath }),
+  })
+}
+
+/**
  * The user's runtime for this plugin system, by absolute path on the
  * allowlisted PATH (D24), or a refusal with a reason: Amp and plain JS need
  * system node >= 22.18 (TS goes through Node's built-in type stripping; the
@@ -232,11 +263,7 @@ export async function resolvePluginRuntime(
     deps.runVersion ??
     ((command: string, env: NodeJS.ProcessEnv) => defaultRunVersion(command, env, deps, signal))
   const name = system === 'amp' ? 'node' : 'bun'
-  const command = resolveExecutable(name, {
-    platform,
-    pathVariable: environmentValue(env, platform, 'PATH'),
-    fileExists: deps.fileExists ?? isExistingFile,
-  })
+  const command = probeRuntime(name, deps, env, platform)
   if (system === 'amp') {
     if (command === undefined) {
       return { ok: false, reason: 'amp: the system node runtime is not installed' }
@@ -299,11 +326,7 @@ function boundedBun(
   if (platform !== 'linux') {
     return { ok: false, reason: `opencode: bun's memory cannot be bounded on ${platform}` }
   }
-  const prlimit = resolveExecutable('prlimit', {
-    platform,
-    pathVariable: environmentValue(env, platform, 'PATH'),
-    fileExists: deps.fileExists ?? isExistingFile,
-  })
+  const prlimit = probeRuntime('prlimit', deps, env, platform)
   if (prlimit === undefined) {
     return { ok: false, reason: 'opencode: prlimit is absent, so bun cannot be bounded' }
   }
@@ -537,6 +560,26 @@ export function sanitizePluginAnswer(answer: ForeignHookAnswer): ForeignHookAnsw
   }
 }
 
+/** System errors that mean the OS refused the child's start (a missing or unusable runtime path). */
+const PLUGIN_SPAWN_START_CODES: ReadonlySet<string> = new Set([
+  'ENOENT',
+  'EACCES',
+  'EPERM',
+  'ELOOP',
+  'ENOTDIR',
+  'ENAMETOOLONG',
+])
+
+/** Whether the OS refused the child's start, with its refusal code. */
+function isSpawnStartRefusal(error: unknown): error is Error & { readonly code: string } {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    PLUGIN_SPAWN_START_CODES.has(error.code)
+  )
+}
+
 /** The call's fail-closed rule over any failure: a transport fault or a failed answer. */
 function settled(call: PluginCall, answer: ForeignHookAnswer): ForeignHookAnswer {
   if (answer.status !== 'failed') return answer
@@ -615,14 +658,34 @@ async function runInScope(
   }
   let child: PluginChildHandle
   try {
+    // The child runs an absolute runtime, never a workspace file, with the
+    // guarded child PATH for the workspace, so nothing it starts by bare
+    // name resolves to a program planted there.
+    const pluginDir = path.dirname(call.pluginPath)
+    const workspaceRoot = deps.workspaceRoot ?? pluginDir
     child = await tree.spawn(runtime.command, [...runtime.args, source], {
-      env: resourceEnvironment(withoutCredentials(deps.env), resource),
-      cwd: path.dirname(call.pluginPath),
+      env: resourceEnvironment(
+        withoutCredentials(
+          workspaceChildEnvironment(platform, deps.env, {
+            workspaceRoot,
+            ...(deps.realpath !== undefined && { realpath: deps.realpath }),
+          }),
+        ),
+        resource,
+      ),
+      cwd: pluginDir,
       ...(resource !== undefined && { resource }),
     })
-  } catch {
+  } catch (error: unknown) {
     resource?.complete(true)
-    return settled(call, transportFailure(call, 'the plugin child could not start'))
+    // A start the OS refuses settles the call failed naming the refusal; an
+    // unexpected failure keeps its kind.
+    if (isSpawnStartRefusal(error))
+      return settled(
+        call,
+        transportFailure(call, `the plugin child could not start (${error.code})`),
+      )
+    throw error
   }
   if (scope?.isClosed() === true) {
     endTree(tree, child)

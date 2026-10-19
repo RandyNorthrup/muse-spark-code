@@ -15263,6 +15263,23 @@ local proof (`muse-spark-code-linux-x64-0.19.0.vsix` and
 `muse-spark-code-acp-0.19.0-linux-x64.tgz` packed and inventoried on
 `linuxlt`).
 
+### D123 — Manual asks the person on Muse Code 1.4.7: the `:ask-me` profile (lane MANUALMODE, 2026-10-18)
+
+Real use on Muse Code 1.4.7 showed Manual running commands with no approval
+reaching the editor: the session files record `"policy_decision":
+"allow:llm_judge"`. MSP `promptUnmatched` does not remove Muse Code's LLM
+judge; neither do `muse serve` flags (it refuses `--approval-judge`) nor the
+MSP modes (closed enum, select-never-create). Muse Code 1.4.7's stable
+`session/start.permissionProfile` (amendment 42624) does: `:ask-me` keeps
+the session's access and selects the human reviewer, while the default
+`:auto-review` lets the judge allow eligible actions. So interactive Manual
+and Edit-automatically sessions start with `:ask-me`, Auto sessions with
+`:auto-review`, and every mode switch re-syncs the profile (experimental
+`session/setPermissionProfile`, tolerated as `methodNotFound` on older
+hosts). Headless sessions pass no profile and behave as before. Manual's
+words stand unchanged; they hold on Muse Code 1.4.7 and later. Record:
+`docs/certification/manualmode.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-m124"></a>
@@ -39036,6 +39053,8 @@ other knip findings; every file this lane authored for reporting is
 knip-clean. Clearance: C-M109-1c consumes the surface (or the vault lane
 removes it); the vault lane owns removing this row. Evidence:
 `docs/certification/m113-join.md` (Proof).
+
+**PR203FIX rig slow/blocked cases (2026-10-17, macmini, open).** Eight unit cases cannot pass on this lane's rig, all in files byte-identical to `main-now` and outside this lane's import closures. Seven need the process table through `/bin/ps`: `fileLease` process-owner births (3) and the reused-id takeover (1), `treesLifecycleNative` zombie/membership (2), `treesMacNative` zombie identity (1). Every `execFile('/bin/ps', …)` here fails `spawn EPERM` (`/bin/ps: Operation not permitted` in the lane shell; `/bin/ls`, node self-spawn, detached spawn, a freshly compiled helper and `/usr/bin/cc` all succeed), so `processStartTime` reads undefined and the tree readers see no members. The eighth is `nativeGitCore`'s fixture hook: some three dozen git invocations across eight fixture repositories run synchronously under a 10 s hook while one `git init` costs 1.4 s on this rig's disk, so the hook times out even file-alone. The product code is untouched and correct: absolute-path exec, no shell, a 10 s query timeout, and the documented "a birth that cannot be read proves nothing" fallback, which is exactly the semantic the failing assertions observe. Hosted CI runs `test:unit` on `macos-latest` without this sandbox and on fast disks, where these cases pass. Every other full-run failure on this rig (run 1: browserUiText, checkSlots ×4 plus one `ENOTEMPTY` cleanup race, vsixPackaging, two 60 s packaging hooks; run 2: a disjoint set — execStdio hook, checkSlots ×2, lintStagedBatching, teamSchedulerStalls, trafficView render, usagePackaging ×4) passes file-alone on the same tree: parallel-load flakes of this rig, not code. No timeout, threshold, gate or assertion was changed to get green. Disposition: open; the lead re-runs the eight cases outside the sandbox, or takes the CI macOS shard as the binding receipt. Detail: `docs/certification/msm82.md`.
 
 ## 8. Escape hatches register
 

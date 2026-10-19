@@ -43,6 +43,7 @@ export function observeBackend(backend: AcpBackend, modelHint?: string): Session
       readSessionOutput: host.readSessionOutput.bind(host),
       resumeSession: host.resumeSession.bind(host),
       forkSession: host.forkSession.bind(host),
+      deleteSession: host.deleteSession.bind(host),
       onSessionListEvent: host.onSessionListEvent.bind(host),
       readUsage: host.readUsage.bind(host),
       onUsageChanged: host.onUsageChanged.bind(host),

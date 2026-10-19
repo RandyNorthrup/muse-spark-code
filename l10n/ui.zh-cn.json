@@ -498,6 +498,7 @@
   "sessionDeleteConnectionClosed": "删除确认前连接已关闭。会话仍保留在历史记录中。",
   "sessionDeleteHostExited": "删除确认前 Muse Code 已退出。会话仍保留在历史记录中。",
   "sessionDeleteHostClosed": "删除确认前宿主已关闭。会话仍保留在历史记录中。",
+  "sessionDeleteUnsupported": "Muse Code {version} 无法删除对话。",
   "playbookTitle": "编排器工作准则",
   "playbookStatus": "状态",
   "playbookRecord": "记录",
@@ -2464,6 +2465,10 @@
   "historyShowArchived": "显示已归档",
   "historyArchive": "归档",
   "historyUnarchive": "取消归档",
+  "historyDeleteConfirm": "删除对话 {name}？",
+  "historyDeleteConfirmDetail": "它将从历史记录中永久移除，此操作无法撤销。",
+  "historyDeleted": "已删除 {name}",
+  "historyDeleteFailed": "无法删除对话",
   "historyCurrent": "当前",
   "historyForkMark": "分叉",
   "historyTurns": {

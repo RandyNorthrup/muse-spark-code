@@ -1024,8 +1024,10 @@ consent exclusions or the conditional budget theorem above.
 The portable core shares strict declarations, safe parallel reads, bounded
 retry/idle waits, fresh repeat witnesses and output continuation with the
 extension. Provider-specific evidence is injected at the backend factory;
-unknown capabilities stay off. Native Muse Code effort, deletion and feedback
-remain unavailable until their captured feature ports are supplied. These
+unknown capabilities stay off. Native Muse Code effort and feedback
+remain unavailable until their captured feature ports are supplied, as does
+deleting a Muse Code session (its CLI serves no `session/delete` from 1.4.4
+on). Deleting a Model API session is offered through `session/delete`. These
 limits apply equally to every ACP editor and to headless execution.
 
 ## Deterministic reports (M113)

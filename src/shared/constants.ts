@@ -5286,6 +5286,13 @@ export const MUSE_APPROVAL_LEDGER_FAULT = 'approval ledger durability fence'
 // Upstream's #29 fix floor; the owner-authorized live probe accepted a
 // decision without the ledger fault (docs/certification/muse143.md).
 export const MUSE_APPROVAL_LEDGER_FIXED_VERSION = '1.4.3'
+// `session/delete` is new in 1.4.0 (release-0.9.1.md) and gone from 1.4.4
+// on: the 1.4.4 probe answered `methodNotFound`
+// (docs/certification/sdk144.md), and the 1.4.10 probe and schema export of
+// 2026-10-18 agree. History offers Delete between these floors only (PLAN.md
+// D26); the lifecycle reader's injection opens it there.
+export const MUSE_DELETE_FIRST_VERSION = '1.4.0'
+export const MUSE_DELETE_REMOVED_VERSION = '1.4.4'
 // A Stop under a part-decided approval rejects its waiting stage first
 // (MuseSession.cancel); a stage that moved on is rejected once more there.
 // Each try waits this long at most, then the Stop goes on: a decision takes
@@ -5711,6 +5718,13 @@ export const MUSE_DISABLE_SHELL_ARG = '--disable-shell'
 export const MUSE_DISABLE_WRITE_ARG = '--disable-write'
 // `muse serve --sandbox-network <mode>` (M56, PLAN.md D43).
 export const MUSE_SANDBOX_NETWORK_ARG = '--sandbox-network'
+// Muse Code's native permission-profile ids (`permissionProfile/list` on the
+// pinned 1.4.7 host, 2026-10-18): `:ask-me` selects the human reviewer, so an
+// unmatched action raises an approval instead of letting Muse Code's LLM
+// judge decide it; `:auto-review` has the same access with the AI judge.
+// `session/start.permissionProfile` is stable in 1.4.7 (amendment 42624).
+export const MUSE_ASK_ME_PROFILE = ':ask-me'
+export const MUSE_AUTO_REVIEW_PROFILE = ':auto-review'
 export const MUSE_INSTALL_URL = 'https://dev.meta.ai/products/muse-code/'
 export const MUSE_INSTALL_COMMANDS = {
   win32: 'irm https://dev.meta.ai/install.ps1 | iex',
