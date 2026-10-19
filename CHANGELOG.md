@@ -1428,6 +1428,15 @@ happened, not what was planned; superseded entries are kept.
 - Screen recordings run until stopped by default: `museSpark.screenRecordingMaxSeconds`
   defaults to `0` instead of 120; a set value stays within 10–600, and the recorder keeps
   what it captured.
+- Attachments reach the model whole: no count or size of ours stops a message
+  (the removed 20-file, 10 MiB image, 1 MiB text, 32 MB document and 64-entry
+  registry bounds are gone), and the selected model's capability record admits
+  from the provider's documented limits (Meta: 50 MB per inline image or
+  document, 50 images per request, 1–10 edit items) while the provider answers
+  for the rest at send.
+- A fetched page reaches the model whole: the removed 50,000-character page
+  slice and 100,000-character converter bound are gone, and past the model's
+  real context window the text spills to a file it pages through, saying so.
 - JSON headless runs report request starts, token totals and cost on stderr while stdout remains one JSON result.
 - Headless Model API runs accept `--max-output-tokens <n>` as an optional
   lowering limit: absent is the model's policy cap, present never exceeds it

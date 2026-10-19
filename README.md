@@ -1811,8 +1811,9 @@ the ones that answer in JSON are shown as what they mean:
 - **Pictures**: when the agent reads an image or generates one (the Model
   API backend, or Muse Code through the extension's paid image tools), the
   row shows it; click it to open the file. Only images
-  inside the workspace are shown. The preview reads the checked target with
-  the same 10 MiB file cap if a workspace link or file changes meanwhile.
+  inside the workspace are shown. The preview reads the checked target
+  within its own 10 MiB display bound if a workspace link or file changes
+  meanwhile (the model still reads the image whole).
 - **MCP tools** read "tool (server)", and any tool the panel has no special
   view for shows its arguments and result as indented JSON.
 
@@ -3033,8 +3034,10 @@ Meta's paid web search.
   XML, CSV, YAML, TOML, CSS and JavaScript come back as they are; XHTML
   (`application/xhtml+xml`) is refused, since read as HTML its XML syntax
   would be misread; anything else is refused with the reason. The whole page is read (after decompression) within 30
-  seconds, however large; the model reads the first 50,000 characters, and is told when
-  there was more. A page built to expand stops converting at 100,000.
+  seconds, however large; the model reads the whole page, and past its
+  context window the text spills to a file it pages through, saying so.
+  A page built to expand converts whole within the worker's time and memory
+  limits instead.
 - **Where it may go.** Public internet addresses only. A URL that names a
   local or reserved name (`localhost`, `*.local`, `*.internal`, single-label
   intranet names) or a non-public address is refused before anything else
@@ -3243,36 +3246,39 @@ integration owners; editor font settings continue to decide inside editors.
   for the messages Muse Code queued (a handoff, a message with a text file,
   a refused steer).
 - The `+` button attaches images (PNG, JPEG, GIF, WebP), PDFs on the Model
-  API backend, and UTF-8 text files up to 1 MiB from trusted, indexed workspace
+  API backend, and UTF-8 text files at any size from trusted, indexed workspace
   paths (`.txt`, `.md`, `.markdown`, `.csv`, `.tsv`, `.json`, `.jsonl`,
   `.yaml`, `.yml`, `.xml`, `.log`, `.html`, `.css`, `.js`, `.jsx`, `.ts`,
   `.tsx`, `.py`, `.ps1` and `.sh`; another text file becomes an `@`
-  mention). Text files travel with their names as text on both backends. Files
-  attached to Muse Code share its 10 MiB message limit; the composer counts
-  their serialized content, including escaping, and refuses combinations
-  that leave too little room for the prompt. Remove an attachment or shorten
-  the message if that happens. Switching backends keeps visible chips; Muse
-  Code checks them again before a send or steer and may require removal of an
-  image attached under Model API. Model API text attachments share a separate
-  768 KiB allowance for their UTF-8 content and file-name wrappers. A large
-  single file can be refused despite the 1 MiB per-file read cap; attach a
-  shorter excerpt or remove another text attachment. A long conversation may
-  still exceed the Model API context limit. Files outside that set
-  become `@` path mentions; known binary types and private
-  files are refused. A PDF picked under a `.png` or `.txt` name follows its
-  detected PDF header and 32 MB limit; Muse Code gives its PDF refusal.
-  Ordinary unindexed text remains a path mention, and private filenames are
-  refused before any PDF check.
+  mention). No count or size of ours stops an attachment: any number attaches
+  at any size (reads are bounded only by host memory), and the selected
+  model's capability record admits from the provider's documented limits
+  (Meta: 50 MB per inline image or document, 50 images per request) while the
+  provider answers for the rest at send. Text files travel with their names
+  as text on both backends. Files attached to Muse Code travel inside its
+  10 MiB message frame; the composer counts their serialized content,
+  including escaping, and refuses combinations that leave too little room
+  for the prompt. Remove an attachment or shorten the message if that happens.
+  Switching backends keeps visible chips; Muse Code checks them again before
+  a send or steer and may require removal of an image attached under Model API.
+  Model API text attachments share a separate 768 KiB allowance for their
+  UTF-8 content and file-name wrappers. A long conversation may still exceed
+  the Model API context limit. Files outside that set become `@` path
+  mentions; known binary types and private files are refused. A PDF picked
+  under a `.png` or `.txt` name follows its detected PDF header and the
+  model's document limit (Meta: 50 MB inline); Muse Code gives its PDF
+  refusal. Ordinary unindexed text remains a path mention, and private
+  filenames are refused before any PDF check.
   Images and PDFs also paste and drop. A dismissible banner gives the specific
   size, media, backend, text or private-file refusal; unknown file reasons
   keep generic unsupported-type guidance. Muse Code's MSP 1.3.0 cannot take a PDF part, so a PDF attachment
   there names the Model API backend instead. The Model API agent can read a
   workspace PDF or image through `read_file`; other workspace files use its
   existing UTF-8 text reader. Excluded text files share only a path mention,
-  and the Model API reader confines paths to the workspace. Picker reads stop
-  at the file's size cap even if it grows during the read. A native picker
-  still open after New Conversation or sign-out cannot add an old file or
-  mention to the new draft. Model API text,
+  and the Model API reader confines paths to the workspace. Picker reads are
+  bounded only by host memory even if the file grows during the read. A native
+  picker still open after New Conversation or sign-out cannot add an old file
+  or mention to the new draft. Model API text,
   image and PDF reads use the checked canonical workspace target if a link
   changes after confinement. Host file I/O also rejects an observed change
   to that checked path when a parent directory becomes a junction after the
@@ -3280,14 +3286,15 @@ integration owners; editor font settings continue to decide inside editors.
   Replayed requests keep newer media within the provider's per-request image
   budget, announcing when older media is omitted from the request.
   Paste/drop checks the first 1 KiB of image-labelled files: a PDF named
-  `.png` or `.txt` uses the 32 MB PDF limit and PDF media type, while a real image over
-  10 MiB is refused without encoding its full bytes. The check is discarded
+  `.png` or `.txt` takes the PDF media type at any size, and a real image is
+  taken at any size the message transport carries. The check is discarded
   if the conversation changes before it finishes. Plain text clipboard content
   keeps its normal paste behavior; text-named files without clipboard text are
   probed and ignored when they are not PDFs. Private names are refused first.
-  A PDF whose page tree cannot be counted without ambiguity reserves all 50
-  image slots, including when comments, escaped names or indirect `/Count` or
-  `/Type` references obscure the real tree beside a visible decoy.
+  A PDF whose page tree cannot be counted without ambiguity still weighs all
+  50 image slots when a request is packed against the provider's budget,
+  including when comments, escaped names or indirect `/Count` or `/Type`
+  references obscure the real tree beside a visible decoy.
   The original attachments remain in local history. A batch of Model API
   `read_file` tool calls uses the same media cap; a file over that batch cap
   gets a failed tool result before its bytes are retained. PDF and image
@@ -4216,10 +4223,11 @@ What asks, and when:
   starts from, and the price. Plan refuses it (it writes a file), and a
   path that is taken, outside the workspace, or not a `.png`, or a source
   that is missing, outside the workspace, not a PNG, JPEG or WebP image, or
-  over 10 MiB, is refused before anything is asked or billed. Edit sources
-  are read from their checked canonical workspace targets, even if a link
-  changes after the check. An image written to a protected path (D24) asks
-  even when images are allowed always.
+  past the record's documented edit count (Meta: an edit needs 1–10 items),
+  is refused before anything is asked or billed. Edit sources read whole
+  (bounded only by host memory) from their checked canonical workspace
+  targets, even if a link changes after the check. An image written to a
+  protected path (D24) asks even when images are allowed always.
 - **Muse Voice**: once before the first recording in a window. **Allow once**
   covers that window; **Always** covers the workspace until revoked through
   Account & usage. The popup names the hourly price and shared daily budget.
@@ -4456,8 +4464,9 @@ The table below describes Meta Muse. M95's provider core resolves capabilities
 per configured provider and native model, with user overrides taking precedence
 over captures, model lists, the catalogue and presets. Unknown support does not
 permit tools or media. Images and PDFs have separate support and limits.
-Native image evidence retains the existing 10 MiB application byte bound;
-Anthropic uses its documented, smaller 10 MB bound. Enabled budgeted thinking
+Native image evidence carries a byte bound only where the provider documents
+one (Anthropic's documented 10 MB); otherwise no size is enforced locally and
+the provider answers for it. Enabled budgeted thinking
 uses a positive default even when the catalogue permits zero. Effort is sent
 only when the record explicitly lists the selected native level; otherwise
 supported thinking uses its native default. Effort-only metadata establishes
@@ -4519,18 +4528,18 @@ a value, no explicitly refuses support, and unknown supplies no evidence.
 User-file parsing stamps known overrides with `source.kind: "user"`; a supplied
 source cannot elevate their priority. See [M95 N's record contract](docs/certification/m95-n.md).
 
-| What                             | Limit                                                                                                                                                                                                                                                           |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Images and PDFs                  | 20 attachments per message together; images 10 MiB each (PDFs: next row)                                                                                                                                                                                        |
-| PDFs on the Model API backend    | 32 MB each locally (Meta allows 50 MB per inline file); images and PDF page images together: 50 per message. Meta reads text from the first 100 pages and page images from the first 50 (Meta's [file-handling guide](https://dev.meta.ai/docs/file-handling)). |
-| Model API replayed media         | No aggregate character budget; the provider's per-request image budget decides, newest first, with older media named when left out. The platform refuses what it cannot take.                                                                                   |
-| Picked UTF-8 text attachments    | 1 MiB per-file read cap from trusted and indexed workspace paths; Model API also caps combined text and file-name wrappers at 768 KiB to leave context room.                                                                                                    |
-| A message to Muse Code           | 10 MiB. Attachment admission reserves 2 MiB for the prompt, context and frame; serialized text and base64 images count toward the rest. The exact outbound frame is checked at send.                                                                            |
-| Model API: shell commands        | 2 minutes by default, 10 at most                                                                                                                                                                                                                                |
-| Model API: retries               | Retryable failures (429, 500, 502 and 503, and a reply stream the server shut down or overloaded) retry honouring `Retry-After` at any length, shown in the transcript; attempts end at Stop, never at a count, and quota never retries                         |
-| Model API: a silent reply stream | Waits until Stop, saying so while it lasts; a provider-named idle still ends silence at it                                                                                                                                                                      |
-| Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
-| Opened tool outputs              | 16 MiB each; every document is kept and stays readable                                                                                                                                                                                                          |
+| What                             | Limit                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Images and PDFs                  | No count or size of ours: any number attaches at any size (reads bounded only by host memory). The selected model's capability record admits from the provider's documented limits (Meta: 50 MB per inline image, 50 images per request); the transports keep their own frame validity and the provider answers for the rest at send. |
+| PDFs on the Model API backend    | No size of ours (Meta documents 50 MB per inline file); images and PDF page images together: 50 per request on Meta. Meta reads text from the first 100 pages and page images from the first 50 (Meta's [file-handling guide](https://dev.meta.ai/docs/file-handling)).                                                               |
+| Model API replayed media         | No aggregate character budget; the provider's per-request image budget decides, newest first, with older media named when left out. The platform refuses what it cannot take.                                                                                                                                                         |
+| Picked UTF-8 text attachments    | No per-file size of ours from trusted and indexed workspace paths (reads bounded only by host memory); Model API also caps combined text and file-name wrappers at 768 KiB to leave context room.                                                                                                                                     |
+| A message to Muse Code           | 10 MiB. Attachment admission reserves 2 MiB for the prompt, context and frame; serialized text and base64 images count toward the rest. The exact outbound frame is checked at send.                                                                                                                                                  |
+| Model API: shell commands        | 2 minutes by default, 10 at most                                                                                                                                                                                                                                                                                                      |
+| Model API: retries               | Retryable failures (429, 500, 502 and 503, and a reply stream the server shut down or overloaded) retry honouring `Retry-After` at any length, shown in the transcript; attempts end at Stop, never at a count, and quota never retries                                                                                               |
+| Model API: a silent reply stream | Waits until Stop, saying so while it lasts; a provider-named idle still ends silence at it                                                                                                                                                                                                                                            |
+| Model API: file tools            | Text up to 10 MiB through the file tools; images and PDFs read whole through the media reader (bounded only by host memory); the search tool skips files over 1 MiB                                                                                                                                                                   |
+| Opened tool outputs              | 16 MiB each; every document is kept and stays readable                                                                                                                                                                                                                                                                                |
 
 ## Legal scan (M97)
 
@@ -5205,9 +5214,10 @@ below it must be a plain file or folder.
   A refusal answered before any processing is never billed: the turn's
   result counts it with settled 0 and uncertain 0.
 - **The agent says a file is too large (Model API backend)** — the file tools
-  read and edit text and images up to 10 MiB and read PDFs up to 32 MB; the
-  search tool skips files over 1 MiB. The agent can read part of a larger
-  file with a shell command.
+  read and edit text up to 10 MiB; images and PDFs reach the model whole
+  through the media reader (bounded only by host memory); the search tool
+  skips files over 1 MiB. The agent can read part of a larger file with a
+  shell command.
 - **Sign-out does not finish, or the panel stays gated** — sign-out asks
   Muse Code to sign itself out (`account/logout`). Only when Muse Code
   still reads signed in afterwards does it open `muse logout` in a
