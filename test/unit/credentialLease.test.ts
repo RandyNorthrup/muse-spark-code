@@ -15,23 +15,38 @@ import {
   currentProcessStartTime,
 } from '../../src/core/credentialLease'
 import { credentialLeaseSecrets } from '../../src/host/models/credentialLeaseSecrets'
-import { UI_TEXT } from '../../src/shared/constants'
+import type { SecretStore } from '../../src/host/auth/credentialStore'
+import { KEYRING_SERVICE, UI_TEXT } from '../../src/shared/constants'
 import { keyringSecretStore } from '../../src/runtime/keyStore'
 import { userFileIo } from '../../src/runtime/providersCommands'
-import { memoryKeyring } from './helpers/keyring'
 
 /** A pid the liveness check really reports dead (past any real pid). */
 const DEAD_PID = 2_147_483_647
 
 /**
- * The runtime's real secret store: the keyring logic (parts, reclaim,
- * per-account named locks) with the native entry behind a map, the seam the
- * store itself sanctions for tests. VS Code's SecretStorage needs the
- * editor, so nothing here can cover it; the guard is store-agnostic.
+ * The runtime's real secret store over the real OS credential store: the
+ * keyring logic (parts, reclaim, per-account named locks) on a native
+ * entry of a throwaway service, the same entry the product opens. Only
+ * Windows rigs have a qualified native store (as in keyringParts.test.ts);
+ * the guard itself is store-agnostic (the panel passes SecretStorage).
  */
-function testSecrets() {
-  const { openEntry } = memoryKeyring()
-  return keyringSecretStore(openEntry, { lockScope: randomUUID() })
+async function testSecrets(
+  scope: string,
+): Promise<{ secrets: SecretStore; cleanup: () => Promise<void> }> {
+  const { AsyncEntry, findCredentialsAsync } = await import('@napi-rs/keyring')
+  const service = `${KEYRING_SERVICE}.test.${scope}`
+  const secrets = keyringSecretStore((_, name) => new AsyncEntry(service, name), {
+    lockScope: scope,
+  })
+  return {
+    secrets,
+    cleanup: async () => {
+      const remaining = await findCredentialsAsync(service)
+      for (const entry of remaining) {
+        await new AsyncEntry(service, entry.account).deletePassword()
+      }
+    },
+  }
 }
 
 describe('acquireCredentialLock', () => {
@@ -129,34 +144,42 @@ describe('acquireCredentialLock', () => {
     await rm(dir, { recursive: true, force: true })
   })
 
-  describe('panel secrets guard', () => {
+  describe.runIf(process.platform === 'win32')('panel secrets guard', () => {
     it('runs panel credential writes inside the shared lease', async () => {
       const base = await freshDir()
       const lockDir = path.join(base, 'providers.json.lock')
-      const secrets = testSecrets()
-      const guarded = credentialLeaseSecrets(secrets, lockDir)
-      await guarded.store('key', 'value')
-      expect(await guarded.get('key')).toBe('value')
-      // No residue: each guarded write acquires and releases.
-      await expect(readFile(path.join(lockDir, 'owner.json'), 'utf8')).rejects.toThrow()
-      await guarded.delete('key')
-      expect(await guarded.get('key')).toBeUndefined()
+      const { secrets, cleanup } = await testSecrets(randomUUID())
+      try {
+        const guarded = credentialLeaseSecrets(secrets, lockDir)
+        await guarded.store('key', 'value')
+        expect(await guarded.get('key')).toBe('value')
+        // No residue: each guarded write acquires and releases.
+        await expect(readFile(path.join(lockDir, 'owner.json'), 'utf8')).rejects.toThrow()
+        await guarded.delete('key')
+        expect(await guarded.get('key')).toBeUndefined()
+      } finally {
+        await cleanup()
+      }
     })
 
     it('refuses a panel write while a Connect transaction holds the lease', async () => {
       const base = await freshDir()
       const lockDir = path.join(base, 'providers.json.lock')
-      const secrets = testSecrets()
-      const guarded = credentialLeaseSecrets(secrets, lockDir)
-      const release = await acquireCredentialLock(lockDir)
+      const { secrets, cleanup } = await testSecrets(randomUUID())
       try {
-        await expect(guarded.store('key', 'value')).rejects.toThrow(UI_TEXT.providerConnectBusy)
-        expect(await secrets.get('key')).toBeUndefined()
+        const guarded = credentialLeaseSecrets(secrets, lockDir)
+        const release = await acquireCredentialLock(lockDir)
+        try {
+          await expect(guarded.store('key', 'value')).rejects.toThrow(UI_TEXT.providerConnectBusy)
+          expect(await secrets.get('key')).toBeUndefined()
+        } finally {
+          await release()
+        }
+        await guarded.store('key', 'value')
+        expect(await guarded.get('key')).toBe('value')
       } finally {
-        await release()
+        await cleanup()
       }
-      await guarded.store('key', 'value')
-      expect(await guarded.get('key')).toBe('value')
     })
   })
 
