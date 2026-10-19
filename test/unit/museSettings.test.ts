@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   museSettingsPath,
+  isContributorModeEnabled,
   readDelegationMode,
   readWorkflowTriggerMode,
 } from '../../src/host/backend/museSettings'
@@ -37,6 +38,31 @@ describe('readDelegationMode', () => {
     expect(readDelegationMode(deps)).toBe('off')
     files['/home/r/.config/muse/settings.json'] = undefined
     expect(readDelegationMode(deps)).toBe('off')
+  })
+})
+
+describe('isContributorModeEnabled', () => {
+  it('honours contributor_mode_enabled exactly true, and reads anything else as off', () => {
+    const files: Record<string, string | undefined> = {
+      '/home/r/.config/muse/settings.json': '{"schema_version":1,"contributor_mode_enabled":true}',
+    }
+    const deps = { ...base, readTextFile: (file: string) => files[file] }
+    expect(isContributorModeEnabled(deps)).toBe(true)
+    files['/home/r/.config/muse/settings.json'] =
+      '{"schema_version":1,"contributor_mode_enabled":false}'
+    expect(isContributorModeEnabled(deps)).toBe(false)
+    files['/home/r/.config/muse/settings.json'] = '{"schema_version":1}'
+    expect(isContributorModeEnabled(deps)).toBe(false)
+    files['/home/r/.config/muse/settings.json'] =
+      '{"schema_version":1,"contributor_mode_enabled":"true"}'
+    expect(isContributorModeEnabled(deps)).toBe(false)
+    files['/home/r/.config/muse/settings.json'] =
+      '{"schema_version":1,"contributor_mode_enabled":1}'
+    expect(isContributorModeEnabled(deps)).toBe(false)
+    files['/home/r/.config/muse/settings.json'] = '{not json'
+    expect(isContributorModeEnabled(deps)).toBe(false)
+    files['/home/r/.config/muse/settings.json'] = undefined
+    expect(isContributorModeEnabled(deps)).toBe(false)
   })
 })
 

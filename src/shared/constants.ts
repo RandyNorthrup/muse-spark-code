@@ -5728,6 +5728,14 @@ export const MUSE_SANDBOX_NETWORK_ARG = '--sandbox-network'
 // `session/start.permissionProfile` is stable in 1.4.7 (amendment 42624).
 export const MUSE_ASK_ME_PROFILE = ':ask-me'
 export const MUSE_AUTO_REVIEW_PROFILE = ':auto-review'
+// `muse serve --contributor-mode on`: per-process contributor mode override
+// (this host only; never persisted). Passed only while the person's own Muse
+// Code settings enable contributor mode (`contributor_mode_enabled: true` in
+// `$XDG_CONFIG_HOME/muse/settings.json`, read 2026-10-18 on CLI 1.4.10:
+// `muse --help` and `muse serve --help` both document `--contributor-mode
+// <on|off>` as a per-run override). Nothing of ours defaults it on.
+export const MUSE_CONTRIBUTOR_MODE_ARG = '--contributor-mode'
+export const MUSE_CONTRIBUTOR_MODE_ON = 'on'
 export const MUSE_INSTALL_URL = 'https://dev.meta.ai/products/muse-code/'
 export const MUSE_INSTALL_COMMANDS = {
   win32: 'irm https://dev.meta.ai/install.ps1 | iex',
