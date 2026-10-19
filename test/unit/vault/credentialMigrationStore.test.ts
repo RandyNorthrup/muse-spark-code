@@ -4,11 +4,13 @@
 // the same store. Key values are generated at runtime (pattern-valid, never
 // issued, never sent), so no secret-shaped literal sits in the tree.
 //
-// Two tests force an interleaving the real world produces at random, with a
-// gate on the persisted secret writes: every byte still lands in the real
-// files, the gate only decides when. One test simulates a crash between the
-// vault commit and the legacy write by failing that single write once; the
-// vault commits around it are all real.
+// One test forces an interleaving the real world produces at random, with
+// a gate on the persisted secret writes: every byte still lands in the real
+// files, the gate only decides when. Every crash below is a real filesystem
+// refusal (the vault directory or one secret file made unwritable the
+// platform's real way, then restored): no port or helper in this file throws
+// on the store's behalf. The vault commits around each refusal are all real,
+// and so is the retry after the restore.
 import { mkdtemp, rm } from 'node:fs/promises'
 import { realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -95,10 +97,10 @@ function vaultFilePath(): string {
 
 /**
  * Make the real VaultStore refuse its next remove, the way a real
- * filesystem refusal does. On POSIX, mode `0444` trips the store's own
- * verify (owner-only `0600`); on Windows the same call sets the read-only
- * attribute, which refuses the store's rename/unlink. Either way the
- * `liveStore().remove` below runs and fails — nothing throws on its behalf.
+ * filesystem refusal does. POSIX-only (this suite does not run on Windows):
+ * mode `0444` trips the store's own verify (owner-only `0600`), so the
+ * `liveStore().remove` below runs and fails at verify, before the unlink —
+ * nothing throws on its behalf.
  */
 async function refuseVaultFile(): Promise<void> {
   await chmod(vaultFilePath(), 0o444)
@@ -109,24 +111,54 @@ async function restoreVaultFile(): Promise<void> {
   await chmod(vaultFilePath(), 0o600)
 }
 
-interface FailAfter {
-  /** Writes succeed until this many land; the next one throws, once. */
-  failAfter: number
-  seen: number
-  failed: boolean
+/** The live store's real vault directory: refusing it refuses every store op. */
+function vaultDirPath(): string {
+  const current = openStores.at(-1)
+  if (current === undefined) throw new Error('store not open')
+  return path.join(current.directory, 'vault')
+}
+
+/**
+ * Make the real VaultStore refuse its next write, the way a real
+ * filesystem refusal does. POSIX-only: mode `0555` trips the store's own
+ * directory verify (owner-only `0700`), so the `liveStore().write` below
+ * runs and fails inside the store — nothing throws on its behalf. A
+ * read-only vault *file* would not refuse a write (the publish renames over
+ * it), which is why this refuses the directory instead.
+ */
+async function refuseVaultDir(): Promise<void> {
+  await chmod(vaultDirPath(), 0o555)
+}
+
+/** Give the vault directory back after a refused write, so the retry runs real too. */
+async function restoreVaultDir(): Promise<void> {
+  await chmod(vaultDirPath(), 0o700)
 }
 
 function ports(
-  failWrites: FailAfter,
+  refuseSecondWriteOnce?: { current: boolean },
   failRemoveOnce?: { current: boolean },
 ): CredentialMigrationPorts {
+  let writes = 0
   return {
     snapshot: async () => ({ items: await liveStore().list() }),
     write: async (item, isEdit, authorize) => {
-      failWrites.seen += 1
-      if (!failWrites.failed && failWrites.seen > failWrites.failAfter) {
-        failWrites.failed = true
-        throw new Error('injected write failure')
+      writes += 1
+      // A crash between a journal commit and the vault commit that follows
+      // it: the first write (the journal row) lands, the second runs
+      // against the refused real directory and fails inside the store.
+      // Consuming the flag proves the refusal ran; the stranded journal row
+      // the test asserts next proves the write itself failed.
+      if (writes === 2 && refuseSecondWriteOnce?.current === true) {
+        refuseSecondWriteOnce.current = false
+        await refuseVaultDir()
+        try {
+          authorize?.()
+          await liveStore().write(item, isEdit ? 'present' : 'absent')
+        } finally {
+          await restoreVaultDir()
+        }
+        return
       }
       authorize?.()
       await liveStore().write(item, isEdit ? 'present' : 'absent')
@@ -153,11 +185,17 @@ function ports(
       await liveStore().remove(id)
     },
     firstPartyRead: async (request) => {
+      // The engine refuses non-apiKey rows before this port is reached, so
+      // only the apiKey shape arrives here; the bytes below are the real
+      // committed ones, never a refusal. Anything else fails the test
+      // instead of failing on the store's behalf.
       const item = await liveStore().read(request.itemId)
-      if (item.material.kind !== 'apiKey') throw new Error('peer refused')
-      const value = Buffer.alloc(item.material.value.byteLength)
-      value.set(item.material.value)
-      return value
+      if (item.material.kind === 'apiKey') {
+        const value = Buffer.alloc(item.material.value.byteLength)
+        value.set(item.material.value)
+        return value
+      }
+      expect.unreachable('first-party reads serve apiKey rows only')
     },
   }
 }
@@ -315,21 +353,41 @@ afterEach(async () => {
   while (secretDirs.length > 0) await closeSecrets(secretDirs.pop()!)
 })
 
-function noFail(): FailAfter {
-  return { failAfter: Number.MAX_SAFE_INTEGER, seen: 0, failed: false }
+/**
+ * The stranded journal row's phase, read back through the real store. The
+ * crash tests migrate exactly one key, so the single `migration-` row is
+ * unambiguous; its phase tells which side of the crash the engine stopped
+ * on (`copying`/`writing` past the journal commit, `deleting` past the
+ * vault remove). A crash the refusal did not really cause would have moved
+ * the row on, so this is the proof the refusal fired.
+ */
+async function strandedJournalPhase(): Promise<string | null> {
+  const items = await liveStore().list()
+  const rows = items.filter((entry) => entry.name.startsWith('migration-'))
+  if (rows.length !== 1) throw new Error('expected the one stranded journal row')
+  const [row] = rows
+  if (row === undefined) throw new Error('expected the one stranded journal row')
+  const journal = await liveStore().read(row.id)
+  try {
+    if (journal.material.kind !== 'apiKey') throw new Error('expected the journal row')
+    return (JSON.parse(Buffer.from(journal.material.value).toString('utf8')) as { phase: string })
+      .phase
+  } finally {
+    eraseItem(journal)
+  }
 }
 
 function controller(
   secrets: SecretStore,
   providerIds: readonly string[],
-  failWrites: FailAfter,
+  refuseSecondWriteOnce?: { current: boolean },
   log: Logger = quiet,
   failRemoveOnce?: { current: boolean },
 ): CredentialMigrationController {
   return new CredentialMigrationController({
     secrets,
     listProviderIds: () => Promise.resolve(providerIds),
-    ports: ports(failWrites, failRemoveOnce),
+    ports: ports(refuseSecondWriteOnce, failRemoveOnce),
     minorRelease: () => 19,
     now,
     label: UI_TEXT.vault.secret,
@@ -346,6 +404,21 @@ async function persistedSecrets(
   return store
 }
 
+/**
+ * The real persisted secret file for one key: refusing it refuses the one
+ * legacy write the crashed-mirror test targets. File-backed like the
+ * fixture's store, which names one `${encodeURIComponent(key)}.secret` file
+ * per key under its directory.
+ */
+async function refuseSecretFile(dir: string, key: string): Promise<void> {
+  await chmod(path.join(dir, `${encodeURIComponent(key)}.secret`), 0o444)
+}
+
+/** Give the secret file back after a refused write, so the healing runs real too. */
+async function restoreSecretFile(dir: string, key: string): Promise<void> {
+  await chmod(path.join(dir, `${encodeURIComponent(key)}.secret`), 0o600)
+}
+
 /** The real shell bound to a migrated controller, as the unlock edge leaves it. */
 async function migratedShell(
   store: SecretStore,
@@ -355,7 +428,7 @@ async function migratedShell(
   active: CredentialMigrationController
 }> {
   const shell = createMigrationShell(store)
-  const active = controller(store, providerIds, noFail())
+  const active = controller(store, providerIds)
   shell.bind(active)
   await active.ensureMigrated()
   return { shell, active }
@@ -385,20 +458,37 @@ async function removeMigratedKey(shell: ReturnType<typeof createMigrationShell>)
 }
 
 /**
- * A sign-out crashed mid-delete through the real shell and controller:
- * the journal is left saying `deleting` with both copies still in place.
- * Refusing the real vault file strands the old vault item too; failing the
- * second journal write strands the state past the vault remove instead.
+ * A sign-out crashed mid-delete through the real shell and controller.
+ * Refusing the real vault file strands the old vault item with the journal
+ * saying `deleting`; refusing the second journal write strands the state
+ * past the vault remove instead. Each refusal is the real filesystem one,
+ * and the assertions below prove it fired: a consumed flag alone could
+ * still pass had the refused op succeeded, but the stranded row's phase and
+ * the vault's contents cannot.
  */
 async function crashedSignOut(
   store: SecretStore,
-  failWrites: FailAfter,
+  refuseSecondWriteOnce?: { current: boolean },
   failRemoveOnce?: { current: boolean },
 ): Promise<ReturnType<typeof createMigrationShell>> {
   const { shell } = await migratedShell(store, [])
   await store.delete(MODEL_API_KEY)
-  const crash = controller(store, [], failWrites, quiet, failRemoveOnce)
+  const crash = controller(store, [], refuseSecondWriteOnce, quiet, failRemoveOnce)
   await expect(crash.mirrorDelete(MODEL_API_KEY)).rejects.toThrow(VaultMigrationFault)
+  if (failRemoveOnce !== undefined) {
+    // The flag is consumed only by the refusal branch, and the vault item
+    // the refused remove left behind is still there.
+    expect(failRemoveOnce.current).toBe(false)
+    expect(await credentialCount()).toBe(1)
+  }
+  if (refuseSecondWriteOnce !== undefined) {
+    // The journal commit landed, the vault remove landed, and only the
+    // final journal write failed: the row still says `deleting` with both
+    // copies already gone.
+    expect(refuseSecondWriteOnce.current).toBe(false)
+    expect(await credentialCount()).toBe(0)
+    expect(await strandedJournalPhase()).toBe('deleting')
+  }
   return shell
 }
 
@@ -416,12 +506,19 @@ async function expectOpaqueSaveKept(
   await shell.store.store(key, record)
   expect(await store.get(key)).toBe(record)
   expect(await credentialCount()).toBe(0)
-  await controller(store, providerIds, noFail()).ensureMigrated()
+  await controller(store, providerIds).ensureMigrated()
   expect(await credentialCount()).toBe(0)
   expect(await store.get(key)).toBe(record)
 }
 
-describe('key-store migration against a real store', () => {
+// POSIX-only, like the session-owned broker suite: on Windows the product
+// opens the vault store only through the broker's C# pipe helper (a
+// WindowsPipeFiles security port over the helper relay,
+// src/runtime/vault/vaultBrokerEntry.ts), which a unit test cannot supply
+// without a stand-in — and stand-ins are forbidden. Here the store opens
+// directly with no security port, which the constructor refuses on win32, so
+// these proofs run where that direct open is the real product path.
+describe.skipIf(process.platform === 'win32')('key-store migration against a real store', () => {
   it('copies the model API key and a provider key, verified, legacy retained', async () => {
     const first = modelApiKey()
     const secret = providerSecret()
@@ -429,7 +526,7 @@ describe('key-store migration against a real store', () => {
       [MODEL_API_KEY]: first,
       [PROVIDER_KEY]: JSON.stringify(apiKeyRecord(secret)),
     })
-    await controller(store, ['openrouter'], noFail()).ensureMigrated()
+    await controller(store, ['openrouter']).ensureMigrated()
     // The old store stays readable until the vault copy is proven.
     expect(await store.get(MODEL_API_KEY)).toBe(first)
     expect(await store.get(PROVIDER_KEY)).toBe(JSON.stringify(apiKeyRecord(secret)))
@@ -437,7 +534,7 @@ describe('key-store migration against a real store', () => {
     expect(items.length).toBe(2)
     expect(items.every((entry) => entry.hidden && entry.firstParty)).toBe(true)
     // A second run repeats cleanly: nothing new, nothing lost.
-    await controller(store, ['openrouter'], noFail()).ensureMigrated()
+    await controller(store, ['openrouter']).ensureMigrated()
     expect(await store.get(MODEL_API_KEY)).toBe(first)
     expect(await credentialCount()).toBe(2)
   })
@@ -445,12 +542,16 @@ describe('key-store migration against a real store', () => {
   it('finishes an interrupted copy on the next run with the legacy value whole', async () => {
     const first = modelApiKey()
     const store = await persistedSecrets({ [MODEL_API_KEY]: first })
-    // The second vault write strands a `copying` journal row, like a crash
-    // between the journal commit and the vault commit.
-    await controller(store, [], { failAfter: 1, seen: 0, failed: false }).ensureMigrated()
+    // The second vault write runs against the refused real directory, like
+    // a crash between the journal commit and the vault commit: the journal
+    // row strands at `copying` with no vault item and the legacy whole.
+    const crashWrite = { current: true }
+    await controller(store, [], crashWrite).ensureMigrated()
+    expect(crashWrite.current).toBe(false)
     expect(await store.get(MODEL_API_KEY)).toBe(first)
     expect(await credentialItems()).toEqual([])
-    await controller(store, [], noFail()).ensureMigrated()
+    expect(await strandedJournalPhase()).toBe('copying')
+    await controller(store, []).ensureMigrated()
     expect(await store.get(MODEL_API_KEY)).toBe(first)
     expect(await credentialCount()).toBe(1)
   })
@@ -458,10 +559,10 @@ describe('key-store migration against a real store', () => {
   it('rotates the vault copy when SecretStorage changed while locked', async () => {
     const first = modelApiKey()
     const store = await persistedSecrets({ [MODEL_API_KEY]: first })
-    await controller(store, [], noFail()).ensureMigrated()
+    await controller(store, []).ensureMigrated()
     const rotated = modelApiKey()
     await store.store(MODEL_API_KEY, rotated)
-    await controller(store, [], noFail()).ensureMigrated()
+    await controller(store, []).ensureMigrated()
     expect(await store.get(MODEL_API_KEY)).toBe(rotated)
     expect(await readMigratedSecret()).toBe(rotated)
   })
@@ -513,12 +614,12 @@ describe('key-store migration against a real store', () => {
   it('a removed vault copy is rebuilt from SecretStorage on unlock', async () => {
     const first = modelApiKey()
     const store = await persistedSecrets({ [MODEL_API_KEY]: first })
-    await controller(store, [], noFail()).ensureMigrated()
+    await controller(store, []).ensureMigrated()
     const [item] = await credentialItems()
     if (item === undefined) throw new Error('missing migrated item')
     await liveStore().remove(item.id)
     expect(await credentialItems()).toEqual([])
-    await controller(store, [], noFail()).ensureMigrated()
+    await controller(store, []).ensureMigrated()
     expect(await store.get(MODEL_API_KEY)).toBe(first)
     expect(await readMigratedSecret()).toBe(first)
   })
@@ -527,30 +628,46 @@ describe('key-store migration against a real store', () => {
     const first = modelApiKey()
     const second = modelApiKey()
     const third = modelApiKey()
-    const inner = await persistedSecrets({ [MODEL_API_KEY]: first })
-    // Fail the second persisted write of `second` once: the save's own
-    // SecretStorage write lands, the mirror's legacy write does not — the
-    // crash between the vault commit and the legacy write.
+    const { store: inner, dir } = await fileSecrets()
+    secretDirs.push(dir)
+    await inner.store(MODEL_API_KEY, first)
+    // Refuse the real secret file for the mirror's legacy write once: the
+    // save's own SecretStorage write lands, the mirror's legacy write runs
+    // against the refused file and fails with its own access error — the
+    // crash between the vault commit and the legacy write. The vault
+    // commits around it are all real.
     let writes = 0
     const crashStore: SecretStore = {
       get: (key) => inner.get(key),
       delete: (key) => inner.delete(key),
       store: async (key, value) => {
-        if (value === second) {
+        if (key === MODEL_API_KEY && value === second) {
           writes += 1
-          if (writes === 2) throw new Error('simulated crash between vault and legacy commits')
+          if (writes === 2) {
+            await refuseSecretFile(dir, key)
+            try {
+              await inner.store(key, value)
+            } finally {
+              await restoreSecretFile(dir, key)
+            }
+            return
+          }
         }
         await inner.store(key, value)
       },
     }
     const shell = createMigrationShell(crashStore)
-    shell.bind(controller(crashStore, [], noFail()))
-    await controller(crashStore, [], noFail()).ensureMigrated()
+    shell.bind(controller(crashStore, []))
+    await controller(crashStore, []).ensureMigrated()
     await shell.store.store(MODEL_API_KEY, second)
     expect(await inner.get(MODEL_API_KEY)).toBe(second)
+    // The mirror's legacy write really failed: the journal strands at
+    // `writing` with the vault copy committed, which a write that had gone
+    // through would have moved on to `active`.
+    expect(await strandedJournalPhase()).toBe('writing')
     // A save while the vault is unreachable lands in SecretStorage only.
     await inner.store(MODEL_API_KEY, third)
-    await controller(crashStore, [], noFail()).ensureMigrated()
+    await controller(crashStore, []).ensureMigrated()
     expect(await inner.get(MODEL_API_KEY)).toBe(third)
     expect(await readMigratedSecret()).toBe(third)
   })
@@ -567,7 +684,7 @@ describe('key-store migration against a real store', () => {
       [PROVIDER_KEY]: JSON.stringify(oauthRecord(providerSecret())),
     })
     const { log, logged } = capturingLog()
-    await controller(store, ['openrouter'], noFail(), log).ensureMigrated()
+    await controller(store, ['openrouter'], undefined, log).ensureMigrated()
     expect(await credentialCount()).toBe(0)
     expect(logged.some((line) => line.includes(PROVIDER_KEY) && line.includes('opaque'))).toBe(true)
   })
@@ -575,7 +692,7 @@ describe('key-store migration against a real store', () => {
   it('reads the migrated vault item material back with its exact bytes', async () => {
     const first = modelApiKey()
     const store = await persistedSecrets({ [MODEL_API_KEY]: first })
-    await controller(store, [], noFail()).ensureMigrated()
+    await controller(store, []).ensureMigrated()
     expect(await readMigratedSecret()).toBe(first)
   })
 
@@ -585,12 +702,12 @@ describe('key-store migration against a real store', () => {
     const store = await persistedSecrets({ [MODEL_API_KEY]: first })
     // The crash lands between the journal commit and the vault remove: the
     // old vault item is still in place with SecretStorage empty.
-    const shell = await crashedSignOut(store, noFail(), { current: true })
+    const shell = await crashedSignOut(store, undefined, { current: true })
     // The person saves a new key while the vault is locked; the save lands
     // in SecretStorage, and its mirror is refused on the `deleting` row.
     await shell.store.store(MODEL_API_KEY, newer)
     expect(await store.get(MODEL_API_KEY)).toBe(newer)
-    await controller(store, [], noFail()).ensureMigrated()
+    await controller(store, []).ensureMigrated()
     // Recovery keeps the newer key: it survives in both stores, migrated.
     expect(await store.get(MODEL_API_KEY)).toBe(newer)
     expect(await readMigratedSecret()).toBe(newer)
@@ -602,10 +719,10 @@ describe('key-store migration against a real store', () => {
     const store = await persistedSecrets({ [MODEL_API_KEY]: first })
     // The crash lands between the vault remove and the final journal commit:
     // the old vault item is already gone with SecretStorage empty.
-    const shell = await crashedSignOut(store, { failAfter: 1, seen: 0, failed: false })
+    const shell = await crashedSignOut(store, { current: true })
     expect(await credentialCount()).toBe(0)
     await shell.store.store(MODEL_API_KEY, newer)
-    await controller(store, [], noFail()).ensureMigrated()
+    await controller(store, []).ensureMigrated()
     expect(await store.get(MODEL_API_KEY)).toBe(newer)
     expect(await readMigratedSecret()).toBe(newer)
   })
@@ -614,10 +731,10 @@ describe('key-store migration against a real store', () => {
     const first = modelApiKey()
     const later = modelApiKey()
     const store = await persistedSecrets({ [MODEL_API_KEY]: first })
-    const shell = await crashedSignOut(store, { failAfter: 1, seen: 0, failed: false })
+    const shell = await crashedSignOut(store, { current: true })
     // No newer save: recovery completes the sign-out instead of throwing on
     // the already-removed vault item at every unlock.
-    await controller(store, [], noFail()).ensureMigrated()
+    await controller(store, []).ensureMigrated()
     // With no `deleting` row left, a later save migrates straight through.
     await shell.store.store(MODEL_API_KEY, later)
     expect(await store.get(MODEL_API_KEY)).toBe(later)
@@ -706,7 +823,7 @@ describe('key-store migration against a real store', () => {
     }
     expect(await credentialCount()).toBe(1)
     const { log, logged } = capturingLog()
-    await controller(store, ['openrouter'], noFail(), log).ensureMigrated()
+    await controller(store, ['openrouter'], undefined, log).ensureMigrated()
     // The stuck item and its journal row are gone; the record keeps working
     // in SecretStorage, with the reason logged.
     expect(await credentialCount()).toBe(0)
@@ -720,7 +837,7 @@ describe('key-store migration against a real store', () => {
     const first = modelApiKey()
     const newer = modelApiKey()
     const inner = await persistedSecrets({ [MODEL_API_KEY]: first })
-    const active = controller(inner, [], noFail())
+    const active = controller(inner, [])
     // Hold the sign-out's engine delete open before it touches either copy:
     // the save below lands in that window, the way a save racing a fresh
     // sign-out does. Every byte still goes through the real controller and
@@ -764,7 +881,7 @@ describe('key-store migration against a real store', () => {
     // back. A later unlock keeps it, never resurrecting the signed-out one.
     expect(await inner.get(MODEL_API_KEY)).toBe(newer)
     expect(await readMigratedSecret()).toBe(newer)
-    await controller(inner, [], noFail()).ensureMigrated()
+    await controller(inner, []).ensureMigrated()
     expect(await inner.get(MODEL_API_KEY)).toBe(newer)
     expect(await readMigratedSecret()).toBe(newer)
   })
@@ -781,7 +898,7 @@ describe('key-store migration against a real store', () => {
     await shell.store.store(PROVIDER_KEY, oauth)
     expect(await store.get(PROVIDER_KEY)).toBe(oauth)
     expect(await credentialCount()).toBe(0)
-    await controller(store, ['openrouter'], noFail()).ensureMigrated()
+    await controller(store, ['openrouter']).ensureMigrated()
     expect(await credentialCount()).toBe(0)
     expect(await store.get(PROVIDER_KEY)).toBe(oauth)
     // The slot is not stuck: an apiKey save migrates straight through, and
@@ -793,7 +910,7 @@ describe('key-store migration against a real store', () => {
     await shell.store.store(PROVIDER_KEY, overlaid)
     expect(await store.get(PROVIDER_KEY)).toBe(overlaid)
     expect(await credentialCount()).toBe(0)
-    await controller(store, ['openrouter'], noFail()).ensureMigrated()
+    await controller(store, ['openrouter']).ensureMigrated()
     expect(await credentialCount()).toBe(0)
     expect(await store.get(PROVIDER_KEY)).toBe(overlaid)
   })
@@ -803,8 +920,8 @@ describe('key-store migration against a real store', () => {
     const store = await persistedSecrets({ [MODEL_API_KEY]: first })
     const shell = createMigrationShell(store)
     const failRemoveOnce = { current: true }
-    shell.bind(controller(store, [], noFail(), quiet, failRemoveOnce))
-    await controller(store, [], noFail()).ensureMigrated()
+    shell.bind(controller(store, [], undefined, quiet, failRemoveOnce))
+    await controller(store, []).ensureMigrated()
     expect(await readMigratedSecret()).toBe(first)
     // The journal writes `deleting`, then the vault remove fails against
     // the refused real file: the call throws with the original key still
@@ -826,7 +943,7 @@ describe('key-store migration against a real store', () => {
     await expect(shell.store.delete(MODEL_API_KEY)).rejects.toThrow()
     expect(await store.get(MODEL_API_KEY)).toBe(second)
     expect(await credentialCount()).toBe(1)
-    await controller(store, [], noFail()).ensureMigrated()
+    await controller(store, []).ensureMigrated()
     expect(await store.get(MODEL_API_KEY)).toBe(undefined)
     expect(await credentialCount()).toBe(0)
   })
@@ -840,7 +957,7 @@ describe('key-store migration against a real store', () => {
     await reopenStore()
     expect(await store.get(MODEL_API_KEY)).toBe(first)
     expect(await readMigratedSecret()).toBe(first)
-    await controller(store, [], noFail()).ensureMigrated()
+    await controller(store, []).ensureMigrated()
     expect(await store.get(MODEL_API_KEY)).toBe(first)
     expect(await readMigratedSecret()).toBe(first)
     // Once the vault is back, the same sign-out removes both copies.
@@ -855,7 +972,7 @@ describe('key-store migration against a real store', () => {
     await shell.store.store(MODEL_API_KEY, rotated)
     expect(await store.get(MODEL_API_KEY)).toBe(rotated)
     await reopenStore()
-    await controller(store, [], noFail()).ensureMigrated()
+    await controller(store, []).ensureMigrated()
     expect(await store.get(MODEL_API_KEY)).toBe(rotated)
     expect(await readMigratedSecret()).toBe(rotated)
   })
