@@ -4,7 +4,7 @@
 // module deliberately refuses to retain or log. The failures below are a
 // real SSH client refused by a real closed port, through a real process
 // transport.
-import { execFile, type ExecException } from 'node:child_process'
+import { execFile, type ExecFileException } from 'node:child_process'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -24,7 +24,7 @@ const run: CheckProcess = (request) =>
       request.file,
       [...request.args],
       { cwd: request.cwd, env: request.env, timeout: request.timeoutMs },
-      (error: ExecException | null, stdout: string, stderr: string) => {
+      (error: ExecFileException | null, stdout: string, stderr: string) => {
         if (error === null) {
           resolve({ exitCode: 0, output: stdout, descendantsEnded: true, stderr })
           return
@@ -66,6 +66,7 @@ async function runner(): Promise<{ ssh: SshRunner; value: Runner }> {
       commandClasses: ['tests'],
       setupCommand: 'true',
       cacheKey: 'c1',
+      environmentNames: [],
     },
   }
 }
