@@ -30,7 +30,10 @@ import { createServer } from 'node:net'
 import os from 'node:os'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
-import { Connection, checkServedFingerprint } from '@muse-code/sdk'
+// Deep SDK imports, never the barrel (see MuseCodeHost.ts): the barrel's
+// unused layers would ride into the team bundles.
+import { Connection } from '@muse-code/sdk/dist/src/connection/connection.js'
+import { checkServedFingerprint } from '@muse-code/sdk/dist/src/fingerprint.js'
 
 import type { TeamJournal } from './teamJournal'
 import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'

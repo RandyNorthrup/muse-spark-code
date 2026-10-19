@@ -16,21 +16,23 @@ import { resourceEnvironment, type ResourceLease } from '../../core/resources/la
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import { type FingerprintWarning } from '@muse-code/sdk'
+// The SDK's fingerprint advisory, type-only through its own module: any
+// import of the package root keeps the SDK's side effects in the activation
+// bundle under verbatimModuleSyntax, so activation never names the root.
+import type { FingerprintWarning } from '@muse-code/sdk/dist/src/fingerprint.js'
 import type { CredentialFileVerdict } from '../../core/backends/musecode/credentialFile'
 import type { MuseCodeAccountHome } from '../../core/backends/musecode/accountHomes'
-import {
-  type CommandTimeouts,
-  type MuseCodeFeaturePorts,
+import type {
+  CommandTimeouts,
+  MuseCodeFeaturePorts,
   MuseCodeHost,
-  museCodeEffortPort,
-  type spawnAccountMspConnection,
-  type MspHost,
+  spawnAccountMspConnection,
+  MspHost,
 } from '../../core/backends/musecode/MuseCodeHost'
+import { environmentValue } from '../../core/childEnvironment'
 import {
   buildChildEnvironment,
   credentialFilePath,
-  environmentValue,
   type LaunchResolution,
   type MuseLaunch,
   resolveMuseLaunch,
@@ -42,6 +44,7 @@ import {
   type LinuxSandboxReadiness,
   probeLinuxSandboxShell,
   resolveShellSandbox,
+  sandboxAvailabilityWarning,
   serveArguments,
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
@@ -66,13 +69,13 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { readCredentialFile } from '../auth/cliAccount'
+import type { UsageRecording } from '../../core/usage/recording'
 import type { Logger } from '../logger'
+import { requireFile } from '../lazyBundle'
+import { isUsageNotesBundle, museCodeBundleLoader, type MuseCodeBundle } from './museCodeBundle'
 import { systemPath } from './memoryIo'
 import { admitResource } from '../../core/resources/admission'
-import {
-  spawnResourceMuseConnection,
-  spawnResourceAccountConnection,
-} from '../resources/museResourceLaunch'
+import { spawnResourceConnection } from '../resources/museResourceLaunch'
 import { vaultFenceEnvironment, type VaultFenceOptions } from '../../core/vault/exec/fence'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */
@@ -98,6 +101,12 @@ export interface UnresponsiveHostDeps {
 
 export interface BackendManagerDeps {
   readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
+  /** dist/museCode.js beside the running bundle, required the first time the backend starts. */
+  readonly bundlePath: string
+  /** How the bundle is loaded: Node's `require` unless a test hands in the module. */
+  readonly loadBundle?: ((file: string) => unknown) | undefined
+  /** This manager's usage recorder, put on the bundle's host class at every bundle load. */
+  readonly usageRecording?: UsageRecording | undefined
   /** One manager per capture-gated CLI account. Absent preserves today's single account. */
   readonly accountHome?: MuseCodeAccountHome
   /** Awaited before any agent host process can edit this workspace. */
@@ -167,6 +176,13 @@ function listDirectoryOrEmpty(log: Logger, directory: string): readonly string[]
 }
 
 export class MuseCodeBackendManager {
+  /**
+   * The runtime's journal when no manager carries its own (the ACP agent
+   * installs it through `installUsageRecording`): forwarded onto the
+   * bundle's host class at every bundle load, since dist/museCode.js
+   * carries its own copy of that class and its static.
+   */
+  public static usageRecording: UsageRecording | undefined
   private hostPromise: Promise<MuseCodeHost> | undefined
   /** The Linux capability probe of the last started host (F91); one probe per start. */
   private linuxSandboxReadiness: LinuxSandboxReadiness | undefined
@@ -191,7 +207,31 @@ export class MuseCodeBackendManager {
    */
   private recoveryStopGeneration: number | undefined
 
-  public constructor(private readonly deps: BackendManagerDeps) {}
+  private readonly loadBackend: () => MuseCodeBundle
+
+  public constructor(private readonly deps: BackendManagerDeps) {
+    const load = museCodeBundleLoader({
+      bundlePath: deps.bundlePath,
+      log: deps.log,
+      loadBundle: deps.loadBundle,
+    })
+    this.loadBackend = () => {
+      const bundle = load()
+      bundle.MuseCodeHost.usageRecording =
+        deps.usageRecording ?? MuseCodeBackendManager.usageRecording
+      // The live journal writers ride with the usage service bundle (PLAN.md
+      // D6): sessions construct them on first use instead of carrying them
+      // at startup.
+      bundle.MuseCodeHost.usageNotesLoader = () => {
+        const notes: unknown = requireFile(
+          path.join(path.dirname(deps.bundlePath), 'usageService.js'),
+        )
+        if (!isUsageNotesBundle(notes)) throw new Error(UI_TEXT.actionFailed)
+        return notes
+      }
+      return bundle
+    }
+  }
 
   /**
    * Whether any of `names` is set, non-empty, in what the CLI would see
@@ -244,14 +284,15 @@ export class MuseCodeBackendManager {
 
   /** A capture-gated account's host: the same admission, with its tree registered on the lease. */
   private async spawnAccountHost(
+    backend: MuseCodeBundle,
     options: Parameters<typeof spawnAccountMspConnection>[0],
     accountHome: MuseCodeAccountHome,
     resource: ResourceLease | undefined,
     assertCanRun: () => Promise<void>,
   ): Promise<ReturnType<typeof spawnAccountMspConnection>> {
-    return await spawnResourceAccountConnection(
+    return await spawnResourceConnection(
+      (launch) => backend.spawnAccountMspConnection(launch, accountHome),
       options,
-      accountHome,
       resource,
       () => this.deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
       environmentValue(options.env ?? {}, process.platform, 'SystemRoot'),
@@ -269,6 +310,9 @@ export class MuseCodeBackendManager {
     }
     const launch: MuseLaunch = resolution.launch
     await this.admitWorkspaceHost()
+    // Loaded before the lease is taken: a bundle that will not load must
+    // refuse without holding resource admission.
+    const backend = this.loadBackend()
     const resource = await admitResource('museServe', this.resourceStop.signal)
     if (this.generation !== generation) {
       resource?.complete(true)
@@ -336,14 +380,15 @@ export class MuseCodeBackendManager {
     const accountHome = this.deps.accountHome
     const handshake =
       accountHome === undefined
-        ? await spawnResourceMuseConnection(
+        ? await spawnResourceConnection(
+            backend.spawnMspConnection,
             spawnOptions,
             resource,
             () => this.deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
             environmentValue(env, process.platform, 'SystemRoot'),
             assertCanRun,
           )
-        : await this.spawnAccountHost(spawnOptions, accountHome, resource, assertCanRun)
+        : await this.spawnAccountHost(backend, spawnOptions, accountHome, resource, assertCanRun)
     // No deadline of our own (owner 2026-10-16: no arbitrary limits): the
     // handshake is waited on until the server answers or the wait is
     // stopped, saying so out loud each minute. A process that exits fails
@@ -391,13 +436,13 @@ export class MuseCodeBackendManager {
     const restartCause = this.failedExit
     try {
       this.deps.accountHome?.assertCurrent()
-      host = new MuseCodeHost(
+      host = new backend.MuseCodeHost(
         mspHost,
         this.deps.log,
         this.deps.commandTimeouts,
         // The per-model effort reader is always on (META-G05); an
         // injected port still wins where it speaks.
-        { ...museCodeEffortPort, ...this.deps.featurePorts },
+        { ...backend.museCodeEffortPort, ...this.deps.featurePorts },
         undefined,
         this.deps.accountHome,
         restartCause,
@@ -413,6 +458,15 @@ export class MuseCodeBackendManager {
       )
     }
     this.failedExit = undefined
+    // The handshake result overrules the configuration log above: a host
+    // that cannot enforce the sandbox says so, with its reason when sent.
+    const sandboxWarning = sandboxAvailabilityWarning(posture, {
+      availability: host.info.sandboxAvailability,
+      unavailableReason: host.info.sandboxUnavailableReason,
+    })
+    if (sandboxWarning !== undefined) {
+      this.deps.log.warn(sandboxWarning)
+    }
     this.deps.log.info(
       `Connected to ${host.info.serverName} ${host.info.serverVersion} in ${String(Date.now() - spawnedAt)} ms (museHome ${host.info.museHome})`,
     )
@@ -500,6 +554,14 @@ export class MuseCodeBackendManager {
    * `museSpark.environmentVariables` on top; with any proxy, loopback
    * bypasses it so Muse Code reaches the extension's `ide` server (M56).
    */
+  /**
+   * The Muse Code backend's bundle (dist/museCode.js), required the first
+   * time the backend starts: the host class and the two SDK spawn paths.
+   */
+  public museCodeBundle(): MuseCodeBundle {
+    return this.loadBackend()
+  }
+
   public childEnvironment(): NodeJS.ProcessEnv {
     const env = withLoopbackBypass(
       buildChildEnvironment({

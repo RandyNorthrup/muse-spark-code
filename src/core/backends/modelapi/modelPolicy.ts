@@ -19,6 +19,7 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import type { ModelCapabilities } from '../../providers/capabilities'
+import type { ModelCapabilityRecord } from '../../providers/capabilityRecord'
 import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
 
 import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
@@ -414,6 +415,8 @@ export interface ResolvedModel {
   readonly origin: string
   readonly client: ModelClient
   readonly policy: ModelPolicy
+  /** The joined capability record, when the resolving lane carried one. */
+  readonly capabilityRecord?: ModelCapabilityRecord | undefined
   readonly price: ModelPricePolicy
   /** Configuration, capability/price evidence and auth lane still match this resolution. */
   readonly isCurrent: () => boolean

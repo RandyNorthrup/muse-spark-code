@@ -38,6 +38,8 @@ export interface AttachmentMediaPort {
   readonly sniff: (bytes: Uint8Array) => MediaFileInfo | undefined
   readonly check: (info: MediaFileInfo) => MediaLimitResult
   readonly part: (summary: AttachmentSummary, info: MediaFileInfo) => TurnPart
+  /** The chip is discarded before sending: its registration goes (RVMEDIAV 7). */
+  readonly release?: () => void
 }
 
 export type AddAttachmentResult =
@@ -57,6 +59,7 @@ type StoredAttachment =
   | {
       readonly summary: AttachmentSummary
       readonly part: () => TurnPart
+      readonly discard?: () => void
     }
 
 const FIRST_PRINTABLE_CODE_POINT = 0x20
@@ -400,15 +403,22 @@ export class AttachmentStore {
       // upload lifecycle read it (M105 E1 recording binding).
       media: { info, ...(isScreenRecording && { isScreenRecording: true as const }) },
     }
-    this.entries.set(summary.id, { summary, part: () => media.part(summary, info) })
+    this.entries.set(summary.id, {
+      summary,
+      part: () => media.part(summary, info),
+      ...(media.release !== undefined && { discard: media.release }),
+    })
     return { ok: true, attachment: summary }
   }
 
   public remove(id: string): boolean {
+    const entry = this.entries.get(id)
+    if (entry !== undefined && 'discard' in entry) entry.discard()
     return this.entries.delete(id)
   }
 
   public clear(): void {
+    for (const entry of this.entries.values()) if ('discard' in entry) entry.discard()
     this.entries.clear()
   }
 

@@ -61,7 +61,8 @@ export function readLanes(
       const cells = tableCells(row.text)
       if (cells.length === columns.length) {
         const cell = (name: string) => cells[columns.indexOf(name)] ?? ''
-        const id = (cells[0] ?? '').replaceAll(/[*`]/g, '').split(/\s+/, 1)[0] ?? ''
+        const token = (cells[0] ?? '').replaceAll(/[*`]/g, '').split(/\s+/, 1)[0] ?? ''
+        const id = token.replaceAll(/^[^\w.-]+|[^\w.-]+$/g, '')
         const prefix = milestoneId.toLowerCase()
         const laneIds = id === '0' ? ['0', 'l0'] : [id.toLowerCase()]
         const isLaneBranch = (name: string) => {
@@ -82,7 +83,10 @@ export function readLanes(
         const pulls = (evidence.pullRequests ?? [])
           .filter((pull) => isLaneBranch(pull.branch) && pull.state === 'open')
           .toSorted((a, b) => a.number - b.number)
-        const branchNames = branches.map(({ name }) => shortRef(name))
+        const currentBranches = branches.some((branch) => !branch.merged)
+          ? branches.filter((branch) => !branch.merged)
+          : branches
+        const branchNames = currentBranches.map(({ name }) => shortRef(name))
         const pullNames = pulls.map(({ branch }) => shortRef(branch))
         const pullRefs = new Set(pullNames)
         const exactRefs = [...new Set(branchNames.filter((ref) => pullRefs.has(ref)))]
@@ -90,7 +94,9 @@ export function readLanes(
         let selectedRef: string | undefined
         if (exactRefs.length === 1) selectedRef = exactRefs[0]
         else if (exactRefs.length === 0 && candidates.size === 1) selectedRef = [...candidates][0]
-        const matchingBranches = branches.filter(({ name }) => shortRef(name) === selectedRef)
+        const matchingBranches = currentBranches.filter(
+          ({ name }) => shortRef(name) === selectedRef,
+        )
         const matchingPulls = pulls.filter(({ branch }) => shortRef(branch) === selectedRef)
         const isAmbiguous =
           candidates.size > 0 &&

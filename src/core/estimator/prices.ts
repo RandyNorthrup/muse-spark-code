@@ -1,3 +1,4 @@
+import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
 import * as z from 'zod/mini'
 import {
   estimateRequestSchema,
@@ -8,7 +9,6 @@ import {
 } from '../../shared/estimate'
 import machineClasses from '../../shared/machineClasses.json'
 import { ESTIMATE_MAX_ITEMS } from '../../shared/constants'
-import { fill, UI_TEXT } from '../../shared/l10n/text'
 import { isStoreErrorCode } from '../../host/backend/storeErrors'
 import { compareEstimateIds } from './goal'
 
@@ -72,7 +72,7 @@ export interface EstimatePrices {
 }
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 function isPublicUrl(text: string): boolean {
   try {
@@ -89,7 +89,7 @@ function isConsistent(
   catalogUrl: string,
   asOf: string,
 ): boolean {
-  const classes = machineClassesSchema.parse(machineClasses)
+  const classes = parseEstimate(machineClassesSchema, machineClasses)
   return (
     Date.parse(document.retrievedAt) <= Date.parse(asOf) &&
     document.catalogDate <= document.retrievedAt.slice(0, 'YYYY-MM-DD'.length) &&
@@ -112,7 +112,7 @@ export async function lookupEstimatePrices(
   options: EstimatePriceLookup,
   port: EstimatePricePort,
 ): Promise<EstimatePrices> {
-  const asOf = estimateRequestSchema.shape.asOf.parse(options.asOf)
+  const asOf = parseEstimate(estimateRequestSchema.shape.asOf, options.asOf)
   if (
     !Number.isFinite(options.maxAgeMs) ||
     options.maxAgeMs < 0 ||

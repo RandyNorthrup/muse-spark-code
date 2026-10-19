@@ -72,6 +72,32 @@ export function fixedMessageLog(deps: FixedMessageLogDeps): Logger {
 }
 
 /**
+ * A lazy bundle identified by the export names it must carry, for bundles
+ * whose shape guard is only a function list (M113's report input chunks).
+ */
+export function namedBundleLoader<T>(options: {
+  /** The bundle beside the running one (`dist/<name>.js`). */
+  readonly bundlePath: string
+  readonly log: Logger
+  /** How the bundle is loaded: Node's `require` unless a test hands in the module. */
+  readonly loadBundle?: ((file: string) => unknown) | undefined
+  /** Export names the bundle must carry; each is checked with `typeof`. */
+  readonly names: readonly (keyof T & string)[]
+  /** What the bundle is, for the log. */
+  readonly label: string
+  /** The words the user reads when it cannot be loaded, read when it fails (the log has the cause). */
+  readonly unavailable: () => string
+}): () => T {
+  return lazyBundleLoader({
+    ...options,
+    isBundle: (value: unknown): value is T =>
+      typeof value === 'object' &&
+      value !== null &&
+      options.names.every((name) => typeof (value as Record<string, unknown>)[name] === 'function'),
+  })
+}
+
+/**
  * The bundle, required the first time it is asked for and kept from then on.
  * A missing or corrupt bundle throws `unavailable` and is tried again on the
  * next call.

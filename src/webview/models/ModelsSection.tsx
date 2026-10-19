@@ -13,6 +13,7 @@ import { DataTable, type DataColumn } from './components/DataTable'
 import { FilterBar } from './components/FilterBar'
 import { ScanStatus } from './components/ScanStatus'
 import type { SectionProps } from './sections'
+import { ContextWindow } from './components/ContextWindow'
 
 function PriceNote({ priceNote }: { readonly priceNote: ModelPriceNote }) {
   switch (priceNote) {
@@ -175,7 +176,23 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
               {row.label ?? row.modelId}
               <RowBadges row={row} />
             </span>,
-            <span key="context">{contextCell(row)}</span>,
+            row.priceNote === 'local' ? (
+              <ContextWindow
+                key="context"
+                model={row.ref}
+                tokens={row.contextTokens}
+                onChange={(contextTokens) => {
+                  post({
+                    type: 'models/contextWindow',
+                    scope: { scope: 'provider', providerId: row.providerId },
+                    ref: row.ref,
+                    contextTokens,
+                  })
+                }}
+              />
+            ) : (
+              <span key="context">{contextCell(row)}</span>
+            ),
             <span key="input">
               <InputPriceCell row={row} />
             </span>,

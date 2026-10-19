@@ -14,8 +14,11 @@ import type {
   ProviderCredentialStore as CredentialStore,
 } from './credentialRecords'
 import { isOriginBound } from './credentialRecords'
-import { readOpenRouterKeyUsage } from './openRouter'
-import { connectOpenRouterAccount } from './openRouter'
+import {
+  createOpenRouterUsageReader,
+  connectOpenRouterAccount,
+  promptOpenRouterCode,
+} from '../backend/providersEntry'
 import type { OAuthLoopback } from './oauthLoopback'
 import { inspectProviderKey, providerKeyNoticeText } from '../../core/providers/keyInspection'
 import { promptForProviderKey } from './keyPrompt'
@@ -68,6 +71,7 @@ export interface ProvidersHostUi {
   readonly confirmKeyUse: (message: string) => Promise<boolean>
   /** Opens a URL in the system browser. */
   readonly openBrowser: (url: string) => Promise<void>
+  readonly onDiscardedKey?: () => void
 }
 
 export interface ProvidersHostDeps {
@@ -80,7 +84,13 @@ export interface ProvidersHostDeps {
   readonly fetcher: ModelFetcher
   readonly exchanger: CodeExchanger | undefined
   readonly usage: KeyUsageReader | undefined
-  readonly onKeyUsage?: (snapshot: KeyUsageSnapshot) => void
+  readonly onKeyUsage?: (
+    snapshot: KeyUsageSnapshot & {
+      readonly providerId: string
+      readonly credentialId: string
+      readonly observationId: string
+    },
+  ) => void
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine
   readonly scanStore: ScanStore
@@ -134,8 +144,16 @@ export interface ProvidersHost {
     text: string,
     shouldImport: (preview: ImportPreview) => Promise<boolean>,
   ) => Promise<number>
-  readonly connectOpenRouter: (isRemote: boolean) => Promise<{ key: string } | undefined>
-  readonly openRouterUsage: (credential: string) => Promise<KeyUsageSnapshot | undefined>
+  readonly discardOpenRouterKey: () => void
+  readonly connectOpenRouter: (
+    isRemote: boolean,
+    signal?: AbortSignal,
+  ) => Promise<{ key: string } | undefined>
+  readonly openRouterUsage: (
+    credential: string,
+    signal?: AbortSignal,
+    entry?: ProviderEntry,
+  ) => Promise<KeyUsageSnapshot | undefined>
   readonly probe: (preset: PresetInfo) => Promise<readonly LocalProbeResult[]>
   readonly suggestDefaultModel: (
     candidates: readonly ProviderModelRow[],
@@ -326,32 +344,34 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
           text,
         ),
       ),
-    connectOpenRouter: async (isRemote) => {
-      if (deps.exchanger === undefined) return
-      const connection = await connectOpenRouterAccount({
-        pkce: deps.pkce,
-        exchange: deps.exchanger,
-        openBrowser: deps.ui.openBrowser,
-        startServer: deps.startLoopback,
-        promptForPastedCode: () =>
-          Promise.resolve(
-            deps.ui.showInputBox({
-              title: fill(UI_TEXT.providerConnect, { provider: 'OpenRouter' }),
-              prompt: fill(UI_TEXT.providerConnectWaiting, { provider: 'OpenRouter' }),
-              password: true,
-              ignoreFocusOut: true,
-            }),
-          ),
-        isRemote,
-      })
-      return connection === undefined ? undefined : { key: connection.key }
+    discardOpenRouterKey: () => {
+      deps.ui.onDiscardedKey?.()
     },
-    openRouterUsage: async (credential) => {
-      if (deps.usage === undefined) return
-      const snapshot = await readOpenRouterKeyUsage(deps.usage, credential)
-      deps.onKeyUsage?.(snapshot)
-      return snapshot
+    connectOpenRouter: async (isRemote, signal) => {
+      const exchanger = deps.exchanger
+      if (exchanger === undefined) throw new Error(UI_TEXT.providerConnectFailed)
+      try {
+        const connection = await connectOpenRouterAccount({
+          pkce: deps.pkce,
+          exchange: exchanger,
+          openBrowser: deps.ui.openBrowser,
+          startServer: deps.startLoopback,
+          promptForPastedCode: () => promptOpenRouterCode(deps.ui.showInputBox, signal),
+          isRemote,
+          ...(deps.ui.onDiscardedKey !== undefined && { onDiscardedKey: deps.ui.onDiscardedKey }),
+          ...(signal !== undefined && { signal }),
+        })
+        return connection === undefined ? undefined : { key: connection.key }
+      } catch {
+        if (signal?.aborted) return
+        throw new Error(UI_TEXT.providerConnectFailed)
+      }
     },
+    openRouterUsage: createOpenRouterUsageReader({
+      reader: deps.usage,
+      current: (id) => deps.credentials.getProviderCredential(id),
+      ...(deps.onKeyUsage !== undefined && { onKeyUsage: deps.onKeyUsage }),
+    }),
     probe: (preset) => probeLocalServers(preset.localProbes, deps.loopbackFetch),
     suggestDefaultModel: (candidates) => deps.suggest.defaultModel(candidates),
     suggestSessionBudget: (modelPrices) => deps.suggest.sessionBudget(modelPrices),

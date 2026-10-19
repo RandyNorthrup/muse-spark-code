@@ -361,59 +361,61 @@ export const fleetSnapshotSchema = /* @__PURE__ */ z
   )
 export type FleetSnapshot = z.infer<typeof fleetSnapshotSchema>
 
-export const estimateLaneSchema = /* @__PURE__ */ z.strictObject({
-  id,
-  kind: id,
-  estimatedHours: z.number().check(z.positive()),
-  elapsedAgentHours: hours,
-  minimumRemainingHours: hours,
-  state: z.enum(['planned', 'running', 'merged']),
-  dependencies: boundedIds.check(z.refine(areUnique)),
-  // Workspace-relative, scrubbed file globs. Goal resolution owns affinity.
-  files: z.array(z.string().check(z.minLength(1))),
-  affinity: z.strictObject({
-    os: z.array(os),
-    architectures: z.array(architecture),
-    machineClassIds: boundedIds,
-    gpuRequired: z.boolean(),
-  }),
-  resources: z.strictObject({
-    slots: resourceQuantity(positiveCount),
-    accountRequestsPerHour: demand,
-    accountTokensPerHour: demand,
-    accountUsdPerHour: demand,
-    accountPercentPerHour: demand,
-    ciJobs: resourceQuantity(count),
-    ciMinutes: demand,
-    disk: z
-      .array(
-        z
-          .strictObject({
-            role: volumeRole,
-            peakBytes: byteDemand,
-            steadyBytes: byteDemand,
-          })
-          .check(
-            z.refine(
-              (disk) =>
-                disk.peakBytes.value === null ||
-                disk.steadyBytes.value === null ||
-                disk.steadyBytes.value <= disk.peakBytes.value,
+export const estimateLaneSchema = /* @__PURE__ */ z
+  .strictObject({
+    id,
+    kind: id,
+    estimatedHours: hours,
+    elapsedAgentHours: hours,
+    minimumRemainingHours: hours,
+    state: z.enum(['planned', 'running', 'merged']),
+    dependencies: boundedIds.check(z.refine(areUnique)),
+    // Workspace-relative, scrubbed file globs. Goal resolution owns affinity.
+    files: z.array(z.string().check(z.minLength(1))),
+    affinity: z.strictObject({
+      os: z.array(os),
+      architectures: z.array(architecture),
+      machineClassIds: boundedIds,
+      gpuRequired: z.boolean(),
+    }),
+    resources: z.strictObject({
+      slots: resourceQuantity(positiveCount),
+      accountRequestsPerHour: demand,
+      accountTokensPerHour: demand,
+      accountUsdPerHour: demand,
+      accountPercentPerHour: demand,
+      ciJobs: resourceQuantity(count),
+      ciMinutes: demand,
+      disk: z
+        .array(
+          z
+            .strictObject({
+              role: volumeRole,
+              peakBytes: byteDemand,
+              steadyBytes: byteDemand,
+            })
+            .check(
+              z.refine(
+                (disk) =>
+                  disk.peakBytes.value === null ||
+                  disk.steadyBytes.value === null ||
+                  disk.steadyBytes.value <= disk.peakBytes.value,
+              ),
             ),
-          ),
-      )
-      .check(
-        z.minLength(1),
-        z.refine((disks) => areUnique(disks.map((disk) => disk.role))),
-      ),
-    ciId: z.optional(id),
-  }),
-  review: reviewSchema,
-  // M117 W (PLAN.md D100, gotcha G4): the base the lane was built on, when
-  // known. A base older than ESTIMATE_STALE_BASE_DAYS is a schedule risk:
-  // the estimate names it in `risks` instead of pricing a rebase it cannot see.
-  baseAsOf: z.optional(instant),
-})
+        )
+        .check(
+          z.minLength(1),
+          z.refine((disks) => areUnique(disks.map((disk) => disk.role))),
+        ),
+      ciId: z.optional(id),
+    }),
+    review: reviewSchema,
+    // M117 W (PLAN.md D100, gotcha G4): the base the lane was built on, when
+    // known. A base older than ESTIMATE_STALE_BASE_DAYS is a schedule risk:
+    // the estimate names it in `risks` instead of pricing a rebase it cannot see.
+    baseAsOf: z.optional(instant),
+  })
+  .check(z.refine((lane) => lane.state === 'merged' || lane.estimatedHours > 0))
 export type EstimateLane = z.infer<typeof estimateLaneSchema>
 
 export const historyRecordSchema = /* @__PURE__ */ z
@@ -453,6 +455,19 @@ export const estimateRequestSchema = /* @__PURE__ */ z.strictObject({
   seed: z.optional(z.string().check(z.minLength(1), z.maxLength(ESTIMATE_ID_MAX_CHARS))),
 })
 export type EstimateRequest = z.infer<typeof estimateRequestSchema>
+
+/**
+ * The estimator's date-only deadline means midnight UTC. Shared by the
+ * `/estimate` command and `/report estimate --by` so both paths ask for the
+ * same instant; rejects locale-dependent and rollover dates. Lives beside
+ * the request schema so light report-argument parsers need not load the
+ * headless command.
+ */
+export function estimateDeadline(text: string): string | undefined {
+  const instant = /^\d{4}-\d{2}-\d{2}$/.test(text) ? `${text}T00:00:00.000Z` : text
+  const parsed = estimateRequestSchema.shape.asOf.safeParse(instant)
+  return parsed.success ? new Date(instant).toISOString() : undefined
+}
 
 export const estimateInputsSchema = /* @__PURE__ */ z
   .strictObject({

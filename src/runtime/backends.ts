@@ -2,8 +2,11 @@ import { UserRefusalError } from '../shared/refusal'
 import { resolveExecOutputCap } from './exec/runLedger'
 import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
+import { runtimeConverterPath } from './runtimeConverterPath'
 import { Usd } from '../shared/usd'
 import { loadLegalScanner } from './legal/legalScanner'
+import { providersFilePath } from './providerPaths'
+import { ModelApiClient } from '../core/backends/modelapi/client'
 import type { ProviderClient } from '../core/backends/modelapi/client'
 import type { runtimeSubscriptionClient } from './chatGptProviderCommands'
 import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvidersEntry'
@@ -20,7 +23,7 @@ import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvid
 // and nothing here sees an editor's unsaved buffers until file access goes
 // through the client (M63c).
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
@@ -28,11 +31,8 @@ import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountTex
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
-import {
-  buildChildEnvironment,
-  environmentValue,
-  withLoopbackBypass,
-} from '../core/backends/musecode/launch'
+import { environmentValue } from '../core/childEnvironment'
+import { buildChildEnvironment, withLoopbackBypass } from '../core/backends/musecode/launch'
 import { personalSkillsRoot } from '../core/context/skills'
 import { personalAgentsRoot } from '../core/context/customAgents'
 import { memoryDataRoot } from '../core/memory/memoryLocation'
@@ -40,6 +40,7 @@ import { MemoryStore } from '../core/memory/memoryStore'
 import { WorkspaceEdits } from '../core/verify/workspaceEdits'
 import { redactSecrets } from '../core/redact'
 import { recordPaidUse } from '../core/paid/paidFeatures'
+import { paidExtraAdmission } from '../core/paid/spendClaim'
 import type { UsageRecording } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
 import { fileContextIo } from '../host/backend/contextIo'
@@ -50,7 +51,16 @@ import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
 import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
 import { MuseCodeBackendManager, type ProxySettings } from '../host/backend/museCodeBackendManager'
 import { shellJobAssembly } from '../host/backend/shellJob'
+import { mcpJobExecutable } from '../host/backend/mcpJobExecutable'
 import { createToolIo } from '../host/backend/toolIo'
+import type { ToolIo } from '../core/backends/modelapi/tools'
+import type { AcpMediaFactory } from '../acp/media'
+import type { AcpUploadsPort } from '../acp/uploads'
+import { createUploadedFilesPort } from '../core/media/uploadedFiles'
+import type { UploadLedger } from '../core/media/uploadLedger'
+import type { AttachedMedia, AttachedMediaPort } from '../core/media/attachedMedia'
+import { lazyAttachedMedia } from '../core/media/attachedMediaPort'
+import type * as RuntimeMediaEntry from './runtimeMediaEntry'
 import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
 import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
 import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
@@ -62,7 +72,11 @@ import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
   FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
+  MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
+  MODEL_API_UPLOADS_DIR,
+  MEDIA_PRIVATE_ROOT_DIR,
+  MUSE_CODE_BUNDLE_FILE,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
@@ -74,6 +88,7 @@ import {
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
+import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
 import { fill, uiLocale } from '../shared/l10n/text'
 import type { ServeOptions } from './cliArgs'
 import {
@@ -146,6 +161,18 @@ export interface RuntimeBackend {
    * grants to the Model API agent, which a user may run beside it.
    */
   readonly forgetUnflaggedGrants: () => Promise<void>
+  /**
+   * Lane V seam 5: ACP serve's and exec's media port on the Model API
+   * backend, over the runtime's attached-media registry. Absent on Muse
+   * Code, which refuses media with its own reason.
+   */
+  readonly media?: AcpMediaFactory
+  /**
+   * M105 lane F: ACP serve's uploaded-files port on the Model API backend,
+   * over the same account ledger the session store cleans. Absent without
+   * upload storage (ephemeral runs say so and delete nothing).
+   */
+  readonly uploads?: AcpUploadsPort
   readonly close: () => Promise<void>
 }
 
@@ -199,6 +226,8 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
       : undefined
   return new Manager({
     ...(windowsJobAssembly !== undefined && { shellJobAssembly: windowsJobAssembly }),
+    bundlePath: path.join(deps.distDir, MUSE_CODE_BUNDLE_FILE),
+    usageRecording: deps.usageRecording,
     // This records the actual scope boundary; it does not certify a VS Code fence.
     beforeWorkspaceHostStart: () => independentEditorStartupPolicy(log),
     log,
@@ -232,6 +261,28 @@ interface MetaKeyProbe {
   state: 'key' | 'absent' | 'storeDown' | undefined
 }
 
+/**
+ * A Files-capable client over the pinned transport: the stored key, read
+ * per use and never handed to a child process. Shared by the session
+ * store's upload binding and the /uploads port.
+ */
+function newFilesClient(input: {
+  readonly fetch: typeof fetch
+  readonly apiKey: () => Promise<string | undefined>
+  readonly sleep: (ms: number) => Promise<void>
+  readonly log: Logger
+}): ModelApiClient {
+  return new ModelApiClient({
+    fetch: input.fetch,
+    baseUrl: MODEL_API_BASE_URL,
+    apiKey: input.apiKey,
+    sleep: input.sleep,
+    now: () => Date.now(),
+    random: () => Math.random(),
+    log: input.log,
+  })
+}
+
 function modelApiManager(
   deps: RuntimeBackendDeps,
   credentials: CredentialStore,
@@ -242,6 +293,12 @@ function modelApiManager(
   workspaceEdits: WorkspaceEdits,
   assertWorkspaceCurrent: () => void,
   metaKeyProbe: MetaKeyProbe,
+  media: {
+    /** The runtime's one registry: the media port writes, every session resolves. */
+    readonly attached: AttachedMediaPort
+    /** The folder's confined reads, for the media port. */
+    readonly onIo: (io: ToolIo) => void
+  },
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
   const providerConfigFile = path.join(
@@ -323,7 +380,10 @@ function modelApiManager(
             log: warn,
           })
         : undefined,
+    // The ACP agent exposes no hook-concurrency setting (D62).
+    hookMaxRunningCommands: () => SETTING_DEFAULTS.hooksMaxRunningCommands,
   })
+  media.onIo(io)
   // Muse Code's memory (M49, PLAN.md D41), in the data home `muse serve` sees.
   const warnMemory = (message: string) => {
     warn(`Memory: ${message}`)
@@ -337,6 +397,24 @@ function modelApiManager(
     systemPath,
     warn: warnMemory,
   })
+  // The runtime's own Files-capable client for the session store's upload
+  // binding: the stored key over the pinned transport, read per use and
+  // never handed to a child process.
+  let filesClientValue: ModelApiClient | undefined
+  const filesClient = () =>
+    (filesClientValue ??= newFilesClient({
+      fetch: deps.fetch,
+      apiKey: () => credentials.getApiKey(),
+      sleep: deps.sleep,
+      log,
+    }))
+  // Production media ledger and calibration (MONEY017D, D85.2/D85.6); the
+  // CLI/ACP runtime shares createModelApiHost with VS Code, so this one
+  // directory wires the same real path. Ephemeral runs keep no storage.
+  const uploadLedgerDir =
+    deps.exec?.isEphemeral === true
+      ? undefined
+      : path.join(agentDataFolder(deps), MODEL_API_UPLOADS_DIR)
   const store =
     deps.exec?.isEphemeral === true
       ? undefined
@@ -347,6 +425,27 @@ function modelApiManager(
           retentionDays: () => SETTING_DEFAULTS.cleanupPeriodDays,
           now: () => Date.now(),
           sleep: deps.sleep,
+          // Production media (P1, D85.2/D85.6): the upload ledger binds
+          // the real session store, so a media turn saves and reopens
+          // and deletion/purge releases that session's provider uploads.
+          // It loads from dist/productionMedia.js on first use.
+          ...(uploadLedgerDir !== undefined && {
+            uploads: async (accountId: string) => {
+              const media = await import('../host/backend/productionMediaEntry')
+              media.setUiText(UI_TEXT, uiLocale())
+              return await media.createSessionUploads({
+                uploadLedgerDir,
+                currentAccountId: async () => {
+                  const key = await credentials.getApiKey()
+                  return key === undefined
+                    ? undefined
+                    : createHash('sha256').update(key).digest('hex')
+                },
+                filesClient: () => filesClient(),
+                expiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
+              })(accountId)
+            },
+          }),
         })
   // Snapshot copies are plain structured data. Keep their type/shape while
   // replacing every string leaf before a headless transcript reaches disk.
@@ -376,8 +475,27 @@ function modelApiManager(
             await store.save(copy)
           },
         }
+  // Lanes V and VB: Windows conversion runs in M50's kill-on-close job under
+  // a kernel memory cap; its launcher compiles on first use from the C#
+  // shipped beside dist/ (scripts/package-acp.mjs JOB_SOURCES).
+  const mediaJobExecutable =
+    platform === 'win32' && systemRoot !== undefined
+      ? mcpJobExecutable({
+          storageDir: agentDataFolder(dataInput),
+          systemRoot,
+          readJobSource: jobSourceReader(path.dirname(deps.distDir)),
+          log: warn,
+        })
+      : undefined
   return new ModelApiBackendManager({
     log,
+    ...(mediaJobExecutable !== undefined && { mediaJobExecutable }),
+    // Each conversion's owner-only folder sits in this private root (VB).
+    mediaPrivateRoot: path.join(agentDataFolder(deps), MEDIA_PRIVATE_ROOT_DIR),
+    // Lane V seam 1/5: attached video and audio from ACP and exec resolve here.
+    attachedMedia: media.attached,
+    // ACP/exec keep their existing flag-controlled transcription default.
+    mediaAudioAction: undefined,
     usageRecording: deps.usageRecording,
     hasExternalPaidRecording: deps.exec !== undefined,
     getApiKey: async () => {
@@ -512,6 +630,16 @@ function modelApiManager(
       const budget = await dailyBudget()
       return budget.admit(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount(), signal)
     },
+    // The machine's converter path (lane V seam 3B): the agent data folder's
+    // settings.json, never a workspace file or environment variable.
+    mediaConverterPath: () => runtimeConverterPath(agentDataFolder(deps)),
+    // D78's exact reservation for Muse Voice's batch transcription (lane V
+    // seam 4): the runtime's own daily ledger, estimate-checked and settled
+    // after (D121). With no daily limit there is nothing to enforce.
+    reservePaidExtra: async (costUsd, signal) => {
+      const budget = await dailyBudget()
+      return paidExtraAdmission(await budget.reserve(costUsd, signal), costUsd, signal)
+    },
     ...(deps.exec?.providerRun === undefined && {
       getProviderAccountId: async () => {
         // One shared subscription identity for the editor protocol and a
@@ -561,6 +689,8 @@ function modelApiManager(
     confirmContributorModel: () => Promise.resolve(options.allowsContributorModels),
     isWorkspaceTrusted,
     store: deps.exec === undefined ? store : headlessStore,
+    ...(uploadLedgerDir !== undefined && { uploadLedgerDir }),
+    uploadExpiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
     describeEnvironment: () =>
       describeEnvironment({
         runGit: deps.runGit,
@@ -599,6 +729,9 @@ function modelApiManager(
     strictTools: () => SETTING_DEFAULTS.modelApiStrictTools,
     parallelReads: () => SETTING_DEFAULTS.modelApiParallelReads,
     webSearchMaxPerRequest: () => SETTING_DEFAULTS.webSearchMaxPerRequest,
+    hookMaxStopContinuations: () => SETTING_DEFAULTS.hooksMaxStopContinuations,
+    hookMaxRunningCommands: () => SETTING_DEFAULTS.hooksMaxRunningCommands,
+    subagentMaxConcurrent: () => SETTING_DEFAULTS.subagentMaxConcurrent,
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
@@ -657,6 +790,14 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     { readonly manager: ModelApiBackendManager; readonly identity: string }
   >()
   const workspaceEdits = new Map<string, WorkspaceEdits>()
+  // Lane V seam 5: one attached-media registry for the runtime, and each
+  // folder's confined reads for its media port.
+  // The registry itself loads with dist/runtimeMedia.js on the first media
+  // prompt; until then nothing is attached and nothing resolves.
+  let mediaEntry: Promise<typeof RuntimeMediaEntry> | undefined
+  let registry: AttachedMedia | undefined
+  const attachedMedia = lazyAttachedMedia(() => registry)
+  const mediaIo = new Map<string, ToolIo>()
   const credentials = new CredentialStore(
     deps.secrets,
     (message) => {
@@ -664,16 +805,17 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     },
     "the operating system's credential store",
   )
+  const grants = paidGrantFile({
+    file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),
+    log: deps.log,
+    sleep: deps.sleep,
+  })
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     autoCompactionOff: deps.options.autoCompaction === false,
     canRemember: () => deps.options.trustWorkspace,
-    grants: paidGrantFile({
-      file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),
-      log: deps.log,
-      sleep: deps.sleep,
-    }),
+    grants,
     log: deps.log,
     // The terminal operator's console is the runtime log: an "always" that
     // could not be kept is said there at once. A served session's person
@@ -748,6 +890,34 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   // sign-in instead. Without a hint (the editor picks the model later) any
   // subscription keeps the gate open.
   const modelApiReadiness = async (modelHint?: string): Promise<BackendReadiness> => {
+    // One ChatGPT subscription client for both probes below: the same
+    // providers file, catalog and browser refusal; absent when no file.
+    const chatGptFactory = async (): Promise<
+      | {
+          readonly factory: ReturnType<typeof runtimeSubscriptionClient>
+          readonly failureOf: (error: unknown) => string | undefined
+        }
+      | undefined
+    > => {
+      const configFile = providersFilePath({
+        platform: process.platform,
+        homeDir: deps.homeDir,
+        xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+      })
+      if (!existsSync(configFile)) return undefined
+      const entry = await import('./chatGptProviderCommands')
+      return {
+        factory: entry.runtimeSubscriptionClient({
+          secrets: deps.secrets,
+          fetch: deps.fetch,
+          configFile,
+          catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+          openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
+          callbackText: () => UI_TEXT.acpChatGpt.callback,
+        }),
+        failureOf: entry.chatGptFailureOf,
+      }
+    }
     let key: string | undefined
     try {
       key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
@@ -790,23 +960,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         // An unreadable providers file reads as no default: the key gate
         // below still refuses, and the run surfaces the file's own error.
       }
-      const configFile = path.join(
-        deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
-        PROVIDERS_CONFIG_DIR_NAME,
-        PROVIDERS_FILE_NAME,
-      )
-      if (existsSync(configFile)) {
-        const entry = await import('./chatGptProviderCommands')
-        const factory = entry.runtimeSubscriptionClient({
-          secrets: deps.secrets,
-          fetch: deps.fetch,
-          configFile,
-          catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
-          openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
-          callbackText: () => UI_TEXT.acpChatGpt.callback,
-        })
+      const chatGpt = await chatGptFactory()
+      if (chatGpt !== undefined) {
         try {
-          if ((await factory.accountId()) !== undefined) return { state: 'ready' }
+          if ((await chatGpt.factory.accountId()) !== undefined) return { state: 'ready' }
         } catch (error: unknown) {
           // The providers file, a stored ChatGPT grant or the store: each in
           // its own words, never all of them as the store. The file's refusal
@@ -816,7 +973,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
           return {
             state: 'unavailable',
             message:
-              entry.chatGptFailureOf(error) ??
+              chatGpt.failureOf(error) ??
               fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
           }
         }
@@ -828,23 +985,9 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     try {
       if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
         return { state: 'ready' }
-      const configFile = path.join(
-        deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
-        PROVIDERS_CONFIG_DIR_NAME,
-        PROVIDERS_FILE_NAME,
-      )
-      if (existsSync(configFile)) {
-        const entry = await import('./chatGptProviderCommands')
-        const factory = entry.runtimeSubscriptionClient({
-          secrets: deps.secrets,
-          fetch: deps.fetch,
-          configFile,
-          catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
-          openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
-          callbackText: () => UI_TEXT.acpChatGpt.callback,
-        })
-        if ((await factory.accountId()) !== undefined) return { state: 'ready' }
-      }
+      const chatGpt = await chatGptFactory()
+      if (chatGpt !== undefined && (await chatGpt.factory.accountId()) !== undefined)
+        return { state: 'ready' }
     } catch (error: unknown) {
       if (isStoreUnavailable(error)) {
         metaKeyProbe.state = 'storeDown'
@@ -898,6 +1041,12 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       edits,
       assertWorkspaceCurrent,
       metaKeyProbe,
+      {
+        attached: attachedMedia,
+        onIo: (io) => {
+          mediaIo.set(cwd, io)
+        },
+      },
     )
     modelApiHosts.set(cwd, { manager, identity: key })
     return await manager.ensureHost()
@@ -912,12 +1061,61 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     return manager.ensureHost()
   }
 
+  // M105 lane F: the /uploads port over the account ledger in the agent
+  // data folder. The media bundle loads on first use; without storage or
+  // an account it reads empty and deletes nothing. ACP answers in text,
+  // never through post.
+  const agentUploadLedgerDir =
+    deps.exec?.isEphemeral === true
+      ? undefined
+      : path.join(agentDataFolder(deps), MODEL_API_UPLOADS_DIR)
+  const uploadsAccountId = async (): Promise<string | undefined> => {
+    const key = await credentials.getApiKey()
+    return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+  }
+  let uploadsClient: ModelApiClient | undefined
+  const uploadsFilesClient = () =>
+    (uploadsClient ??= newFilesClient({
+      fetch: deps.fetch,
+      apiKey: () => credentials.getApiKey(),
+      sleep: deps.sleep,
+      log: deps.log,
+    }))
+  const openUploadsLedger = async (
+    accountId: string | undefined,
+  ): Promise<UploadLedger | undefined> => {
+    if (agentUploadLedgerDir === undefined) return undefined
+    const media = await import('../host/backend/productionMediaEntry')
+    media.setUiText(UI_TEXT, uiLocale())
+    const uploadsDeps = {
+      uploadLedgerDir: agentUploadLedgerDir,
+      currentAccountId: uploadsAccountId,
+      filesClient: uploadsFilesClient,
+      expiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
+    }
+    // Removing the key keeps the retained list across a restart: the
+    // last account's persisted ledger reads read-only (PLAN D85.2).
+    return accountId === undefined
+      ? await media.openLastAccountUploads(uploadsDeps)()
+      : await media.createSessionUploads(uploadsDeps)(accountId)
+  }
+  const uploads: AcpUploadsPort = createUploadedFilesPort({
+    ledger: async (): Promise<UploadLedger | undefined> =>
+      agentUploadLedgerDir === undefined
+        ? undefined
+        : await openUploadsLedger(await uploadsAccountId()),
+  })
   return {
     readUsageBudgets: async () => {
-      const budgets = await Promise.all(
-        Array.from(modelApiHosts.values(), ({ manager }) => manager.readUsageBudgets()),
-      )
-      return budgets.flat()
+      // The shared daily paid budget first, then the live session budgets:
+      // the same pair VS Code passes (RVCM1132B finding 3). The ledger read
+      // never starts a backend.
+      const accounting = await import('./runtimeAccountingEntry.js')
+      const [daily, ...session] = await Promise.all([
+        accounting.readRuntimeDailyBudget({ dataFolder: agentDataFolder(deps), now: Date.now }),
+        ...Array.from(modelApiHosts.values(), ({ manager }) => manager.readUsageBudgets()),
+      ])
+      return [...daily, ...session.flat()]
     },
     backend: {
       kind: deps.options.backend,
@@ -941,10 +1139,40 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     },
     museCode,
     paid,
-    forgetUnflaggedGrants: () =>
-      deps.exec === undefined && deps.options.backend === 'modelApi'
-        ? paid.forgetUnflagged()
-        : Promise.resolve(),
+    ...(deps.options.backend === 'modelApi' && {
+      media: async (context) => {
+        // The folder's host first: it owns the confined reads the port uses.
+        await modelApiHostFor(context.cwd)
+        const io = mediaIo.get(context.cwd)
+        if (io === undefined) throw new Error(UI_TEXT.media.uploadUnavailable)
+        const entry = await (mediaEntry ??= import('./runtimeMediaEntry'))
+        entry.setUiText(UI_TEXT, uiLocale())
+        return entry.runtimeMediaPort(context, {
+          platform: deps.platform,
+          io,
+          attached: (registry ??= entry.createAttachedMedia()),
+          newToken: () => randomUUID(),
+          // Muse Voice transcribes attached sound only under its flag.
+          transcribesSound: (info) =>
+            paid.isOn('voice') &&
+            (info.mediaType === 'audio/wav' || info.mediaType === 'audio/mpeg'),
+        })
+      },
+    }),
+    ...(deps.options.backend === 'modelApi' && { uploads }),
+    forgetUnflaggedGrants: async () => {
+      if (deps.exec !== undefined) return
+      if (deps.options.backend === 'modelApi') await paid.forgetUnflagged()
+      // Companion voice uses the stored Model API key on either backend.
+      // Dropping its flag revokes remembered consent before a later re-enable.
+      if (COMPANION_VOICE_RELEASE.isReady && deps.options.companionVoice !== true) {
+        try {
+          await grants.forget(['voice'])
+        } catch {
+          deps.log.warn('Companion voice workspace grants could not be forgotten')
+        }
+      }
+    },
     close: async () => {
       // A probe still waiting on its short-lived host ends with the agent.
       accountHosts.close()
@@ -953,6 +1181,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         ...Array.from(modelApiHosts.values(), ({ manager }) => manager),
       ]
       await Promise.all(managers.map((manager) => manager.dispose()))
+      // Every attached source, embedded bytes included, ends with the runtime.
+      registry?.clear()
     },
   }
 }

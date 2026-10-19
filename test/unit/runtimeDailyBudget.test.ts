@@ -37,6 +37,15 @@ function today(): string {
   return [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
 }
 
+/** A refusal over the daily limit says so in the stop sentence. */
+function expectStopped(refusal: unknown): void {
+  expect(refusal).toBeInstanceOf(Error)
+  expect(refusal).toMatchObject({ name: 'SessionBudgetExceededError' })
+  expect(refusal instanceof Error ? refusal.message : '').toMatch(
+    /^Stopped: the next request \(about \$0\.60\) would pass the daily budget of \$1\.00 \(\$0\.50 used today\)\. It was not sent\. The budget resets .+; raise paidDailyBudgetUsd to continue\.$/u,
+  )
+}
+
 function spentFile(folder: string): unknown {
   const directory = path.join(folder, PAID_DAILY_BUDGET.directory, today(), DAILY_SPEND_FOLDER)
   const [name] = readdirSync(directory)
@@ -89,11 +98,7 @@ describe('the agent daily limit', () => {
     } catch (error: unknown) {
       refusal = error
     }
-    expect(refusal).toBeInstanceOf(Error)
-    expect(refusal).toMatchObject({ name: 'SessionBudgetExceededError' })
-    expect(refusal instanceof Error ? refusal.message : '').toMatch(
-      /^Stopped: the next request \(about \$0\.60\) would pass the daily budget of \$1\.00 \(\$0\.50 used today\)\. It was not sent\. The budget resets .+; raise paidDailyBudgetUsd to continue\.$/u,
-    )
+    expectStopped(refusal)
     // What still fits is admitted.
     expect(daily.admit(Usd.from('0.5').toAmount(), signal)).toBeDefined()
   })
@@ -132,5 +137,63 @@ describe('the agent daily limit', () => {
     await expect(claim?.settle(Usd.from('0.3').toAmount())).rejects.toMatchObject({
       name: 'SpendLedgerError',
     })
+  })
+
+  it('with no limit set, reserve admits nothing and writes nothing', async () => {
+    const folder = dataFolder('reserve-none')
+    const daily = createRuntimeDailyBudget({ dataFolder: folder, now: Date.now, sleep })
+    expect(
+      await daily.reserve(Usd.from(5).toAmount(), new AbortController().signal),
+    ).toBeUndefined()
+    expect(readdirSync(folder)).toEqual([])
+  })
+
+  it('reserve admits an exact cost and refuses what no longer fits', async () => {
+    const folder = dataFolder('reserve', '{"paidDailyBudgetUsd":1}')
+    const daily = createRuntimeDailyBudget({ dataFolder: folder, now: Date.now, sleep })
+    const signal = new AbortController().signal
+    const claim = await daily.reserve(Usd.from('0.6').toAmount(), signal)
+    expect(claim?.estimateUsd).toBe('0.6')
+    claim?.check()
+    await claim?.settle(Usd.from('0.5').toAmount())
+    let refusal: unknown
+    try {
+      await daily.reserve(Usd.from('0.6').toAmount(), signal)
+    } catch (error: unknown) {
+      refusal = error
+    }
+    expectStopped(refusal)
+  })
+
+  it('reserve counts an unknown receipt without consuming the estimate', async () => {
+    const folder = dataFolder('reserve-unknown', '{"paidDailyBudgetUsd":1}')
+    const daily = createRuntimeDailyBudget({ dataFolder: folder, now: Date.now, sleep })
+    const signal = new AbortController().signal
+    const claim = await daily.reserve(Usd.from('0.9').toAmount(), signal)
+    await claim?.settle(undefined)
+    expect(spentFile(folder)).toEqual({ spentUsd: '0', unknownChargeCalls: 1 })
+    // The estimate was never counted, so the same exact cost still fits.
+    expect(await daily.reserve(Usd.from('0.9').toAmount(), signal)).toBeDefined()
+  })
+
+  it('readToday reads nothing without a limit and the row with one', async () => {
+    const bare = dataFolder('today-none')
+    const noCap = createRuntimeDailyBudget({ dataFolder: bare, now: Date.now, sleep })
+    expect(await noCap.readToday()).toEqual([])
+    const folder = dataFolder('today', '{"paidDailyBudgetUsd":1}')
+    const daily = createRuntimeDailyBudget({ dataFolder: folder, now: Date.now, sleep })
+    const claim = await daily.reserve(Usd.from('0.4').toAmount(), new AbortController().signal)
+    await claim?.settle(Usd.from('0.3').toAmount())
+    const rows = await daily.readToday()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.budget).toMatchObject({
+      id: today(),
+      kind: 'paidDaily',
+      spentUsd: '0.3',
+      capUsd: '1',
+      stopped: false,
+      raisedToday: false,
+    })
+    expect(typeof rows[0]?.budget.resetsAt).toBe('number')
   })
 })

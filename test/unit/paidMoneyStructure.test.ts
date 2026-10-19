@@ -143,6 +143,11 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
     reason: 'Estimator USD/hour demand forecast, scheduling math.',
     plan: SANCTIONED_ESTIMATOR,
   },
+  'core/estimator/planSnapshot.ts:accountUsdPerHour': {
+    category: 'sanctioned',
+    reason: 'The same estimator USD/hour demand forecast, constructed in the plan snapshot.',
+    plan: SANCTIONED_ESTIMATOR,
+  },
   'core/providers/providersFile.ts:UserPriceCard': {
     category: 'sanctioned',
     reason: 'User-entered USD-per-token price card.',

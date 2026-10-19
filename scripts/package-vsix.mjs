@@ -114,6 +114,24 @@ export async function stageVsix(root, stage, target) {
   for (const required of requiredNativeFiles(target))
     if (files.every((file) => file.replaceAll('\\', '/') !== required))
       throw new Error(`Required native helper excluded from VSIX: ${required}`)
+  for (const arch of ['x64', 'arm64'])
+    if (files.every((file) => file.replaceAll('\\', '/') !== `native/linux/${arch}/muse-created`))
+      throw new Error(`Required Linux created-path helper excluded from VSIX: ${arch}`)
+  const normalized = new Set(files.map((file) => file.replaceAll('\\', '/')))
+  // D140: the Linux dictation helper ships as release assets, never in the
+  // VSIX. Any helper binary staged for packaging refuses the whole stage.
+  for (const arch of ['x64', 'arm64']) {
+    for (const file of normalized) {
+      if (
+        file === `native/linux/${arch}/muse-dictate` ||
+        (file.startsWith(`native/linux/${arch}/`) && /\.so(\.\d+)*$/.test(file))
+      )
+        throw new Error(`Linux dictation helper must not ship in the VSIX: ${file}`)
+    }
+  }
+  for (const license of ['whisper-LICENSE.txt', 'model-LICENSE.txt'])
+    if (!normalized.has(`native/dictation-linux/${license}`))
+      throw new Error(`Required Linux dictation licence excluded from VSIX: ${license}`)
   if (!files.includes('dist/validation.js'))
     throw new Error('Shared validation runtime excluded from VSIX')
   rmSync(stage, { recursive: true, force: true })

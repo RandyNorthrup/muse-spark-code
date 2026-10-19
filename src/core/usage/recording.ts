@@ -105,6 +105,12 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         if (!isForced && lastHeaders.get(context.provider) === encoded) return
         lastHeaders.set(context.provider, encoded)
       }
+      const slot = `${context.provider}/${context.source}/${context.credentialId ?? ''}`
+      if (
+        context.observationId !== undefined &&
+        liveLimits.get(slot)?.observationId === context.observationId
+      )
+        return
       const at = options.now()
       const entry: UsageLimitSnapshot = {
         ...context,
@@ -116,7 +122,10 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         timezoneOffsetMins: new Date(at).getTimezoneOffset(),
         client: client(),
       }
-      liveLimits.set(`${context.provider}/${context.source}`, entry)
+      // Slots accumulate per credential; the usage service selects the
+      // stored credential's slots when it reads, so a previous key's
+      // numbers are never shown or counted. This recorder keeps history.
+      liveLimits.set(slot, entry)
       queue((journal) => {
         journal.append(entry)
       })

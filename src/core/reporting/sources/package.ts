@@ -1,6 +1,7 @@
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { REPORT_MAX_ROWS, REPORT_MAX_TEXT_CHARS } from '../../../shared/constants'
+import { joinPartialReasons, readReportRows } from './boundary'
 import {
   codeUnitCompare,
   localSource,
@@ -9,8 +10,9 @@ import {
   type SourceScrub,
 } from './local'
 
-const packageSchema = z.object({
-  scripts: z.record(z.string(), z.string().check(z.maxLength(REPORT_MAX_TEXT_CHARS))),
+const packageScriptSchema = z.strictObject({
+  name: z.string(),
+  command: z.string().check(z.maxLength(REPORT_MAX_TEXT_CHARS)),
 })
 
 /** Node's maintained matcher uses slash segments; npm-run-all2 uses colons. */
@@ -26,10 +28,27 @@ export function matchTaskNames(names: readonly string[], token: string): readonl
 }
 /** Declarations only. A report never starts a check or runs a package script. */
 export function packageSource(io: LocalFileIo, scrub: SourceScrub) {
-  return localSource('package', async ({ signal }) => {
+  return localSource('package', async ({ signal, reportText }) => {
     const raw: unknown = JSON.parse(await io.read('package.json', signal))
-    const { scripts } = packageSchema.parse(raw)
+    const envelope = z.object({ scripts: z.record(z.string(), z.unknown()) }).safeParse(raw)
+    if (!envelope.success) throw new LocalSourceError('invalid')
+    // Each script entry parses on its own: one damaged declaration is a
+    // named problem beside the good rows, never a lost manifest
+    // (RVREPORTJOIN P2-1).
+    const recovered = readReportRows(
+      reportText,
+      'gates',
+      'package/scripts',
+      Object.entries(envelope.data.scripts).map(([name, command]) => ({ name, command })),
+      packageScriptSchema,
+    )
+    const scripts: Record<string, string> = {}
+    for (const row of recovered.rows) scripts[row.name] = row.command
     if (Object.keys(scripts).length > REPORT_MAX_ROWS) throw new LocalSourceError('limit')
+    const partial = joinPartialReasons(
+      reportText,
+      recovered.problems.map((problem) => problem.reason),
+    )
     const included = new Set<string>()
     const visit = (name: string) => {
       if (included.has(name)) return
@@ -57,6 +76,7 @@ export function packageSource(io: LocalFileIo, scrub: SourceScrub) {
           .toSorted(codeUnitCompare)
           .map((name) => ({ name: scrub(name), command: scrub(scripts[name] ?? '') })),
       },
+      ...(partial !== undefined && { partial }),
     }
   })
 }

@@ -18,7 +18,7 @@ import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
 import { resolveExecutable } from '../core/executables'
 import type { BestOfNGitGuard } from '../core/bestOfN/bestOfNRunner'
-import { environmentValue } from '../core/backends/musecode/launch'
+import { environmentValue } from '../core/childEnvironment'
 import {
   BEST_OF_N_MIN_GIT_MINOR,
   GIT_FILTER_NAMES_ARGS,

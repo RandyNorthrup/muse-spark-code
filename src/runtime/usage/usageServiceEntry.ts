@@ -26,6 +26,7 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import {
   UsageJournalStore,
+  toAggregateRow,
   type UsageJournalRead as StoredJournal,
 } from '../../core/usage/journalStore'
 import { NodeUsageFs } from './nodeUsageFs'
@@ -86,36 +87,7 @@ export const createUsageWriter: UsageWriterBundle['createUsageWriter'] = (option
 
 /** Adapt validated stored rollups without inventing unknown paired rates. */
 function aggregateRows(journal: StoredJournal): UsageAggregateRow[] {
-  return journal.rollups.map((row) => ({
-    day: row.day,
-    client: row.client,
-    backend: row.backend,
-    provider: row.provider,
-    model: row.model,
-    kind: row.kind,
-    histogram: row.latencyHistogram,
-    ...(row.measurements !== undefined && { measurements: row.measurements }),
-    totals: {
-      records: row.records,
-      tokens: row.tokens,
-      units: row.units,
-      costs: [
-        {
-          certainty: row.cost.certainty,
-          records: row.records,
-          ...(row.cost.usd !== undefined && { usd: row.cost.usd }),
-          ...(row.cost.apiEquivalentUsd !== undefined && {
-            apiEquivalentUsd: row.cost.apiEquivalentUsd,
-          }),
-        },
-      ],
-      retries: row.retries,
-      rateLimited: row.rateLimited,
-      ...(row.durationMs !== undefined && { durationMs: row.durationMs }),
-      ...(row.firstTokenMs !== undefined && { firstTokenMs: row.firstTokenMs }),
-      ...(row.packedAvoided !== undefined && { packedAvoided: row.packedAvoided }),
-    },
-  }))
+  return journal.rollups.map((row) => toAggregateRow(row))
 }
 
 /** J's store, S's service and formatter are shared by every editor surface. */
@@ -206,6 +178,9 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
       countResources: () => resources.count(),
       readBudgets: deps.live?.readBudgets ?? (() => Promise.resolve([])),
       readLiveLimits: deps.live?.readLiveLimits ?? (() => Promise.resolve([])),
+      ...(deps.live?.currentCredentialId !== undefined && {
+        currentCredentialId: deps.live.currentCredentialId,
+      }),
       readAttempts: deps.live?.readAttempts ?? (() => readTraceAttempts({ homeDir: homedir() })),
       providerConsoles: () => {
         const consoles = deps.live?.providerConsoles() ?? []

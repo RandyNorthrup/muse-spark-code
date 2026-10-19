@@ -61,10 +61,18 @@ import {
   PROVIDER_RETRY_HTTP_STATUS,
 } from '../../../../shared/constants'
 import { isEffortLevel } from '../../../../shared/effort'
-import { UI_TEXT } from '../../../../shared/l10n/text'
+import { fill, UI_TEXT } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../transport'
 import { parseRefusalError } from '../providerRefusal'
-import { cleanJsonStrings, cleanWireText, isBlankWireText, isRecord, nativeCallId } from './shared'
+import {
+  ChatCodecError,
+  cleanJsonStrings,
+  cleanWireText,
+  hasHeldVideo,
+  isBlankWireText,
+  isRecord,
+  nativeCallId,
+} from './shared'
 import {
   type CreateResponseBody,
   type FunctionCallItem,
@@ -452,6 +460,13 @@ export function encodeAnthropicRequest(
   body: CreateResponseBody,
   options: AnthropicEncodeOptions,
 ): AnthropicNativeRequest {
+  // M105 lane V R2 (RVCM1054 finding 2): a held video has no Anthropic
+  // shape without a vendor capture behind it, so it refuses with the
+  // model's own reason before any other validation instead of being
+  // dropped while the rest of the message is sent.
+  if (hasHeldVideo(body)) {
+    throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model: options.model }))
+  }
   const record = options.capabilityRecord ?? capturedCapabilities('anthropic', options.model)
   const modes = record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []
   // `default` takes the provider default: no thinking or effort field is
@@ -561,10 +576,16 @@ export function encodeAnthropicRequest(
               return isBlankWireText(part.text) ? [] : [{ text: cleanWireText(part.text) }]
             }
             case 'input_image': {
-              return [{ imageUrl: part.image_url }]
+              // Another provider's held file is meaningless here; the replay
+              // names it through the omitted line on a model switch instead.
+              return 'image_url' in part ? [{ imageUrl: part.image_url }] : []
             }
             case 'input_file': {
-              return [{ document: documentBlock(part.file_data) }]
+              return 'file_data' in part ? [{ document: documentBlock(part.file_data) }] : []
+            }
+            case 'input_video': {
+              // Fail closed: the entry scan above owns the reachable path.
+              throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model: options.model }))
             }
           }
         })

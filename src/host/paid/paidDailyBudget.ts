@@ -33,7 +33,7 @@ import { modelApiPaidTier } from '../../shared/paid'
 import { storeErrorCode } from '../backend/storeErrors'
 import { writeFileAtomically } from '../fsAtomic'
 import type { UsageBudgetRead } from '../../core/usage/usageService'
-import { createDailySpend } from './dailySpend'
+import { createDailySpend, paidDailyBudgetRow } from './dailySpend'
 
 const limitSchema = z.object({
   limitUsd: legacyUsdSchema.check(z.refine((amount) => Usd.from(amount).compare(Usd.from(0)) > 0)),
@@ -300,22 +300,14 @@ export function createPaidDailyBudget(deps: {
     if (!isPositiveUsd(cap)) return Promise.resolve([])
     const total = spend.read(scope)
     return Promise.resolve([
-      {
-        budget: {
-          id: scope,
-          kind: 'paidDaily',
-          spentUsd: total.spentUsd,
-          // Calls that went out and reported no usage stay visible here:
-          // the settled total below them is only what providers reported.
-          ...(total.unknownChargeCalls > 0 && {
-            unknownChargeCalls: total.unknownChargeCalls,
-          }),
-          capUsd: cap,
-          stopped: isStopped,
-          raisedToday: Usd.from(cap).compare(Usd.from(deps.capUsd())) > 0,
-          resetsAt: nextMidnight(),
-        },
-      },
+      paidDailyBudgetRow({
+        scope,
+        total,
+        capUsd: cap,
+        stopped: isStopped,
+        raisedToday: Usd.from(cap).compare(Usd.from(deps.capUsd())) > 0,
+        resetsAt: nextMidnight(),
+      }),
     ])
   }
   const judgeLedger: JudgeDailyLedger = {

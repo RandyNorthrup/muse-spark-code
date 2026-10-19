@@ -5,4 +5,12 @@ export * from './admission'
 export * from './launcher'
 
 // Process identities belong to this process-wide admission boundary too.
-export { currentProcessOwner, isProcessOwnerGone, processOwnerSchema } from '../locks/processOwner'
+export {
+  currentProcessOwner,
+  exactCurrentProcessOwner,
+  exactProcessBirth,
+  isProcessOwnerGone,
+  processOwnerSchema,
+  processStartTime,
+  systemBootId,
+} from '../locks/processOwner'

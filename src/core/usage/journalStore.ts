@@ -41,7 +41,7 @@ import {
 } from '../../shared/usageJournal'
 import { createUsageRecord, usageLocalDay, type UsageRecordContext } from './journalRecord'
 import type { Usage } from '../backends/modelapi/schemas'
-import { emptyUsageMeasurements } from './aggregate'
+import { emptyUsageMeasurements, type UsageAggregateRow } from './aggregate'
 import { Usd } from '../../shared/usd'
 
 export interface UsageFileStat {
@@ -301,6 +301,42 @@ function shiftedDay(day: string, days: number): string {
 }
 function sum(a: number | undefined, b: number | undefined): number | undefined {
   return a === undefined && b === undefined ? undefined : (a ?? 0) + (b ?? 0)
+}
+/**
+ * Adapt a validated stored rollup without inventing unknown paired rates
+ * (C-M113-2 shares this with the usage service instead of copying it).
+ */
+export function toAggregateRow(row: UsageRollupRow): UsageAggregateRow {
+  return {
+    day: row.day,
+    client: row.client,
+    backend: row.backend,
+    provider: row.provider,
+    model: row.model,
+    kind: row.kind,
+    histogram: row.latencyHistogram,
+    ...(row.measurements !== undefined && { measurements: row.measurements }),
+    totals: {
+      records: row.records,
+      tokens: row.tokens,
+      units: row.units,
+      costs: [
+        {
+          certainty: row.cost.certainty,
+          records: row.records,
+          ...(row.cost.usd !== undefined && { usd: row.cost.usd }),
+          ...(row.cost.apiEquivalentUsd !== undefined && {
+            apiEquivalentUsd: row.cost.apiEquivalentUsd,
+          }),
+        },
+      ],
+      retries: row.retries,
+      rateLimited: row.rateLimited,
+      ...(row.durationMs !== undefined && { durationMs: row.durationMs }),
+      ...(row.firstTokenMs !== undefined && { firstTokenMs: row.firstTokenMs }),
+      ...(row.packedAvoided !== undefined && { packedAvoided: row.packedAvoided }),
+    },
+  }
 }
 /** Optional sums stay absent when no call reported that counter. */
 export function rollupUsageRecords(records: readonly UsageRecord[]): UsageRollupRow[] {

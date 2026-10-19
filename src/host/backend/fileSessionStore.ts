@@ -43,7 +43,12 @@ import {
 import type { QuestionStore } from '../../shared/questions'
 import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
-import { describeStoreError, isStoreErrorCode, storeErrorCode } from './storeErrors'
+import {
+  describeStoreError,
+  isStoreErrorCode,
+  storeErrorCode,
+  storeErrorForLog,
+} from './storeErrors'
 import type { SessionUploadLifecycle, SessionUploadOwnership } from '../../core/media/uploadLedger'
 import type { UploadedMediaRef } from '../../shared/media'
 import { FifoLimiter } from '../../core/fifoLimiter'
@@ -580,9 +585,9 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       isRemoved = true
       deps.log.info(`Session ${session.sessionId} idle for more than ${String(days)} days deleted`)
     } catch (error: unknown) {
-      deps.log.warn(
-        `Expired session ${session.sessionId} not deleted: ${describeStoreError(error)}`,
-      )
+      // Fixed words only: a provider delete error can name the file id
+      // and the file name it failed on. The caller keeps the reason.
+      deps.log.warn(`Expired session ${session.sessionId} not deleted: ${storeErrorForLog(error)}`)
     }
     return isRemoved
   }
@@ -613,8 +618,11 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
               await recover(sessionId, session, uploads, intent, isCurrent)
             },
           )
-        } catch (error: unknown) {
-          deps.log.warn(`Upload cleanup ${name} deferred: ${describeStoreError(error)}`)
+        } catch {
+          // Fixed words only: recovery replays the session's upload
+          // ownership, whose refusal names the attachment (RVM105 4). The
+          // next sweep retries; only its outcome is recorded here.
+          deps.log.warn('Upload cleanup deferred: cleanup_failed')
         }
       }
       for (const name of sorted) {

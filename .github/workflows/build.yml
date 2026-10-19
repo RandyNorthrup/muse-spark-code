@@ -91,7 +91,7 @@ jobs:
           - name: unit lint
             gates: 'lint:js:unit'
           - name: build
-            gates: 'typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap check:catches deadcode cycles duplication build security:audit'
+            gates: 'typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap check:catches check:usable-reply check:wrap-up-request deadcode cycles duplication build security:audit'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -592,8 +592,10 @@ jobs:
           if-no-files-found: error
 
   # The .vsix with the helpers from both accounts: what release.yml publishes.
+  # The Linux dictation helper release assets (D140): built here for both
+  # architectures, published by release.yml, never packed in the .vsix.
   linux-native-build:
-    name: compile created-path helper (linux ${{ matrix.arch }})
+    name: compile native helpers (linux ${{ matrix.arch }})
     if: ${{ inputs.part != 'org' && !inputs.fast }}
     strategy:
       matrix:
@@ -611,12 +613,16 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - run: sudo apt-get update && sudo apt-get install -y libssl-dev
+      - run: sudo apt-get update && sudo apt-get install -y libssl-dev libpulse-dev cmake g++-14
       - run: node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; import { buildVaultPeer } from './scripts/build-vault-peer.mjs'; buildLinuxHelper(); buildVaultPeer()"
+      - run: CC=gcc-14 CXX=g++-14 node scripts/build-linux-dictation.mjs
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-created-linux-${{ matrix.arch }}
-          path: native/linux/${{ matrix.arch }}/muse-created
+          path: |
+            native/linux/${{ matrix.arch }}/muse-created
+            native/linux/${{ matrix.arch }}/muse-dictate
+            native/linux/${{ matrix.arch }}/*.so*
           if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -692,10 +698,18 @@ jobs:
           path: native/darwin
       - run: chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created
       - run: chmod +x native/linux/x64/muse-vault-peer native/linux/arm64/muse-vault-peer native/darwin/muse-vault-peer
+      - run: chmod +x native/linux/x64/muse-dictate native/linux/arm64/muse-dictate
       - run: chmod +x dist/native/darwin/muse-vault
       - run: chmod +x native/darwin/muse-dictate
       - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
+      # Dependencies first: the pin checker imports esbuild to load the
+      # pins module, so it cannot run before `npm ci`.
       - run: npm ci
+      # D140: the Linux dictation helpers ship as same-tag release assets,
+      # never in any .vsix. Regenerate their pins from these built helpers so
+      # the packaged extension embeds their exact digests; unset pins fail.
+      - run: node scripts/build-linux-helper-pins.mjs native/linux/x64 native/linux/arm64
+      - run: node scripts/check-linux-helper-pins.mjs --require-values
       # One production build for every target; each target is packed from
       # its own filtered stage (PLAN.md D123).
       - run: npm run build
@@ -783,6 +797,22 @@ jobs:
           path: '*.vsix'
           if-no-files-found: error
           retention-days: 30
+      # D140: no target carries a dictation binary; the helpers ship as
+      # same-tag release assets only.
+      - name: no .vsix carries a dictation binary
+        run: |
+          for vsix in ./*.vsix; do
+            listing="$(unzip -Z1 "$vsix")"
+            for entry in extension/native/linux/x64/muse-dictate extension/native/linux/arm64/muse-dictate \
+              extension/native/linux/x64/libwhisper.so.1 extension/native/linux/arm64/libwhisper.so.1 \
+              extension/native/linux/x64/libggml.so extension/native/linux/arm64/libggml.so \
+              extension/native/linux/x64/libggml-base.so extension/native/linux/arm64/libggml-base.so; do
+              if grep -Fxq -- "$entry" <<< "$listing"; then
+                echo "::error::$entry must not ship in $vsix" >&2
+                exit 1
+              fi
+            done
+          done
       # The ACP agent's npm package (M63, PLAN.md D62), from the same
       # production build this job just ran.
       - run: node scripts/package-acp.mjs

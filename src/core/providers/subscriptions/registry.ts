@@ -10,6 +10,10 @@ import type { ProviderClient } from '../../backends/modelapi/client'
 import { errorBodySchema, type StreamEvent, type Usage } from '../../backends/modelapi/schemas'
 import { responses, modelRef, recordPlanUsage } from '../../../host/backend/providersEntry'
 import { PLAN_MODEL_PROVIDERS } from '../../../shared/providerRouting'
+// RVCM1054D P2: the typed refusal comes from the leaf module, never the
+// codec bundle — the subscriptions bundle must not carry
+// src/core/backends/modelapi/codecs/* (they load only in dist/providers.js).
+import { isChatCodecError } from '../../media/codecRefusal'
 const { ChatgptPlanLimitError, createResponsesCodec, ResponsesDecodeError } = responses
 const { parseModelRef } = modelRef
 import {
@@ -512,8 +516,14 @@ export function createSubscriptionClient(
       throw new ChatGptSignInError('model-not-added', model)
     return ref
   }
+  // Production media (D85.2): the Files transport rides to Meta untouched;
+  // a subscription client without it keeps the established refusal.
+  const filesTransport = meta.requestFile?.bind(meta)
+  const transcription = meta.requestTranscription?.bind(meta)
   const client: ProviderClient = {
     hasPaidDailyBudget: meta.hasPaidDailyBudget,
+    ...(filesTransport !== undefined && { requestFile: filesTransport }),
+    ...(transcription !== undefined && { requestTranscription: transcription }),
     isPlanModel,
     modelContextLimit: (model) => {
       const ref = parseModelRef(model)
@@ -764,11 +774,19 @@ export function createSubscriptionClient(
         // Anything that is not an error keeps its kind past this boundary:
         // the fixed retry sentence below must never stand in for it.
         if (!(error instanceof Error)) throw error
+        // M105 lane V R3 (RVCM1054B P2): a typed codec refusal (a held
+        // video with no vendor capture) reaches the user as its own
+        // sentence on both plan legs, never the generic retry text. One
+        // shared helper decides; this client keeps no list of its own.
+        // Read only the verdict: the guard above already narrowed
+        // `error` to Error, and the predicate's false branch would
+        // narrow the checks below to never.
         // A lapsed confirmation names the run (hook, schedule, review) with
         // its own guidance instead of the generic plan retry sentence, on
         // both plan branches: the gate throws above, and an admission guard
         // may throw a stale-model refusal with the same strings.
-        if (isStaleConfirmedError(error)) {
+        const isCodecRefusal: boolean = isChatCodecError(error)
+        if (isCodecRefusal || isStaleConfirmedError(error)) {
           yield { type: 'error', message: error.message }
           return
         }

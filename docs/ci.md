@@ -217,9 +217,16 @@ Total provider billing attributable to this run is at most its USD budget, provi
 
 Only supported priced models, client-side function tools and fixed n=1 image
 requests are admitted. Hosted response tools, background/previous_response_id,
-arbitrary hosts, uploads, polling and hosted search are refused before forwarding.
+arbitrary hosts, polling and hosted search are refused before forwarding.
+M105 additionally admits U6's Files routes: streamed multipart POST /v1/files,
+GET /v1/files (only its captured `after=file-…` pagination), and GET/DELETE
+/v1/files/file-…. Uploads are bounded to 200 MiB plus 4 KiB multipart overhead
+and inherit the same redirect, origin and lifetime fences. Production Files
+sets expiry, verifies the confined source and validates each receipt. This
+uses U6c's selected not-billed storage policy; the conditional budget claim
+also requires that storage/upload tariff to remain zero.
 Exact Meta HTTPS origin, empty user-info/fragment/unexpected query, string POST
-body and `redirect:error` are required. Only GET /v1/models and POST
+body for inference and `redirect:error` are required. Besides Files, GET /v1/models and POST
 /v1/responses, /v1/images/generations, /v1/images/edits may pass.
 
 With W=1,048,576 and M=max_output_tokens, context liability is
@@ -647,9 +654,10 @@ are recorded in [BADGEFIX](certification/badgefix.md).
 ## Evidence and troubleshooting
 
 M105 parses repeatable `exec --attach <path>` flags and confines each source
-before credential handling. Production video/audio dispatch remains refused
-until captured capabilities, Files storage/ownership and exact per-attempt
-media liability are bound. Receipts carry name/size and completion metadata,
+before credential handling. Captured Meta contributor video dispatch uses expiring Files uploads, the
+owned replay ledger and exact per-attempt admission/settlement. Standalone
+audio is explicitly refused: exec has no Muse Voice flag or transcription
+spend admission. Uncaptured models and uncalibrated capped media still refuse. Receipts carry name/size and completion metadata,
 never file bytes. Headless `--record`, `/record` and `/attach` are usage errors
 (exit 2); there is no unattended screen recorder or implicit paid transcription.
 These flags do not change M80's pending live/hosted certification.

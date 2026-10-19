@@ -6,7 +6,7 @@
     "scope": "Fixture workspace",
     "asOf": "2026-10-06T12:00:00+00:00",
     "generatorVersion": "0.14.2",
-    "contentHash": "8ef5711b881771c28420eb3a734fabddd257e8ddccac16c861a34bd09328ee1b"
+    "contentHash": "a150e5f78620dda5bd18e993ef741f4245658cec268acc4a643c5cd743f15a08"
   },
   "needsYou": {
     "id": "needsYou",
@@ -111,8 +111,8 @@
       "omittedRows": 12
     },
     {
-      "id": "drills",
-      "label": "drills",
+      "id": "hookVerification",
+      "label": "hookVerification",
       "sortKey": "key",
       "columns": [
         {

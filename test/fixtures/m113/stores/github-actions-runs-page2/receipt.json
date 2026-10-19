@@ -1,0 +1,55 @@
+{
+  "capturedAtUtc": "2026-10-11T17:17:40.790Z",
+  "id": "gh-runs-2",
+  "lane": "CM1136",
+  "source": "github-actions-runs-page2",
+  "method": "GET",
+  "url": "https://api.github.com/repos/RandyNorthrup/muse-spark-code/actions/runs?per_page=5&page=2",
+  "httpStatus": 200,
+  "httpStatusText": "OK",
+  "contentType": "application/json; charset=utf-8",
+  "contentEncodingOnWire": "identity (none requested)",
+  "elapsedMs": 342,
+  "body": {
+    "file": "response.body.json",
+    "bytes": 71748,
+    "sha256": "82b8b1060460194d465291787a0e4ec427ac58b0178eaa22a205d70b70fa4903",
+    "bytesBeforeScrub": 71853,
+    "parsesAsJson": true,
+    "exceedsProduct2MiBBound": false
+  },
+  "tool": "node:https, Node v24.20.0 on win32 (capture.mjs sha256 397e8730135edc2bf22965af19d1aa14cb74b5157accfa757808d9991a2e40bb)",
+  "authenticationNeeded": false,
+  "credentialsSent": "none",
+  "scrubbed": {
+    "responseHeaders": "allowlist; values of kept headers scrubbed like the body",
+    "droppedHeaderNames": [
+      "access-control-allow-origin",
+      "access-control-expose-headers",
+      "connection",
+      "content-security-policy",
+      "referrer-policy",
+      "server",
+      "strict-transport-security",
+      "x-content-type-options",
+      "x-frame-options",
+      "x-github-edge-region",
+      "x-github-request-id",
+      "x-xss-protection"
+    ],
+    "keptHeaderValueReplacements": 0,
+    "bodyEmailReplacements": 15,
+    "bodyTokenReplacements": 0,
+    "bodyTokenKinds": [],
+    "bodyJsonPathsChanged": [
+      "$.workflow_runs[].head_commit.author.email",
+      "$.workflow_runs[].head_commit.committer.email",
+      "$.workflow_runs[].head_commit.message"
+    ],
+    "markers": {
+      "email": "<email-redacted>",
+      "token": "<token-redacted>"
+    },
+    "otherwise": "byte-exact"
+  }
+}

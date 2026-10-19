@@ -1,8 +1,8 @@
 {
   "source": "https://models.dev/api.json",
   "upstream": "https://github.com/anomalyco/models.dev",
-  "fetchedAt": "2026-10-05",
-  "downloadSha256": "e47bd31afb882a62655a5783b4b37fb47bbd7652ab71b1ab0a85cfecfd33aacd",
+  "fetchedAt": "2026-10-17",
+  "downloadSha256": "dae7c0c79d38964b123dd0cc8c64a4520d6d61816950f9ca8928bbbeab79dd85",
   "providers": [
     "anthropic",
     "azure",
@@ -25,16 +25,7 @@
     },
     {
       "path": "snapshot.json",
-      "sha256": "a7e65a2bb1d7dd0f79f4ebbc086ad2c352fee0143bc2ee448b74b7ae19ce2cd8"
-    }
-  ],
-  "additions": [
-    {
-      "id": "claude-haiku-5-5",
-      "addedAt": "2026-10-11",
-      "source": "EXECPROV owner brief; docs/certification/exec-provider.md",
-      "price": "unknown",
-      "capabilities": "unknown"
+      "sha256": "f6239a24b78f5306680b35e6b1c8f79bca0eaa8b53e6a25be1e5152c23d9cad7"
     }
   ]
 }

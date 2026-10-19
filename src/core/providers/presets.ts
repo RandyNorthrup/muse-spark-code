@@ -1,6 +1,6 @@
 // The provider presets (M95, PLAN.md D74): each provider the panel lists
 // is a preset here — its format, fixed origin (or the fields the user
-// gives), auth header, key page and key hint, the free key test, the
+// gives), auth header, key page, key shape and key hint, the free key test, the
 // models-list parser, and the format's quirks as data (the output-cap
 // parameter, `parallel_tool_calls`, `tool_choice`, the reasoning field and
 // replay rule, usage in the stream, the cached-token field, the empty-tools
@@ -10,7 +10,7 @@
 // capture is recorded (`wireCapture`, AGENTS.md rule 13); the captures are
 // in `docs/certification/m95-captures.md`. Pure data plus pure helpers.
 
-import { PROVIDER_RETRY_HTTP_STATUS } from '../../shared/constants'
+import { PROVIDER_RETRY_HTTP_STATUS, ZAI_KEY_PATTERN } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
 import {
   PROVIDER_RETRY_LIMITS,
@@ -33,6 +33,35 @@ export type PresetOrigin =
 
 /** The authorization header a preset sends (captured 2026-10-04). */
 export type AuthHeader = 'bearer' | 'x-api-key' | 'x-goog-api-key' | 'api-key'
+
+/** What a pasted key looks like, checked as it is typed. */
+export type KeyShape =
+  | { readonly kind: 'prefix'; readonly prefix: string; readonly minLength: number }
+  | { readonly kind: 'zai' }
+  | { readonly kind: 'any'; readonly minLength: number }
+
+/**
+ * Whether a pasted key is shaped like the preset's. A shape check never
+ * proves a key works: the free key test does. Unknown shapes (`any`) accept
+ * any non-blank key of the minimum length.
+ */
+export function isKeyShape(shape: KeyShape, key: string): boolean {
+  const trimmed = key.trim()
+  if (trimmed === '') {
+    return false
+  }
+  switch (shape.kind) {
+    case 'prefix': {
+      return trimmed.startsWith(shape.prefix) && trimmed.length >= shape.minLength
+    }
+    case 'any': {
+      return trimmed.length >= shape.minLength
+    }
+    case 'zai': {
+      return ZAI_KEY_PATTERN.test(trimmed)
+    }
+  }
+}
 
 // What a pasted key looks like is nothing per provider (PLAN.md D123: a
 // working key is never refused for its shape). The provider judges a key
@@ -315,6 +344,7 @@ export interface ProviderPreset {
   /** The provider's key page (**Get a key**); absent where none is known. */
   readonly keyPage?: string | undefined
   readonly docsUrl?: string | undefined
+  readonly keyShape: KeyShape
   /** Where the key comes from, beside the key field (never a key's characters). */
   readonly keyHint: string
   readonly keyTest: KeyTest
@@ -331,6 +361,32 @@ export interface ProviderPreset {
   readonly reasoningFacts?: readonly PresetReasoningFacts[] | undefined
   /** The preset's own wire capture is recorded (rule 13). */
   readonly wireCapture: boolean
+  /**
+   * The exact server build the quirks were captured against (C-M95-4 R2,
+   * local presets only; from the capture ledgers). The models lists carry
+   * no version, so this stamps what was proven, not what is assumed.
+   */
+  readonly capturedBuild?: string | undefined
+}
+
+/** Which reasoning field a preset's assistant messages replay (C-M95-4 R2). */
+export type PresetReplayField = 'details' | 'content' | 'none'
+
+/**
+ * The reasoning field a preset replays on its assistant messages. A local
+ * server carries no version on the wire, so a build older or newer than
+ * the capture may not understand the captured replay field: local presets
+ * never replay thinking (fail closed). Display is unaffected — the chat
+ * decoder still reads every reasoning field, and a mistranslated replay
+ * would otherwise be dropped silently or refused loudly mid-turn.
+ */
+export function replayFieldFor(preset: ProviderPreset): PresetReplayField {
+  let field: PresetReplayField = 'none'
+  if (preset.category !== 'local') {
+    if (preset.quirks.reasoningField === 'reasoning_details') field = 'details'
+    else if (preset.quirks.reasoningField === 'reasoning_content') field = 'content'
+  }
+  return field
 }
 
 /** One documented per-model reasoning patch (see `reasoningFacts`). */
@@ -396,8 +452,10 @@ export function customQuirksFor(
 
 // The presets. Origins, headers, key shapes, key tests and quirks are from
 // the research (`docs/certification/m95-research.md`) and the live captures
-// (`docs/certification/m95-captures.md`, 2026-10-04). A preset without its
-// own capture (`wireCapture: false`) stays out of the panel (rule 13).
+// (`docs/certification/m95-captures.md`, 2026-10-04; the local servers'
+// own frames in `docs/certification/m95-captures/<llamacpp|lmstudio>/`,
+// 2026-10-10). A preset without its own capture (`wireCapture: false`)
+// stays out of the panel (rule 13).
 
 const OPENAI_PRESET: ProviderPreset = {
   id: 'openai',
@@ -412,6 +470,7 @@ const OPENAI_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://platform.openai.com/api-keys',
   docsUrl: 'https://platform.openai.com/docs',
+  keyShape: { kind: 'prefix', prefix: 'sk-', minLength: 20 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'platform.openai.com' })
   },
@@ -445,11 +504,14 @@ const AZURE_PRESET: ProviderPreset = {
   origin: { kind: 'azure-resource' },
   auth: 'apiKey',
   authHeader: 'api-key',
+  keyShape: { kind: 'any', minLength: 16 },
   get keyHint() {
     return UI_TEXT.providerText.hints.azure
   },
   keyTest: { kind: 'paid-token' },
-  modelsList: { path: '/openai/v1/models', priceSource: 'catalogue' },
+  // The address root is `/openai/v1`, so list and request paths below are
+  // relative to it (research §1.2 [AZ1, AZ6]).
+  modelsList: { path: '/models', priceSource: 'catalogue' },
   quirks: {
     // Azure OpenAI's constrained decoding takes strict tool schemas.
     supportsStrictTools: true,
@@ -475,6 +537,7 @@ const XAI_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://console.x.ai',
+  keyShape: { kind: 'prefix', prefix: 'xai-', minLength: 20 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'console.x.ai' })
   },
@@ -526,6 +589,7 @@ const ANTHROPIC_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://console.anthropic.com/settings/keys',
   docsUrl: 'https://docs.anthropic.com',
+  keyShape: { kind: 'prefix', prefix: 'sk-ant-', minLength: 20 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'console.anthropic.com' })
   },
@@ -648,6 +712,7 @@ const GEMINI_PRESET: ProviderPreset = {
   authHeader: 'x-goog-api-key',
   keyPage: 'https://aistudio.google.com/apikey',
   docsUrl: 'https://ai.google.dev/gemini-api/docs',
+  keyShape: { kind: 'prefix', prefix: 'AIza', minLength: 30 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'AI Studio' })
   },
@@ -670,6 +735,7 @@ const OPENROUTER_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://openrouter.ai/keys',
   docsUrl: 'https://openrouter.ai/docs',
+  keyShape: { kind: 'prefix', prefix: 'sk-or-', minLength: 20 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.router, { site: 'openrouter.ai' })
   },
@@ -711,6 +777,7 @@ const GROQ_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://console.groq.com/keys',
+  keyShape: { kind: 'prefix', prefix: 'gsk_', minLength: 20 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'console.groq.com' })
   },
@@ -739,6 +806,7 @@ const DEEPSEEK_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://platform.deepseek.com/api_keys',
+  keyShape: { kind: 'prefix', prefix: 'sk-', minLength: 20 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'platform.deepseek.com' })
   },
@@ -805,6 +873,7 @@ const MISTRAL_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://console.mistral.ai/api-keys',
+  keyShape: { kind: 'any', minLength: 16 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'console.mistral.ai' })
   },
@@ -841,6 +910,7 @@ export const PLAN_KEY_PRESETS: readonly PlanKeyPreset[] = [
     auth: MISTRAL_PRESET.auth,
     authHeader: MISTRAL_PRESET.authHeader,
     keyPage: MISTRAL_PRESET.keyPage,
+    keyShape: MISTRAL_PRESET.keyShape,
     get keyHint() {
       return MISTRAL_PRESET.keyHint
     },
@@ -870,6 +940,7 @@ const TOGETHER_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://api.together.ai/settings/api-keys',
+  keyShape: { kind: 'any', minLength: 16 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'api.together.ai' })
   },
@@ -921,6 +992,7 @@ const FIREWORKS_PRESET: ProviderPreset = {
   origin: { kind: 'fixed', origin: 'https://api.fireworks.ai' },
   auth: 'apiKey',
   authHeader: 'bearer',
+  keyShape: { kind: 'prefix', prefix: 'fw_', minLength: 20 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'fireworks.ai' })
   },
@@ -950,6 +1022,7 @@ const HUGGINGFACE_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://huggingface.co/settings/tokens',
+  keyShape: { kind: 'prefix', prefix: 'hf_', minLength: 10 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'huggingface.co' })
   },
@@ -974,6 +1047,7 @@ const ZAI_PRESET: ProviderPreset = {
   origin: { kind: 'fixed', origin: 'https://api.z.ai' },
   auth: 'apiKey',
   authHeader: 'bearer',
+  keyShape: { kind: 'zai' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'Z.ai' })
   },
@@ -1021,6 +1095,7 @@ const OLLAMA_PRESET: ProviderPreset = {
   format: 'ollama',
   origin: { kind: 'loopback', defaultPort: 11_434 },
   auth: 'none',
+  keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   // `/api/tags` is free; `/api/show` gives capabilities per model.
   keyTest: { kind: 'models-list' },
@@ -1040,16 +1115,21 @@ const LMSTUDIO_PRESET: ProviderPreset = {
   origin: { kind: 'loopback', defaultPort: 1234 },
   auth: 'none',
   optionalKey: true,
+  keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   keyTest: { kind: 'models-list' },
-  modelsList: { path: '/v1/models', windowField: 'max_context_length', priceSource: 'none-local' },
+  // The list carries no window (captured 2026-10-10: entries are id,
+  // object and owned_by only), so the scan leaves it unknown.
+  modelsList: { path: '/v1/models', priceSource: 'none-local' },
   quirks: {
     outputCapParam: 'max_tokens',
     sendsParallelToolCalls: false,
-    reasoningField: 'reasoning',
+    // Captured 2026-10-10: thinking streams as `reasoning_content`.
+    reasoningField: 'reasoning_content',
     cachedUsageFields: [],
   },
-  wireCapture: false,
+  wireCapture: true,
+  capturedBuild: 'llmster 0.0.25-1',
 }
 
 const VLLM_PRESET: ProviderPreset = {
@@ -1063,6 +1143,7 @@ const VLLM_PRESET: ProviderPreset = {
   origin: { kind: 'loopback', defaultPort: 8000 },
   auth: 'none',
   optionalKey: true,
+  keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', windowField: 'max_model_len', priceSource: 'none-local' },
@@ -1085,13 +1166,18 @@ const LLAMACPP_PRESET: ProviderPreset = {
   format: 'chat',
   origin: { kind: 'loopback', defaultPort: 8080 },
   auth: 'none',
+  keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   keyTest: { kind: 'models-list' },
-  // `/props` gives `n_ctx`; `/v1/models` gives `meta.n_ctx_train`.
+  // `/v1/models` gives the live window as `meta.n_ctx` (`--ctx-size`)
+  // with the trained window in `meta.n_ctx_train`; `/props` repeats
+  // `n_ctx` in `default_generation_settings`.
   modelsList: { path: '/v1/models', windowField: 'n_ctx', priceSource: 'none-local' },
   quirks: {
     outputCapParam: 'max_tokens',
-    toolChoice: 'string-only',
+    // Captured 2026-10-10 (b11541): the object form is accepted and the
+    // template reports `supports_object_arguments`, so this is `auto`.
+    toolChoice: 'auto',
     sendsParallelToolCalls: false,
     reasoningField: 'reasoning_content',
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
@@ -1099,7 +1185,8 @@ const LLAMACPP_PRESET: ProviderPreset = {
     // the chat template (`tools/server/README.md`, read 2026-10-12).
     sendUndeclaredEffort: true,
   },
-  wireCapture: false,
+  wireCapture: true,
+  capturedBuild: 'b11541 (0.6.0-dev, commit f2918cabb)',
 }
 
 const CUSTOM_PRESET: ProviderPreset = {
@@ -1115,6 +1202,7 @@ const CUSTOM_PRESET: ProviderPreset = {
   origin: { kind: 'custom' },
   auth: 'apiKey',
   authHeader: 'bearer',
+  keyShape: { kind: 'any', minLength: 1 },
   get keyHint() {
     return UI_TEXT.providerText.hints.custom
   },
@@ -1182,6 +1270,22 @@ export function azureOrigin(resource: string): string | undefined {
   return AZURE_RESOURCE_PATTERN.test(name)
     ? `https://${name}${AZURE_ORIGIN_SUFFIX}${AZURE_API_PATH}`
     : undefined
+}
+
+/**
+ * The model name on the wire for an entry (research §1.2 [AZ1, AZ6]):
+ * Azure's v1 API takes the deployment name, every other preset the listed
+ * model. Records stay keyed by the model family in the entry's models, so
+ * a deployment name never becomes a record lookup.
+ */
+export function wireModelFor(
+  entry: { readonly preset: string; readonly deployment?: string | undefined },
+  nativeModel: string,
+): string {
+  if (entry.preset !== 'azure') return nativeModel
+  const deployment = entry.deployment
+  if (deployment === undefined || deployment === '') throw new Error(UI_TEXT.actionFailed)
+  return deployment
 }
 
 // --- OpenRouter as a first-class provider (D74) ---

@@ -1,0 +1,103 @@
+# Muse Spark Code (Unofficial): GitLab CI template (PLAN.md M80/D65, lane CM80CI-R2).
+# Not endorsed by Meta. Guide: docs/ci-other-systems.md.
+#
+# Shared bootstrap: download/digest/unpack in a credential-free subshell;
+# the parent never reads/copies the key and runs Node (plain invocation,
+# not exec) with the original vendor environment. Node takes the
+# source, deletes names and value copies, and sends the value only over trusted exec/scanner stdin.
+# Extra secret bindings MUST be declared by name in MUSE_CI_KEY_ALIASES
+# (space-separated); never bind undeclared credential copies.
+# Output is created by Node outside the repository under job temp.
+# Secret: MUSE_MODEL_API_KEY_FILE, a Protected, Masked/Hidden File-type
+# CI/CD variable. Node reads the vendor file directly; no copying child.
+# Automatic source preparation sees only its path. Rules exclude forks,
+# untrusted merge requests and unprotected refs. GitLab's built-in artifact
+# uploader only accepts paths under CI_PROJECT_DIR: it is deliberately
+# omitted here rather than selecting repository-planted files. External
+# temp-artifact transport remains a vendor qualification requirement.
+
+# Pin MUSE_AGENT_VERSION to a release that carries ci/ (the first release
+# after 0.17.0) and MUSE_INPUT_AGENT_PACKAGE_SHA256 to that tarball's SHA-256.
+
+variables:
+  MUSE_AGENT_VERSION: '' # Exact release, x.y.z.
+  MUSE_INPUT_AGENT_PACKAGE_SHA256: '' # SHA-256 of that release's tarball, 64 lowercase hex digits.
+  MUSE_INPUT_MODE: 'review' # review (plan mode, no edits) or fix (a patch is proposed).
+  MUSE_INPUT_MAX_BUDGET_USD: '2.00' # Hard USD cap: more than 0, at most 20, up to six decimals.
+  MUSE_INPUT_MAX_REQUESTS: '30' # Billable HTTP attempts, retries included (1-500).
+  MUSE_INPUT_TIMEOUT_MINUTES: '20' # The run's deadline (1-360); the job timeout must cover it.
+  MUSE_INPUT_MODEL: '' # Model API model id; empty uses the agent's default.
+  MUSE_INPUT_EFFORT: '' # Reasoning effort; empty uses the model's default.
+  MUSE_INPUT_ALLOW_CONTRIBUTOR_MODELS: 'false' # true allows a contributor model (training-eligible).
+  MUSE_INPUT_IMAGE_GENERATION: 'false' # true allows paid images in fix mode, within the budget.
+  MUSE_INPUT_MAX_DIFF_BYTES: '262144' # The diff given to the model is cut to this (1-1048576).
+  MUSE_INPUT_EXTRA_INSTRUCTIONS: '' # Trusted instructions from the pipeline author.
+  MUSE_INPUT_TRUST_PULL_REQUESTS: 'false' # true reviews same-project merge requests from protected branches.
+  MUSE_INPUT_HTTPS_PROXY: ''
+  MUSE_INPUT_NO_PROXY: ''
+  MUSE_INPUT_EXTRA_CA_CERTS: '' # A CA file outside the checkout.
+
+muse-spark:
+  image: node:22
+  # The launcher refuses a timeout-minutes this job timeout (CI_JOB_TIMEOUT) cannot cover.
+  timeout: 35m
+  variables:
+    GIT_DEPTH: '0' # The base commit must be in the clone.
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_PROJECT_ID != $CI_PROJECT_ID
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $MUSE_INPUT_TRUST_PULL_REQUESTS != "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_BRANCH_PROTECTED != "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE != "merge_request_event" && $CI_COMMIT_REF_PROTECTED != "true"
+      when: never
+    - if: $CI_COMMIT_TAG
+      when: never
+    - when: on_success
+  script:
+    - |
+      # BEGIN MUSE BOOTSTRAP (generated from ci-templates/bootstrap.sh - do not edit)
+      # Muse Spark Code (Unofficial): shared POSIX bootstrap, generated into the
+      # four templates by node scripts/sync-ci-bootstrap.mjs. The parent never
+      # reads the credential. Only names/paths/timestamps cross this subshell.
+      set +x
+      set -efu
+      umask 077
+      # Parent holders own paths, never credentials. Reserve their namespace before
+      # assigning the bootstrap result, so declared bindings cannot be overwritten.
+      for muse_ci_internal_alias in ${MUSE_CI_KEY_ALIASES:-}; do
+        case "$muse_ci_internal_alias" in ''|[0-9]*|*[!A-Za-z0-9_]*|muse_ci_internal_*|MUSE_CI_*|MUSE_INPUT_*|MUSE_AGENT_*) echo 'muse-spark: invalid or reserved key alias name' >&2; exit 1;; esac
+      done
+      # Extra bindings must be declared by NAME, never by value. The launcher
+      # reads this same name list and also scrubs every copy of the value. Every
+      # name was validated by the reserved-prefix loop above (its shape check
+      # subsumes the old inner one); macOS sh (bash 3.2) cannot parse case inside
+      # $( ), so only the value removals stay in this subshell, keeping the
+      # download children blind to every declared copy.
+      muse_ci_internal_setup="$(
+        unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file muse_setup muse_dir muse_start_ms muse_sum muse_alias
+        for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done
+        if [ -z "${MUSE_AGENT_VERSION:-}" ] || [ -z "${MUSE_INPUT_AGENT_PACKAGE_SHA256:-}" ]; then echo 'muse-spark: pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+        muse_start_ms=$(($(date +%s) * 1000))
+        muse_dir="$(mktemp -d)"
+        # timeout(1) bounds the removal where it runs; a missing or broken
+        # timeout must not change the exit status, so plain rm is the fallback.
+        trap 'timeout -s KILL 5 rm -rf "$muse_dir" 2>/dev/null || rm -rf "$muse_dir"' EXIT HUP INT TERM
+        curl --fail --silent --show-error --location --max-time 120 --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
+        muse_sum="$(sha256sum "$muse_dir/agent.tgz")"
+        if [ "${muse_sum%% *}" != "$MUSE_INPUT_AGENT_PACKAGE_SHA256" ]; then echo 'muse-spark: the agent package does not match MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+        mkdir "$muse_dir/launcher"
+        tar -xzf "$muse_dir/agent.tgz" -C "$muse_dir/launcher" --no-same-owner
+        printf '%s:%s' "$muse_start_ms" "$muse_dir"
+        trap - EXIT HUP INT TERM
+      )"
+      muse_ci_internal_start_ms="${muse_ci_internal_setup%%:*}"
+      muse_ci_internal_dir="${muse_ci_internal_setup#*:}"
+      # A launch failure still belongs to this shell: plain invocation (not exec)
+      # keeps every shell's exit status, because macOS sh (bash 3.2) reports a
+      # failed bare exec as success once an EXIT trap runs. The reserved holders
+      # survive both generated and alias unsets.
+      trap '(muse_ci_internal_rm_dir="$muse_ci_internal_dir"; unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file muse_setup muse_dir muse_start_ms muse_sum muse_alias; for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done; timeout -s KILL 5 rm -rf "$muse_ci_internal_rm_dir" 2>/dev/null || rm -rf "$muse_ci_internal_rm_dir")' EXIT HUP INT TERM
+      MUSE_CI_TEMP="$muse_ci_internal_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_ci_internal_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_ci_internal_dir/agent.tgz" node "$muse_ci_internal_dir/launcher/package/ci/lib/ci-entry.mjs" gitlab
+      # END MUSE BOOTSTRAP

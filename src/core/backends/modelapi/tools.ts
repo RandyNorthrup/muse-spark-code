@@ -90,7 +90,7 @@ import { type FunctionOutputPart, type FunctionToolDefinition, withStrictTools }
 
 import { LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS } from './legalScanTool'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
-import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
+import { SUBAGENT_TOOL_DEFINITIONS, subagentSpawnDescription } from './subagentTools'
 import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
@@ -382,7 +382,12 @@ export interface ToolContext {
   readonly contextTokens?: number | undefined
   /** W binds selected-model admission, consent, exact reservation and the session upload ledger. */
   readonly media?:
-    | { readonly prepare: (file: ReadMediaFile, signal?: AbortSignal) => Promise<UploadedMediaRef> }
+    | {
+        readonly prepare: (file: ReadMediaFile, signal?: AbortSignal) => Promise<UploadedMediaRef>
+        /** The session's one media admission for an inline image/PDF read:
+         * throws the honest refusal when capped and unmeasurable. */
+        readonly admitVisual?: (visual: ImagePart | DocumentPart) => void
+      }
     | { readonly reason: string }
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
@@ -661,6 +666,8 @@ export interface ToolDefinitionOptions {
   readonly hasImageGeneration?: boolean
   /** Child sessions cannot spawn again (M48, PLAN.md D45). */
   readonly hasSubagents?: boolean
+  /** Concurrent subagents for the spawn description (M127 setting). */
+  readonly subagentCapacity?: number
   /** A team conversation declares the team's five tools instead (M96, PLAN.md D75). */
   readonly teamTools?: typeof TEAM_TOOL_DEFINITIONS
   /** Child sessions cannot ask the panel or set its task list. */
@@ -911,7 +918,14 @@ export function toolDefinitions(
         )),
     ...(options.hasSubagents === true
       ? SUBAGENT_TOOL_DEFINITIONS.map((tool) =>
-          define(tool.name, tool.description, tool.properties, tool.required),
+          define(
+            tool.name,
+            tool.name === MODEL_API_SUBAGENT_TOOLS.spawn && options.subagentCapacity !== undefined
+              ? subagentSpawnDescription(options.subagentCapacity)
+              : tool.description,
+            tool.properties,
+            tool.required,
+          ),
         )
       : []),
     // M96 (PLAN.md D75): the orchestrator's five, never beside M48's six.
@@ -1196,7 +1210,7 @@ async function readMediaFile(
   const unavailable =
     context.media !== undefined && 'reason' in context.media
       ? context.media.reason
-      : UI_TEXT.media.uploadStorageUnknown
+      : UI_TEXT.media.uploadUnavailable
   if (readMedia === undefined) return failure(unavailable)
   try {
     context.signal?.throwIfAborted()
@@ -1369,7 +1383,23 @@ async function readVisual(
       fill(UI_TEXT.toolVisualFileMissing, { path: file.relative }),
     )
   }
-  return kind === 'pdf' ? pdfOutcome(file.relative, bytes) : imageOutcome(file.relative, bytes)
+  const outcome =
+    kind === 'pdf' ? pdfOutcome(file.relative, bytes) : imageOutcome(file.relative, bytes)
+  if (outcome.visibleFile === undefined) return outcome
+  // The read stays inline on the wire, admitted through the session's one
+  // media path before the model reads "the file follows": priced at the
+  // seeded bound, refused with the honest reason when capped and
+  // unmeasurable. The same admission runs again when the bytes are sent.
+  if (context.media === undefined || 'reason' in context.media) return outcome
+  const admitVisual = context.media.admitVisual
+  if (admitVisual === undefined) return outcome
+  try {
+    admitVisual(outcome.visibleFile.part)
+  } catch (error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error)
+    return failure(reason)
+  }
+  return outcome
 }
 
 /** Whether the permission settings deny the tools this confined path (M78). */

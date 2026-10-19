@@ -5,7 +5,7 @@
 // app reads it through `useSyncExternalStore`, and the persister saves it to
 // VS Code's webview state so the crash screen's Reload comes back with it.
 
-import { UI_TEXT, WEBVIEW_STATE_SAVE_MS } from '../../shared/constants'
+import { WEBVIEW_STATE_SAVE_MS } from '../../shared/constants'
 import { isEstimatorHostMessage, parseHostToWebviewMessage } from '../../shared/protocol'
 import type { ErrorReporter } from '../errorReport'
 import type { MessageSource } from '../hostBridge'
@@ -67,25 +67,38 @@ export function listenToHost(
 ): () => void {
   let generation = 0
   let isActive = true
+  const isCurrent = (owner: number) => isActive && owner === generation
   const onMessage = (event: MessageEvent<unknown>) => {
     if (isEstimatorHostMessage(event.data)) {
       const owner = generation
       void import('../../shared/estimatorProtocol')
-        .then((parser) => {
-          if (!isActive || owner !== generation) return
-          const parsed = parser.parseHostToEstimatorMessage(event.data)
+        .then(async (parser) => {
+          if (!isCurrent(owner)) return
+          const parsed = await parser.parseHostToEstimatorMessage(event.data)
+          if (!isCurrent(owner)) return
           if (!parsed.ok) {
             report('hostMessage', parsed.error)
+            store.dispatch({
+              type: 'hostMessage',
+              message: {
+                type: 'estimatorFailure',
+                diagnostic: { estimateDiagnostic: 'invalid-input' },
+              },
+              at: now(),
+            })
             return
           }
           store.dispatch({ type: 'hostMessage', message: parsed.message, at: now() })
         })
         .catch((error: unknown) => {
-          if (!isActive || owner !== generation) return
+          if (!isCurrent(owner)) return
           report('hostMessage', error)
           store.dispatch({
             type: 'hostMessage',
-            message: { type: 'estimatorFailure', reason: UI_TEXT.surfaceLoadFailed },
+            message: {
+              type: 'estimatorFailure',
+              diagnostic: { estimateDiagnostic: 'source-unavailable' },
+            },
             at: now(),
           })
         })

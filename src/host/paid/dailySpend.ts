@@ -9,6 +9,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { SpendLedgerError } from '../../core/paid/spendLedgerError'
+import type { UsageBudgetRead } from '../../core/usage/usageService'
 import { DAILY_SPEND_FOLDER } from '../../shared/constants'
 import { Usd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import { storeErrorCode } from '../backend/storeErrors'
@@ -47,6 +48,37 @@ export interface DailySpendTotal {
 }
 
 const NOTHING: DailySpendTotal = { spentUsd: Usd.from(0).toAmount(), unknownChargeCalls: 0 }
+
+/**
+ * One paid-daily Limits row, shared by the editor's daily ledger and the
+ * standalone runtime's: the same row with or without the editor's
+ * stop/raise state (the runtime never raises a day or records a stop).
+ */
+export function paidDailyBudgetRow(input: {
+  readonly scope: string
+  readonly total: DailySpendTotal
+  readonly capUsd: UsdAmount
+  readonly stopped: boolean
+  readonly raisedToday: boolean
+  readonly resetsAt: number
+}): UsageBudgetRead {
+  return {
+    budget: {
+      id: input.scope,
+      kind: 'paidDaily',
+      spentUsd: input.total.spentUsd,
+      // Calls that went out and reported no usage stay visible here:
+      // the settled total below them is only what providers reported.
+      ...(input.total.unknownChargeCalls > 0 && {
+        unknownChargeCalls: input.total.unknownChargeCalls,
+      }),
+      capUsd: input.capUsd,
+      stopped: input.stopped,
+      raisedToday: input.raisedToday,
+      resetsAt: input.resetsAt,
+    },
+  }
+}
 
 export function createDailySpend(deps: {
   readonly directory: string

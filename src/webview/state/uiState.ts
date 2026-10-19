@@ -1,3 +1,4 @@
+import type { EstimateViewState } from '../../shared/estimateDiagnostic'
 import type { modelApiStatusSchema } from '../../shared/serviceStatus'
 import type { JudgeStatus } from '../../shared/judge'
 import { workflowChildSchema } from '../../shared/workflowChild'
@@ -68,7 +69,6 @@ import { isLegalPrompt } from '../../shared/legalCommand'
 import type { LegalScanResult } from '../../shared/legal'
 import type { LegalFixPreviewMessage, LegalFixResultMessage } from '../../shared/legalFix'
 import type { ScheduleView } from '../../shared/schedule'
-import type { EstimateSection } from '../../shared/estimate'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
@@ -403,6 +403,12 @@ export interface UiState {
   readonly context: ContextSummary | undefined
   /** undefined until the host answered `readUsage` for this window. */
   readonly usageReport: UsageReport | undefined
+  /** The uploaded-files port's last report (M105 lane F); listed by the usage dialog. */
+  readonly uploadedFiles:
+    Extract<HostToWebviewMessage, { type: 'uploadedFilesReport' }>['report'] | undefined
+  /** The account and read generation the accepted list was read under. */
+  readonly uploadedFilesAccountId: string | undefined
+  readonly uploadedFilesGeneration: number
   /**
    * The Agent map's team tree (M96 lane U2); undefined where the team
    * cannot run (off, Solo, single-model mode, no runnable role): the map,
@@ -491,11 +497,13 @@ export interface UiState {
   readonly schedulesSurface:
     Extract<HostToWebviewMessage, { readonly type: 'schedulesSurface' }> | undefined
   /** The capacity estimator's latest section (M117, PLAN.md D97); the panel renders it. Never saved. */
+  readonly estimatorStartRequestId?: string | undefined
   readonly estimatorRequestId?: string | undefined
-  readonly estimatorFailure?: { requestId?: string | undefined; reason: string } | undefined
+  readonly estimatorFailure?:
+    Extract<HostToWebviewMessage, { type: 'estimatorFailure' }> | undefined
   readonly estimatorStarted?:
-    { requestId?: string | undefined; error?: string | undefined } | undefined
-  readonly estimator: EstimateSection | undefined
+    Extract<HostToWebviewMessage, { type: 'estimatorStarted' }> | undefined
+  readonly estimator: EstimateViewState
   /** Git and pull requests (M71): the host's cards and the open form. */
   readonly git: GitUiState
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
@@ -563,6 +571,8 @@ export interface UiState {
 
 export type UiAction =
   | { readonly type: 'hostMessage'; readonly message: HostToWebviewMessage; readonly at: number }
+  | { readonly type: 'estimatorStarting'; readonly requestId: string }
+  | { readonly type: 'estimatorLoading'; readonly requestId: string }
   | { readonly type: 'draftChanged'; readonly draft: string }
   | { readonly type: 'goalSubmitted'; readonly requestId: string }
   | { readonly type: 'goalEditStarted'; readonly objective: string }
@@ -732,6 +742,9 @@ export const initialUiState: UiState = {
   usage: undefined,
   context: undefined,
   usageReport: undefined,
+  uploadedFiles: undefined,
+  uploadedFilesAccountId: undefined,
+  uploadedFilesGeneration: 0,
   teamTree: undefined,
   reference: undefined,
   childTranscripts: {},
@@ -755,7 +768,7 @@ export const initialUiState: UiState = {
   goal: undefined,
   schedules: [],
   schedulesSurface: undefined,
-  estimator: undefined,
+  estimator: { status: 'idle' },
   git: initialGitUiState,
   outputPages: {},
   toolImages: {},
@@ -2529,7 +2542,8 @@ function clearedConversation(state: UiState): UiState {
     todos: [],
     goal: undefined,
     schedules: [],
-    estimator: undefined,
+    estimator: { status: 'idle' },
+    estimatorStartRequestId: undefined,
     estimatorRequestId: undefined,
     estimatorFailure: undefined,
     estimatorStarted: undefined,
@@ -2563,6 +2577,10 @@ function clearedAccountView(state: UiState): UiState {
     models: [],
     skills: undefined,
     usageReport: undefined,
+    uploadedFiles: undefined,
+    // The generation stays: a report posted before the credentials
+    // changed carries an older one and is dropped by its own case.
+    uploadedFilesAccountId: undefined,
     editorContext: undefined,
     dismissedEditorPath: undefined,
     mentionResults: undefined,
@@ -2838,15 +2856,42 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       return { ...state, estimatorRequests: state.estimatorRequests + 1 }
     }
     case 'estimatorSection': {
-      // The estimator's latest section (M117): a new section reveals the
-      // panel, which renders it byte-identical through its validated port.
-      return { ...state, estimator: message.section, estimatorRequestId: message.requestId }
+      if (
+        message.requestId !== undefined &&
+        state.estimatorRequestId !== undefined &&
+        message.requestId !== state.estimatorRequestId
+      )
+        return state
+      return {
+        ...state,
+        estimator: { status: 'showing', section: message.section },
+        estimatorRequestId: message.requestId,
+        estimatorFailure: undefined,
+      }
     }
     case 'estimatorFailure': {
-      return { ...state, estimatorFailure: message }
+      if (
+        message.requestId !== undefined &&
+        state.estimatorRequestId !== undefined &&
+        message.requestId !== state.estimatorRequestId
+      )
+        return state
+      return {
+        ...state,
+        estimator: { status: 'failed', diagnostic: message.diagnostic },
+        estimatorFailure: message,
+      }
     }
     case 'estimatorStarted': {
-      return { ...state, estimatorStarted: message }
+      return {
+        ...state,
+        estimatorStarted: message,
+        ...(message.diagnostic !== undefined &&
+          (message.requestId === undefined ||
+            message.requestId === state.estimatorStartRequestId) && {
+            estimator: { status: 'failed' as const, diagnostic: message.diagnostic },
+          }),
+      }
     }
     case 'openHelp': {
       return { ...state, helpRequests: state.helpRequests + 1 }
@@ -2919,8 +2964,11 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             ? current.schedules
             : [],
         // No account identity accompanies authState: discard prior-account
-        // usage even if the backend name stays the same.
+        // usage even if the backend name stays the same. The generation
+        // stays so a report posted before the boundary still drops.
         usageReport: undefined,
+        uploadedFiles: undefined,
+        uploadedFilesAccountId: undefined,
         // The tree names the account's models: it goes with the usage.
         teamTree: undefined,
         auth: {
@@ -3070,6 +3118,24 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           providers: message.providers === undefined ? undefined : [...message.providers],
           plans: message.plans,
         },
+      }
+    }
+    case 'uploadedFilesReport': {
+      // A report from a previous account or generation never repopulates
+      // the new account's view; a legacy post without one still applies.
+      // An equal-generation report from another account is stale too: the
+      // boundary keeps the generation and clears the account.
+      if ((message.generation ?? 0) < state.uploadedFilesGeneration) return state
+      if (
+        (message.generation ?? 0) === state.uploadedFilesGeneration &&
+        message.accountId !== state.uploadedFilesAccountId
+      )
+        return state
+      return {
+        ...state,
+        uploadedFiles: message.report,
+        uploadedFilesAccountId: message.accountId,
+        uploadedFilesGeneration: message.generation ?? 0,
       }
     }
     case 'setupComplete': {
@@ -3732,6 +3798,19 @@ export function landFocusRequest(
 
 export function uiReducer(state: UiState, action: UiAction): UiState {
   switch (action.type) {
+    case 'estimatorStarting': {
+      return { ...state, estimatorStartRequestId: action.requestId }
+    }
+    case 'estimatorLoading': {
+      return {
+        ...state,
+        estimatorRequestId: action.requestId,
+        estimatorStartRequestId: undefined,
+        estimator: { status: 'loading' },
+        estimatorFailure: undefined,
+      }
+    }
+
     case 'hostMessage': {
       return applyHostMessage(state, action.message, action.at)
     }

@@ -342,6 +342,17 @@ above.
     sentence. Run `npm run check:catches` (in `npm run quality`): it
     fails when any SWALLOW or GENERIC count rises, and when one fell
     without regenerating `scripts/catch-baseline.json`.
+19. **Starts cells are strict.** A `Starts` cell in a PLAN.md lane table is
+    `day 0`, `first`, `last`, or `after <ref>[, <ref> | and <ref>]...`
+    (clauses split on `;`), where a ref is a lane of its own milestone
+    (`0`, `lane 0`), a qualified lane (`M100:T`), or a whole milestone
+    (`M100`, expanding to its lanes). Text in parentheses is a note and is
+    ignored; `after lane 0` means lane `0`; an empty cell binds nothing.
+    Anything else refuses with `malformed-starts` naming the cell and its
+    plan line. Strictness applies to the goal's dependency closure (rows
+    outside it never block a forecast); `estimate --check-plan` lists every
+    problem in the whole plan. Write prose as a parenthetical note, never
+    as a ref. One table per milestone is a lane table.
 
 ## Layout
 
@@ -392,7 +403,10 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       with its status item in the activation shim,
                       media attachments (dist/media.js: the attach port, the
                       recording picker and the uploaded-files list, loaded on
-                      the first attach or recording action; M105) and screen
+                      the first attach or recording action; M105), the
+                      window's attached-media registry, the attach open hook
+                      and contributor consent (dist/mediaHost.js, loaded with
+                      the first attach) and screen
                       recording (dist/screenRecord.js: the recorder command,
                       loaded on the first recording; M105),
                       the vault's window (vault/: the panel host, the
@@ -403,6 +417,8 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       and the Models & Agents panel mounts the vault section),
                       the estimator's engine and history honesty
                       (dist/estimator.js, loaded on the first estimate; M117),
+                      the estimator's plan snapshot (dist/planSnapshot.js,
+                      loaded on the first estimate needing one; M117),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web

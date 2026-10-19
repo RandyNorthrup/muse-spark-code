@@ -10,6 +10,7 @@
 !dist/tab.js
 !dist/prompts.js
 !dist/modelApi.js
+!dist/museCode.js
 !dist/modelApiSessions.js
 !dist/rulesFile.js
 !dist/modelApiCodeIntel.js
@@ -22,6 +23,7 @@
 !dist/legal-data/**
 !dist/subscriptions.js
 !dist/configuredProviders.js
+!dist/credentialLease.js
 !dist/sessionBoard.js
 !dist/reviewer.js
 !dist/team.js
@@ -43,6 +45,8 @@
 !dist/bundledSkills.js
 !dist/codeIntel.js
 !dist/voice.js
+!dist/voiceLinux.js
+!dist/dictation.js
 !dist/webFetch.js
 !dist/museCodeReviewer.js
 !dist/modelsPanel.js
@@ -69,6 +73,7 @@
 !dist/commands.js
 !dist/recorder.js
 !dist/media.js
+!dist/mediaHost.js
 !dist/screenRecord.js
 !dist/uiTextMedia.js
 !dist/reference.js
@@ -123,6 +128,9 @@
 
 !dist/modelApiHooks.js
 !dist/modelApiMcp.js
+!dist/productionMedia.js
+!dist/productionAudio.js
+!dist/runtimeMedia.js
 !dist/modelApiTools.js
 !dist/modelApiVerify.js
 
@@ -134,6 +142,8 @@
 !dist/webview/reportingDestinations.js
 !dist/webview/reportingDestinations.css
 !dist/reportingNetwork.js
+!dist/reportInputs.js
+!dist/playbookSchedulesInputs.js
 !dist/vault.js
 !dist/vaultBroker.js
 !dist/vaultStore.js
@@ -144,6 +154,7 @@
 !dist/vaultActions.js
 !dist/estimator.js
 !dist/estimateContracts.js
+!dist/planSnapshot.js
 !dist/native/darwin/muse-vault
 !native/windows/MuseSparkVault.cs
 !native/windows/MuseSparkVaultCng.cs
@@ -159,3 +170,7 @@ dist/fontsInstall.js
 **/*.ttf
 **/*.otf
 **/*.eot
+
+# CM9LNX/D106: the Linux dictation helper ships as release assets, never in
+# the VSIX (the cap stays unchanged); only its licence notices stay packed.
+!native/dictation-linux/*LICENSE.txt

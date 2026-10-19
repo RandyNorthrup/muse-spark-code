@@ -143,6 +143,12 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 29,
   },
   {
+    name: 'playbook English',
+    entries: ['browser-playbook-english:browser-playbook-english'],
+    // M105 port: measured playbook fallback +15%, rounded up to 25 KiB.
+    budgetKiB: 25,
+  },
+  {
     name: 'account English',
     entries: ['browser-account-english:browser-account-english'],
     budgetKiB: 25,
@@ -195,7 +201,6 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     'Palette',
     'PopoverMenu',
     'GooeyMenuContent',
-    'UsageDialogContent',
     'AgentMapContent',
     'LegalReport',
     'ReviewCommentForm',
@@ -208,6 +213,13 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     ],
     budgetKiB: 25,
   })),
+  {
+    name: 'UsageDialogContent',
+    entries: ['src/webview/components/UsageDialogContent.tsx'],
+    // JOIN0190 features merge: 25.2 KiB measured (accounts surfaces),
+    // +15%, rounded up to 25 KiB.
+    budgetKiB: 50,
+  },
   {
     name: 'question UI',
     entries: [
@@ -369,7 +381,9 @@ export const MODELS_DEFERRED_BUDGETS = [
   {
     name: 'models models section',
     entries: ['src/webview/models/ModelsSection.tsx'],
-    budgetKiB: 13,
+    // M95 (CM954 R4): the saved-model editor's validated per-model window
+    // field grew the chunk to 13,448 bytes; 14 KiB keeps the row tight.
+    budgetKiB: 14,
   },
 ]
 

@@ -223,6 +223,26 @@ request/token tallies outside USD caps. No Meta key is needed for its
 inference. General `providers list|add|test|remove` commands,
 `providers models <entry> [--add <model>] [--remove <model>]` and
 `auth set|status|clear --provider <id>` use the same origin-bound records.
+`muse-spark-code-acp providers connect openrouter` prints OpenRouter’s
+PKCE authorization URL. Open it, authorize, then paste the displayed
+single-use code at the hidden prompt; the returned key is never printed.
+If a key is already stored, the terminal asks you to type `yes` before
+replacement. Interrupting Connect preserves that record. A created key that
+cannot be kept is named with its removal page; removing it needs your
+OpenRouter account because inference keys cannot use the management API.
+Usage prints all six exact decimal amounts from the response.
+The same route is offered in ACP’s terminal authentication UI alongside
+pasting an OpenRouter key and viewing its usage. It works in remote editors
+without a loopback listener. After connecting, `providers add --preset
+openrouter --model <native-model-id>` uses the stored key, with ZDR routing
+by default. `muse-spark-code-acp providers usage openrouter` shows total,
+daily, weekly and monthly key usage, limit and remaining balance; a saved
+OpenRouter alias can replace `openrouter`. Usage reads cost no credits and
+make no model call. Cancellation discards late exchanged keys, and adding a
+model refuses if the connected credential changed during its probes. A reused
+credential is read-only, including when saving the provider fails. Failure
+text contains no service response or secret.
+
 Free probes use the shared request transport. `exec --provider` dispatches through
 that same configured client, reserving each request's conservative input and
 capped output at its model's price before sending, then settling its usage.
@@ -247,6 +267,27 @@ names the minimum; Meta requires 16 tokens. Custom provider entries declare a
 minimum with `modelCapabilities.<model>.output.minTokens`; their capability cap
 and custom output limit must meet it. ACP config options and CLI/exec flags
 expose `exec --max-output-tokens <n>` (at least 1; the selected provider's own minimum applies); ACP retains the model policy cap.
+
+Local provider configuration requires the actual loaded context window.
+Use `providers add --preset lmstudio --model qwen3-0.6b --context-window 8192`
+to save a validated window for every selected model. Existing entries may
+set per-model limits in the user-level `providers.json` (never in a workspace):
+
+```json
+{
+  "modelLimits": {
+    "qwen3-0.6b": { "contextTokens": 8192, "outputTokens": 8192 }
+  }
+}
+```
+
+Both counts must be positive integers and output cannot exceed context.
+The shared provider reader validates them before use, and the shared host
+uses the same window for context pressure and compaction in every ACP editor.
+LM Studio's committed capture reports no window; no uncaptured native endpoint
+is queried. Missing windows refuse inference with instructions to enter one.
+
+> > > > > > > cand/MSM95/4
 
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
@@ -407,6 +448,24 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   refused and names the account the session keeps.
   M99's `/whatsnew` reads this version's release highlights and full notes
   from the package's own content file, answered locally with no model turn.
+  `/playback` asks the agent to state its own understanding of the goal
+  and instructions from working memory only, with no tools for the turn,
+  so the person can compare it with what they asked and correct it; a
+  model turn, on both backends.
+  M115's `/schedule` (list, add, remove, run-now, pause, resume, fire and
+  timeline; `run-due` and background maintenance are refused here), offered
+  only with `--scheduled-prompts`.
+  M117's `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]`
+  when the estimator binding is present; it runs the same engine as the
+  panel with no model call. `/estimate --check-plan` checks every row in the
+  workspace plan, independently of a forecast's dependency closure. Use the
+  flag alone, with no goal or other flags. It requires plan-format-v1 and a
+  lane table, returns all problems (including line numbers for malformed rows),
+  and returns an empty response only for a clean plan. Missing or unsupported
+  plans are failures. The standalone `muse-spark-code-acp estimate --check-plan`
+  uses exit codes 0 for clean, 1 for problems/unavailable, and 2 for usage.
+  Plan and engine refusals, including self dependencies and cycles, use the same
+  localized diagnostic as the panel and CLI. Raw external errors hide private details.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -433,7 +492,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 M105 media commands are parsed between turns: `/attach <path>` confines an
 approved local source; `/record` requires an interactive recorder and private
-preview before Attach. Embedded PDF/image blobs keep their established routes;
+preview before Attach; `/uploads` lists the account's uploaded files and
+`/uploads delete <file>` (or `delete-all`) deletes them early through the
+provider, keeping a file another app may still use. Embedded PDF/image blobs keep their established routes;
 video/audio blobs and media links require the selected-model media port.
 Ordinary source links remain mentions and URLs remain links. A missing media
 binding refuses before dispatch; it never claims that bytes were delivered.
@@ -952,7 +1013,10 @@ limits apply equally to every ACP editor and to headless execution.
 
 `muse-spark-code-acp report project` collects locally through the same engine
 as the editor. `report quality`, `report milestone M113`, `report release
-latest` and `report changes` select other local reports. `report history`
+latest`, `report changes`, `report keybindings`, `report usage`,
+`report session`, `report accounts`, `report security`, `report estimate M113`,
+`report playbook` and `report schedules` select other local reports.
+`report history`
 lists verified, workspace-scoped saved entries. Bare `report`, and `report
 problem`, retain M93's problem report.
 
@@ -983,3 +1047,38 @@ without final usage cannot prove a smaller bill: a provider can charge unseen
 generated tokens after disconnect. The retained amount is a possible charge,
 never a confirmed spend. `--max-output-tokens` lowers the actual request cap;
 startup no longer prices the model's full context window before building it.
+
+## Vault integration (M109 H)
+
+The H handlers consume injected broker/panel contracts. The installed
+`dist/vault.js` factory is an integration handoff; until bound, access reports
+a fixed broker-unavailable error. No credential or guessed wire frame is used.
+
+`/vault` defaults to status and accepts `status`, `list`, `lock` and `audit`.
+Commands are intercepted locally before skill/model dispatch. Invalid syntax
+and extra attachments are refused. Lock remains available during an active
+turn and invalidates outstanding permission answers. Hidden and first-party
+items are excluded from the ACP item list.
+
+A broker request maps to `session/request_permission`: `allow_once`,
+`allow_always` labelled **Allow for this session** where policy permits, and
+`reject_once`. No standing Always grant is offered. Answers retain the
+broker's exact id and digest; cancel, expiry, session close/reload, lock, an
+unknown option, or a failed editor request deny. Bypass and paid grants do
+not approve a vault use. The full requester and resolved use, process exposure,
+taint, presence and separate paid-consent warning appear in the permission.
+
+Terminal subcommands and their input contract are documented in the
+repository README's vault section. Companion and native bridges share the
+same public panel handler; M104 must bind authenticated connections and honor
+its cancellation signal before committing effects. Add/edit opens the host's
+terminal. No value is accepted or returned in panel messages.
+
+### Companion microphone certification
+
+The companion microphone implementation is held off in this build. Its ACP
+command, terminal route and paid flag stay hidden until the Windows/macOS
+browser/free speech-helper receipts and assigned editor bindings/receipts pass. The certification record in
+`docs/certification/m35-companion.md` in the source repository distinguishes
+Linux fake-device/agent evidence from the remaining real editor and platform
+checks. This does not change the supported voice routes in this guide.

@@ -1,3 +1,4 @@
+import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
 import * as z from 'zod/mini'
 import {
   estimateGoalSchema,
@@ -64,16 +65,18 @@ const snapshotSchema = z
     }),
   )
 
-/** @unwired M117 estimator goal snapshot */
+/** Estimator goal snapshot (wired: read by the estimate plan snapshot). */
 export type EstimateGoalSnapshot = z.infer<typeof snapshotSchema>
 
 /** M117-G-M113-snapshot: scrubbed application projections, not wire frames.
  * The adapter reads one bounded snapshot at asOf, including prerequisites.
  * Missing sources/estimates reject the read; no empty fallback is supplied.
  * Rig facts, board agent time and calibrated minima are projected upstream.
+ * The signal lets callers cancel a slow snapshot read; sources check it
+ * before starting each file or process read.
  */
 export interface EstimateGoalSourcesPort {
-  snapshot(goal: EstimateGoal, asOf: string): Promise<unknown>
+  snapshot(goal: EstimateGoal, asOf: string, signal?: AbortSignal): Promise<unknown>
 }
 
 /** Code-unit order is independent of the host's language and ICU version. */
@@ -95,14 +98,14 @@ function intersect<T extends string>(left: readonly T[], right: readonly T[]): T
   if (left.length === 0) result = [...right]
   else if (right.length > 0) result = left.filter((value) => right.includes(value))
   if (left.length > 0 && right.length > 0 && result.length === 0)
-    throw new Error(UI_TEXT.estimateNoCapacity)
+    throw new EstimateDiagnosticError('no-capacity', UI_TEXT.estimateNoCapacity)
   return [...new Set(result)].toSorted(compareEstimateIds)
 }
 
 function relativeFile(file: string): string {
   const normalized = file.replaceAll('\\', '/').replace(/^(?:\.\/)+/, '')
   if (/^(?:\/|[a-z]:)/i.test(normalized) || normalized.split('/').includes('..'))
-    throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'nonrelative-file' }))
+    throw new EstimateDiagnosticError('nonrelative-file')
   return normalized
     .split('/')
     .filter((part) => part !== '' && part !== '.')
@@ -119,7 +122,8 @@ function fileAffinity(file: string): EstimateLane['affinity'] {
   if (os.includes('linux')) {
     if (/(?:^|\/)(?:x64|amd64|x86_64)(?:\/|$)/i.test(normalized)) architectures.push('x64')
     if (/(?:^|\/)(?:arm64|aarch64)(?:\/|$)/i.test(normalized)) architectures.push('arm64')
-    if (architectures.length > 1) throw new Error(UI_TEXT.estimateNoCapacity)
+    if (architectures.length > 1)
+      throw new EstimateDiagnosticError('no-capacity', UI_TEXT.estimateNoCapacity)
   }
   return { os, architectures, machineClassIds: [], gpuRequired: false }
 }
@@ -142,7 +146,7 @@ function affinityFor(lane: EstimateLane, rig: EstimateLane['affinity'] | undefin
     }
   }
   if (files.some((file) => file.os.includes('linux')) && affinity.architectures.length === 0)
-    throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'unknown-os-architecture' }))
+    throw new EstimateDiagnosticError('unknown-os-architecture')
   return { ...affinity, gpuRequired: affinity.gpuRequired || /^gpu(?:[.-]|$)/i.test(lane.kind) }
 }
 
@@ -155,8 +159,8 @@ export async function resolveEstimateGoal(
   asOf: string,
   sources: EstimateGoalSourcesPort,
 ): Promise<EstimateLane[]> {
-  const goal = estimateGoalSchema.parse(goalInput)
-  const instant = estimateRequestSchema.shape.asOf.parse(asOf)
+  const goal = parseEstimate(estimateGoalSchema, goalInput)
+  const instant = parseEstimate(estimateRequestSchema.shape.asOf, asOf)
   const raw: unknown = await sources.snapshot(goal, instant)
   // Reject collection size before Zod reads any nested lane/source projection.
   if (raw !== null && typeof raw === 'object') {
@@ -164,13 +168,15 @@ export async function resolveEstimateGoal(
     if (
       collections.some(([, values]) => Array.isArray(values) && values.length > ESTIMATE_MAX_ITEMS)
     )
-      throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'lane-limit' }))
+      throw new EstimateDiagnosticError('lane-limit')
   }
-  const snapshot = snapshotSchema.parse(raw)
-  if (snapshot.asOf !== instant)
-    throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'snapshot-asOf' }))
+  const snapshot = parseEstimate(snapshotSchema, raw)
+  if (snapshot.asOf !== instant) throw new EstimateDiagnosticError('snapshot-asOf')
   const notFound = (): never => {
-    throw new Error(fill(UI_TEXT.estimateNotFound, { goal: JSON.stringify(goal) }))
+    throw new EstimateDiagnosticError(
+      'unknown-goal',
+      fill(UI_TEXT.estimateNotFound, { goal: JSON.stringify(goal) }),
+    )
   }
   const milestone = (id: string) =>
     snapshot.milestones.find((entry) => entry.id === id) ?? notFound()
@@ -212,19 +218,31 @@ export async function resolveEstimateGoal(
       break
     }
   }
+  // A lane's state comes from its current branch/PR, never from an older
+  // merged PR: a lane with an open PR stays current even when a merged PR
+  // still touches it (a repair PR after an old merge).
+  const open = new Set(
+    snapshot.pullRequests.filter((pr) => pr.state === 'open').flatMap((pr) => pr.laneIds),
+  )
   const merged = new Set(
-    snapshot.pullRequests.filter((pr) => pr.state === 'merged').flatMap((pr) => pr.laneIds),
+    snapshot.pullRequests
+      .filter((pr) => pr.state === 'merged')
+      .flatMap((pr) => pr.laneIds)
+      .filter(
+        (id) =>
+          !open.has(id) &&
+          snapshot.lanes.find((entry) => entry.lane.id === id)?.lane.state !== 'running',
+      ),
   )
   const lanes = new Map(snapshot.lanes.map((entry) => [entry.lane.id, entry]))
   const included = new Map<string, EstimateLane>()
   const pending = [...selected]
   for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
     if (included.has(id)) continue
-    if (included.size >= ESTIMATE_MAX_ITEMS)
-      throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'lane-limit' }))
+    if (included.size >= ESTIMATE_MAX_ITEMS) throw new EstimateDiagnosticError('lane-limit')
     const entry = lanes.get(id) ?? notFound()
     const lane = { ...entry.lane, state: merged.has(id) ? 'merged' : entry.lane.state }
-    const resolved = estimateLaneSchema.parse({
+    const resolved = parseEstimate(estimateLaneSchema, {
       ...lane,
       dependencies: lane.state === 'merged' ? [] : lane.dependencies.toSorted(compareEstimateIds),
       files: lane.files.map((file) => relativeFile(file)).toSorted(compareEstimateIds),
@@ -241,8 +259,7 @@ export async function resolveEstimateGoal(
     included.set(id, resolved)
     pending.push(...resolved.dependencies)
   }
-  if (included.size > ESTIMATE_MAX_ITEMS)
-    throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'lane-limit' }))
+  if (included.size > ESTIMATE_MAX_ITEMS) throw new EstimateDiagnosticError('lane-limit')
   return Array.from(included, ([, lane]) => lane).toSorted((left, right) =>
     compareEstimateIds(left.id, right.id),
   )

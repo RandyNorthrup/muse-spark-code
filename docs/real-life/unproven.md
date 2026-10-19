@@ -2675,6 +2675,7 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `team caps, intensity and machine values > sets each role base effort from D75`
 - `team caps, intensity and machine values > maps every intensity level to D75 counts, shifts and budgets`
 - `team caps, intensity and machine values > estimates a worker at 6 RPM and 250K TPM inside the researched limits`
+  - Pull request 206 (Muse Code SDK and CLI 1.4.10, M127) moved this claim before the deletion: the contributor tier's documented 150 requests a minute (was 100), and the fixed Muse Code host ceiling of 4 (`TEAM_MUSE_CODE_HOST_CEILING`) replaced by Muse Code's own loaded-session ceiling for the CLI's version (32 through 1.4.4, 256 from 1.4.5). `test/unit/museCodeLatest.test.ts` tests the ceiling function on those versions.
 - `team caps, intensity and machine values > recovers throttled entries one step a minute after a 30-minute usage mark`
 - `team caps, intensity and machine values > bounds delegation depth, call size and per-role defaults`
 - `team caps, intensity and machine values > bounds queues, requests, briefs, pages and leases from D75`
@@ -2961,3 +2962,247 @@ The Codex re-review of PR #161 found the remaining cases in the file below still
 - `credential read failures > reads a denied store as unreadable with its kind`
 - `credential read failures > stays silent when the store answers`
 - `credential read failures > scans past an unreadable provider entry instead of calling it absent`
+
+## RVMSM105 review deletions (2026-10-17)
+
+Review lane RVMSM105 merged current main (81dacaf5a) into the MSM105 lane and deleted the suites below under the same rule: each drove its behaviour through a hand-answered provider, converter, ledger, host or filesystem stand-in. The behaviours are unproven until real use proves them. Suites trimmed rather than deleted (`vendorMediaCodecs`, `transcribeBatchHttp`, `uploadedFiles`, `privateRootLease`) keep their real-code tests; the removed cases are named in `docs/certification/msm105.md` (RVMSM105 section).
+
+### test/unit/mediaProductionService.test.ts
+
+- `prices an attached image at the seeded bound in a capped session (RVMONEY017D 6, RVMEDIAW 3)`
+- `refuses an attached PDF with no page rate in a capped session before inference (RVMEDIAW 3)`
+- `sends an attached PDF in an uncapped session at its byte count (capped-only refusal)`
+- `keeps a tool-read image inline on later turns, saved and reopened (RVMEDIAW 1, P1)`
+- `sends a standard-model image read in an uncapped session (RVMEDIAW 2)`
+- `sends a contributor PDF read in an uncapped session (RVMEDIAW 2)`
+- `refuses a contributor PDF read under a session cap before its bytes go`
+- `drops a caller-supplied audio port: the bundle binds the only one (RVMEDIAW2 2)`
+- `prices an MCP image at the seeded bound in a capped contributor turn (RVMEDIAW2 3)`
+- `refuses an MP3 read honestly: a tool read is never transcribed`
+- `uploads an attached video once and replays its file id on the next turn`
+- `holds a queued turn’s video from acceptance: the bound never evicts it (RVMEDIAV2)`
+- `releases a withdrawn queued turn’s and a withdrawn steer’s claims (RVMEDIAV2)`
+- `drops a waiting steer when its session is disposed: released, never read or uploaded (RVMEDIAV3 2)`
+- `refuses a media part the registry does not hold, before any upload or inference`
+- `refuses an attached video whose bytes changed since it was attached`
+- `refuses an attached video when the session has no media service, never sending its name alone`
+- `refuses an attached video on a model with no captured video record`
+- `transcribes an attached WAV once, under the daily ledger and the tally`
+- `leaves a turn without attached sound byte-identical, with no transcription request`
+- `refuses attached audio when Muse Voice is off, posting and reserving nothing`
+- `shows the server refusal as sent and settles nothing billed`
+
+### test/unit/mediaAttachmentComposition.test.ts
+
+- `VS Code attaches video plus audio; consent and exact claims precede transcription and model delivery (2,3,5,6,7)`
+- `sendAudio explicitly refuses Meta audio at attach without silently transcribing (4,6,7)`
+- `ACP session/prompt carries video/audio with linked video=%s and the inverse embedded form (2,3,5,6,8)`
+- `exec repeats existing-file attachments and explicitly refuses audio without a voice flag (4,6,9)`
+- `exec delivers an existing video through the runtime and settles its exact run claim (2,3,5,9)`
+- `a sendAudio setting change after attach refuses at the production session instead of transcribing (4,6)`
+- `refuses an audio setting changed inside production consent before any ASR request`
+- `capped first-turn audio preparation waits for the owned session save (5,6; deterministic guard regression)`
+- `keeps the attachment file name out of every log line on a %s refusal (RVM105 4)`
+- `keeps the attachment name out of the session-save log when ownership expired (RVM105 4)`
+
+### test/unit/uploadedFilesComposition.test.ts
+
+- `threads the configured expiry days into the provider upload`
+- `expires_after[seconds]`
+- `reads the expiry setting on every upload, not once per session`
+- `expires_after[seconds]`
+- `expires_after[seconds]`
+- `serves the VS Code consumers from the production port and deletes the chosen file`
+- `deletes an unseen orphan through the Delete command`
+- `serves ACP /uploads from the same production ledger`
+- `purges expired sessions through the ledger: old orphans go, referenced and young ones stay`
+- `cleans the same ledger from two windows exactly once without corrupting it`
+- `holds a pinned file across a stale window and cancels a listing cleanly`
+- `records a provider-removed file as gone during the production purge`
+- `serves the production uploads port on Model API runtimes, and none on Muse Code`
+- `keeps the retained list read-only after the key is removed`
+- `keeps the retained list across a runtime restart after key removal`
+- `serves the lazy production media entry both hosts import`
+- `serves serve ACP /uploads from the runtime backend uploads port`
+- `posts activation-shaped uploaded-files messages that validate against the protocol`
+- `keeps the ephemeral headless port keyless and provider-silent`
+
+### test/unit/acpUploads.test.ts
+
+- `lists the ledger files, says empty, and ignores other text`
+- `deletes the chosen own file and lists what remains`
+- `deletes by listed number and shows the id the delete needs`
+- `refuses zero and other invalid one-based selectors with a sentence`
+- `refuses a leading-zero selector even when its number is listed`
+- `keeps a foreign file with its reason and deletes nothing`
+- `deletes a foreign file the confirmer allows`
+- `deletes all ours, refuses unknown ids and bad syntax, and says so without a ledger`
+- `shows a failed provider delete with its reason and keeps the row`
+- `renders the shared list text`
+- `deletes nothing when cancelled before the read`
+- `deletes nothing when cancelled during the report read`
+- `passes the signal into the provider delete`
+- `carries the signal into the listing after the delete (P2-4)`
+- `announces, lists and deletes through the ledger`
+- `says so and deletes nothing without the ledger`
+- `confirms and deletes a foreign file through the editor permission`
+- `keeps a foreign file when the editor cannot answer the permission`
+- `cancels a delete held on its report read without touching the provider`
+
+### test/unit/uploadedFilesBinding.test.ts
+
+- `supplies the conversation port from the current account ledger`
+- `reads empty while no account backs the ledger`
+- `deletes the chosen files and shows a failed delete with its reason`
+- `says so and deletes nothing with no uploads, and stops on dismissal`
+- `deletes nothing once cancelled at any await of the command`
+- `asks before deleting a file another app may still use`
+- `keeps each read on its own stamp when an older read lands later`
+- `stamps a read with the account it started under, not one resolved later`
+- `recovers the last account ledger once the key is gone`
+- `stamps each posted report with its read account and generation`
+- `keeps the retained list read-only after the key is removed`
+
+### test/unit/mediaUploadStores.test.ts
+
+- `serializes two contenders while the holder pauses mid-acquire`
+- `never steals a live lock: a pre-existing holder fails closed`
+- `rides through runtime accounting when the inner client carries it`
+- `stays absent through runtime accounting when the inner client lacks it`
+- `rides through configured providers to the Meta delegate`
+- `rides through the subscription client to Meta`
+- `saves and reopens a media turn through the real file session store`
+- `releases the session provider uploads on delete, confirmed by the provider`
+- `releases uploads on retention purge`
+- `reports a failed provider deletion honestly, and the next sweep cleans it`
+- `isolates accounts: B uploads fresh after A, replaying only its own files`
+- `moves the last-account pointer only for the current account, and only once`
+- `reads a corrupt or non-digest last-account pointer as none`
+- `keeps both sessions settlements: 25 points, not 24`
+- `writes staging files with unique names per writer`
+- `has durable cleanup intent before the iterator-close await and upload publication`
+- `deletes the known receipt when the final iterator-close await fails`
+- `keeps provider cleanup ownership when interrupted during %s`
+- `$name`
+- `cancels before any receipt without a clean-up: no DELETE, no intent`
+- `deletes at the provider when cancellation lands after the receipt`
+- `records a clean-up intent when DELETE fails (first write fails: %s)`
+- `deletes at the provider when the ledger write after a good upload fails`
+- `resolves cancel after a committed publication when DELETE and the first intent write fail`
+- `forgets a cancelled upload whose remote copy is already gone when the forget write fails`
+- `forgets a deleted file even when its sweep write fails once`
+- `never deletes a referenced upload during a failing sweep`
+
+### test/unit/productionAudio.test.ts
+
+- `probes nothing and returns nothing for a turn with no attached sound`
+- `says why standalone audio cannot be transcribed when no converter is found`
+- `sendAudio refuses unsupported MP3 audio instead of a transcription converter error`
+- `refuses with the configured path’s reason and never falls back`
+- `sends a video without its sound when no converter is installed or configured`
+- `refuses an audio-action change during %s before dispatch`
+- `transcribes the attached bytes, reserved and settled on their duration`
+- `admits at the dispatch itself: %s during the key read sends nothing (finding 2)`
+- `abandons preparation when Muse Voice is switched off during consent, before reserving (finding 2)`
+- `refuses a sendAudio change during consent with its reason, before reserving (RVM105 2)`
+- `refuses a sendAudio change during the key read with its reason, sending nothing (RVM105 2)`
+- `refunds a known local non-send and counts no usage: no key stored (finding 3)`
+- `checks the host model revision before dispatch: a change during consent spends nothing (finding 4)`
+- `runs Windows conversion in the job under a kernel cap, never sampling RSS`
+- `samples macOS RSS per encoder child through the governor bundle, Linux on /proc`
+- `makes each folder inside the host private root, opened once; no root refuses`
+- `reads the agent data folder, and the daily ledger still reads the same file`
+
+### test/unit/transcriptionTransport.test.ts
+
+- `posts once to the captured route and returns the captured 400 body unthrown`
+- `never retries a failed charged POST`
+- `refuses a body that is not the adapter multipart`
+- `redacts the key from any body it hands back`
+- `admits immediately before the fetch, after the key; a revoked admission sends nothing (RVMEDIAV 2)`
+- `checks the account digest after reading the key and before dispatch`
+- `rides through runtime accounting when the inner client carries it`
+- `carries the captured refusal through the adapter to the user verbatim`
+
+### test/unit/converterTrust.test.ts
+
+- `accepts a private executable and returns its canonical path`
+- `resolves a symlink first and returns its canonical target, never the link`
+- `refuses a symlink whose target sits under an other-writable ancestor`
+- `refuses a group-writable ancestor when the group is not the user-private group`
+- `refuses a target at mode %o (%s)`
+- `refuses a non-regular target`
+- `refuses a foreign owner`
+- `refuses a target replaced between its open and its pathname check`
+- `serves as the converter port on POSIX`
+- `judges a path through a junction by its canonical target`
+- `refuses when PowerShell cannot be located from SystemRoot`
+- `probes and returns the verified canonical path, not the name it was given`
+- `refuses the launcher shim %s before probing`
+- `resolves Windows locations from the environment on any drive, winget included`
+- `names the fix when a documented converter sits under a shared-writable folder`
+- `takes a configured path alone: a refusal says why and never falls back`
+- `refuses to encode when the recheck before encoding resolves elsewhere`
+- `encodes through the kernel-limited launch, with the cap and no sampler`
+- `says `
+
+### test/unit/mediaVerifiedCopy.test.ts
+
+- `writes every verified byte across short writes: the encoder reads all of them`
+- `refuses %s before the encoder runs or anything is posted`
+
+### test/unit/audioMessagePreparation.test.ts
+
+- `converts an attached MP3 before the batch POST and returns its transcript`
+- `keeps a video beside its soundtrack transcript, never replacing it (RVMEDIAW 5)`
+- `resolves undefined when no part is transcribable, like an absent port`
+- `sends a video without its sound when transcription is declined; declined audio refuses (lane V)`
+- `leaves the turn untouched when the voice feature is off, like an absent port`
+- `honors explicit %s on a synthetic model that hears audio`
+- `refuses a sendAudio change during %s without a transcription POST`
+- `ignores an audio-action change for a video part, which has no audio action`
+
+## Removed with the other-CI lane's review (RVMSM80, 2026-10-17)
+
+The M80 other-CI lane's process suites ran the launcher and the templates
+against the Action's fake agent (`test/action/fake-agent.mjs`, itself deleted
+above) inside locally simulated GitLab, Azure, Jenkins and Bitbucket hosts,
+with scripted filesystem operations. Under the owner's rule that proof does
+not stand: the suites were deleted or reduced to pure logic through the real
+modules, real template data and the real shells. The behaviours below now
+wait for hosted vendor receipts; nothing local may claim them. Kept, in
+rewritten real form: the adapters, trust gate, key intake and scrubbing,
+input grammar, remaining-time admission and private-temp checks
+(`test/unit/ciRun.test.ts`); the generated bootstrap matching its source,
+GitLab/Azure defaults parsing, Azure's declared deadline, the unpinned
+bootstrap's refusal and the parent trap's cleanup with a missing Node
+(`test/unit/ciTemplates.test.ts`).
+
+### test/unit/ciTemplatesRun.test.ts (whole file, with test/unit/helpers/ciFixtures.ts)
+
+- on each system the key reaches exec's stdin and no program's environment, argv or log
+- aliases and an exported holder never reach a child
+- each system refuses a reserved key alias before a bootstrap child starts
+- GitLab's File variable is read only by Node, with no key-file copying child
+- an early bootstrap failure never selects repository artifacts
+- malformed launcher facts and a launcher module-load failure still clean the bootstrap directory
+- a tarball whose digest differs is never unpacked or run
+- Bitbucket keeps an explicitly empty budget, which the launcher refuses
+
+### test/unit/ciRun.test.ts (the end-to-end, publication and pipe suites; the pure suites stay)
+
+- on each system an end-to-end review completes, publishes outputs and keeps the key on exec's stdin only
+- fix mode publishes the scanned patch, the scanner getting the key on stdin only
+- the diff is cut to max-diff-bytes and says so; empty or malformed agent output is never published as completed
+- SIGTERM stops the run and kills the agent child
+- lifecycle scripts and a checked-out .npmrc are ignored; only the pinned bytes install; an impostor package is refused by identity
+- forks, untrusted pull requests, unprotected refs and an uncoverable deadline refuse before installing or spawning
+- a repository-planted output directory or symlink is ignored; publication happens only in job temp
+- stale-output removal, late publication and final cleanup abort at their bounds in the real filesystem subprocess, without claiming a removal that did not happen
+- a child writing megabytes to both pipes finishes instead of blocking
+
+### test/unit/ciTemplates.test.ts (the template-text guards; the suites named above stay)
+
+- each vendor's own rules, conditions and credential bindings as written in its template (GitLab rules, Azure job condition and secret mapping, Jenkins `when` and `withCredentials`, Bitbucket step placement)
+- the templates carrying only the launcher's inputs, their timeout declarations matching, and Azure conditions using only documented words
+- the package carrying the launcher as `ci/`, as the packaging script's text

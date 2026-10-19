@@ -71,6 +71,8 @@ export interface ProviderEntry {
       }
     | undefined
   readonly numCtx?: Readonly<Record<string, number>> | undefined
+  /** An Azure entry's deployment name, sent as the wire `model` (PROVM95). */
+  readonly deployment?: string | undefined
   /** A private-network address the user confirmed once (D74). */
   readonly privateNetwork?: boolean | undefined
 }
@@ -244,6 +246,7 @@ export interface CodeExchanger {
     readonly code: string
     readonly verifier: string
     readonly redirectUri: string
+    readonly signal?: AbortSignal
   }): Promise<string>
 }
 
@@ -254,16 +257,18 @@ export interface CodeExchanger {
  * validates the numbers (finite, non-negative) before they are shown.
  */
 export interface KeyUsageSnapshot {
-  readonly usedToday: number
-  readonly usedThisWeek: number
-  readonly usedThisMonth: number
-  readonly limit: number | undefined
-  readonly remaining: number | undefined
+  readonly usedTotal?: number | string
+  readonly unlimited?: boolean
+  readonly usedToday: number | string
+  readonly usedThisWeek: number | string
+  readonly usedThisMonth: number | string
+  readonly limit: number | string | undefined
+  readonly remaining: number | string | undefined
 }
 
 /** Reads an OpenRouter key's usage and limit (lane T's transport, from the capture). */
 export interface KeyUsageReader {
-  read(credential: string): Promise<KeyUsageSnapshot>
+  read(credential: string, signal?: AbortSignal): Promise<KeyUsageSnapshot>
 }
 
 /** One suggestion with its reason (lane P's `suggest.ts`). */

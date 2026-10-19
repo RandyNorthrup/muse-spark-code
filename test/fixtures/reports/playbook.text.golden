@@ -3,7 +3,7 @@ Engineering Playbook
 Scope: Fixture workspace
 Generated as of 2026-10-06T12:00:00+00:00
 Version: 0.14.2
-SHA-256: 8ef5711b881771c28420eb3a734fabddd257e8ddccac16c861a34bd09328ee1b
+SHA-256: a150e5f78620dda5bd18e993ef741f4245658cec268acc4a643c5cd743f15a08
 
 Needs You
 Questions: Choose the release channel.
@@ -26,7 +26,7 @@ Status: Merged
 Sources: git
 12 more
 
-Drills
+Hook verification
 Name: M12: fixture contracts
 Status: Planned
 Sources: git, plan

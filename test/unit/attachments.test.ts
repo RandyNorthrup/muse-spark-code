@@ -355,3 +355,36 @@ describe('AttachmentStore', () => {
     expect(attachments.size).toBe(0)
   })
 })
+
+describe('AttachmentStore media registrations (RVMEDIAV 7)', () => {
+  it('releases a discarded or cleared media chip, never one whose message was accepted', () => {
+    const media = store()
+    const released: string[] = []
+    const info = {
+      kind: 'audio' as const,
+      mediaType: 'audio/wav' as const,
+      sizeBytes: 64,
+      durationSeconds: 1,
+    }
+    const add = (name: string) => {
+      media.installMediaPort({
+        sniff: () => undefined,
+        check: () => ({ ok: true }),
+        part: () => ({ type: 'text', text: name }),
+        release: () => {
+          released.push(name)
+        },
+      })
+      const added = media.addMedia(name, info)
+      if (!added.ok) throw new Error(added.reason)
+      return added.attachment.id
+    }
+    const discarded = add('discarded.wav')
+    const sent = add('sent.wav')
+    add('cleared.wav')
+    media.remove(discarded)
+    media.release([sent])
+    media.clear()
+    expect(released).toEqual(['discarded.wav', 'cleared.wav'])
+  })
+})

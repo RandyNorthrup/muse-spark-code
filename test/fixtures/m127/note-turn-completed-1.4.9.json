@@ -1,0 +1,24 @@
+[
+  {
+    "durationMs": 57,
+    "sessionId": "01a14b18-a6b1-70b1-98d7-305e708aac00",
+    "sourceRange": {
+      "first": {
+        "id": "01a14b18-a78c-7d83-b899-3f68b0300fcd",
+        "sequence": 62
+      },
+      "last": {
+        "id": "01a14b18-a78c-7d83-b899-3f68b0300fcd",
+        "sequence": 62
+      },
+      "stream": {
+        "id": "01a14b18-a6b1-70b1-98d7-305e708aac00",
+        "kind": "session"
+      }
+    },
+    "terminal": "completed",
+    "timeToFirstTokenMs": 21,
+    "turnId": "01a14b18-a74b-75a0-bede-89d58fb4db23",
+    "viewCursor": "v4:01a14b18-a6b1-70b1-98d7-305e708aac00:14"
+  }
+]

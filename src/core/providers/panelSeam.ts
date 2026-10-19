@@ -122,11 +122,15 @@ export function createModelsPanelSeam(options: {
       }),
   }
   const catalog = new Map<string, PresetInfo>()
-  // Local servers and the Custom server are the user's own, so they are
-  // listed without a capture of their own (the transport admits them too).
+  // Captured wires only (rule 13): an uncaptured preset stays out of the
+  // panel even when it is local (C-M95-4 R2: the old union with every
+  // `category === 'local'` preset kept vLLM and Ollama listed, probed and
+  // callable with no capture behind them). `custom` is the user's own
+  // server, which the transport admits without a capture, so it stays
+  // listed: the milestone Goal's "a compatible server of their own".
   for (const preset of [
     ...listedPresets(),
-    ...PRESETS.filter((row) => row.category === 'local' || row.category === 'custom'),
+    ...PRESETS.filter((row) => row.id === 'custom'),
     ...PLAN_KEY_PRESETS,
   ]) {
     const origin = preset.origin.kind === 'fixed' ? preset.origin.origin : ''

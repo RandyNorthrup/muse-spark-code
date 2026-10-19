@@ -4,13 +4,14 @@ import { canonicalUsd } from '../shared/usdSchema'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { createDailySpend } from '../host/paid/dailySpend'
+import { createDailySpend, paidDailyBudgetRow } from '../host/paid/dailySpend'
 import {
   isModelApiError,
   type ProviderClient,
   type ResponseAttemptGuard,
   type ResponseObservation,
 } from '../core/backends/modelapi/client'
+import type { UsageBudgetRead } from '../core/usage/usageService'
 import {
   metaResolvedModel,
   minOutputTokensForPolicy,
@@ -31,6 +32,7 @@ import {
   EXEC_MIN_OUTPUT_TOKENS,
   SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT,
   NON_BILLABLE_HTTP_REJECTIONS,
+  MEDIA_CONVERTER_PATH_MAX_CHARS,
   HTTP_TOO_MANY_REQUESTS,
   PAID_DAILY_BUDGET,
   RUNTIME_SETTINGS_FILE,
@@ -50,7 +52,11 @@ import { fill, formatDateTime, plural } from '../shared/l10n/text'
 import { formatUsd } from '../shared/l10n/exactUsd'
 
 const settingsSchema = z.strictObject({
+  // Zero is no limit (D121): a stored zero must parse, so the setting keeps
+  // the nonnegative bound instead of the raised-cap range.
   paidDailyBudgetUsd: z.optional(z.number().check(z.nonnegative())),
+  // M105 lane V: the converter path shares this machine file (runtimeConverterPath.ts).
+  mediaConverterPath: z.optional(z.string().check(z.maxLength(MEDIA_CONVERTER_PATH_MAX_CHARS))),
 })
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
 
@@ -84,6 +90,29 @@ async function countExactInput(
   }
 }
 
+/** The machine-local day scope, the same calendar the usage page buckets by. */
+function dailyScope(now: number): string {
+  const date = new Date(now)
+  return [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
+}
+
+/**
+ * The shared daily paid budget for report Limits sections, without starting
+ * a backend (RVCM1132B finding 3): the same ledger the runtime reserves
+ * against, read only. A missing ledger reads as zero spend under the
+ * configured cap.
+ */
+export function readRuntimeDailyBudget(deps: {
+  readonly dataFolder: string
+  readonly now: () => number
+}): Promise<readonly UsageBudgetRead[]> {
+  return createRuntimeDailyBudget({
+    dataFolder: deps.dataFolder,
+    now: deps.now,
+    sleep: () => Promise.resolve(),
+  }).readToday()
+}
+
 /**
  * The agent's daily spending limit (PLAN.md D121): `paidDailyBudgetUsd` in
  * its settings file, set by the person; none by default. With no limit the
@@ -103,10 +132,7 @@ export function createRuntimeDailyBudget(deps: {
     directory: path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory),
     sleep: deps.sleep,
   })
-  const day = () => {
-    const date = new Date(deps.now())
-    return [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
-  }
+  const day = () => dailyScope(deps.now())
   const capUsd = (): UsdAmount => {
     let text: string
     try {
@@ -135,6 +161,35 @@ export function createRuntimeDailyBudget(deps: {
     date.setHours(0, 0, 0, 0)
     return date.getTime()
   }
+  /**
+   * One exact cost that would pass what is left of today, in the stop
+   * sentence the request admission says (D121). The standalone runtime
+   * never raises a day, so there is no raise question, only the refusal.
+   */
+  const overDaily = (costUsd: UsdAmount, limitUsd: UsdAmount, spentUsd: UsdAmount) =>
+    new SessionBudgetExceededError(
+      fill(UI_TEXT.execPaidDailyStopped, {
+        estimate: formatUsd(costUsd),
+        cap: formatUsd(limitUsd),
+        spent: formatUsd(spentUsd),
+        reset: formatDateTime(nextMidnight()),
+        setting: 'paidDailyBudgetUsd',
+      }),
+    )
+  /**
+   * The send-time limit recheck both admissions share: midnight rolls the
+   * scope, a removed limit stops enforcing, and an amount past what is left
+   * refuses with the stop sentence.
+   */
+  const limitCheck = (signal: AbortSignal, scope: string, amountUsd: UsdAmount): void => {
+    signal.throwIfAborted()
+    if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
+    const limitUsd = capUsd()
+    if (!isPositiveUsd(limitUsd)) return
+    const { spentUsd } = spend.read(scope)
+    if (Usd.from(spentUsd).add(Usd.from(amountUsd)).compare(Usd.from(limitUsd)) > 0)
+      throw overDaily(amountUsd, limitUsd, spentUsd)
+  }
   return {
     capUsd,
     /**
@@ -147,21 +202,7 @@ export function createRuntimeDailyBudget(deps: {
       if (!isPositiveUsd(capUsd())) return undefined
       const scope = day()
       const check = () => {
-        signal.throwIfAborted()
-        if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
-        const limitUsd = capUsd()
-        if (!isPositiveUsd(limitUsd)) return
-        const { spentUsd } = spend.read(scope)
-        if (Usd.from(spentUsd).add(Usd.from(estimateUsd)).compare(Usd.from(limitUsd)) > 0)
-          throw new SessionBudgetExceededError(
-            fill(UI_TEXT.execPaidDailyStopped, {
-              estimate: formatUsd(estimateUsd),
-              cap: formatUsd(limitUsd),
-              spent: formatUsd(spentUsd),
-              reset: formatDateTime(nextMidnight()),
-              setting: 'paidDailyBudgetUsd',
-            }),
-          )
+        limitCheck(signal, scope, estimateUsd)
       }
       check()
       let isSettled = false
@@ -174,6 +215,55 @@ export function createRuntimeDailyBudget(deps: {
           await spend.add(scope, costUsd === undefined ? undefined : ceilUsd(costUsd))
         },
       }
+    },
+
+    /**
+     * One exact cost about to be spent (Muse Voice batch transcription):
+     * `undefined` when the person set no daily limit (only the settings
+     * file is read); otherwise its claim, estimate-checked against what is
+     * left of today like a request's and settled from the receipt after.
+     */
+    reserve(costUsd: UsdAmount, signal: AbortSignal): Promise<SpendClaim | undefined> {
+      signal.throwIfAborted()
+      if (!isPositiveUsd(capUsd())) return Promise.resolve(undefined)
+      const scope = day()
+      const check = () => {
+        limitCheck(signal, scope, costUsd)
+      }
+      check()
+      let isSettled = false
+      return Promise.resolve({
+        estimateUsd: costUsd,
+        check,
+        settle: async (actualCostUsd) => {
+          if (isSettled) return
+          isSettled = true
+          await spend.add(scope, actualCostUsd === undefined ? undefined : ceilUsd(actualCostUsd))
+        },
+      })
+    },
+
+    /**
+     * Today's shared budget for report Limits sections: the same row as
+     * VS Code's dailyPaid.readToday, without the editor's stop/raise state
+     * (the standalone runtime never raises a day or records a stop, so both
+     * stay at their defaults).
+     */
+    readToday(): Promise<readonly UsageBudgetRead[]> {
+      const scope = day()
+      const cap = capUsd()
+      if (!isPositiveUsd(cap)) return Promise.resolve([])
+      const total = spend.read(scope)
+      return Promise.resolve([
+        paidDailyBudgetRow({
+          scope,
+          total,
+          capUsd: cap,
+          stopped: false,
+          raisedToday: false,
+          resetsAt: nextMidnight(),
+        }),
+      ])
     },
   }
 }
@@ -675,6 +765,14 @@ export function withRuntimeAccounting(
     personCap: client.personCap.bind(client),
     createImage: client.createImage.bind(client),
     editImage: client.editImage.bind(client),
+    // Production media (D85.2): the Files transport rides through runtime
+    // accounting untouched; a wrapped client without it keeps the refusal.
+    ...(client.requestFile !== undefined && {
+      requestFile: client.requestFile.bind(client),
+    }),
+    ...(client.requestTranscription !== undefined && {
+      requestTranscription: client.requestTranscription.bind(client),
+    }),
     hasPaidDailyBudget: client.hasPaidDailyBudget,
     ...(client.provider !== undefined && { provider: client.provider }),
     ...(client.modelContextLimit !== undefined && {

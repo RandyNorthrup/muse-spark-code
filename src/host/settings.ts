@@ -9,6 +9,11 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
+  HOOK_MAX_STOP_CONTINUATIONS,
+  HOOK_RUNNING_COMMANDS_MIN,
+  HOOK_STOP_CONTINUATIONS_MIN,
+  SUBAGENT_CONCURRENT_MAX,
+  SUBAGENT_CONCURRENT_MIN,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
   type BackendMode,
   VAULT_PROTECTION_MODES,
@@ -23,6 +28,7 @@ import {
   LEGAL_HEADER_POLICIES,
   type LegalHeaderPolicy,
   MEDIA_AUDIO_ACTION_OPTIONS,
+  MEDIA_CONVERTER_PATH_MAX_CHARS,
   MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
   MEDIA_UPLOAD_EXPIRY_MIN_DAYS,
   ESTIMATE_OPTIMIZE_MODES,
@@ -61,6 +67,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly usageHistory: boolean
   readonly usageHistoryDays: number
   readonly paidDailyBudgetUsd: UsdAmount
+  readonly linuxDictationModel: boolean
   readonly dictationEngine: 'system' | 'museVoice'
   /** Absolute path to the `muse` executable; empty means "discover". */
   readonly museBinaryPath: string
@@ -155,6 +162,12 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly webSearchMaxPerRequest: number
   /** Lane RETRYLIMITS: the person's retry limit; null leaves the providers' own maxima in force. */
   readonly modelApiMaxRetries: number | null
+  /** Stop-hook continuations in a row (M127, Muse Code's default 8). */
+  readonly hooksMaxStopContinuations: number
+  /** Running hook commands at once; 0 starts them all (M127, as Muse Code). */
+  readonly hooksMaxRunningCommands: number
+  /** Concurrent subagents (M127, Muse Code's 1–64 range, default 8). */
+  readonly subagentMaxConcurrent: number
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
   /** The hosts beyond loopback the browser check may open and reach (M81, PLAN.md D49). */
@@ -180,6 +193,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly mediaUploadExpiryDays: number
   readonly screenRecordingMaxSeconds: number
   readonly mediaAudioAction: (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]
+  /** M105 lane V: an absolute converter path; empty uses documented installs only. */
+  readonly mediaConverterPath: string
   /** M108 (PLAN.md D88.5): swap at the next request boundary; on by default. */
   readonly accountSwap: boolean
   /** M108 (PLAN.md D88.5): spread background work across accounts; on by default. */
@@ -290,6 +305,16 @@ const settingSchemas = {
     .check(z.int(), z.gte(1), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
   // Lane RETRYLIMITS: null (unset) is the default; 0 never retries.
   modelApiMaxRetries: z.nullable(z.int().check(z.gte(0))),
+  // Capped at Muse Code's own bound: machine settings are writable by a
+  // dev-container definition (SECURITY.md, workspace trust), so no
+  // workspace may raise Stop-hook billing past what Muse Code itself does.
+  hooksMaxStopContinuations: z
+    .number()
+    .check(z.int(), z.gte(HOOK_STOP_CONTINUATIONS_MIN), z.lte(HOOK_MAX_STOP_CONTINUATIONS)),
+  hooksMaxRunningCommands: z.number().check(z.int(), z.gte(HOOK_RUNNING_COMMANDS_MIN)),
+  subagentMaxConcurrent: z
+    .number()
+    .check(z.int(), z.gte(SUBAGENT_CONCURRENT_MIN), z.lte(SUBAGENT_CONCURRENT_MAX)),
   turnCheckpoints: z.boolean(),
   // Each entry a plain host name or IP address (no port, path or wildcard):
   // one that is not refuses the whole list, so a typo warns rather than
@@ -304,6 +329,7 @@ const settingSchemas = {
   modelApiReplyUsage: z.boolean(),
   // D121: a limit the person sets; 0 is none (the default), and no upper bound is ours.
   paidDailyBudgetUsd: legacyUsdSchema,
+  linuxDictationModel: z.boolean(),
   dictationEngine: z.enum(['system', 'museVoice']),
   modelApiSessionBudgetUsd: legacyUsdSchema,
   legalRegistryLookups: z.boolean(),
@@ -322,6 +348,7 @@ const settingSchemas = {
     .int()
     .check(z.gte(SCREEN_RECORDING_MIN_SECONDS), z.lte(SCREEN_RECORDING_MAX_SECONDS)),
   mediaAudioAction: z.enum(MEDIA_AUDIO_ACTION_OPTIONS),
+  mediaConverterPath: z.string().check(z.maxLength(MEDIA_CONVERTER_PATH_MAX_CHARS)),
   accountSwap: z.boolean(),
   accountParallel: z.boolean(),
   'accounts.severalOnThisDevice': z.boolean(),
@@ -447,6 +474,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiParallelReads: readSetting(config, 'modelApiParallelReads', log),
     webSearchMaxPerRequest: readSetting(config, 'webSearchMaxPerRequest', log),
     modelApiMaxRetries: readSetting(config, 'modelApiMaxRetries', log),
+    hooksMaxStopContinuations: readSetting(config, 'hooksMaxStopContinuations', log),
+    hooksMaxRunningCommands: readSetting(config, 'hooksMaxRunningCommands', log),
+    subagentMaxConcurrent: readSetting(config, 'subagentMaxConcurrent', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
     browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),
     browserCheckRuntime: readSetting(config, 'browserCheckRuntime', log),
@@ -457,6 +487,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     paidDailyBudgetUsd: readSetting(config, 'paidDailyBudgetUsd', log),
     usageHistory: readSetting(config, 'usageHistory', log),
     usageHistoryDays: readSetting(config, 'usageHistoryDays', log),
+    linuxDictationModel: readSetting(config, 'linuxDictationModel', log),
     dictationEngine: readSetting(config, 'dictationEngine', log),
     modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),
     modelApiCommandRules: readSetting(config, 'modelApiCommandRules', log),
@@ -482,6 +513,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     mediaUploadExpiryDays: readSetting(config, 'mediaUploadExpiryDays', log),
     screenRecordingMaxSeconds: readSetting(config, 'screenRecordingMaxSeconds', log),
     mediaAudioAction: readSetting(config, 'mediaAudioAction', log),
+    mediaConverterPath: readSetting(config, 'mediaConverterPath', log),
     accountSwap: SETTING_DEFAULTS.accountSwap,
     accountParallel: SETTING_DEFAULTS.accountParallel,
     'accounts.severalOnThisDevice': SETTING_DEFAULTS['accounts.severalOnThisDevice'],

@@ -1,7 +1,6 @@
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
-import path from 'node:path'
-import { PROVIDERS_CONFIG_DIR_NAME, PROVIDERS_FILE_NAME } from '../shared/constants'
+import { providerConfigFilePath } from '../core/credentialPaths'
 
 /** Where the runner's own user file lives (D74: beside, never inside, Muse Code's config folder). */
 export function providersFilePath(input: {
@@ -9,13 +8,9 @@ export function providersFilePath(input: {
   readonly homeDir: string
   readonly xdgConfigHome: string | undefined
 }): string {
-  const base = path.join(
-    input.xdgConfigHome ?? path.join(input.homeDir, '.config'),
-    PROVIDERS_CONFIG_DIR_NAME,
-  )
-  // Windows joins with `\`; join keeps one dialect per platform, as the
-  // skill and memory roots do.
-  return path.join(base, PROVIDERS_FILE_NAME)
+  // One implementation: the credential lease derives its lock directory
+  // from this same file, so both sides resolve it identically.
+  return providerConfigFilePath(input)
 }
 
 /** DNS answers for an endpoint name; an IP literal is its own answer. */

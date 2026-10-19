@@ -67,14 +67,20 @@ export interface ProviderRequestPath {
 
 /**
  * The codec's request path per preset, from the 2026-10-04 captures unless
- * said. Local servers and the custom preset follow the research's official
- * references (research §1); Azure has no capture yet and no path here.
+ * said. Local servers, the custom preset and Azure follow the research's
+ * official references (research §1); a preset without either has no
+ * request path and refuses to run until its capture is recorded (rule 13).
  */
 function requestPathFor(preset: ProviderPreset): ProviderRequestPath | undefined {
   switch (preset.id) {
     case 'openai':
     case 'xai': {
       return { rule: { kind: 'exact', path: '/v1/responses' }, source: 'capture' }
+    }
+    case 'azure': {
+      // No capture yet: the v1 API is Responses as OpenAI's, rooted at the
+      // entry's `/openai/v1` address (research §1.2 [AZ1, AZ3, AZ6]).
+      return { rule: { kind: 'exact', path: '/openai/v1/responses' }, source: 'research' }
     }
     case 'anthropic': {
       return { rule: { kind: 'exact', path: '/v1/messages' }, source: 'capture' }
@@ -132,7 +138,12 @@ function customBasePath(entry: ProviderEntry, format: ProviderFormat): string {
 
 /** Custom addresses name the API base, including its version/prefix. */
 export function providerModelsPath(provider: ResolvedProvider): string {
-  if (provider.preset.id !== 'custom') return provider.preset.modelsList.path
+  if (provider.preset.id !== 'custom') {
+    // Below the address root: bare origins join nothing, while an Azure
+    // entry lists below its `/openai/v1` root (research §1.2 [AZ6]).
+    const base = new URL(provider.entry.address ?? '').pathname.replace(/\/+$/u, '')
+    return `${base}${provider.preset.modelsList.path}`
+  }
   const format = provider.entry.format ?? provider.preset.format
   return `${customBasePath(provider.entry, format)}/${format === 'ollama' ? 'tags' : 'models'}`
 }
