@@ -296,10 +296,12 @@ export class ExtensionHookRunner {
         stdin = built.stdin
       }
       if (!this.isArmed() || version !== this.version) return undefined
-      const timeoutMs = Math.min(
-        request.maxTimeoutMs,
-        hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
-      )
+      // D121: no default deadline of ours — without an explicit per-hook
+      // timeout the Tab request's own bound is the only deadline.
+      const timeoutMs =
+        hook.timeoutSeconds === undefined
+          ? request.maxTimeoutMs
+          : Math.min(request.maxTimeoutMs, hook.timeoutSeconds * MILLISECONDS_PER_SECOND)
       results.push(
         await this.deps.runHook(
           hook.command,

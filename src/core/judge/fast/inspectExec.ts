@@ -11,7 +11,6 @@ import {
   JUDGE_FAST_B1_MIN_ABI,
   JUDGE_FAST_B1_PROTOCOL_MAX_BYTES,
   JUDGE_FAST_B1_REFUSED_EXIT,
-  SHELL_DEFAULT_TIMEOUT_MS,
   SHELL_OUTPUT_MAX_CHARS,
 } from '../../../shared/constants'
 import { countSecretMatches } from '../../../shared/redact'
@@ -75,7 +74,6 @@ type Refusal =
   | 'confinement'
   | 'cancelled'
   | 'outputLimit'
-  | 'timeout'
   | 'secret'
   | z.infer<typeof nativeRefusalSchema>['refused']
 export type InspectResult =
@@ -146,11 +144,9 @@ export class InspectRunner {
     cwd: string,
     signal: AbortSignal,
   ): Promise<ProcessResult> {
-    const deadline = new AbortController()
-    const combined = AbortSignal.any([signal, this.lifetime.signal, deadline.signal])
-    const timer = setTimeout(() => {
-      deadline.abort()
-    }, SHELL_DEFAULT_TIMEOUT_MS)
+    // D121: no default deadline of ours — the helper runs until it ends,
+    // the caller stops it, or the runner's lifetime ends.
+    const combined = AbortSignal.any([signal, this.lifetime.signal])
     let process: ResourcePipedProcess | undefined
     try {
       if (isAborted(combined))
@@ -175,7 +171,7 @@ export class InspectRunner {
           void this.stop(launched)
         }
         const aborted = () => {
-          stop(deadline.signal.aborted ? 'timeout' : 'cancelled')
+          stop('cancelled')
         }
         combined.addEventListener('abort', aborted, { once: true })
         const receive = (target: Buffer[], chunk: Buffer) => {
@@ -193,8 +189,7 @@ export class InspectRunner {
           receive(stderr, chunk)
         })
         launched.child.once('error', () => {
-          if (isAborted(combined)) refusal ??= deadline.signal.aborted ? 'timeout' : 'cancelled'
-          else refusal ??= 'confinement'
+          refusal ??= isAborted(combined) ? 'cancelled' : 'confinement'
         })
         launched.child.once('close', (exitCode) => {
           combined.removeEventListener('abort', aborted)
@@ -210,17 +205,13 @@ export class InspectRunner {
       })
     } catch {
       if (process !== undefined) await this.stop(process)
-      let refusal: Refusal = 'confinement'
-      if (deadline.signal.aborted) refusal = 'timeout'
-      else if (isAborted(combined)) refusal = 'cancelled'
+      const refusal: Refusal = isAborted(combined) ? 'cancelled' : 'confinement'
       return {
         stdout: '',
         stderr: '',
         exitCode: null,
         refusal,
       }
-    } finally {
-      clearTimeout(timer)
     }
   }
 

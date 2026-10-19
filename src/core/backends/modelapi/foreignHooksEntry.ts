@@ -321,7 +321,10 @@ class ForeignHooks implements ForeignHookAdapter {
           {
             ...request.call,
             pluginPath: plugin,
-            timeoutMs: hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
+            timeoutMs:
+              hook.timeoutSeconds === undefined
+                ? undefined
+                : hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
           },
           signal,
         )

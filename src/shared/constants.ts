@@ -983,7 +983,10 @@ export const MACHINE_SCOPED_SETTINGS = [
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
 export const HOOK_STDIN_MAX_BYTES = 256 * 1024
 export const HOOK_OUTPUT_MAX_BYTES = 16 * 1024
-export const HOOK_DEFAULT_TIMEOUT_SECONDS = 600
+// D121 (owner 2026-10-16): no default hook deadline of ours — a hook runs
+// until it ends or the person stops it. Only an explicitly set per-hook
+// timeout still bounds it (validated against HOOK_MAX_TIMEOUT_SECONDS, which
+// stays as the bound on a value someone set).
 export const HOOK_MAX_TIMEOUT_SECONDS = 600
 export const HOOK_CONFIG_MAX_BYTES = 1024 * 1024
 export const HOOK_SYSTEM_MESSAGE_MAX_CHARS = 1000
@@ -1055,7 +1058,8 @@ export const HOOK_ON_FAILURE_MAX_DEPTH = 3
 export const HOOK_MANAGED_ENV_MAX_NAMES = 64
 export const HOOK_MANAGED_ENV_NAME_MAX_CHARS = 128
 export const HOOK_NOTIFICATION_DELAY_MS = 6000
-export const HOOK_SESSION_END_TIMEOUT_MS = 10_000
+// D121 (owner 2026-10-16): no deadline of ours on SessionEnd hooks — closing
+// waits until they end, saying so in plain words instead of hanging silently.
 // Cline v1 contextModification cap (M91 lane X; hooks-parity/raw-copilot-cline.md:25).
 export const CLINE_CONTEXT_MODIFICATION_MAX_CHARS = 50_000
 // M91 lane X: the plugin child runs one plugin per hook call under these bounds.
@@ -1075,7 +1079,9 @@ export const HOOK_IP_V6_FAMILY = 6
 export const HOOK_HTTP_REDIRECT_MIN_STATUS = 300
 // A prompt or agent handler's own model call: one attempt, no retry, with
 // the hook's answer parsed like a command's.
-export const HOOK_MODEL_TIMEOUT_MS = 60_000
+// D121 (owner 2026-10-16): no default deadline of ours on a hook's own
+// model call — it runs until it ends or the person stops it. No provider
+// documents such a timeout, so the product sets none.
 export const HOOK_MODEL_MAX_OUTPUT_TOKENS = 1024
 // An agent handler's read-only tool loop runs until the model stops calling
 // tools (D121: the removed 5-step ceiling was invented); a verdict resting
@@ -4492,7 +4498,10 @@ export const LIST_FILES_DEFAULT_LIMIT = 500
 // Backstop waits owned by other rows (checks, the verify loop, the judge
 // harness, media conversion, the vault service default): the shell tool
 // itself no longer defaults or clamps (owner 2026-10-16).
-export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
+// D121 (owner 2026-10-16): no default command deadline of ours — a command
+// runs until it ends or the person stops it. Only a per-command timeout the
+// person or the model sets explicitly still bounds it. No provider documents
+// such a timeout, so the product sets none.
 // D107 §9.4: internal B1 boundary; F1b installs it only after certification.
 // The walk's bounds are deterministic counts, never wall-clock time, so a
 // slow machine cannot turn a walk into a refusal: entries cap the walk's
