@@ -2278,7 +2278,6 @@
   "webFetchContentTypeUnnamed": "Страница не является HTML или текстом.",
   "webFetchEncoding": "Не удалось прочитать сжатие страницы ({encoding}).",
   "webFetchEncodingUnnamed": "Не удалось прочитать сжатие страницы.",
-  "webFetchTimeout": "Страница не пришла за {duration}.",
   "webFetchConversionTimeout": "Страница получена, но её HTML не удалось преобразовать за отведённое время (не более {duration}), поэтому из неё ничего не прочитано.",
   "webFetchConversionMemory": "Для преобразования HTML страницы потребовалось больше {max}, поэтому из неё ничего не прочитано.",
   "webFetchXhtml": "Страница в формате XHTML (application/xhtml+xml), который загрузка страниц не читает: при чтении как HTML её синтаксис XML был бы прочитан неверно. Ничего не прочитано.",
@@ -3689,7 +3688,8 @@
     "museCodeCommand": "Muse Code {method}",
     "sessionDeletion": "удаление сеанса",
     "shellCommand": "команда оболочки",
-    "museServeStarting": "запуск muse serve"
+    "museServeStarting": "запуск muse serve",
+    "webFetch": "веб-страница"
   },
   "userShellLabel": "Вы выполнили",
   "userShellExitCode": "Код выхода {code}",

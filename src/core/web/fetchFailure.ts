@@ -12,7 +12,6 @@ import {
   WEB_FETCH_CONVERT_MAX_HEAP_MIB,
   WEB_FETCH_CONVERT_TIMEOUT_MS,
   WEB_FETCH_MODEL_TEXT,
-  WEB_FETCH_TIMEOUT_MS,
   WEB_FETCH_URL_MAX_CHARS,
 } from '../../shared/constants'
 import { fill, formatBytes, formatNumber, formatUnit } from '../../shared/l10n/text'
@@ -41,7 +40,6 @@ export type WebFetchFailureKind =
   | 'conversionFailed'
   | 'undecodable'
   | 'xhtml'
-  | 'timeout'
   | 'certificate'
   | 'proxyCredentials'
   | 'proxyRefused'
@@ -73,8 +71,6 @@ export interface FailureFacts {
   /** The caller-set ingress cap a page passed, in bytes (`tooLarge` only). */
   readonly maxBytes?: number | undefined
 }
-
-const SECONDS = WEB_FETCH_TIMEOUT_MS / MS_PER_SECOND
 
 type Sentences = readonly [string, string]
 
@@ -250,12 +246,6 @@ function urlSentences(kind: WebFetchFailureKind, facts: FailureFacts): Sentences
       return [
         fill(WEB_FETCH_MODEL_TEXT.webFetchNat64Unknown, { host, detail }),
         fill(UI_TEXT.webFetchNat64Unknown, { host, detail }),
-      ]
-    }
-    case 'timeout': {
-      return [
-        fill(WEB_FETCH_MODEL_TEXT.webFetchTimeout, { seconds: String(SECONDS) }),
-        fill(UI_TEXT.webFetchTimeout, { duration: formatUnit(SECONDS, 'second') }),
       ]
     }
     default: {

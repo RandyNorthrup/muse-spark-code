@@ -2278,7 +2278,6 @@
   "webFetchContentTypeUnnamed": "Strona nie jest HTML ani tekstem.",
   "webFetchEncoding": "Nie można odczytać kompresji strony ({encoding}).",
   "webFetchEncodingUnnamed": "Nie można odczytać kompresji strony.",
-  "webFetchTimeout": "Strona nie dotarła w ciągu {duration}.",
   "webFetchConversionTimeout": "Strona dotarła, ale nie udało się przekonwertować jej HTML w dozwolonym czasie (najwyżej {duration}), więc nic z niej nie odczytano.",
   "webFetchConversionMemory": "Konwersja HTML strony wymagała więcej niż {max}, więc nic z niej nie odczytano.",
   "webFetchXhtml": "Strona jest w XHTML (application/xhtml+xml), którego pobieranie stron nie czyta: odczytana jako HTML, jej składnia XML zostałaby źle odczytana. Niczego nie odczytano.",
@@ -3689,7 +3688,8 @@
     "museCodeCommand": "Muse Code {method}",
     "sessionDeletion": "usuwanie sesji",
     "shellCommand": "polecenie powłoki",
-    "museServeStarting": "uruchamianie muse serve"
+    "museServeStarting": "uruchamianie muse serve",
+    "webFetch": "strona internetowa"
   },
   "userShellLabel": "Twoje polecenie",
   "userShellExitCode": "Kod wyjścia {code}",

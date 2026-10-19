@@ -2214,7 +2214,6 @@
   "webFetchContentTypeUnnamed": "Sayfa HTML veya metin değil.",
   "webFetchEncoding": "Sayfanın sıkıştırması ({encoding}) okunamadı.",
   "webFetchEncodingUnnamed": "Sayfanın sıkıştırması okunamadı.",
-  "webFetchTimeout": "Sayfa {duration} içinde gelmedi.",
   "webFetchConversionTimeout": "Sayfa geldi, ancak HTML’si izin verilen sürede (en fazla {duration}) dönüştürülemedi, bu yüzden hiçbir kısmı okunmadı.",
   "webFetchConversionMemory": "Sayfanın HTML’sinin dönüştürülmesi {max} değerinden fazla bellek gerektirdi, bu yüzden hiçbir kısmı okunmadı.",
   "webFetchXhtml": "Sayfa XHTML (application/xhtml+xml) biçiminde ve sayfa getirme bunu okumaz: HTML olarak okunursa XML sözdizimi yanlış okunur. Hiçbir şey okunmadı.",
@@ -3553,7 +3552,8 @@
     "museCodeCommand": "Muse Code {method}",
     "sessionDeletion": "oturum silme",
     "shellCommand": "kabuk komutu",
-    "museServeStarting": "muse serve başlatma"
+    "museServeStarting": "muse serve başlatma",
+    "webFetch": "web sayfası"
   },
   "userShellLabel": "Sizin çalıştırdığınız",
   "userShellExitCode": "Çıkış kodu {code}",

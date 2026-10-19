@@ -2182,7 +2182,6 @@
   "webFetchContentTypeUnnamed": "페이지가 HTML이나 텍스트가 아닙니다.",
   "webFetchEncoding": "페이지의 압축({encoding})을 읽을 수 없습니다.",
   "webFetchEncodingUnnamed": "페이지의 압축을 읽을 수 없습니다.",
-  "webFetchTimeout": "{duration} 안에 페이지가 도착하지 않았습니다.",
   "webFetchConversionTimeout": "페이지는 도착했지만 허용된 시간(최대 {duration}) 안에 HTML을 변환할 수 없어서 아무것도 읽지 않았습니다.",
   "webFetchConversionMemory": "페이지 HTML 변환에 {max}보다 많은 메모리가 필요해서 아무것도 읽지 않았습니다.",
   "webFetchXhtml": "페이지가 XHTML(application/xhtml+xml)이라서 페이지 가져오기로 읽지 않습니다. HTML로 읽으면 XML 구문을 잘못 읽게 됩니다. 아무것도 읽지 않았습니다.",
@@ -3485,7 +3484,8 @@
     "museCodeCommand": "Muse Code {method}",
     "sessionDeletion": "세션 삭제",
     "shellCommand": "셸 명령",
-    "museServeStarting": "muse serve 시작"
+    "museServeStarting": "muse serve 시작",
+    "webFetch": "웹 페이지"
   },
   "userShellLabel": "직접 실행",
   "userShellExitCode": "종료 코드 {code}",

@@ -2672,7 +2672,6 @@ export const EN = {
   webFetchContentTypeUnnamed: 'The page is not HTML or text.',
   webFetchEncoding: 'The page’s compression ({encoding}) could not be read.',
   webFetchEncodingUnnamed: 'The page’s compression could not be read.',
-  webFetchTimeout: 'The page did not arrive within {duration}.',
   webFetchConversionTimeout:
     'The page arrived, but its HTML could not be converted in the time allowed (at most {duration}), so none of it was read.',
   webFetchConversionMemory:
@@ -4327,6 +4326,7 @@ export const EN = {
     sessionDeletion: 'session deletion',
     shellCommand: 'the shell command',
     museServeStarting: 'muse serve starting',
+    webFetch: 'the web page',
   },
   userShellLabel: 'You Ran',
   userShellExitCode: 'Exit code {code}',
