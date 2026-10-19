@@ -5,7 +5,6 @@ import {
   PLAYBOOK_CONFIGURABLE_RULES,
   PLAYBOOK_FINDING_CLASSES,
   PLAYBOOK_ID_MAX_CHARS,
-  PLAYBOOK_PATCH_ROUNDS_MAX,
   PLAYBOOK_RECORD_FOLDER,
   PLAYBOOK_SAFETY_RULE,
   REVIEW_FINDING_PATH_MAX_CHARS,
@@ -41,21 +40,32 @@ export const playbookFallbackReviewerSchema = z.strictObject({
   ...override.shape,
 })
 
-/** Strict keys deliberately reject a safety-rule switch and an increased ceiling. */
+/**
+ * Strict keys deliberately reject a safety-rule switch. `patchRoundsMax` is
+ * how many fix rounds run before a design decision and a redesign lane are
+ * required. 0 is no bound of ours: fix rounds continue until the work
+ * converges or the person stops it (D121). A set number has no ceiling of
+ * ours.
+ */
 export const playbookSettingsSchema = z.strictObject({
   teamId: id,
   rules: z.record(z.enum(PLAYBOOK_CONFIGURABLE_RULES), ruleSetting),
-  patchRoundsMax: z.int().check(z.gte(1), z.lte(PLAYBOOK_PATCH_ROUNDS_MAX)),
+  patchRoundsMax: z.int().check(z.gte(0)),
   fallbackReviewer: z.optional(playbookFallbackReviewerSchema),
 })
 export type PlaybookSettings = z.infer<typeof playbookSettingsSchema>
+
+/** Whether a module's strikes have passed the person's own fix-round number. */
+export function isPatchRoundsExceeded(patchRoundsMax: number, strikes: number): boolean {
+  return patchRoundsMax !== 0 && strikes > patchRoundsMax
+}
 
 /** A fresh team's eight switches are on. Before M96, teamId is the workspace's panel. */
 export function defaultPlaybookSettings(teamId: string): PlaybookSettings {
   return playbookSettingsSchema.parse({
     teamId,
     rules: Object.fromEntries(PLAYBOOK_CONFIGURABLE_RULES.map((rule) => [rule, { enabled: true }])),
-    patchRoundsMax: PLAYBOOK_PATCH_ROUNDS_MAX,
+    patchRoundsMax: 0,
   })
 }
 

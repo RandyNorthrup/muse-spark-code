@@ -23,7 +23,7 @@ suite('M112 real panel', () => {
     assert.ok(commands.includes('museSpark.nextOpenQuestion'))
     assert.ok(commands.includes('museSpark.previousOpenQuestion'))
     const setting = vscode.workspace.getConfiguration(SETTINGS_SECTION)
-    assert.equal(setting.get('questions.deferAfterSeconds'), 60)
+    assert.equal(setting.get('questions.deferAfterSeconds'), 0)
     // With no session these commands are honest no-ops and start no model.
     await vscode.commands.executeCommand('museSpark.nextOpenQuestion')
     await vscode.commands.executeCommand('museSpark.previousOpenQuestion')

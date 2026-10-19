@@ -108,7 +108,7 @@ it('property: chart readings/limits, level band, event totals and harness table 
       if (minute === null) throw new Error('fixture missing')
       expect(text).toContain(resourceHistoryLevel(minute.level))
       expect(text).toContain(
-        `${UI_TEXT.resourceCpu}: ${minute.cpuPercent === null ? UI_TEXT.resourceUnknown : formatPercent(minute.cpuPercent)} / ${formatPercent(minute.thresholds.cpuMaxPercent)}`,
+        `${UI_TEXT.resourceCpu}: ${minute.cpuPercent === null ? UI_TEXT.resourceUnknown : formatPercent(minute.cpuPercent)}${minute.thresholds.cpuMaxPercent === null ? '' : ` / ${formatPercent(minute.thresholds.cpuMaxPercent)}`}`,
       )
     }
     expect(text).toContain(`${UI_TEXT.resourceCpuTime}: ${formatUnit(seed * 4 + 12, 'second')}`)

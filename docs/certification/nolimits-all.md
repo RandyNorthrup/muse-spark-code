@@ -1,0 +1,463 @@
+# Lane NOLIMITSALL certification — every limit setting defaults to no limit
+
+First-result record (what the person sees now → what they will see after this lane).
+Design: `0` is none for every setting below, the `hooksMaxRunningCommands = 0`
+and `modelApiSessionBudgetUsd = 0` precedent already in the schema. No
+provider publishes any of these seven numbers as an API maximum (each checked
+below), so every one is ours and goes; set-value ranges stay so a person's
+own value still validates.
+
+## The seven settings
+
+- `museSpark.questions.deferAfterSeconds` 60 → 0. Questions wait
+  indefinitely until the person sets 10–3600 (1–9 read as 10). The Muse Code
+  backend wait takes no deadline at 0 (`deferMuseQuestions`).
+- `museSpark.hooksMaxStopContinuations` 8 → 0. Stop hooks keep a finished
+  turn going until it ends on its own; a set value stays within Muse Code's
+  own 1–8 (`stopContinuationLimitFor`; past 8 warns and the default stands).
+- `museSpark.subagentMaxConcurrent` 8 → 0. Subagents start at once; a set
+  value stays within 1–64 (`subagentConcurrencyFor`). The spawn description
+  names the live bound (`subagentSpawnDescription`).
+- `museSpark.modelApiMaxToolOutputBytes` 64000 → 0. No byte guard of ours;
+  results pass to the model's window share and line caps alone; a set value
+  still cuts with head, tail, counts and a spill file. Headless
+  `--max-tool-output-bytes 0` means the same.
+- `museSpark.webSearchMaxPerRequest` 5 → 0. No `max_tool_calls` of ours is
+  sent and the provider decides; search stays offered where the model's
+  record supports it; a set value stays within 1–20 (`webSearchMaxCallsFor`).
+- `museSpark.mediaMaxUploadMiB` 200 → 0. Any size admits; the provider and
+  the model's own record still refuse; a set MiB still refuses past it
+  before any read (`mediaLimitsFromSettings`, `checkMediaLimits`,
+  Files upload guard now enforces only an explicitly passed cap).
+- `museSpark.screenRecordingMaxSeconds` 120 → 0. Every recorder runs until
+  stopped; all four drivers report elapsed while uncapped and skip the
+  automatic stop and the duration cap; the macOS and Windows native helpers
+  accept 0 as no auto-stop (see platform note below).
+
+## Provider-limit check (brief step 1)
+
+None of the seven is a provider's published, provider-enforced maximum: no
+Meta, Anthropic, OpenAI, Gemini, Azure or xAI documentation names a
+question-deferral delay, a Stop-hook continuation count, a subagent
+concurrency, a tool-result byte guard, a hosted-search count, an attach
+size, or a recording length. The set-value ranges that stay (1–8, 1–64,
+1–20, 10–600, ≥1024 bytes) are Muse Code's own or this product's, kept as
+validation for a person's own value per the brief. The model's own record
+still governs where it exists (modality upload/inline bytes, web-search
+tool support, model window share).
+
+## Break-once drill (brief step 4)
+
+`test/unit/noDefaultLimits.test.ts` was written before each change and run
+against the unmodified code: defer (2 failures), hooks/subagents (4),
+tool-output guard (2), web search (3), media pair (2). Each run failed only
+on the new-behaviour assertions; the person-set assertions passed throughout.
+After each change the same file is green with the repository's own timeout.
+No stand-ins: every test drives the real exported function or schema the
+production path calls (`questionDeferSeconds`, `readSettings`,
+`stopContinuationLimitFor`, `subagentConcurrencyFor`,
+`subagentSpawnDescription`, `validateToolResultCap`, `limitsForByteGuard`,
+`boundToolResultText`, `webSearchMaxCallsFor`, `checkMediaLimits`,
+`mediaLimitsFromSettings`, `screenRecordingOptionsSchema`, `parseExec`).
+
+## Golden re-baseline (D81.1/D86.1)
+
+The spawn description's default pacing is a recorded wire byte, so
+`test/fixtures/golden-requests/06-subagent-child.json` and its strict twin
+carried `Up to 8 work at once; later ones queue.` with cache keys derived
+from it. A temporary vitest script rebuilt both requests with the real
+builders only (`subagentSpawnDescription()` for the one pacing sentence,
+`promptCacheKey()` for each derived key) and replaced those bytes in place;
+a first pass doubled the description, caught by `invariants.test.ts`, and a
+repair pass set the exact builder text. Final diff per file: 2 request lines
+(the two parent requests), differing only in the pacing sentence and the two
+derived `prompt_cache_key` values; the child request is untouched. Verified
+with a region diff and `test/unit/invariants.test.ts` 42/42 green. The
+temporary scripts were deleted, not committed.
+
+## Platform verification owed (native recording helpers)
+
+`native/darwin/ScreenRecord.swift` and
+`native/windows/MuseSparkScreenRecord.cs` accept `0` as no auto-stop
+(validation, deadline/watchdog, writer/sample caps, clock display; the
+Swift `screencapture` fallback omits `-V` at 0). Neither helper can build
+or run on this Linux rig: the lead owns a macOS recording run and a Windows
+recording run through the packed product before these paths are claimed.
+The TS drivers, panel, companion and schema are unit-tested here; no live
+recording was run on any OS in this lane.
+
+## Pre-existing failures (not this lane)
+
+- `test/unit/filesCancel.test.ts` → `ledger cleanup deletes with the caller
+signal` fails on this rig on the pristine tree too (verified in a clean
+  worktree at the setting-4 commit, same single failure): the upload-ledger
+  code it covers is untouched by this lane. Left for its owner.
+- Repo lint (`npm run lint`): 3 errors in
+  `test/unit/estimateComposer.test.ts` / `test/unit/estimateSession.test.ts`
+  (`no-unsafe-argument`), byte-identical on the untouched lane-base tree
+  (7734923040). Untouched by this lane.
+- Unit/e2e typecheck: 19 errors (estimate*, modelApiPacing, teamConstants,
+  vendorMediaCodecs, runtimePullRequestProcessBirth), counted identical on
+  the untouched lane-base tree. Host, webview and integration typechecks are
+  green. Untouched by this lane.
+- `npm run check:plan`: stops — PLAN.md is 3,808,659 bytes, over 85% of the
+  plan reader's bound, with zero lines added by this lane. Archiving is
+  another lane's job; not worked around.
+- `npm run build`: stops at the What's New bound — the 0.19.0 notes decode
+  to 326,287 bytes against a 76,800 bound. This lane added 1,426 bytes to
+  CHANGELOG.md; the 4x overage predates it. Not worked around. Bundle-size,
+  bundle-split and later build steps therefore did not run in this lane.
+
+## Final gate states (this lane)
+
+- `npm run format:check`: green (whole repo).
+- Repo eslint on every file this lane touched: zero warnings; `npm run lint`
+  as a whole is red only on the pre-existing errors above.
+- `npm run check:l10n`: 0 problems. `npm run check:reference`: current.
+- Touched suites, repository's own timeout, no `--testTimeout`: 396 tests
+  green across 17 files (noDefaultLimits, questionManifest,
+  questionContracts, museCodeLatest, invariants, modelApiLoopContracts,
+  modelApiCaptures, toolResultBound, execArgs, mediaContracts,
+  mediaSniffMalformed, acpMediaPort, manifest, recordingLatest,
+  workspaceMediaSource, resolveLatestRecording, vendorMediaCodecs).
+
+## Sweep verdicts (brief step 5)
+
+Every `package.json` setting and every `src/shared/constants.ts` constant
+(plus matching constants in other `src/` files) whose name says Max, Limit,
+Cap, Timeout, Deadline, Seconds or Budget, triaged against "stops or trims
+something a person asked for". Verdicts: provider-published (kept, source
+cited), person-set (kept), ours-kept (kept with reason, needs-staying per
+D121 outcome 4), ours-fixed (this lane). NOGOVLIMITS-owned resource-governor
+settings were not touched.
+
+### package.json settings
+
+- person-set, already none by default: `hooksMaxRunningCommands` (0),
+  `modelApiSessionBudgetUsd` (0), `paidDailyBudgetUsd` (0),
+  `tabDailyBudgetUsd` (0), `modelApiMaxRetries` (null = providers'
+  documented maxima), `resourceGpuMaxPercent` / `resourceDiskBusyMaxPercent`
+  (null = no probe until configured).
+- person-set, settled by earlier D121 lanes (unchanged): `--max-requests`
+  default 30 per A8 (the person's own per-run choice), check
+  `timeoutSeconds` default 300 per A26.
+- NOGOVLIMITS-owned (untouched): `resourceCpuMaxPercent` (85),
+  `resourceMemoryMaxPercent` (90); `resourceGovernor` itself.
+- ours-fixed this lane: the seven above.
+- person-set (setting exists, default kept): `mediaUploadExpiryDays`
+  (7, 1–30; lifecycle, not a work cap).
+
+### Provider-published (kept, cited)
+
+- `ANTHROPIC_MAX_IMAGE_BYTES` = 10_000_000 — Anthropic's documented 10 MB
+  image limit (`docs/certification/m95-research.md` §1.5).
+- `MAX_DOCUMENT_BYTES` = 32_000_000, inline/document media bounds —
+  Meta's documented PDF/inline limits (D85).
+- `GIT_PATH_MAX_WINDOWS/DARWIN/DEFAULT` (260/1024/4096), Windows command
+  8191 (`HOOK_WINDOWS_COMMAND_MAX_CHARS`, `RUNNER_WINDOWS_COMMAND_MAX_CHARS`),
+  `RUNNER_PORT_MAX` 65535, DNS `BROWSER_CHECK_HOST_MAX_CHARS` 253,
+  `COMPANION_VOICE_PCM_MAX/MIN` (±int16), `WEB_TOTP_PERIOD_SECONDS` = 30
+  (TOTP standard), `NODE_MAX_TIMER_MS` (2^31−1, platform fact per A26) —
+  OS/protocol/platform facts, not ours.
+- `MODEL_API_MAX_OUTPUT_TOKENS`, per-model output/recommended caps —
+  the models' own policy caps, carried into requests, never raised locally.
+
+### Set-value ranges kept for the seven (brief step 3)
+
+`HOOK_STOP_CONTINUATIONS_MIN/MAX` (1–8), `SUBAGENT_CONCURRENT_MIN/MAX`
+(1–64), `WEB_SEARCH_MIN_PER_REQUEST/_LIMIT` (1–20),
+`QUESTION_DEFER_MIN/MAX_SECONDS` (10–3600),
+`SCREEN_RECORDING_MIN/MAX_SECONDS` (10–600), `TOOL_RESULT_MIN_BYTES`
+(1024), unbounded `mediaMaxUploadMiB` — validation for a person's own
+value only; none applies with nothing set.
+
+### Ours, loop/retry protection (kept, listed for the lead)
+
+These stop a runaway rather than trim asked-for work; removing any of them
+without a replacement risks unbounded billed loops:
+`MODEL_API_MAX_TOOL_ROUNDS` (200/turn, replaceable by a caller allowance),
+`TOOL_REPEAT_LIMIT` (3 identical results), `MODEL_API_CONTINUATIONS_MAX`
+(1 output-limit continuation), `SUBAGENT_TASK_MAX_REQUESTS` (4; also the
+paid-consent pricing basis), `HOOK_MAX_TASK_REFUSALS` /
+`TEAMMATE_MAX_IDLE_KEEPS` (8), `STRUCTURED_OUTPUT_REPAIRS_MAX` (1),
+`PLAYBOOK_PATCH_ROUNDS_MAX` (2), `TEAM_REVIEW_ROUNDS_MAX` (3),
+`PIPELINE_MAX_ROUNDS` (3), `TEAM_MAX_REASSIGNMENTS` (2),
+hook/command timeouts that end a hung child (`HOOK_DEFAULT/MAX_TIMEOUT_SECONDS`,
+`HOOK_MODEL_TIMEOUT_MS`, `HOOK_SESSION_END_TIMEOUT_MS`,
+`SHELL_DEFAULT_TIMEOUT_MS` with per-command control, `HOOK_MATCHER_*_TIMEOUT_MS`,
+`PLUGIN_*_TIMEOUT_MS`, `MCP_ELICITATION_TIMEOUT_MS`).
+
+### Ours, request-validity / memory-safety / wire shape (kept, listed)
+
+- Tool-result backstops that stay behind the removed byte guard:
+  `TOOL_OUTPUT_MAX_CHARS` (64_000 fallback + display clippings),
+  `TOOL_RESULT_MAX_TOKENS` (16_000, follows the guard up),
+  `TOOL_RESULT_MAX_LINE_CHARS` (8000, megabyte lines measured fatal),
+  `TOOL_RESULT_SPILL_MAX_AGE_DAYS` (30-day prune), `TOOL_OUTPUT_CLIP_MARKER`.
+- Media pipeline: `MEDIA_SNIFF_MAX_BYTES`, `MEDIA_CONVERTER_*`
+  (probe/trust/sample timeouts, RSS caps, `MEDIA_CONVERSION_MAX_RSS_BYTES`,
+  `MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES`), `MEDIA_MAX_UPLOAD_MIB` (1024
+  companion/conversion bound), `MEDIA_FILE_ID_MIN_BYTES`,
+  `MEDIA_PENDING_DELETE_RETRY_MAX_*`, `MEDIA_ATTACHED_MAX_ENTRIES`,
+  `MEDIA_CALIBRATION_*`, `MEDIA_RSS_*`, expiry min/max,
+  `MEDIA_CONVERTER_PATH_MAX_CHARS`.
+- Images: `MAX_IMAGE_BYTES` (10 MiB attach bound), `IMAGE_RESIZE_*`
+  (memory/pixel operational bounds), `IMAGE_EDIT_SOURCE_MAX` (10: kept
+  pending provider research — Meta documents 1–10 edit items per A24).
+- Message batching: `MAX_ATTACHMENTS_PER_MESSAGE` (20: kept pending
+  provider research), `MAX_TEXT_ATTACHMENT_BYTES` (1 MiB),
+  `MAX_ENCODED_MEDIA_CHARS`, `ACP_MAX_MESSAGE_BYTES` (transport),
+  `MAX_ATTACHMENT_BASE64_CHARS`, `MAX_DOCUMENT_BYTES` (above).
+- Fetch (untrusted network input, fail-closed): `WEB_FETCH_MAX_CONTENT_CHARS`
+  (50_000), `WEB_FETCH_CONVERT_*`, `WEB_FETCH_DETAIL/TOKEN/URL_MAX_CHARS`,
+  `LOOPBACK_FETCH_MAX_BODY_BYTES`, `LINK_FOLLOW_MAX_HOPS` (40).
+- Search/code-intel (own-tool paging against provider windows):
+  `SEARCH_MAX_RESULTS/HITS/CANDIDATES/FILE_BYTES/PATTERN`, `SEARCH_TIMEOUT_MS`,
+  `CODE_INTEL_*`, `REPO_MAP_*` + time budgets, `MENTION_*`, `GLOB_*`,
+  `LIST_FILES_DEFAULT_LIMIT` / `READ_FILE_DEFAULT_LIMIT` /
+  `MEMORY_READ_DEFAULT_LIMIT` (page defaults; more is pageable),
+  `JUDGE_*` (internal eval), `REVIEW_*` (review feature bounds),
+  `GIT_*`/`CHECKPOINT_*`/`GOAL_*`/`PLAN_*`/`MEMORY_*`/`SESSION_*` (state
+  paging), `PLAYBOOK_*` (journal bounds), `AGENT_*`/`SKILL_*`/`RULES_*`
+  file bytes (context-window packing), `AGENT_IMPORT_*`,
+  `TEAM_*`/`RUNNER_*` (orchestrator internals; person-settable caps arrive
+  with the app surfaces per the standing Limits rule — lead's call),
+  `COMPANION_VOICE_*` incl. `COMPANION_VOICE_MAX_SECONDS` (60: voice
+  protocol + paid-consent redesign needed; feature held off per CMICCOMP),
+  `TAB_*` (Tab's own ledger/rate design, D73), `BROWSER_CHECK_*` /
+  `BROWSER_RUNTIME_*` / `BROWSER_PROXY_*` (check sandbox),
+  `HOOK_*` matchers/handlers/env/nesting (hook sandbox shape),
+  `PLUGIN_*` heap/memory/response, `ACCOUNT_*`/`OAUTH_*`/`GITHUB_*`/
+  `GH_AUTH_*`/`PULL_REQUEST_*`/`COMMIT_*` (remote protocol),
+  `VAULT_*`, `WORKTREE_*`, `PROCESS_*`, `HELD_*`, `NAT64_*`, `CHATGPT_*`,
+  `JUDGE_FAST_*`, `SECURE_*`, `SLOT_*`, `HTTP_SUCCESS_MAX`,
+  `TOOL_SCHEMA_MAX_DEPTH`/`TOOL_FILE_MAX_MIB` (grammar/request validity),
+  `TOOL_ARGUMENT_PREVIEW_*`, `BACKGROUND_NOTICE_KEYS_MAX`,
+  `SESSION_BUDGET_MIN_BYTES_PER_TOKEN`, `MODEL_API_TEXT_BUDGET_TOKENS`,
+  `MODEL_API_RETRY/TIMER/STATUS/REQUEST_*` (client liveness),
+  `MODEL_API_TIMER_MAX_MS`, `PROVIDER_*` (pricing/decimals/thinking),
+  `MANUAL_THINKING_*`, `RESOURCE_*` sampler/journal/history (telemetry;
+  governor itself is NOGOVLIMITS'), `COMPOSER_MAX_ROWS`,
+  `WHATS_NEW_CONTENT_*`, `GOAL_PERCENT_MAX`, `OPEN_QUESTIONS_MAX` (20) /
+  `QUESTION_REMINDERS_MAX` (2) / `QUESTION_ID/LATE_ANSWER_*_CHARS`
+  (attention-dock state shape), `RECAP_SETTLE_TIMEOUT_MS`,
+  `MUSE_CODE_REVIEW_TIMEOUT_MS`, `PROVIDER_IMPORT_MAX_BYTES`,
+  `LOCAL_PROBE_TIMEOUT_MS`, `WEB_FETCH_TIMEOUT_MS`,
+  `IMAGE_RESIZE_TIMEOUT_MS`, `ACCOUNT_REMOTE_LIMIT_DEFAULT_MS`,
+  `OAUTH_LOOPBACK_TIMEOUT_MS`.
+- `HOOK_MAX_RUNNING_COMMANDS` (4): fallback where no settings dep is wired;
+  the `hooksMaxRunningCommands` setting (default 0) governs everywhere wired.
+- `SHELL_PACKED_MAX_CHARS`, `GIT_OUTPUT_MAX_BYTES`, `GIT_STDERR_MAX_CHARS`,
+  `HOOK_STDIN/OUTPUT_MAX_BYTES`, `HOOK_*_MAX_CHARS` (ids/labels/prompts),
+  `REVIEW_*_MAX_CHARS`, `TEAM_*_MAX_CHARS`, `PLAN_*_MAX_CHARS`,
+  `RESOURCE_ID/STATUS/NONCE_MAX_*` — wire/display/memory shape, none caps
+  person work.
+- Timeouts throughout (`*_TIMEOUT_MS`, `*_MS` deadlines, `RECENT_MAX_AGE_MS`,
+  `STALL_RATE_LIMIT_MS`, `*_EXPIRY_*` windows, `*_COOLDOWN/INTERVAL_*`,
+  `*_PER_MINUTE`, `IN_FLIGHT`) bound waits and polling, never content.
+
+No other default of the same kind was found: every remaining Max/Limit/Cap/
+Timeout/Deadline/Seconds/Budget either comes from a provider's published
+limit, is set by the person (or null/unset by default), validates a person's
+own value, or guards protocol/memory/loop liveness as listed above.
+
+---
+
+# Lane NOLIMITSTEAM — team, playbook, pipeline and hook round limits
+
+Branch `fix/0190-nolimitsteam`. The lead's brief decides the six limits below
+go, plus any other `TEAM_*` / `RUNNER_*` / `PLAYBOOK_*` constant that stops or
+trims work a person asked for. Design, here as in NOLIMITSALL: a number no
+provider publishes is ours and goes; rounds continue until the work converges
+or the person stops it; removing a stop never leaves a silent hang — every
+continued round names its round and why it runs, and Stop still ends it.
+Journal and state paging that never stops work stays, named below with why.
+No PLAN.md lines are added by this lane, per the D121 record rule quoted at
+the top of that decision's list.
+
+## The six removals (what replaced each)
+
+- `TEAM_REVIEW_ROUNDS_MAX` (3) — removed from `src/shared/constants.ts`. The
+  scheduler review flow (`src/core/team/scheduler/reviewFlow.ts`) repeats a
+  failing review until it is clean instead of diverting to `redesign` at the
+  third round; the round count stays on the task's `reviewRounds` (the schema
+  bound in `src/shared/team.ts` goes with it) so the panel keeps showing the
+  round. The `redesign` outcome and the orchestrator's `redesign`
+  implementation stay as the person-dispatched redesign seam — only the
+  count trigger goes. The model text (`TEAM_MODEL_TEXT.integration`) now says
+  rounds continue until the change passes or the person stops the work, with
+  each failing round reporting its findings and the ones that came back.
+- `PIPELINE_MAX_ROUNDS` (3) — removed from `src/core/team/pipelines.ts`
+  (where it lived as a local bound). `recordStepResult` repeats a failing
+  round with its round, its findings and its recurring findings instead of
+  stopping at `redesign`; the run stays `running` until `handoff`. The
+  `maxRounds` key is gone from definitions, the narrowing schema and both key
+  sets: files that still name it are refused with `unknownKey` naming
+  `maxRounds`, never silently accepted. The removed total ceiling
+  (`pipelineCeiling`) goes with it; per-step approval data stays.
+- `TEAM_MAX_REASSIGNMENTS` (2) — removed from `src/shared/constants.ts`.
+  Stall recovery (`src/core/team/scheduler/stalls.ts`) reassigns until the
+  work converges unless the stall policy says `ask` or `stop`; the board
+  (`src/core/team/scheduler/board.ts`) opens the next attempt the same way.
+  The `thirdStall` block reason goes with the bound; `reassignments` keeps
+  counting on the task for the panel. `diverging` still blocks on detection
+  (runaway protection, visible with its reason).
+- `PLAYBOOK_PATCH_ROUNDS_MAX` (2) — removed from `src/shared/constants.ts`.
+  `patchRoundsMax` stays as the person's own setting with a new default of
+  `0` (unlimited) and no ceiling of ours (`z.gte(0)` in both
+  `src/shared/playbook.ts` and `src/runtime/playbook/command.ts`). A set
+  number still forces the design decision and the redesign lane past it
+  (`isPatchRoundsExceeded`, read by the policy's three strike sites). The
+  panel takes the number directly and reports a bad value in words (the
+  previously unread `playbookPatchRoundsInvalid` now reads on a failed
+  parse); the CLI/ACP grammar takes `0`; the `orchestrator-playbook` skill
+  teaches the new rule; English plus all fourteen locales updated.
+- `HOOK_MAX_TASK_REFUSALS` (8) — removed from `src/shared/constants.ts`. A
+  refused task write in `ModelApiHost` still answers with its error words to
+  the model and the person; the warn line naming the removed limit and the
+  commit-time `HookStoppedError` go with the bound, so refusals never end the
+  turn on their own.
+- `TEAMMATE_MAX_IDLE_KEEPS` (8) — removed from `src/shared/constants.ts`. A
+  hook may keep an idle teammate working for as many rounds as the work
+  needs; every keep still emits its `hookTeammateKept` notice, and the grant,
+  the hook verdict, the remaining attempts and Stop still end the keeps. The
+  keep counter goes with the bound.
+
+## Proof
+
+`test/unit/noRoundLimits.test.ts` (new) drives the real code with plain data:
+pipelines repeat past the old stop with round, findings and recurring
+findings; the board schema parses past the old ceilings; fresh playbook
+settings default to unlimited and take `0` and `50`; `redesignBlock` with no
+number set leaves a fifth strike alone while a set `2` still forces the
+redesign path; the CLI/ACP grammar takes `0`; a handed-off run still refuses
+further records. Break-once drill: 9 of the 11 failed on the unmodified code
+(the person-set and terminal-run cases passed throughout, as kept behavior
+should). Three file-loading cases then moved to `teamPipelines.test.ts`,
+where the same behavior is covered durably, leaving 8 focused cases here —
+all green after, with the repository's own timeout and no `--testTimeout`. The two host removals have no unit test: driving
+`ModelApiHost` needs stand-ins for the host, hook and model seams, which the
+no-fakes rule forbids — the proof there is the removal at the cause (above),
+the related suites below, and real use of the packed product. The obsolete
+`museCodeLatest` bound echo and the `teamSchedulerSchemas` / `teamPipelines`
+ceiling assertions were updated to the new contract, with the reason in each
+commit.
+
+## Round-and-why display (orchestrator, panel, terminal)
+
+- Orchestrator data: pipeline `repeat` decisions carry `round`, `findings`
+  and `recurring`; review rounds are recorded per round through the review
+  dependencies; stall handoffs carry the reason and the shortened history;
+  playbook allow/refuse notes carry the round.
+- Panel: the strike badge counts review rounds, the traffic details keep the
+  `Review Rounds After the First` and `Reassignments` metrics, and the
+  playbook settings page states the `0` = unlimited rule with its reason.
+- Terminal: `playbook status|record|settings` renders rounds, notes and
+  settings; every hook keep and every refused task write prints its own
+  words; pipeline narrowing/definition refusals name `maxRounds`.
+
+## Other TEAM_* / RUNNER_* / PLAYBOOK_* triage (this lane)
+
+Removed above: the six. Everything else stays, for these reasons:
+
+- Journal paging that protects evidence: `PLAYBOOK_RECORD_MAX` (5000) —
+  `retainRecords` evicts oldest informational notes first and stops only when
+  mandatory safety evidence alone fills the bound, instead of silently
+  resetting it.
+- State shape and persisted-schema bounds: `TEAM_SCHED_HISTORY_MAX` (256
+  attempts/events/leases), `TEAM_BOARD_MAX` (64 live tasks, visible
+  `boardFull` refusal), `TEAM_WRITE_SET_MAX` (256), `task_ids`/`depends_on`
+  lengths, `TEAM_SCHED_ID/TEXT_MAX_CHARS`, `TEAM_ROLE_*` shape bounds,
+  `RUNNER_CONFIG_MAX`/`RUNNER_LABELS_MAX` (32), `RUNNER_MAX_JOBS` (64, runner
+  health shape), `TEAM_ROLE_DELEGATES_MAX` (8), `PLAYBOOK_DRIFT_NAMES_MAX`
+  (5, display trim), `TEAM_MERGE_DETAILS_SHOWN` (10, display),
+  `*_MAX_CHARS`/`*_MAX_BYTES` wire and memory shapes.
+- Context packing that never refuses work: `TEAM_HANDOFF_TOOL_CALLS` (20,
+  last calls), `TEAM_SCHED_TEXT_MAX_CHARS` (8000, handoff slices),
+  `TEAM_MERGE_BATCH_MAX` (4, merge batching).
+- Loop and retry protection where the failure stays visible:
+  `TEAM_DIVERGE_REPEATS` (3, identical-rewrite detection;
+  `TEAM_DIVERGE_SIZE_FACTOR` classifies, the block names `diverging`),
+  `TEAM_MERGE_FLAKE_RETRIES` (1, then failures return for rework),
+  `CHECK_FIX_MAX_ROUNDS` (out of this lane's name scope; verify-loop bound
+  with its own notice).
+- Detection timing, not caps: `TEAM_STALL_MS`, `TEAM_STALL_RATE_LIMIT_MS`,
+  `TEAM_AGING/STARVATION/SCHED_TICK/RETIRE_WAIT/START_STAGGER/DIFF_POLL_MS`,
+  `TEAM_HEAVY_COMMAND_SECONDS` (routing threshold),
+  `RUNNER_CONNECT/HEALTH/SELFTEST_TIMEOUT_MS`, `RUNNER_WINDOWS_COMMAND_MAX_CHARS`
+  and `RUNNER_PORT_MAX` (OS facts), `TEAM_TREE_TYPEAHEAD_MS`,
+  `TEAM_UNMERGED_NOTICE_DAYS`.
+- Estimates, weights and capability floors, not caps: `TEAM_PRIORITY_WEIGHTS`,
+  `TEAM_SIZE_MINUTES`/`TEAM_SIZE_TOKEN_FACTORS`, `TEAM_BLAST_WEIGHTS`,
+  `TEAM_ROLE_MIN/RECOMMENDED_CONTEXT_TOKENS`, `TEAM_MODEL_TEXT` guidance.
+- Safety windows and vocab: `PLAYBOOK_LAUNDER_WINDOW_MS` (one hour),
+  `PLAYBOOK_*` similarity/fingerprint/hash constants, hook names, finding
+  classes, rule ids, resolutions, record folder, bundle file.
+
+## Pre-existing failures (not this lane, measured same as NOLIMITSALL)
+
+- Unit typecheck: 19 errors, file-for-file the set NOLIMITSALL recorded on
+  the untouched tree (estimate*, modelApiPacing, teamConstants,
+  vendorMediaCodecs, runtimePullRequestProcessBirth); host, webview and
+  integration typechecks green; e2e shows the same shared-helper error.
+  None in a file this lane touched.
+- `teamConstants` runtime: `TEAM_META_CONTRIBUTOR_RPM` is 150 in the source
+  but the test expects 100 — proven present at the lane base (`git show
+341a9424d3` on both files), so provider drift with a stale test, not this
+  lane. The file's typecheck error (`TEAM_MUSE_CODE_HOST_CEILING`) is the
+  same pre-existing drift. Left for the lead; 37 of the file's 38 tests pass.
+- `npm run check:catches`: fails on media/record and CompanionMedia
+  SWALLOW/GENERIC sites last touched by NOLIMITSALL's own media commit
+  (`868acba8cd`, in this lane's base); none of this lane's commits touches
+  those files. Left for its owner — regenerating the baseline here would
+  mask another lane's drift.
+- `npm run check:plan`: stops — PLAN.md is over 85% of the plan reader's
+  bound with zero lines added by this lane. Not worked around.
+- `npm run build` (and `build:dev`): stops at the What's New bound (328199
+  bytes over a 76800 bound; the six CHANGELOG lines add ~1.6 KB to a file
+  already 4x over); bundle-size, bundle-split and later build steps
+  therefore did not run in this lane. Not worked around.
+- `npm run duplication` (jscpd, threshold 0): red on the untouched base (13
+  clones, vault and helper files) and red with the byte-identical clone
+  list on this lane — this lane adds none (two added clones were removed
+  before finishing). Measured by archiving the base tree and diffing the
+  clone reports.
+
+## Final gate states (this lane)
+
+- `npm run format:check`: green. Repo eslint on every file this lane
+  touched: zero warnings (`--max-warnings=0`).
+- `npm run check:l10n`: 0 problems. `npm run check:reference`: current.
+  `npm run check:host-api`: 0 problems. `npm run cycles`: no cycles.
+  `npm run deadcode` (knip): exit 0.
+- Touched suites, repository's own timeout, no `--testTimeout`, at most 3
+  files per run: noRoundLimits, teamPipelines, teamSchedulerSchemas (58);
+  museCodeLatest, teamConstants, trafficMetrics (88, 1 pre-existing RPM
+  failure above); teamProtocolLoading, teamReviewGate, reviewFindings (34);
+  playbookSurface, collect.playbook, reportPlaybookSchedules (34);
+  playbookSchedulesInputs, playbookReportSource, runtimeCatchHandlers (74);
+  modelApiLoopContracts, modelApiCaptures, invariants (52);
+  toolRoundsWrapUpGuard, questionManifest, manifest (46). 386 run, 385
+  green; the single failure is the pre-existing drift above.
+- SAST (`security:sast` in the sandbox): 0 findings. `security:audit`:
+  exit 0 (2 advisories covered by `.github/audit-exceptions.json`).
+- Real use: the repo packager is stopped by the pre-existing What's New
+  bound above, so no `dist/` bundle exists to run. Instead the real
+  journal-backed playbook surface (the same factories the `playbook` CLI
+  calls: `parsePlaybookCommand` → `runPlaybookCli` → file journal → text
+  renderer, bundled with the repo's own esbuild) was driven in a scratch
+  workspace with an isolated `XDG_DATA_HOME` — no backend, no model, no
+  spend. Person's steps and what they see:
+  - `playbook status` in a fresh workspace: `Fix Rounds Before Redesign: 0`
+    under the renamed `Redesign After Fix Rounds (threeStrikes): On`, exit 0.
+  - `playbook settings patchRoundsMax 5`: saved, settings show `5`, exit 0.
+  - `playbook settings patchRoundsMax 9`: saved, settings show `9`, exit 0 —
+    the old code refused anything over 2.
+  - `playbook settings patchRoundsMax 0`: saved, settings show `0`, exit 0.
+  - `playbook settings patchRoundsMax -1`: usage text on stderr, exit 2.
+  - `playbook record`: renders the journaled settings changes with the new
+    words, exit 0.
+  - The panel's number input and the staged pipeline/review/stall/host
+    paths have no runner in this sandbox (no `dist/`, no browser, and the
+    host paths need a model): proven by the unit tests above, panel review
+    by the lead. The scratch bundle and data were removed afterwards.

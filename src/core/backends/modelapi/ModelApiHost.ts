@@ -105,8 +105,6 @@ import {
   FILE_REFUSAL_MODEL_TEXT,
   GOAL_STATUS,
   type GoalCommandVerb,
-  HOOK_MAX_STOP_CONTINUATIONS,
-  HOOK_MAX_TASK_REFUSALS,
   HOOK_MODEL_READ_TOOLS,
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_ON_FAILURE_MAX_DEPTH,
@@ -151,12 +149,10 @@ import {
   QUESTION_OUTCOME_DEFERRED,
   REPO_MAP_PROMPT_TRIES,
   WEB_SEARCH_MAX_PER_REQUEST,
-  WEB_SEARCH_MIN_PER_REQUEST,
-  WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
+  webSearchMaxCallsFor,
   SHELL_DEFAULT_TIMEOUT_MS,
   SKILL_FILE_NAME,
   STORED_SESSION_VERSION,
-  SUBAGENT_CAPACITY,
   SUBAGENT_DEPTH,
   SUBAGENT_ID_PREFIX,
   SUBAGENT_RESULT_READY,
@@ -164,8 +160,9 @@ import {
   SUBAGENT_SUMMARY_MAX_CHARS,
   SUBAGENT_TASK_MAX_REQUESTS,
   SUBAGENT_WAIT_DEFAULT_MS,
+  stopContinuationLimitFor,
+  subagentConcurrencyFor,
   type SubagentAction,
-  TEAMMATE_MAX_IDLE_KEEPS,
   THEN_RUN_ARGUMENT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
@@ -789,10 +786,10 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
         }
       }
     | undefined
-  /** The configured bound is captured once for the session (D86.1). */
+  /** The configured bound, 0 for none of ours, captured once for the session (D86.1). */
   readonly webSearchMaxPerRequest?: () => number
   /**
-   * Stop-hook continuations in a row (M127, Muse Code's default 8):
+   * Stop-hook continuations in a row (M127, D121: 0 is no limit of ours):
    * `museSpark.hooksMaxStopContinuations`, captured once for the session.
    */
   readonly hookMaxStopContinuations?: () => number
@@ -802,8 +799,9 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    */
   readonly hookMaxRunningCommands?: () => number
   /**
-   * Concurrent subagents (M127, Muse Code's 1–64 range, default 8):
-   * `museSpark.subagentMaxConcurrent`, captured once for the session.
+   * Concurrent subagents (M127, D121: 0 is no limit of ours, a set value in
+   * Muse Code's 1–64 range): `museSpark.subagentMaxConcurrent`, captured
+   * once for the session.
    */
   readonly subagentMaxConcurrent?: () => number
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
@@ -2892,14 +2890,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private toolSelection:
     { readonly turnId: string; readonly allowed: readonly string[] } | undefined
-  /**
-   * Consecutive TaskCreated/TaskCompleted refusals (M91 lane E): past the
-   * stop-continuation limit (M127 setting, Muse Code's default 8) the turn
-   * ends; no refused task is admitted.
-   */
-  private taskRefusals = 0
   private readonly observedRules = new Set<string>()
-  private readonly teammateKeeps = new Map<string, number>()
   private hookTokensAdded = 0
   /** Keeps each request within the page and encoded-media budgets (M54, PLAN.md D47). */
   private readonly budget: MediaBudget
@@ -3190,16 +3181,17 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.modelId = modelId
     this.searchMaxPerRequest = deps.webSearchMaxPerRequest?.() ?? WEB_SEARCH_MAX_PER_REQUEST
     // Muse Code's own hook and subagent defaults as settings (M127),
-    // captured once for the session like the search bound above. The Stop
-    // ceiling is unoverrideable: a programmatic getter is never validated
-    // by the settings schema, and machine settings are writable by a
-    // dev-container definition, so the effective bound never passes what
-    // Muse Code itself spends.
-    this.stopContinuationLimit = Math.min(
-      deps.hookMaxStopContinuations?.() ?? HOOK_MAX_STOP_CONTINUATIONS,
-      HOOK_MAX_STOP_CONTINUATIONS,
+    // captured once for the session like the search bound above. D121: 0
+    // is no limit of ours; a set value never passes what Muse Code itself
+    // spends (a programmatic getter is never validated by the settings
+    // schema, and machine settings are writable by a dev-container
+    // definition).
+    this.stopContinuationLimit = stopContinuationLimitFor(
+      deps.hookMaxStopContinuations?.() ?? SETTING_DEFAULTS.hooksMaxStopContinuations,
     )
-    this.subagentConcurrency = deps.subagentMaxConcurrent?.() ?? SUBAGENT_CAPACITY
+    this.subagentConcurrency = subagentConcurrencyFor(
+      deps.subagentMaxConcurrent?.() ?? SETTING_DEFAULTS.subagentMaxConcurrent,
+    )
     this.sessionPermissions = new PermissionEngine(approvalMode)
     this.policies = new PolicyCache(
       deps.permissionSettings ?? (() => NO_PERMISSION_SETTINGS),
@@ -5479,24 +5471,31 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
   }
 
-  private webSearchBound(): number | undefined {
+  /** The model's record offers hosted search with a max-calls tool (D121). */
+  private webSearchCapable(): boolean {
     const hosted = this.deps.modelCapabilities?.(this.modelId)?.hosted
     const price = this.deps.client.searchPriceUsd?.(this.modelId)
-    return price !== undefined &&
+    return (
+      price !== undefined &&
       Usd.from(price).compare(Usd.from(0)) >= 0 &&
       hosted?.webSearch.state === 'yes' &&
       hosted.webSearch.value.tool === MODEL_API_WEB_SEARCH_TOOL &&
-      hosted.maxToolCalls.state === 'yes' &&
-      Number.isSafeInteger(this.searchMaxPerRequest) &&
-      this.searchMaxPerRequest >= WEB_SEARCH_MIN_PER_REQUEST &&
-      this.searchMaxPerRequest <= WEB_SEARCH_MAX_PER_REQUEST_LIMIT
-      ? this.searchMaxPerRequest
-      : undefined
+      hosted.maxToolCalls.state === 'yes'
+    )
+  }
+
+  /**
+   * The request's max of ours (D121): 0 sends none and the provider decides
+   * how many hosted searches run; a set value stays within 1–20.
+   */
+  private webSearchBound(): number | undefined {
+    return this.webSearchCapable() ? webSearchMaxCallsFor(this.searchMaxPerRequest) : undefined
   }
 
   private canOfferWebSearch(): boolean {
     return (
-      this.webSearchBound() !== undefined ||
+      (this.webSearchCapable() &&
+        (this.searchMaxPerRequest === 0 || this.webSearchBound() !== undefined)) ||
       (this.deps.modelCapabilities === undefined &&
         !this.deps.client.hasPaidDailyBudget &&
         Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) <= 0)
@@ -8346,7 +8345,6 @@ export class ModelApiSession implements ScheduledAgentSession {
           return this.taskRefused('completed', item.text, completed.refusedReason)
         }
       }
-      this.taskRefusals = 0
     }
     this.todos = next
     this.autoCompact.noteTodos(this.todos)
@@ -8356,14 +8354,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     return { output: summary, visibleOutput: summary }
   }
 
-  /** A refused task write: the old list stands, and the refusal counts toward the pause. */
+  /**
+   * A refused task write: the old list stands, and the refusal reaches the
+   * model and the person as words. Refusals never end the turn on their own:
+   * the work continues until it converges or the person stops it (D121).
+   */
   private taskRefused(kind: 'created' | 'completed', subject: string, reason: string): ToolOutcome {
-    this.taskRefusals += 1
-    if (this.taskRefusals >= HOOK_MAX_TASK_REFUSALS) {
-      this.deps.log.warn(
-        `Model API extension hooks: task continuation limit after ${String(this.taskRefusals)} refusals`,
-      )
-    }
     const text = fill(
       kind === 'created' ? UI_TEXT.hookRefusedTaskCreated : UI_TEXT.hookRefusedTaskCompleted,
       { subject, reason },
@@ -10111,18 +10107,21 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
   }
 
+  /**
+   * A hook may keep an idle teammate working for as many rounds as the work
+   * needs: no count of ours stops the keeps (D121). Every keep stays visible
+   * as its own notice, and the grant, the hook verdict and Stop still end it.
+   */
   private async keepIdleChild(child: ChildRecord): Promise<boolean> {
     let siblings = 0
     for (const other of this.children.values()) {
       if (other === child || other.state !== 'running') continue
       siblings += 1
     }
-    const keeps = this.teammateKeeps.get(child.id) ?? 0
     const grant = child.session.childTaskGrant
     if (
       siblings === 0 ||
       grant === undefined ||
-      keeps >= TEAMMATE_MAX_IDLE_KEEPS ||
       grant.remainingAttempts <= 0 ||
       !this.canContinueChild(child, grant)
     )
@@ -10141,7 +10140,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       !this.canContinueChild(child, grant)
     )
       return false
-    this.teammateKeeps.set(child.id, keeps + 1)
     const reason = verdict.keepReason ?? MODEL_API_MODEL_TEXT.hookTeammateContinue
     await child.session.submitTurn(
       [{ type: 'text', text: reason }],
@@ -14018,13 +14016,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       )
       prepared.provisionalSeen.clear()
       isCommitted = true
-      if (
-        effectiveCall.name === MODEL_API_TOOLS.todoWrite &&
-        outcome.failureReason !== undefined &&
-        this.taskRefusals >= HOOK_MAX_TASK_REFUSALS
-      ) {
-        throw new HookStoppedError(outcome.failureReason)
-      }
     }
     if (!executed.value.isParallelExecution) await commit()
     if (selectionReason !== undefined) {
@@ -15379,7 +15370,6 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // What a stopped turn left for its round is not checked in this one (M68).
     this.verifyState().ledger.beginTurn()
-    this.taskRefusals = 0
     this.active = turn
     if (!queued.isGoalWake) this.autoCompact.newUserTask()
     // A message of the user's puts them back in the loop: the Auto reviewer

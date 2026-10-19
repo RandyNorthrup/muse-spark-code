@@ -16,9 +16,7 @@ export const RESOURCE_NS_PER_MS = 1_000_000
 // D87.14: free-space policy and owned-tree retention.
 export const RESOURCE_DISK_SAMPLE_MS = 30_000
 export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000
-export const RESOURCE_DISK_DEFAULT_FREE_GIB = 10
 export const RESOURCE_DISK_MIN_FREE_GIB = 2
-export const RESOURCE_DISK_FLOOR_FRACTION = 0.1
 export const RESOURCE_DISK_CRITICAL_GIB = 1
 export const RESOURCE_DISK_CRITICAL_FRACTION = 0.01
 export const RESOURCE_DISK_HYSTERESIS_GIB = 2
@@ -96,12 +94,9 @@ export const RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS = 50
 export const RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS = 200
 // A closing window or agent waits at most this long for its open minute's write.
 export const RESOURCE_HISTORY_FLUSH_TIMEOUT_MS = 2000
-export const RESOURCE_CPU_DEFAULT_PERCENT = 85
 export const RESOURCE_CPU_MIN_PERCENT = 30
-export const RESOURCE_MEMORY_DEFAULT_PERCENT = 90
 export const RESOURCE_MEMORY_MIN_PERCENT = 40
 export const RESOURCE_MEMORY_MAX_PERCENT = 98
-export const RESOURCE_MEMORY_DEFAULT_FREE_GIB = 2
 export const RESOURCE_MEMORY_MIN_FREE_GIB = 0.5
 export const RESOURCE_MEMORY_MAX_FREE_GIB = 64
 export const RESOURCE_OPTIONAL_MIN_PERCENT = 1
@@ -652,8 +647,9 @@ export const SETTING_DEFAULTS = {
   environmentVariables: [] as readonly EnvironmentVariable[],
   'shell.passEnvironmentVariables': [] as readonly string[],
   // M112 (PLAN.md D92): seconds before an unanswered question defers; the
-  // host reads only the user's own value (questionStore.ts).
-  'questions.deferAfterSeconds': 60,
+  // host reads only the user's own value (questionStore.ts). D121: no limit
+  // unless the person sets one, so 0 (never) is the default.
+  'questions.deferAfterSeconds': 0,
   syncPromptsAndBookmarks: false,
   'reports.network': 'whenSignedIn',
   'reports.keepHistory': true,
@@ -696,13 +692,14 @@ export const SETTING_DEFAULTS = {
   // D78: inert without a hooks file; Restricted Mode loads and runs none.
   modelApiTeamWorkers: true,
   modelApiHooks: true,
-  // M127: Muse Code's own hook and subagent defaults as settings. Stop
-  // continuations 8 (min 1, no max); running hook commands 0 (unlimited,
-  // as Muse Code starts all matching handlers at once; min 0);
-  // concurrent subagents 8 (Muse Code's execution-capacity range 1–64).
-  hooksMaxStopContinuations: 8,
+  // M127: Muse Code's own hook and subagent defaults as settings. D121:
+  // no limit unless the person sets one, so Stop continuations and
+  // concurrent subagents are 0 (unlimited) by default; a set value stays
+  // within Muse Code's own ranges (1–8 and 1–64). Running hook commands
+  // stay 0 (unlimited, as Muse Code starts all matching handlers at once).
+  hooksMaxStopContinuations: 0,
   hooksMaxRunningCommands: 0,
-  subagentMaxConcurrent: 8,
+  subagentMaxConcurrent: 0,
   // The Model API shell keeps its directory between calls (M91 lane S, PLAN.md
   // D70). On by default, the owner's ruling of 2026-10-04 that enhancements
   // ship on; a machine setting turns it off.
@@ -738,14 +735,16 @@ export const SETTING_DEFAULTS = {
   // M73 (PLAN.md D49): observation packing on the Model API backend. Its M75
   // run held the capability floors (docs/certification/m73.md); D78 enables it.
   modelApiObservationPacking: true,
-  // TOOLCAP: the per-result byte guard, 64_000 like TOOL_OUTPUT_MAX_CHARS
-  // (a literal: this table loads before that constant). Raise for one run
-  // with the exec flag. Validated where used.
-  modelApiMaxToolOutputBytes: 64_000,
+  // TOOLCAP: the per-result byte guard (D121: 0, no guard of ours, is the
+  // default). A set value raises or lowers it for the session; raise for
+  // one run with the exec flag. Validated where used.
+  modelApiMaxToolOutputBytes: 0,
   modelApiAutoCompaction: true,
   modelApiStrictTools: true,
   modelApiParallelReads: true,
-  webSearchMaxPerRequest: 5,
+  // D121: no search bound of ours — 0 sends no max of ours and the provider
+  // decides how many hosted searches run; a set value stays within 1–20.
+  webSearchMaxPerRequest: 0,
   // Lane RETRYLIMITS (owner's binding rule): the person's retry limit, unset
   // by default (null). Set, it caps every provider's retries; unset, each
   // provider's documented maximum governs, and a provider that documents
@@ -791,10 +790,11 @@ export const SETTING_DEFAULTS = {
   modelApiSessionBudgetUsd: 0,
   // M105 (PLAN.md D85): multimodal input caps (literals: this map runs
   // before the media block below); machine scoped, since a repository must
-  // not set what is uploaded, kept or billed on the key.
-  mediaMaxUploadMiB: 200,
+  // not set what is uploaded, kept or billed on the key. D121: no cap of
+  // ours — 0 opens any size and records until stopped; a set value applies.
+  mediaMaxUploadMiB: 0,
   mediaUploadExpiryDays: 7,
-  screenRecordingMaxSeconds: 120,
+  screenRecordingMaxSeconds: 0,
   mediaAudioAction: 'transcribe',
   mediaConverterPath: '',
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): in Auto on the Muse
@@ -994,16 +994,10 @@ export const HOOK_TOOL_OUTPUT_PREVIEW_CHARS = 1024
 export const HOOK_TOOL_NESTING_MAX = 4
 export const HOOK_TOOL_ENTRIES_MAX = 16
 export const MODEL_API_HOOK_PROVIDER = 'meta'
-// The default stop-hook continuation depth (Muse Code's own default 8,
-// M127): `museSpark.hooksMaxStopContinuations` overrides this.
+// The set-value ceiling for stop-hook continuations (Muse Code's own bound
+// 8, M127): `museSpark.hooksMaxStopContinuations` sets one within 1–8 and
+// defaults to 0 (unlimited, D121).
 export const HOOK_MAX_STOP_CONTINUATIONS = 8
-// Independent safety pauses that never follow that setting (PR206FIX T5):
-// refused task writes pause the turn, and an idle teammate stops being
-// kept working, each after this many in a row. Both shared the bound
-// above before the M127 setting; the setting governs only Stop-hook
-// continuations, as its description says.
-export const HOOK_MAX_TASK_REFUSALS = 8
-export const TEAMMATE_MAX_IDLE_KEEPS = 8
 export const HOOK_CONTROL_CODE_LIMIT = 32
 export const HOOK_NEWLINE_CODE = 10
 export const HOOK_DELETE_CODE = 127
@@ -1018,13 +1012,33 @@ export const HOOK_TOTAL_MAX_HANDLERS = 64
 // Code starts all matching handlers at once).
 export const HOOK_MAX_RUNNING_COMMANDS = 4
 // The settings that replace the fixed numbers above with Muse Code's own
-// defaults (M127): stop continuations default 8, running commands default
-// 0 (unlimited: Muse Code starts all matching handlers at once),
-// subagents default 8 within Muse Code's 1–64 execution-capacity range.
+// defaults (M127): stop continuations default 0 (unlimited), running
+// commands default 0 (unlimited: Muse Code starts all matching handlers at
+// once), subagents default 0 (unlimited) within Muse Code's 1–64
+// execution-capacity range for a set value (D121).
 export const HOOK_STOP_CONTINUATIONS_MIN = 1
 export const HOOK_RUNNING_COMMANDS_MIN = 0
 export const SUBAGENT_CONCURRENT_MIN = 1
 export const SUBAGENT_CONCURRENT_MAX = 64
+/**
+ * A set Stop-continuation bound as an effective row limit (M127, D121): 0
+ * is no limit of ours, anything else stays within Muse Code's own 1–8.
+ */
+export function stopContinuationLimitFor(value: number): number {
+  return value === 0
+    ? Infinity
+    : Math.min(Math.max(value, HOOK_STOP_CONTINUATIONS_MIN), HOOK_MAX_STOP_CONTINUATIONS)
+}
+/**
+ * A set subagent-concurrency bound as an effective worker cap (M127,
+ * D121): 0 is no limit of ours, anything else stays within Muse Code's own
+ * 1–64 execution-capacity range.
+ */
+export function subagentConcurrencyFor(value: number): number {
+  return value === 0
+    ? Infinity
+    : Math.min(Math.max(value, SUBAGENT_CONCURRENT_MIN), SUBAGENT_CONCURRENT_MAX)
+}
 export const HOOK_ON_FAILURE_MAX_DEPTH = 3
 export const HOOK_MANAGED_ENV_MAX_NAMES = 64
 export const HOOK_MANAGED_ENV_NAME_MAX_CHARS = 128
@@ -1620,7 +1634,8 @@ export const MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS = 7
 export const MEDIA_AUDIO_ACTION_OPTIONS = ['transcribe', 'sendAudio'] as const
 /** @unwired M105 read only by tests deleted 2026-10-17 (no fakes) */
 export const MEDIA_AUDIO_ACTION_DEFAULT = 'transcribe'
-export const SCREEN_RECORDING_DEFAULT_MAX_SECONDS = 120
+// D121: the companion records until stopped unless the host passes a bound.
+export const SCREEN_RECORDING_DEFAULT_MAX_SECONDS = 0
 export const SCREEN_RECORDING_MIN_SECONDS = 10
 export const SCREEN_RECORDING_MAX_SECONDS = 600
 export const SCREEN_RECORDING_RECENT_MAX_AGE_MS = 10 * 60 * 1000
@@ -2156,9 +2171,10 @@ export const REVIEW_FINDINGS_MAX = 200
 export const REVIEW_FINDING_TEXT_MAX_CHARS = 4000
 export const REVIEW_FINDING_PATH_MAX_CHARS = 1024
 
-// M116 / D96: lane-0 contracts. Two fix rounds after the original build;
-// a team may lower this ceiling, never raise it. Rule 9 has no setting.
-export const PLAYBOOK_PATCH_ROUNDS_MAX = 2
+// M116 / D96: lane-0 contracts. Fix rounds run until the work converges or
+// the person stops them; the person's own number lives in the team's
+// playbook settings (`patchRoundsMax`, 0 is unlimited, D121). Rule 9 has no
+// setting.
 export const PLAYBOOK_LAUNDER_WINDOW_MS = 3_600_000
 export const PLAYBOOK_RECORD_MAX = 5000
 /** Edited file moves inherit at this percentage of retained line fingerprints. */
@@ -2530,9 +2546,24 @@ export const TOOL_ARGUMENT_PREVIEW_MAX_DEPTH = 32
 // Coalesce each call to ten display snapshots per second, plus final arguments.
 export const TOOL_ARGUMENT_PREVIEW_INTERVAL_MS = 100
 export const STRUCTURED_OUTPUT_REPAIRS_MAX = 1
-export const WEB_SEARCH_MAX_PER_REQUEST = 5
+// D121: no search bound of ours — 0 (the default) sends no max and the
+// provider decides; a set value stays within 1–20.
+export const WEB_SEARCH_MAX_PER_REQUEST = 0
 export const WEB_SEARCH_MIN_PER_REQUEST = 1
 export const WEB_SEARCH_MAX_PER_REQUEST_LIMIT = 20
+/**
+ * A set hosted-search bound as the request's max (D121): 0 sends no max of
+ * ours and the provider decides how many hosted searches run; anything else
+ * stays within the 1–20 set range, and out-of-range offers nothing.
+ */
+export function webSearchMaxCallsFor(value: number): number | undefined {
+  return value !== 0 &&
+    Number.isSafeInteger(value) &&
+    value >= WEB_SEARCH_MIN_PER_REQUEST &&
+    value <= WEB_SEARCH_MAX_PER_REQUEST_LIMIT
+    ? value
+    : undefined
+}
 // U12 captured no reset header: Meta documents a one-minute window.
 // Captured headers replace the empty initial bucket, never a hard-coded
 // account limit; unobserved buckets admit freely and 429 pauses hold
@@ -3252,7 +3283,6 @@ export const TEAM_STALL_RATE_LIMIT_MS = 2 * 60_000
 // The plan's bounded escalation policy, not a captured native cancel guarantee.
 export const TEAM_RETIRE_WAIT_MS = 30_000
 export const TEAM_HANDOFF_TOOL_CALLS = 20
-export const TEAM_MAX_REASSIGNMENTS = 2
 export const TEAM_DIVERGE_REPEATS = 3
 export const TEAM_DIVERGE_SIZE_FACTOR = 3
 export const TEAM_START_STAGGER_MS = 5000
@@ -3272,7 +3302,6 @@ export const RUNNER_WINDOWS_COMMAND_MAX_CHARS = 32_767
 export const TEAM_SCHED_ID_MAX_CHARS = 128
 export const TEAM_SCHED_TEXT_MAX_CHARS = 8000
 export const TEAM_WRITE_SET_MAX = 256
-export const TEAM_REVIEW_ROUNDS_MAX = 3
 export const TEAM_SCHED_HISTORY_MAX = 256
 export const RUNNER_CONFIG_MAX = 32
 export const RUNNER_MAX_JOBS = 64
@@ -4907,7 +4936,8 @@ export const QUESTION_OUTCOME_CLARIFIED = 'clarified'
 // Questions that never block (M112, PLAN.md D92). These limits apply in
 // the process holding the session, on every interactive editor surface.
 export const QUESTION_OUTCOME_DEFERRED = 'deferred'
-export const QUESTION_DEFER_DEFAULT_SECONDS = 60
+// D121: no limit unless the person sets one — 0 waits indefinitely.
+export const QUESTION_DEFER_DEFAULT_SECONDS = 0
 export const ACP_QUESTIONS_BUNDLE_FILE = 'acpQuestions.js'
 export const RUNTIME_QUESTIONS_BUNDLE_FILE = 'runtimeQuestions.js'
 // /playbook's journal-backed surface (M116): the ACP agent and the CLI load
@@ -4984,11 +5014,12 @@ export const MODEL_API_SUBAGENT_TOOLS = {
   cancel: 'subagent_cancel',
 } as const
 // D121: a conversation spawns subagents without a count of ours (no
-// per-conversation ceiling); paid consent still asks per spawn and Stop
-// still ends them. The default concurrent subagents are Muse Code's own
-// default 8 (M127): `museSpark.subagentMaxConcurrent` overrides this
-// within 1–64. The 8-at-once queue is C6, owned by the integration branch.
-export const SUBAGENT_CAPACITY = 8
+// per-conversation ceiling and no default concurrency cap); paid consent
+// still asks per spawn and Stop still ends them.
+// `museSpark.subagentMaxConcurrent` sets one within 1–64 (Muse Code's own
+// execution-capacity range, M127). The 8-at-once queue is C6, owned by the
+// integration branch.
+export const SUBAGENT_CAPACITY = 0
 // A `recap/request` settles exactly once on `recap/completed` with a
 // host-enforced 45 s timeout (ADR 45447): waiting past it keeps the late
 // settlement a notice instead of a hang.
@@ -7588,7 +7619,7 @@ export const TEAM_MODEL_TEXT = {
   handoffDataOpen: '<<<team handoff data>>>',
   handoffDataClose: '<<<end team handoff data>>>',
   integration:
-    'The merge queue reviews the whole current change and checks the merged combination before landing. A returned candidate needs rework on its own branch. After the third failed review round, stop and report the recurring findings. A claimed check without a matching executed command is unverified.',
+    'The merge queue reviews the whole current change and checks the merged combination before landing. A returned candidate needs rework on its own branch. Review rounds continue until the change passes or the person stops the work; each failing round reports its findings and the ones that came back before. A claimed check without a matching executed command is unverified.',
   workerChecks:
     'Use the shared run_checks tool for checks that need installed dependencies; it runs a snapshot in an isolated check slot or a user-configured runner.',
   toolUncertainDelegation:

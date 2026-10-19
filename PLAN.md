@@ -8338,6 +8338,12 @@ one governor for everything the harness starts.
    - `museSpark.resourceRelocate`: `paired` (default), `ask` or `off`.
    - M96's `teamHeavyCommandSlots` and `teamWorkerPriority` stay; the
      governor only ever narrows below them.
+   - The default is no limit (owner 2026-10-19: the governor's own 85% CPU
+     default is removed; every threshold defaults to null). With nothing set
+     by the person the governor measures and shows but pauses, holds or
+     relocates nothing: an unset metric contributes no reading, and the
+     critical, transport and service trips each need a limit the person set
+     behind them. A limit the person sets works exactly as before.
 
 4. **The sampler is cheap and honest.**
    - **The machine,** every `RESOURCE_SAMPLE_MS` (5 seconds), with no child
