@@ -110,3 +110,39 @@ headless `EXEC_EXIT`/`LEGAL_EXIT` codes). `--help` exits 0 everywhere.
   concept, not the literal flag; changing those words needs new UI strings.
 - Silent-`auth status` verified fixed only on a storeless rig; a desktop
   run with a real store still needs the lead's confirmation.
+
+## REVCLI review fixes (revcatch/revcli)
+
+- `src/runtime/cliArgs.ts`: the "every literal misuse without a code got
+  one" line above was wrong for two sites — `auth` with a refused
+  `--backend` / `--shell-sandbox` value returned the credential guidance
+  with no exit code, so `main` fell back to exit 1 while every sibling
+  misuse exits 2 (proven: real parser returned no `exitCode`; sibling
+  `login --provider foo` returned 2). Both sites own exit 2 now; the argv
+  is still never echoed. Covered in `test/unit/cliHelpConsistency.test.ts`
+  (now 39 checks: 36 misuse rows plus the developer and two reference
+  tests) and in `test/hosts/exec.sh` (`auth --backend bogus set`, exit 2
+  naming the guidance, proven through a local dev build; the production
+  build still stops at the pre-existing What's New bound, as recorded
+  above).
+- `docs/schemas/exec-event-output-schema-v1.schema.json` (two limits
+  blocks) and `docs/schemas/exec-result-output-schema-v1.schema.json`:
+  `timeoutSeconds` accepts null and a set deadline from 1 second, matching
+  the parser, the v2 schemas and the Action validator. The bounds removal
+  updated every other bound in these files but left `timeoutSeconds`
+  non-null with its 10-second floor, so a no-deadline result or a
+  `--timeout 9` result failed the published files (proven red against the
+  unedited files with ajv, green after).
+- `docs/ci.md`: the budget paragraph still stated the removed ceiling
+  ("range 1–20,000,000 micro-USD") and the v2 paragraph still spoke of
+  "the same hard bounds"; both now say positive, at most six decimals, no
+  upper bound.
+- Checked and left alone: the narrowed `SyntaxError` catch in
+  `runTerminalDeveloperCommand` (a zod `ZodError` from `developer add`
+  with a bad value rethrows exactly as before the sweep — same crash text,
+  same exit 1, pre-existing); `--timeout` past `MAX_SAFE_INTEGER`/1000
+  seconds loses millisecond exactness in `timeoutMs` (representation, no
+  person passes a 285-million-year deadline; refusing it would invent a
+  limit of ours); "Unknown argument" reused for known-flag bad values
+  (the flag and value are named and the usage follows — truer than the
+  bare usage line it replaced).

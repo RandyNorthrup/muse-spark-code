@@ -386,14 +386,15 @@ export function parseCommandLine<T>(
   }
   const backend = values.backend ?? ACP_DEFAULT_BACKEND
   if (!isOneOf(ACP_BACKENDS, backend)) {
+    // Auth argv is never echoed, but the misuse still owns exit 2.
     return positionals[0] === 'auth'
-      ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+      ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp, exitCode: 2 }
       : invalid(`--backend ${backend}`)
   }
   const shellSandbox = values['shell-sandbox'] ?? SETTING_DEFAULTS.shellSandbox
   if (!isOneOf(SHELL_SANDBOX_MODES, shellSandbox)) {
     return positionals[0] === 'auth'
-      ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+      ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp, exitCode: 2 }
       : invalid(`--shell-sandbox ${shellSandbox}`)
   }
   const paidFeatures = paidFeaturesOf(values)
