@@ -14848,7 +14848,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     // No round count of ours ends a turn (owner 2026-10-17: the only
     // hard-coded limits are each provider's own, and no provider documents
     // one): it runs until the model answers without a tool call, the person
-    // stops it, a hook stops it, or a budget the person set is spent.
+    // stops it, a hook stops it, the repeat guard stops an unchanged
+    // repeated tool call, the provider refuses the request, or a budget the
+    // person set is spent.
     for (let round = 0; ; round += 1) {
       if (isAbortRequested(signal)) {
         throw new AbortedError()
