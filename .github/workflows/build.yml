@@ -96,7 +96,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -157,7 +157,7 @@ jobs:
           # check:badges lists public main through the GitHub API; the job token
           # keeps hosted runners off the shared unauthenticated rate limit.
           GITHUB_TOKEN: ${{ github.token }}
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.os == 'ubuntu-latest' && matrix.part.name == 'build' && !inputs.fast
         with:
           name: production-webview
@@ -211,7 +211,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           # Track 22 (latest 22.x), as main does: the evaluation children
           # need `--permission` (unflagged from 22.13.0, review RVCM1012H),
@@ -247,12 +247,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: production-webview
           path: dist
@@ -276,7 +276,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -486,14 +486,14 @@ jobs:
           test -f "$base/darwin/muse-dictate"
           test -f "$base/darwin/muse-dictate-screen.tgz"
           test -f "$base/vault/muse-vault"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-dictate-darwin
           path: |
             ${{ runner.temp }}/back/darwin/muse-dictate
             ${{ runner.temp }}/back/darwin/muse-dictate-screen.tgz
           if-no-files-found: error
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-vault-darwin
           path: ${{ runner.temp }}/back/vault/muse-vault
@@ -632,18 +632,18 @@ jobs:
           bash native/darwin/check-disclaim.sh --screen-only
       # Archive on macOS: artifact upload otherwise discards executable modes.
       - run: tar -czf native/darwin/muse-dictate-screen.tgz -C native/darwin muse-dictate-screen.app
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-vault-peer-darwin
           path: native/darwin/muse-vault-peer
           if-no-files-found: error
       - run: bash native/darwin/check-vault.sh
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-vault-darwin
           path: dist/native/darwin/muse-vault
           if-no-files-found: error
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-dictate-darwin
           path: |
@@ -670,13 +670,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
       - run: sudo apt-get update && sudo apt-get install -y libssl-dev libpulse-dev cmake g++-14
       - run: node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; import { buildVaultPeer } from './scripts/build-vault-peer.mjs'; buildLinuxHelper(); buildVaultPeer()"
       - run: CC=gcc-14 CXX=g++-14 node scripts/build-linux-dictation.mjs
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-created-linux-${{ matrix.arch }}
           path: |
@@ -684,7 +684,7 @@ jobs:
             native/linux/${{ matrix.arch }}/muse-dictate
             native/linux/${{ matrix.arch }}/*.so*
           if-no-files-found: error
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-vault-peer-linux-${{ matrix.arch }}
           path: native/linux/${{ matrix.arch }}/muse-vault-peer
@@ -724,35 +724,35 @@ jobs:
           else
             test "$NATIVE" = success
           fi
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-dictate-darwin
           path: native/darwin
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-created-linux-x64
           path: native/linux/x64
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-created-linux-arm64
           path: native/linux/arm64
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-vault-darwin
           path: dist/native/darwin
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-vault-peer-linux-x64
           path: native/linux/x64
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-vault-peer-linux-arm64
           path: native/linux/arm64
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-vault-peer-darwin
           path: native/darwin
@@ -872,7 +872,7 @@ jobs:
             exit 1
           fi
           echo "$vsix holds $(wc -l <<< "$listing") entries, every helper and no TargetPlatform included"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-spark-code-vsix
           path: '*.vsix'
@@ -943,7 +943,7 @@ jobs:
           mkdir -p "$acp"
           npm install --prefix "$acp" --ignore-scripts --audit=false --fund=false ./dist/muse-spark-code-acp-*.tgz
           node scripts/check-ui-text.mjs "$acp/node_modules/muse-spark-code-acp"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-spark-code-acp
           path: dist/muse-spark-code-acp-*.tgz
@@ -951,7 +951,7 @@ jobs:
           retention-days: 30
       - name: CycloneDX inventories for shipped bundles and native runtime dependencies
         run: node scripts/release-sbom.mjs
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-spark-code-sboms
           path: dist/sbom/*.cdx.json
@@ -960,7 +960,7 @@ jobs:
       - name: record the actual checkout tree and release asset hashes
         id: source
         run: node scripts/release-reuse.mjs record
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: source-tree-${{ steps.source.outputs.tree }}
           path: dist/release-build.json
