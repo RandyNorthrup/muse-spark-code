@@ -4,7 +4,7 @@
 // one record or nothing. Each case below drives the real source or reader
 // factory with that input; the shared-helper hardening stays in
 // reportEngineBoundaries.test.ts.
-import { appendFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
@@ -288,8 +288,10 @@ describe('production sources keep good records beside one bad record', () => {
     const good = '- [x] Done\n'
     const result = await certificationSource(
       {
-        read: (file: string) =>
-          file.endsWith('bad.md') ? Promise.reject(new Error('boom')) : Promise.resolve(good),
+        // A real kernel errno, never a bug-shaped throw: reading a
+        // directory fails at the syscall layer on every platform.
+        read: async (file: string) =>
+          file.endsWith('bad.md') ? await readFile(new URL('.', import.meta.url), 'utf8') : good,
         list: (directory: string) =>
           Promise.resolve(
             directory === 'docs/certification'

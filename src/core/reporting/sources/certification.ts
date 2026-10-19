@@ -8,6 +8,7 @@ import {
   type SourceScrub,
 } from './local'
 import type { ReportSourcePayloads } from './types'
+import { isErrno } from '../../fs/errno'
 
 export function certificationSource(io: LocalFileIo, scrub: SourceScrub) {
   return localSource('certification', async ({ signal, reportText }) => {
@@ -43,8 +44,13 @@ export function certificationSource(io: LocalFileIo, scrub: SourceScrub) {
             milestoneId: id.toLowerCase().replace(/^m/u, 'M'),
             checklist,
           })
-        } catch {
-          failures.push(scrub(file))
+        } catch (error) {
+          // A file the reader cannot use stays a failed path; anything else
+          // (cancellation, a bug) reaches the source reader instead.
+          if (error instanceof LocalSourceError) failures.push(scrub(file))
+          // eslint-disable-next-line unicorn/no-duplicate-if-branches -- typed and errno failures share the failed-path record; the catch gate forbids merging the named tests (PLAN §8, D119-catch).
+          else if (isErrno(error)) failures.push(scrub(file))
+          else throw error
         }
       }
     }

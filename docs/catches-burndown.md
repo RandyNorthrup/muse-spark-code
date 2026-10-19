@@ -118,6 +118,38 @@ Designed baselines with reasons (accepted, not forgotten):
 - `src/runtime/resources/entry.ts` flush catch (CATCHRUN2): disposal
   never throws; a failed flush reaches the error port with its cause
   under fixed words.
+- `src/core/reporting/sources/local.ts` outer catch, `checkRuns.ts`
+  source catch, `sources/cache.ts` reader catch: port-level containment the
+  report engine's unguarded `Promise.all` requires; every cause maps into the
+  closed record vocabulary, and rethrowing would fail the entire report for
+  one source.
+- `src/core/reporting/destinations/runner.ts` deliver catch,
+  `destinations/email.ts` send catch, `sources/github.ts` post catch:
+  terminal per-destination outcomes; raw send errors are secret-bearing and
+  the outcome protocol has no cause slot; refused and uncertain are named,
+  everything else is failed or uncertain by the documented rule.
+- `src/core/reporting/history.ts` ownStart catch: first-attempt failure is
+  superseded by the retry; the final throw carries the attempt's cause.
+- `src/core/reporting/sources/cache.ts` transport catch: the void
+  fire-and-forget effect reports `transportFailed` to the admission reducer;
+  rethrowing would be an unhandled rejection.
+- `src/core/reporting/sources/github.ts` exec catch: the exec rejection
+  doubles as the response candidate and `safeParse` separates output-shaped
+  failures from shapeless ones; rethrowing would lose gh's own error output.
+- `src/core/resources/queue.ts` wake catch, `commands.ts` handoff and stop
+  catches, `events.ts` publish catch, `governor.ts` read and publish
+  catches, `relocate.ts` catches (3), `admission.ts` catches (2),
+  `launchHost.ts` catches (4), `process.ts` catches (4): the live error (or
+  its fixed stop-failed error with cause) is delivered to the waiter or
+  owner that must settle; rethrowing would hang waiters, break fan-out,
+  unwind subscribers, or report twice.
+- `src/core/resources/actuators/index.ts` catches (5),
+  `createdRegistry.ts` marker, restore-probe and clean catches,
+  `trees/registry.ts` kill catch, `trees/mac.ts` catches (4),
+  `trees/windows.ts` catches (6), `sampler/machineSampler.ts` probe catch:
+  fail-closed and closed-vocabulary results (`unknown`, `false`, `refused`,
+  per-entry markers); rethrowing would abort sibling controls, leak
+  entries, break disposal, or fail host admission for one unreadable tree.
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 - `src/host` root + `src/host/backend` keeps, 0.19.0 lane (each read in
   full; the failure either reaches the caller as data or is proven moot):
@@ -239,8 +271,8 @@ Designed baselines with reasons (accepted, not forgotten):
 | src/core/prompts       | 2       | 1       |
 | src/core/providers     | 15      | 2       |
 | src/core/questions     | 1       | 0       |
-| src/core/reporting     | 31      | 6       |
-| src/core/resources     | 41      | 25      |
+| src/core/reporting     | 8       | 1       |
+| src/core/resources     | 23      | 16      |
 | src/core/review        | 4       | 2       |
 | src/core/schedules     | 9       | 10      |
 | src/core/support       | 0       | 2       |

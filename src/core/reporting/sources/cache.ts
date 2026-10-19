@@ -354,8 +354,11 @@ export class ReportNetworkReader {
     for (const effect of result.effects) {
       try {
         this.execute(origin, effect)
-      } catch {
+      } catch (error) {
         this.step(origin, { type: 'effectFailed', generation: effect.generation })
+        // The generation already holds its failure; the execute failure itself
+        // must not hang the dispatch behind an unsettled promise.
+        throw error
       }
     }
     return result.effects
@@ -501,6 +504,8 @@ export class ReportNetworkReader {
       try {
         await reader.cancel()
       } catch {
+        // Reader cancel is advisory: the stream is abandoned and the abort and
+        // body-finally paths proceed regardless of whether it acknowledged.
         return
       }
     }

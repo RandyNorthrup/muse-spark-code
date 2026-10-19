@@ -31,12 +31,27 @@ function parsedRuns(text: string, scrub: (text: string) => string) {
     const line = text.slice(start + 1, end)
     end = start
     lines += 1
+    let raw: unknown
     try {
-      const entry = checkRunSchema.parse(JSON.parse(line))
-      entries.push(checkRunSchema.parse({ ...entry, check: scrub(entry.check) }))
-    } catch {
+      raw = JSON.parse(line)
+    } catch (error) {
+      // A journal line is text; only malformed JSON skips it here. A scrub
+      // failure is a bug and must not read as a corrupt line.
+      if (!(error instanceof SyntaxError)) throw error
       skipped += 1
+      continue
     }
+    const entry = checkRunSchema.safeParse(raw)
+    if (!entry.success) {
+      skipped += 1
+      continue
+    }
+    const cleaned = checkRunSchema.safeParse({ ...entry.data, check: scrub(entry.data.check) })
+    if (!cleaned.success) {
+      skipped += 1
+      continue
+    }
+    entries.push(cleaned.data)
   }
   if (end > 0) skipped += 1
   return { entries: entries.toReversed(), skipped }
