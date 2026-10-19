@@ -427,11 +427,13 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model us
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
-### The structured answer was invalid. Retrying once…
+### The structured answer was not valid. Repairing it again (repair {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
-The structured answer was invalid. Retrying once…
+The structured answer was not valid. Repairing it again (repair {count})…
+
+The structured request failed. Trying again (attempt {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
@@ -516,7 +518,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 turnState: Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.
 
-Model API turns default to 200 model calls. Existing caller request limits win. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.
+No round count of ours ends a Model API turn: it runs until the model answers without a tool call, you press Stop, a hook stops it, the provider refuses it, or a limit you set is spent. A caller allowance still bounds its run: exec --max-requests, or a best-of-N attempt ceiling. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a capped turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.
 
 Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).
 
@@ -909,7 +911,9 @@ Commands: `museSpark.hooks`, `museSpark.runSetupHooks`, `museSpark.runHook`, `mu
 
 A new branch in its own folder and window; this checkout is untouched.
 
-The structured answer was invalid. Retrying once…
+The structured answer was not valid. Repairing it again (repair {count})…
+
+The structured request failed. Trying again (attempt {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
@@ -1561,7 +1565,9 @@ Commands: `museSpark.tabTurnOn`, `museSpark.tabTurnOff`, `museSpark.tabSnooze`, 
 
 Turn paid Judge advice on or off.
 
-The structured answer was invalid. Retrying once…
+The structured answer was not valid. Repairing it again (repair {count})…
+
+The structured request failed. Trying again (attempt {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
@@ -2400,7 +2406,7 @@ Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
 
 ### museSpark.modelApiSubagents
 
-Bounded paid child agents, with up to four requests per task including retries. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
+Paid child agents: a task runs until done or stopped, billed per request. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
