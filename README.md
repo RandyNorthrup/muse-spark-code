@@ -3866,11 +3866,12 @@ tokens, the background tasks, and each agent's own transcript.
   nothing: one asking for worktree isolation, or one reusing
   an earlier spawn's command id for a different task is refused first, and a
   retry of the same spawn under its command id answers with that child.
-  One approval allows at most four actual
-  response requests, including retries and tool rounds. A running note uses
-  that same allowance; a follow-up or reopen needs a new grant, asked for
+  One approval covers the task until it ends or is stopped: every actual
+  response request, including retries and tool rounds, is tallied as it goes
+  at the published rates the card names. A running note uses
+  that same grant; a follow-up or reopen needs a new grant, asked for
   unless subagents are allowed always in this workspace. This is
-  a request limit, not a dollar limit. Failed requests without a usage report
+  billed per request, not a dollar limit. Failed requests without a usage report
   appear as unknown cost in Account & usage. A resumed child whose queued
   notes survived a window restart shows those notes in its fresh approval
   before they run. Stopping a
@@ -4450,9 +4451,9 @@ model call always runs with tools, even when it is also the last one allowed: an
 answer completes the turn (exec exit 0), while a tool request ends it at the
 request cap, said plainly. Stop hooks still run on a wrap-up turn; a hook
 asking for more work cannot be honoured past the limit, and the notice says so.
-A caller allowance of any size remains usable. Paid child-task grants are the
-exception: all 4 attempts stay tool calls and exhaustion stays the child's
-typed request-limit stop. Retries spend calls; money caps
+A caller allowance of any size remains usable. Paid child-task grants work
+the same way: every attempt stays a tool call, and the task runs until done
+or stopped. Retries spend calls; money caps
 and compaction's own admission and accounting still apply.
 
 The table below describes Meta Muse. M95's provider core resolves capabilities
