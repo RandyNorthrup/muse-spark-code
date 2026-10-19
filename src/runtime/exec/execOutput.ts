@@ -224,6 +224,10 @@ export function createExecSink(input: {
     seq += 1
     if (input.format === 'jsonl') write(`${JSON.stringify(envelope)}\n`)
     else if (input.format === 'json') write(`${JSON.stringify(redacted)}\n`)
+    // A failed run's reason lives in the envelope's error; the withheld
+    // placeholder alone never tells the person why nothing came back.
+    else if (redacted.error !== null && redacted.error.message !== '')
+      write(`${redacted.error.message}\n`)
     else write(`${redacted.finalMessage}\n`)
     const paid = redacted.usage.paid
     const cost = redacted.usage.costUsd
