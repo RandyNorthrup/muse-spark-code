@@ -49,11 +49,13 @@ interface KnownSpawn {
 }
 
 /**
- * Round 7 closed the class: every other start moved behind `spawnGuarded` /
- * `execFileGuarded` (whose signatures take only the branded environment) or
- * the already-branded `runProgram` / `runTreeSync` / governed launch, so
- * these two modules are the only direct starters left. A direct
- * `spawn`/`execFile` value import anywhere else is an unknown file below.
+ * Round 7 closed the class: every start not listed here moved behind
+ * `spawnGuarded` / `execFileGuarded` (whose signatures take only the branded
+ * environment) or the already-branded `runProgram` / `runTreeSync` /
+ * governed launch. The entries below are the direct starters the 0.19.0
+ * join still keeps beside the guarded wrapper, each with its reviewed
+ * mechanism. A direct `spawn`/`execFile` value import anywhere else is an
+ * unknown file below.
  */
 const KNOWN: Record<string, KnownSpawn> = {
   'src/core/guardedChildProcess.ts': {
@@ -61,26 +63,10 @@ const KNOWN: Record<string, KnownSpawn> = {
     anchor: 'GuardedChildEnv',
     reason: 'the one guarded wrapper: spawnGuarded/execFileGuarded take only the branded child env',
   },
-  'src/core/backends/musecode/MuseCodeHost.ts': {
-    kind: 'guarded',
-    anchor: 'spawnAccountMspConnection',
-    reason:
-      'absolute launch command from the manager resolveLaunch (workspace excluded) + guarded builder env',
-  },
   'src/core/backends/musecode/sandbox.ts': {
     kind: 'reviewed',
     anchor: 'resolveExecutable',
     reason: 'absolute bwrap probe from the guarded lookup (workspace excluded), no shell',
-  },
-  'src/core/locks/processOwner.ts': {
-    kind: 'reviewed',
-    anchor: '/bin/ps',
-    reason: 'fixed /bin/ps and SystemRoot powershell only, no shell, no workspace cwd',
-  },
-  'src/core/eval/workspace.ts': {
-    kind: 'reviewed',
-    anchor: 'process.execPath',
-    reason: 'fixed process.execPath verifier + empty env',
   },
   'src/core/eval/armSources.ts': {
     kind: 'reviewed',
@@ -92,62 +78,6 @@ const KNOWN: Record<string, KnownSpawn> = {
     anchor: 'process.execPath',
     reason:
       'fixed process.execPath config reader with an empty env; bare git reads the tracked set only',
-  },
-  'src/core/resources/process.ts': {
-    kind: 'guarded',
-    anchor: 'ResourceLaunchProfile',
-    reason:
-      'the one governed launch: file + env supplied by commands.ts resolveCommand + child env',
-  },
-  'src/core/resources/trees/run.ts': {
-    kind: 'reviewed',
-    anchor: 'runTreeProgram',
-    reason: 'callers pass absolute OS/native-helper paths only',
-  },
-  'src/core/resources/trees/linuxLaunch.ts': {
-    kind: 'reviewed',
-    anchor: '/usr/bin/systemd-run',
-    reason: 'fixed /usr/bin/systemd-run and /bin/sh only',
-  },
-  'src/core/resources/sampler/system.ts': {
-    kind: 'reviewed',
-    anchor: 'RESOURCE_PROBE_EMPTY_ENV_KEYS',
-    reason: 'absolute paths only + near-empty env',
-  },
-  'src/core/team/workers/workerFence.ts': {
-    kind: 'reviewed',
-    anchor: '/usr/sbin/lsof',
-    reason: 'fixed /usr/sbin/lsof + scrubbed env',
-  },
-  'src/host/voice/voiceProcesses.ts': {
-    kind: 'reviewed',
-    anchor: 'helperEnvironment',
-    reason: 'absolute helper/recorder command from the guarded lookup, no shell',
-  },
-  'src/host/git.ts': {
-    kind: 'guarded',
-    anchor: 'workspaceChildEnvironment',
-    reason: 'git resolved outside the run directory (links followed) + guarded child env',
-  },
-  'src/host/backend/mcpJobLaunch.ts': {
-    kind: 'reviewed',
-    anchor: 'launch.executablePath',
-    reason: 'digest-named packaged job launcher only, never PATH-resolved',
-  },
-  'src/host/backend/mcpProcess.ts': {
-    kind: 'guarded',
-    anchor: 'workspaceChildEnvironment',
-    reason: 'absolute server file (bare names exclude the server directory) + guarded child env',
-  },
-  'src/host/backend/toolIo.ts': {
-    kind: 'guarded',
-    anchor: 'workspaceChildEnvironment',
-    reason: 'absolute interpreter + guarded shell/hook envs for the run directory',
-  },
-  'src/host/team/processLifetime.ts': {
-    kind: 'guarded',
-    anchor: 'workspaceChildEnvironment',
-    reason: "person's team command + guarded child env for its cwd; absolute powershell on Windows",
   },
   'src/host/processTree.ts': {
     kind: 'guarded',
@@ -260,6 +190,27 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     kind: 'reviewed',
     anchor: 'windowsPowerShell',
     reason: 'absolute SystemRoot PowerShell + fixed /bin/ls only',
+  },
+  'src/host/git/githubSession.ts': {
+    kind: 'guarded',
+    anchor: 'execResourceFile',
+    reason:
+      "'gh' resolved through the guarded lookup (workspace excluded) before the governed probe run",
+  },
+  'src/runtime/vault/posixClientPlatform.ts': {
+    kind: 'guarded',
+    anchor: 'handoffResourceFile',
+    reason: 'fixed node plus the packaged broker script through the governed handoff',
+  },
+  'src/runtime/vault/posixNative.ts': {
+    kind: 'guarded',
+    anchor: 'execResourceFile',
+    reason: 'digest-pinned native peer identity probe with an empty env through the governed exec',
+  },
+  'src/runtime/vault/windowsClientPlatform.ts': {
+    kind: 'guarded',
+    anchor: 'handoffResourceFile',
+    reason: 'fixed node plus the packaged broker script through the governed handoff',
   },
 }
 
