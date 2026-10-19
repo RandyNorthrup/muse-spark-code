@@ -17,12 +17,6 @@ import { closeSecrets, fileSecrets } from '../helpers/vault/migrationFixtures'
 const now = () => 1_700_000_000_000
 /** Pattern-valid Model API values, generated per run: never issued, never sent. */
 const modelApiKey = () => `LLM_${randomBytes(12).toString('hex')}`
-const API_KEY_RECORD = (secret: string) => ({
-  v: 1,
-  auth: 'apiKey',
-  origin: 'https://openrouter.ai',
-  secret,
-})
 const dirs: string[] = []
 afterEach(async () => {
   while (dirs.length > 0) await closeSecrets(dirs.pop()!)
@@ -64,26 +58,8 @@ describe('migration shell', () => {
     expect(await shell.store.get(SECRET_KEYS.modelApiKey)).toBe(undefined)
   })
 
-  it('keeps the save when the mirror cannot land, and mirrors once bound', async () => {
-    const { store, dir } = await fileSecrets()
-    dirs.push(dir)
-    const record = JSON.stringify(API_KEY_RECORD(randomBytes(16).toString('hex')))
-    const shell = createMigrationShell(store)
-    shell.bind({
-      mirrorWrite: () => Promise.reject(new Error('vault locked')),
-      mirrorDelete: () => Promise.reject(new Error('vault locked')),
-    })
-    await shell.store.store('museSpark.provider.openrouter', record)
-    expect(await shell.store.get('museSpark.provider.openrouter')).toBe(record)
-    const mirrored: string[] = []
-    shell.bind({
-      mirrorWrite: (key) => {
-        mirrored.push(key)
-        return Promise.resolve()
-      },
-      mirrorDelete: () => Promise.resolve(),
-    })
-    await shell.store.store('museSpark.provider.openrouter', record)
-    expect(mirrored).toEqual(['museSpark.provider.openrouter'])
-  })
+  // Bound-mirror behaviour lives in credentialMigrationStore.test.ts, where
+  // the shell binds the real migration controller over the real VaultStore:
+  // a save made while the vault is locked is kept in SecretStorage and
+  // mirrored on unlock. No hand-written mirror stands in for it here.
 })

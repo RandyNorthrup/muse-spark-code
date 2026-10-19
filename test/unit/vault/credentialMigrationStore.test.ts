@@ -13,19 +13,23 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { NodeVaultFiles, VaultStore } from '../../../src/core/vault/store'
 import type { VaultAnchorPort } from '../../../src/core/vault/broker/repository'
 import { createRecoverySlot } from '../../../src/core/vault/keyslots'
-import { SECRET_KEYS, UI_TEXT, VAULT_LIMITS } from '../../../src/shared/constants'
+import { eraseItem, itemDigest } from '../../../src/core/vault/migrate/material'
+import { VaultMigrationFault } from '../../../src/core/vault/migrate/ports'
+import { SECRET_KEYS, UI_TEXT, VAULT_KEY_BYTES, VAULT_LIMITS } from '../../../src/shared/constants'
 import type { VaultItem, VaultItemMetadata } from '../../../src/shared/vault'
 import type { SecretStore } from '../../../src/host/auth/credentialStore'
 import type { Logger } from '../../../src/host/logger'
 import { capturingLog, closeSecrets, fileSecrets } from '../helpers/vault/migrationFixtures'
+import { metadata as baseMetadata } from '../helpers/vault/fixtures'
 import {
+  buildMigrationCredentials,
   CredentialMigrationController,
   type CredentialMigrationPorts,
 } from '../../../src/host/vault/migrateCredentials'
@@ -58,7 +62,13 @@ const quiet: Logger = {
   error: () => undefined,
 }
 
-const openStores: { directory: string; store: VaultStore; key: Buffer }[] = []
+const openStores: {
+  directory: string
+  store: VaultStore
+  key: Buffer
+  files: NodeVaultFiles
+  anchor: VaultAnchorPort
+}[] = []
 const secretDirs: string[] = []
 
 function liveStore(): VaultStore {
@@ -74,7 +84,10 @@ interface FailAfter {
   failed: boolean
 }
 
-function ports(failWrites: FailAfter): CredentialMigrationPorts {
+function ports(
+  failWrites: FailAfter,
+  failRemoveOnce?: { current: boolean },
+): CredentialMigrationPorts {
   return {
     snapshot: async () => ({ items: await liveStore().list() }),
     write: async (item, isEdit, authorize) => {
@@ -87,6 +100,12 @@ function ports(failWrites: FailAfter): CredentialMigrationPorts {
       await liveStore().write(item, isEdit ? 'present' : 'absent')
     },
     remove: async (id, authorize) => {
+      // A crash between the journal commit and the vault remove: the next
+      // vault commit is real, only this one remove throws, once.
+      if (failRemoveOnce?.current === true) {
+        failRemoveOnce.current = false
+        throw new Error('injected remove failure')
+      }
       authorize?.()
       await liveStore().remove(id)
     },
@@ -167,21 +186,11 @@ function gateValue(
   }
 }
 
-beforeEach(async () => {
-  // The vault refuses roots under a symlinked ancestor (macOS spells its
-  // temporary root through /var, a symlink to /private/var): resolve to the
-  // real path, the same pattern the broker fixtures use.
-  let base = tmpdir()
-  try {
-    base = realpathSync(base)
-  } catch {
-    /* The store open below reports the unusable base instead. */
-  }
-  const directory = await mkdtemp(path.join(base, 'v-migrate-'))
-  const key = randomBytes(32)
-  const files = new NodeVaultFiles(path.join(directory, 'vault'), VAULT_LIMITS.frameBytes)
-  // The test's own protected anchor, like the crash fixture's: file-backed,
-  // compare-and-operate, never a vault value.
+// The test's own protected anchor, like the crash fixture's: file-backed,
+// compare-and-operate, never a vault value. Rebuilt from the same path, so a
+// test can reopen its store after locking it, the way an unlock reopens the
+// vault.
+function fileAnchor(directory: string): VaultAnchorPort {
   const anchorPath = path.join(directory, 'protected-anchor.json')
   const stateSchema = z.strictObject({
     generation: z.number(),
@@ -218,14 +227,42 @@ beforeEach(async () => {
       await unlink(anchorPath)
     },
   }
+  return anchor
+}
+
+beforeEach(async () => {
+  // The vault refuses roots under a symlinked ancestor (macOS spells its
+  // temporary root through /var, a symlink to /private/var): resolve to the
+  // real path, the same pattern the broker fixtures use.
+  let base = tmpdir()
+  try {
+    base = realpathSync(base)
+  } catch {
+    /* The store open below reports the unusable base instead. */
+  }
+  const directory = await mkdtemp(path.join(base, 'v-migrate-'))
+  const key = randomBytes(32)
+  const files = new NodeVaultFiles(path.join(directory, 'vault'), VAULT_LIMITS.frameBytes)
+  const anchor = fileAnchor(directory)
   const recovery = createRecoverySlot(key, vaultId, { now: Date.now })
   try {
     const store = await VaultStore.create({ files, anchor, key }, vaultId, [recovery.slot])
-    openStores.push({ directory, store, key })
+    openStores.push({ directory, store, key, files, anchor })
   } finally {
     recovery.code.fill(0)
   }
 })
+
+/** Lock the store and reopen it from the same files, key and anchor: an unlock. */
+async function reopenStore(): Promise<void> {
+  const current = openStores.at(-1)
+  if (current === undefined) throw new Error('store not open')
+  current.store.lock()
+  current.store = await VaultStore.open(
+    { files: current.files, anchor: current.anchor, key: current.key },
+    vaultId,
+  )
+}
 
 afterEach(async () => {
   const current = openStores.pop()
@@ -244,11 +281,12 @@ function controller(
   providerIds: readonly string[],
   failWrites: FailAfter,
   log: Logger = quiet,
+  failRemoveOnce?: { current: boolean },
 ): CredentialMigrationController {
   return new CredentialMigrationController({
     secrets,
     listProviderIds: () => Promise.resolve(providerIds),
-    ports: ports(failWrites),
+    ports: ports(failWrites, failRemoveOnce),
     minorRelease: () => 19,
     now,
     label: UI_TEXT.vault.secret,
@@ -285,6 +323,43 @@ async function removeMigratedKey(shell: ReturnType<typeof createMigrationShell>)
   expect(await credentialCount()).toBe(1)
   await shell.store.delete(MODEL_API_KEY)
   expect(await credentialCount()).toBe(0)
+}
+
+/**
+ * A sign-out crashed mid-delete through the real shell and controller:
+ * SecretStorage is cleared first and the journal is left saying `deleting`.
+ * Failing the vault remove strands the old vault item too; failing the
+ * second journal write strands the state past the vault remove instead.
+ */
+async function crashedSignOut(
+  store: SecretStore,
+  failWrites: FailAfter,
+  failRemoveOnce?: { current: boolean },
+): Promise<ReturnType<typeof createMigrationShell>> {
+  const { shell } = await migratedShell(store, [])
+  await store.delete(MODEL_API_KEY)
+  const crash = controller(store, [], failWrites, quiet, failRemoveOnce)
+  await expect(crash.mirrorDelete(MODEL_API_KEY)).rejects.toThrow(VaultMigrationFault)
+  return shell
+}
+
+/**
+ * An opaque save stays in SecretStorage: nothing reaches the vault on save,
+ * and the next unlock leaves it alone too, with the record working where it is.
+ */
+async function expectOpaqueSaveKept(
+  shell: ReturnType<typeof createMigrationShell>,
+  store: SecretStore,
+  providerIds: readonly string[],
+  key: string,
+  record: string,
+): Promise<void> {
+  await shell.store.store(key, record)
+  expect(await store.get(key)).toBe(record)
+  expect(await credentialCount()).toBe(0)
+  await controller(store, providerIds, noFail()).ensureMigrated()
+  expect(await credentialCount()).toBe(0)
+  expect(await store.get(key)).toBe(record)
 }
 
 describe('key-store migration against a real store', () => {
@@ -443,5 +518,159 @@ describe('key-store migration against a real store', () => {
     const store = await persistedSecrets({ [MODEL_API_KEY]: first })
     await controller(store, [], noFail()).ensureMigrated()
     expect(await readMigratedSecret()).toBe(first)
+  })
+
+  it('an interrupted sign-out keeps a key saved afterwards', async () => {
+    const first = modelApiKey()
+    const newer = modelApiKey()
+    const store = await persistedSecrets({ [MODEL_API_KEY]: first })
+    // The crash lands between the journal commit and the vault remove: the
+    // old vault item is still in place with SecretStorage empty.
+    const shell = await crashedSignOut(store, noFail(), { current: true })
+    // The person saves a new key while the vault is locked; the save lands
+    // in SecretStorage, and its mirror is refused on the `deleting` row.
+    await shell.store.store(MODEL_API_KEY, newer)
+    expect(await store.get(MODEL_API_KEY)).toBe(newer)
+    await controller(store, [], noFail()).ensureMigrated()
+    // Recovery keeps the newer key: it survives in both stores, migrated.
+    expect(await store.get(MODEL_API_KEY)).toBe(newer)
+    expect(await readMigratedSecret()).toBe(newer)
+  })
+
+  it('finishing a sign-out past the vault remove keeps a newer save', async () => {
+    const first = modelApiKey()
+    const newer = modelApiKey()
+    const store = await persistedSecrets({ [MODEL_API_KEY]: first })
+    // The crash lands between the vault remove and the final journal commit:
+    // the old vault item is already gone with SecretStorage empty.
+    const shell = await crashedSignOut(store, { failAfter: 1, seen: 0, failed: false })
+    expect(await credentialCount()).toBe(0)
+    await shell.store.store(MODEL_API_KEY, newer)
+    await controller(store, [], noFail()).ensureMigrated()
+    expect(await store.get(MODEL_API_KEY)).toBe(newer)
+    expect(await readMigratedSecret()).toBe(newer)
+  })
+
+  it('completing a sign-out past the vault remove leaves no stuck row', async () => {
+    const first = modelApiKey()
+    const later = modelApiKey()
+    const store = await persistedSecrets({ [MODEL_API_KEY]: first })
+    const shell = await crashedSignOut(store, { failAfter: 1, seen: 0, failed: false })
+    // No newer save: recovery completes the sign-out instead of throwing on
+    // the already-removed vault item at every unlock.
+    await controller(store, [], noFail()).ensureMigrated()
+    // With no `deleting` row left, a later save migrates straight through.
+    await shell.store.store(MODEL_API_KEY, later)
+    expect(await store.get(MODEL_API_KEY)).toBe(later)
+    expect(await readMigratedSecret()).toBe(later)
+  })
+
+  it('an oauth save after unlock never reaches the vault', async () => {
+    const oauth = JSON.stringify(oauthRecord(providerSecret()))
+    const store = await persistedSecrets({ [PROVIDER_KEY]: oauth })
+    const { shell } = await migratedShell(store, ['openrouter'])
+    expect(await credentialCount()).toBe(0)
+    // The next unlock leaves it alone too: no vault item, no journal row to
+    // strand, the record working in SecretStorage.
+    await expectOpaqueSaveKept(shell, store, ['openrouter'], PROVIDER_KEY, oauth)
+  })
+
+  it('an oauth save after sign-out never reaches the vault', async () => {
+    const secret = providerSecret()
+    const oauth = JSON.stringify(oauthRecord(providerSecret()))
+    const store = await persistedSecrets({ [PROVIDER_KEY]: JSON.stringify(apiKeyRecord(secret)) })
+    const { shell } = await migratedShell(store, ['openrouter'])
+    expect(await readMigratedSecret()).toBe(secret)
+    await shell.store.delete(PROVIDER_KEY)
+    expect(await credentialCount()).toBe(0)
+    await expectOpaqueSaveKept(shell, store, ['openrouter'], PROVIDER_KEY, oauth)
+  })
+
+  it('rolls back a stranded non-apiKey copy on unlock', async () => {
+    const oauth = JSON.stringify(oauthRecord(providerSecret()))
+    const store = await persistedSecrets({ [PROVIDER_KEY]: oauth })
+    // A save that predates the apiKey gate stranded this state: a journal
+    // `copying` row with a `secret` vault item the private channel can never
+    // read back. Planted with the real codecs through the real store.
+    const entry = buildMigrationCredentials(['openrouter'], now).find(
+      (candidate) => candidate.key === PROVIDER_KEY,
+    )
+    if (entry === undefined) throw new Error('missing provider credential')
+    const planted = entry.decode(Buffer.from(oauth, 'utf8'))
+    try {
+      const journalId = createHash('sha256')
+        .update(`vault-migration-journal:${PROVIDER_KEY}`)
+        .digest('hex')
+        .slice(0, VAULT_KEY_BYTES)
+      const journalName = `migration-${createHash('sha256').update(PROVIDER_KEY).digest('hex').slice(0, 24)}`
+      const journalBytes = Buffer.from(
+        JSON.stringify({
+          key: PROVIDER_KEY,
+          sourceId: 'vscode-secret-storage',
+          itemId: entry.itemId,
+          startedRelease: 19,
+          retainLegacy: true,
+          phase: 'copying',
+          digest: itemDigest(planted),
+        }),
+        'utf8',
+      )
+      await liveStore().write(
+        {
+          // The journal row's hidden first-party shape, over the shared
+          // metadata fixture: only the migration's own fields differ.
+          metadata: {
+            ...baseMetadata(),
+            id: journalId,
+            name: journalName,
+            handle: `secret://${journalName}`,
+            label: UI_TEXT.vault.secret,
+            kind: 'apiKey',
+            bindings: [{ kind: 'origin', origin: 'https://vault.internal' }],
+            hidden: true,
+            firstParty: true,
+            policy: { mode: 'never', unattendedAllowed: false, allowDisclosure: false },
+            dates: { createdAt: now(), rotatedAt: null, expiresAt: null, lastUsedAt: null },
+          },
+          material: {
+            kind: 'apiKey',
+            value: journalBytes,
+            auth: 'bearer',
+            origin: 'https://vault.internal',
+          },
+        },
+        'absent',
+      )
+      await liveStore().write(planted, 'absent')
+    } finally {
+      eraseItem(planted)
+    }
+    expect(await credentialCount()).toBe(1)
+    const { log, logged } = capturingLog()
+    await controller(store, ['openrouter'], noFail(), log).ensureMigrated()
+    // The stuck item and its journal row are gone; the record keeps working
+    // in SecretStorage, with the reason logged.
+    expect(await credentialCount()).toBe(0)
+    const remaining = await liveStore().list()
+    expect(remaining.some((item) => item.name.startsWith('migration-'))).toBe(false)
+    expect(await store.get(PROVIDER_KEY)).toBe(oauth)
+    expect(logged.some((line) => line.includes(PROVIDER_KEY) && line.includes('opaque'))).toBe(true)
+  })
+
+  it('keeps a save made while the vault is locked, and mirrors it on unlock', async () => {
+    const first = modelApiKey()
+    const rotated = modelApiKey()
+    const store = await persistedSecrets({ [MODEL_API_KEY]: first })
+    // The shell bound to the real migration controller, as the unlock edge
+    // leaves it: no hand-written mirror anywhere in this path.
+    const { shell } = await migratedShell(store, [])
+    expect(await readMigratedSecret()).toBe(first)
+    liveStore().lock()
+    await shell.store.store(MODEL_API_KEY, rotated)
+    expect(await store.get(MODEL_API_KEY)).toBe(rotated)
+    await reopenStore()
+    await controller(store, [], noFail()).ensureMigrated()
+    expect(await store.get(MODEL_API_KEY)).toBe(rotated)
+    expect(await readMigratedSecret()).toBe(rotated)
   })
 })
