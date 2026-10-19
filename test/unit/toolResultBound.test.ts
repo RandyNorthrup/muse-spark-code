@@ -192,13 +192,18 @@ describe('boundToolResultText', () => {
   })
 })
 
+/** A cut notice for the shared two-line fixture, told apart by its spill. */
+function noticeFor(spill: string | undefined, id: string): string {
+  const text = `${'h'.repeat(20_000)}\n${'t'.repeat(20_000)}`
+  const bounded = boundToolResultText(text, { maxBytes: 2000, windowTokens: undefined })
+  if (bounded.cut === undefined) throw new Error('expected a cut')
+  return cutNotice(bounded.cut, spill, id)
+}
+
 describe('cutNotice', () => {
   it('says how much, which head and tail, and how to read more', () => {
     // D121: no longest-line clause — lines are never cut.
-    const text = `${'h'.repeat(20_000)}\n${'t'.repeat(20_000)}`
-    const bounded = boundToolResultText(text, { maxBytes: 2000, windowTokens: undefined })
-    if (bounded.cut === undefined) throw new Error('expected a cut')
-    const notice = cutNotice(bounded.cut, '.muse-spark/tool-results/s-c1.txt', 'c1')
+    const notice = noticeFor('.muse-spark/tool-results/s-c1.txt', 'c1')
     expect(notice).toContain('40001 characters')
     expect(notice).toContain('characters omitted)')
     expect(notice).not.toContain('longest line')
@@ -208,10 +213,7 @@ describe('cutNotice', () => {
   })
 
   it('an unkept spill names no file and says the full result is gone', () => {
-    const text = `${'h'.repeat(20_000)}\n${'t'.repeat(20_000)}`
-    const bounded = boundToolResultText(text, { maxBytes: 2000, windowTokens: undefined })
-    if (bounded.cut === undefined) throw new Error('expected a cut')
-    const notice = cutNotice(bounded.cut, undefined, 'c1')
+    const notice = noticeFor(undefined, 'c1')
     expect(notice).toContain('The full result could not be kept')
     expect(notice).not.toContain('Full result in')
     expect(notice).not.toContain('recall_output')

@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, rmSync, symlinkSync } from 'node:fs'
+import { cpSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir as osTmpdir } from 'node:os'
 import path from 'node:path'
+import { describe, expect, it } from 'vitest'
 
 /**
  * One runner for the source-guard drills: `node <script> <args>` as a
@@ -70,6 +71,79 @@ export function withGuardScratch<T>(tag: string, body: (dir: string) => T): T {
  * guard follows the link instead of reading its own location. Returns the
  * guard's stdout; removes the scratch directory afterwards.
  */
+/**
+ * One drill for the source-guard scripts (`check-no-round-cap`,
+ * `check-no-output-continuation-cap`, `check-wrap-up-request`): the guard
+ * passes on the shipped source, fails a planted trip with the line that
+ * names the problem, never passes on missing input, and follows a symlinked
+ * `scripts` directory. Shared so the guard suites are not a clone pair.
+ */
+export interface SourceGuardDrill {
+  /** The suite title. */
+  readonly title: string
+  /** The guard script file name under `scripts/`. */
+  readonly scriptName: string
+  /** The guarded source, relative to the repository root. */
+  readonly sourceRel: string
+  /** The scratch tag for the planted, empty and symlinked runs. */
+  readonly tag: string
+  /** The snippet appended to a copy of the source to trip the guard. */
+  readonly plantSnippet: string
+  /** The guard output proving the plant tripped it. */
+  readonly plantMessage: string
+  /** The guard output proving it passes on the shipped source. */
+  readonly passMessage: string
+}
+
+export function describeSourceGuard(drill: SourceGuardDrill): void {
+  const repo = process.cwd()
+  const script = path.join(repo, 'scripts', drill.scriptName)
+  const source = path.join(repo, ...drill.sourceRel.split('/'))
+  const run = (args: readonly string[], cwd: string = repo): { status: number; output: string } =>
+    runGuardProcess(script, args, cwd, 60_000)
+  describe(drill.title, () => {
+    it('passes on the shipped source', () => {
+      const result = run([source])
+      expect(result.status).toBe(0)
+      expect(result.output).toContain(drill.passMessage)
+    })
+
+    it('fails a planted trip with the line that names the problem', () => {
+      withGuardScratch(drill.tag, (dir) => {
+        const planted = path.join(dir, path.basename(source))
+        cpSync(source, planted)
+        writeFileSync(planted, `${readFileSync(planted, 'utf8')}${drill.plantSnippet}`)
+        const result = run([planted])
+        expect(result.status).not.toBe(0)
+        expect(result.output).toContain(drill.plantMessage)
+      })
+    })
+
+    it('fails on missing input, never passes', () => {
+      expect(run([]).status).not.toBe(0)
+      expect(run([]).output).toContain(`pass the ${path.basename(source)} path`)
+      withGuardScratch(`${drill.tag}-empty`, (dir) => {
+        const empty = path.join(dir, 'empty.ts')
+        writeFileSync(empty, '')
+        const result = run([empty])
+        expect(result.status).not.toBe(0)
+        expect(result.output).toContain('empty input')
+      })
+    })
+
+    it('passes through a symlinked directory', () => {
+      const output = execGuardViaSymlinkedScripts(
+        repo,
+        drill.scriptName,
+        [source],
+        `${drill.tag}-link`,
+        60_000,
+      )
+      expect(output).toContain(drill.passMessage)
+    })
+  })
+}
+
 export function execGuardViaSymlinkedScripts(
   repo: string,
   scriptName: string,
