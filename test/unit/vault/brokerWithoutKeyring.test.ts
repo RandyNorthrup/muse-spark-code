@@ -86,10 +86,8 @@ beforeAll(async () => {
   ).toThrow()
   // The fixture must stand clear of every ancestor node_modules for the
   // binding to be genuinely absent; the shared builder compiles the peer
-  // and bundles the child with the generated admission.
-  await buildBrokerChildren(fixture.root, [
-    ['sessionBrokerNoKeyringChild', 'vaultBrokerNoKeyring.js'],
-  ])
+  // and bundles the real broker child with the generated admission.
+  await buildBrokerChildren(fixture.root, [['sessionBrokerChild', 'vaultBrokerNoKeyring.js']])
 })
 afterAll(async () => {
   for (const child of children) {
