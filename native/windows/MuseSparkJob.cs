@@ -484,7 +484,7 @@ public static class MuseSparkJob {
   // includes the helper, and excludes breakaway. Never used by M27's Join.
   public static int RunTeam(string executable, string[] arguments, string cwd,
     uint parentPid, string[] environment, string ownerPipe, string nonce,
-    string statusPipe, string jobName, bool belowNormal) {
+    string statusPipe, string jobName, bool belowNormal, bool verbatimArguments) {
     IntPtr job = CreateJobObjectW(IntPtr.Zero, jobName);
     if (job == IntPtr.Zero) throw new Win32Exception();
     IntPtr limitsBuffer = IntPtr.Zero;
@@ -510,7 +510,7 @@ public static class MuseSparkJob {
         System.Threading.Tasks.Task monitor = null;
         using (var reader = new StreamReader(status, Encoding.UTF8, true, 1024, true)) {
           int code = MuseSparkMcpJob.Run(executable, arguments, cwd, parentPid,
-            environment, false, ownerPipe, nonce, (pid, process) => {
+            environment, verbatimArguments, ownerPipe, nonce, (pid, process) => {
               long creation;
               string image, uid;
               TeamIdentity(process, out creation, out image, out uid);

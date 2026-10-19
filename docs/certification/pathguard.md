@@ -391,7 +391,14 @@ because the guard name still appeared in the file (on the helper).
   builds the `RunTeam` block from
   `workspaceChildEnvironment('win32', request.env, ...)` — the same
   object the POSIX launch uses — dropping workspace/`PATH` entries and
-  setting `NoDefaultCurrentDirectoryInExePath=1` on the payload.
+  setting `NoDefaultCurrentDirectoryInExePath=1` on the payload. That
+  block is what helpers the payload starts by bare name search; the
+  `RunTeam` executable itself is resolved outside the workspace first
+  (`resolveWindowsTeamCommand`: a bare name on the absolute `PATH`
+  entries, PATHEXT included, a `.cmd`/`.bat` hit through the absolute
+  `cmd.exe`, fail closed inside the workspace), because `CreateProcessW`
+  completes a partial `lpApplicationName` from the helper's working
+  directory without a PATH search.
 - The class, not the instance: direct `child_process` calls move behind
   one guarded wrapper (`src/core/guardedChildProcess.ts`:
   `spawnGuarded`/`execFileGuarded` take only the branded

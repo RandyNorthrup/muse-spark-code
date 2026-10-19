@@ -87,7 +87,12 @@ happened, not what was planned; superseded entries are kept.
   helper payload serializes only from the brand, so the Windows team
   payload hole — a `string[]` the compiler could not see — is closed
   with its class: the `RunTeam` block is built from the same guarded
-  environment the POSIX launch uses for its cwd. The serve/login
+  environment the POSIX launch uses for its cwd, and the `RunTeam`
+  executable itself is resolved to an absolute file outside the
+  workspace first (a bare name on the absolute `PATH` entries,
+  PATHEXT included; a `.cmd`/`.bat` hit goes through the absolute
+  `cmd.exe`), because `CreateProcessW` completes a partial
+  `lpApplicationName` from the helper's working directory. The serve/login
   builder returns the brand through the same producers, and the
   producers guard every `PATH` spelling and drop a preset
   `NoDefaultCurrentDirectoryInExePath` on Windows. The inventory fails
