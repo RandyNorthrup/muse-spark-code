@@ -8,9 +8,8 @@ import {
   freshSlotEntry,
   openOsStoreSlot,
   slotEntryFromRecord,
+  type OpenOsStoreEntry,
 } from './slotEntries'
-
-type OpenEntry = ConstructorParameters<typeof OsStoreVaultSlot>[2]
 
 /**
  * Linux slots: the Secret Service for the OS store (D89: labelled as
@@ -24,7 +23,7 @@ export class LinuxVaultSlots implements VaultSlotProvider {
   constructor(
     private readonly deps: {
       readonly runner?: LinuxTpm2Runner
-      readonly open?: OpenEntry
+      readonly open?: OpenOsStoreEntry
       readonly platform?: NodeJS.Platform
     } = {},
   ) {
