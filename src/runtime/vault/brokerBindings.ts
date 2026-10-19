@@ -20,6 +20,8 @@ import {
   VAULT_AUDIT_MAX_BYTES,
 } from '../../shared/constants'
 import type { KeyringEntryFactory } from '../keyStore'
+import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
+import type { EntryOptions } from '@napi-rs/keyring'
 import { KeyringVaultAnchor } from './keyringAnchor'
 import { FileVaultAnchor, vaultAnchorFile } from './fileAnchor'
 import type { VaultAnchorPort } from '../../core/vault/broker/repository'
@@ -59,6 +61,156 @@ function unavailableKeyring(): KeyringEntryFactory {
     deletePassword: unavailableOperation,
   }
   return () => entry
+}
+
+/**
+ * The installed OS keyring entry: a staged package carries no node_modules,
+ * so the import throws there and the caller falls back. Linux pins the
+ * entry to Secret Service; every other platform takes the default builder.
+ */
+async function installKeyringEntry(options?: EntryOptions): Promise<KeyringEntryFactory> {
+  const { AsyncEntry } = await import('@napi-rs/keyring')
+  return (service, account) => new AsyncEntry(service, account, options)
+}
+
+/**
+ * Resolve the rollback anchor's keyring: the installed binding where the
+ * package carries one, the unavailable keyring plus the file anchor where
+ * it does not. The platform supplies both ends; an explicit override wins.
+ */
+async function resolveBrokerKeyring(
+  overrides: Pick<VaultBrokerBindings, 'keyring' | 'anchor'>,
+  install: () => Promise<KeyringEntryFactory>,
+  fallbackAnchor: () => VaultAnchorPort,
+): Promise<{ keyring: KeyringEntryFactory; anchor: VaultAnchorPort | undefined }> {
+  let keyring = overrides.keyring
+  let anchor = overrides.anchor
+  if (keyring === undefined) {
+    try {
+      keyring = await install()
+      anchor ??= new KeyringVaultAnchor(keyring)
+    } catch {
+      keyring = unavailableKeyring()
+      anchor ??= fallbackAnchor()
+    }
+  }
+  return { keyring, anchor }
+}
+
+/**
+ * The bindings both broker factories return. The scrubber over the live
+ * repository, the host-verified identity and the audit log are identical;
+ * only the keyring, the anchor, the audit platform and the host checks
+ * close over the platform.
+ */
+function baseBrokerBindings(
+  context: VaultBrokerContext,
+  overrides: Pick<VaultBrokerBindings, 'slots'> & { readonly home?: string },
+  keyring: KeyringEntryFactory,
+  anchor: VaultAnchorPort | undefined,
+  auditPlatform:
+    { readonly files?: VaultPrivateFilesPort; readonly withLock?: VaultAuditLock } | undefined,
+  isRecordHost: (
+    identity: VaultProcessIdentity,
+    hostId: string,
+    hostSession?: string,
+  ) => Promise<boolean>,
+  isHost: (processId: number, hostId: string, hostSession?: string) => Promise<boolean>,
+): VaultBrokerBindings {
+  let repository: VaultStoreRepository | undefined
+  const scrub = async (text: string) => {
+    if (!repository) throw new Error(UI_TEXT.vaultScrubUnavailable)
+    const store = repository.current()
+    const values: Uint8Array[] = []
+    let scrubber: VaultScrubber | undefined
+    try {
+      const items = await store.list()
+      for (const metadata of items) {
+        const item = await store.read(metadata.id)
+        try {
+          for (const value of Object.values(item.material))
+            if (value instanceof Uint8Array) values.push(Uint8Array.from(value))
+        } finally {
+          eraseVaultMaterial(item.material)
+        }
+      }
+      scrubber = new VaultScrubber(values)
+      return scrubber.scrub(text)
+    } finally {
+      scrubber?.dispose()
+      for (const value of values) value.fill(0)
+    }
+  }
+  return {
+    keyring,
+    ...(anchor && { anchor }),
+    ...(overrides.slots && { slots: overrides.slots }),
+    home: overrides.home ?? homedir(),
+    lockOnScreenLock: false,
+    identity: {
+      verifyHost: (peer) => isHost(peer.processId, peer.hostId),
+      verifyLaunched: async (peer, registration) =>
+        registration.requester.peerProcessId === peer.processId &&
+        registration.requester.hostId === peer.hostId &&
+        (await isHost(peer.processId, peer.hostId)),
+    },
+    identify: async (identity, hostId, hostSession) => {
+      if (
+        !(await isRecordHost(identity, hostId, hostSession)) ||
+        !(await isHost(identity.processId, hostId, hostSession))
+      )
+        throw new Error(UI_TEXT.vault.noAccess)
+      return {
+        peer: { hostId, userId: identity.userId, processId: identity.processId, ui: true },
+        requester: null,
+        firstParty: true,
+        manage: true,
+      }
+    },
+    audit: (current) => {
+      repository = current
+      let log: { vaultId: string; value: VaultAuditLog } | undefined
+      const get = () => {
+        const vaultId = current.current().vaultId
+        if (log?.vaultId !== vaultId) {
+          log?.value.close()
+          log = { vaultId, value: auditLog(context, current, keyring, auditPlatform) }
+        }
+        return log.value
+      }
+      return {
+        openWriter: async (key) => await get().openWriter(key),
+        open: async (key) => {
+          await get().open(key)
+        },
+        append: async (record) => {
+          await get().append(record)
+        },
+        read: async () => await get().read(),
+        close: () => {
+          log?.value.close()
+          log = undefined
+        },
+      }
+    },
+    onAuditFailure: () => {
+      process.stderr.write('vault-audit-refused\n')
+    },
+    // T/X/S/O transport owners supply provenance and execution before agent use is enabled.
+    ceiling: () => 'none',
+    taint: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
+    lifetime: (_requester, socket) => ({
+      close: () => {
+        socket.destroy()
+      },
+      terminate: () => {
+        socket.destroy()
+        return Promise.resolve(false)
+      },
+    }),
+    perform: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
+    scrub,
+  }
 }
 
 /** Authenticated audit history plus its rotation checkpoint in the protected OS store. */
@@ -219,19 +371,11 @@ export async function createVaultBrokerBindings(
     return await createWindowsVaultBrokerBindings(context, overrides, platform)
   if (process.platform !== 'linux' && process.platform !== 'darwin')
     throw new Error(UI_TEXT.vault.noAccess)
-  let keyring = overrides.keyring
-  let anchor: VaultAnchorPort | undefined = overrides.anchor
-  if (keyring === undefined) {
-    try {
-      const { AsyncEntry } = await import('@napi-rs/keyring')
-      keyring = (service, account) =>
-        new AsyncEntry(service, account, { linux: { store: 'secret-service' } })
-      anchor ??= new KeyringVaultAnchor(keyring)
-    } catch {
-      keyring = unavailableKeyring()
-      anchor ??= new FileVaultAnchor(vaultAnchorFile(context.dataDir))
-    }
-  }
+  const { keyring, anchor } = await resolveBrokerKeyring(
+    overrides,
+    () => installKeyringEntry({ linux: { store: 'secret-service' } }),
+    () => new FileVaultAnchor(vaultAnchorFile(context.dataDir)),
+  )
   const helper = vaultPeerExecutable(context.installRoot)
   const isHost = async (pid: number, hostId: string, hostSession?: string) => {
     const identity = await vaultProcessIdentity(helper, pid)
@@ -241,101 +385,16 @@ export async function createVaultBrokerBindings(
       (await isPosixVaultHost(context.runDirectory, identity, hostId, hostSession))
     )
   }
-  let repository: VaultStoreRepository | undefined
-  const auditPlatform = undefined
-  const scrub = async (text: string) => {
-    if (!repository) throw new Error(UI_TEXT.vaultScrubUnavailable)
-    const store = repository.current()
-    const values: Uint8Array[] = []
-    let scrubber: VaultScrubber | undefined
-    try {
-      const items = await store.list()
-      for (const metadata of items) {
-        const item = await store.read(metadata.id)
-        try {
-          for (const value of Object.values(item.material))
-            if (value instanceof Uint8Array) values.push(Uint8Array.from(value))
-        } finally {
-          eraseVaultMaterial(item.material)
-        }
-      }
-      scrubber = new VaultScrubber(values)
-      return scrubber.scrub(text)
-    } finally {
-      scrubber?.dispose()
-      for (const value of values) value.fill(0)
-    }
-  }
-  return {
+  return baseBrokerBindings(
+    context,
+    overrides,
     keyring,
-    ...(anchor && { anchor }),
-    ...(overrides.slots && { slots: overrides.slots }),
-    home: overrides.home ?? homedir(),
-    lockOnScreenLock: false,
-    identity: {
-      verifyHost: (peer) => isHost(peer.processId, peer.hostId),
-      verifyLaunched: async (peer, registration) =>
-        registration.requester.peerProcessId === peer.processId &&
-        registration.requester.hostId === peer.hostId &&
-        (await isHost(peer.processId, peer.hostId)),
-    },
-    identify: async (identity, hostId, hostSession) => {
-      if (
-        !(await isPosixVaultHost(context.runDirectory, identity, hostId, hostSession)) ||
-        !(await isHost(identity.processId, hostId, hostSession))
-      )
-        throw new Error(UI_TEXT.vault.noAccess)
-      return {
-        peer: { hostId, userId: identity.userId, processId: identity.processId, ui: true },
-        requester: null,
-        firstParty: true,
-        manage: true,
-      }
-    },
-    audit: (current) => {
-      repository = current
-      let log: { vaultId: string; value: VaultAuditLog } | undefined
-      const get = () => {
-        const vaultId = current.current().vaultId
-        if (log?.vaultId !== vaultId) {
-          log?.value.close()
-          log = { vaultId, value: auditLog(context, current, keyring, auditPlatform) }
-        }
-        return log.value
-      }
-      return {
-        openWriter: async (key) => await get().openWriter(key),
-        open: async (key) => {
-          await get().open(key)
-        },
-        append: async (record) => {
-          await get().append(record)
-        },
-        read: async () => await get().read(),
-        close: () => {
-          log?.value.close()
-          log = undefined
-        },
-      }
-    },
-    onAuditFailure: () => {
-      process.stderr.write('vault-audit-refused\n')
-    },
-    // T/X/S/O transport owners supply provenance and execution before agent use is enabled.
-    ceiling: () => 'none',
-    taint: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
-    lifetime: (_requester, socket) => ({
-      close: () => {
-        socket.destroy()
-      },
-      terminate: () => {
-        socket.destroy()
-        return Promise.resolve(false)
-      },
-    }),
-    perform: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
-    scrub,
-  }
+    anchor,
+    undefined,
+    (identity, hostId, hostSession) =>
+      isPosixVaultHost(context.runDirectory, identity, hostId, hostSession),
+    isHost,
+  )
 }
 
 /** Installed factory for Windows management and first-party reads. */
@@ -345,23 +404,17 @@ async function createWindowsVaultBrokerBindings(
   platform: WindowsBrokerPlatform | undefined,
 ): Promise<VaultBrokerBindings> {
   if (!platform) throw new Error(UI_TEXT.vault.noAccess)
-  let keyring = overrides.keyring
-  let anchor: VaultAnchorPort | undefined = overrides.anchor
-  if (keyring === undefined) {
-    try {
-      // Credential Manager, the Windows store D61 uses today.
-      const { AsyncEntry } = await import('@napi-rs/keyring')
-      keyring = (service, account) => new AsyncEntry(service, account)
-      anchor ??= new KeyringVaultAnchor(keyring)
-    } catch {
-      keyring = unavailableKeyring()
+  const { keyring, anchor } = await resolveBrokerKeyring(
+    overrides,
+    // Credential Manager, the Windows store D61 uses today.
+    () => installKeyringEntry(),
+    () =>
       // Modes set no DACL on Windows: the pipe-helper guard protects the
       // anchor directory and file after each write, like the vault files.
-      anchor ??= new FileVaultAnchor(vaultAnchorFile(context.dataDir), (file, kind) =>
+      new FileVaultAnchor(vaultAnchorFile(context.dataDir), (file, kind) =>
         platform.guard.protect(file, kind),
-      )
-    }
-  }
+      ),
+  )
   const isHost = async (pid: number, hostId: string, hostSession?: string) => {
     const identity = await platform.identify(pid)
     return (
@@ -370,103 +423,18 @@ async function createWindowsVaultBrokerBindings(
       (await platform.isHost(context.runDirectory, identity, hostId, hostSession))
     )
   }
-  let repository: VaultStoreRepository | undefined
-  const auditPlatform = {
-    files: platform.files,
-    withLock: <T>(work: () => Promise<T>): Promise<T> =>
-      platform.withAuditLock(context.dataDir, work),
-  }
-  const scrub = async (text: string) => {
-    if (!repository) throw new Error(UI_TEXT.vaultScrubUnavailable)
-    const store = repository.current()
-    const values: Uint8Array[] = []
-    let scrubber: VaultScrubber | undefined
-    try {
-      const items = await store.list()
-      for (const metadata of items) {
-        const item = await store.read(metadata.id)
-        try {
-          for (const value of Object.values(item.material))
-            if (value instanceof Uint8Array) values.push(Uint8Array.from(value))
-        } finally {
-          eraseVaultMaterial(item.material)
-        }
-      }
-      scrubber = new VaultScrubber(values)
-      return scrubber.scrub(text)
-    } finally {
-      scrubber?.dispose()
-      for (const value of values) value.fill(0)
-    }
-  }
-  return {
+  return baseBrokerBindings(
+    context,
+    overrides,
     keyring,
-    ...(anchor && { anchor }),
-    ...(overrides.slots && { slots: overrides.slots }),
-    home: overrides.home ?? homedir(),
-    lockOnScreenLock: false,
-    identity: {
-      verifyHost: (peer) => isHost(peer.processId, peer.hostId),
-      verifyLaunched: async (peer, registration) =>
-        registration.requester.peerProcessId === peer.processId &&
-        registration.requester.hostId === peer.hostId &&
-        (await isHost(peer.processId, peer.hostId)),
+    anchor,
+    {
+      files: platform.files,
+      withLock: <T>(work: () => Promise<T>): Promise<T> =>
+        platform.withAuditLock(context.dataDir, work),
     },
-    identify: async (identity, hostId, hostSession) => {
-      if (
-        !(await platform.isHost(context.runDirectory, identity, hostId, hostSession)) ||
-        !(await isHost(identity.processId, hostId, hostSession))
-      )
-        throw new Error(UI_TEXT.vault.noAccess)
-      return {
-        peer: { hostId, userId: identity.userId, processId: identity.processId, ui: true },
-        requester: null,
-        firstParty: true,
-        manage: true,
-      }
-    },
-    audit: (current) => {
-      repository = current
-      let log: { vaultId: string; value: VaultAuditLog } | undefined
-      const get = () => {
-        const vaultId = current.current().vaultId
-        if (log?.vaultId !== vaultId) {
-          log?.value.close()
-          log = { vaultId, value: auditLog(context, current, keyring, auditPlatform) }
-        }
-        return log.value
-      }
-      return {
-        openWriter: async (key) => await get().openWriter(key),
-        open: async (key) => {
-          await get().open(key)
-        },
-        append: async (record) => {
-          await get().append(record)
-        },
-        read: async () => await get().read(),
-        close: () => {
-          log?.value.close()
-          log = undefined
-        },
-      }
-    },
-    onAuditFailure: () => {
-      process.stderr.write('vault-audit-refused\n')
-    },
-    // T/X/S/O transport owners supply provenance and execution before agent use is enabled.
-    ceiling: () => 'none',
-    taint: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
-    lifetime: (_requester, socket) => ({
-      close: () => {
-        socket.destroy()
-      },
-      terminate: () => {
-        socket.destroy()
-        return Promise.resolve(false)
-      },
-    }),
-    perform: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
-    scrub,
-  }
+    (identity, hostId, hostSession) =>
+      platform.isHost(context.runDirectory, identity, hostId, hostSession),
+    isHost,
+  )
 }
