@@ -5014,6 +5014,10 @@ export const EN = {
   // provider nor the person sets one, so the provider governs.
   turnRetryingUncapped:
     'Attempt {attempt} failed ({reason}); retrying in {seconds} s (no retry limit set).',
+  // A 429 retry names the provider's own wait and when it ends, so a long
+  // provider wait never reads as a silent stall; Stop ends it at any time.
+  modelApiProviderRetryWait:
+    '{reason}; the provider asked to wait until {time}. You can stop the turn at any time.',
   // The subscription window's length (English writes the unit singular here).
   usageWindowHours: forms({ one: '{count}-hour window', other: '{count}-hour window' }),
   usageWindowMinutes: forms({ one: '{count}-minute window', other: '{count}-minute window' }),

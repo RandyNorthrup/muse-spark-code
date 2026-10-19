@@ -4078,6 +4078,7 @@
   "turnFailed": "O turno falhou.",
   "turnRetrying": "A tentativa {attempt}/{maxAttempts} falhou ({reason}); tentando novamente em {seconds} s.",
   "turnRetryingUncapped": "A tentativa {attempt} falhou ({reason}); tentando novamente em {seconds} s (sem limite de tentativas definido).",
+  "modelApiProviderRetryWait": "{reason}; o provedor pediu para aguardar até {time}. Você pode interromper a vez a qualquer momento.",
   "usageWindowHours": {
     "one": "janela de {count} hora",
     "other": "janela de {count} horas",

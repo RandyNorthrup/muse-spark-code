@@ -77,7 +77,6 @@ describe('unreadable providers file text', () => {
       providerId: 'openai',
       model: undefined,
       keyFromStdin: false,
-      baseFetch: fetch,
     })
     if (assembled.ok) throw new Error('expected a usage failure')
     expect(assembled.failure.kind).toBe('usage')

@@ -3904,6 +3904,7 @@
   "turnFailed": "ターンが失敗しました。",
   "turnRetrying": "試行 {attempt}/{maxAttempts} が失敗しました ({reason})。{seconds} 秒後に再試行します。",
   "turnRetryingUncapped": "試行 {attempt} が失敗しました ({reason})。{seconds} 秒後に再試行します（再試行の上限なし）。",
+  "modelApiProviderRetryWait": "{reason}；プロバイダーが{time}まで待機するよう求めています。ターンはいつでも停止できます。",
   "usageWindowHours": {
     "other": "{count} 時間枠"
   },

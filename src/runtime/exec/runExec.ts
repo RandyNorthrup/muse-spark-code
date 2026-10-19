@@ -597,7 +597,6 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         providerId,
         model: options.model,
         keyFromStdin: options.keyFromStdin,
-        baseFetch: deps.fetch,
       }),
     )
     if (!assembled.ok) {
