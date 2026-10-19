@@ -184,6 +184,7 @@ export const textKeys = [
   'referenceScanSecrets',
   'reportUsage',
   'reportCliUsage',
+  'playbookCommandUsage',
   'acpFontsUsage',
   'whatsNewOpen',
   'resourceGovernorDescription',
@@ -315,6 +316,7 @@ export const textKeys = [
   'max-budget-usd',
   'max-requests',
   'max-tool-output-bytes',
+  'max-output-tokens',
   'timeout',
   'fail-on-denial',
   'ephemeral',
@@ -350,13 +352,13 @@ export const textKeys = [
   'share-to',
   'share-out',
   'sharing-json',
+  'fast',
 ] as const
 
 const plainTextSchema = z.union([
   z.object({ fallbackKey: z.string(), fallback: z.string() }),
   z.object({
     cli: z.enum([
-      textKeys[264],
       textKeys[265],
       textKeys[266],
       textKeys[267],
@@ -401,8 +403,8 @@ const plainTextSchema = z.union([
       textKeys[306],
       textKeys[307],
       textKeys[308],
-      textKeys[232],
       textKeys[309],
+      textKeys[233],
       textKeys[310],
       textKeys[311],
       textKeys[312],
@@ -441,6 +443,9 @@ const plainTextSchema = z.union([
       textKeys[345],
       textKeys[346],
       textKeys[347],
+      textKeys[348],
+      textKeys[349],
+      textKeys[350],
     ]),
   }),
   z.object({
@@ -677,16 +682,16 @@ const plainTextSchema = z.union([
       textKeys[229],
       textKeys[230],
       textKeys[231],
+      textKeys[232],
     ]),
   }),
   z.object({
     tip: z.enum([
-      textKeys[232],
       textKeys[233],
       textKeys[234],
       textKeys[235],
-      textKeys[100],
       textKeys[236],
+      textKeys[100],
       textKeys[237],
       textKeys[238],
       textKeys[239],
@@ -714,6 +719,7 @@ const plainTextSchema = z.union([
       textKeys[261],
       textKeys[262],
       textKeys[263],
+      textKeys[264],
     ]),
   }),
   z.object({ setting: z.string() }),
@@ -805,6 +811,7 @@ const schema = z.object({
       usageKey: z.optional(z.enum(['acpUsage', 'reportUsage'])),
       usageLine: z.optional(z.number()),
       contract: z.optional(z.record(z.string(), z.unknown())),
+      invocations: z.optional(z.array(z.array(z.string()))),
     }),
   ),
   shortcuts: z.array(

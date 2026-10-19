@@ -53,9 +53,13 @@ export function statusForStop(cause: StopCause): ExecStatus {
     case 'requests': {
       return 'request_cap'
     }
+    case 'unpriced': {
+      return 'unpriced'
+    }
+    case 'request_shape': {
+      return 'failed'
+    }
     case 'budget':
-    case 'unpriced':
-    case 'request_shape':
     case 'breach': {
       return 'budget_exceeded'
     }

@@ -112,7 +112,9 @@ const JSON_INDENT = 2
 function json(text: string): unknown {
   try {
     return JSON.parse(text) as unknown
-  } catch {
+  } catch (error: unknown) {
+    // Unparseable text reads as it came: anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }

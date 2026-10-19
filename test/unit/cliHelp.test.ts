@@ -29,28 +29,25 @@ import { EN } from '../../src/shared/l10n/en'
 const COMMAND = 'muse-spark-code-acp'
 
 describe('per-command help', () => {
-  it('routes every command --help and help <command> to its own topic', () => {
-    expect(parseCommandLine(['exec', '--help'])).toEqual({ command: 'helpTopic', topic: 'exec' })
-    expect(parseCommandLine(['auth', '--help'])).toEqual({ command: 'helpTopic', topic: 'auth' })
+  it('routes every command --help to its own route and help <command> to its topic', () => {
+    expect(parseCommandLine(['exec', '--help'])).toEqual({ command: 'help', route: 'exec' })
+    expect(parseCommandLine(['auth', '--help'])).toEqual({ command: 'help', route: 'authStatus' })
     expect(parseCommandLine(['providers', '--help'])).toEqual({
-      command: 'helpTopic',
-      topic: 'providers',
+      command: 'help',
+      route: 'providersList',
     })
     expect(parseCommandLine(['auth', 'set', '--help'])).toEqual({
-      command: 'helpTopic',
-      topic: 'auth',
+      command: 'help',
+      route: 'authSet',
     })
-    expect(parseCommandLine(['login', '--help'])).toEqual({
-      command: 'helpTopic',
-      topic: 'login',
-    })
+    expect(parseCommandLine(['login', '--help'])).toEqual({ command: 'help', route: 'login' })
     expect(parseCommandLine(['playbook', '--help'])).toEqual({
-      command: 'helpTopic',
-      topic: 'playbook',
+      command: 'help',
+      route: 'playbook',
     })
     expect(parseCommandLine(['playbook', '-h'])).toEqual({
-      command: 'helpTopic',
-      topic: 'playbook',
+      command: 'help',
+      route: 'playbook',
     })
     for (const topic of CLI_HELP_TOPICS) {
       expect(parseCommandLine(['help', topic.name])).toEqual({
@@ -181,15 +178,15 @@ describe('wrong options and values', () => {
   })
 
   it('names the exec option a wrong value belongs to, never the budget sentence', () => {
-    for (const [argv, option] of [
-      [['exec', '--backend', 'auto', 'hi'], '--backend'],
-      [['exec', '--output', 'xml', 'hi'], '--output'],
-      [['exec', '--effort', 'turbo', 'hi'], '--effort'],
-      [['exec', '--timeout', '1', 'hi'], '--timeout'],
-      [['exec', '--max-requests', '0', 'hi'], '--max-requests'],
+    for (const [argv, fragment] of [
+      [['exec', '--backend', 'auto', 'hi'], 'Invalid value for --backend'],
+      [['exec', '--output', 'xml', 'hi'], 'Invalid value for --output'],
+      [['exec', '--effort', 'turbo', 'hi'], 'Invalid value for --effort'],
+      [['exec', '--timeout', '1', 'hi'], 'Invalid number or limit for --timeout'],
+      [['exec', '--max-requests', '0', 'hi'], 'Invalid number or limit for --max-requests'],
     ] as const) {
       const reason = refusalFor([...argv])
-      expect(reason, argv.join(' ')).toContain(`Invalid value for ${option}`)
+      expect(reason, argv.join(' ')).toContain(fragment)
       expect(reason, argv.join(' ')).not.toContain('six decimal')
     }
     expect(refusalFor(['exec', '--max-budget-usd', 'abc', 'hi'])).toContain('six decimal')

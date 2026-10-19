@@ -127,11 +127,17 @@
   "certaintyReported": "Segnalato",
   "certaintyComputed": "Calcolato",
   "certaintyUncertain": "Incerto",
+  "reservedLabel": "Riservato",
   "certaintyPlan": "Piano",
   "certaintyLocal": "In locale",
   "certaintyUnpriced": "Senza prezzo",
   "certaintyEstimated": "Stimato",
   "uncertainNote": "La richiesta è stata inviata senza ricevere l’utilizzo. Il costo resta dovuto.",
+  "unknownCalls": {
+    "one": "{count} richiesta con costo sconosciuto",
+    "many": "{count} richieste con costo sconosciuto",
+    "other": "{count} richieste con costo sconosciuto"
+  },
   "unpricedNote": "Nessun listino disponibile. Un costo sconosciuto non è zero.",
   "estimatedNote": "I conteggi dei token sono stime.",
   "localNote": "Modello locale: nessun addebito API.",

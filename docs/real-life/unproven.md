@@ -2849,3 +2849,115 @@ These tests drove real code but through stand-ins (`vi.fn` and mock return value
 - denial, changed preview and live admission loss each prevent publication
 - rechecks admission between patches and reports per-file failures
 - refuses evidence changes during ownership approval
+
+## Lane STANDINS (2026-10-17, branch chore/no-standins)
+
+The hand-written stand-ins the lint gate could not see. Full classification in `docs/certification/standins.md`; per-claim notes in the records named below. Rewritten-without-the-double cases (`teamPreview.test.ts` constant `select`, `teamResources.test.ts` production `systemClock`, `prompts.test.ts` inline arrays) keep their proofs and are not listed here.
+
+### test/e2e/schedulesStdio.e2e.test.ts (one case; the rest of the file stays)
+
+- a committed accepted id survives on stdout while a failing cleanup reports exit 3 without leaking private detail (record: `docs/certification/m115-x.md`)
+
+### test/packaging/moduleExports.test.mjs (four exercise branches; parity proof stays)
+
+- the reviewer's paid-call path through the packaged bundles
+- the session board read through the packaged bundles
+- the report-problem handler through the packaged bundles
+- foreign-hook adapter creation through the packaged bundles (record: `docs/certification/vsix-diet-2.md`)
+
+### test/unit/pluginDispatch.test.ts (two cases; real-children and refusal-path cases stay)
+
+- plugin hooks run under the host-wide cap
+- a grant is stripped from a plugin answer (record: `docs/certification/m91.md`)
+
+### test/unit/marketplaceHook.test.mjs (whole file)
+
+- the purchased-minus-cancelled counter in both badge formats
+- the non-negative floor on unreadable counts
+- the 404/405 answers (record: `docs/certification/badge017.md`)
+
+### test/unit/teamResources.test.ts (twelve time-driven cases; the rest of the file stays on the real clock)
+
+Restored on the real clock by RVSTANDINS: busy past the wait, idle
+release after the last terminal answer, replayed-completion isolation,
+command resources held past idleness, timer shutdown on close. Still
+unproven:
+
+- exact idle release boundaries
+- take-back admission timeout and pending-admission expiry
+- replay after replacement (record: `docs/certification/m96-b.md`)
+
+### test/unit/modelApiLegalScan.test.ts (the runner-driven block; definition and unoffered-tool cases stay)
+
+Restored through the real scanner by RVSTANDINS, then through the
+production `runLegalScan` entry by PR223FIX (Codex thread): validated-JSON
+answers with the installed disclaimer, whole-workspace scans, subset scope,
+header-policy forwarding, write/exec refusal before the scan runs,
+restricted-mode and stopped-turn pre-checks. Still
+unproven:
+
+- failure passthrough and invalid-result refusal (record: `docs/certification/m97-b.md`)
+
+### Composition note (no unit proof was ever real)
+
+- the team preview composes with lane A's real selection strategy (the deleted helper was a reduced reimplementation, not the strategy; record: `docs/certification/m96-f.md`)
+
+## Lane no-standins-2 (2026-10-17, branch chore/no-standins-2)
+
+The stand-ins PR #223 left. Per-item record: `docs/certification/no-standins.md`. Rewritten-to-real cases (evalTasks environment, the screen recorder's random-access sink cap, Amp plugin dispatch, the reporting harness) keep their proofs and are not listed here.
+
+### test/unit/windowsScreenRecorderNative.test.ts (four cases over hand-written WinRT operations)
+
+- Stop cancels and closes a pending selection, file, open or prepare operation before recording starts
+- Cancel stays atomic when a concurrent normal Stop finishes later
+- an operation registered after Cancel was latched is cancelled
+- a normal Stop finalizes encoding while a later Cancel cancels it
+
+### test/unit/helpers/vault/windowsVault*.cs (test-only Hello, KSP and DPAPI stand-ins; no test compiled them)
+
+- the native Windows vault guard capture: Hello signing projection, KSP named-key lifecycle, DPAPI current-user scope
+
+### test/unit/pluginDispatch.test.ts (one case over a scripted containment answer)
+
+- without containment, a plugin hook fails by its rule and says why in the user's language
+
+## Withdrawn on lane PR161FIX (2026-10-18)
+
+PR #161's own stand-in tests went the same way as the sweep above: they drove real code through hand-written ports (`connection()`, dispatch `{allowEndpoint, fetch}` literals, the `meta` catalogue double) that the owner's rule refuses. Each behaviour below waits for proof by real use of the packed product. (The merge with current main had already withdrawn `fileSessionStore`, `moneyDisplay`, `sessionBudget` and `companionMediaTransport`; their entries stand above.)
+
+### test/unit/accountReadFailures.test.ts
+
+- `account read failures > reads a host failure as unsigned-in, with the kind in words`
+- `account read failures > stays silent when the answer comes in another shape`
+- `account read failures > keeps a foreign failure past the boundary`
+
+### test/unit/subscriptionStreamFailures.test.ts
+
+- `subscription stream failures > keeps an unknown failure’s kind past the boundary`
+- `subscription stream failures > keeps a foreign failure past the boundary`
+- `subscription stream failures > still yields a lapsed sign-in as its words`
+- `subscription stream failures > still yields a Copilot failure as its message`
+
+### test/unit/mcpOAuthDenied.test.ts (two tests; the port-free denial test stays)
+
+- `mcp oauth denial > maps a dispatch failure onto the denial with its cause`
+- `mcp oauth denial > keeps a foreign dispatch failure past the boundary`
+
+## Withdrawn on lane PR161FIX3 (2026-10-18)
+
+The Codex review of PR #161 found the warn-once case below fed an invented keyring failure through a hand-written port. No real keyring or store exists in unit, so the case is deleted rather than repaired with another fake; its behaviour waits for proof by real use of the packed product (the lead's scenario in `docs/certification/catch-money.md`, PR161FIX3).
+
+### test/unit/credentialReadFailures.test.ts (one test; the rest of the file stays)
+
+- `credential read failures > warns once per owner while the store stays unreadable, re-armed by a healthy read`
+
+## Withdrawn on lane PR161W1 (2026-10-18)
+
+The Codex re-review of PR #161 found the remaining cases in the file below still fed invented keyring failures through a hand-written port. No real keyring or store exists in unit, so the whole file is deleted rather than repaired with another fake; the guarded-scan warn-once-per-kind behaviour waits for proof by real use of the packed product (the lead's scenario in `docs/certification/catch-money.md`, PR161W1: on Linux without a usable keyring, trigger repeated operational key reads and guarded scans and observe one warning per kind in the runtime log; restore the keyring for one healthy scan and observe the warnings re-arm).
+
+### test/unit/credentialReadFailures.test.ts (whole file)
+
+- `credential read failures > reads a store failure as no key, with the kind in words`
+- `credential read failures > reads a denied store as unreadable with its kind`
+- `credential read failures > stays silent when the store answers`
+- `credential read failures > scans past an unreadable provider entry instead of calling it absent`

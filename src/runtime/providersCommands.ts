@@ -7,9 +7,7 @@
 // secret are committed once the machine reaches `done`. Reported failures
 // compensate the secret change; crash/rollback limits are recorded in PLAN §9.
 
-import { lookup } from 'node:dns/promises'
 import { mkdir, readFile, rmdir } from 'node:fs/promises'
-import { isIP } from 'node:net'
 import * as z from 'zod/mini'
 import path from 'node:path'
 import {
@@ -46,8 +44,6 @@ import {
   HTTP_STATUS,
   PROVIDER_PROBE_MODEL_IDS_MAX,
   PROVIDER_PROBE_TIMEOUT_MS,
-  PROVIDERS_CONFIG_DIR_NAME,
-  PROVIDERS_FILE_NAME,
   UI_TEXT,
 } from '../shared/constants'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
@@ -62,42 +58,19 @@ import {
 import {
   isEndpointBindingCurrent,
   allowedProviderPaths,
+  isModelUnpriced,
+  parseCatalogPresence,
   pinProviderFetch,
   providerModelsPath,
   resolveProvider,
+  type CatalogPresence,
   type ResolvedProvider,
 } from './exec/providerExec'
 
 const EXIT_OK = 0
 const EXIT_FAILED = 1
 
-/** Where the runner's own user file lives (D74: beside, never inside, Muse Code's config folder). */
-export function providersFilePath(input: {
-  readonly platform: NodeJS.Platform
-  readonly homeDir: string
-  readonly xdgConfigHome: string | undefined
-}): string {
-  const base = path.join(
-    input.xdgConfigHome ?? path.join(input.homeDir, '.config'),
-    PROVIDERS_CONFIG_DIR_NAME,
-  )
-  // Windows joins with `\`; join keeps one dialect per platform, as the
-  // skill and memory roots do.
-  return path.join(base, PROVIDERS_FILE_NAME)
-}
-
-/** DNS answers for an endpoint name; an IP literal is its own answer. */
-export async function resolveEndpointHost(hostname: string): Promise<readonly string[]> {
-  if (isIP(hostname) !== 0) {
-    return [hostname]
-  }
-  try {
-    const answers = await lookup(hostname, { all: true })
-    return answers.map((answer) => answer.address)
-  } catch {
-    return []
-  }
-}
+export { providersFilePath, resolveEndpointHost } from './providerPaths'
 
 export interface ProvidersDeps {
   /** The runner's own user file (never a repository file). */
@@ -112,6 +85,11 @@ export interface ProvidersDeps {
   readonly readSecret: (prompt: string) => Promise<string>
   readonly print: (line: string) => void
   readonly printError: (line: string) => void
+  /**
+   * D4: the priced catalogue for runnable-model warnings. Absent (or
+   * unreadable) in tests: add/test/list skip the warnings, never fail.
+   */
+  readonly readCatalog?: () => Promise<unknown>
 }
 
 /** The default production file IO over the user's own providers file. */
@@ -164,7 +142,7 @@ export function failed(deps: ProvidersDeps, line: string): number {
 export async function commandFile(deps: ProvidersDeps): Promise<ProvidersFile | undefined> {
   const loaded = fileOrError(await deps.readUserFile())
   if ('reason' in loaded) {
-    failed(deps, fill(UI_TEXT.providerTestFailed, { reason: loaded.reason }))
+    failed(deps, fill(UI_TEXT.providerTestFailed, { detail: loaded.reason }))
     return
   }
   return loaded.file
@@ -281,6 +259,10 @@ export async function providersList(deps: ProvidersDeps): Promise<number> {
     const where = entry.address ?? fixedOriginOf(preset) ?? entry.preset
     const models = entry.models.length === 0 ? '—' : entry.models.join(', ')
     deps.print(`${entry.id} — ${preset?.label ?? entry.preset} — ${where} — ${models}`)
+    // D4: a listed model no run can reserve for says why here, not only at
+    // run time.
+    const warnings = await missingPriceWarnings(deps, entry)
+    for (const line of warnings) deps.print(line)
     // A listed model states its tool-calling limit here too (F83): the
     // same sentence the panel picker shows and the turn refusal repeats.
     if (preset === undefined || entry.auth === 'subscription') continue
@@ -296,6 +278,28 @@ export async function providersList(deps: ProvidersDeps): Promise<number> {
     }
   }
   return EXIT_OK
+}
+
+/**
+ * D4: one warning per configured model without a price card. An unreadable
+ * catalogue warns nothing; the run-time refusal stays the backstop.
+ */
+async function missingPriceWarnings(
+  deps: ProvidersDeps,
+  entry: ProviderEntry,
+): Promise<readonly string[]> {
+  if (deps.readCatalog === undefined) return []
+  let catalog: CatalogPresence | undefined
+  try {
+    catalog = parseCatalogPresence(await deps.readCatalog())
+  } catch {
+    catalog = undefined
+  }
+  return catalog === undefined
+    ? []
+    : entry.models
+        .filter((model) => isModelUnpriced(catalog, entry.preset, entry, model))
+        .map((model) => fill(UI_TEXT.providerModelNoPrice, { ref: `${entry.id}/${model}` }))
 }
 
 function fixedOriginOf(preset: ProviderPreset | undefined): string | undefined {
@@ -752,6 +756,8 @@ export async function providersAdd(
   if (file.providers.some((entry) => entry.id === id)) {
     return failed(deps, fill(UI_TEXT.providerAlreadyConfigured, { provider: id }))
   }
+  const invalidWizard = () =>
+    failed(deps, fill(UI_TEXT.providerCliConfigure, { preset: preset.id }))
   let state = applyWizardEvent(startWizard(), {
     type: 'select-preset',
     presetId: preset.id,
@@ -797,7 +803,7 @@ export async function providersAdd(
   const advance = (current: typeof state) => applyWizardEvent(current, { type: 'next' })
   state = advance(state)
   if (state.error !== undefined) {
-    return failed(deps, state.error)
+    return invalidWizard()
   }
   let key: string | undefined
   if (preset.auth === 'apiKey') {
@@ -827,15 +833,18 @@ export async function providersAdd(
     }
     state = applyWizardEvent(state, { type: 'submit-key' })
     if (state.error !== undefined) {
-      return failed(deps, state.error)
+      return invalidWizard()
     }
     state = advance(state)
     if (state.error !== undefined) {
-      return failed(deps, state.error)
+      return invalidWizard()
     }
   }
   if (preset.keyTest.kind === 'paid-token') {
-    return failed(deps, fill(UI_TEXT.providerPaidTest, { provider: preset.label }))
+    return failed(
+      deps,
+      `${fill(UI_TEXT.providerNoRequestPath, { provider: preset.label })} ${fill(UI_TEXT.providerCliConfigure, { preset: 'openai|anthropic|gemini|custom' })}`,
+    )
   }
   const resolved = await resolvedForAdd(
     deps,
@@ -858,7 +867,7 @@ export async function providersAdd(
     return failed(
       deps,
       probe.paid
-        ? fill(UI_TEXT.providerPaidTest, { provider: preset.label })
+        ? `${fill(UI_TEXT.providerNoRequestPath, { provider: preset.label })} ${fill(UI_TEXT.providerCliConfigure, { preset: 'openai|anthropic|gemini|custom' })}`
         : fill(UI_TEXT.providerTestFailed, { detail: probeReason(probe.reason) }),
     )
   }
@@ -868,8 +877,15 @@ export async function providersAdd(
   })
   state = advance(state)
   if (state.error !== undefined) {
-    return failed(deps, state.error)
+    return invalidWizard()
   }
+  if (options.models.length === 0)
+    return failed(
+      deps,
+      fill(UI_TEXT.providerCliModelsRequired, {
+        models: probe.modelIds?.join(', ') ?? `providers test ${id}`,
+      }),
+    )
   const models = options.models
     .map((model) => model.trim())
     .filter((model) => model !== '' && !/\s/.test(model))
@@ -888,11 +904,11 @@ export async function providersAdd(
   }
   state = applyWizardEvent(state, { type: 'set-models', models })
   if (state.error !== undefined) {
-    return failed(deps, state.error)
+    return invalidWizard()
   }
   state = advance(state)
   if (state.error !== undefined) {
-    return failed(deps, state.error)
+    return invalidWizard()
   }
   if (preset.id === 'openrouter') {
     state = applyWizardEvent(state, {
@@ -900,11 +916,11 @@ export async function providersAdd(
       privacy: options.privacy ?? 'zdr',
     })
     if (state.error !== undefined) {
-      return failed(deps, state.error)
+      return invalidWizard()
     }
     state = advance(state)
     if (state.error !== undefined) {
-      return failed(deps, state.error)
+      return invalidWizard()
     }
   }
   // The suggestions step has no terminal input: the default model is the
@@ -913,10 +929,7 @@ export async function providersAdd(
   state = applyWizardEvent(state, { type: 'confirm' })
   const blockers = wizardBlockers(state)
   if (state.step !== 'done' || blockers.length > 0) {
-    return failed(
-      deps,
-      state.error ?? fill(UI_TEXT.providerTestFailed, { detail: blockers[0] ?? 'confirm' }),
-    )
+    return invalidWizard()
   }
   const entry: ProviderEntry = {
     id,
@@ -962,6 +975,8 @@ export async function providersAdd(
     deps.print(fill(UI_TEXT.providerModelNoToolCalling, { model: `${id}/${nativeModel}` }))
   }
   deps.print(fill(UI_TEXT.providerAdded, { provider: id, origin: address.origin }))
+  const addedWarnings = await missingPriceWarnings(deps, entry)
+  for (const line of addedWarnings) deps.print(line)
   return EXIT_OK
 }
 
@@ -1065,7 +1080,7 @@ export async function providersTest(deps: ProvidersDeps, providerId: string): Pr
     return failed(
       deps,
       probe.paid
-        ? fill(UI_TEXT.providerPaidTest, { provider: provider.preset.label })
+        ? `${fill(UI_TEXT.providerNoRequestPath, { provider: provider.preset.label })} ${fill(UI_TEXT.providerCliConfigure, { preset: 'openai|anthropic|gemini|custom' })}`
         : fill(UI_TEXT.providerTestFailed, { detail: probeReason(probe.reason) }),
     )
   }
@@ -1074,6 +1089,9 @@ export async function providersTest(deps: ProvidersDeps, providerId: string): Pr
       ? UI_TEXT.providerTestOkKey
       : plural(UI_TEXT.providerTestOk, probe.modelCount),
   )
+  if (probe.modelIds !== undefined) deps.print(probe.modelIds.join(', '))
+  const testedWarnings = await missingPriceWarnings(deps, provider.entry)
+  for (const line of testedWarnings) deps.print(line)
   return EXIT_OK
 }
 

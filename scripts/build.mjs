@@ -233,6 +233,14 @@ const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
+// CIFIX161B: the sign-in gate and the three-valued credential read, loaded
+// the first time a credential, money or consent path needs them.
+const AUTH_ENTRY = 'src/host/auth/authEntry.ts'
+const AUTH_OUTFILE = 'dist/auth.js'
+// CIFIX161B: the paid gate, consent, usage and quote authority, loaded the
+// first time a paid path needs them.
+const PAID_ENTRY = 'src/host/paid/paidEntry.ts'
+const PAID_OUTFILE = 'dist/paid.js'
 const MODELS_SUBSCRIPTIONS_ENTRY = 'src/host/models/modelsSubscriptionsEntry.ts'
 const MODELS_SUBSCRIPTIONS_OUTFILE = 'dist/modelsSubscriptions.js'
 // ACTIVATIONROOM: the CLI-backed and workspace command flows, required on
@@ -750,6 +758,28 @@ const modelsPanelOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const authOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+  entryPoints: [AUTH_ENTRY],
+  outfile: AUTH_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const paidOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+  entryPoints: [PAID_ENTRY],
+  outfile: PAID_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
 const modelsSubscriptionsOptions = {
   ...common,
   plugins: [sharedUiText, sharedValidation, deferredCohort],
@@ -1385,6 +1415,8 @@ if (isWatch) {
     esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
+    esbuild.context(authOptions),
+    esbuild.context(paidOptions),
     esbuild.context(modelsSubscriptionsOptions),
     esbuild.context(commandsOptions),
     esbuild.context(usageServiceOptions),
@@ -1520,6 +1552,8 @@ if (isWatch) {
     mcpVault: recorded('mcpVault', mcpVaultOptions),
     museCodeReviewer: recorded('museCodeReviewer', museCodeReviewerOptions),
     modelsPanel: recorded('modelsPanel', modelsPanelOptions),
+    auth: recorded('auth', authOptions),
+    paid: recorded('paid', paidOptions),
     modelsSubscriptions: recorded('modelsSubscriptions', modelsSubscriptionsOptions),
     commands: recorded('commands', commandsOptions),
     usageService: recorded('usageService', usageServiceOptions),
@@ -1676,6 +1710,8 @@ if (isWatch) {
   reportSize(MODELS_PANEL_OUTFILE)
   reportSize(MODELS_SUBSCRIPTIONS_OUTFILE)
   reportSize(COMMANDS_OUTFILE)
+  reportSize(AUTH_OUTFILE)
+  reportSize(PAID_OUTFILE)
   reportSize('dist/usageService.js')
   reportSize('dist/usageCompanion.js')
   reportSize('dist/usagePanel.js')

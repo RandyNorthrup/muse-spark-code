@@ -87,9 +87,13 @@ export function AccountsSection({
       port.accept(next.data)
       setEditor(null)
       setRemovalId(null)
-    } catch {
+    } catch (error: unknown) {
+      // A failed change reads failed: only a non-error keeps its kind past
+      // the section. The failure reaches the host's record.
+      if (!(error instanceof Error)) throw error
       if (generation.current === owner.generation)
         setError({ value, message: UI_TEXT.actionFailed })
+      throw error
     } finally {
       // A stale completion releases only its own serialized slot, never a successor's.
       if (pending.current === owner) {

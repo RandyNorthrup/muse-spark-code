@@ -88,7 +88,6 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
               .get<number>('tabDailyBudgetUsd', TAB_NO_BUDGET_USD)
             // The setting is a JSON number; it reads as its exact decimal.
             // 0 is no budget: spend is still reported, but nothing is capped.
-            const hasBudget = Usd.from(capUsd).compare(Usd.from(TAB_NO_BUDGET_USD)) !== 0
             const resets = new Date()
             resets.setHours(0, 0, 0, 0)
             resets.setDate(resets.getDate() + 1)
@@ -98,9 +97,12 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
                 budget: {
                   id: 'tab-daily',
                   kind: 'tabDaily' as const,
-                  ...(hasBudget && { capUsd: Usd.from(capUsd).toAmount() }),
-                  spentUsd: total.totalUsd,
-                  stopped: hasBudget && Usd.from(total.totalUsd).compare(Usd.from(capUsd)) >= 0,
+                  // The setting is a JSON number; it reads as its exact decimal.
+                  capUsd: Usd.from(capUsd).toAmount(),
+                  spentUsd: Usd.from(total.totalUsd)
+                    .subtract(Usd.from(total.uncertainUsd ?? 0))
+                    .toAmount(),
+                  stopped: Usd.from(total.totalUsd).compare(Usd.from(capUsd)) >= 0,
                   resetsAt: resets.getTime(),
                   ...(total.uncertainUsd !== undefined && { uncertainUsd: total.uncertainUsd }),
                 },

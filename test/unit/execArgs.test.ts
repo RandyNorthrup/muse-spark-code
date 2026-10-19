@@ -9,6 +9,7 @@ import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { capRefusalReason } from '../../src/core/backends/modelapi/toolResultBound'
 import { PAID_PRICES_USD, UI_TEXT } from '../../src/shared/constants'
 import type { PaidUseRequest } from '../../src/shared/paid'
+import { fill } from '../../src/shared/l10n/text'
 
 describe('M80 args (A1–A10, F1)', () => {
   it('shares the automatic compaction opt-out between ACP and headless', () => {
@@ -272,6 +273,48 @@ describe('M80 args (A1–A10, F1)', () => {
     { 'untrusted-file': ['x', 1] },
   ])('A4–A7 refuse unsafe/conflicting/unknown options %j', (values) => {
     expect(parseExec(values, ['hi']).ok).toBe(false)
+  })
+  it('keeps the policy cap without the flag and refuses a value above it at parsing', () => {
+    const base = { backend: 'modelApi', 'max-budget-usd': '1' }
+    const plain = parseExec(base, ['hi'])
+    if (!plain.ok) throw new Error(plain.reason)
+    expect(plain.options.maxOutputTokens).toBeUndefined()
+    const lowered = parseExec({ ...base, 'max-output-tokens': '2000' }, ['hi'])
+    expect(lowered.ok && lowered.options.maxOutputTokens).toBe(2000)
+    expect(parseExec({ ...base, 'max-output-tokens': '32768' }, ['hi']).ok).toBe(true)
+    expect(parseExec({ ...base, 'max-output-tokens': '32769' }, ['hi'])).toEqual({
+      ok: false,
+      reason: fill(UI_TEXT.execOutputCapExceeded, { cap: '32768' }),
+    })
+    for (const bad of ['0', '1.5', 'many'])
+      expect(parseExec({ ...base, 'max-output-tokens': bad }, ['hi'])).toEqual({
+        ok: false,
+        reason: fill(UI_TEXT.execLimitInvalid, { flag: '--max-output-tokens' }),
+      })
+    // The parse floor stays 1: a provider that permits fewer than Meta's 16
+    // output tokens keeps 1 through 15 as valid caps, and the selected
+    // model's own minimum applies at admission and at the send.
+    for (const small of ['1', '15'])
+      expect(parseExec({ ...base, 'max-output-tokens': small }, ['hi'])).toMatchObject({
+        ok: true,
+        options: { maxOutputTokens: Number(small) },
+      })
+    expect(parseExec({ backend: 'museCode', 'max-output-tokens': '2000' }, ['hi'])).toEqual({
+      ok: false,
+      reason: UI_TEXT.execModelApiOnly,
+    })
+    expect(
+      parseCommandLine([
+        'exec',
+        '--backend',
+        'modelApi',
+        '--max-budget-usd',
+        '1',
+        '--max-output-tokens',
+        '2000',
+        'hi',
+      ]),
+    ).toMatchObject({ command: 'exec', options: { maxOutputTokens: 2000 } })
   })
   it('accepts full bounded Model API options and the two alternate prompt sources', () => {
     const values = {

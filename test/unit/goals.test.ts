@@ -314,3 +314,7 @@ describe('the goal loop on the Model API backend (M45)', () => {
     )
   })
 })
+
+it('shows no goal for unparseable details', () => {
+  expect(goalDetails('not json')).toBeUndefined()
+})

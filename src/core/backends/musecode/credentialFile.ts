@@ -113,7 +113,10 @@ export function credentialFileVerdict(
   let raw: unknown
   try {
     raw = JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    // Only malformed text reads unrecognized here; an unknown shape answers
+    // below. Anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return 'unrecognized'
   }
   const parsed = credentialFileSchema.safeParse(raw)

@@ -9,6 +9,7 @@ import {
   ESTIMATE_LABEL_MAX_CHARS,
   ESTIMATE_MAX_ITEMS,
 } from './constants'
+import { fill, UI_TEXT } from './l10n/text'
 
 const id = /* @__PURE__ */ z
   .string()
@@ -742,6 +743,49 @@ export interface EstimateProviderPort {
   create(size: ProviderSize, image: ProviderImage, cloudInit: string): Promise<ProvisionedServer>
   status(id: string): Promise<ProvisionedServer>
   delete(id: string): Promise<void>
+}
+
+/**
+ * The estimator's own worded refusal (D119): every `refuse()`, handoff wait
+ * and scheduling refusal words its failure as `estimateFailed` or
+ * `estimateWaiting` with an identifier detail (a fixed word, a handoff name
+ * or a schema-bounded `word:word` composite like `unschedulable:lane-1`).
+ * A guard matches only that shape in the installed language: anything else
+ * (a contract failure, a store error naming a path, a non-error) is not ours
+ * to repeat, so boundaries say their fixed sentence instead.
+ */
+const ESTIMATE_REFUSAL_MARK = '\u{0}estimate-detail\u{0}'
+const ESTIMATE_REFUSAL_DETAIL = /^[A-Za-z0-9_.:-]+$/
+
+function refusalDetailIn(message: string, template: string, slot: string): string | undefined {
+  const parts = fill(template, { [slot]: ESTIMATE_REFUSAL_MARK }).split(ESTIMATE_REFUSAL_MARK)
+  if (parts.length !== 2) return undefined
+  const pre = parts[0] ?? ''
+  const post = parts[1] ?? ''
+  if (!message.startsWith(pre) || !message.endsWith(post)) return undefined
+  const detail = message.slice(pre.length, message.length - post.length)
+  return detail.length > 0 && ESTIMATE_REFUSAL_DETAIL.test(detail) ? detail : undefined
+}
+
+/**
+ * Whether the failure is the estimator's own worded refusal, safe to repeat
+ * to the person. The catch-gate-visible form: `is`-named so the inventory
+ * reads it as the one handled case.
+ */
+export function isEstimateRefusal(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    (refusalDetailIn(error.message, UI_TEXT.estimateFailed, 'detail') !== undefined ||
+      refusalDetailIn(error.message, UI_TEXT.estimateWaiting, 'dependency') !== undefined)
+  )
+}
+
+/** The estimator's own refusal detail, for boundaries that say it in words. */
+export function estimateRefusalDetail(error: unknown): string | undefined {
+  return error instanceof Error
+    ? (refusalDetailIn(error.message, UI_TEXT.estimateFailed, 'detail') ??
+        refusalDetailIn(error.message, UI_TEXT.estimateWaiting, 'dependency'))
+    : undefined
 }
 
 /** Missing milestone bindings remain explicit injected ports. No fallback. */

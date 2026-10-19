@@ -6,7 +6,7 @@
 
 import { readdirSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
-import os from 'node:os'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 const REMOVE_RETRIES = 5
@@ -33,10 +33,23 @@ export function temporaryTracker() {
       await Promise.all(folders.splice(0).map((folder) => removeFolder(folder)))
     },
     make: async (prefix: string): Promise<string> => {
-      const folder = await mkdtemp(path.join(os.tmpdir(), prefix))
+      const folder = await mkdtemp(path.join(tmpdir(), prefix))
       folders.push(folder)
       return folder
     },
+  }
+}
+
+/** A test's temporary folder for one body: created, handed over, removed. */
+export async function usingTempDir<T>(
+  prefix: string,
+  work: (folder: string) => T | Promise<T>,
+): Promise<T> {
+  const folder = await mkdtemp(path.join(tmpdir(), prefix))
+  try {
+    return await work(folder)
+  } finally {
+    await removeFolder(folder)
   }
 }
 

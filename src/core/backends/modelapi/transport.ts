@@ -1,7 +1,7 @@
+import { UserRefusalError } from '../../refusal'
 import { notify } from '../../events/notify'
 import type { PaidAuthority } from '../../paid/paidAuthority'
 import type { PaidQuote, SearchSettlement } from '../../../shared/paid'
-import { Usd, type UsdAmount } from '../../../shared/usd'
 import {
   ModelApiPacing,
   metaPacingLimits,
@@ -13,6 +13,7 @@ import {
   MODEL_API_BASE_URL,
   HTTP_TOO_MANY_REQUESTS,
   HTTP_STATUS,
+  NON_BILLABLE_HTTP_REJECTIONS,
   PROVIDER_RETRY_HTTP_STATUS,
   MODEL_API_RETRY_BASE_MS,
   MODEL_API_RETRY_JITTER_MS,
@@ -27,11 +28,7 @@ import {
 // M95-T: the existing retry/admission loop, shared by Meta and injected codecs.
 import { createHash } from 'node:crypto'
 
-interface PaidRequestClaim {
-  readonly reservedUsd: UsdAmount
-  check(capUsd: UsdAmount): void
-  settle(actualCostUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
-}
+import type { SpendClaim } from '../../paid/spendClaim'
 import type { MediaRequestAccounting } from '../../media/mediaCost'
 import { fill } from '../../../shared/l10n/text'
 import {
@@ -294,6 +291,22 @@ export function redactModelApiError(
   return out
 }
 
+/**
+ * Local refusals keep their own sentence; the classifier rides the lazy
+ * provider bundle, keeping this bundle on its pin. Everything else leaves
+ * redacted, at the response's status.
+ */
+export async function rethrowStreamError(
+  error: unknown,
+  redact: (text: string) => string,
+  status: number,
+): Promise<never> {
+  const { isUserRefusal } = await import('../../refusal')
+  if (isUserRefusal(error) && !isModelApiError(error) && redact(error.message) === error.message)
+    throw error
+  throw redactModelApiError(error, redact, status)
+}
+
 /** Thrown when the key is absent: the caller decides how to prompt. */
 export class MissingApiKeyError extends Error {
   public constructor() {
@@ -487,10 +500,11 @@ export interface ConfirmedModelRequest {
  * keep the schedule guidance, model-hook runs name the hook call.
  */
 export function staleConfirmedError(confirmed: ConfirmedModelRequest): Error {
-  return new Error(
+  return new UserRefusalError(
     confirmed.runKind === 'hookModel'
       ? UI_TEXT.requestStaleHookModel
       : UI_TEXT.scheduleConfirmationExpired,
+    'confirmation_stale',
   )
 }
 
@@ -582,6 +596,13 @@ export interface ResponseAttemptGuard {
   /** After every final fence and request build, adjacent to the actual fetch call. */
   readonly onRequestStarted?: () => void
   readonly observe?: (observation: ResponseObservation) => void
+  /**
+   * The provider refused this attempt before generating anything (a status
+   * in `NON_BILLABLE_HTTP_REJECTIONS`), told before the error is thrown, so a
+   * caller still knows nothing was billed when a wrapper rethrows the error
+   * without its status (D121).
+   */
+  readonly onRefused?: (status: number) => void
 }
 
 function isAborted(signal: AbortSignal | undefined): boolean {
@@ -881,7 +902,7 @@ export class RequestTransport {
       readonly estimatedTokens?: number
       readonly accept: string
       readonly paid?: {
-        readonly claim: PaidRequestClaim
+        readonly claim: SpendClaim
         readonly run?: UnattendedRun | undefined
         isSent: boolean
       }
@@ -1076,7 +1097,7 @@ export class RequestTransport {
       readonly headers?: Readonly<Record<string, string>>
       readonly retries?: 'all' | 'rateLimitOnly'
       readonly paid?: {
-        readonly claim: PaidRequestClaim
+        readonly claim: SpendClaim
         readonly run?: UnattendedRun | undefined
         isSent: boolean
       }
@@ -1172,6 +1193,11 @@ export class RequestTransport {
           (confirmed.origin !== undefined && confirmed.origin !== new URL(url).origin) ||
           !confirmed.isStillAllowed())
       ) {
+        // P3-2: a changed key is a rotation, not a changed mind; only a
+        // moved origin or a withdrawn confirmation keeps the run's own guidance.
+        assertConfirmedAllowed(init.modelId ?? '', confirmed)
+        if (credentials.keyDigest !== confirmed.keyDigest)
+          throw new UserRefusalError(UI_TEXT.execKeyRotated, 'key_rotated')
         throw staleConfirmedError(confirmed)
       }
       // A scheduled fire's authority is live: checked before pacing and again
@@ -1184,7 +1210,7 @@ export class RequestTransport {
           (run !== init.paid?.run && (run !== undefined || init.paid?.run !== undefined)) ||
           (run !== undefined && (!run.isActive() || credentials.keyDigest !== run.paid?.accountId))
         )
-          throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+          throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
       }
       assertScheduleAuthority()
       const account = `${provider.identity.provider}:${this.deps.baseUrl}:${credentials.keyDigest}`
@@ -1221,16 +1247,16 @@ export class RequestTransport {
       admitAttempt?.check?.()
       if (init.paid !== undefined) {
         if (init.paid.isSent) {
-          throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+          throw new UserRefusalError(UI_TEXT.sessionBudgetRetryUnavailable, 'retry_unbounded')
         }
-        init.paid.claim.check(Usd.from(0).toAmount())
+        init.paid.claim.check()
       }
       if (
         admitAttempt?.searchQuote !== undefined &&
         this.deps.paidAuthority !== undefined &&
         !this.deps.paidAuthority.canSpend(admitAttempt.searchQuote)
       )
-        throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
       admitAttempt?.mediaAccounting?.check()
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
@@ -1287,6 +1313,24 @@ export class RequestTransport {
       try {
         response = await this.fetchWithIdleDeadline(url, requestInit)
       } catch (error: unknown) {
+        if (
+          error instanceof Error &&
+          error.name === 'UserRefusalError' &&
+          'code' in error &&
+          error.code === 'not_sent'
+        ) {
+          if (init.paid !== undefined) {
+            init.paid.isSent = false
+          }
+          admitAttempt?.mediaAccounting?.refused()
+          throw error
+        }
+        // P2-3/D1: a dispatch-time paid stop (a daily limit's check runs
+        // inside the pinned fetch) is never a send failure: no log line, no
+        // retry, and never a network-failure replacement. The classifier
+        // rides the lazy provider bundle, keeping this bundle on its pin.
+        const { isUserRefusal } = await import('../../refusal')
+        if (isUserRefusal(error) && !isModelApiError(error)) throw error
         if (isModelApiError(error) || signal?.aborted === true) {
           throw isModelApiError(error)
             ? redactModelApiError(error, credentials.redact, NETWORK_FAILURE_STATUS)
@@ -1371,12 +1415,11 @@ export class RequestTransport {
         credentials.redact,
         this.deps.now(),
       )
-      if (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
+      if (NON_BILLABLE_HTTP_REJECTIONS.has(response.status)) {
         admitAttempt?.mediaAccounting?.refused()
-      if (
-        init.paid !== undefined &&
-        (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
-      ) {
+        admitAttempt?.onRefused?.(response.status)
+      }
+      if (init.paid !== undefined && NON_BILLABLE_HTTP_REJECTIONS.has(response.status)) {
         init.paid.isSent = false
       }
       // The wait the provider named, in whichever form it used, is waited

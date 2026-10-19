@@ -12,6 +12,7 @@ import {
   recordPlanUsage,
 } from '../backend/providersEntry'
 import {
+  ChatGptSignInError,
   createSubscriptionClient,
   chatGptModels,
   chatGptAccountId,
@@ -191,10 +192,16 @@ export function createSubscriptionFeatures(options: {
       const services = await configured(subscribed)
       return services.client
     },
-    connectChatGpt: async () => {
+    /**
+     * Connect ChatGPT. A saved registration is reused; `isNewAccount` registers
+     * a different account instead, and like a terminal `add` it never
+     * replaces a grant that is still stored.
+     */
+    connectChatGpt: async (isNewAccount = false) => {
       const core = await chatgpt()
       const isNew = (await options.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
-      if (isNew) await core.signIn()
+      if (!isNew && isNewAccount) throw new ChatGptSignInError('already-added')
+      if (isNew) await core.signIn({ isNewAccount })
       try {
         await save('chatgpt', await chatGptModels(core, fetcher))
       } catch (error) {

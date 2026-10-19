@@ -56,6 +56,10 @@ interface Node {
 }
 
 /** Every known encoding, including the fixed interior of all base64 alignments. */
+/** Wipe secret-derived patterns before a failure leaves the scrubber. */
+function wipePatterns(patterns: readonly Buffer[]): void {
+  for (const pattern of patterns) pattern.fill(0)
+}
 function forms(value: Uint8Array): Buffer[] {
   const raw = Buffer.alloc(value.length)
   const patterns: Buffer[] = []
@@ -117,7 +121,7 @@ function forms(value: Uint8Array): Buffer[] {
     }
     return patterns
   } catch (error: unknown) {
-    for (const pattern of patterns) pattern.fill(0)
+    wipePatterns(patterns)
     throw error
   } finally {
     raw.fill(0)

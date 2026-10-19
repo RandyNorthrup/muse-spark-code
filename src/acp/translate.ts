@@ -121,7 +121,9 @@ function parseArguments(raw: string | undefined): Arguments | undefined {
     return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
       ? (parsed as Arguments)
       : undefined
-  } catch {
+  } catch (error: unknown) {
+    // Only malformed JSON shows as text: anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
@@ -647,8 +649,10 @@ function linkText(uri: string, cwd: string): string {
   let absolute: string
   try {
     absolute = fileURLToPath(uri)
-  } catch {
-    // A `file:` URI this platform cannot map to a path (another host's share).
+  } catch (error: unknown) {
+    // A `file:` URI this platform cannot map to a path (another host's
+    // share) stays a URI: anything else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     return uri
   }
   const relative = path.relative(cwd, absolute)
@@ -771,7 +775,10 @@ async function blockPart(
 export function resourceName(uri: string): string {
   try {
     return path.posix.basename(decodeURIComponent(new URL(uri).pathname).replaceAll('\\', '/'))
-  } catch {
+  } catch (error: unknown) {
+    // Only a malformed URL or escape keeps the raw name: anything else keeps
+    // its kind.
+    if (!(error instanceof TypeError) && !(error instanceof URIError)) throw error
     return path.posix.basename(uri.replaceAll('\\', '/'))
   }
 }

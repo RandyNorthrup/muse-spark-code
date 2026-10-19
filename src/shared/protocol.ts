@@ -315,8 +315,12 @@ const modelOptionSchema = z.object({
   /** Why this model cannot run the coding agent; the picker shows it (F83). */
   agentLimit: z.optional(stringSchema),
   effortLevels: z.optional(z.array(z.enum(EFFORT_LEVELS))),
-  /** Muse Code's default tier for this model (META-G05). */
+  /** The level a new session selects unless the person chose one. */
   defaultEffort: z.optional(z.enum(EFFORT_LEVELS)),
+  /** The provider's priority tier where the model lists one. */
+  fastTier: z.optional(
+    z.object({ id: stringSchema, name: stringSchema, description: stringSchema }),
+  ),
 })
 export type ModelOption = z.infer<typeof modelOptionSchema>
 
@@ -362,6 +366,7 @@ const composerStateSchema = z.object({
   type: z.literal('composerState'),
   effort: z.enum(EFFORT_LEVELS),
   isThinkingEnabled: booleanSchema,
+  isFastEnabled: booleanSchema,
   permissionMode: z.enum(PERMISSION_MODES),
 })
 
@@ -526,6 +531,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('setModel'), modelId: stringSchema }),
   z.object({ type: z.literal('setEffort'), effort: z.enum(EFFORT_LEVELS) }),
   z.object({ type: z.literal('setThinking'), enabled: booleanSchema }),
+  z.object({ type: z.literal('setFast'), enabled: booleanSchema }),
   z.object({ type: z.literal('setPermissionMode'), mode: z.enum(PERMISSION_MODES) }),
   // "/clear": forget this surface's session; the next send starts a new one.
   z.object({ type: z.literal('clearConversation'), attachmentEpoch: z.optional(numberSchema) }),

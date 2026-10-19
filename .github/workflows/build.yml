@@ -66,7 +66,7 @@ jobs:
           - name: unit lint
             gates: 'lint:js:unit'
           - name: build
-            gates: 'typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap deadcode cycles duplication build security:audit'
+            gates: 'typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap check:catches deadcode cycles duplication build security:audit'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

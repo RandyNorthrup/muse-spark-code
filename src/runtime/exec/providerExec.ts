@@ -15,6 +15,7 @@
 // (`docs/certification/m95-research.md` §1); a preset without either has no
 // request path and refuses to run until its capture is recorded (rule 13).
 
+import * as z from 'zod/mini'
 import type { CredentialRecord } from '../../core/providers/credentialRecord'
 const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl, originOf, verifyRequestAnswers } = endpointPolicy
@@ -27,6 +28,8 @@ import type {
   ProvidersFile,
 } from '../../core/providers/providersFile'
 const { readProvidersFile } = providersFile
+import { UserRefusalError } from '../../core/refusal'
+import { unlessAborted } from '../../core/timeouts'
 import {
   credentialRecord,
   endpointPolicy,
@@ -169,6 +172,48 @@ export function isPathAllowed(rule: ProviderPathRule, url: URL): boolean {
 
 export type ProviderResolveError =
   'unknown-provider' | 'unknown-preset' | 'bad-address' | 'endpoint-refused' | 'no-request-path'
+
+const catalogPresenceSchema = z.object({
+  providers: z.record(z.string(), z.object({ models: z.record(z.string(), z.unknown()) })),
+  unpriced: z.optional(z.record(z.string(), z.record(z.string(), z.unknown()))),
+})
+
+/** D4: the catalogue presence the CLI warnings read (a subset of the priced catalogue). */
+export type CatalogPresence = z.infer<typeof catalogPresenceSchema>
+
+/** D4: the CLI's presence read of the priced catalogue; undefined never blocks add/test/list. */
+export function parseCatalogPresence(value: unknown): CatalogPresence | undefined {
+  const parsed = catalogPresenceSchema.safeParse(value)
+  return parsed.success ? parsed.data : undefined
+}
+
+/**
+ * D4: whether a configured model has no price card anywhere. Mirrors the
+ * pricing half of `core/providers/configured.ts`, which stays the pricing
+ * source of truth; this copy only warns at add/test/list time, never
+ * refuses. An `unpriced` catalogue entry is capability evidence, not price
+ * evidence — configured resolution still leaves that model unpriced and an
+ * exec run refuses it — so only a priced catalogue record or a user-entered
+ * price suppresses the warning. A plan-key preset never warns: configured
+ * resolution assigns its models `{ kind: 'plan' }`, so the run is not
+ * refused as unpriced.
+ */
+export function isModelUnpriced(
+  catalog: CatalogPresence,
+  presetId: string,
+  entry: Pick<ProviderEntry, 'auth' | 'prices'>,
+  nativeModel: string,
+): boolean {
+  if (presets.planKeyPresetById(presetId) !== undefined) return false
+  const base = presetId.replace('-plan', '')
+  const isPriced = catalog.providers[base]?.models[nativeModel] !== undefined
+  return (
+    !isPriced &&
+    presetId !== 'custom' &&
+    entry.auth !== 'none' &&
+    entry.prices?.[nativeModel] === undefined
+  )
+}
 
 export interface ResolvedProvider {
   readonly entry: ProviderEntry
@@ -328,6 +373,7 @@ export function pinProviderFetch(
   provider: ResolvedProvider,
   rules: readonly ProviderPathRule[],
   resolveHost: (hostname: string) => Promise<readonly string[]>,
+  onDispatch?: () => void,
 ): typeof globalThis.fetch {
   const pinned = originOf(provider.origin)
   const isLoopback = provider.network === 'local'
@@ -342,42 +388,67 @@ export function pinProviderFetch(
   }
   return async (url, init) => {
     if (typeof url !== 'string') {
-      throw new TypeError('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     let parsed: URL
     try {
       parsed = new URL(url)
     } catch {
-      throw new Error('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     if (parsed.username !== '' || parsed.password !== '') {
-      throw new Error('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     const origin = bareOriginOf(parsed)
     if (origin === undefined || origin !== pinned) {
-      throw new Error('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     if (parsed.protocol !== 'https:' && !(isLoopback && parsed.protocol === 'http:')) {
-      throw new Error('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     if (parsed.hash !== '') {
-      throw new Error('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     const requestRule = provider.request?.rule
     if (requestRule !== undefined && isPathAllowed(requestRule, parsed)) {
       // The family rule already bounds the query to the codec's own; an
       // exact request path carries none.
       if (requestRule.kind === 'exact' && parsed.search !== '') {
-        throw new Error('refused')
+        throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
       }
     } else if (rules.every((rule) => !(rule.kind === 'exact' && rule.path === parsed.pathname))) {
       // List and key-test paths may carry the provider's own query
       // (`limit`, `zdr`, `supported_parameters`); nothing else passes.
-      throw new Error('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
-    const answers = await resolveHost(parsed.hostname)
-    if (!isEndpointBindingCurrent(provider, answers)) throw new Error('rebinding')
-    return await fetch(url, { ...init, redirect: 'error' })
+    let answers: readonly string[]
+    try {
+      answers =
+        (await unlessAborted(
+          resolveHost(parsed.hostname),
+          init?.signal ?? new AbortController().signal,
+        )) ?? []
+      if (init?.signal?.aborted === true) init.signal.throwIfAborted()
+    } catch {
+      throw new UserRefusalError(UI_TEXT.providerProbeUnreachable, 'not_sent')
+    }
+    if (!isEndpointBindingCurrent(provider, answers))
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
+    init?.signal?.throwIfAborted()
+    onDispatch?.()
+    try {
+      return await fetch(url, { ...init, redirect: 'error' })
+    } catch (error: unknown) {
+      const cause = error instanceof Error ? error.cause : undefined
+      if (
+        typeof cause === 'object' &&
+        cause !== null &&
+        'code' in cause &&
+        cause.code === 'ECONNREFUSED'
+      )
+        throw new UserRefusalError(UI_TEXT.providerProbeUnreachable, 'not_sent', error)
+      throw error
+    }
   }
 }
 
@@ -395,6 +466,8 @@ export interface AssembledProviderRun {
   readonly literals: readonly string[]
   /** The memory secrets, for the runner's cleanup. */
   readonly memory: MemorySecretStore | undefined
+  /** One headless run owns its synchronous final dispatch fence. */
+  readonly dispatch?: { onRequestStarted?: () => void }
 }
 
 export interface ProviderRunInput {
@@ -465,20 +538,36 @@ export async function assembleProviderRun(input: ProviderRunInput): Promise<
   const { provider } = resolved
   const fallback = read.file.defaultModel
   const model = (fallback?.startsWith(`${provider.entry.id}/`) ?? false) ? fallback : undefined
-  const modelRef = input.model ?? model
-  if (modelRef === undefined) {
+  const requested = input.model ?? model
+  if (requested === undefined) {
     // A default that names another provider is the file's choice, not this
     // run's model; only a run with no model anywhere needs --model spelled out.
     return usage(
-      fallback === undefined ? UI_TEXT.execProviderModelRequired : UI_TEXT.execUnknownModel,
+      `${UI_TEXT.execProviderModelRequired}: ${provider.entry.models.map((id) => `${provider.entry.id}/${id}`).join(', ')}`,
     )
   }
+  const matches = provider.entry.models.filter(
+    (id) => requested === id || requested === `${provider.entry.id}/${id}`,
+  )
+  if (matches.length > 1) return usage(UI_TEXT.execUnknownModel)
+  // D4: a model that is not on this provider names what is, instead of the
+  // generic sentence (which stays for a truly ambiguous id).
+  if (matches.length === 0)
+    return usage(
+      fill(UI_TEXT.execModelNotOnProvider, {
+        model: requested,
+        provider: provider.entry.id,
+        available: provider.entry.models.map((id) => `${provider.entry.id}/${id}`).join(', '),
+      }),
+    )
+  const modelRef = `${provider.entry.id}/${matches[0] ?? ''}`
   const parsedRef = parseModelRef(modelRef)
   if (parsedRef?.providerId !== provider.entry.id) {
     return usage(UI_TEXT.execUnknownModel)
   }
   let key: string | undefined
-  let memory: MemorySecretStore | undefined
+  let memory: MemorySecretStore | undefined =
+    provider.preset.auth === 'none' ? memorySecretStoreFor({}) : undefined
   let notice: string | undefined
   if (provider.preset.auth === 'apiKey') {
     const account = providerSecretAccount(provider.entry.id)
@@ -536,9 +625,11 @@ export async function assembleProviderRun(input: ProviderRunInput): Promise<
   if (!isEndpointBindingCurrent(provider, answers)) {
     return usage(fill(UI_TEXT.providerEndpointRefused, { reason: UI_TEXT.providerProbeRebinding }))
   }
+  const dispatch: { onRequestStarted?: () => void } = {}
   return {
     ok: true,
     run: {
+      dispatch,
       resolveHost: input.resolveHost,
       provider,
       modelRef,
@@ -547,6 +638,7 @@ export async function assembleProviderRun(input: ProviderRunInput): Promise<
         provider,
         allowedProviderPaths(provider),
         input.resolveHost,
+        () => dispatch.onRequestStarted?.(),
       ),
       secrets: memory ?? input.secrets,
       literals: key === undefined ? [] : [key],

@@ -77,6 +77,116 @@ const recordingBoundary = {
   },
 }
 
+// No stand-ins: assigning the module loader's `_load` or `_resolveFilename`
+// intercepts resolution. The binding's local spelling is whatever the test
+// chose (`Module`, `Loader`, ...), so this rule tracks the binding imported
+// from `node:module` instead of matching one name.
+const isModuleSource = (value) => value === 'node:module' || value === 'module'
+const loaderTrapName = (member) => {
+  if (member.computed) {
+    return member.property.type === 'Literal' ? member.property.value : undefined
+  }
+  return member.property.type === 'Identifier' ? member.property.name : undefined
+}
+const loaderRequireSource = (node) =>
+  node.callee.type === 'Identifier' &&
+  node.callee.name === 'require' &&
+  node.arguments.length > 0 &&
+  node.arguments[0].type === 'Literal' &&
+  isModuleSource(node.arguments[0].value)
+    ? node
+    : undefined
+const loaderInterception = {
+  rules: {
+    'no-loader-interception': {
+      meta: {
+        type: 'problem',
+        schema: [],
+        messages: {
+          intercept:
+            'Intercepting the module loader is a stand-in. Test the real code (AGENTS.md: no fakes in tests).',
+        },
+      },
+      create(context) {
+        // The bare `Module` spelling stays flagged even without an import,
+        // so the earlier gate loses nothing; every spelling imported from
+        // `node:module` joins it.
+        const moduleObjects = new Set(['Module'])
+        const namespaces = new Set()
+        const report = (node) => context.report({ node, messageId: 'intercept' })
+        return {
+          ImportDeclaration(node) {
+            if (typeof node.source.value !== 'string' || !isModuleSource(node.source.value)) {
+              return
+            }
+            for (const specifier of node.specifiers) {
+              if (specifier.type === 'ImportNamespaceSpecifier') {
+                namespaces.add(specifier.local.name)
+              } else if (
+                specifier.type === 'ImportDefaultSpecifier' ||
+                (specifier.type === 'ImportSpecifier' && specifier.imported.name === 'Module')
+              ) {
+                moduleObjects.add(specifier.local.name)
+              }
+            }
+          },
+          TSImportEqualsDeclaration(node) {
+            if (
+              node.moduleReference.type === 'TSExternalModuleReference' &&
+              node.moduleReference.expression.type === 'Literal' &&
+              isModuleSource(node.moduleReference.expression.value)
+            ) {
+              moduleObjects.add(node.id.name)
+            }
+          },
+          VariableDeclarator(node) {
+            const matched =
+              node.init?.type === 'CallExpression' ? loaderRequireSource(node.init) : undefined
+            if (matched === undefined) {
+              return
+            }
+            if (node.id.type === 'Identifier') {
+              moduleObjects.add(node.id.name)
+            } else if (node.id.type === 'ObjectPattern') {
+              for (const property of node.id.properties) {
+                if (
+                  property.type === 'Property' &&
+                  property.key.type === 'Identifier' &&
+                  property.key.name === 'Module' &&
+                  property.value.type === 'Identifier'
+                ) {
+                  moduleObjects.add(property.value.name)
+                }
+              }
+            }
+          },
+          AssignmentExpression(node) {
+            if (node.left.type !== 'MemberExpression') {
+              return
+            }
+            const name = loaderTrapName(node.left)
+            if (name !== '_load' && name !== '_resolveFilename') {
+              return
+            }
+            const object = node.left.object
+            const isTracked = object.type === 'Identifier' && moduleObjects.has(object.name)
+            const isNamespaced =
+              object.type === 'MemberExpression' &&
+              !object.computed &&
+              object.property.type === 'Identifier' &&
+              object.property.name === 'Module' &&
+              object.object.type === 'Identifier' &&
+              namespaces.has(object.object.name)
+            if (isTracked || isNamespaced) {
+              report(node)
+            }
+          },
+        }
+      },
+    },
+  },
+}
+
 export default tseslint.config(
   js.configs.recommended,
 
@@ -272,8 +382,10 @@ export default tseslint.config(
 
   {
     // Test files: assertions and non-null access are idiomatic there, and the
-    // expected values in an assertion *are* the meaning.
-    files: ['test/**/*.{ts,tsx}'],
+    // expected values in an assertion *are* the meaning. Plain-JS tests
+    // (.mjs) are covered too: the marketplace-hook KV double lived in one.
+    files: ['test/**/*.{ts,tsx,mjs}'],
+    plugins: { loader: loaderInterception },
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
@@ -292,6 +404,7 @@ export default tseslint.config(
       // more fakes at all everything needs to be tested meaningfully or in
       // actual use cases"). Tests drive real code; outside-world input is only
       // a recorded real exchange with its capture date.
+      'loader/no-loader-interception': 'error',
       'no-restricted-properties': [
         'error',
         ...[
@@ -317,6 +430,16 @@ export default tseslint.config(
           message:
             'A mock function is a stand-in. Test the real code (AGENTS.md: no fakes in tests).',
         },
+        {
+          // No exemption: a Proxy that answers property reads is a
+          // module-surface stand-in everywhere it appears.
+          selector: "NewExpression[callee.name='Proxy']",
+          message:
+            'A Proxy that answers property reads is a module-surface stand-in. Test the real code (AGENTS.md: no fakes in tests).',
+        },
+        // Loader interception is tracked by name, not spelling:
+        // loader/no-loader-interception follows the binding imported from
+        // `node:module` (an alias included), in both property spellings.
       ],
       'no-restricted-imports': [
         'error',

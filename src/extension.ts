@@ -1,3 +1,4 @@
+import { SpendLedgerError } from './core/paid/spendLedgerError'
 import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
 import { notify } from './core/events/notify'
 import {
@@ -56,6 +57,8 @@ import {
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   JUDGE_BUNDLE_FILE,
+  AUTH_BUNDLE_FILE,
+  PAID_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
   EXTENSION_HOOKS_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
@@ -102,7 +105,6 @@ import {
   WORKSPACE_STATE_KEYS,
   TAB_CONTEXT_FILES,
 } from './shared/constants'
-import { PaidAuthority } from './core/paid/paidAuthority'
 import { Usd } from './shared/usd'
 import {
   createUsageRecording,
@@ -167,10 +169,10 @@ import {
 } from './core/workspaceRoot'
 import { keychainItemPresence } from './core/backends/musecode/credentialFile'
 import { AccountHosts, connectAccountSession } from './host/auth/accountHost'
-import { AuthService } from './host/auth/authService'
 import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
 import { runDeviceSignIn } from './host/auth/deviceSignIn'
 import { isValidModelApiKey } from './host/auth/credentialStore'
+import type { DamagedChoiceNotice } from './runtime/resources/history'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { createFileScheduleStore } from './host/backend/fileScheduleStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
@@ -348,7 +350,6 @@ import { latestLinuxRecording } from './core/media/record/linux'
 import type { ScreenRecordingPreview } from './core/media/record/driver'
 import { loadVaultControls, registerVaultCommands } from './host/vault/vaultPanelBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
-import { createPaidFeatures } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
 import {
   modelsPanelLoader,
@@ -358,6 +359,10 @@ import {
 import { modelsSubscriptionsLoader } from './host/models/modelsSubscriptionsBundle'
 import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
+import { paidBundleLoader } from './host/paid/paidBundle'
+import type { PaidFeatures } from './host/paid/paidHost'
+import { authBundleLoader } from './host/auth/authBundle'
+import type { AuthPort, AuthService } from './host/auth/authService'
 
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 
@@ -737,6 +742,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     isEnabled: () =>
       vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
+    // A damaged usage-history choice as a notice, once per distinct damage,
+    // with what is damaged and what to do (the log keeps the onError line).
+    onDamagedChoice: (notice: DamagedChoiceNotice) => {
+      void vscode.window.showWarningMessage(notice.text)
+    },
   }
   context.subscriptions.push({
     dispose: configureResources({
@@ -775,6 +785,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         isEnabled: () =>
           vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
         onWriteError,
+        onInvalidSettings: () => {
+          log.warn(
+            'Usage history settings are invalid, so usage history is paused. Delete usage-settings.json in the agent data folder or turn usage history off and on again to record history again.',
+          )
+        },
       })
     },
   })
@@ -1147,7 +1162,6 @@ async function activateWindow(
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
       .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
-  const paidAuthority = new PaidAuthority()
   let paidDaily: ReturnType<typeof createPaidDailyBudget> | undefined
   const loadDailyPaid = () => {
     if (paidDaily !== undefined) return paidDaily
@@ -1157,7 +1171,6 @@ async function activateWindow(
     if (!isUsageBudgetBundle(bundle)) throw new Error(UI_TEXT.actionFailed)
     paidDaily = bundle.createUsageBudget({
       l10n,
-      authority: paidAuthority,
       directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
       now: Date.now,
       capUsd: () => currentSettings().paidDailyBudgetUsd,
@@ -1173,42 +1186,64 @@ async function activateWindow(
     capUsd: () => loadDailyPaid().capUsd(),
     reserve: (...args) => loadDailyPaid().reserve(...args),
     reserveExact: (costUsd) => loadDailyPaid().reserveExact(costUsd),
-    reserveSchedule: (...args) => loadDailyPaid().reserveSchedule(...args),
     readToday: () => loadDailyPaid().readToday(),
     judgeLedger: {
       remainingUsd: () => loadDailyPaid().judgeLedger.remainingUsd(),
       reserve: (costUsd) => loadDailyPaid().judgeLedger.reserve(costUsd),
     },
-    latestDay: () => loadDailyPaid().latestDay(),
-    lookupByClaimId: (scope, claimId) => loadDailyPaid().lookupByClaimId(scope, claimId),
   }
-  const paid = createPaidFeatures({
-    usageRecording,
-    authority: paidAuthority,
-    orderDirectory: path.join(context.globalStorageUri.fsPath, PAID_APPROVAL_ORDER_DIRECTORY),
-    globalState: context.globalState,
-    workspaceState: context.workspaceState,
-    isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
-    isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
-    autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
-    isAvailable: (feature) =>
-      feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
-    isDefaultOn: isDefaultPaidOn,
-    dailyBudgetUsd: (feature) =>
-      paidBackend === 'modelApi' || feature === 'legalExplanation' ? dailyPaid.capUsd() : undefined,
-    isKeyStored: () => isKeyStored,
-    // "Allow Always in This Workspace" (M58) needs a workspace to keep it,
-    // and never in Restricted Mode.
-    canRememberPaidUse: () =>
-      vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
-    // Account & usage's Tab row reads the configured budget and the ledger's
-    // cross-window day (RVM94HU 23–24); `tab` is read only when it runs.
-    tabDay: () => ({
-      budgetUsd: currentSettings().tabDailyBudgetUsd,
-      todayUsd: tab.todayTotalUsd(),
-    }),
+  // The paid gate, consent, usage and authority load with the paid bundle
+  // (dist/paid.js) the first time a paid path needs them; activation keeps
+  // only the loader and this facade, and no paid operation runs at startup.
+  const paidBundle = paidBundleLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', PAID_BUNDLE_FILE).fsPath,
     log,
   })
+  let paidInstance: PaidFeatures | undefined
+  const loadPaid = (): PaidFeatures =>
+    (paidInstance ??= paidBundle().createPaid({
+      usageRecording,
+      orderDirectory: path.join(context.globalStorageUri.fsPath, PAID_APPROVAL_ORDER_DIRECTORY),
+      globalState: context.globalState,
+      workspaceState: context.workspaceState,
+      isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
+      isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
+      autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
+      isAvailable: (feature) =>
+        feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
+      isDefaultOn: isDefaultPaidOn,
+      dailyBudgetUsd: (feature) =>
+        paidBackend === 'modelApi' || feature === 'legalExplanation'
+          ? dailyPaid.capUsd()
+          : undefined,
+      isKeyStored: () => isKeyStored,
+      // "Allow Always in This Workspace" (M58) needs a workspace to keep it,
+      // and never in Restricted Mode.
+      canRememberPaidUse: () =>
+        vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
+      // Account & usage's Tab row reads the configured budget and the ledger's
+      // cross-window day (RVM94HU 23–24); `tab` is read only when it runs.
+      tabDay: () => ({
+        budgetUsd: currentSettings().tabDailyBudgetUsd,
+        todayUsd: tab.todayTotalUsd(),
+      }),
+      log,
+      l10n: { table: UI_TEXT, locale: uiLocale() },
+    }))
+  const paid: PaidFeatures = {
+    get gate() {
+      return loadPaid().gate
+    },
+    get consent() {
+      return loadPaid().consent
+    },
+    get usage() {
+      return loadPaid().usage
+    },
+    allowsJudgeUse: (modelId) => loadPaid().allowsJudgeUse(modelId),
+    state: () => loadPaid().state(),
+    affects: (event) => loadPaid().affects(event),
+  }
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): dist/museCodeReviewer.js
   // (D6), required on the first review; one side session and one queue for
   // the window, in an empty folder of the extension's own.
@@ -1849,113 +1884,143 @@ async function activateWindow(
   /** The CLI's own credential without a question to the CLI on macOS: META_API_KEY or its sign-in. */
   const hasCliSession = async () =>
     backend.hasEnvironmentKey() || isCliSignedIn(await cliAccount.signIn(false))
-  const auth = new AuthService({
-    getPlanAccount: async () =>
-      subscriptions === undefined &&
-      (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
-        ? undefined
-        : await subscriptionFeatures().planAccount(),
-    backend: {
-      resolveCli: () => {
-        // The sign-in gate's check is an explicit re-look: an install is noticed at once.
-        backend.invalidateLaunch()
-        const resolution = backend.resolveLaunch()
-        return resolution.ok
-          ? { ok: true, cliPath: resolution.launch.cliPath }
-          : {
-              ok: false,
-              reason: `${resolution.reason} ${fill(UI_TEXT.cliSearched, { paths: resolution.searched.join(', ') })}`,
-            }
-      },
-      cliSignIn: (isUserAction) => cliAccount.signIn(isUserAction),
-      // First start shows a signed-in file's answer before the refresh's
-      // remaining reads answer (F60); anything the file cannot settle waits
-      // for the probe.
-      peekCliSignIn: () => cliAccount.peekFile(),
-      abandonCliProbe: () => {
-        cliAccount.abandonProbe()
-      },
-      forgetCliAnswers: () => {
-        cliAccount.forgetAnswers()
-      },
-      credentialFilePath: () => backend.credentialFilePath(),
-      credentialFileModifiedAt: () => modifiedAt(backend.credentialFilePath()),
-      hasEnvironmentKey: () => backend.hasEnvironmentKey(),
-      getBackendMode: () => currentSettings().backend,
-      restartBackend: (isConversationEnding) =>
-        restartBackend('authentication changed', isConversationEnding),
-      logOutCli: async () => (await accountHosts.logOut()) === 'confirmed',
-    },
-    credentials,
-    logoutHold: {
-      get: () => context.globalState.get<boolean>(GLOBAL_STATE_KEYS.cliLogoutHold) === true,
-      set: (isHeld) => context.globalState.update(GLOBAL_STATE_KEYS.cliLogoutHold, isHeld),
-    },
-    runInTerminal: async (cliPath, args) => {
-      await runCliInTerminal(cliPath, args, {
-        name: UI_TEXT.museLoginTerminalName,
-        cwd: undefined,
-      })
-    },
-    installCommand:
-      process.platform === 'win32' ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix,
-    runInstallerInTerminal: async () => {
-      await backend.startWorkspaceCommand(() => {
-        const isWindows = process.platform === 'win32'
-        const systemRoot = process.env['SystemRoot']
-        let shellPath: string | undefined = POSIX_TERMINAL_SHELL
-        if (isWindows) {
-          shellPath =
-            systemRoot === undefined
-              ? undefined
-              : `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`
-        }
-        const terminal = vscode.window.createTerminal({
-          name: UI_TEXT.installStartAction,
-          ...(shellPath !== undefined && { shellPath }),
-        })
-        terminal.show(true)
-        terminal.sendText(isWindows ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix)
-      }, nativeStarts.signal)
-    },
-    runDeviceSignIn: (signal, onCode) =>
-      runDeviceSignIn({
-        connect: connectAccountHost,
-        credentialFileModifiedAt: () => modifiedAt(backend.credentialFilePath()),
-        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-        now: Date.now,
-        signal,
-        onCode,
-        log,
-      }),
-    promptForApiKey,
-    broadcast: (message) => {
-      registry.broadcast(message)
-      if (message.type !== 'authState') {
-        return
-      }
-      paidBackend = message.backend
-      broadcastPaidState()
-      // A key pasted or signed out of changes what the Muse Code backend offers (M44).
-      void refreshKeyPresence()
-      // The backend decides which engine the microphone uses (M35).
-      for (const controller of controllers.values()) {
-        controller.refreshDictation()
-      }
-      // The walkthrough's sign-in step completes on this context key.
-      void vscode.commands.executeCommand(
-        VSCODE_COMMANDS.setContext,
-        CONTEXT_KEYS.signedIn,
-        message.status === 'signedIn',
-      )
-    },
-    sleep: (ms) =>
-      new Promise((resolve) => {
-        setTimeout(resolve, ms)
-      }),
-    now: () => Date.now(),
+  // AuthService and the credential read load with the auth bundle
+  // (dist/auth.js) the first time a credential path needs them; activation
+  // keeps only the loader and this facade, and no credential operation runs
+  // at startup.
+  const authBundle = authBundleLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', AUTH_BUNDLE_FILE).fsPath,
     log,
   })
+  let authInstance: AuthService | undefined
+  const loadAuth = (): AuthService =>
+    (authInstance ??= authBundle().createAuthService({
+      l10n: { table: UI_TEXT, locale: uiLocale() },
+      getPlanAccount: async () =>
+        subscriptions === undefined &&
+        (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
+          ? undefined
+          : await subscriptionFeatures().planAccount(),
+      backend: {
+        resolveCli: () => {
+          // The sign-in gate's check is an explicit re-look: an install is noticed at once.
+          backend.invalidateLaunch()
+          const resolution = backend.resolveLaunch()
+          return resolution.ok
+            ? { ok: true, cliPath: resolution.launch.cliPath }
+            : {
+                ok: false,
+                reason: `${resolution.reason} ${fill(UI_TEXT.cliSearched, { paths: resolution.searched.join(', ') })}`,
+              }
+        },
+        cliSignIn: (isUserAction) => cliAccount.signIn(isUserAction),
+        abandonCliProbe: () => {
+          cliAccount.abandonProbe()
+        },
+        forgetCliAnswers: () => {
+          cliAccount.forgetAnswers()
+        },
+        credentialFilePath: () => backend.credentialFilePath(),
+        credentialFileModifiedAt: () => modifiedAt(backend.credentialFilePath()),
+        hasEnvironmentKey: () => backend.hasEnvironmentKey(),
+        getBackendMode: () => currentSettings().backend,
+        restartBackend: (isConversationEnding) =>
+          restartBackend('authentication changed', isConversationEnding),
+        logOutCli: async () => (await accountHosts.logOut()) === 'confirmed',
+      },
+      credentials,
+      logoutHold: {
+        get: () => context.globalState.get<boolean>(GLOBAL_STATE_KEYS.cliLogoutHold) === true,
+        set: (isHeld) => context.globalState.update(GLOBAL_STATE_KEYS.cliLogoutHold, isHeld),
+      },
+      runInTerminal: async (cliPath, args) => {
+        await runCliInTerminal(cliPath, args, {
+          name: UI_TEXT.museLoginTerminalName,
+          cwd: undefined,
+        })
+      },
+      installCommand:
+        process.platform === 'win32' ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix,
+      runInstallerInTerminal: async () => {
+        await backend.startWorkspaceCommand(() => {
+          const isWindows = process.platform === 'win32'
+          const systemRoot = process.env['SystemRoot']
+          let shellPath: string | undefined = POSIX_TERMINAL_SHELL
+          if (isWindows) {
+            shellPath =
+              systemRoot === undefined
+                ? undefined
+                : `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`
+          }
+          const terminal = vscode.window.createTerminal({
+            name: UI_TEXT.installStartAction,
+            ...(shellPath !== undefined && { shellPath }),
+          })
+          terminal.show(true)
+          terminal.sendText(isWindows ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix)
+        }, nativeStarts.signal)
+      },
+      runDeviceSignIn: (signal, onCode) =>
+        runDeviceSignIn({
+          connect: connectAccountHost,
+          credentialFileModifiedAt: () => modifiedAt(backend.credentialFilePath()),
+          sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+          now: Date.now,
+          signal,
+          onCode,
+          log,
+        }),
+      promptForApiKey,
+      broadcast: (message) => {
+        registry.broadcast(message)
+        if (message.type !== 'authState') {
+          return
+        }
+        paidBackend = message.backend
+        broadcastPaidState()
+        // A key pasted or signed out of changes what the Muse Code backend offers (M44).
+        void refreshKeyPresence()
+        // The backend decides which engine the microphone uses (M35).
+        for (const controller of controllers.values()) {
+          controller.refreshDictation()
+        }
+        // The walkthrough's sign-in step completes on this context key.
+        void vscode.commands.executeCommand(
+          VSCODE_COMMANDS.setContext,
+          CONTEXT_KEYS.signedIn,
+          message.status === 'signedIn',
+        )
+      },
+      sleep: (ms) =>
+        new Promise((resolve) => {
+          setTimeout(resolve, ms)
+        }),
+      now: () => Date.now(),
+      log,
+    }))
+  const auth: AuthPort & Pick<AuthService, 'stopSignIn'> = {
+    get current() {
+      return loadAuth().current
+    },
+    get backend() {
+      return loadAuth().backend
+    },
+    get admissionGeneration() {
+      return loadAuth().admissionGeneration
+    },
+    toMessage: () => loadAuth().toMessage(),
+    signIn: (method) => loadAuth().signIn(method),
+    installMuseCode: () => loadAuth().installMuseCode(),
+    cancelSignIn: () => {
+      loadAuth().cancelSignIn()
+    },
+    signOut: (options) => loadAuth().signOut(options),
+    refresh: (isUserAction) => loadAuth().refresh(isUserAction),
+    checkAgain: () => loadAuth().checkAgain(),
+    markAuthRequired: (reason) => loadAuth().markAuthRequired(reason),
+    markBackendError: (detail) => loadAuth().markBackendError(detail),
+    stopSignIn: () => loadAuth().stopSignIn(),
+  }
   // The window closing ends the account hosts, then the browser sign-in
   // (awaited, so its host is closed too), then the backends (the review of
   // PR #49).
@@ -2774,7 +2839,9 @@ async function activateWindow(
         return await dailyPaid.reserve(body, feature, estimatedInputTokens, signal)
       }
       signal?.throwIfAborted()
+      // A person-set daily limit's claim; none when no limit is set (D121).
       const claim = await dailyPaid.reserveExact(reservationUsd)
+      if (claim === undefined) return
       try {
         signal?.throwIfAborted()
         return {
@@ -2789,13 +2856,13 @@ async function activateWindow(
         throw error
       }
     },
-    // C-M101-1: the D78 daily claim behind automatic compaction. Exact-USD,
-    // like the reservationUsd branch above; without it the host has no
-    // production admission and automatic compaction stays dormant.
+    // C-M101-1: automatic compaction under the person's D78 daily limit,
+    // exact-USD like the reservationUsd branch above; none without a limit.
     paidDailyBudgetUsd: () => dailyPaid.capUsd(),
     reserveAutoCompaction: async (amount, signal) => {
       signal.throwIfAborted()
       const claim = await dailyPaid.reserveExact(amount)
+      if (claim === undefined) return
       try {
         signal.throwIfAborted()
       } catch (error: unknown) {
@@ -2803,12 +2870,11 @@ async function activateWindow(
         throw error
       }
       return {
-        reservedUsd: claim.reservedUsd,
+        ...claim,
         check: () => {
           signal.throwIfAborted()
           claim.check()
         },
-        settle: (actual, hasUnknownCost) => claim.settle(actual, hasUnknownCost, true),
       }
     },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
@@ -3018,7 +3084,22 @@ async function activateWindow(
           hasCli: backend.resolveLaunch().ok,
           hasCliSession,
           // A provider's secret counts as a Model API credential (M95, D74).
-          hasStoredKey: async () => await credentials.hasModelApiCredential(),
+          // Could-not-read counts as present (fail closed) and the person is
+          // told once: host choice never proceeds as if no key existed. The
+          // projection itself loads with the auth bundle (dist/auth.js).
+          hasStoredKey: () =>
+            authBundle().hasStoredKey({
+              owner: credentials,
+              store: credentials,
+              warn: (message) => {
+                log.warn(message)
+              },
+              showWarning: (message) => {
+                void vscode.window.showWarningMessage(message)
+              },
+              table: UI_TEXT,
+              locale: uiLocale(),
+            }),
         }),
       async (kind): Promise<AgentHost> =>
         kind === 'modelApi' ? await modelApi.ensureHost() : await backend.ensureHost(),
@@ -3655,7 +3736,7 @@ async function activateWindow(
           voiceAccountId: () => modelApi.accountId(),
           ownedVoiceBudgetScope: async (sessionId) => {
             if (auth.current.backend !== 'modelApi') {
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+              throw new SpendLedgerError('integrity', { scope: 'session', file: 'extension' })
             }
             const host = await modelApi.ensureHost()
             return await host.getOwnedBudgetScope(sessionId)
@@ -3738,7 +3819,6 @@ async function activateWindow(
                 gate: paid.gate,
                 consent: paid.consent,
                 reserve: dailyPaid.reserve,
-                capUsd: dailyPaid.capUsd,
                 keyDigest: () => modelApi.accountId(),
                 usage: paid.usage,
                 stream: (body, active, guard) =>
@@ -4162,7 +4242,7 @@ async function activateWindow(
       const seam = providersSeamBundle()
       modelsFeatures = bundle.createModelsPanelFeatures(
         {
-          connectChatGpt: () => subscriptionFeatures().connectChatGpt(),
+          connectChatGpt: (isNewAccount) => subscriptionFeatures().connectChatGpt(isNewAccount),
           connectCopilot: () => subscriptionFeatures().connectCopilot(),
           removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),
           isConfidential: () => currentSettings().confidentialWorkspace,

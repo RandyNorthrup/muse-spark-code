@@ -11,6 +11,7 @@ import {
   type AccountCredential,
   type AccountCredentialVault,
 } from '../../core/providers/accountCredentialRecord'
+import { isRevokeUnsupportedError } from '../../acp/accountText'
 import { registerSecretValue } from '../../core/redact'
 import { ACCOUNT_DEFAULT_ID, MODEL_API_BASE_URL } from '../../shared/constants'
 import { isValidModelApiKey, type SecretStore } from '../auth/credentialStore'
@@ -43,7 +44,10 @@ export function secretStorageAccountVault(secrets: SecretStore): AccountCredenti
     let value: unknown
     try {
       value = JSON.parse(stored)
-    } catch {
+    } catch (error: unknown) {
+      // Only malformed stored text reads as an invalid credential; a wrong
+      // shape answers below. Anything else keeps its kind.
+      if (!(error instanceof SyntaxError)) throw error
       throw new AccountStoreError('invalidCredential')
     }
     // Only the legacy default name may omit account identity. Other names
@@ -126,7 +130,11 @@ export class AccountSecrets implements AccountCredentialVault {
     try {
       value = await this.deps.vault.read(binding)
     } catch (error) {
-      throw error instanceof AccountStoreError ? error : new AccountStoreError('unavailable')
+      // A failed storage call may echo the attempted value in an error:
+      // only the fixed kind crosses, with its cause (D119).
+      throw error instanceof AccountStoreError
+        ? error
+        : new AccountStoreError('unavailable', 'unavailable', { cause: error })
     }
     // A vault must never bypass account/origin checking, including M109's port.
     this.check(binding)
@@ -146,8 +154,11 @@ export class AccountSecrets implements AccountCredentialVault {
     this.register(record.secret)
     try {
       await this.deps.vault.write(binding, record)
-    } catch {
-      throw new AccountStoreError('unavailable')
+    } catch (error: unknown) {
+      // A store failure is unavailable, with its cause: anything else keeps
+      // its kind (D119).
+      if (!(error instanceof Error)) throw error
+      throw new AccountStoreError('unavailable', 'unavailable', { cause: error })
     }
   }
 
@@ -164,8 +175,14 @@ export class AccountSecrets implements AccountCredentialVault {
       }
       this.available(binding)
       await this.deps.vault.remove(binding)
-    } catch {
-      throw new AccountStoreError('unavailable')
+    } catch (error: unknown) {
+      // A refused revocation is the person's answer, not a store outage: it
+      // crosses this boundary instead of becoming a generic unavailable.
+      if (isRevokeUnsupportedError(error)) throw error
+      // A store failure is unavailable, with its cause: anything else keeps
+      // its kind (D119).
+      if (!(error instanceof Error)) throw error
+      throw new AccountStoreError('unavailable', 'unavailable', { cause: error })
     }
   }
 
@@ -184,7 +201,7 @@ export class AccountSecrets implements AccountCredentialVault {
         this.available(binding)
         return undefined
       }
-      throw new AccountStoreError('unavailable')
+      throw new AccountStoreError('unavailable', 'unavailable', { cause: error })
     }
     this.available(binding)
     if (value === undefined) return undefined

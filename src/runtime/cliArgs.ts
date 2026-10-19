@@ -16,6 +16,7 @@ import {
   GITHUB_AUTH_ACTIONS,
   type AcpBackendKind,
   type AcpPaidFeature,
+  CHATGPT_NEW_ACCOUNT_FLAG,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
@@ -76,6 +77,7 @@ import {
 import { parseVaultCommand, vaultUsage, type VaultCommandOptions } from './vault/vaultCommand'
 
 export interface ServeOptions {
+  readonly initialModelId?: string
   readonly usageHistory?: boolean
   /** Which account pays; chosen here, never guessed (D62). */
   readonly backend: AcpBackendKind
@@ -185,7 +187,7 @@ export type RuntimeCommand =
     }
   | { readonly command: 'accounts'; readonly options: AccountsCommand }
   | { readonly command: 'developer'; readonly args: readonly string[] }
-  | { readonly command: 'help'; readonly all?: boolean }
+  | { readonly command: 'help'; readonly all?: boolean; readonly route?: string }
   | { readonly command: 'helpTopic'; readonly topic: string }
   | { readonly command: 'version' }
   | { readonly command: 'vaultHelp' }
@@ -208,7 +210,13 @@ export function parseChatGptProviderAction(
   argv: readonly string[],
 ): ChatGptProviderAction | undefined {
   const [command, action, provider, ...rest] = argv
-  if (command !== 'providers' || provider !== 'chatgpt' || rest.length > 0) return
+  if (command !== 'providers' || provider !== 'chatgpt') return
+  // `--new-account` registers a different ChatGPT account instead of
+  // reusing the saved registration; only `add` takes it.
+  if (action === 'add' && rest.length === 1 && rest[0] === CHATGPT_NEW_ACCOUNT_FLAG) {
+    return 'add-new-account'
+  }
+  if (rest.length > 0) return
   switch (action) {
     case 'add':
     case 'remove':
@@ -321,15 +329,125 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
   return ACP_PAID_FEATURES.filter((feature) => values[ACP_PAID_FLAGS[feature]] === true)
 }
 
+/** Report flags that take a value: the value is never a subcommand word. */
+const REPORT_VALUE_FLAGS: ReadonlySet<string> = new Set(
+  Object.entries(CLI_OPTION_REGISTRY.report.options)
+    .filter(([, option]) => option.type === 'string')
+    .map(([name]) => `--${name}`),
+)
+
+/** Flags that take a value on either side of a leading command word. */
+const HOIST_VALUE_FLAGS: ReadonlySet<string> = new Set(
+  [CLI_OPTION_REGISTRY.serve.options, CLI_OPTION_REGISTRY.exec.options].flatMap((options) =>
+    Object.entries(options)
+      .filter(([, option]) => option.type === 'string')
+      .map(([name]) => `--${name}`),
+  ),
+)
+
+/**
+ * D5: global options ride before or after the command word, so
+ * `--verbose exec …` parses like `exec --verbose …`. Only `exec` and
+ * `scan-secrets` hoist; anything past `--` stays positional.
+ */
+function hoistLeadingCommand(argv: readonly string[]): readonly string[] {
+  let index = 0
+  while (index < argv.length) {
+    const word = argv[index] ?? ''
+    if (word === '--' || word === '-' || !word.startsWith('-')) break
+    const name = word.split('=', 1)[0] ?? ''
+    index += !word.includes('=') && HOIST_VALUE_FLAGS.has(name) ? 2 : 1
+  }
+  const command = argv[index]
+  return (command === 'exec' || command === 'scan-secrets') && index > 0
+    ? [command, ...argv.slice(0, index), ...argv.slice(index + 1)]
+    : argv
+}
+
+/** D5: the parser library's unknown-option sentence never reaches the person. */
+function parserUnknownOption(error: unknown): string | undefined {
+  const message = error instanceof Error ? error.message : String(error)
+  const option = /^Unknown option '([^']+)'/.exec(message)?.[1]
+  return option === undefined ? undefined : fill(UI_TEXT.acpUnknownArgument, { argument: option })
+}
+
 export function parseCommandLine<T>(
   argv: readonly string[],
   localSharing: (argv: readonly string[]) => T,
 ): RuntimeCommand | T
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand
 export function parseCommandLine<T>(
-  argv: readonly string[],
+  args: readonly string[],
   localSharing?: (argv: readonly string[]) => T,
 ): RuntimeCommand | T {
+  // D5: a leading command word never hides behind global options.
+  const argv = hoistLeadingCommand(args)
+  const divider = argv.indexOf('--')
+  const flags = divider === -1 ? argv : argv.slice(0, divider)
+  if (flags.includes('--help') || flags.includes('-h')) {
+    if (argv[0] === 'vault') return { command: 'vaultHelp' }
+    const routes: Readonly<Record<string, string>> = {
+      exec: 'exec',
+      'scan-secrets': 'scan-secrets',
+      report: 'report',
+      usage: 'usage',
+      resources: 'resources',
+      login: 'login',
+      setup: 'setup',
+      legal: 'legal',
+      estimate: 'estimate',
+      fonts: 'fontsInstall',
+    }
+    let route = routes[argv[0] ?? '']
+    if (argv[0] === 'providers' && argv[1] === 'accounts')
+      route = flags.filter((word) => !word.startsWith('-')).join(' ')
+    else if (argv[0] === 'providers' && argv[2] === 'chatgpt')
+      route = `chatGptProvider ${argv[1] ?? 'add'}`
+    else if (argv[0] === 'exec' && argv[1] === 'legal-scan') route = 'legal'
+    else if (argv[0] === 'report' && argv[1] !== undefined) {
+      // P2-1: `problem` aliases bare report, so both reach the problem
+      // report's own options. Anything else names the reports namespace.
+      // Flag values (e.g. `--description foo`) are not subcommand words.
+      const words: string[] = []
+      for (let index = 0; index < flags.length; index++) {
+        const word = flags[index] ?? ''
+        if (word.startsWith('-')) {
+          const name = word.split('=', 1)[0] ?? ''
+          if (!word.includes('=') && REPORT_VALUE_FLAGS.has(name)) index++
+          continue
+        }
+        words.push(word)
+      }
+      const rest = words[1] === 'problem' ? words.slice(2) : words.slice(1)
+      route = rest.length === 0 ? 'report' : `reports ${rest.join(' ')}`
+    } else if (argv[0] === 'usage' && argv[1] === 'resources') route = 'resources'
+    else if (argv[0] === 'providers')
+      route =
+        argv[1] === 'add'
+          ? 'providersAdd'
+          : `providers${(argv[1] === undefined || argv[1].startsWith('-') ? 'list' : argv[1]).replace(/^./, (letter) => letter.toUpperCase())}`
+    else if (argv[0] === 'auth')
+      route = `auth${(argv[1] === undefined || argv[1].startsWith('-') ? 'status' : argv[1]).replace(/^./, (letter) => letter.toUpperCase())}`
+    else if (
+      route !== undefined &&
+      argv[0] !== 'fonts' &&
+      flags[1] !== undefined &&
+      !flags[1].startsWith('-')
+    )
+      route += ` ${flags
+        .slice(1)
+        .filter((word) => !word.startsWith('-'))
+        .join(' ')}`
+    // Bare flags ask about the agent, not the default launch: the compact
+    // general help names the machine flags and points at help reference.
+    const resolved =
+      route ??
+      (argv[0]?.startsWith('-') === true
+        ? undefined
+        : flags.filter((word) => !word.startsWith('-')).join(' ') || 'serve')
+    return resolved === undefined ? { command: 'help' } : { command: 'help', route: resolved }
+  }
+
   // M118-X-CLI: main's owner injects the local parser/runner once P/C bind.
   // Without that binding these reserved commands fail explicitly, never serve.
   if (argv[0] === 'share' || argv[0] === 'prompts') {
@@ -484,6 +602,7 @@ export function parseCommandLine<T>(
   if (budget === undefined && values['max-budget-usd'] !== undefined)
     return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage, exitCode: 2 }
   const options: ServeOptions = {
+    ...(values.model?.[0] !== undefined && { initialModelId: values.model[0] }),
     ...(values['usage-history'] !== undefined && {
       usageHistory: values['usage-history'] === 'on',
     }),
@@ -920,7 +1039,9 @@ function invalidHeadlessReason(reason: string): RuntimeCommand {
 
 /** A `parseArgs` throw as a headless usage refusal (never a prompt). */
 function invalidHeadlessCause(error: unknown): RuntimeCommand {
-  return invalidHeadlessReason(error instanceof Error ? error.message : String(error))
+  return invalidHeadlessReason(
+    parserUnknownOption(error) ?? (error instanceof Error ? error.message : String(error)),
+  )
 }
 
 function legalOutcome(parsed: ReturnType<typeof parseLegalArgs>): RuntimeCommand {

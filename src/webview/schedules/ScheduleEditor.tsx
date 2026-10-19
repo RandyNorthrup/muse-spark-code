@@ -8,7 +8,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { formatDailyBudget, formatUsd } from '../../shared/l10n/exactUsd'
 import {
   scheduleDraftSchema,
   scheduleTargetSchema,
@@ -153,7 +153,10 @@ export function ScheduleEditor({
             : { text: response.reason }),
         })
       }
-    } catch {
+    } catch (error: unknown) {
+      // An unloadable preview reads failed: only a non-error keeps its kind
+      // past the editor.
+      if (!(error instanceof Error)) throw error
       setPreview({ draft, conditions: conditionText, text: UI_TEXT.scheduleV2.editor.loadFailed })
     }
   }
@@ -437,7 +440,7 @@ export function ScheduleEditor({
               price: context.paid.price,
               cadence: UI_TEXT.scheduleV2.triggers[draft.trigger.kind],
               cap: formatUsd(draft.paidCapUsd, 2),
-              budget: formatUsd(context.paid.sharedDailyBudgetUsd, 2),
+              budget: formatDailyBudget(context.paid.sharedDailyBudgetUsd),
             })}
           </p>
         )}

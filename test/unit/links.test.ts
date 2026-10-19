@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { linkHref, linkTarget } from '../../src/webview/links'
+import { linkHref, linkLabel, linkTarget } from '../../src/webview/links'
 
 // M25: a relative link in a reply was sent to the host as a URL and refused
 // ("Only http, https and mailto links can be opened").
@@ -61,4 +61,9 @@ describe('linkHref', () => {
     expect(linkHref('javascript:1')).toBe('')
     expect(linkTarget('javascript:1')).toMatchObject({ kind: 'external' })
   })
+})
+
+it('keeps malformed escapes and relative labels as text', () => {
+  expect(linkTarget('100%.md')).toMatchObject({ kind: 'file', path: '100%.md' })
+  expect(linkLabel(undefined, 'notes.md')).toBe('notes.md')
 })

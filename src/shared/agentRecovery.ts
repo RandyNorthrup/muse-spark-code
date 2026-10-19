@@ -16,13 +16,32 @@ export function recoveryStamp(item: ItemSnapshot | undefined): string {
   })
 }
 
-/** Every current child shares a workspace or lacks a captured checkpoint. */
+/**
+ * The panel's pre-flight for a confirmed Agent-map continue/retry: a missing
+ * agent says the agent is gone, never a checkpoint problem (only a backend
+ * without a checkpoint may say that), and an agent that changed under the
+ * dialog refuses with the stale-state message. Anything else proceeds, so the
+ * backend's own failure carries its own cause.
+ */
+export function panelRecoveryRefusal(
+  agent: ItemSnapshot | undefined,
+  current: ItemSnapshot | undefined,
+): string | undefined {
+  if (agent === undefined) return UI_TEXT.agentGone
+  return recoveryStamp(current) === recoveryStamp(agent)
+    ? undefined
+    : UI_TEXT.agentContinueUnavailable
+}
+
+/** Every current child shares a workspace or lacks a captured checkpoint. A
+ * refused retry names this agent's missing checkpoint, never the backend's:
+ * only the backend with no checkpoint of its own may say that. */
 export function recoveryRefusal(
   agent: AgentSignals,
   action: 'continue' | 'retry',
   now: number,
 ): string | undefined {
-  if (action === 'retry') return UI_TEXT.agentRetryUnavailable
+  if (action === 'retry') return UI_TEXT.agentRetryNoCheckpoint
   const outcome = endedOutcome(agent)
   return agentActivity(agent, now).activity !== 'inactive' ||
     (outcome !== 'failed' && outcome !== 'incomplete')

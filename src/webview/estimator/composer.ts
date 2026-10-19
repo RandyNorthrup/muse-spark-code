@@ -1,4 +1,9 @@
-import { estimateRequestSchema, type EstimateRequest } from '../../shared/estimate'
+import {
+  estimateRefusalDetail,
+  estimateRequestSchema,
+  isEstimateRefusal,
+  type EstimateRequest,
+} from '../../shared/estimate'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
 import { estimateSlashArguments, parseEstimateOptions } from '../../runtime/estimator/command'
 
@@ -32,8 +37,17 @@ export function wasEstimateComposerHandled(
         ...(parsed.options.seed && { seed: parsed.options.seed }),
       }),
     )
-  } catch {
+  } catch (error: unknown) {
+    // An unopenable estimator reads failed in its own refusal's words;
+    // anything else reads failed, and keeps its kind past the composer for
+    // the host log (D119).
+    if (isEstimateRefusal(error)) {
+      const refusal = estimateRefusalDetail(error)
+      port.notice(fill(UI_TEXT.estimateFailed, { detail: refusal ?? 'estimator-unavailable' }))
+      return true
+    }
     port.notice(fill(UI_TEXT.estimateFailed, { detail: 'estimator-unavailable' }))
+    throw error
   }
   return true
 }

@@ -89,7 +89,10 @@ export function PromptLibrary(props: PromptLibraryProps) {
         edit.previous,
       )
       setEdit((current) => (current === edit ? { ...current, previous: saved } : current))
-    } catch {
+    } catch (error: unknown) {
+      // An unsaved edit reads failed: only a non-error keeps its kind past
+      // the library.
+      if (!(error instanceof Error)) throw error
       setSaveFailed(true)
     } finally {
       setSaving(false)
