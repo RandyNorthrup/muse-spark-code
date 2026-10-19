@@ -1,25 +1,18 @@
 // TOOLCAP: the one bound every tool result passes through on its way into
-// the conversation. `boundToolResultText` enforces, in order: a cap per line
-// (the measured failure was megabyte lines, not line count), a cap per
-// result, and a cap relative to what is left of the model's window (a result
-// may never take more than TOOL_RESULT_WINDOW_SHARE of the remaining room).
-// Two of these numbers are estimates and one is a guarantee, and the code
-// keeps them apart: the per-result cap is measured in characters at the
-// product's own 4-characters-per-token rule (friendlier, but text denser
-// than the estimate — hex, base64, minified JSON, CJK — carries more tokens
-// per character), while the window share is measured in UTF-8 BYTES against
-// tokens (a token is at least one byte, so a result of at most N bytes is at
-// most N tokens: a true upper bound). A result under every cap returns
-// byte-identical: no notice, no spill. A cut result's text ends with
+// the conversation. D121: no trimming of ours — no per-result token cap, no
+// per-line cap, no fallback byte guard. `boundToolResultText` enforces, in
+// order: a cap the person set, and a cap relative to what is left of the
+// model's window (a result may never take more than TOOL_RESULT_WINDOW_SHARE
+// of the remaining room). The window share is measured in UTF-8 BYTES
+// against tokens (a token is at least one byte, so a result of at most N
+// bytes is at most N tokens: a true upper bound). A result under every cap
+// returns byte-identical: no notice, no spill. A cut result's text ends with
 // `cutNotice`, one line naming how much there was, which head and tail it
-// kept with the omitted middle counted, the longest line when lines were
-// cut, and the spill file holding the full text. Pure: the caller writes
-// the spill file.
+// kept with the omitted middle counted, and the spill file holding the full
+// text. Pure: the caller writes the spill file.
 import {
   MODEL_API_MODEL_TEXT,
   OBS_PACK_CHARS_PER_TOKEN,
-  TOOL_RESULT_MAX_LINE_CHARS,
-  TOOL_RESULT_MAX_TOKENS,
   TOOL_RESULT_MIN_BYTES,
   TOOL_RESULT_WINDOW_SHARE,
   UI_TEXT,
@@ -49,13 +42,10 @@ export interface ToolResultCut {
   readonly tailLines: number
   /**
    * Original characters not carried in the kept text: exactly
-   * `totalChars - keptChars`, net of the line-cut markers, so the kept and
+   * `totalChars - keptChars`, net of the cut marker, so the kept and
    * the omitted always add up to the total.
    */
   readonly omittedChars: number
-  /** The longest original line; 0 when no line was cut. */
-  readonly longestLine: number
-  readonly lineCap: number
 }
 
 export interface BoundToolResult {
@@ -98,31 +88,22 @@ export function toolNoteItem(text: BoundedToolText): InputItem {
 }
 
 export interface ToolResultLimits {
-  /** Per-result cap in estimated tokens (the provider's unit). */
-  readonly maxTokens: number
-  /** Per-line cap in characters. */
-  readonly maxLineChars: number
-  /** Cheap byte guard; applied as a character cap for mostly-text output. */
+  /** A byte guard the person set, or no bound. */
   readonly maxBytes: number
-  /** Room left in the model's window in tokens; unknown skips the share. */
+  /** Room left in the model's window in tokens; unknown skips the share, never guessed. */
   readonly windowTokens: number | undefined
 }
 
 /**
  * The session's limits for one byte guard (the setting or the exec flag,
- * already validated). The token cap follows the guard at the same
- * characters-per-token estimate the default pairs (64,000 bytes beside
- * 16,000 tokens): raising the guard raises what one result may keep, as the
- * setting promises, instead of leaving the fixed token cap silently in
- * charge. The byte guard and the window share still bind as guarantees.
+ * already validated). D121: no trimming of ours — the person's guard and
+ * the model's window share are the only bounds.
  */
 export function limitsForByteGuard(
   maxBytes: number,
   windowTokens: number | undefined,
 ): ToolResultLimits {
   return {
-    maxTokens: Math.max(TOOL_RESULT_MAX_TOKENS, estimatePackTokens(maxBytes)),
-    maxLineChars: TOOL_RESULT_MAX_LINE_CHARS,
     maxBytes,
     windowTokens,
   }
@@ -170,14 +151,12 @@ export type ToolResultCapRefusal =
   | { readonly kind: 'above-window'; readonly windowTokens: number }
 
 /**
- * The configured byte guard, validated. Unknown or absent keeps the default
- * (today's behaviour); 0 (D121: no guard of ours, the default) passes the
- * result to the window share and line caps alone; below the floor or larger
- * than the model's whole window is refused with the reason, and the caller
- * falls back to the default. Pure so the setting, the exec flag and the
+ * The configured byte guard, validated. D121: no fallback of ours — absent
+ * or 0 passes the result to the window share alone; below the floor or
+ * larger than the model's whole window is refused with the reason, and the
+ * caller treats it as unset. Pure so the setting, the exec flag and the
  * host share it. Where the window is unknown the window fit cannot be
- * checked, so the bound is then the per-result caps alone — said in the
- * certification, not guessed.
+ * checked — said in the certification, not guessed.
  * `windowTokens` is the model's WHOLE window, never the room left: the
  * refusal sentence names the model's window, and a cap that fits it must
  * not be refused later merely because the conversation grew.
@@ -185,20 +164,17 @@ export type ToolResultCapRefusal =
 export function validateToolResultCap(
   value: number | undefined,
   windowTokens: number | undefined,
-  fallbackBytes: number,
-):
-  | { readonly bytes: number }
-  | { readonly refused: ToolResultCapRefusal; readonly fallback: number } {
-  if (value === undefined) return { bytes: fallbackBytes }
+): { readonly bytes: number } | { readonly refused: ToolResultCapRefusal } {
+  if (value === undefined) return { bytes: Infinity }
   if (value === 0) return { bytes: Infinity }
   if (!Number.isSafeInteger(value) || value < TOOL_RESULT_MIN_BYTES) {
-    return { refused: { kind: 'below-floor' }, fallback: fallbackBytes }
+    return { refused: { kind: 'below-floor' } }
   }
   return windowTokens !== undefined &&
     Number.isSafeInteger(windowTokens) &&
     windowTokens > 0 &&
     value > windowTokens * OBS_PACK_CHARS_PER_TOKEN
-    ? { refused: { kind: 'above-window', windowTokens }, fallback: fallbackBytes }
+    ? { refused: { kind: 'above-window', windowTokens } }
     : { bytes: value }
 }
 
@@ -228,13 +204,6 @@ export function cutNotice(cut: ToolResultCut, spill: string | undefined, id: str
       headLines: String(cut.headLines),
       tailLines: String(cut.tailLines),
       omittedChars: String(cut.omittedChars),
-      longest:
-        cut.longestLine > 0
-          ? fill(MODEL_API_MODEL_TEXT.toolResultCutLongest, {
-              longestLine: String(cut.longestLine),
-              lineCap: String(cut.lineCap),
-            })
-          : '',
       spill: spill ?? '',
     },
   )
@@ -243,126 +212,81 @@ export function cutNotice(cut: ToolResultCut, spill: string | undefined, id: str
 export function boundToolResultText(text: string, limits: ToolResultLimits): BoundToolResult {
   const totalChars = text.length
   const totalBytes = utf8Length(text)
-  const lines = splitLines(text)
-  let longestLine = 0
-  for (const line of lines) longestLine = Math.max(longestLine, line.length)
-  // The friendlier estimate: the per-result token cap in characters.
-  const estimateCapChars = limits.maxTokens * OBS_PACK_CHARS_PER_TOKEN
-  // The true upper bound: the configured byte guard, and the window's share
-  // in bytes against tokens. A kept text within it is within its tokens.
+  // The true upper bound: a byte guard the person set, and the window's
+  // share in bytes against tokens. A kept text within it is within its
+  // tokens. D121: no trimming of ours — no token cap, no line cap.
   const hardCapBytes = Math.min(
     limits.maxBytes,
     limits.windowTokens === undefined
       ? Number.MAX_SAFE_INTEGER
       : windowShareBytes(limits.windowTokens),
   )
-  if (
-    longestLine <= limits.maxLineChars &&
-    totalChars <= estimateCapChars &&
-    totalBytes <= hardCapBytes
-  ) {
+  if (totalBytes <= hardCapBytes) {
     // Brand: the bound measured this text under every cap, so it may enter a request (PLAN.md §8: TOOLCAP brand).
     return { text: text as BoundedToolText, cut: undefined }
   }
-  let capped = lines
-  let wasLineCut = false
-  // Offsets of the markers this cut adds, in the line-capped joined text:
-  // `keptChars` counts original characters, and a marker is not one (an
-  // original `…` in the text is counted, because only these offsets are).
-  const markerOffsets: number[] = []
-  if (longestLine > limits.maxLineChars) {
-    wasLineCut = true
-    const keep = Math.max(limits.maxLineChars - LINE_MARK.length, 0)
-    const head = Math.ceil(keep / HALVES)
-    const tail = Math.floor(keep / HALVES)
-    let lineStart = 0
-    capped = lines.map((line) => {
-      if (line.length <= limits.maxLineChars) {
-        lineStart += line.length + 1
-        return line
-      }
-      const headEnd = boundary(line, head)
-      markerOffsets.push(lineStart + headEnd)
-      const cutLine = `${line.slice(0, headEnd)}${LINE_MARK}${line.slice(boundary(line, line.length - tail))}`
-      lineStart += cutLine.length + 1
-      return cutLine
-    })
+  // `keptChars` counts original characters, and the splice marker is not
+  // one (an original `…` in the text is counted).
+  let joined = text
+  // The most kept characters that fit the byte guarantee (binary search:
+  // byte length falls as kept characters fall).
+  const fit = (
+    kept: number,
+  ): {
+    readonly head: string
+    readonly tail: string
+    readonly headEnd: number
+    readonly tailStart: number
+  } => {
+    const headEnd = boundary(joined, Math.ceil(kept / HALVES))
+    const tailStart = boundary(joined, joined.length - Math.floor(kept / HALVES))
+    return { head: joined.slice(0, headEnd), tail: joined.slice(tailStart), headEnd, tailStart }
   }
-  let joined = capped.join('\n')
-  let headLines: number
-  let tailLines: number
-  let keptMarkers: number
-  if (joined.length > estimateCapChars || utf8Length(joined) > hardCapBytes) {
-    // The most kept characters that fit BOTH the estimate and the byte
-    // guarantee (binary search: byte length falls as kept characters fall).
-    const fit = (
-      kept: number,
-    ): {
-      readonly head: string
-      readonly tail: string
-      readonly headEnd: number
-      readonly tailStart: number
-    } => {
-      const headEnd = boundary(joined, Math.ceil(kept / HALVES))
-      const tailStart = boundary(joined, joined.length - Math.floor(kept / HALVES))
-      return { head: joined.slice(0, headEnd), tail: joined.slice(tailStart), headEnd, tailStart }
-    }
-    // The kept head and tail are joined by the same marker a line cut
-    // uses, so two fragments never read as one continuous line the tool
-    // never printed; its bytes count against the guarantee like any kept
-    // character's.
-    const spliceBytes = (parts: { readonly head: string; readonly tail: string }): number =>
-      parts.head === '' || parts.tail === '' ? 0 : utf8Length(LINE_MARK)
-    let low = 0
-    let high = Math.min(estimateCapChars, joined.length)
-    while (low < high) {
-      const mid = Math.ceil((low + high) / HALVES)
-      const parts = fit(mid)
-      if (utf8Length(parts.head) + spliceBytes(parts) + utf8Length(parts.tail) <= hardCapBytes) {
-        low = mid
-      } else high = mid - 1
-    }
-    const parts = fit(low)
-    const isSpliced = parts.head !== '' && parts.tail !== ''
-    // Whole lines only: a fragment the cut made inside a line is not a kept
-    // line, so the two counts can never claim more lines than there were.
-    headLines =
-      parts.head === ''
-        ? 0
-        : parts.head.split('\n').length -
-          (parts.headEnd >= joined.length || joined[parts.headEnd] === '\n' ? 0 : 1)
-    tailLines =
-      parts.tail === ''
-        ? 0
-        : parts.tail.split('\n').length -
-          (parts.tailStart === 0 || joined[parts.tailStart - 1] === '\n' ? 0 : 1)
-    keptMarkers =
-      markerOffsets.filter((offset) => offset < parts.headEnd || offset >= parts.tailStart).length +
-      (isSpliced ? 1 : 0)
-    joined = isSpliced ? `${parts.head}${LINE_MARK}${parts.tail}` : `${parts.head}${parts.tail}`
-  } else {
-    // Lines were cut but no middle was: every line is kept, shortened.
-    headLines = splitLines(joined).length
-    tailLines = 0
-    keptMarkers = markerOffsets.length
+  // The kept head and tail are joined by a marker, so two fragments never
+  // read as one continuous line the tool never printed; its bytes count
+  // against the guarantee like any kept character's.
+  const spliceBytes = (parts: { readonly head: string; readonly tail: string }): number =>
+    parts.head === '' || parts.tail === '' ? 0 : utf8Length(LINE_MARK)
+  let low = 0
+  let high = joined.length
+  while (low < high) {
+    const mid = Math.ceil((low + high) / HALVES)
+    const parts = fit(mid)
+    if (utf8Length(parts.head) + spliceBytes(parts) + utf8Length(parts.tail) <= hardCapBytes) {
+      low = mid
+    } else high = mid - 1
   }
+  const parts = fit(low)
+  const isSpliced = parts.head !== '' && parts.tail !== ''
+  // Whole lines only: a fragment the cut made inside a line is not a kept
+  // line, so the two counts can never claim more lines than there were.
+  const headLines =
+    parts.head === ''
+      ? 0
+      : parts.head.split('\n').length -
+        (parts.headEnd >= joined.length || joined[parts.headEnd] === '\n' ? 0 : 1)
+  const tailLines =
+    parts.tail === ''
+      ? 0
+      : parts.tail.split('\n').length -
+        (parts.tailStart === 0 || joined[parts.tailStart - 1] === '\n' ? 0 : 1)
+  const keptMarkers = isSpliced ? 1 : 0
+  joined = isSpliced ? `${parts.head}${LINE_MARK}${parts.tail}` : `${parts.head}${parts.tail}`
   const keptBytes = utf8Length(joined)
   const keptChars = joined.length - keptMarkers
   return {
-    // Brand: the cut kept at most the estimate characters and at most the guaranteed bytes (PLAN.md §8: TOOLCAP brand).
+    // Brand: the cut kept at most the guaranteed bytes (PLAN.md §8: TOOLCAP brand).
     text: joined as BoundedToolText,
     cut: {
       totalChars,
       totalBytes,
       totalTokens: estimatePackTokens(totalChars),
-      totalLines: lines.length,
+      totalLines: splitLines(text).length,
       keptChars,
       keptBytes,
       headLines,
       tailLines,
       omittedChars: totalChars - keptChars,
-      longestLine: wasLineCut ? longestLine : 0,
-      lineCap: limits.maxLineChars,
     },
   }
 }

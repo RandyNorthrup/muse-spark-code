@@ -92,7 +92,7 @@
   "config.modelApiWebSearch.description": "託管網頁搜尋（每 1,000 次搜尋 2.50 美元）；因為沒有經過驗證的查詢硬上限，有限預算下無法使用。 在 Model API 上預設可用。收費前會顯示價格和共用每日預算，並詢問：允許一次／在此工作區一律允許／拒絕。明確設定 false 會關閉此功能。",
   "config.modelApiImageGeneration.description": "產生與編輯圖片（每張 0.01 美元）。 在 Model API 上預設可用。收費前會顯示價格和共用每日預算，並詢問：允許一次／在此工作區一律允許／拒絕。明確設定 false 會關閉此功能。",
   "config.modelApiVoice.description": "Muse Voice 將錄音傳送給 Meta，在兩個後端上均按 每小時音訊 0.18 USD 向您的 Model API 金鑰計費。錄音在三分鐘時停止，並在連線前預留每日預算。若已設定對話上限，則麥克風錄音無法使用；僅當附件音訊的有界費用仍在上限內時，才會轉錄該音訊。允許一次適用於目前視窗；一律允許適用於目前工作區，直到撤銷。無法讀取服務供應商的帳單。",
-  "config.modelApiSubagents.description": "付費子代理受到限制，每個任務最多四次請求，包含重試。 在 Model API 上預設可用。收費前會顯示價格和共用每日預算，並詢問：允許一次／在此工作區一律允許／拒絕。明確設定 false 會關閉此功能。",
+  "config.modelApiSubagents.description": "付費子代理：工作會持續執行直到完成或停止，按請求計費。在 Model API 中預設可用。消費前會顯示價格和共用每日預算，請選擇允許一次／在此工作區一律允許／拒絕。明確的 false 可停用。",
   "config.modelApiBestOfN.description": "將 best-of-N 作為獨立的明確操作提供。選擇更多嘗試前，一般回合只使用一個模型。 在 Model API 上預設可用。收費前會顯示價格和共用每日預算，並詢問：允許一次／在此工作區一律允許／拒絕。明確設定 false 會關閉此功能。",
   "config.modelApiHooks.description": "預設開啟；沒有鉤子檔案時不執行任何操作。只在受信任工作區中，於代理沙箱外執行已設定的命令。請在 Muse Spark: 鉤子 中審查。不會傳遞供應商認證資料。",
   "config.modelApiShellKeepsDirectory.description": "在呼叫之間保留 Model API 後端 shell 的工作目錄。預設開啟：一次 shell 命令中的 cd 會延續到同一交談的下一次呼叫，工作區之外的目錄會重設回工作區根目錄。檢查命令和 then_run 仍在根目錄執行。",

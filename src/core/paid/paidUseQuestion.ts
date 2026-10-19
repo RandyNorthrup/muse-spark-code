@@ -120,7 +120,7 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
         title: fill(UI_TEXT.paidSubagentTaskTitle, { role: task.role }),
         detail: fill(UI_TEXT.paidSubagentTaskDetail, {
           objective: task.objective,
-          price: subagentTaskPrice(task.modelId, task.attemptLimit),
+          price: subagentTaskPrice(task.modelId),
         }),
       }
     }

@@ -108,7 +108,6 @@ import {
   HOOK_MODEL_READ_TOOLS,
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_ON_FAILURE_MAX_DEPTH,
-  HOOK_SESSION_END_TIMEOUT_MS,
   NON_BILLABLE_HTTP_REJECTIONS,
   HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
@@ -118,9 +117,7 @@ import {
   type MemoryScope,
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
-  MODEL_API_CONTINUATIONS_MAX,
   MODEL_API_CONTEXT_WINDOW,
-  MODEL_API_MAX_TOOL_ROUNDS,
   MODEL_API_TEXT_BUDGET_TOKENS,
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
@@ -150,7 +147,6 @@ import {
   REPO_MAP_PROMPT_TRIES,
   WEB_SEARCH_MAX_PER_REQUEST,
   webSearchMaxCallsFor,
-  SHELL_DEFAULT_TIMEOUT_MS,
   SKILL_FILE_NAME,
   STORED_SESSION_VERSION,
   SUBAGENT_DEPTH,
@@ -158,13 +154,11 @@ import {
   SUBAGENT_RESULT_READY,
   SUBAGENT_RESULT_TEXT_MAX_CHARS,
   SUBAGENT_SUMMARY_MAX_CHARS,
-  SUBAGENT_TASK_MAX_REQUESTS,
   SUBAGENT_WAIT_DEFAULT_MS,
   stopContinuationLimitFor,
   subagentConcurrencyFor,
   type SubagentAction,
   THEN_RUN_ARGUMENT,
-  TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
   TOOL_RESULT_SPILL_DIR,
   TOOL_ARGUMENT_PREVIEW_INTERVAL_MS,
@@ -530,7 +524,6 @@ import {
 } from './schemas'
 import {
   classifyTool,
-  codePointBoundary,
   type EditFormatter,
   type FormatTarget,
   executeTool,
@@ -818,8 +811,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly observationPacking?: (() => boolean) | undefined
   /**
    * TOOLCAP: `museSpark.modelApiMaxToolOutputBytes`, or the exec run's
-   * `--max-tool-output-bytes`. The per-result byte guard; absent keeps
-   * TOOL_OUTPUT_MAX_CHARS. Read on every bound so one run can raise it.
+   * `--max-tool-output-bytes`. The per-result byte guard a person sets;
+   * absent keeps no guard of ours. Read on every bound so one run can raise it.
    */
   readonly maxToolOutputBytes?: (() => number | undefined) | undefined
   /** M106, fixed for the session. Lane W binds modelApiParallelReads in every host. */
@@ -1157,7 +1150,6 @@ interface ChildTaskGrant {
   readonly parentModelId: string
   readonly keyDigest: string
   readonly goalId: string | undefined
-  remainingAttempts: number
   /**
    * Whether the task may search the web (M58): the parent turn's answer to
    * the web search popup, or for a task the user starts, the feature allowed
@@ -1310,8 +1302,6 @@ interface PreparedToolCall {
 }
 
 interface ExecutedToolCall {
-  readonly isRepeatSuppressed: boolean
-  readonly isRepeatStopped: boolean
   readonly isParallelExecution: boolean
   readonly result: CallResult
   readonly slot: AdmissionSlot
@@ -1464,7 +1454,11 @@ interface VerifyCommand {
   /** What "always allow in this session" is keyed on. */
   readonly ruleCommand: string
   readonly description: string
-  readonly timeoutMs: number
+  /**
+   * D121: no default deadline of ours — absent runs until it ends or the
+   * person stops it. A check always names its own cap; `then_run` names none.
+   */
+  readonly timeoutMs?: number | undefined
   /** A hook demanded a question for the call that carries it. */
   readonly isForced: boolean
   /** then_run's: the file still holds what the edit left. */
@@ -2101,7 +2095,6 @@ function subagentFailure(reason: string, visibleReason?: string): ToolOutcome {
 const CHILD_TASK_REFUSALS = [
   'paidOff',
   'consentDeclined',
-  'requestLimit',
   'keyChanged',
   'modelChanged',
   'goalEnded',
@@ -2124,13 +2117,6 @@ function childTaskMessages(kind: ChildTaskRefusal): {
       return {
         model: MODEL_API_MODEL_TEXT.subagentConsentDeclined,
         visible: UI_TEXT.subagentConsentDeclined,
-      }
-    }
-    case 'requestLimit': {
-      const limit = SUBAGENT_TASK_MAX_REQUESTS
-      return {
-        model: fill(MODEL_API_MODEL_TEXT.subagentRequestLimit, { limit }),
-        visible: fill(UI_TEXT.subagentRequestLimit, { limit }),
       }
     }
     case 'keyChanged': {
@@ -2543,13 +2529,6 @@ type ExternalTool =
 /** The IDE tool's function name: `mcp__ide__<tool>`, as Muse Code sessions call it. */
 function ideFunctionName(tool: McpTool): string {
   return mcpFunctionName(IDE_MCP_SERVER_NAME, tool.name, new Set())
-}
-
-function clipOutput(text: string): string {
-  // Cut on a code point boundary, so the clip never splits a surrogate pair (M101).
-  return text.length > TOOL_OUTPUT_MAX_CHARS
-    ? `${text.slice(0, codePointBoundary(text, TOOL_OUTPUT_MAX_CHARS))}${TOOL_OUTPUT_CLIP_MARKER}`
-    : text
 }
 
 /** What the MCP servers' state says to the user, each keyed so it is said once per session. */
@@ -3439,9 +3418,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     const validated = validateToolResultCap(
       this.deps.maxToolOutputBytes?.(),
       this.modelWindowTokens(),
-      TOOL_OUTPUT_MAX_CHARS,
     )
     if ('refused' in validated) {
+      // D121: no fallback of ours — a refused cap is treated as unset: the
+      // result enters whole unless the model's window share cuts it. The
+      // warning names the refusal in plain words.
       if (!this.capRefusedSaid) {
         this.capRefusedSaid = true
         const reason = capRefusalReason(validated.refused)
@@ -3453,11 +3434,10 @@ export class ModelApiSession implements ScheduledAgentSession {
             source: 'setting',
             value: formatNumber(this.deps.maxToolOutputBytes?.() ?? 0),
             reason,
-            fallback: formatNumber(validated.fallback),
           }),
         })
       }
-      return limitsForByteGuard(validated.fallback, windowTokens)
+      return limitsForByteGuard(Infinity, windowTokens)
     }
     return limitsForByteGuard(validated.bytes, windowTokens)
   }
@@ -5879,9 +5859,6 @@ export class ModelApiSession implements ScheduledAgentSession {
           }
         }
         if (directBudget === undefined) this.wasCallSent = true
-        if (this.isSubagent && this.childTaskGrant !== undefined) {
-          this.childTaskGrant.remainingAttempts -= 1
-        }
         if (open !== undefined) {
           open.isSent = true
         }
@@ -9867,7 +9844,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
   ): Promise<ToolOutcome> {
     if (external.kind === 'ide') {
-      const text = clipOutput(await external.tool.call(argumentsOf(call), signal))
+      // D121: no trimming of ours — the IDE tool's answer rides whole; the
+      // host's one bound cuts it with a spill where it enters the turn.
+      const text = await external.tool.call(argumentsOf(call), signal)
       return { output: text, visibleOutput: text }
     }
     const servers = this.deps.mcpServers
@@ -10287,7 +10266,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       : { refusal: { outcome: childTaskFailure(gate), isRejected: true } }
   }
 
-  /** Every new task buys a fresh bounded grant; a running note does not. */
+  /** Every new task buys a fresh grant; a running note does not. */
   private childTaskFor(
     call: FunctionCallItem,
     agent: AgentDefinition | undefined,
@@ -10299,7 +10278,6 @@ export class ModelApiSession implements ScheduledAgentSession {
             role: parsed.data.role,
             objective: parsed.data.objective,
             modelId: resolveAgentModel(this.modelId, agent?.model),
-            attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
           }
         : undefined
     }
@@ -10321,7 +10299,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       objective: parsed.success ? parsed.data.message : child.objective,
       // A follow-up continues the child's own run: a custom agent's model, not the session's.
       modelId: child.session.modelId,
-      attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
     }
   }
 
@@ -10358,13 +10335,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (keyDigest !== grant.keyDigest) {
       return 'keyChanged'
     }
-    if (
-      grant.goalId !== undefined &&
+    return grant.goalId !== undefined &&
       (!isGoalActive(this.goal) || this.goal.goal_id !== grant.goalId)
-    ) {
-      return 'goalEnded'
-    }
-    return grant.remainingAttempts <= 0 ? 'requestLimit' : undefined
+      ? 'goalEnded'
+      : undefined
   }
 
   /** All child admission routes read the originating task, then its live caller. */
@@ -10436,7 +10410,6 @@ export class ModelApiSession implements ScheduledAgentSession {
         },
       }),
       goalId,
-      remainingAttempts: SUBAGENT_TASK_MAX_REQUESTS,
       isWebSearchAllowed,
       ...(this.approvedSearchQuote !== undefined && { searchQuote: this.approvedSearchQuote }),
     }
@@ -10579,7 +10552,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       role: child.role,
       objective,
       modelId: child.session.modelId,
-      attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
     }
     const gate = this.childTaskGate(task.modelId)
     const admitted =
@@ -11774,7 +11746,8 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private async runCommand(
     line: string,
-    timeoutMs: number,
+    // D121: absent runs until it ends or the person stops it.
+    timeoutMs: number | undefined,
     signal: AbortSignal,
     assertCanRun?: () => void,
   ): Promise<ShellResult> {
@@ -13242,6 +13215,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     line: string,
     result: ShellResult,
     startedOn: ReadonlyMap<string, RunSnapshot>,
+    elapsedMs: number,
   ): Promise<void> {
     // The loop's functions come from the lazy verify chunk (D6).
     const verify = await this.verifyFunctions()
@@ -13249,12 +13223,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     for (const check of this.checkCommands()) {
       const cap = checkTimeoutMs(check)
       const snapshot = startedOn.get(check.name)
+      // D121: the follow-up runs with no deadline of its own, so a pass
+      // counts only when the run finished within the check's own cap; with
+      // no deadline nothing can time out. A failure counts either way.
       const isSameRun =
         snapshot !== undefined &&
         check.command === line.trim() &&
         check.changedFiles !== true &&
-        (outcome !== 'passed' || cap >= SHELL_DEFAULT_TIMEOUT_MS) &&
-        (outcome !== 'timedOut' || cap <= SHELL_DEFAULT_TIMEOUT_MS)
+        (outcome !== 'passed' || elapsedMs <= cap)
       if (isSameRun) {
         this.verifyState().ledger.record(outcome, snapshot)
       }
@@ -13288,6 +13264,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       ]),
     )
     let ran: CommandOutcome
+    // D121: no default deadline of ours — then_run runs until it ends or the
+    // person stops it, like the shell tool itself.
+    const startedAt = this.deps.now()
     try {
       // then_run is the shell by another name: a narrowed agent without the shell tool has none.
       ran = this.canRunShell()
@@ -13297,7 +13276,6 @@ export class ModelApiSession implements ScheduledAgentSession {
               line: command,
               ruleCommand: command,
               description: THEN_RUN_DESCRIPTION,
-              timeoutMs: SHELL_DEFAULT_TIMEOUT_MS,
               isForced,
               guard: () => this.isAsEdited(target, isAllowed, provisionalSeen),
             },
@@ -13352,10 +13330,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     }
     const { line, result } = ran
-    if (isAllowed()) await this.noteCheckCommandRun(line, result, startedOn)
+    if (isAllowed())
+      await this.noteCheckCommandRun(
+        line,
+        result,
+        startedOn,
+        Math.max(0, this.deps.now() - startedAt),
+      )
     // TOOLCAP: whole like every shell result; the one bound cuts it with a
     // spill and notices where the edit's outcome enters.
-    const finished = shellOutcome(result, SHELL_DEFAULT_TIMEOUT_MS, TOOL_OUTPUT_MAX_CHARS, true)
+    const finished = shellOutcome(result, undefined, TOOL_OUTPUT_MAX_CHARS, true)
     return {
       outcome: {
         ...edit,
@@ -13365,7 +13349,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         thenRun: {
           command: line,
           outcome: verify.outcomeOf(result),
-          output: shellText(result),
+          // D121: no trimming of ours — then_run reads whole like every
+          // shell result; the host's one bound cuts it with a spill.
+          output: shellText(result, TOOL_OUTPUT_MAX_CHARS, true),
           ...(result.exitCode !== null && { exitCode: result.exitCode }),
         },
       },
@@ -13819,17 +13805,16 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
         const action = this.repeatGuard.before(effectiveCall, witness)
         if (action !== 'run') {
-          return {
-            result: {
-              outcome: { output: MODEL_API_MODEL_TEXT.toolRepeatStopped, visibleOutput: '' },
-              isRejected: true,
-            },
-            slot,
-            isParallelExecution,
-            isRepeatSuppressed: true,
-            isRepeatStopped: action === 'stuck',
-            reads: undefined,
-          }
+          // D121: a repeat never stops the turn — say so plainly with the
+          // repeat count and run the call; only the person stops it.
+          this.emit({
+            type: 'backendNotice',
+            level: 'info',
+            text: fill(UI_TEXT.modelApiToolRepeating, {
+              tool: effectiveCall.name,
+              count: formatNumber(action.repeat),
+            }),
+          })
         }
       }
       if (pre.blockedReason === undefined) {
@@ -13871,8 +13856,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       result,
       slot,
       isParallelExecution,
-      isRepeatSuppressed: false,
-      isRepeatStopped: false,
       reads,
     }
   }
@@ -14079,18 +14062,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     ) {
       this.replaceOutput(attemptReplay, outcome, post.replacement.value)
     }
-    if (!executed.value.isRepeatSuppressed) {
-      this.repeatGuard.observe(
-        effectiveCall,
-        post.replacement?.target === 'toolResult'
-          ? post.replacement.value
-          : (outcome.outputParts ?? outcome.output),
-        post.replacement === undefined ? repeatWitness : undefined,
-      )
-    }
-    if (executed.value.isRepeatStopped) {
-      this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.modelApiToolStuck })
-    }
+    this.repeatGuard.observe(
+      effectiveCall,
+      post.replacement?.target === 'toolResult'
+        ? post.replacement.value
+        : (outcome.outputParts ?? outcome.output),
+      post.replacement === undefined ? repeatWitness : undefined,
+    )
     const blocked = [
       ...(post.stopReason === undefined && post.blockedReason !== undefined
         ? [post.blockedReason]
@@ -14153,9 +14131,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       },
       // A PreToolUse stop (Amp's tool.call `error`, M91b) refused the call
       // and ends the turn too.
-      stopReason: executed.value.isRepeatStopped
-        ? MODEL_API_MODEL_TEXT.toolRepeatStopped
-        : (post.stopReason ?? hookEffects?.stopReason ?? pre.stopReason),
+      stopReason: post.stopReason ?? hookEffects?.stopReason ?? pre.stopReason,
     }
   }
 
@@ -14764,10 +14740,10 @@ export class ModelApiSession implements ScheduledAgentSession {
   /**
    * The one transition into the wrap-up phase, and the one writer of
    * `wrapUpLimit`: every other site reads it. Given the calls already
-   * counted and every allowance that applies — the turn's own limit (bound
-   * at turn start from the caller's allowance), the live caller allowance,
-   * and the default cap folded together by `modelCallsLeft` — once a call
-   * went out and one remains, the next request answers without tools. The
+   * counted and every allowance that applies — the turn's own limit (a
+   * caller's allowance, or unbounded) folded with the live caller allowance
+   * by `modelCallsLeft` — once a call went out and one remains, the next
+   * request answers without tools. The
    * first call is always ordinary, even when it is also the last one
    * allowed. Called wherever a request is built (`streamAttempt`, so first
    * attempts, HTTP retries, whole-stream retries, media recovery and
@@ -14872,9 +14848,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     // No round count of ours ends a turn (owner 2026-10-17: the only
     // hard-coded limits are each provider's own, and no provider documents
     // one): it runs until the model answers without a tool call, the person
-    // stops it, a hook stops it, the repeat guard stops an unchanged
-    // repeated tool call, the provider refuses the request, or a budget the
-    // person set is spent.
+    // stops it, a hook stops it, the provider refuses the request, or a
+    // budget the person set is spent. A repeated unchanged tool call is
+    // named out loud and runs again — it never stops the turn.
     for (let round = 0; ; round += 1) {
       if (isAbortRequested(signal)) {
         throw new AbortedError()
@@ -15005,13 +14981,17 @@ export class ModelApiSession implements ScheduledAgentSession {
         // answer every call, never execute it (M101 item 8).
         this.skipCalls(turn.turnId, calls, `response.incomplete: ${streamed.incompleteReason}`)
         await this.appendHookContexts(turn.turnId, postContexts)
-        if (
-          streamed.incompleteReason === 'max_output_tokens' &&
-          this.outputContinuation &&
-          outputContinuations < MODEL_API_CONTINUATIONS_MAX
-        ) {
+        if (streamed.incompleteReason === 'max_output_tokens' && this.outputContinuation) {
+          // D121: no continuation bound of ours — a reply cut at the output
+          // limit keeps going for as long as the model is mid-answer, saying
+          // so with its part count every round; Stop still ends it at the
+          // loop's next check.
           outputContinuations += 1
-          this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
+          this.emit({
+            type: 'backendNotice',
+            level: 'info',
+            text: fill(UI_TEXT.modelApiContinuing, { count: formatNumber(outputContinuations) }),
+          })
           // TOOLCAP: the continuation prompt is fixed harness words.
           this.replay.push({
             turnId: turn.turnId,
@@ -15032,13 +15012,6 @@ export class ModelApiSession implements ScheduledAgentSession {
               plural(UI_TEXT.modelApiWrapUpTruncated, turn.modelCalls),
             ),
           )
-        }
-        if (streamed.incompleteReason === 'max_output_tokens' && this.outputContinuation) {
-          this.emit({
-            type: 'backendNotice',
-            level: 'warning',
-            text: UI_TEXT.modelApiContinuationLimit,
-          })
         }
         return
       }
@@ -15356,7 +15329,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       steered: [],
       acceptedTextAttachmentBytes: textAttachmentBytes(queued.parts),
       modelCalls: 0,
-      modelCallLimit: this.callerModelCallsLeft() ?? MODEL_API_MAX_TOOL_ROUNDS,
+      // D121: no round count of ours — the turn runs until the model answers
+      // without a tool call, the person stops it, a hook stops it, the
+      // provider refuses, or a limit the person set is spent. Only a
+      // caller's own allowance still bounds its run.
+      modelCallLimit: this.callerModelCallsLeft() ?? Infinity,
       modelFailure: undefined,
       goalWakePending: false,
       isWebSearchAllowed: false,
@@ -15614,8 +15591,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           (error instanceof SessionBudgetExceededError &&
             !(error instanceof ModelCallLimitError)) ||
           isPaidStop(error) ||
-          (error instanceof ChildTaskRefusedError &&
-            (error.kind === 'requestLimit' || error.kind === 'goalEnded'))
+          (error instanceof ChildTaskRefusedError && error.kind === 'goalEnded')
         ) {
           this.outcomeStopReason = 'budget'
         }
@@ -19901,24 +19877,16 @@ export class ModelApiHost implements AgentHost {
 
   public async close(): Promise<void> {
     this.isClosing = true
-    const ending = new AbortController()
-    const deadline = setTimeout(() => {
-      ending.abort()
-    }, HOOK_SESSION_END_TIMEOUT_MS)
-    try {
-      for (const session of this.sessions.values()) {
-        if (ending.signal.aborted) {
-          break
-        }
-        try {
-          await session.endHooks(ending.signal)
-        } catch {
-          // The record names the failed hook, never the failure's text.
-          this.deps.log.warn('Model API SessionEnd hook failed')
-        }
+    // D121: no deadline of ours on SessionEnd hooks — closing waits until
+    // they end, saying so in plain words instead of hanging silently.
+    this.deps.log.info('Session-end hooks are still running; closing waits for them.')
+    const ending = AbortSignal.any([])
+    for (const session of this.sessions.values()) {
+      try {
+        await session.endHooks(ending)
+      } catch (error: unknown) {
+        this.deps.log.warn(`Model API SessionEnd hook failed: ${describe(error)}`)
       }
-    } finally {
-      clearTimeout(deadline)
     }
     // A turn the close stops charges what it spent and saves as it ends
     // (M82): wait for the sessions' running work, but never past a deadline.

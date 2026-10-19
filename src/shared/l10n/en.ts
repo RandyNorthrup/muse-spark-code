@@ -132,11 +132,12 @@ export const EN = {
   toolArgumentPreviewTruncated: 'Preview truncated.',
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
   toolArgumentPreviewPreparing: 'Preparing arguments…',
-  modelApiContinuing: 'The output limit was reached. Continuing once…',
-  modelApiContinuationLimit: 'The output limit was reached again. Send a message to continue.',
-  modelApiToolStuck:
-    'The turn stopped because the same tool call kept returning an unchanged result. Send a message to try another approach.',
-  structuredOutputRepair: 'The structured answer was invalid. Retrying once…',
+  modelApiContinuing: 'The output limit was reached. Continuing (part {count})…',
+  modelApiToolRepeating:
+    'The model is repeating the same {tool} call with an unchanged result ({count} in a row). The call runs again — Stop ends the turn.',
+  structuredOutputRepair:
+    'The structured answer was not valid. Repairing it again (repair {count})…',
+  structuredOutputRetry: 'The structured request failed. Trying again (attempt {count})…',
   structuredOutputFallback:
     'The structured answer could not be validated. Using the text fallback.',
   outputSchemaInvalid: 'The output schema is outside the supported strict subset: {detail}',
@@ -3381,7 +3382,7 @@ export const EN = {
   // TOOLCAP: a configured tool-output cap that cannot be honoured is refused
   // here, with the reason, and the default is used instead.
   toolResultCapRefused:
-    'The {source} tool-output cap of {value} is refused ({reason}); using the default of {fallback}.',
+    'The {source} tool-output cap of {value} is refused ({reason}); the result enters whole unless the model’s window share cuts it.',
   // TOOLCAP: the two reasons a configured tool-output cap is refused, each
   // its own translated sentence for the person reading the refusal above.
   toolResultCapBelowFloor: 'below the readable floor of {floor} bytes',
@@ -4785,7 +4786,7 @@ export const EN = {
     other: 'At most {count} input files are allowed.',
   }),
   referenceTurnLimit:
-    'Model API turns default to 200 model calls. Existing caller request limits win. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.',
+    'No round count of ours ends a Model API turn: it runs until the model answers without a tool call, you press Stop, a hook stops it, the provider refuses it, or a limit you set is spent. A caller allowance still bounds its run: exec --max-requests, or a best-of-N attempt ceiling. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a capped turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.',
   modelApiWrapUpReserved:
     'The remaining request is reserved for the final answer. The image was not generated.',
   modelApiTurnLimit: forms({
@@ -5111,7 +5112,7 @@ export const EN = {
   paidScheduledName: 'Scheduled Prompts',
   paidSubagentsName: 'Subagents',
   paidSubagentRates:
-    '{model}: {input} input, {cached} cached input, {output} output per million tokens; up to {limit} requests per task, including retries.',
+    '{model}: {input} input, {cached} cached input, {output} output per million tokens; billed per request until the task ends or is stopped.',
   paidSubagentTaskTitle: 'Approve paid task for {role}?',
   paidSubagentTaskDetail:
     '{objective}\n\n{price}\n\nBilled to your Model API key. Actual cost depends on tokens used. Other enabled paid tools are charged separately. Allow once covers this task only.',
@@ -5387,8 +5388,6 @@ export const EN = {
   subagentConsentDeclined: 'The paid child task was not approved.',
   subagentContributorBlocked:
     'The custom agent names a contributor-tier model, which cannot run while this workspace is confidential (museSpark.confidentialWorkspace).',
-  subagentRequestLimit:
-    'The child task reached its approved limit of {limit} requests, including retries.',
   subagentKeyChanged:
     'The Model API key changed after approval. Approve a new child task to continue.',
   subagentModelChanged: 'The model changed after approval. Approve a new child task to continue.',
