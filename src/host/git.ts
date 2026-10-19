@@ -641,12 +641,14 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         }
         // A deadline only the caller names (owner 2026-10-16: no invented
         // kill); unnamed, the call waits for git's answer or its abort.
-        const timer =
-          options.timeoutMs === undefined
-            ? undefined
-            : setTimeout(() => {
-                fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
-              }, options.timeoutMs)
+        // Infinity and 0 both mean none: Node reads execFile's 0 as none
+        // and a bare setTimeout(Infinity) as 1 ms, which would kill a
+        // call the caller refused to bound.
+        const timer = [undefined, 0, Infinity].includes(options.timeoutMs)
+          ? undefined
+          : setTimeout(() => {
+              fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
+            }, options.timeoutMs)
         const onAbort = () => {
           fail(new Error(`git ${command} was stopped: the window is closing`))
         }
