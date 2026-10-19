@@ -40,11 +40,19 @@ afterAll(async () => {
   await rm(fixture.root, { recursive: true, force: true })
 })
 function client(data: string, id: string) {
+  const runtimeDir = process.env['XDG_RUNTIME_DIR']
   const child = fork(
     path.join(fixture.root, 'dist', 'client.cjs'),
     [data, fixture.root, id.repeat(32)],
     {
-      env: { HOME: fixture.root },
+      // The product forwards the session runtime directory to the broker
+      // (posixClientPlatform); the fixture passes the worker's own through,
+      // so the broker resolves its socket base the way an installed session
+      // does instead of falling back to the fixture root.
+      env: {
+        HOME: fixture.root,
+        ...(runtimeDir !== undefined && { XDG_RUNTIME_DIR: runtimeDir }),
+      },
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
     },
   )
