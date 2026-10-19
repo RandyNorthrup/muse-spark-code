@@ -13,7 +13,7 @@ import { agentUsageSource, type AgentUsageFile } from '../../src/core/reporting/
 import { certificationSource } from '../../src/core/reporting/sources/certification'
 import { CheckRunJournal } from '../../src/core/reporting/checkRuns'
 import { ReportStorage } from '../../src/core/reporting/history'
-import { stubLocalSources } from './helpers/reporting/localStubs'
+import { realLocalSources } from './helpers/reporting/realLocalSources'
 import { keybindingsSource } from '../../src/core/reporting/sources/keybindings'
 import { packageSource } from '../../src/core/reporting/sources/package'
 import { questionsSource } from '../../src/core/reporting/sources/questions'
@@ -73,7 +73,7 @@ const agentLine = (id: string) =>
     },
   })
 const journalRecord = (id: string) => ({
-  v: 2,
+  v: 3,
   type: 'usage',
   id,
   at: Date.parse('2026-10-06T11:00:00Z'),
@@ -159,7 +159,9 @@ describe('production sources keep good records beside one bad record', () => {
   })
 
   it('usage keeps two breakdown rows with a named problem', async () => {
-    const sources = stubLocalSources({
+    const root = await mkdtemp(path.join(TEMP, 'record-boundary-usage-'))
+    onTestFinished(() => removeFolder(root))
+    const sources = realLocalSources(root, {
       usage: () => Promise.resolve({ usage: usageFacts(), observedAt: REPORT_FIXTURE_AS_OF }),
     })
     const result = await sources.usage.read(contextFor('usage'))
@@ -244,9 +246,11 @@ describe('production sources keep good records beside one bad record', () => {
       costUsd: null,
       certainty: 'unknown',
     }
-    const sources = stubLocalSources({
+    const root = await mkdtemp(path.join(TEMP, 'record-boundary-accounts-'))
+    onTestFinished(() => removeFolder(root))
+    const sources = realLocalSources(root, {
       accounts: createAccountsReportReader({
-        dataDir: path.join(TEMP, 'record-boundary-no-registry'),
+        dataDir: path.join(root, 'record-boundary-no-registry'),
         readUsage: () =>
           Promise.resolve([
             good,
@@ -264,9 +268,11 @@ describe('production sources keep good records beside one bad record', () => {
   it('security keeps two audit rows with a named problem', async () => {
     const snapshot = canaryVaultSnapshot()
     const good = snapshot.audit[0]!
-    const sources = stubLocalSources({
+    const root = await mkdtemp(path.join(TEMP, 'record-boundary-security-'))
+    onTestFinished(() => removeFolder(root))
+    const sources = realLocalSources(root, {
       security: createSecurityReportReader({
-        dataDir: path.join(TEMP, 'record-boundary-no-audit'),
+        dataDir: path.join(root, 'record-boundary-no-audit'),
         readVault: () =>
           Promise.resolve({
             ...snapshot,
