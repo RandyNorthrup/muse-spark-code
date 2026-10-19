@@ -3383,7 +3383,7 @@ export const EN = {
   // TOOLCAP: a configured tool-output cap that cannot be honoured is refused
   // here, with the reason, and the default is used instead.
   toolResultCapRefused:
-    'The {source} tool-output cap of {value} is refused ({reason}); using the default of {fallback}.',
+    'The {source} tool-output cap of {value} is refused ({reason}); the result enters whole unless the model’s window share cuts it.',
   // TOOLCAP: the two reasons a configured tool-output cap is refused, each
   // its own translated sentence for the person reading the refusal above.
   toolResultCapBelowFloor: 'below the readable floor of {floor} bytes',

@@ -23,9 +23,6 @@ import {
   HOOK_MODEL_MAX_OUTPUT_TOKENS,
   HOOK_MODEL_ROW_TOOL,
   MODEL_API_EFFORT_OFF,
-  TOOL_OUTPUT_MAX_CHARS,
-  TOOL_RESULT_MAX_LINE_CHARS,
-  TOOL_RESULT_MAX_TOKENS,
 } from '../../../shared/constants'
 import { hookDecisionSchema } from '../../../shared/sideCallSchemas'
 import { setUiText } from '../../../shared/l10n/text'
@@ -73,6 +70,7 @@ export interface HookModelContext extends Pick<
     | 'hookModelDailyBudget'
     | 'sideCallFormats'
     | 'forceSideCallTool'
+    | 'contextModel'
   >
   /** The read-only defs for `agent`; empty for `prompt`. */
   readonly tools: readonly ToolDefinition[]
@@ -242,15 +240,18 @@ async function callHookModel(
           }
           const output = await context.executeReadOnlyTool(call.name, call.arguments, signal)
           // TOOLCAP: a read-only tool's text enters the hook model's request
-          // through the bound like every tool result. The hook model has no
-          // spill writer, so text over the bound fails loudly instead of
-          // riding unbounded into a paid side call; the hook's read-only
-          // tools cap their outputs upstream, so this is the dense-text edge.
+          // whole unless it needs more than its share of the hook model's own
+          // window (D121: no trimming of ours). The hook model has no spill
+          // writer, so text over that share fails loudly instead of riding
+          // unbounded into a paid side call; the hook's read-only tools cap
+          // their outputs upstream, so this is the dense-text edge.
+          const hookWindow = context.deps.contextModel?.(confirmed.modelId)?.contextTokens
           const bounded = boundToolResultText(output, {
-            maxTokens: TOOL_RESULT_MAX_TOKENS,
-            maxLineChars: TOOL_RESULT_MAX_LINE_CHARS,
-            maxBytes: TOOL_OUTPUT_MAX_CHARS,
-            windowTokens: undefined,
+            maxBytes: Infinity,
+            windowTokens:
+              hookWindow !== undefined && Number.isSafeInteger(hookWindow) && hookWindow > 0
+                ? hookWindow
+                : undefined,
           })
           if (bounded.cut !== undefined) {
             throw new Error('the hook tool output exceeded the tool-result bound')

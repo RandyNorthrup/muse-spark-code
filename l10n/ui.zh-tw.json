@@ -2689,7 +2689,7 @@
   "contextWindowFullExec": "上下文視窗已滿：請使用 --auto-compaction --max-budget-usd <amount> 重新執行，以自動壓縮，或縮短工作。",
   "toolResultCutPreview": "工具結果已截斷:共 {total} 個字元,保留了開頭和結尾(開頭 {head} 整行,結尾 {tail} 整行;省略了 {omitted} 個字元)。完整結果位於 {spill}。它會隨工作階段一併刪除。",
   "contextWindowTooLong": "對話（{tokens}個詞元）比此模型的視窗（{maximum}個詞元）大{over}個詞元。請/compact壓縮對話、切換到視窗更大的模型或開始新對話；沒有任何內容被刪除。",
-  "toolResultCapRefused": "{source}工具輸出上限{value}被拒絕（{reason}）；改用預設值{fallback}。",
+  "toolResultCapRefused": "{source}工具輸出上限{value}被拒絕（{reason}）；除非模型的視窗份額將其裁剪，結果將完整進入。",
   "toolResultCapBelowFloor": "低於可讀下限 {floor} 位元組",
   "toolResultCapAboveWindow": "大於約 {window} 個詞元的模型視窗",
   "toolResultSpillFailed": "無法將完整的工具結果保存在 {spill} 中;僅保留截斷後的文字。",

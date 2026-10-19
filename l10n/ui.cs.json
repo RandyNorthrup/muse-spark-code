@@ -2857,7 +2857,7 @@
   "contextWindowFullExec": "Okno kontextu je plné: spusťte znovu s --auto-compaction --max-budget-usd <amount>, aby se běh zkomprimoval sám, nebo úlohu zkraťte.",
   "toolResultCutPreview": "Výsledek nástroje zkrácen: {total} znaků, ponechán začátek a konec ({head} celých řádků na začátku, {tail} na konci; {omitted} vynecháno). Úplný výsledek je v {spill}. Odstraní se spolu s relací.",
   "contextWindowTooLong": "Konverzace ({tokens} tokenů) je o {over} tokenů větší než okno tohoto modelu ({maximum} tokenů). /compact konverzaci, přejděte na model s větším oknem nebo začněte novou konverzaci; nic nebylo smazáno.",
-  "toolResultCapRefused": "Limit {source} výstupu nástroje {value} je odmítnut ({reason}); používá se výchozí {fallback}.",
+  "toolResultCapRefused": "Limit {source} výstupu nástroje {value} je odmítnut ({reason}); výsledek vstupuje celý, pokud jej neomezí podíl okna modelu.",
   "toolResultCapBelowFloor": "pod čitelnou hranicí {floor} bajtů",
   "toolResultCapAboveWindow": "větší než okno modelu circa {window} tokenů",
   "toolResultSpillFailed": "Úplný výsledek nástroje se nepodařilo uložit do {spill}; zůstává jen zkrácený text.",

@@ -2745,7 +2745,7 @@
   "contextWindowFullExec": "Bağlam penceresi dolu: çalışmanın kendini sıkıştırması için --auto-compaction --max-budget-usd <amount> ile yeniden çalıştırın veya görevi kısaltın.",
   "toolResultCutPreview": "Araç sonucu kesildi: {total} karakter, başı ve sonu tutuldu (başta {head} tam satır, sonda {tail} tam satır; {omitted} atlandı). Tam sonuç {spill} içinde. Oturumla birlikte kaldırılır.",
   "contextWindowTooLong": "Sohbet ({tokens} jeton), bu modelin penceresinden ({maximum} jeton) {over} jeton daha büyük. Sohbeti /compact ile sıkıştırın, penceresi daha büyük bir modele geçin veya yeni bir sohbet başlatın; hiçbir şey silinmedi.",
-  "toolResultCapRefused": "{source} araç çıktısı üst sınırı ({value}) reddedildi ({reason}); varsayılan {fallback} kullanılıyor.",
+  "toolResultCapRefused": "{source} araç çıktısı üst sınırı ({value}) reddedildi ({reason}); modelin pencere payı kesmedikçe sonuç bütün girer.",
   "toolResultCapBelowFloor": "okunabilir {floor} bayt alt sınırının altında",
   "toolResultCapAboveWindow": "yaklaşık {window} tokenlik model penceresinden büyük",
   "toolResultSpillFailed": "Aracın tam sonucu {spill} içine kaydedilemedi; yalnızca kesilmiş metin kalır.",

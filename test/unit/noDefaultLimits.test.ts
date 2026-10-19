@@ -17,11 +17,7 @@ import {
   limitsForByteGuard,
   validateToolResultCap,
 } from '../../src/core/backends/modelapi/toolResultBound'
-import {
-  TOOL_OUTPUT_MAX_CHARS,
-  WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
-  webSearchMaxCallsFor,
-} from '../../src/shared/constants'
+import { WEB_SEARCH_MAX_PER_REQUEST_LIMIT, webSearchMaxCallsFor } from '../../src/shared/constants'
 import { checkMediaLimits } from '../../src/core/media/limits'
 import { mediaLimitsFromSettings } from '../../src/host/media/mediaProviders'
 import { screenRecordingOptionsSchema } from '../../src/shared/media'
@@ -122,7 +118,7 @@ describe('no default limits: tool-output byte guard', () => {
   })
 
   it('passes a result through whole with nothing set', () => {
-    const validated = validateToolResultCap(0, undefined, TOOL_OUTPUT_MAX_CHARS)
+    const validated = validateToolResultCap(0, undefined)
     expect(validated).toEqual({ bytes: Infinity })
     const limits = 'bytes' in validated ? limitsForByteGuard(validated.bytes, undefined) : undefined
     expect(limits).toBeDefined()
@@ -138,7 +134,7 @@ describe('no default limits: tool-output byte guard', () => {
     )
     expect(read.modelApiMaxToolOutputBytes).toBe(64_000)
     expect(warnings).toHaveLength(0)
-    const validated = validateToolResultCap(64_000, undefined, TOOL_OUTPUT_MAX_CHARS)
+    const validated = validateToolResultCap(64_000, undefined)
     expect(validated).toEqual({ bytes: 64_000 })
     const limits = 'bytes' in validated ? limitsForByteGuard(validated.bytes, undefined) : undefined
     expect(boundToolResultText(hundredKilobyte, limits!).cut).toBeDefined()

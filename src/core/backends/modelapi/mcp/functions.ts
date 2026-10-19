@@ -518,7 +518,9 @@ export function mcpCallOutcome(result: CallToolResult): McpCallOutcome {
   }
   const body =
     collected.texts.length === 0 ? MODEL_API_MODEL_TEXT.mcpNoContent : collected.texts.join('\n')
-  const text = clip(body)
+  // D121: no trimming of ours — the model's text rides whole; only the row
+  // clips for display, and the host's one bound cuts with a spill downstream.
+  const text = body
   const visibleOutput = clip(collected.shown.length === 0 ? body : collected.shown.join('\n'))
   const output = result.isError === true ? `Error: ${text}` : text
   return {

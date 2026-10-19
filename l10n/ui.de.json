@@ -2745,7 +2745,7 @@
   "contextWindowFullExec": "Kontextfenster voll: Starten Sie den Lauf erneut mit --auto-compaction --max-budget-usd <amount>, damit sich der Lauf selbst komprimieren kann, oder kürzen Sie die Aufgabe.",
   "toolResultCutPreview": "Tool-Ergebnis gekürzt: {total} Zeichen, Anfang und Ende behalten ({head} ganze Zeilen am Anfang, {tail} am Ende; {omitted} ausgelassen). Das vollständige Ergebnis steht in {spill}. Es wird mit der Sitzung entfernt.",
   "contextWindowTooLong": "Die Unterhaltung ({tokens} Token) ist um {over} Token größer als das Fenster dieses Modells ({maximum} Token). /compact ausführen, zu einem Modell mit größerem Fenster wechseln oder eine neue Unterhaltung beginnen; nichts wurde gelöscht.",
-  "toolResultCapRefused": "Die {source}-Obergrenze für Tool-Ausgaben von {value} ist abgelehnt ({reason}); Standard von {fallback} wird verwendet.",
+  "toolResultCapRefused": "Die {source}-Obergrenze für Tool-Ausgaben von {value} ist abgelehnt ({reason}); das Ergebnis geht vollständig ein, es sei denn, der Fensteranteil des Modells schneidet es.",
   "toolResultCapBelowFloor": "unter der lesbaren Untergrenze von {floor} Byte",
   "toolResultCapAboveWindow": "größer als das Fenster des Modells von etwa {window} Token",
   "toolResultSpillFailed": "Das vollständige Tool-Ergebnis konnte nicht in {spill} gespeichert werden; nur der gekürzte Text bleibt.",

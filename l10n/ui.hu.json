@@ -2745,7 +2745,7 @@
   "contextWindowFullExec": "A környezetablak megtelt: futtassa újra a --auto-compaction --max-budget-usd <amount> kapcsolókkal, hogy a futás magát tömörítse, vagy rövidítse le a feladatot.",
   "toolResultCutPreview": "Eszköz eredménye levágva: {total} karakter, az eleje és a vége maradt meg ({head} egész sor az elején, {tail} a végén; {omitted} kihagyva). A teljes eredmény itt van: {spill}. A munkamenettel együtt törlődik.",
   "contextWindowTooLong": "A beszélgetés ({tokens} token) {over} tokennel nagyobb e modell ablakánál ({maximum} token). /compact segítségével tömörítse a beszélgetést, váltson nagyobb ablakú modellre, vagy kezdjen új beszélgetést; semmi sem lett törölve.",
-  "toolResultCapRefused": "A(z) {source} eszközkimeneti korlát ({value}) elutasítva ({reason}); az alapértelmezett {fallback} lesz használva.",
+  "toolResultCapRefused": "A(z) {source} eszközkimeneti korlát ({value}) elutasítva ({reason}); az eredmény egészben érkezik, hacsak a modell ablakrésze le nem vágja.",
   "toolResultCapBelowFloor": "az olvasható {floor} bájtos alsó határ alatt",
   "toolResultCapAboveWindow": "nagyobb a modell körülbelül {window} tokenes ablakánál",
   "toolResultSpillFailed": "A teljes eszköz eredményét nem sikerült megőrizni itt: {spill}; csak a levágott szöveg marad.",
