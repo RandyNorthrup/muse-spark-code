@@ -119,7 +119,6 @@ import {
   type MemoryScope,
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
-  MODEL_API_CONTINUATIONS_MAX,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_MAX_TOOL_ROUNDS,
   MODEL_API_TEXT_BUDGET_TOKENS,
@@ -15004,13 +15003,17 @@ export class ModelApiSession implements ScheduledAgentSession {
         // answer every call, never execute it (M101 item 8).
         this.skipCalls(turn.turnId, calls, `response.incomplete: ${streamed.incompleteReason}`)
         await this.appendHookContexts(turn.turnId, postContexts)
-        if (
-          streamed.incompleteReason === 'max_output_tokens' &&
-          this.outputContinuation &&
-          outputContinuations < MODEL_API_CONTINUATIONS_MAX
-        ) {
+        if (streamed.incompleteReason === 'max_output_tokens' && this.outputContinuation) {
+          // D121: no continuation bound of ours — a reply cut at the output
+          // limit keeps going for as long as the model is mid-answer, saying
+          // so with its part count every round; Stop still ends it at the
+          // loop's next check.
           outputContinuations += 1
-          this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
+          this.emit({
+            type: 'backendNotice',
+            level: 'info',
+            text: fill(UI_TEXT.modelApiContinuing, { count: formatNumber(outputContinuations) }),
+          })
           // TOOLCAP: the continuation prompt is fixed harness words.
           this.replay.push({
             turnId: turn.turnId,
@@ -15031,13 +15034,6 @@ export class ModelApiSession implements ScheduledAgentSession {
               plural(UI_TEXT.modelApiWrapUpTruncated, turn.modelCalls),
             ),
           )
-        }
-        if (streamed.incompleteReason === 'max_output_tokens' && this.outputContinuation) {
-          this.emit({
-            type: 'backendNotice',
-            level: 'warning',
-            text: UI_TEXT.modelApiContinuationLimit,
-          })
         }
         return
       }
