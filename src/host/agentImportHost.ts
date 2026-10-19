@@ -81,39 +81,50 @@ function mergedConfig(
   current: string,
   additions: string,
 ): { readonly text: string } | { readonly reason: 'exists' | 'unreadable' } {
+  let priorRaw: unknown
+  let addedRaw: unknown
   try {
-    const prior = configSchema.parse(current.trim() === '' ? {} : JSON.parse(current))
-    const added = configSchema.parse(JSON.parse(additions))
-    if (
-      Object.keys(added.mcpServers ?? {}).some((name) =>
-        Object.hasOwn(prior.mcpServers ?? {}, name),
-      )
-    )
-      return { reason: 'exists' }
-    const events = new Set([...Object.keys(prior.hooks ?? {}), ...Object.keys(added.hooks ?? {})])
-    return {
-      text: JSON.stringify(
-        {
-          ...added,
-          ...prior,
-          ...(added.mcpServers !== undefined && {
-            mcpServers: { ...added.mcpServers, ...prior.mcpServers },
-          }),
-          ...(added.hooks !== undefined && {
-            hooks: Object.fromEntries(
-              [...events].map((event) => [
-                event,
-                [...(prior.hooks?.[event] ?? []), ...(added.hooks?.[event] ?? [])],
-              ]),
-            ),
-          }),
-        },
-        undefined,
-        2,
-      ),
+    priorRaw = current.trim() === '' ? {} : JSON.parse(current)
+    addedRaw = JSON.parse(additions)
+  } catch (error: unknown) {
+    // Malformed text cannot merge; anything else is not ours to swallow.
+    if (error instanceof SyntaxError) {
+      return { reason: 'unreadable' }
     }
-  } catch {
+    throw error
+  }
+  const priorParsed = configSchema.safeParse(priorRaw)
+  const addedParsed = configSchema.safeParse(addedRaw)
+  if (!priorParsed.success || !addedParsed.success) {
     return { reason: 'unreadable' }
+  }
+  const prior = priorParsed.data
+  const added = addedParsed.data
+  if (
+    Object.keys(added.mcpServers ?? {}).some((name) => Object.hasOwn(prior.mcpServers ?? {}, name))
+  )
+    return { reason: 'exists' }
+  const events = new Set([...Object.keys(prior.hooks ?? {}), ...Object.keys(added.hooks ?? {})])
+  return {
+    text: JSON.stringify(
+      {
+        ...added,
+        ...prior,
+        ...(added.mcpServers !== undefined && {
+          mcpServers: { ...added.mcpServers, ...prior.mcpServers },
+        }),
+        ...(added.hooks !== undefined && {
+          hooks: Object.fromEntries(
+            [...events].map((event) => [
+              event,
+              [...(prior.hooks?.[event] ?? []), ...(added.hooks?.[event] ?? [])],
+            ]),
+          ),
+        }),
+      },
+      undefined,
+      2,
+    ),
   }
 }
 

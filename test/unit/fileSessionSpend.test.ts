@@ -2,11 +2,12 @@
 // spend total it saw, and both increments survive instead of the larger
 // snapshot dropping the other's. Each store instance is one window: its own
 // base, one directory, real files, the real clock.
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
+import { SpendLedgerError } from '../../src/core/paid/spendLedgerError'
 import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import type { Logger } from '../../src/host/logger'
 import { Usd } from '../../src/shared/usd'
@@ -211,6 +212,22 @@ describe('a legacy session total with an open reservation', () => {
     expect(loaded?.spendSettledOnly).toBe(true)
   })
 
+  it('keeps the stored total when the legacy seed does not parse', async () => {
+    const directory = path.join(root, 'legacy-corrupt-seed')
+    const window = storeIn(directory)
+    await window.save(legacySession())
+    writeLegacyJournal(directory)
+    // A seed that is not JSON is damage, never spend: the stored total
+    // stands, said once in the log.
+    const scope = path.join(directory, 'budget-journal', LEGACY_ACCOUNT, 's9')
+    writeFileSync(path.join(scope, 'seed.json'), '{not json')
+    const before = logged.length
+    const loaded = await window.load('s9')
+    expect(loaded?.budgetSpentUsd).toBe(Usd.from('10').toAmount())
+    expect(loaded?.spendSettledOnly).toBe(undefined)
+    expect(logged.length).toBe(before + 1)
+  })
+
   it('keeps the stored total when a legacy claim is detached from its journal', async () => {
     const directory = path.join(root, 'legacy-misplaced')
     const window = storeIn(directory)
@@ -255,4 +272,31 @@ describe('unknown-charge calls across a save', () => {
     const merged = await first.load('s1')
     expect(merged?.unknownChargeCalls).toBe(3)
   })
+})
+
+describe('an unreadable session store', () => {
+  // A symbolic-link loop refuses every read; Windows needs a privilege to
+  // make one, so this runs where the loop can be built.
+  it.runIf(process.platform !== 'win32')(
+    'refuses with the typed refusal, keeping errno and cause',
+    async () => {
+      const directory = path.join(root, 'unreadable-loop')
+      mkdirSync(directory, { recursive: true })
+      symlinkSync('loop', path.join(directory, 'loop'))
+      let failure: unknown
+      try {
+        await storeIn(path.join(directory, 'loop')).save(session('1'))
+      } catch (error: unknown) {
+        failure = error
+      }
+      expect(failure).toBeInstanceOf(SpendLedgerError)
+      if (!(failure instanceof SpendLedgerError)) throw new Error('the save did not refuse')
+      expect(failure.kind).toBe('unreadable')
+      expect(failure.facts.errno).toBe('ELOOP')
+      const cause = failure.cause
+      expect(
+        typeof cause === 'object' && cause !== null && 'code' in cause ? cause.code : undefined,
+      ).toBe('ELOOP')
+    },
+  )
 })

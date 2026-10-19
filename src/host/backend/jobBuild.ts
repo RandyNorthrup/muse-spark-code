@@ -10,6 +10,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { sameFile, statIdentity } from '../../core/fs/fileIdentity'
+import { describeStoreError, isStoreErrorCode } from './storeErrors'
 import { WINDOWS_FRAMEWORK_RELATIVE_PATH } from '../../shared/constants'
 import type { RunProgram } from '../processTree'
 
@@ -139,8 +140,12 @@ export function screenRecordExecutable(deps: {
       try {
         const info = await stat(file)
         return info.isFile()
-      } catch {
-        return false
+      } catch (error: unknown) {
+        // Anything but a missing file is not this probe's to swallow.
+        if (isStoreErrorCode(error, 'ENOENT')) {
+          return false
+        }
+        throw error
       }
     },
   }
@@ -193,6 +198,7 @@ export async function removeStaleJobs(
       }
     }
   } catch (error: unknown) {
-    log(`an earlier ${build.label} could not be removed yet (${String(error)})`)
+    // A stale build stays for a later start; the log keeps the redacted cause.
+    log(`an earlier ${build.label} could not be removed yet (${describeStoreError(error)})`)
   }
 }

@@ -43,8 +43,12 @@ function readRunSetting(deps: MuseSettingsDeps, key: string): string | undefined
   try {
     const value = settingsSchema.safeParse(JSON.parse(text)).data?.run?.[key]
     return typeof value === 'string' ? value : undefined
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // Malformed text reads as unset; anything else is not ours to swallow.
+    if (error instanceof SyntaxError) {
+      return undefined
+    }
+    throw error
   }
 }
 
