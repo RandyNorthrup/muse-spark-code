@@ -177,6 +177,8 @@ async function probeVersion(
     const stop = () => {
       hasFailed = true
       void stopTree().catch(() => {
+        // The probe already failed: a failed tree stop leaves settlement to
+        // the close handler, which reports the probe failure.
         reject(new Error('Version probe tree stop failed'))
       })
     }
@@ -349,7 +351,7 @@ export type MediaConversionResult =
       readonly info: Extract<MediaFileInfo, { kind: 'video' }>
       readonly dispose: () => Promise<void>
     }
-  | { readonly ok: false; readonly reason: string }
+  | { readonly ok: false; readonly reason: string; readonly cause?: unknown }
 
 /** `convertToWav16kMono` returns audio, never video: a separate result keeps
  * the video-only `MediaConversionResult` honest. */
@@ -403,6 +405,8 @@ async function runConverter(
       hasFailed = true
       if (!hasClosed)
         void stopTree().catch(() => {
+          // The conversion already failed: a failed tree stop leaves
+          // settlement to the close handler, which reports the failure.
           reject(new Error('Converter tree stop failed'))
         })
     }
@@ -476,6 +480,8 @@ async function runConverter(
       watcher = watch(options.cwd, requestCheck)
       watcher.on('error', stop)
     } catch {
+      // A watch that cannot start cannot pace sampling: stop the conversion
+      // instead of running unwatched.
       stop()
     }
     const watchdog = setInterval(requestCheck, MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS)
@@ -598,7 +604,7 @@ type ConvertedResult<I extends MediaFileInfo> =
       readonly info: I
       readonly dispose: () => Promise<void>
     }
-  | { readonly ok: false; readonly reason: string }
+  | { readonly ok: false; readonly reason: string; readonly cause?: unknown }
 
 /** A snapshot keeps its name's extension only when it is a plain one. */
 const SNAPSHOT_EXTENSION = /\.[a-z0-9]{1,8}$/iu
@@ -774,7 +780,9 @@ async function convertWith<I extends MediaFileInfo>(
     directory = undefined
     return { ok: true, path: output, info: result.info, dispose }
   } catch (error: unknown) {
-    return isMemoryCap(error) ? memoryCapFailed() : failed()
+    // The conversion failed with no output: the reason stays the fixed
+    // sentence, and the failure itself crosses on the result for the caller.
+    return isMemoryCap(error) ? memoryCapFailed() : { ...failed(), cause: error }
   } finally {
     if (directory !== undefined) await rm(directory, { recursive: true, force: true })
   }

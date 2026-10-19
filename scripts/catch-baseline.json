@@ -7,9 +7,9 @@
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 169,
-      "GENERIC": 369,
-      "CLEANUP": 168
+      "SWALLOW": 139,
+      "GENERIC": 352,
+      "CLEANUP": 190
     },
     "host": {
       "SWALLOW": 23,
@@ -1169,84 +1169,19 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/core/import/importConvert.ts",
-      "identity": "6ff23f26d8a412565da3cf084441dd109812741a8c3ddf7f1d139aba774ec8a9",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/import/importConvert.ts",
-      "identity": "264f8e43cb08f3762b0c17af3c773784cba595e72e67448a07837d09ff8548df",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/import/importConvert.ts",
-      "identity": "12a751207765401c411600a9ad44a846c30f4433876c9f6c61cd426b4350c78f",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/import/importConvert.ts",
-      "identity": "87c7004da9b88a191f2ced40d0c5f4b2ea1b40bbdb1c5ebd4a574505a1e5e41e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/import/importConvert.ts",
-      "identity": "af1a75bd386c84883f47d3ac04cba1c4963ea8ae57efa61c25c31040afb04159",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/import/importConvert.ts",
-      "identity": "629b225fb177211d90564793679fc2ffb482fdea11abeba550afb8a235ecfdee",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/core/import/pluginImport.ts",
       "identity": "fb0d0bc9a0377be0a66b3ccf164595c6272cae33a91ea43f15801b0d12fc314a",
       "class": "GENERIC"
     },
     {
-      "file": "src/core/import/pluginImport.ts",
-      "identity": "ed31842b8b366459f2a0385640d9c433bc51a548ed6dc311e44500ed8756d61b",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/judge/admission.ts",
-      "identity": "26a2ca1b2a2cfda702f0d40fe4352ebc8115ad907f73722ccb4017a81cd6c279",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/judge/admission.ts",
-      "identity": "54bfd7a28811f9cd6cf420e75ca02cdf360ff141f5e7a45cc4951ffabc453e4e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/judge/admission.ts",
-      "identity": "02cee8cd07ca6c767ad35f56163fc21ad72a8401438b48cb233bf5bdfeb6f0c2",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/judge/admission.ts",
-      "identity": "ecd44848ed592d6b5f068632fb57c40e2e67085a040d63009201a1fd731a9f67",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/judge/admission.ts",
-      "identity": "f449af135c56d9895d0e53b8293c5791c102f6a79b769007ceeb4d8de27fd36a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/judge/admission.ts",
-      "identity": "b050f1542165ed0873649c68cc96f4fa5ddbc3c3210d75a4d5cc636e6aa100f1",
-      "class": "GENERIC"
+      "file": "src/core/judge/fast/inspectExec.ts",
+      "identity": "b823199ea82b755e9cf80061d6c8bf25aac74d2b5f92c3112ba5cd82321e0964",
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/judge/fast/inspectExec.ts",
-      "identity": "52d5100b4845e8817b570e03c2b944e74b6be2c9fa07bc0e6144d35cca4383bd",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/judge/fast/inspectExec.ts",
-      "identity": "e8877485b566e32fc8afcb140713095c0ba294a5ca8f6f0eb9b4ac22c75d716c",
-      "class": "SWALLOW"
+      "identity": "7caf8fe8a91e1adf94a84ecaef7fcd167025334964cabd8f65fb8014bf158091",
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/judge/fast/inspectExec.ts",
@@ -1260,7 +1195,7 @@
     },
     {
       "file": "src/core/judge/fast/inspectExec.ts",
-      "identity": "1a919d88280e3c1ede5fcafd9a77d30d56dc8eca33db5c98d78fb3070b543b1b",
+      "identity": "0338f031d0527e314c7420c043e10a915c5dab4d854eb193b75ffcc3875c1780",
       "class": "GENERIC"
     },
     {
@@ -1272,16 +1207,6 @@
       "file": "src/core/judge/fast/inspectExec.ts",
       "identity": "41e2752639b5534dfa879f71609db8fe1f3fd06ca633096fd4cc7741f5c5d014",
       "class": "GENERIC"
-    },
-    {
-      "file": "src/core/judge/same/allowRules.ts",
-      "identity": "1c9654ad9908b6924fb3bebe089f2e71122484df5bd856bd3636ef06ce99ae21",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/judge/same/answers.ts",
-      "identity": "3b981fdfdf5ea9c0c405ed3ff239b50afee845c8deb4544e6a6ed558d1a6235f",
-      "class": "SWALLOW"
     },
     {
       "file": "src/core/judge/same/batches.ts",
@@ -1297,11 +1222,6 @@
       "file": "src/core/judge/use.ts",
       "identity": "df4bff919899812ecba0ce6bd6e1ef041256b7d54276db5cc91e1017ed36af03",
       "class": "GENERIC"
-    },
-    {
-      "file": "src/core/judge/use.ts",
-      "identity": "c784f928310969634040033a4d27f4aff3d43e0cd8ef0f8ca4c4bc3c6b823f2f",
-      "class": "SWALLOW"
     },
     {
       "file": "src/core/legal/licenseTemplates.ts",
@@ -1340,38 +1260,18 @@
     },
     {
       "file": "src/core/locks/fileLease.ts",
-      "identity": "9643bd25fda8bf83b880b030681758fad4d2c2f720f47f6c1b101ecbb05145ce",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/locks/fileLease.ts",
-      "identity": "7b5ea4f21431285c4f7d7c80d3acccaa710633b634b6e4686710169af6989923",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/locks/fileLease.ts",
       "identity": "022ae1741703c963b6f7aac74226a3eae2560dee8be0d3ef993c454c73f5f587",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/locks/fileLease.ts",
-      "identity": "3f53489b5c96b8a6dce0dc3016b6ea1dc43a53750c4a502b5ebf1637ecaf4876",
-      "class": "GENERIC"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/locks/fileLease.ts",
       "identity": "bf6874f0022289659b1f4e09cc7c4207d40cc7895a79386b7b72ca7e9d40f04a",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/locks/fileLease.ts",
-      "identity": "399732c4447ef58c704a880b9b4c18aa46fc895d88fd7be7695bd68654bdd545",
-      "class": "GENERIC"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/locks/fileLease.ts",
       "identity": "490d16ffb3057b11ce2e32c4ef57b3b3b9a60f891b1abb1484771b1b375ec7df",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/locks/fileLease.ts",
@@ -1396,22 +1296,17 @@
     {
       "file": "src/core/locks/fileLease.ts",
       "identity": "8c68e44569c471fac3d5f0e5fc18a8f7e760f787a447577d585e889d094fb13b",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/locks/fileLease.ts",
-      "identity": "333ff79e017266f25e9068888efb0b9f16f9498ca1836a8c3d4b8c8bd7773eec",
+      "identity": "40b9b3bce53b24b176985ae352411ec869974b759b1c314e418f4a7d63014167",
       "class": "GENERIC"
     },
     {
       "file": "src/core/locks/fileLease.ts",
       "identity": "055e462d80e7c60c129c580ef20afe084aab8a024da7db7ce4b114a8968f663d",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/locks/fileLease.ts",
-      "identity": "9d8c68d2212e0270b31758934bd5a1d4df27ba6c33b76b9e41b3eeb3a1362398",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/locks/fileLease.ts",
@@ -1427,11 +1322,6 @@
       "file": "src/core/locks/fileLease.ts",
       "identity": "df00bdaa82b0a50e9d90ab56f8ec49b104fe99f68454d4cf19e460f62e1fa0c2",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/locks/fileLease.ts",
-      "identity": "7330ecb111cbb8459d0ab4ad801b15c1edc7c2e361d30768210d189aa73e975b",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/locks/nodeLeasePort.ts",
@@ -1456,12 +1346,12 @@
     {
       "file": "src/core/locks/processOwner.ts",
       "identity": "5893afe80f2f2722d80c57a5548368c6f999c95b1992a4a8cc36f0e3eb5dfb83",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/locks/processOwner.ts",
       "identity": "d8688e3e2be0a15c03ee43b0ed1b41b3ac814a4a125f2e1c38de88a78a613b27",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/locks/processOwner.ts",
@@ -1501,7 +1391,7 @@
     {
       "file": "src/core/media/convert.ts",
       "identity": "437dd286941a7181b5be6796169393a810e36b0cdc3da81609a8122c1f3b3130",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/convert.ts",
@@ -1511,7 +1401,7 @@
     {
       "file": "src/core/media/convert.ts",
       "identity": "698e5a634cf45159a8b404321142e0a2b4e227c3d8cf3ef38d0236a42bdc2bed",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/convert.ts",
@@ -1526,21 +1416,11 @@
     {
       "file": "src/core/media/convert.ts",
       "identity": "5d1c83f4a6b4adcbb449c00e3236e7f0bbc1051e0c1c1922d0b50ae386c203d2",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/convert.ts",
       "identity": "3f6afaac87a69ce4c1769e2caa8b0c6416682b3fea74a6a8f9ff84d885993fa4",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/media/convert.ts",
-      "identity": "fe94fed7f5c91deed9c1c14d6ce1295e8a69f2e76108acca2f43cec220b665d7",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/media/limits.ts",
-      "identity": "528c3d6bee1426790f881dccdadb5e00b7e5b9d17c87653ddc21df86b2d56477",
       "class": "GENERIC"
     },
     {
@@ -1586,7 +1466,7 @@
     {
       "file": "src/core/media/record/linux.ts",
       "identity": "f0a533170833c383e64563709da6b63d8f048fc7aba4baf475bca15dfb867099",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/record/linux.ts",
@@ -1596,7 +1476,7 @@
     {
       "file": "src/core/media/record/linux.ts",
       "identity": "ec3d73e2cec113842fe25fd5bc0683b4fe62ae2e473376ea56b522a476687238",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/record/linux.ts",
@@ -1606,12 +1486,12 @@
     {
       "file": "src/core/media/record/linux.ts",
       "identity": "a205ad8c5b9c9838dc029931426fdb41886ee6f4fc9738da2853c12b5de3a7d1",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/record/linux.ts",
       "identity": "780d10b9d3e29e56f3e59d4ca43332239c03193169257997ef8ab6a3606e7341",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/record/linux.ts",
@@ -1645,23 +1525,23 @@
     },
     {
       "file": "src/core/media/record/macos.ts",
-      "identity": "bad8cfd86067b714989cf5d8b48ff9b082a9b26d9a4d2bf66f8ae3f02996f938",
-      "class": "SWALLOW"
+      "identity": "3056946f02569ccd08676dfe7fb21deb2519335c7906fb21d7f1563da44b8652",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/core/media/record/macos.ts",
+      "identity": "23a8ecd1b555a37494653e249e9a3144e55147f83ec3275a9a256924b993f4f0",
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/record/macos.ts",
       "identity": "7d4d719ca48368009c71794e2812d274692de31a84ca074bb37d51e569d27473",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/record/macos.ts",
       "identity": "80df49b758b72caaacea45e9f8c09f734be422eb464c12f55d66e604b2f01cec",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/media/record/windows.ts",
-      "identity": "99ea5111dc9d480a72c46330663cfee66da8f405e8f27175a3aa92e2c864028a",
-      "class": "GENERIC"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/record/windows.ts",
@@ -1676,22 +1556,17 @@
     {
       "file": "src/core/media/record/windows.ts",
       "identity": "93ab3a7830fccc99e38975ceae813739486d372e84f593675bb8b8ed8a167a48",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/media/record/windows.ts",
-      "identity": "60316e36f9c228aa5e030373725a5377d4d56a33736a72b9ba9069b560436101",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/record/windows.ts",
       "identity": "92c7b4db77fb3b422e161ad1781511440cc86a379e3ff4ab5ea0c33392cd37c3",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/record/windows.ts",
       "identity": "3693b38284ac41549d16c3a6afa42c1ec5ca753a6984d620f10f857df6c0b30a",
-      "class": "SWALLOW"
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/media/record/windows.ts",
@@ -1700,7 +1575,7 @@
     },
     {
       "file": "src/core/media/record/windows.ts",
-      "identity": "2c00421f7f071ad27aa96949bfbe57d2edff8263c2b73a8f7742e4e137dbaccc",
+      "identity": "dbe386e6897b93eae762695653708fc37b455735743b3abdd9fdee84cb28407b",
       "class": "GENERIC"
     },
     {

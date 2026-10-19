@@ -62,6 +62,10 @@ happened, not what was planned; superseded entries are kept.
   in the measured universal); the budget decision stays with the lead.
 ### Fixed
 
+- The judge ledger contract names the wrap-and-rethrow: scheduling failures
+  cross to the owner's documented error channel, media conversion failures
+  carry their cause on the result, and the lease busy error keeps both its
+  holder and its cause.
 - **An attached media link with bad percent-encoding reads private again.**
   A `file://` link the URI mapper cannot decode answers "This private file
   cannot be attached" instead of failing the prompt as unreadable.

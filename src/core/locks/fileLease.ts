@@ -188,10 +188,10 @@ export class LeaseLinkUnsupportedError extends Error {
 /** Link refusals that mean hard links are unavailable, never a held lock. */
 function isLinkUnsupported(error: unknown): boolean {
   return (
-    errorCode(error) === 'EPERM' ||
-    errorCode(error) === 'ENOTSUP' ||
-    errorCode(error) === 'EROFS' ||
-    errorCode(error) === 'EXDEV'
+    isErrno(error, 'EPERM') ||
+    isErrno(error, 'ENOTSUP') ||
+    isErrno(error, 'EROFS') ||
+    isErrno(error, 'EXDEV')
   )
 }
 
@@ -200,23 +200,30 @@ export class LeaseBusyError extends Error {
   public constructor(
     message = 'The lock is busy',
     readonly holder?: { owner: ProcessOwner; acquiredAt: number },
+    options?: { cause?: unknown },
   ) {
-    super(message)
+    super(message, options)
     this.name = 'LeaseBusyError'
   }
 }
 
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
+/**
+ * Whether the failure is the named operating-system condition. A named
+ * check (never a collapsed code) so the expected condition reads at the
+ * handler that owns it.
+ */
+function isErrno(error: unknown, code: string): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === code
 }
 
 function parseNote(bytes: Buffer): LeaseNote | undefined {
   try {
     const parsed = noteSchema.safeParse(JSON.parse(bytes.toString('utf8')))
     return parsed.success ? parsed.data : undefined
-  } catch {
+  } catch (error: unknown) {
+    // JSON.parse throws only SyntaxError for text input: a torn note reads
+    // as no note, and anything else is a caller bug that must surface.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
@@ -303,7 +310,7 @@ async function observe(port: LeasePort, lockPath: string): Promise<Observation> 
         }
       : { kind: 'changing' }
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isErrno(error, 'ENOENT')) {
       return { kind: 'gone' }
     }
     throw error
@@ -324,6 +331,8 @@ function observeSync(
       ? instanceOf(after, note)
       : undefined
   } catch {
+    // A sample that cannot be read proves nothing held: the synchronous
+    // gate reads it as not held, never as held, and never throws.
     return undefined
   }
 }
@@ -346,7 +355,7 @@ async function readHighestFence(port: LeasePort, fences: string): Promise<number
   try {
     return highestFence(await port.readdir(fences))
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isErrno(error, 'ENOENT')) {
       return 0
     }
     throw error
@@ -357,6 +366,8 @@ function readHighestFenceSync(port: LeasePort, fences: string): number | undefin
   try {
     return highestFence(port.readdirSync(fences))
   } catch {
+    // An unreadable fences folder proves no highest fence: the holder check
+    // reads it as not held, never as held, and never throws.
     return undefined
   }
 }
@@ -374,7 +385,7 @@ async function takeFence(port: LeasePort, fences: string, fenceAbove: number): P
       await port.createExclusive(path.join(fences, fenceName(fence)), '', 'visible')
       return fence
     } catch (error: unknown) {
-      if (errorCode(error) !== 'EEXIST' || attempt >= FENCE_CREATE_ATTEMPTS) {
+      if (!isErrno(error, 'EEXIST') || attempt >= FENCE_CREATE_ATTEMPTS) {
         throw error
       }
     }
@@ -387,6 +398,7 @@ async function sweepFences(port: LeasePort, fences: string, current: number): Pr
   try {
     names = await port.readdir(fences)
   } catch {
+    // Sweeping is best effort: the next acquisition sweeps again.
     return
   }
   for (const name of names) {
@@ -448,6 +460,8 @@ async function instanceAt(
     const bytes = await port.readFile(file)
     return { instance: instanceOf(stats, parseNote(bytes)), token: recoveryToken(stats, bytes) }
   } catch {
+    // A moved instance that cannot be read is never proven: the caller puts
+    // it back under its name and waits on, never removes it.
     return undefined
   }
 }
@@ -471,7 +485,7 @@ async function retire(
   try {
     await port.rename(lockPath, aside)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isErrno(error, 'ENOENT')) {
       return 'retired'
     }
     // Held by a scanner and the like: nothing moved; wait on.
@@ -493,8 +507,8 @@ async function retire(
   try {
     // Unproven: the same file back under its name, only while it is free.
     await port.link(aside, lockPath)
-  } catch {
-    throw new LeaseBusyError('A moved lock could not be put back')
+  } catch (error: unknown) {
+    throw new LeaseBusyError('A moved lock could not be put back', undefined, { cause: error })
   }
   try {
     await port.unlink(aside)
@@ -706,7 +720,7 @@ export async function acquireFileLease(
       } else await env.port.createExclusive(lockPath, JSON.stringify(note), 'visible')
       isCreated = true
     } catch (error: unknown) {
-      if (errorCode(error) !== 'EEXIST') {
+      if (!isErrno(error, 'EEXIST')) {
         throw error
       }
     }
