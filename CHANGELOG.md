@@ -3768,6 +3768,11 @@ happened, not what was planned; superseded entries are kept.
   (PR #232): `.github/workflows/real-use.yml` (`workflow_dispatch` only)
   runs the release candidate's steps under a dollar cap and an
   expected-calls guard and publishes a transcript artifact.
+- The vault's terminal commands keep the broker's own sentence when the
+  broker cannot start ("The broker cannot start. ... Repair the broker
+  installation.") and when the build has the vault switched off, instead of
+  the bare "No access" a person cannot act on. An open failure that names no
+  cause still says the broker cannot start (RUPLATFORML).
 
 - `providers add` and `providers test` against a refused endpoint name the
   connection's codes again ("Could not reach … (fetch failed: ECONNREFUSED),
