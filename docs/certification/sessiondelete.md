@@ -75,10 +75,12 @@
 ## What was built
 
 - `AgentHost.deleteSession(sessionId)` (`src/core/agent/agentBackend.ts`)
-  plus `HostInfo.canDeleteSessions`: Model API always true; Muse Code from
-  `canDeleteMuseSession` (new in `MuseCodeHost.ts`, version between 1.4.0
-  and 1.4.4 with build labels stripped, and the lifecycle reader injected —
-  false everywhere tonight since no reader is injected).
+  plus `HostInfo.canDeleteSessions` (optional): Model API always true; a
+  Muse Code host omits it. The offer gate `canDeleteMuseSession` lives in
+  `src/core/backends/musecode/museDeleteGate.ts`, outside the activation
+  graph so the activation budget holds (version between 1.4.0 and 1.4.4 with
+  build labels stripped, and the lifecycle reader injected — false
+  everywhere tonight since no reader is injected, PLAN.md D26).
 - `ModelApiHost.deleteSession`: marks the id deleted first, drains
   in-flight saves, removes the session through the product's own
   `SessionStore` (file, questions, uploads), drops cached
@@ -92,9 +94,11 @@
   resolved. `revive` refuses a deleted id, so the session can no longer be
   resumed or forked; `listSessions` hides it. A removal failure unmarks the
   id and rethrows, so the delete reports its real cause.
-- `MuseCodeHost.deleteSession` now resolves `void` (the terminal still
-  reaches lifecycle listeners) and its reader-missing error names the real
-  cause (`sessionDeleteUnsupported` with the CLI version) instead of `Delete`.
+- `MuseCodeHost.deleteSession` resolves `void` (no caller uses the
+  terminal return; the terminal still reaches lifecycle listeners) and keeps
+  the shipped reader-missing refusal, so the activation bundle holds the
+  line. The panel and ACP layers refuse first with `sessionDeleteUnsupported`
+  and the CLI version, naming the real cause where the person sees it.
 - Panel History: `deleteSession` webview message, controller handler with
   capability check, confirmation naming the conversation
   (`confirmFileAction`), backend delete, then — only once the backend
@@ -191,3 +195,65 @@
   ACP paths are reviewed against the shipped archive/close flows they mirror
   and covered by every gate above; the store behavior they call is proven by
   the kept test.
+
+## PR250FIX2 (2026-10-19, this lane, macbook rig)
+
+Hosted CI ran every unit shard on Linux, Windows and macOS: the only red
+was the lane K activation budget, and Grok's re-review (GRV250C) found two
+more defects. All three are fixed at their cause below; behaviour is
+unchanged everywhere a person can reach.
+
+- GRV250C-1, a turn that ends after delete puts the row back in History:
+  `ModelApiHost.announce` now returns when the id is in `deletedSessionIds`,
+  so a late touch (a turn settling after the removal, same as a rename on
+  the stopped handle) persists nothing and publishes nothing. The kept test
+  `a touch that lands after the delete does not put the row back` drives the
+  real controller, host and store through the panel's `handle` entry, deletes,
+  renames on the stopped handle (the same onChanged persist-and-announce
+  path a turn exit takes — no provider turn can run on this rig, and a
+  hand-answered one would be a fake), and asserts no list event is heard and
+  the last posted `sessionList` omits the id. On the pre-fix tree it fails
+  with `expected [ { type: 'changed', …(1) } ] to deeply equal []`; after the
+  fix it passes on the repo's own timeout.
+- GRV250C-2, an epoch change during delete leaves the row on screen: the
+  stale delete path now posts the session list after dropping the row (it
+  still skips `clear()`, so the newer generation's open conversation stays).
+  The kept test `a new conversation mid-delete still drops the row from the
+posted list` parks the delete at its confirm dialog, starts a new
+  conversation through the real `clearConversation` entry (a real epoch
+  invalidator that posts no list of its own, unlike `backendStopping`), then
+  confirms, and asserts the file is gone, `Deleted` is said once, and the
+  last posted `sessionList` omits the id. On the pre-fix tree it fails with
+  `expected 1 to be greater than 1` (no second list is posted); after the
+  fix it passes on the repo's own timeout. The `backendStopping` epoch test
+  stays as the hosts-restart variant.
+- Activation budget: `modelsActivationBudget` failed with growth 3116 over
+  the 3072 budget. Measured on `main` (a worktree at the fork point, same
+  test): baseline 561352, main 564253, growth 2901 — main holds 171 bytes of
+  headroom, and this branch added 215 bytes on the activation path, all of
+  it in `MuseCodeHost.ts` (the delete offer gate in the sync constructor;
+  the controller, Model API host, protocol, webview and ACP changes all
+  live outside `dist/extension.js`). A dynamic import cannot serve a sync
+  constructor, so the offer moved instead of the code: `HostInfo`
+  gains `canDeleteSessions?` (absent on Muse Code), the gate moved to
+  `src/core/backends/musecode/museDeleteGate.ts` (no activation-graph
+  module may import it; the kept `canDeleteMuseSession` table pins it), and
+  `MuseCodeHost.deleteSession` keeps its shipped refusal and void resolve.
+  After: baseline 561352, current 564232, growth 2880 — 21 bytes under
+  main's figure, 192 bytes of headroom left for the release's remaining
+  pull requests. Behaviour is identical everywhere it runs tonight: the
+  offer was already false on every Muse Code host (no lifecycle reader is
+  injected anywhere in production), and the panel/ACP refusals still name
+  `sessionDeleteUnsupported` with the CLI version.
+- Gates on the final tree: `tsc` host/webview/unit/e2e/integration clean;
+  eslint zero on all changed files; prettier clean; `check:l10n` 0 problems;
+  `check:reference` current; `check:host-api` 0 problems; `check:plan`
+  0 drift; `cycles` none; `knip` exit 0; `jscpd` exit 0; `npm run build`
+  green with budgets held.
+- Suites: sessionDelete (10), modelsActivationBudget (1), plus
+  `vitest related` over the changed sources (sessionDelete, agentErrors;
+  the live e2e drills skip without a key) — all pass on the repo's own
+  timeout.
+- Not run for real (same rig limits): the panel click-through, an ACP
+  `session/delete` round trip, and a mid-flight provider turn deleted from
+  History (needs a live model call).

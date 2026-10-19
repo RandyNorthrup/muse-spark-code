@@ -250,10 +250,13 @@ export interface HostInfo {
   readonly canEditSessions: boolean
   /**
    * False where the host cannot delete a stored conversation: the Model API
-   * backend always can (its own session store); a Muse Code host only where
-   * its CLI still serves `session/delete`, removed in 1.4.4 (PLAN.md D26).
+   * backend always can (its own session store). Absent on a Muse Code host:
+   * its delete gate (`canDeleteMuseSession`, version plus the injected
+   * lifecycle reader) stays out of the activation bundle, so the host omits
+   * the field and History offers no Delete there until the reader injection
+   * lands and wires the offer (PLAN.md D26).
    */
-  readonly canDeleteSessions: boolean
+  readonly canDeleteSessions?: boolean | undefined
 }
 
 export interface ModelSummary {
