@@ -5,6 +5,7 @@ import {
   targetFromArgs,
   targetOfVsix,
   vsixArtifactName,
+  vsixReleaseAssets,
   isVsixTargetFile,
 } from '../../scripts/lib/vsixTargets.mjs'
 
@@ -106,6 +107,17 @@ describe('per-platform VSIX inventory', () => {
     )
     expect(targetOfVsix('out/muse-spark-code-win32-x64-0.19.0.vsix')).toBe('win32-x64')
     expect(targetOfVsix('out/muse-spark-code-0.19.0.vsix')).toBeUndefined()
+  })
+
+  it('publishes one artifact per target and no universal package', () => {
+    const assets = vsixReleaseAssets('muse-spark-code', '0.19.0')
+    expect(assets).toHaveLength(VSIX_TARGETS.length)
+    for (const target of VSIX_TARGETS) {
+      const asset = `muse-spark-code-${target}-0.19.0.vsix`
+      expect(assets).toContain(asset)
+      expect(targetOfVsix(`release/${asset}`)).toBe(target)
+    }
+    expect(assets).not.toContain('muse-spark-code-0.19.0.vsix')
   })
 
   it('requires each stage to hold its own git-kept helpers', () => {

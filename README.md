@@ -5554,7 +5554,7 @@ DEFLATE compression after `vsce` creates the archive. Python 3 (`python3`,
 are skipped, including Windows' Microsoft Store aliases. The step preserves
 entry paths, metadata, every UI JSON value and all other uncompressed bytes.
 Only packaged translation JSON whitespace is compacted; source tables stay
-unchanged and malformed JSON refuses publication. The 3000 KiB universal VSIX budget covers the measured 0.16.0 combined train plus D6's margin; individual bundle caps follow their recorded measurements.
+unchanged and malformed JSON refuses publication. Each platform package keeps the same 3700 KiB VSIX budget (PLAN.md D6); individual bundle caps follow their recorded measurements.
 The legal scanner's pinned data is embedded in its lazy bundle, with separate
 notice/provenance files in both packages.
 
@@ -5721,7 +5721,7 @@ environment (`VSCE_PAT`, `OVSX_PAT`); a missing token is reported as a
 skip. Network errors get bounded retries;
 already-published versions require matching artifact hashes/integrity. A final
 summary reports every channel and fails if any channel failed. A `.vsix` packed
-locally has no macOS helper, so only CI's universal artifact is published.
+locally has no macOS helper, so only CI's six platform artifacts are published.
 See [the release and recovery guide](docs/RELEASING.md) for half-published
 states, npm EOTP, signing decisions and the M80 hooks (the schemas as
 release assets and the Action's `v0` tag). A manual run of `release.yml` on

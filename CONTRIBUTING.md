@@ -229,7 +229,7 @@ Windows and macOS eight (their files stay serial within a shard); all run
 without a coverage gate. The accessibility harness runs on Ubuntu against
 the production webview from the static gate except on pull requests; its
 pages, themes and scenarios do not depend on the OS. Linux/Windows VS Code
-integration, the macOS helper and the universal VSIX/ACP package checks
+integration, the macOS helper and the platform VSIX/ACP package checks
 remain. Expected wall time is roughly 10–15 minutes, pending hosted proof.
 In a merge group, gitleaks runs its pinned CLI (checksum-checked) over every
 commit the group reaches, since the gitleaks action refuses the
