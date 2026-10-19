@@ -30,9 +30,7 @@ beforeAll(async () => {
   const runtimeBase = process.env['XDG_RUNTIME_DIR'] ?? tmpdir()
   fixture.xdg = path.join(runtimeBase, `vs-nokeyring-xdg-${String(process.pid)}`)
   await mkdir(fixture.xdg, { recursive: true, mode: 0o700 })
-  await buildBrokerChildren(fixture.root, [
-    ['sessionBrokerNoKeyringChild', 'vaultBrokerNoKeyring.js'],
-  ])
+  await buildBrokerChildren(fixture.root, [['sessionBrokerChild', 'vaultBrokerNoKeyring.js']])
 })
 afterAll(async () => {
   for (const child of children) {

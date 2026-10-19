@@ -194,9 +194,6 @@
     "test/unit/helpers/vault/writerCrashChild.ts",
     // Built once by epochCrashPosix.test.ts; a real generated-only SIGKILL epoch child.
     "test/unit/helpers/vault/epochCrashChild.ts",
-    // Built once by brokerWithoutKeyring.test.ts; a real generated-only broker
-    // child with the OS-store admission replaced.
-    "test/unit/helpers/vault/sessionBrokerNoKeyringChild.ts",
     // Windows pipe relay peer, launched by path from windowsPipeRelay.test.ts.
     "test/unit/helpers/vault/pipeRelayPeer.mjs",
     // The reports e2e bundles this entry with esbuild by path
