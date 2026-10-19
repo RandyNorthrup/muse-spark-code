@@ -890,6 +890,12 @@
       "note": "this roadmap's generator and gate (project documentation tooling)"
     },
     {
+      "id": "M128",
+      "title": "Release roles for your team",
+      "summary": "Team roles and loops for shipping a release: fix rounds until review says mergeable, big merges split across helpers, real use of the packed product within a call and cost cap you set, failure triage, and audits of tests, security and notes.",
+      "area": "agents"
+    },
+    {
       "id": "M125",
       "title": "A faster, more accurate agent through a fast judge",
       "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally for Linux and macOS before reviewer skips are enabled; Windows keeps its existing reviewer.",
