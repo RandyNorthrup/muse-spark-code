@@ -2,6 +2,7 @@ import * as z from 'zod/mini'
 import { VAULT_LIMITS } from '../../../shared/constants'
 import { type VaultItem, type VaultBinding } from '../../../shared/vault'
 import { type AmbientFile } from './ambient'
+import { wipeImportMaterial } from './material'
 import { VaultMigrationFault } from './ports'
 
 export interface AmbientCredential {
@@ -175,10 +176,11 @@ export function parseAmbientCredentials(
     if (result.length === 0 || result.length > VAULT_LIMITS.items)
       throw new VaultMigrationFault('invalid')
     return result
-  } catch {
-    for (const entry of result)
-      for (const field of Object.values(entry.material))
-        if (field instanceof Uint8Array) field.fill(0)
-    throw new VaultMigrationFault('invalid')
+  } catch (error: unknown) {
+    // A torn-down parse reads invalid whatever broke it; the failure rides
+    // along as the cause while the person keeps fixed words.
+    wipeImportMaterial(result)
+    if (error instanceof VaultMigrationFault) throw error
+    throw new VaultMigrationFault('invalid', { cause: error })
   }
 }

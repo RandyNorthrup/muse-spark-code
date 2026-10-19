@@ -67,9 +67,9 @@ export function sessionCookies(
       output.push({ ...row, value, expiresAt: Math.min(row.expiresAt ?? maxExpiry, maxExpiry) })
     }
     return output
-  } catch {
+  } catch (error: unknown) {
     eraseCookies(output)
-    throw new Error('useChanged')
+    throw new Error('useChanged', { cause: error })
   }
 }
 
@@ -105,8 +105,8 @@ export function decodeCookies(bytes: Uint8Array, origin: string, now: number): W
       owned.push({ ...row, value })
     }
     return sessionCookies(owned, origin, now)
-  } catch {
-    throw new Error('useChanged')
+  } catch (error: unknown) {
+    throw new Error('useChanged', { cause: error })
   } finally {
     eraseCookies(owned)
   }

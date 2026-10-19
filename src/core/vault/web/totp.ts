@@ -84,8 +84,8 @@ export function decodeTotpSeed(text: string): Buffer<ArrayBuffer> {
     if (isBadPadding || accumulator !== 0 || output.length === 0 || encodedLength !== body.length)
       throw new Error('invalidTotp')
     return output
-  } catch {
+  } catch (error: unknown) {
     output.fill(0)
-    throw new Error('invalidTotp')
+    throw new Error('invalidTotp', { cause: error })
   }
 }

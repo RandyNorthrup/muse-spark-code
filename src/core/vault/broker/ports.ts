@@ -125,8 +125,11 @@ export type VaultManagementRefusal = Extract<
   { kind: 'refused' }
 >['reason']
 export class VaultManagementError extends Error {
-  constructor(readonly reason: VaultManagementRefusal) {
-    super(reason)
+  constructor(
+    readonly reason: VaultManagementRefusal,
+    options?: { cause?: unknown },
+  ) {
+    super(reason, options)
     this.name = 'VaultManagementError'
   }
 }

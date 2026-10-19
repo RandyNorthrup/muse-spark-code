@@ -8,7 +8,7 @@ import { vaultPrivateDirectory } from '../broker/files'
 import { type VaultPeerVerifier, type VaultProcessIdentity } from '../broker/peer'
 import { VaultSshSession } from './session'
 import { type SshSessionDeps, type SshAccessPort } from './ports'
-import { sshFailure } from './wire'
+import { closeSessions, destroySockets, sshFailure } from './wire'
 
 export interface SshListenerPort {
   readonly kind: 'unix' | 'windowsOwnerOnly'
@@ -44,14 +44,16 @@ export const unixSshListener: SshListenerPort = {
         })
       })
       await chmod(address, fsConstants.S_IRUSR | fsConstants.S_IWUSR)
-    } catch {
-      for (const socket of accepted) socket.destroy()
+    } catch (error: unknown) {
+      // A failed listen serves nothing: its sockets die, the server closes,
+      // and the failure rides along as the cause.
+      destroySockets(accepted)
       await new Promise<void>((resolve) => {
         server.close(() => {
           resolve()
         })
       })
-      throw sshFailure()
+      throw sshFailure(error)
     }
     return {
       close: async () => {
@@ -146,16 +148,20 @@ export async function createSshEndpoint(deps: {
           })
           socket.resume()
         } catch {
+          // Fail closed: an unverified or refused peer is destroyed and
+          // nothing is served; the requester reports its own failure.
           socket.destroy()
         }
       })()
     })
-  } catch {
+  } catch (error: unknown) {
+    // A failed serve owns nothing: every session closes, every socket dies,
+    // and the failure rides along as the cause.
     isClosed = true
     controller.abort()
-    for (const session of sessions) session.close()
-    for (const socket of sockets) socket.destroy()
-    throw sshFailure()
+    closeSessions(sessions)
+    destroySockets(sockets)
+    throw sshFailure(error)
   }
   return {
     address,

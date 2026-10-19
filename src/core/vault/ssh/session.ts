@@ -280,9 +280,13 @@ export class VaultSshSession {
             this.check(generation)
             await this.dispatch(owned, generation)
           } catch {
+            // The failed frame is answered with a failure frame below; the
+            // queue stays usable and the dispatch failure keeps no cause.
             try {
               if (this.isCurrent(generation)) this.deps.send(sshFrame(SSH.failure))
             } catch {
+              // Fail closed: the failure frame itself could not be sent, so
+              // the session closes instead of stalling.
               this.close()
             }
           } finally {
@@ -293,6 +297,7 @@ export class VaultSshSession {
         })()
       })
     } catch {
+      // Fail closed: undecodable bytes close the session and nothing is served.
       this.close()
     }
   }
