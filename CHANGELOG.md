@@ -1335,6 +1335,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- The resource governor holds nothing back until you set a limit: every
+  threshold defaults to no limit, so it measures and shows the machine's
+  state without pausing, holding or relocating anything.
+
 - Schedule consent/pricing loads with the existing paid helper bundle; runtime
   session ownership loads with the standalone engine, preserving the schedule
   surface budget without another chunk or a cap increase.
