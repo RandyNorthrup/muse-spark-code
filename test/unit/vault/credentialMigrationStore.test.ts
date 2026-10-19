@@ -14,7 +14,7 @@ import { realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createHash, randomBytes } from 'node:crypto'
-import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
+import { chmod, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { NodeVaultFiles, VaultStore } from '../../../src/core/vault/store'
@@ -86,6 +86,29 @@ function liveStore(): VaultStore {
   return current.store
 }
 
+/** The live store's real vault file: the refusal below acts on it, never on a wrapper. */
+function vaultFilePath(): string {
+  const current = openStores.at(-1)
+  if (current === undefined) throw new Error('store not open')
+  return path.join(current.directory, 'vault', 'vault.v1')
+}
+
+/**
+ * Make the real VaultStore refuse its next remove, the way a real
+ * filesystem refusal does. On POSIX, mode `0444` trips the store's own
+ * verify (owner-only `0600`); on Windows the same call sets the read-only
+ * attribute, which refuses the store's rename/unlink. Either way the
+ * `liveStore().remove` below runs and fails — nothing throws on its behalf.
+ */
+async function refuseVaultFile(): Promise<void> {
+  await chmod(vaultFilePath(), 0o444)
+}
+
+/** Give the vault file back after a refused remove, so the retry runs real too. */
+async function restoreVaultFile(): Promise<void> {
+  await chmod(vaultFilePath(), 0o600)
+}
+
 interface FailAfter {
   /** Writes succeed until this many land; the next one throws, once. */
   failAfter: number
@@ -109,11 +132,22 @@ function ports(
       await liveStore().write(item, isEdit ? 'present' : 'absent')
     },
     remove: async (id, authorize) => {
-      // A crash between the journal commit and the vault remove: the next
-      // vault commit is real, only this one remove throws, once.
+      // A crash between the journal commit and the vault remove: the engine
+      // already journaled `deleting` before this runs, so refusing the real
+      // file now strands the old vault item the way the real world does.
+      // The remove below is the real one, against the refused file; the
+      // restore runs before the error reaches the engine, so the retry the
+      // test runs next is real too.
       if (failRemoveOnce?.current === true) {
         failRemoveOnce.current = false
-        throw new Error('injected remove failure')
+        await refuseVaultFile()
+        try {
+          authorize?.()
+          await liveStore().remove(id)
+        } finally {
+          await restoreVaultFile()
+        }
+        return
       }
       authorize?.()
       await liveStore().remove(id)
@@ -352,8 +386,8 @@ async function removeMigratedKey(shell: ReturnType<typeof createMigrationShell>)
 
 /**
  * A sign-out crashed mid-delete through the real shell and controller:
- * SecretStorage is cleared first and the journal is left saying `deleting`.
- * Failing the vault remove strands the old vault item too; failing the
+ * the journal is left saying `deleting` with both copies still in place.
+ * Refusing the real vault file strands the old vault item too; failing the
  * second journal write strands the state past the vault remove instead.
  */
 async function crashedSignOut(
@@ -772,8 +806,9 @@ describe('key-store migration against a real store', () => {
     shell.bind(controller(store, [], noFail(), quiet, failRemoveOnce))
     await controller(store, [], noFail()).ensureMigrated()
     expect(await readMigratedSecret()).toBe(first)
-    // The journal writes `deleting`, then the vault remove fails: the call
-    // throws with the original key still readable in both stores.
+    // The journal writes `deleting`, then the vault remove fails against
+    // the refused real file: the call throws with the original key still
+    // readable in both stores.
     await expect(shell.store.delete(MODEL_API_KEY)).rejects.toThrow()
     expect(await store.get(MODEL_API_KEY)).toBe(first)
     expect(await credentialCount()).toBe(1)
