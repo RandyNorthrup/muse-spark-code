@@ -117,7 +117,6 @@ describe('M96c constants and stable guidance', () => {
       TEAM_STALL_RATE_LIMIT_MS: 120_000,
       TEAM_RETIRE_WAIT_MS: 30_000,
       TEAM_HANDOFF_TOOL_CALLS: 20,
-      TEAM_MAX_REASSIGNMENTS: 2,
       TEAM_DIVERGE_REPEATS: 3,
       TEAM_DIVERGE_SIZE_FACTOR: 3,
       TEAM_START_STAGGER_MS: 5000,
@@ -132,7 +131,6 @@ describe('M96c constants and stable guidance', () => {
       TEAM_SCHED_ID_MAX_CHARS: 128,
       TEAM_SCHED_TEXT_MAX_CHARS: 8000,
       TEAM_WRITE_SET_MAX: 256,
-      TEAM_REVIEW_ROUNDS_MAX: 3,
       TEAM_SCHED_HISTORY_MAX: 256,
       RUNNER_CONFIG_MAX: 32,
       RUNNER_MAX_JOBS: 64,
@@ -151,7 +149,9 @@ describe('M96c constants and stable guidance', () => {
     expect(constants.TEAM_MODEL_TEXT.handoffDataOpen).not.toBe(
       constants.TEAM_MODEL_TEXT.handoffDataClose,
     )
-    expect(constants.TEAM_MODEL_TEXT.integration).toContain('third failed review round')
+    expect(constants.TEAM_MODEL_TEXT.integration).toContain(
+      'Review rounds continue until the change passes',
+    )
     expect(constants.TEAM_MODEL_TEXT.workerChecks).toContain('run_checks')
   })
 })

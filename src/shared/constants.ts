@@ -3294,7 +3294,6 @@ export const TEAM_STALL_RATE_LIMIT_MS = 2 * 60_000
 // The plan's bounded escalation policy, not a captured native cancel guarantee.
 export const TEAM_RETIRE_WAIT_MS = 30_000
 export const TEAM_HANDOFF_TOOL_CALLS = 20
-export const TEAM_MAX_REASSIGNMENTS = 2
 export const TEAM_DIVERGE_REPEATS = 3
 export const TEAM_DIVERGE_SIZE_FACTOR = 3
 export const TEAM_START_STAGGER_MS = 5000
@@ -3314,7 +3313,6 @@ export const RUNNER_WINDOWS_COMMAND_MAX_CHARS = 32_767
 export const TEAM_SCHED_ID_MAX_CHARS = 128
 export const TEAM_SCHED_TEXT_MAX_CHARS = 8000
 export const TEAM_WRITE_SET_MAX = 256
-export const TEAM_REVIEW_ROUNDS_MAX = 3
 export const TEAM_SCHED_HISTORY_MAX = 256
 export const RUNNER_CONFIG_MAX = 32
 export const RUNNER_MAX_JOBS = 64
@@ -7622,7 +7620,7 @@ export const TEAM_MODEL_TEXT = {
   handoffDataOpen: '<<<team handoff data>>>',
   handoffDataClose: '<<<end team handoff data>>>',
   integration:
-    'The merge queue reviews the whole current change and checks the merged combination before landing. A returned candidate needs rework on its own branch. After the third failed review round, stop and report the recurring findings. A claimed check without a matching executed command is unverified.',
+    'The merge queue reviews the whole current change and checks the merged combination before landing. A returned candidate needs rework on its own branch. Review rounds continue until the change passes or the person stops the work; each failing round reports its findings and the ones that came back before. A claimed check without a matching executed command is unverified.',
   workerChecks:
     'Use the shared run_checks tool for checks that need installed dependencies; it runs a snapshot in an isolated check slot or a user-configured runner.',
   toolUncertainDelegation:
