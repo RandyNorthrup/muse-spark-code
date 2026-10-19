@@ -324,15 +324,22 @@ export interface ModelPricedUsage extends PricedUsage {
 /**
  * The stream request's token estimate for pacing: the paid admission's own
  * count when it has one, else the body's byte size plus its output budget.
+ * A hook call on a record-silent model sends no output budget (D121), so
+ * nothing is added for it; every other caller sends one, unchanged.
  */
 export function estimatedStreamTokens(
   body: CreateResponseBody,
   admitAttempt: { readonly paidEstimatedInputTokens?: number | undefined } | undefined,
 ): number {
+  // D121: a hook call on a record-silent model sends no output budget; the
+  // key is absent at runtime although the shared type cannot see it
+  // (hookModelEntry, PLAN.md §8). The pacing estimate then counts the input
+  // side alone; every other caller sends a budget, unchanged.
+  const sent = body as { readonly max_output_tokens?: number | undefined }
   return (
     (admitAttempt?.paidEstimatedInputTokens ??
       new TextEncoder().encode(JSON.stringify([body.input, body.instructions, body.tools]))
-        .length) + body.max_output_tokens
+        .length) + (sent.max_output_tokens ?? 0)
   )
 }
 
