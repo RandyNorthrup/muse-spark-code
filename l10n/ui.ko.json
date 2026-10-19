@@ -2472,6 +2472,7 @@
   "historyDeleteConfirmDetail": "기록에서 완전히 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
   "historyDeleted": "{name}을(를) 삭제했습니다.",
   "historyDeleteFailed": "대화를 삭제할 수 없습니다",
+  "historyDeleteCleanupFailed": "{name}을(를) 삭제했지만 마무리를 완료하지 못했습니다: {reason}",
   "historyCurrent": "현재",
   "historyForkMark": "포크",
   "historyTurns": {

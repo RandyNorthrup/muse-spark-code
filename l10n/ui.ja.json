@@ -2472,6 +2472,7 @@
   "historyDeleteConfirmDetail": "履歴から完全に削除されます。この操作は元に戻せません。",
   "historyDeleted": "{name} を削除しました",
   "historyDeleteFailed": "会話を削除できませんでした",
+  "historyDeleteCleanupFailed": "{name} を削除しましたが、後片付けを完了できませんでした: {reason}",
   "historyCurrent": "現在",
   "historyForkMark": "フォーク",
   "historyTurns": {

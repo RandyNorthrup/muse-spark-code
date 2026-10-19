@@ -3064,6 +3064,7 @@ export const EN = {
   historyDeleteConfirmDetail: 'It leaves History for good. This cannot be undone.',
   historyDeleted: 'Deleted {name}',
   historyDeleteFailed: 'Could not delete the conversation',
+  historyDeleteCleanupFailed: 'Deleted {name}, but finishing the cleanup failed: {reason}',
   historyCurrent: 'Current',
   historyForkMark: 'Fork',
   historyTurns: forms({ one: '{count} turn', other: '{count} turns' }),

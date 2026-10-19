@@ -2572,6 +2572,7 @@
   "historyDeleteConfirmDetail": "Ela sairá do histórico para sempre. Isso não pode ser desfeito.",
   "historyDeleted": "{name} excluída",
   "historyDeleteFailed": "Não foi possível excluir a conversa",
+  "historyDeleteCleanupFailed": "{name} excluída, mas a conclusão da limpeza falhou: {reason}",
   "historyCurrent": "Atual",
   "historyForkMark": "Bifurcação",
   "historyTurns": {

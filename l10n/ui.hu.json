@@ -2522,6 +2522,7 @@
   "historyDeleteConfirmDetail": "Végleg kikerül az előzményekből. Ez nem vonható vissza.",
   "historyDeleted": "{name} törölve",
   "historyDeleteFailed": "A beszélgetést nem sikerült törölni",
+  "historyDeleteCleanupFailed": "{name} törölve, de a befejező takarítás sikertelen volt: {reason}",
   "historyCurrent": "Aktuális",
   "historyForkMark": "Elágazás",
   "historyTurns": {
