@@ -12,6 +12,9 @@
 //
 //   node scripts/build.mjs --production && node scripts/package-acp.mjs
 //   (npm run package:acp)
+// Add `--target <platform>-<arch>` (the six desktop targets, as for the
+// .vsix) to stage only that target's native pieces instead of every
+// platform's: `node scripts/package-acp.mjs --target linux-x64`.
 
 import { execFile, execFileSync } from 'node:child_process'
 import {
@@ -21,6 +24,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -29,15 +33,9 @@ import path from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
 import { renderPackageReadme } from './check-badges.mjs'
-import {
-  CI_LAUNCHER_SOURCES,
-  DARWIN_HELPER,
-  JOB_SOURCES,
-  LINUX_HELPERS,
-  RUNNER_HELPERS,
-  VOICE_WINDOWS_HELPERS,
-} from './lib/acpNativeSources.mjs'
+import { CI_LAUNCHER_SOURCES, RUNNER_HELPERS, acpNativeFiles } from './lib/acpNativeSources.mjs'
 import { stageCiLauncher } from './lib/ciStageLayout.mjs'
+import { targetFromArgs } from './lib/vsixTargets.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { ACP_BUNDLES as BUNDLES, acpUsageAssets } from './lib/acpBundles.mjs'
 
@@ -81,8 +79,16 @@ function usageAssets() {
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
 const keyringVersion = lockedVersion(manifest)
 requireBundles()
-if (!existsSync(DARWIN_HELPER) || !statSync(DARWIN_HELPER).isFile())
-  throw new Error(`Required Darwin created-path helper is missing: ${DARWIN_HELPER}`)
+// One package per platform: a targeted package stages only its own
+// platform's native pieces, so it never demands a helper only another OS
+// builds. The universal package (no flag) keeps every platform's helpers.
+const target = targetFromArgs(process.argv.slice(2))
+const nativeFiles = acpNativeFiles(target)
+for (const helper of nativeFiles)
+  if (!existsSync(helper) || !statSync(helper).isFile())
+    throw new Error(
+      `Required native helper is missing for ${target ?? 'the universal package'}: ${helper}`,
+    )
 const PACKAGE_NAME = 'muse-spark-code-acp'
 // The package's landing page (docs/npm-readme.md): npm renders
 // GitHub-flavoured Markdown but does not resolve relative links or images,
@@ -90,9 +96,6 @@ const PACKAGE_NAME = 'muse-spark-code-acp'
 // detailed guide and is linked from the landing page instead.
 const README = path.join('docs', 'npm-readme.md')
 const NOTICES = 'THIRD_PARTY_NOTICES.txt'
-for (const helper of LINUX_HELPERS)
-  if (!existsSync(helper) || !statSync(helper).isFile())
-    throw new Error(`Required Linux created-path helper is missing: ${helper}`)
 const pageAssets = [
   ...usageAssets(),
   'dist/webview/voiceCompanion.js',
@@ -126,31 +129,35 @@ for (const bundle of BUNDLES) {
 cpSync('dist/legal-data', path.join(STAGE, 'dist', 'legal-data'), { recursive: true })
 stageCiLauncher(process.cwd(), STAGE, CI_LAUNCHER_SOURCES)
 for (const source of pageAssets) {
-  const target = path.join(STAGE, source)
-  mkdirSync(path.dirname(target), { recursive: true })
-  copyFileSync(source, target)
+  const staged = path.join(STAGE, source)
+  mkdirSync(path.dirname(staged), { recursive: true })
+  copyFileSync(source, staged)
 }
-for (const source of [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS, ...VOICE_WINDOWS_HELPERS]) {
+for (const source of nativeFiles) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }
+// The darwin app bundle and vault helper ship only where darwin pieces do:
+// the universal package and the darwin targets. Their absence elsewhere is
+// the target working as designed, never a missing file.
 // Keep every signed resource and executable mode when macOS CI supplied it.
 // Linux-only packages retain the runtime's honest missing-helper refusal.
+const shipsDarwin = target === undefined || target.startsWith('darwin-')
 const screenBundle = path.join('native', 'darwin', 'muse-dictate-screen.app')
-if (existsSync(screenBundle)) {
+if (shipsDarwin && existsSync(screenBundle)) {
   cpSync(screenBundle, path.join(STAGE, screenBundle), { recursive: true })
 }
 for (const helper of [
   path.join('dist', 'native', 'darwin', 'muse-vault'),
   path.join('native', 'darwin', 'muse-vault-peer'),
 ]) {
-  if (!existsSync(helper)) {
+  if (!shipsDarwin || !existsSync(helper)) {
     continue
   }
 
-  const target = path.join(STAGE, helper)
-  mkdirSync(path.dirname(target), { recursive: true })
-  copyFileSync(helper, target)
+  const staged = path.join(STAGE, helper)
+  mkdirSync(path.dirname(staged), { recursive: true })
+  copyFileSync(helper, staged)
 }
 cpSync(RUNNER_HELPERS, path.join(STAGE, RUNNER_HELPERS), { recursive: true })
 const tables = readdirSync('l10n')
@@ -258,9 +265,17 @@ const packed = execFileSync('npm', ['pack', '--pack-destination', '..'], {
   .trim()
   .split('\n')
   .at(-1)
+// A targeted package says its target in its filename, as the targeted
+// .vsix does, so two platforms' artifacts never share a name.
+let packedName = String(packed)
+if (target !== undefined) {
+  const targeted = `${packedName.slice(0, packedName.length - '.tgz'.length)}-${target}.tgz`
+  renameSync(path.join('dist', packedName), path.join('dist', targeted))
+  packedName = targeted
+}
 execFileSync(
   process.execPath,
-  ['test/packaging/moduleExports.test.mjs', 'acp', path.join('dist', String(packed))],
+  ['test/packaging/moduleExports.test.mjs', 'acp', path.join('dist', packedName)],
   { stdio: 'inherit' },
 )
-console.log(`dist/${String(packed)}: ${PACKAGE_NAME} ${String(manifest.version)}`)
+console.log(`dist/${packedName}: ${PACKAGE_NAME} ${String(manifest.version)}`)

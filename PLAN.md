@@ -15246,6 +15246,23 @@ are re-checked in the same job, so a cancelled job never leaves only some
 targets published.
 Evidence: `docs/certification/vsix-platform.md`.
 
+### D123 — One package per platform target (lane RUTRUTHL2, 2026-10-18)
+
+The universal `.vsix` and universal ACP tarball each demand every
+platform's native helpers, so neither packs on a single-OS checkout:
+a Linux lane cannot build the arm64 helper's cross toolchain or any
+macOS helper. The packagers take `--target <platform>-<arch>` (the six
+desktop targets VS Code runs on); a targeted package stages only its
+own platform's native pieces (`native/runner/*` ships everywhere
+because the SSH runner copies the helper to the remote side) and names
+its target in its filename, while the universal package keeps all.
+Every target is checked against the same unchanged D6 budget. CI and
+release publication of per-target artifacts stay with the release
+packaging lane; this decision covers the packager mechanism and the
+local proof (`muse-spark-code-linux-x64-0.19.0.vsix` and
+`muse-spark-code-acp-0.19.0-linux-x64.tgz` packed and inventoried on
+`linuxlt`).
+
 ## 3. Open questions (need the owner)
 
 <a id="q-m124"></a>
