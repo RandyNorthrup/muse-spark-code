@@ -33,11 +33,13 @@ claims checked.
    "twelve … for your architecture".
 5. `resources/walkthrough/chat.md` — free dictation "on Windows and macOS"
    omitted 0.19.0's local Linux offline English dictation. Now names it.
-6. `docs/PRIVACY.md` — paid features "asks again in a popup before each
-   use" was stale for Muse Voice, which asks once before the first
-   recording in a window (README Paid features, `en.ts` consent strings).
-   Now carries both exceptions (web search once per prompt; voice once per
-   window).
+6. `docs/PRIVACY.md` — the voice exception added here ("once before the
+   first recording in a window", from README Paid features) was wrong: the
+   consent gate is per recording (`PAID_USE_REGISTRY` voice `once: 'use'`,
+   "Every paid recording asks; Allow once covers one recording (CM352)"),
+   proven by driving it (two uses ask twice; Tab asks once). Correction on
+   `revcatch/auditdocs`: PRIVACY.md and `README.md` now say Muse Voice asks
+   before each recording with Allow once covering one recording.
 
 ## Fixed in code (committed)
 
