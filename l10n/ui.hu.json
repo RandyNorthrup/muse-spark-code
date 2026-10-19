@@ -37,7 +37,7 @@
   "resourceGpu": "GPU-használat",
   "resourceDisk": "Lemezterhelés",
   "resourceDiskFree": "Szabad lemezterület",
-  "resourceDiskWriteRefused": "Nem lehet írni ide: {volume}. Kritikusan kevés a szabad lemezterület.",
+  "resourceDiskWriteRefused": "Nem lehet írni ide: {volume}. A szabad terület a beállításokban megadott határérték alatt van.",
   "resourceDiskMinFreeGiBDescription": "A szabad lemezterület alsó határa GiB-ban. Érték nélkül nincs határ; a beállított érték legalább 2 GiB.",
   "resourceHistory": "Erőforrás-előzmények",
   "resourceHarness": "Az ügynökkörnyezet munkája",

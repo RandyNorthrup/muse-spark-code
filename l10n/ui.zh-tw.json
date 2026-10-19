@@ -37,7 +37,7 @@
   "resourceGpu": "GPU 使用率",
   "resourceDisk": "磁碟忙碌程度",
   "resourceDiskFree": "磁碟可用空間",
-  "resourceDiskWriteRefused": "無法寫入 {volume}：磁碟可用空間已嚴重不足。",
+  "resourceDiskWriteRefused": "無法寫入 {volume}：可用空間低於設定中指定的磁碟下限。",
   "resourceDiskMinFreeGiBDescription": "磁碟可用空間下限（GiB）。未設定時不設下限；設定值至少為 2 GiB。",
   "resourceHistory": "資源歷程記錄",
   "resourceHarness": "代理程式執行環境的工作",

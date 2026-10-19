@@ -37,7 +37,7 @@
   "resourceGpu": "GPU 使用率",
   "resourceDisk": "ディスク稼働率",
   "resourceDiskFree": "ディスクの空き容量",
-  "resourceDiskWriteRefused": "{volume} に書き込めません。ディスクの空き容量が危険な水準です。",
+  "resourceDiskWriteRefused": "{volume} に書き込めません。空き容量が設定のディスク下限を下回っています。",
   "resourceDiskMinFreeGiBDescription": "空き容量の下限（GiB）。未設定の場合は下限を設けません。設定値は最低2 GiBです。",
   "resourceHistory": "リソースの履歴",
   "resourceHarness": "エージェント実行環境の処理",

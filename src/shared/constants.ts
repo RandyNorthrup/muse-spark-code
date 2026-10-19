@@ -13,12 +13,11 @@ export const RESOURCE_SAMPLE_MS = 5000
 export const RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR = 52
 // IOKit's storage busy counters tick in nanoseconds; samples tick in milliseconds.
 export const RESOURCE_NS_PER_MS = 1_000_000
-// D87.14: free-space policy and owned-tree retention.
+// D87.14: free-space policy and owned-tree retention. D121 (owner
+// 2026-10-16): no threshold of ours — the person's disk floor (null by
+// default) is the only level the governor holds against.
 export const RESOURCE_DISK_SAMPLE_MS = 30_000
 export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000
-export const RESOURCE_DISK_MIN_FREE_GIB = 2
-export const RESOURCE_DISK_CRITICAL_GIB = 1
-export const RESOURCE_DISK_CRITICAL_FRACTION = 0.01
 export const RESOURCE_DISK_HYSTERESIS_GIB = 2
 export const RESOURCE_DISK_TREND_MS = 5 * 60_000
 export const RESOURCE_DISK_ETA_MS = 10 * 60_000
