@@ -3,7 +3,7 @@
 # build and every unit test with no coverage gate; the full tier (merge
 # groups, manual runs, release.yml) runs every gate on three platforms, unit
 # shards (four on Ubuntu, eight on Windows and macOS), the integration runs,
-# the macOS helper and the universal packages. Accessibility left the
+# the macOS helper and the platform packages. Accessibility left the
 # pull-request path: it runs on merge groups, manual runs and releases, never
 # on a pull_request event. The required check names come from the `required`
 # aggregate below on both tiers.
@@ -518,7 +518,7 @@ jobs:
           if-no-files-found: error
 
   packages:
-    name: universal release artifacts
+    name: platform release artifacts
     if: ${{ inputs.part != 'org' && !inputs.fast }}
     needs: [checks, native-build, linux-native-build]
     runs-on: ubuntu-latest
@@ -565,56 +565,10 @@ jobs:
       - run: chmod +x native/darwin/muse-dictate
       - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
       - run: npm ci
-      - run: npm run package
-        env:
-          # The packaged-README badge check lists public main (GitHub API).
-          GITHUB_TOKEN: ${{ github.token }}
-      - name: the universal VSIX stays within its measured budget
-        run: node scripts/check-vsix-size.mjs ./*.vsix
-      # What must be inside the package: the licence, the third-party
-      # notices, the native helpers and every runtime bundle (the webview
-      # loads main.css beside main.js; the extension requires modelApi.js
-      # when the Model API backend first starts, M57, starts pageWorker.js
-      # as a worker for each web page it converts, M69, and requires
-      # browserCheck.js on the first browser check, M81).
-      - name: the .vsix carries the notices, the helpers, the bundles and the manifest's text
-        run: |
-          universal="muse-spark-code-$(node -p "require('./package.json').version").vsix"
-          listing="$(unzip -Z1 "$universal")"
-          for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \
-            extension/native/linux/x64/muse-created extension/native/linux/arm64/muse-created \
-            extension/native/linux/x64/muse-vault-peer extension/native/linux/arm64/muse-vault-peer extension/native/darwin/muse-vault-peer \
-            extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
-            extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
-            extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
-            extension/native/windows/MuseSparkScreenRecord.cs \
-            extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate \
-            extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources \
-            extension/dist/vault.js extension/dist/vaultBoundaries.js extension/dist/vaultBroker.js extension/dist/estimator.js extension/dist/estimateContracts.js \
-            extension/dist/native/darwin/muse-vault \
-            extension/native/windows/MuseSparkVault.cs extension/native/windows/MuseSparkVaultCng.cs \
-            extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs \
-            extension/native/windows/MuseSparkVaultPipe.cs \
-            extension/dist/extension.js extension/dist/conversation.js extension/dist/prompts.js extension/dist/modelApi.js extension/dist/searchWorker.js \
-            extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
-            extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
-            extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \
-            extension/dist/uiTextMedia.js extension/dist/media.js extension/dist/screenRecord.js \
-            extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
-            extension/dist/legalScan.js extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json \
-            extension/dist/sessionBoard.js extension/dist/reviewer.js \
-            extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \
-            extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
-            extension/dist/report.js extension/dist/recorder.js \
-            extension/dist/webFetch.js extension/dist/judge.js extension/docs/judge.md extension/dist/whatsNew.js extension/dist/whatsNew.json \
-            extension/dist/webview/main.js extension/dist/webview/main.css \
-            extension/dist/webview/whatsNew.js extension/dist/webview/whatsNew.css; do
-            if ! grep -Fxq -- "$entry" <<< "$listing"; then
-              echo "::error::$entry is missing from the .vsix" >&2
-              exit 1
-            fi
-          done
-          echo "the .vsix holds $(wc -l <<< "$listing") entries, the required ones included"
+      # No universal package ships (PLAN.md D123): the production build
+      # below feeds one package per platform, and the packages job checks
+      # exactly those six before they are published.
+      - run: npm run build
       # One package per platform: each target packs only its own native
       # pieces, meets the same unchanged budget, and carries only its own
       # helpers with its TargetPlatform in the manifest.
@@ -640,6 +594,13 @@ jobs:
               echo "::error::$own is missing from $artifact" >&2
               exit 1
             fi
+            for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \
+              extension/dist/extension.js extension/dist/modelApi.js extension/dist/uiText.js; do
+              if ! grep -Fxq -- "$entry" <<< "$listing"; then
+                echo "::error::$entry is missing from $artifact" >&2
+                exit 1
+              fi
+            done
             foreign="$(grep -E -- '^extension/(native/(windows|darwin|linux/)|dist/native/darwin/)' <<< "$listing" || true)"
             while IFS= read -r entry; do
               [ -z "$entry" ] && continue
