@@ -101,8 +101,8 @@ changing when its reader runs, item by item as above.
    `vscode` (verified: only core/shared/node imports plus type-only editor
    types), and the build fails a stray import there.
 2. `src/core/support/report.ts` (3,476) into the existing `dist/report.js`
-   (19,904 → 23,539 B, budget unchanged at 75 KiB): activation's
-   Diagnostics command takes the report bundle on first use (new
+   (19,904 → 23,539 B, budget unchanged at 75 KiB): Diagnostics and Report
+   a Problem both take the report bundle on first use (new
    `renderSupportReport` export on `reportEntry.ts`, same table-installing
    shape), instead of carrying the builder.
 
@@ -140,3 +140,20 @@ workspace command` and the updated report line), `check-bundle-size`
   warnings, prettier, knip, cycles, duplication, `check:plan`,
   `check:l10n`, `check:reference`, `check:host-api`, SAST and audit: exit
   0 (SAST/audit lines below).
+
+## Grok review findings (PR #245, accepted; fixed in this lane)
+
+- CHANGELOG had no Unreleased entry for this split: added one under
+  Pending in the activation-budget style.
+- `commandsOptions` kept `external: ['vscode']` from
+  `conversationGitOptions`, so its "a stray import fails this build" claim
+  held nothing: it now spreads `common` with the same plugins and no
+  `vscode` external, like `reportOptions`. Probed: a planted
+  `import … from 'vscode'` in the bundle fails esbuild with
+  `Could not resolve "vscode"` (exit 1); with the old external it built.
+  Production `npm run build` is byte-identical
+  (extension 539,818, commands 29,962, report 23,539 B).
+- The record named only Diagnostics on `dist/report.js`: Diagnostics and
+  Report a Problem both load it on first use
+  (`src/extension.ts` Diagnostics command, `conversationController`
+  `openReport`), now said in the record, `reportEntry.ts` and `build.mjs`.
