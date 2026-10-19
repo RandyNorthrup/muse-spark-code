@@ -1,12 +1,21 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { workspaceChildEnvironment } from '../../src/core/execGuard'
 import { TIMER_MAX_DELAY_MS } from '../../src/shared/constants'
 import { shellOutcome } from '../../src/core/backends/modelapi/tools'
 import { runCommand } from '../../src/host/backend/toolIo'
 
 const notices: string[] = []
+
+/** The guarded child environment for the scratch working directory, as the shell tool builds it. */
+function childEnv(workspaceRoot: string) {
+  return workspaceChildEnvironment(process.platform, process.env, {
+    workspaceRoot,
+    realpath: realpathSync,
+  })
+}
 
 function tree() {
   return {
@@ -24,11 +33,12 @@ function scratch(): string {
 
 describe('shell runs without invented ceilings (NOLIMITS2 A20)', () => {
   it('a named timeout still kills the tree past it', async () => {
+    const cwd = scratch()
     const result = await runCommand({
       file: process.execPath,
       args: ['-e', 'setTimeout(() => {}, 10_000)'],
-      cwd: scratch(),
-      env: process.env,
+      cwd,
+      env: childEnv(cwd),
       timeoutMs: 50,
       signal: undefined,
       tree: tree(),
@@ -38,11 +48,12 @@ describe('shell runs without invented ceilings (NOLIMITS2 A20)', () => {
   })
 
   it('an unnamed run waits until the process ends instead of killing it', async () => {
+    const cwd = scratch()
     const result = await runCommand({
       file: process.execPath,
       args: ['-e', 'setTimeout(() => { console.log("done") }, 400)'],
-      cwd: scratch(),
-      env: process.env,
+      cwd,
+      env: childEnv(cwd),
       timeoutMs: undefined,
       signal: undefined,
       tree: tree(),
@@ -55,11 +66,12 @@ describe('shell runs without invented ceilings (NOLIMITS2 A20)', () => {
   })
 
   it('a named timeout past one timer range does not kill the run at once', async () => {
+    const cwd = scratch()
     const result = await runCommand({
       file: process.execPath,
       args: ['-e', 'setTimeout(() => { console.log("done") }, 300)'],
-      cwd: scratch(),
-      env: process.env,
+      cwd,
+      env: childEnv(cwd),
       timeoutMs: TIMER_MAX_DELAY_MS + 1,
       signal: undefined,
       tree: tree(),

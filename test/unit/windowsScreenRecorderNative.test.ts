@@ -32,17 +32,13 @@ import { removeFolder } from './helpers/temporaryFolders'
 
 const paths = { root: '', executable: '', source: '' }
 const systemRoot = process.env['SystemRoot'] ?? ''
-const env = { SystemRoot: systemRoot }
+const env = noWorkspaceChildEnvironment('win32', { SystemRoot: systemRoot }, realpathSync)
 const icacls = path.win32.join(systemRoot, 'System32', 'icacls.exe')
 const SOURCE = path.resolve('native/windows/MuseSparkScreenRecord.cs')
 const CHECKS = path.resolve('test/unit/helpers/windowsScreenRecorderChecks.cs')
 
 const check = async (...args: string[]) => {
-  const result = await runProgram(
-    paths.executable,
-    args,
-    noWorkspaceChildEnvironment('win32', env, realpathSync),
-  )
+  const result = await runProgram(paths.executable, args, env)
   return result.trim()
 }
 const destination = () => path.join(paths.root, `muse-spark-screen-${crypto.randomUUID()}`)
@@ -205,7 +201,7 @@ describe.skipIf(process.platform !== 'win32')(
         const owner =
           control === 'owner'
             ? execFileGuarded(paths.executable, ['owner'], {
-                env: noWorkspaceChildEnvironment('win32', env, realpathSync),
+                env,
                 windowsHide: true,
               })
             : undefined
@@ -223,7 +219,7 @@ describe.skipIf(process.platform !== 'win32')(
                 String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
               ],
               {
-                env: noWorkspaceChildEnvironment('win32', env, realpathSync),
+                env,
                 windowsHide: true,
                 timeout: PROCESS_TABLE_TIMEOUT_MS,
               },
@@ -292,7 +288,7 @@ describe.skipIf(process.platform !== 'win32')(
             paths.executable,
             ['ownerDeath'],
             {
-              env: noWorkspaceChildEnvironment('win32', env, realpathSync),
+              env,
               windowsHide: true,
               timeout: PROCESS_TABLE_TIMEOUT_MS,
             },

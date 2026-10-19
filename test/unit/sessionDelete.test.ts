@@ -372,6 +372,7 @@ function makePanel(directory: string, confirm: 'yes' | 'no' | 'deferred'): Panel
     turnText: unused('review.turnText'),
     newMarker: unused('review.newMarker'),
     createHold: unused('review.createHold'),
+    playbackText: unused('review.playbackText'),
   }
   const exports: ConversationExports = {
     saveMarkdown: unused('exports.saveMarkdown'),

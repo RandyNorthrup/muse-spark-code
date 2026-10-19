@@ -52,6 +52,27 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'approvalModes.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/core/backends/musecode/MuseCodeHost.ts',
+        symbol: 'MuseSession.admitScheduled',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/core/backends/musecode/MuseCodeHost.ts',
+        symbol: 'MuseSession.restoreScheduleMode',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/core/backends/musecode/MuseCodeHost.ts',
+        symbol: 'MuseSession.setApprovalMode',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
     file: 'auth.js',
     side: 'both',
     requestedBy: [

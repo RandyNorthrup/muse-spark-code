@@ -289,6 +289,50 @@ happened, not what was planned; superseded entries are kept.
   reaching the editor. Auto keeps the judge its description promises.
   Requires Muse Code 1.4.7 or later; older hosts keep their previous
   behaviour.
+- Three corrections to that profile work. Headless sessions (exec and every
+  other non-interactive path) start with no profile, keeping the host default
+  `:auto-review` as before, so commands the judge allowed stay allowed
+  instead of becoming rejected approvals. A mode switch whose profile step
+  fails puts the previous approval mode back before throwing a ModeKeptError
+  that names the running mode, so the Modes menu never shows a mode the host
+  is not running. A scheduled admission on
+  a Manual conversation runs with `:auto-review` while the unattended run is
+  in charge and puts the conversation's reviewer back afterwards.
+- Three failure-path corrections to that profile work. Resume, fork and load
+  seed the session from the approval mode the host serves, so the first mode
+  change rolls back like a live one. Every mode-switch failure names the wire
+  mode the host runs: a refused mode command, or a profile step the rollback
+  undoes, throws a ModeKeptError with the running mode and turns stay live;
+  an unknown previous mode, a failed rollback, a torn adoption, or a failed
+  schedule restore quarantines with a PermissionReviewerError naming the
+  running mode instead. A refused command releases its effect without
+  forgetting the mode, so later turns and mode changes are judged on their
+  own instead of rejected by that failure. The Modes menu (panel) and the
+  editor (ACP) show the running mode with the error's own sentence; when no
+  menu mode selects it, the panel refuses the send in flight instead. A torn
+  forward change says the named mode is running without its reviewer
+  installed; a torn rollback says the previous mode is restored with its
+  reviewer still installed, with turns refused until the mode is set again.
+  A refused schedule restore quarantines too, naming the mode the host still
+  runs. A quarantine keeps its sentence, which the next refused turn repeats
+  instead of the generic reviewer-missing words; the mode notice naming the
+  recorded mode keeps it, and a genuinely different mode replaces it with
+  the sentence naming that mode, which says new turns stay refused until
+  the mode is set again, with no reviewer or tear words (the notice
+  installs and removes no reviewer). Tears on Plan and Bypass say the acknowledged mode is in
+  effect but the adoption could not be confirmed, since those modes install
+  no reviewer. An unknown running
+  mode says so. Manual is never left running with the judge, and the menu
+  always agrees with the host. A finished schedule puts its mode and
+  reviewer back as one unit; when the reviewer cannot be put back the
+  session refuses new turns instead of running them under the wrong
+  reviewer. No production path in this tree sends through
+  the scheduled-admission entry points (`sendScheduledTurn` /
+  `steerScheduledTurn`): the only production delivery composition (the
+  runtime engine) refuses every target, and `ScheduleAgentSession`
+  (`src/host/schedules/backgroundTarget.ts`) is never constructed. The
+  admission and restore paths are proven by live probes driving the real
+  session class directly; see `docs/certification/manualmode.md`.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

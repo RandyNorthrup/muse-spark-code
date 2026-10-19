@@ -116,6 +116,19 @@ export function mspPermissionProfile(mode: string): string | undefined {
   return PROFILE_FOR_MODE[mode]
 }
 
+/**
+ * The native permission profile an ACP `session/start` carries for an MSP
+ * approval mode: the mode's reviewer on an interactive session, so Manual
+ * asks the person instead of Muse Code's judge; none on a headless session
+ * (exec and any other non-interactive path), which keeps the host default
+ * (`:auto-review`) and behaves as before — the judge still decides the
+ * commands it used to allow, and nothing can stall on an unanswered
+ * approval. An older host ignores the member and keeps the default.
+ */
+export function mspStartPermissionProfile(mode: string, isHeadless: boolean): string | undefined {
+  return isHeadless ? undefined : mspPermissionProfile(mode)
+}
+
 /** Modes whose MSP counterpart needs the approval cards before it is safe. */
 const PROMPTING_MODES: ReadonlySet<ApprovalMode> = new Set(['promptUnmatched', 'onRequest'])
 
@@ -127,6 +140,24 @@ const PROMPTING_MODES: ReadonlySet<ApprovalMode> = new Set(['promptUnmatched', '
 export function approvalModeFor(mode: PermissionMode, hasApprovalUi: boolean): ApprovalMode {
   const mapped = mspApprovalMode(mode)
   return !hasApprovalUi && PROMPTING_MODES.has(mapped) ? 'denyUnmatched' : mapped
+}
+
+/**
+ * The composer mode showing a wire approval mode the host runs (a refused
+ * mode change names it on its error's `actualMode`): the preferred UI mode
+ * when it selects that wire mode, else the first menu mode that does
+ * (`manual` before `acceptEdits`, the asking-safe one). `undefined` when no
+ * menu mode selects it (an unknown wire mode): the surface must refuse the
+ * send in flight instead of showing a mode the host is not running.
+ */
+export function composerModeForApprovalMode(
+  actualMode: string,
+  preferred: PermissionMode,
+  hasApprovalUi: boolean,
+): PermissionMode | undefined {
+  return approvalModeFor(preferred, hasApprovalUi) === actualMode
+    ? preferred
+    : PERMISSION_MODES.find((mode) => approvalModeFor(mode, hasApprovalUi) === actualMode)
 }
 
 /** The modes the Modes menu lists, in the Claude Code order. */

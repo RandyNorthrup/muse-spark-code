@@ -63,6 +63,7 @@ export const ACP_BUNDLES = [
   'vaultRuntime.js',
   'planSnapshot.js',
   'questionNotes.js',
+  'approvalModes.js',
   'mcpPool.js',
   'exec.js',
   'execGuard.js',

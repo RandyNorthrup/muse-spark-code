@@ -346,6 +346,8 @@ const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
 const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
 const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
 const RUNTIME_QUESTIONS_OUTFILE = 'dist/runtimeQuestions.js'
+const APPROVAL_MODES_ENTRY = 'src/core/backends/musecode/approvalModesEntry.ts'
+const APPROVAL_MODES_OUTFILE = 'dist/approvalModes.js'
 const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
 const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
 const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
@@ -556,6 +558,13 @@ const sessionBoardOptions = {
   ...modelApiOptions,
   entryPoints: [SESSION_BOARD_ENTRY],
   outfile: SESSION_BOARD_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const approvalModesOptions = {
+  ...modelApiOptions,
+  entryPoints: [APPROVAL_MODES_ENTRY],
+  outfile: APPROVAL_MODES_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1667,6 +1676,7 @@ if (isWatch) {
     esbuild.context(configuredOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
+    esbuild.context(approvalModesOptions),
     esbuild.context(referenceOptions),
     esbuild.context(schedulesOptions),
     esbuild.context(scheduleDeliveryOptions),
@@ -1833,6 +1843,7 @@ if (isWatch) {
     configuredProviders: recorded('configuredProviders', configuredOptions),
     review: recorded('review', reviewOptions),
     sessionBoard: recorded('sessionBoard', sessionBoardOptions),
+    approvalModes: recorded('approvalModes', approvalModesOptions),
     reporting: recorded('reporting', reportingOptions),
     reportingNetwork: recorded('reportingNetwork', reportingNetworkOptions),
     reportingDestinations: recorded('reportingDestinations', reportingDestinationsOptions),

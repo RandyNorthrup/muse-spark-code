@@ -72,7 +72,7 @@ The VS Code adapter: 50 files. Everything else reaches VS Code only through them
 | `src/host/tab/tabStatus.ts`                        | 3                 |
 | `src/host/usage/usagePanel.ts`                     | 40                |
 | `src/host/usage/usagePanelEntry.ts`                | 7                 |
-| `src/host/vault/vaultActionDialogs.ts`             | 24                |
+| `src/host/vault/vaultActionDialogs.ts`             | 25                |
 | `src/host/vault/vaultPanelBundle.ts`               | 1                 |
 | `src/host/vault/vaultPanelEntry.ts`                | 13                |
 | `src/host/views/ChatViewProvider.ts`               | 11                |
@@ -183,7 +183,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `FileSystem.readFile`                                                                | `src/extension.ts`, `src/host/editor/verifyEditor.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/usage/usagePanelEntry.ts`, `src/host/vault/vaultActionDialogs.ts`                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `FileSystem.stat`                                                                    | `src/extension.ts`, `src/host/editor/verifyEditor.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `FileSystem.writeFile`                                                               | `src/extension.ts`, `src/host/cliFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/reporting/reportPanel.ts`, `src/host/support/reportEditorIo.ts`, `src/host/usage/usagePanel.ts`                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `FileSystemError`                                                                    | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `FileSystemError`                                                                    | `src/extension.ts`, `src/host/vault/vaultActionDialogs.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `FileSystemError.code`                                                               | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `FileSystemWatcher.onDidChange`                                                      | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `FileSystemWatcher.onDidCreate`                                                      | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -499,20 +499,20 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------------ | ----- |
 | `node:async_hooks`       | 5     |
 | `node:buffer`            | 72    |
-| `node:child_process`     | 39    |
+| `node:child_process`     | 31    |
 | `node:crypto`            | 212   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
 | `node:events`            | 5     |
-| `node:fs`                | 106   |
+| `node:fs`                | 128   |
 | `node:fs/promises`       | 144   |
 | `node:http`              | 16    |
 | `node:https`             | 2     |
 | `node:module`            | 4     |
 | `node:net`               | 25    |
 | `node:os`                | 45    |
-| `node:path`              | 258   |
+| `node:path`              | 257   |
 | `node:perf_hooks`        | 4     |
 | `node:process`           | 26    |
 | `node:readline`          | 1     |
@@ -523,7 +523,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:timers/promises`   | 37    |
 | `node:tls`               | 1     |
 | `node:url`               | 9     |
-| `node:util`              | 12    |
+| `node:util`              | 11    |
 | `node:vm`                | 1     |
 | `node:worker_threads`    | 6     |
 | `node:zlib`              | 8     |

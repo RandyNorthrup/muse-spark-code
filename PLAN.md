@@ -15313,8 +15313,55 @@ the session's access and selects the human reviewer, while the default
 and Edit-automatically sessions start with `:ask-me`, Auto sessions with
 `:auto-review`, and every mode switch re-syncs the profile (experimental
 `session/setPermissionProfile`, tolerated as `methodNotFound` on older
-hosts). Headless sessions pass no profile and behave as before. Manual's
-words stand unchanged; they hold on Muse Code 1.4.7 and later. Record:
+hosts). Headless ACP starts (exec and every other non-interactive path)
+pass no profile and behave as before; a mode switch whose profile step
+fails with anything else puts the previous approval mode back before
+throwing, so the menu never shows a mode the host is not running; and a
+scheduled admission on a Manual conversation runs with `:auto-review` while
+the unattended run is in charge, putting the conversation's reviewer back
+when the mode is restored. The failure paths are closed too (lane
+PR251FIX2, 2026-10-19; corrected by lane PR251FIX3B after Grok's second
+re-review GRV251D): resume, fork and load seed the handle from the
+approval mode the envelope serves, so the first mode change rolls back
+like a live one. Every mode-switch failure names the wire mode the host
+runs: a refused mode command, or a profile step the rollback undoes,
+throws `ModeKeptError` with the running mode and turns stay live; an
+unknown previous mode, a failed rollback, a torn adoption, or a failed
+schedule restore quarantines with `PermissionReviewerError` naming the
+running mode instead. A refused command releases its effect without
+forgetting the mode, so later turns and mode changes are judged on their
+own. The Modes menu (panel composer) and the editor (ACP) show the running
+mode (`composerModeForApprovalMode`) with the error's own sentence; when no
+menu mode selects it, the panel refuses the send in flight instead (lane
+PR251FIX4, 2026-10-20, after Grok's third re-review GRV251E: a torn forward
+change says the named mode runs without its reviewer installed; a torn
+rollback says the previous mode is restored with its reviewer still
+installed, with turns refused until the mode is set again; a refused
+schedule restore quarantines too, naming the mode the host still runs; a
+quarantine keeps its sentence, which the next refused turn repeats; lane
+PR251FIX5, 2026-10-19, after Grok's fourth re-review GRV251F: the rollback
+notice naming the recorded mode keeps that sentence, and a genuinely
+different mode replaces it with the sentence naming that mode
+(`permissionModeChangedWhileQuarantined`: new turns stay refused until the
+mode is set again, with no reviewer or tear words, since the notice
+installs and removes no reviewer — lane PR251FIX6, 2026-10-19, after
+Grok's fifth re-review GRV251G); tears on Plan and Bypass say
+the acknowledged mode is in effect but unconfirmed, since those modes
+install no reviewer; the proof replays the recorded 1.4.7 frames through
+the real session). An
+unknown running mode says so. So Manual is never left running with the judge
+and the menu
+always agrees with the host; a finished schedule puts its mode and reviewer
+back as one unit, and when the reviewer cannot be put back the session
+refuses new turns while the restore gate resolves. The mode-sync
+orchestration lives in the deferred bundle `dist/approvalModes.js`
+(`src/core/backends/musecode/approvalModesEntry.ts`, loaded on the first
+mode change, schedule admission or restore), so activation carries only
+thin shells. No production path in this tree sends through the
+scheduled-admission entry points (the runtime engine's delivery targets
+refuse; `ScheduleAgentSession` is never constructed); the admission and
+restore paths are proven by live probes. Manual's words stand unchanged;
+they hold on Muse Code 1.4.7 and later. Record:
 `docs/certification/manualmode.md`.
 
 ## 3. Open questions (need the owner)

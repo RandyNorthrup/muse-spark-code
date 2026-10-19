@@ -55,6 +55,13 @@ function snapshotGoal(raw: unknown): SessionGoal | null | undefined {
 
 export const sessionRecordSchema = z.object({
   sessionId: z.string(),
+  /**
+   * The approval mode the host runs (served on 1.4.7 start/read/resume;
+   * `session/list` rows carry no mode). Captured live 2026-10-18
+   * (`{ mode, source, lastCommandId }`); only the mode is read, so a
+   * resumed handle starts knowing what to put back.
+   */
+  approvalMode: z.optional(z.object({ mode: z.string() })),
   /** Allocated name; absent until the host names the session. */
   name: z.optional(z.string()),
   /** Derived display title (the first prompt for unnamed sessions). */
