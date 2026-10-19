@@ -1063,6 +1063,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'posixVaultClientPlatform',
         side: ['acp', 'vscode'],
       },
+      {
+        importer: 'src/runtime/vault/windowsClientPlatform.ts',
+        symbol: 'windowsVaultClientPlatform',
+        side: ['acp', 'vscode'],
+      },
     ],
   },
   {
@@ -1073,6 +1078,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         importer: 'src/runtime/vault/vaultRuntimeEntry.ts',
         symbol: 'createVaultBrokerBindings',
         side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'vaultMigration.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'VAULT_MIGRATION_BUNDLE_FILE',
+        side: ['vscode'],
       },
     ],
   },
@@ -1090,6 +1106,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   { file: 'vaultStore.js', side: 'both', requestedBy: [] },
+  { file: 'vaultWindows.js', side: 'both', requestedBy: [] },
   {
     file: 'voice.js',
     side: 'vscode',

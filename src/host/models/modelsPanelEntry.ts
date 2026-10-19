@@ -16,6 +16,7 @@ import { providerSetupSchema } from '../../shared/providerSetup'
 import type { ChatSurface } from '../views/chatSurface'
 import { fill, setUiText } from '../../shared/l10n/text'
 import type { SecretStore } from '../auth/credentialStore'
+import type { MigrationShell } from '../vault/migrationShell'
 import { ProviderCredentialStore as CredentialStore } from '../providers/credentialRecords'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
@@ -81,6 +82,18 @@ export interface ModelsPanelHostDeps {
    */
   readonly vault?: (() => VaultBundle) | undefined
   readonly vaultDir?: string | undefined
+  /**
+   * The key-store migration's shell and its raw legacy source (D89.14 lane
+   * M). Absent until the window enables the vault path; the binding below
+   * builds the controller from it on first mount.
+   */
+  readonly credentialMigration?:
+    | {
+        readonly shell: MigrationShell
+        readonly rawSecrets: SecretStore
+        readonly minorRelease: () => number
+      }
+    | undefined
 }
 
 export interface ModelsPanelFeatures {
@@ -256,17 +269,36 @@ async function readImportFile(): Promise<string | undefined> {
  * loader (a switched-off vault, a missing bundle) leaves the panel without
  * the section, refusing exactly as 0.17.0 does.
  */
-function vaultBindingFactory(host: ModelsPanelHostDeps): ModelsVaultFactory | undefined {
+function vaultBindingFactory(
+  host: ModelsPanelHostDeps,
+  seam: ModelsPanelSeam,
+): ModelsVaultFactory | undefined {
   const bundle = host.vault
   const distDir = host.vaultDir
-  return bundle === undefined || distDir === undefined
-    ? undefined
-    : (publish) =>
-        bundle().createModelsVaultBinding(
-          { distDir, now: Date.now, publish, log: host.log },
-          host.l10n.table,
-          host.l10n.locale,
-        )
+  if (bundle === undefined || distDir === undefined) return undefined
+  const source = host.credentialMigration
+  return (publish) =>
+    bundle().createModelsVaultBinding(
+      {
+        distDir,
+        now: Date.now,
+        publish,
+        log: host.log,
+        ...(source !== undefined && {
+          credentialMigration: {
+            shell: source.shell,
+            rawSecrets: source.rawSecrets,
+            minorRelease: source.minorRelease,
+            listProviderIds: async () => {
+              const entries = await seam.store.list()
+              return entries.map((entry) => entry.id)
+            },
+          },
+        }),
+      },
+      host.l10n.table,
+      host.l10n.locale,
+    )
 }
 
 export function createModelsPanelFeatures(
@@ -392,7 +424,7 @@ export function createModelsPanelFeatures(
         extensionUri: host.extensionUri,
         l10n: host.l10n,
         log: host.log,
-        vault: vaultBindingFactory(host),
+        vault: vaultBindingFactory(host, seam),
         providers,
         sessionBudget,
         connectChatGpt: host.connectChatGpt,

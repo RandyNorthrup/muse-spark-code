@@ -1,14 +1,15 @@
 // The platform half of a vault connection, shared by dist/vaultRuntime.js
-// and the VS Code bundle (dist/vault.js). POSIX (Linux and macOS) is bound
-// here (owner-only run directory, peer.c peer check, node launch of
-// dist/vaultBroker.js); Windows follows through the pipe helper in lane
-// C-M109-1c. While the reviewed availability switch is off, public callers
-// refuse; every broker use still refuses while the broker is unavailable.
+// and the VS Code bundle (dist/vault.js): POSIX (owner-only run directory,
+// peer.c peer check, node launch of dist/vaultBroker.js) and Windows (pipe
+// helper build, pipe discovery and dial, same launch). While the reviewed
+// availability switch is off, public callers refuse; every broker use still
+// refuses while the broker is unavailable.
 
+import process from 'node:process'
 import { uiLocale } from '../../shared/l10n/text'
 import { UI_TEXT, VAULT_AVAILABILITY } from '../../shared/constants'
 import type { VaultBrokerDiscovery } from '../../core/vault/broker/discovery'
-import type { VaultPeerVerifier } from '../../core/vault/broker/peer'
+import type { VaultPeerVerifier, VaultPipeDialPort } from '../../core/vault/broker/peer'
 import type { VaultBrokerProcessPort } from '../../host/vault/brokerProcess'
 
 export interface VaultClientPlatform {
@@ -20,6 +21,8 @@ export interface VaultClientPlatform {
   readonly process: VaultBrokerProcessPort
   /** Checks the broker's end of each connection against the lock file's process. */
   readonly peers: VaultPeerVerifier
+  /** Windows only: verifies the pipe's owner and connects it (the raw socket carries no server end). */
+  readonly dial?: VaultPipeDialPort
 }
 export interface VaultClientPlatformContext {
   /** The runtime's per-user data folder; the vault lives in its `vault/`. */
@@ -36,6 +39,11 @@ export async function vaultClientPlatform(
 ): Promise<VaultClientPlatform> {
   if (!VAULT_AVAILABILITY.isBrokerAvailable)
     throw Object.assign(new Error(UI_TEXT.vault.brokerDisabled), { code: 'vaultDisabled' })
+  if (process.platform === 'win32') {
+    const { windowsVaultClientPlatform, setUiText } = await import('./windowsClientPlatform')
+    setUiText(UI_TEXT, uiLocale())
+    return await windowsVaultClientPlatform(context)
+  }
   const { posixVaultClientPlatform, setUiText } = await import('./posixClientPlatform')
   setUiText(UI_TEXT, uiLocale())
   return await posixVaultClientPlatform(context)

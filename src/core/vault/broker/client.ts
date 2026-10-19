@@ -13,9 +13,10 @@ import {
   vaultChannelResponseSchema,
   type VaultChannelResponse,
 } from './frames'
-import type { VaultPeerVerifier } from './peer'
+import type { VaultPeerVerifier, VaultPipeDialPort } from './peer'
 import type { VaultBrokerLocation } from './discovery'
 import { verifyVaultSocketFile } from './socketDirectory'
+import { windowsVaultPipeNameSchema } from './windowsPipe'
 
 /**
  * A dead or corrupted channel names itself, never the vault's state. A
@@ -37,10 +38,41 @@ export class VaultBrokerClient {
     hostId: string,
     hostSession: string,
     peers: VaultPeerVerifier,
+    dial?: VaultPipeDialPort,
   ): Promise<VaultBrokerClient> {
     // The client verifies the socket owner before it speaks (RVCM109JE P2-3):
     // no hello reaches a socket this user does not own.
     if (process.platform !== 'win32') await verifyVaultSocketFile(location.lock.socket)
+    if (process.platform === 'win32') {
+      // A raw pipe socket carries no inspectable server end: the dialer
+      // verifies the pipe's owner through the files-mode helper first.
+      // The claim file binds the pipe name and the hello below binds the
+      // broker; the lock's process names the broker node for staleness,
+      // never the pipe-owning helper, so no pid equality applies here.
+      if (!dial) throw new Error(UI_TEXT.vault.brokerBlocked)
+      const pipe = windowsVaultPipeNameSchema.parse(location.lock.socket)
+      await dial.verifyPipe(pipe)
+      const pipeSocket = dial.connectPipe(pipe)
+      const pipeClient = new VaultBrokerClient(pipeSocket)
+      try {
+        await new Promise<void>((resolve, reject) => {
+          pipeSocket.once('connect', resolve)
+          pipeSocket.once('error', reject)
+        })
+        const hello = await pipeClient.send({
+          kind: 'hello',
+          bootToken: location.bootToken,
+          hostId,
+          hostSession,
+        })
+        if (hello.kind !== 'hello' || hello.brokerId !== location.lock.brokerId)
+          throw new Error(UI_TEXT.vault.noAccess)
+        return pipeClient
+      } catch (error: unknown) {
+        pipeClient.close()
+        throw error
+      }
+    }
     const socket = connect(location.lock.socket)
     const client = new VaultBrokerClient(socket)
     try {

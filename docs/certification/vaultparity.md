@@ -36,8 +36,10 @@ brokers credentials on Windows, macOS and Linux the same way.
   real probe (no platform prompter on Linux; the passphrase prompt owns
   presence) (`6ff6bca9`, `linuxTpm2Slot.ts`, `linuxVaultSlots.ts`).
 - Linux presence check — now: `PosixVaultSlots.presence()` always returns
-  false. After: presence reflects the TPM2 capability (PIN/lockout) where
-  present instead of a constant.
+  false. After: presence stays refused after a real TPM2 capability probe
+  (no platform prompter on Linux; the person's presence mechanism is the
+  vault passphrase, prompted per use by the host, D89 table)
+  (`6ff6bca9`, `linuxVaultSlots.ts`).
 - Keyring-absent broker — found mid-lane: the staged `.vsix` carries no
   `node_modules`, so `import('@napi-rs/keyring')` fails and the broker
   refused startup on every platform. After: the bindings degrade to a
@@ -94,3 +96,194 @@ brokers credentials on Windows, macOS and Linux the same way.
   host, file anchor); `dist/vaultBrokerBindings.js` 33,159 → 38,133
   (anchor choice). Split manifest swaps deleted `posixVaultSlots.ts` for
   the three platform slot providers.
+
+## Proofs, lane PR247FIX (macOS rig, repo-default timeouts, `--maxWorkers=3`)
+
+- `slotProviders.test.ts` 13 passed (explicit platforms everywhere;
+  hardware probes per platform; TPM2 round-trip where a machine seals).
+- `brokerWithoutKeyring.test.ts` 1 passed with a short owner-only
+  runtime root (exploratory env: natural per-user TMPDIR plus
+  DEVELOPER_DIR for the fixture `cc`); skips with a reason where the
+  root cannot fit the socket (this lane's 149-char sandbox TMPDIR).
+- `fileAnchor.test.ts` 4 passed (POSIX-only mode assertion; guard order
+  and refusal mapping covered).
+- `windowsPipeRelay.test.ts` 2 passed + 1 win32 suite skipped;
+  `windowsBrokerClient.test.ts` 1 win32 suite skipped (no Windows host
+  on this rig; both prove on Windows CI against the real helper).
+- `migrationCodecRoundTrip.test.ts` passes with the corrected
+  owner-SID server trust; `vsixTargets.test.mjs` 7 passed (slot sources
+  required on win32, `dist/vaultWindows.js` shared).
+- `check:l10n` 0 problems (corrected `storeUnavailable` in all tables);
+  `tsc` host + unit clean; `eslint` zero warnings on touched files;
+  `cycles` clean; production `build` green with `dist/vaultWindows.js`
+  = 40,706 bytes → 46,812 budget (15% headroom, working rule 2).
+- UNMEASURED on this rig, not this lane: `brokerSession.test.ts`
+  times out 3 of 4 here (changed tree) and hangs the base worktree past
+  300 s under the same env; neither run reaches the changed code (no
+  setup, no probe — verified by call-site). The lead's Linux CI decides.
+- Windows proof pending: the lead's Windows run plus Windows CI
+  (`windowsBrokerClient`, `windowsPipeRelay` real-helper suites).
+
+## Grok review response (lane PR247FIX, 2026-10-18)
+
+One line per finding; each is fixed at its cause below or answered with a
+measured reason. No test timeout is raised anywhere; no stand-in is kept.
+
+- F1 (Windows client unreachable): fix at cause — add the Windows client
+  platform (helper build, child launch with `windowsHelper`, pipe
+  discovery/connect), a Windows branch in `VaultBrokerClient.open`, and
+  broker-entry Windows startup that reuses one serve relay; pipe tests run
+  on Windows CI against the real helper, skipped elsewhere with a reason.
+- F2 (hardware slots never created): fix at cause — setup wraps a
+  capability-probed hardware slot beside the OS-store slot (`auto` = both,
+  D89), and a working non-OS-store setup where only hardware seals.
+- F3 (`systemd-creds` without PATH): fix at cause — resolve the absolute
+  tool (`/usr/bin` then `/bin`), memoised; unavailable when neither exists.
+- F4 (`slotProviders` off Linux): fix at cause — every case constructs its
+  provider with an explicit `platform`; the live-platform dispatch case
+  asserts the actual platform and the win32-only branch skips elsewhere.
+- F5 (`brokerWithoutKeyring` macOS timeout): fix at cause — the child gets
+  a short owner-only `TMPDIR` on macOS (XDG is Linux-only) and the parent
+  races ready against exit; skip with a reason when no short base fits.
+- F6 (anchor modes on Windows): fix at cause — the Windows bindings pass
+  the pipe-helper guard into the file anchor (dir and file protected after
+  write); the `0o600` assertion stays POSIX-only.
+- F7 (`storeUnavailable` untrue): fix at cause — a distinct
+  binding-missing refusal (new sentence in every table) where the package
+  lacks the OS-store binding, and a working hardware-only setup where the
+  machine seals; keyring binaries stay out by the measured budget.
+- F8 (pipe-relay peer stand-in): fix at cause — delete the peer; pure
+  contract tests stay, and the relay integration drives the real
+  `MuseSparkVaultPipe` binary on Windows CI (skip elsewhere with a reason).
+- F9 (self-written audit marker): fix at cause — drop the child's write;
+  the child asserts a real `osStore.wrap` refusal in process and the parent
+  asserts ready plus a clean shutdown.
+- F10 (Linux presence survey): fix the survey — presence stays refused
+  after a real TPM2 probe (the passphrase owns Linux presence, D89 table).
+
+## macOS replay (lane VAULTOPEN, 2026-10-18, macmini arm64, repo-default 5 s timeouts, `--maxWorkers=3`)
+
+Env the suites need here: `TMPDIR` at the natural per-user root
+(`/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T`, 42 chars, owner-only,
+outside the repo) and `umask 022`. The sandbox forces a 151-char TMPDIR
+inside the worktree with umask 077; both break suites by the suites' own
+rules (socket-length refusal, owner-only mode assertion), not the product.
+
+- `slotProviders.test.ts` 13 passed; `fileAnchor.test.ts` 4 passed;
+  `migrationCodecRoundTrip.test.ts` 6 passed.
+- `brokerWithoutKeyring.test.ts` 1 passed with the natural TMPDIR. With
+  the sandbox TMPDIR inside the repo the suite's own guard fails fast in
+  `beforeAll` (the binding would resolve from the repo's `node_modules`,
+  so the fixture cannot prove keyring absence) — the designed fail-fast,
+  not a product failure.
+- `vaultHarnessScenarios.test.ts` 3 passed; `windowsPipeRelay.test.ts`
+  2 passed + 1 win32 suite skipped with a reason.
+- `brokerSocketDirectory.test.ts` 14 passed with umask 022 (with the
+  sandbox umask 077 one mode assertion fails: `mkdir` 0755 is masked to
+  0700, so the permissive base is not permissive — the msm109 record's
+  known signature, measured again here).
+- `brokerSession.test.ts` 0/4 in this sandbox, same signature as the
+  PR247FIX record. Measured one level deeper with an error-printing
+  probe of the same broker startup (probe scripts in worktree `temp/`,
+  fixtures under the natural TMPDIR, removed after): the three forked
+  clients (`env: { HOME }`) never send ready because the broker refuses
+  at startup with "The broker cannot start. First-party keys still work;
+  agent uses are refused. Repair the broker installation."
+  (`assertVaultSocketLength`: the bare env drops TMPDIR, the socket
+  falls back under HOME at the 151-char sandbox root, over the darwin
+  limit — the product correctly refuses). The fourth (full env) starts
+  and sends ready, then exits 1 on SIGTERM instead of 0; the exact
+  refusing shutdown step is UNMEASURED beyond the signature. Neither
+  reaches changed code; CI decides.
+- `writerCrashPosix.test.ts` 0/17 in this sandbox, all
+  `{ kind: 'refused', reason: 'io' }`. Measured cause: the writer
+  lease's macOS birth probe runs `/bin/ps`, and this sandbox denies it
+  (`/bin/ps: Operation not permitted`, `src/core/locks/processOwner.ts`
+  `darwinStartTime`). No shim was built; the lead runs these outside
+  the sandbox.
+- OS-keychain-backed paths need a desktop session with an unlocked
+  keychain: `security create-keychain` fails in this sandbox
+  (`SecKeychainCreate ... parameters ... not valid`, exit 206) and
+  `@napi-rs/keyring` reports no default keychain under the sandbox
+  HOME. The owner's own login keychain was never touched. The
+  keyring-absent broker path (file anchor) above is the documented
+  fallback and passes here.
+
+## Lane VAULTMIGFIX note (2026-10-18, appended by the VAULTMIGFIX lane)
+
+Grok's security review of the VAULTOPEN key-store migration (branch
+`ms/msm109-open`, PR #247) found it not mergeable: a save during unlock
+could write the older key back over the new one, a key saved after
+sign-out never migrated, a changed provider key stayed stale in the vault
+until the next unlock, and migrated rows were listed with Edit/Remove
+that a removal then left unrepaired. This lane fixes each at its cause on
+branch `ms/msm109-open-fix` (shared migration lock, legacy-match checks
+in `store`, phase-aware `mirrorWrite`/`ensureMigrated`, section hides
+hidden first-party rows, missing vault copies re-copied on unlock), with
+regression tests driving the real controller and the real VaultStore.
+Full record, tests and gates: `docs/certification/msm109.md`
+§VAULTMIGFIX. No parity-surface change.
+
+## Lane VAULTMIGFIX2 note (2026-10-19, appended by the VAULTMIGFIX2 lane)
+
+Grok's re-review of the VAULTMIGFIX key-store migration found it not
+mergeable: an interrupted sign-out deleted a key saved afterwards, and saving
+an oauth, subscription or account record stuck that secret in the vault with
+a `copying` row the unlock skipped forever. This lane fixes each at its cause
+on branch `ms/msm109-open-fix2` (resumed `deleting` rows keep a live legacy
+copy and re-seed apiKey records; `mirrorWrite` shares the unlock's apiKey
+check; stranded non-apiKey copies roll back on unlock; the shell test binds
+the real controller), with regression tests driving the real controller and
+the real VaultStore. Full record, tests and gates: `docs/certification/msm109.md`
+§VAULTMIGFIX2. No parity-surface change. The store suite could not run in this
+sandbox (`/bin/ps: Operation not permitted` stops `VaultStore.create` in
+`beforeEach`, like `writerCrashPosix`); the lead runs it outside.
+
+## Lane VAULTMIGFIX3 note (2026-10-19, appended by the VAULTMIGFIX3 lane)
+
+VAULTMIGFIX2 left one race open: a save landing between a fresh sign-out's
+SecretStorage clear and its engine delete lost the newer key the old
+`removeLegacy` way. This lane closes it on branch `ms/msm109-open-fix3`
+(each shell save and each shell sign-out holds the shared migration lane
+across both phases as one atomic op, holder detected by async ancestry;
+second-comer wins, proven by a real save racing a real sign-out through
+the real controller over the real VaultStore). This rig runs the store
+suite VAULTMIGFIX2 could not: `credentialMigrationStore.test.ts` 19/19
+with the repository's own timeout, plus every other vault suite — the
+only failures are byte-identical on the untouched base (one `vaultPanelBuild`
+U-host module-graph assertion, three `brokerSocketDirectory` cases under
+this sandbox's long TMPDIR plus umask 077, four `brokerSession` spawn
+timeouts). Full record, tests and gates: `docs/certification/msm109.md`
+§VAULTMIGFIX3. No parity-surface change.
+
+## Lane VAULTMIGFIX4 note (2026-10-19, appended by the VAULTMIGFIX4 lane)
+
+Grok's third security review (GRVVAULTMIG3) confirms the earlier findings
+fixed and the save/sign-out race closed, and finds two more paths, fixed
+here at their cause on branch `ms/msm109-open-fix4`: a non-apiKey save over
+a migrated slot now drops the orphaned vault copy (engine
+`removeStaleVaultCopy`, live SecretStorage record untouched), and a
+sign-out runs the journaled engine delete before clearing SecretStorage,
+so a failure surfaces with the key still readable instead of stranding the
+vault copy. Proven by two new tests driving the real shell, the real
+controller, persisted SecretStorage files and the real VaultStore (each
+red on the lane base, green after). Full record, tests and gates:
+`docs/certification/msm109.md` §VAULTMIGFIX4. Parity-surface change: a
+sign-out the locked vault cannot complete now fails loudly instead of
+resolving half-finished.
+
+## Lane VAULTMIGFIX5 note (2026-10-19, appended by the VAULTMIGFIX5 lane)
+
+Grok's fourth security review (GRVVAULTMIG4) confirms every earlier finding
+fixed and still holding, and finds one blocking path, fixed here at its
+cause on branch `ms/msm109-open-fix5`: a sign-out that journals `deleting`
+then fails its vault remove no longer restores the key on retry or on
+unlock. The engine compares the live SecretStorage record against the
+journaled digest — the same digest is the original key, so the sign-out
+finishes (both copies removed); only a different digest is a newer save
+worth keeping. Proven by a new test driving the real shell, the real
+controller, persisted SecretStorage files and the real VaultStore (red on
+the lane base, green after). Full record, tests and gates:
+`docs/certification/msm109.md` §VAULTMIGFIX5. Parity-surface change: a
+retried or unlock-healed sign-out now removes the key it was asked to
+remove, instead of resolving with both copies still present.

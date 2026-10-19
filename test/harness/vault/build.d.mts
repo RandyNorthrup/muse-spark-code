@@ -6,4 +6,5 @@ export function buildVaultSurfaces(
   browser: Metafile | undefined
   host: Metafile | undefined
   actions: Metafile | undefined
+  migration: Metafile | undefined
 }>

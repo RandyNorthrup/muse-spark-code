@@ -75,15 +75,18 @@ describe('Windows vault pipe server check', () => {
   }
   const answer = { v: 1, id: 1, result: 'ok', ownerSid: 'S-1-5-21-1000', server }
 
-  it('trusts only the exact lock process the OS reported', () => {
-    expect(isVaultPipeServerTrusted(answer, { processId: 4242, startedAt: 123_456 })).toBe(true)
-    expect(isVaultPipeServerTrusted(answer, { processId: 7, startedAt: 123_456 })).toBe(false)
+  it('trusts only the owner SID the OS reported', () => {
+    expect(isVaultPipeServerTrusted(answer, 'S-1-5-21-1000')).toBe(true)
+    expect(isVaultPipeServerTrusted(answer, 'S-1-5-21-9999')).toBe(false)
+    expect(
+      isVaultPipeServerTrusted({ ...answer, server: { ...server, remote: true } }, 'S-1-5-21-1000'),
+    ).toBe(false)
     expect(
       isVaultPipeServerTrusted(
-        { ...answer, server: { ...server, remote: true } },
-        { processId: 4242, startedAt: 123_456 },
+        { ...answer, server: { ...server, ownerOnlyDacl: false } },
+        'S-1-5-21-1000',
       ),
     ).toBe(false)
-    expect(isVaultPipeServerTrusted('garbage', { processId: 4242, startedAt: 123_456 })).toBe(false)
+    expect(isVaultPipeServerTrusted('garbage', 'S-1-5-21-1000')).toBe(false)
   })
 })

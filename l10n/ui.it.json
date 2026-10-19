@@ -5946,7 +5946,7 @@
     "resetTypeWord": "Digita {word} per reimpostare la cassaforte.",
     "resetDone": "La cassaforte è stata reimpostata. Configurala di nuovo per salvare segreti.",
     "vaultLost": "La cassaforte non può essere aperta: i file sono mancanti o danneggiati, oppure il proprietario del blocco di scrittura è sconosciuto. Esaminare il ripristino per ricominciare.",
-    "storeUnavailable": "L’archivio delle credenziali del sistema operativo non è disponibile. Su Linux, accedi a una sessione desktop con il portachiavi sbloccato (Secret Service); su macOS, sblocca il portachiavi di login; su Windows, accedi in modo interattivo. Poi riprova.",
+    "storeUnavailable": "L’archivio delle credenziali del sistema operativo non è disponibile: o questa build non include il suo componente di archivio credenziali, oppure l’archivio è bloccato. Dove manca il componente, il vault può usare solo uno slot hardware dove la macchina sigilla; in caso contrario, su Linux accedi a una sessione desktop con il portachiavi sbloccato (Secret Service); su macOS sblocca il portachiavi di login; su Windows accedi in modo interattivo. Poi riprova.",
     "remoteWarning": "Da un altro dispositivo si può richiedere solo una firma o un codice monouso. Il suo utente deve approvare ogni uso su quel dispositivo.",
     "approvalExpired": "Questa approvazione è scaduta. Richiedi di nuovo l’utilizzo.",
     "useChanged": "L’utilizzo è cambiato dopo l’approvazione. Richiedi l’approvazione per il nuovo uso.",

@@ -34,6 +34,7 @@ import {
 import { VaultBrokerProcess } from '../../host/vault/brokerProcess'
 import { vaultClientPlatform } from './clientPlatform'
 import { HeadlessVaultSession, type ExecVaultContext, type ExecVaultSession } from './execVault'
+import type { WindowsBrokerPlatform } from './windowsHost'
 import type { VaultCommandPort } from './vaultCommand'
 import type { RuntimeVaultBinding, RuntimeVaultContext } from './vaultRuntime'
 import type { AcpVault } from '../../acp/vault'
@@ -268,7 +269,7 @@ export async function createRuntimeVault(
   })
   const broker = new VaultBrokerProcess(platform.discovery, platform.process)
   const connect: VaultConnect = async () =>
-    await broker.connect(hostId, hostSession, platform.peers)
+    await broker.connect(hostId, hostSession, platform.peers, platform.dial)
   const session = new VaultManageSession(connect, encodeVaultMaterial)
   // Process lifetime: the runtime binding owns no close, so routing runs
   // until the broker or the process goes away. One-shot CLI commands never
@@ -288,6 +289,7 @@ export async function createRuntimeVault(
 /** Child-only binding code stays in its installed lazy sibling, preserving this bundle's cap. */
 export async function createVaultBrokerBindings(
   context: VaultBrokerContext,
+  platform?: WindowsBrokerPlatform,
 ): Promise<VaultBrokerBindings> {
   // Same-build installed sibling contract; check the factory before calling (PLAN §8).
   const module = createRequire(__filename)(
@@ -296,5 +298,5 @@ export async function createVaultBrokerBindings(
   if (typeof module.createVaultBrokerBindings !== 'function')
     throw new Error(UI_TEXT.vault.brokerBlocked)
   module.setUiText(UI_TEXT, uiLocale())
-  return await module.createVaultBrokerBindings(context)
+  return await module.createVaultBrokerBindings(context, {}, platform)
 }

@@ -5789,7 +5789,7 @@
     "resetTypeWord": "Írja be: {word} a tároló alaphelyzetbe állításához.",
     "resetDone": "A tároló alaphelyzetbe állt. Titkok tárolásához állítsa be újra.",
     "vaultLost": "A tároló nem nyitható meg: fájlok hiányoznak vagy sérültek, vagy az írási zárolás tulajdonosa nem állapítható meg. Az újrakezdéshez tekintse át az alaphelyzetbe állítást.",
-    "storeUnavailable": "Az operációs rendszer hitelesítőadat-tárolója nem érhető el. Linuxon jelentkezzen be egy feloldott kulcstartójú (Secret Service) asztali munkamenetbe; macOS-en oldja fel a bejelentkezési kulcskarikát; Windowson jelentkezzen be interaktívan. Ezután próbálja újra.",
+    "storeUnavailable": "Az operációs rendszer hitelesítőadat-tárolója nem érhető el: vagy ez a build nem tartalmazza a hitelesítőadat-tároló összetevőjét, vagy a tároló zárolt. Ahol az összetevő hiányzik, a trezor csak hardveres helyet használhat, ahol a gép lepecsétel; egyébként Linuxon jelentkezzen be egy feloldott kulcstartójú (Secret Service) asztali munkamenetbe; macOS-en oldja fel a bejelentkezési kulcskarikát; Windowson jelentkezzen be interaktívan. Ezután próbálja újra.",
     "remoteWarning": "Más eszköztől csak aláírás vagy egyszer használatos kód kérhető. Az ottani felhasználónak minden használatot ott kell jóváhagynia.",
     "approvalExpired": "Ez a jóváhagyás lejárt. Kérje újra a használatot.",
     "useChanged": "A használat megváltozott a jóváhagyás után. Kérjen jóváhagyást az új használathoz.",

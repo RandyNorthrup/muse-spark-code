@@ -7,14 +7,14 @@
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 221,
+      "SWALLOW": 222,
       "GENERIC": 505,
       "CLEANUP": 152
     },
     "host": {
       "SWALLOW": 77,
-      "GENERIC": 337,
-      "CLEANUP": 64
+      "GENERIC": 342,
+      "CLEANUP": 65
     },
     "root": {
       "SWALLOW": 4,
@@ -22,9 +22,9 @@
       "CLEANUP": 1
     },
     "runtime": {
-      "SWALLOW": 70,
-      "GENERIC": 279,
-      "CLEANUP": 99
+      "SWALLOW": 73,
+      "GENERIC": 281,
+      "CLEANUP": 101
     },
     "shared": {
       "SWALLOW": 0,
@@ -4035,23 +4035,23 @@
     },
     {
       "file": "src/core/vault/broker/management.ts",
-      "identity": "d242288a09420ea6c09e6f3844f6422a456928e11dc7eecb6fbb855181730a19",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/vault/broker/management.ts",
-      "identity": "65f569e83a6c32f84fb041b9733bbccd729c410c998741faa290d0b46cf8ca85",
+      "identity": "7ae45f5386b4d48d0918d4184c659abb29be1ea42133400ab713e49d17ab8fa4",
       "class": "CLEANUP"
     },
     {
       "file": "src/core/vault/broker/management.ts",
-      "identity": "4ef0eb9720463baa91850317e50a5dfa458e577a46cd95a96ee3aabc3f0ada6c",
+      "identity": "972e6485254f892c68d80af86abac24d0c4a68185acb7d6e3dd780d771915c0d",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/core/vault/broker/management.ts",
+      "identity": "d4317a3de441926ac858c17d4ed7482ef2db08da91b8685bee91b208e761dd72",
       "class": "GENERIC"
     },
     {
       "file": "src/core/vault/broker/management.ts",
-      "identity": "f808b4fe407941d84fb4c8a8fdfaaa7d7e6f7022a1989d78bee81e8c47054235",
-      "class": "CLEANUP"
+      "identity": "64f446732653987b253d9a887002b4c63d00582e2ceb755f5a1576939bb91a2f",
+      "class": "GENERIC"
     },
     {
       "file": "src/core/vault/broker/management.ts",
@@ -4267,6 +4267,11 @@
       "file": "src/core/vault/migrate/material.ts",
       "identity": "4e0412ade6cff0e1a96b70907b5c102672fe602204990a63a680ad876b27884b",
       "class": "GENERIC"
+    },
+    {
+      "file": "src/core/vault/migrate/migrate.ts",
+      "identity": "66b08930ae5a26a80abe834070042ee2b70bdbdf48b6b9c3563652c350ba9667",
+      "class": "SWALLOW"
     },
     {
       "file": "src/core/vault/migrate/prepareImport.ts",
@@ -6895,8 +6900,33 @@
     },
     {
       "file": "src/host/vault/brokerProcess.ts",
-      "identity": "80ab769459d958e8fe799de4c05cc20c546f4fac9784224dd299bda40be61898",
+      "identity": "5c3b7a3c3275ea0d56b8102150db933f15e94e49c9801327d0aea112e1eaac3d",
       "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vault/migrateCredentials.ts",
+      "identity": "d0330b3bc78efff6045a60b09abe202f7d358f78ce5e6d8501217cc170ac3d73",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vault/migrateCredentials.ts",
+      "identity": "670dbbc326a80280ef33bd81f7b0fe6592a8f8fe3a4c12fb3e590e8a86c42b9b",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vault/migrateCredentials.ts",
+      "identity": "2d61180de4d311077eb1c12dc27e70fc11d3a368b361e993c39b5c3e03b2167f",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vault/migrateCredentials.ts",
+      "identity": "9906e80e4fe1e863d17d60dada5a13707e5d42129819899a10ca9cb7cc12b47d",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vault/migrationShell.ts",
+      "identity": "3d76f0bd33a1aaaedfac21591841dd9dfeaa42cb00ecd34dca3aa79ef3bfd4ed",
+      "class": "CLEANUP"
     },
     {
       "file": "src/host/vault/slots/windowsVaultBuild.ts",
@@ -6936,6 +6966,11 @@
     {
       "file": "src/host/vault/vaultNativeEditor.ts",
       "identity": "59a22fe4960481070723ba1296de0dff79d4df983ddc0344326399329a9d52a0",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vault/vaultPanelEntry.ts",
+      "identity": "9ffa1a923f3c8fffe2301b35e3b551e16c7ad2880ee1acf3620e3a7e30f46b63",
       "class": "GENERIC"
     },
     {
@@ -8800,7 +8835,7 @@
     },
     {
       "file": "src/runtime/vault/brokerBindings.ts",
-      "identity": "b6aab430c4bb6d8decdeaeba1d490bfbb286d87d5142a50d907741b6da5c836f",
+      "identity": "c569d5b21e323cc281f9345ae47f295255594262f25bdb9f4afd8a4d296cee68",
       "class": "GENERIC"
     },
     {
@@ -8840,7 +8875,7 @@
     },
     {
       "file": "src/runtime/vault/fileAnchor.ts",
-      "identity": "5314816af23c166c549ded5f9a82273aa258ad3ca279e88f3fa40424714afd3b",
+      "identity": "b6c2de96b80978bf2993953533c5fca8e23b2660f53c0261f3122684383f5f71",
       "class": "GENERIC"
     },
     {
@@ -8890,7 +8925,7 @@
     },
     {
       "file": "src/runtime/vault/slots/linuxTpm2Slot.ts",
-      "identity": "16f54ba48708ca9256b458da7c1732251a98e1d2fa3c7e8edc7f4095186b067a",
+      "identity": "dea34c13874340a56283232b42a5419141178519558ade256d40c332ef5c04d4",
       "class": "GENERIC"
     },
     {
@@ -8902,6 +8937,11 @@
       "file": "src/runtime/vault/slots/linuxTpm2Slot.ts",
       "identity": "ab1e04ac1042053f9c0424a687248abdb345659168cecf7f693e853c442305a1",
       "class": "SWALLOW"
+    },
+    {
+      "file": "src/runtime/vault/slots/linuxTpm2Slot.ts",
+      "identity": "cff2ad65e5c3f6ce1472a3bafe0c5bbbb2039ab333635a7c574765c9ae9af09e",
+      "class": "CLEANUP"
     },
     {
       "file": "src/runtime/vault/slots/linuxTpm2Slot.ts",
@@ -8930,6 +8970,11 @@
     },
     {
       "file": "src/runtime/vault/slots/linuxVaultSlots.ts",
+      "identity": "48602c501e7f4c71f2a0871ec1bbcc1c4fd3420f1c3956ae52bf72bf3c55f41e",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/runtime/vault/slots/linuxVaultSlots.ts",
       "identity": "c70da0a15b4a044e9561ae7b3bb1700fb83d6f40c3a5f4f6a8bfb5bafdcd73ca",
       "class": "CLEANUP"
     },
@@ -8942,6 +8987,11 @@
       "file": "src/runtime/vault/slots/macVaultProtocol.ts",
       "identity": "efbf8a5a0278abbe2005cd5375423fd77170488fb8f9e5f52d807d9ab3d21749",
       "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/vault/slots/macVaultSlots.ts",
+      "identity": "00d615a1bc412ad154ca409c96abb58a508eab50b68a8a53bfefc63d186cb932",
+      "class": "SWALLOW"
     },
     {
       "file": "src/runtime/vault/slots/macVaultTransport.ts",
@@ -8967,6 +9017,11 @@
       "file": "src/runtime/vault/slots/windowsVaultSlot.ts",
       "identity": "f08d12d496af26289c913325c60ce624a0b56fd9a466504b6b27266482fbf854",
       "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/vault/slots/windowsVaultSlots.ts",
+      "identity": "6157c7430c9c990fcc45683e5bdc5bc04201ff9268ff5a54f1269867b8dcbcba",
+      "class": "SWALLOW"
     },
     {
       "file": "src/runtime/vault/slots/windowsVaultSlots.ts",
@@ -9022,6 +9077,16 @@
       "file": "src/runtime/vault/vaultBrokerEntry.ts",
       "identity": "710eb1f9d17dc737c8f4216f280b6209ea56de5d2e631808c135f26d0566a9a7",
       "class": "SWALLOW"
+    },
+    {
+      "file": "src/runtime/vault/vaultBrokerEntry.ts",
+      "identity": "2e7b8c71fe06f769c893c79e5ca77cb81fad17627be85a8d61063a2fa0cdf9f3",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/vault/vaultBrokerEntry.ts",
+      "identity": "7a41311ee425ac2e747412e7d0904f6f2295ecc3ad7876972787ea79083c9406",
+      "class": "CLEANUP"
     },
     {
       "file": "src/runtime/vault/vaultBrokerEntry.ts",
@@ -9145,28 +9210,33 @@
     },
     {
       "file": "src/runtime/vault/windowsBrokerProcess.ts",
-      "identity": "113b31ebb6dda605e8793dfe3566d775c174af39c3069dec5c6afb89fe08fef1",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/vault/windowsBrokerProcess.ts",
-      "identity": "1be07144e0255935f1c74855738e001a8c6a78bf0eb7a9ade2c0c4050e89e5ea",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/vault/windowsBrokerProcess.ts",
-      "identity": "42d3cf44f5797f7791f96a749db4fe7c04c55fcfcfdc67235471668b3dd940d2",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/vault/windowsBrokerProcess.ts",
-      "identity": "17ba66099d2df7cc92c0d66e281f9bbdbc12b1cd4e68b8a0dbe9a0bba470220a",
+      "identity": "78dc38edbe55f5035d083b9c1308203548e9e92f955272f19819b24b61897c05",
       "class": "GENERIC"
     },
     {
       "file": "src/runtime/vault/windowsBrokerProcess.ts",
       "identity": "c508098477a68c16cc2818b14ec14b9bdaea789cb3c1fb27e41ab722da643983",
       "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/vault/windowsBrokerProcess.ts",
+      "identity": "be620a0c323c2847ec8d56d36060562a099374e02c4898b787f20eeb8a8325cf",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/vault/windowsBrokerProcess.ts",
+      "identity": "edbf0a2dadd0233ffa7ac98b236701a798836add7c166d7a2cd5c3809992b56d",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/vault/windowsBrokerProcess.ts",
+      "identity": "86d988a2fbe19b8d7b1f5461e42af292d0f7fbd442399759019c7d1609fc55e7",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/vault/windowsClientPlatform.ts",
+      "identity": "ce76559032056e15fc3a1febd48c05dcf14af3bb13d105a302d36f9d855521ef",
+      "class": "GENERIC"
     },
     {
       "file": "src/runtime/vault/windowsHost.ts",

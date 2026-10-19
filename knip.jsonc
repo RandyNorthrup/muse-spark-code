@@ -69,6 +69,7 @@
     // Installed lazy vault siblings, loaded by their same-build runtime paths.
     "src/runtime/vault/brokerBindings.ts",
     "src/runtime/vault/posixEntry.ts",
+    "src/runtime/vault/windowsEntry.ts",
     "src/runtime/vault/storeEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
@@ -191,6 +192,9 @@
     // (scripts/build.mjs), loaded by file name on the first vault need,
     // which knip does not trace.
     "src/runtime/vault/vaultRuntimeEntry.ts",
+    // The key-store migration's own chunk (D89.14 lane M), required by path
+    // on the first unlock edge.
+    "src/host/vault/vaultMigrationEntry.ts",
     // The vault harness page and its runner (M109 U): the page is the harness
     // build's esbuild entry, which knip does not read, and the runner is run
     // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
@@ -226,11 +230,13 @@
     "test/unit/helpers/vault/writerCrashChild.ts",
     // Built once by epochCrashPosix.test.ts; a real generated-only SIGKILL epoch child.
     "test/unit/helpers/vault/epochCrashChild.ts",
-    // Built once by brokerWithoutKeyring.test.ts; a real generated-only broker
-    // child with the OS-store admission replaced.
+    // Built once by brokerWithoutKeyring.test.ts and launched by path; a real
+    // generated-only broker child with the OS-store admission replaced
+    // (esbuild entryPoints are not traced).
     "test/unit/helpers/vault/sessionBrokerNoKeyringChild.ts",
-    // Windows pipe relay peer, launched by path from windowsPipeRelay.test.ts.
-    "test/unit/helpers/vault/pipeRelayPeer.mjs",
+    // Pipe-relay fixture child, bundled by windowsPipeRelay.test.ts and launched
+    // by path; knip does not trace esbuild entryPoints.
+    "test/unit/helpers/vault/windowsPipeRelayChild.ts",
     // Round-4 two-process ledger proof bundles this child by path; esbuild
     // entries are not traced.
     "test/unit/helpers/media/ledgerChild.ts",

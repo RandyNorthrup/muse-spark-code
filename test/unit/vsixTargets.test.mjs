@@ -38,6 +38,10 @@ const LINUX_HELPERS = {
 }
 const SHARED_FILES = [
   'dist/extension.js',
+  'dist/vault.js',
+  'dist/vaultBroker.js',
+  'dist/vaultRuntime.js',
+  'dist/vaultWindows.js',
   'native/runner/runner-helper.ps1',
   'native/runner/runner-helper.sh',
   'package.json',
@@ -77,10 +81,18 @@ describe('per-platform VSIX inventory', () => {
     expect(requiredNativeFiles('linux-arm64')).toEqual(['native/linux/arm64/muse-created'])
     expect(requiredNativeFiles('win32-x64')).toEqual([
       'native/windows/dictate.ps1',
+      'native/windows/MuseSparkVault.cs',
+      'native/windows/MuseSparkVaultCng.cs',
+      'native/windows/MuseSparkVaultHello.cs',
+      'native/windows/MuseSparkVaultLock.cs',
       'native/windows/MuseSparkVaultPipe.cs',
     ])
     expect(requiredNativeFiles('win32-arm64')).toEqual([
       'native/windows/dictate.ps1',
+      'native/windows/MuseSparkVault.cs',
+      'native/windows/MuseSparkVaultCng.cs',
+      'native/windows/MuseSparkVaultHello.cs',
+      'native/windows/MuseSparkVaultLock.cs',
       'native/windows/MuseSparkVaultPipe.cs',
     ])
     // The darwin helpers are git-ignored CI builds, held by the CI content check.
