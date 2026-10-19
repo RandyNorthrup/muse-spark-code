@@ -32,6 +32,8 @@ export interface ReviewFeatures {
   readonly newMarker: () => string
   /** The hold that keeps a Muse Code review in Plan mode and puts the user's mode back. */
   readonly createHold: (deps: PlanModeHoldDeps) => PlanModeHold
+  /** The playback turn's text (D203): the report, from memory only, with no tools. */
+  readonly playbackText: () => string
   /**
    * Edit review (M5) and the review pane's hunks (M70): they share one read,
    * rebuild and write lane per file, so one instance serves both.
@@ -97,11 +99,12 @@ function describe(error: unknown): string {
 /**
  * The review's parts, the bundle required the first time any is used and
  * kept from then on. A missing or corrupt bundle throws `reviewUnavailable`
- * and is tried again on the next use.
+ * (`playbackUnavailable` for a playback's text, D203) and is tried again on
+ * the next use.
  */
 export function lazyReview(deps: LazyReviewDeps): ReviewFeatures {
   let features: ReviewFeatures | undefined
-  const loaded = (): ReviewFeatures => {
+  const loaded = (unavailable = UI_TEXT.reviewUnavailable): ReviewFeatures => {
     if (features !== undefined) {
       return features
     }
@@ -111,14 +114,14 @@ export function lazyReview(deps: LazyReviewDeps): ReviewFeatures {
       bundle = loadBundle(bundlePath)
     } catch (error: unknown) {
       deps.log.error(`The review ${bundlePath} could not be loaded: ${describe(error)}`)
-      throw new Error(UI_TEXT.reviewUnavailable, { cause: error })
+      throw new Error(unavailable, { cause: error })
     }
     if (!isReviewBundle(bundle)) {
       deps.log.error(`${bundlePath} does not export the review`)
       if (deps.loadBundle === undefined) {
         forgetFile(bundlePath)
       }
-      throw new Error(UI_TEXT.reviewUnavailable)
+      throw new Error(unavailable)
     }
     features = bundle.createReviewFeatures({
       uiText: UI_TEXT,
@@ -138,6 +141,7 @@ export function lazyReview(deps: LazyReviewDeps): ReviewFeatures {
     turnText: (input) => loaded().turnText(input),
     newMarker: () => loaded().newMarker(),
     createHold: (holdDeps) => loaded().createHold(holdDeps),
+    playbackText: () => loaded(UI_TEXT.playbackUnavailable).playbackText(),
     editReview: {
       openDiff: async (itemId, patchJson) => await loaded().editReview.openDiff(itemId, patchJson),
       revert: async (itemId, patchJson, check) =>

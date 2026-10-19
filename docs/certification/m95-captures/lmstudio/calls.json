@@ -1,0 +1,133 @@
+[
+  {
+    "number": 1,
+    "step": "models-list",
+    "method": "GET",
+    "path": "/v1/models",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "llmster 0.0.25-1"
+  },
+  {
+    "number": 2,
+    "step": "plain-reply",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "llmster 0.0.25-1",
+    "model": "qwen3-0.6b"
+  },
+  {
+    "number": 3,
+    "step": "one-tool",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "llmster 0.0.25-1",
+    "model": "qwen3-0.6b"
+  },
+  {
+    "number": 4,
+    "step": "parallel-tools",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "llmster 0.0.25-1",
+    "model": "qwen3-0.6b"
+  },
+  {
+    "number": 5,
+    "step": "reasoning",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "llmster 0.0.25-1",
+    "model": "qwen3-0.6b"
+  },
+  {
+    "number": 6,
+    "step": "invalid-model",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "llmster 0.0.25-1",
+    "model": "no-such-model-m95"
+  },
+  {
+    "number": 7,
+    "step": "overflow-long-prompt",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "llmster 0.0.25-1",
+    "model": "qwen3-0.6b"
+  },
+  {
+    "number": 8,
+    "step": "empty-tools",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "llmster 0.0.25-1",
+    "model": "qwen3-0.6b"
+  },
+  {
+    "number": 9,
+    "step": "max-completion-tokens",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "llmster 0.0.25-1",
+    "model": "qwen3-0.6b"
+  },
+  {
+    "number": 10,
+    "step": "reasoning-replay",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "llmster 0.0.25-1",
+    "model": "qwen3-0.6b"
+  },
+  {
+    "number": 11,
+    "step": "toolchoice-object",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 400,
+    "serverVersion": "llmster 0.0.25-1",
+    "model": "qwen3-0.6b"
+  },
+  {
+    "number": 12,
+    "step": "malformed-temperature",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "llmster 0.0.25-1",
+    "model": "qwen3-0.6b"
+  }
+]

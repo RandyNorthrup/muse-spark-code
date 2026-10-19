@@ -4,7 +4,9 @@ import { SpendLedgerError } from '../paid/spendLedgerError'
 import * as z from 'zod/mini'
 import { UserRefusalError } from '../refusal'
 import {
-  MEDIA_CONTRIBUTOR_CHOICES,
+  MEDIA_CALIBRATION_IMAGE_MAX_HEIGHT,
+  MEDIA_CALIBRATION_IMAGE_MAX_WIDTH,
+  MEDIA_CALIBRATION_VIDEO_MAX_SECONDS,
   MEDIA_ID_MAX_CHARS,
   MODEL_API_MEDIA_PER_REQUEST,
   TOKENS_PER_MILLION,
@@ -26,7 +28,7 @@ const variantSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('image'), detail: z.enum(['auto', 'low', 'high', 'original']) }),
 ])
 
-const pointSchema = z.strictObject({
+export const calibrationPointSchema = z.strictObject({
   provider: id,
   modelId: id,
   variant: variantSchema,
@@ -37,13 +39,17 @@ const pointSchema = z.strictObject({
   // bill supplies an upper observation for each item, never a typical rate.
   upperOnly: z.boolean(),
 })
-type CalibrationPoint = z.infer<typeof pointSchema>
+export type CalibrationPoint = z.infer<typeof calibrationPointSchema>
+const pointSchema = calibrationPointSchema
 
 export interface MediaCostItem {
   readonly info: MediaInfo
   /** null/absent means provider default, kept distinct from explicit fps. */
   readonly fps?: number | undefined
   readonly detail?: 'auto' | 'low' | 'high' | 'original' | undefined
+  /** Inline-priced visuals (image/PDF reads): the bound reserves, but the
+   * provider-counted inline bytes never become a calibration observation. */
+  readonly inlinePriced?: boolean
 }
 
 function measurement(item: MediaCostItem):
@@ -89,6 +95,8 @@ export class MediaCostEstimator {
     private readonly deps: {
       readonly read: () => unknown
       readonly write: (points: readonly CalibrationPoint[]) => Promise<void>
+      /** Merges settlements under the calibration store's mutex when bound. */
+      readonly withLock?: <T>(operation: () => Promise<T>) => Promise<T>
       /** Lane W supplies MEDIA_ESTIMATE_SAFETY_FACTOR; no rate is invented here. */
       readonly safetyFactor: number
     },
@@ -102,6 +110,24 @@ export class MediaCostEstimator {
     const measured = measurement(item)
     if (measured === undefined) throw new Error('Text belongs to the text estimator')
     const variant = variantSchema.parse(measured.variant)
+    // The calibration envelope (D85.6): size changes image usage and no
+    // image above 3000x2000 was captured, so a larger image has no rate to
+    // match even though its detail variant does. Video past 600 seconds
+    // extrapolates a rate curve evidenced only to there. Both stay refused
+    // under a cap rather than bounded on a guess. Higher fps values refuse
+    // through the variant match below: only seeded fps values match.
+    const isOversizeImage =
+      variant.kind === 'image' &&
+      item.info.kind === 'image' &&
+      ((item.info.width !== undefined && item.info.width > MEDIA_CALIBRATION_IMAGE_MAX_WIDTH) ||
+        (item.info.height !== undefined && item.info.height > MEDIA_CALIBRATION_IMAGE_MAX_HEIGHT))
+    const isOverlongVideo =
+      variant.kind === 'video' &&
+      measured.units !== null &&
+      measured.units > MEDIA_CALIBRATION_VIDEO_MAX_SECONDS
+    const isUnmeasured = isOversizeImage || isOverlongVideo
+    if (!isCapped && isUnmeasured) return
+    if (isUnmeasured) throw new Error(fill(UI_TEXT.media.cappedRateUnknown, { model: modelId }))
     const matches = this.points.filter((point) => hasSameRate(point, provider, modelId, variant))
     const calibrated = matches.filter((point) => !point.upperOnly)
     if (measured.units === null || calibrated.length === 0) {
@@ -170,9 +196,14 @@ export class MediaCostEstimator {
     items: readonly MediaCostItem[],
     usage: Usage,
     captureId: string,
+    options?: { readonly mixed?: boolean },
   ): Promise<void> {
     const reported = usageSchema.parse(usage)
     tokens.parse(reported.input_tokens)
+    // The caller filters inline-priced visuals before observing: the bill
+    // still covers them, so one remaining item of a mixed request is an upper
+    // observation, never a typical rate.
+    const isMixed = options?.mixed === true || items.length !== 1
     const additions = items.flatMap((item) => {
       const measured = measurement(item)
       if (measured?.units === undefined || measured.units === null) return []
@@ -183,7 +214,7 @@ export class MediaCostEstimator {
           ...measured,
           inputTokens: reported.input_tokens,
           captureId,
-          upperOnly: items.length !== 1,
+          upperOnly: isMixed,
         }),
       ]
     })
@@ -194,9 +225,26 @@ export class MediaCostEstimator {
       } catch {
         // Its caller already received the failure; a later bill still saves.
       }
-      const next = [...this.points, ...additions]
-      await this.deps.write(next)
-      this.points = next
+      if (this.deps.withLock === undefined) {
+        const next = [...this.points, ...additions]
+        await this.deps.write(next)
+        this.points = next
+        return
+      }
+      // Two live sessions settle under the shared mutex: re-read inside it
+      // and merge by capture id, so the second settlement keeps the first.
+      await this.deps.withLock(async () => {
+        const fresh = z.array(pointSchema).parse(this.deps.read())
+        const known = new Set(fresh.map((point) => point.captureId))
+        const unseen = additions.filter((point) => !known.has(point.captureId))
+        if (unseen.length === 0) {
+          this.points = fresh
+          return
+        }
+        const merged = [...fresh, ...unseen]
+        await this.deps.write(merged)
+        this.points = merged
+      })
     }
     const saving = save()
     this.pendingSave = saving
@@ -298,12 +346,18 @@ export function reserveMediaRequest(request: {
         }
         if (bill.usage !== undefined) {
           try {
+            // Inline-priced visuals settle their bound but teach nothing. The
+            // bill still covers them, so the request stays mixed for the
+            // remaining items even when one is left.
+            const observed = request.items.filter((item) => item.inlinePriced !== true)
+            if (observed.length === 0) return
             await request.estimator.observe(
               request.provider,
               request.modelId,
-              request.items,
+              observed,
               bill.usage,
               request.captureId,
+              { mixed: observed.length !== request.items.length },
             )
           } catch {
             // Local calibration is optional evidence, not the provider result.
@@ -375,61 +429,5 @@ export function reserveMediaRequest(request: {
       settled ??= { costUsd: wasSent ? undefined : Usd.from(0).toAmount() }
       await complete()
     },
-  }
-}
-
-/** Every editor asks through its own modal/permission bridge, before upload.
- * @unwired M105 per-editor media consent bridge
- */
-export class MediaContributorConsent {
-  private readonly allowed = new Set<string>()
-  private readonly pending = new Map<string, Promise<'send' | 'useStandard' | 'remove'>>()
-
-  public constructor(
-    private readonly ask: (question: {
-      readonly title: string
-      readonly detail: string
-      readonly choices: typeof MEDIA_CONTRIBUTOR_CHOICES
-    }) => Promise<'send' | 'useStandard' | 'remove'>,
-  ) {}
-
-  public async choose(request: {
-    readonly conversationId: string
-    readonly name: string
-    readonly info: MediaInfo
-    readonly contributor: boolean
-    readonly isScreenRecording: boolean
-  }) {
-    const isSensitive = ['video', 'audio'].includes(request.info.kind)
-    if (
-      !request.isScreenRecording &&
-      (!isSensitive || !request.contributor || this.allowed.has(request.conversationId))
-    )
-      return 'send'
-    const decide = async () => {
-      const choice = z.enum(MEDIA_CONTRIBUTOR_CHOICES).parse(
-        await this.ask({
-          title: request.contributor
-            ? fill(UI_TEXT.media.contributorQuestion, { name: request.name })
-            : UI_TEXT.media.recordingWarning,
-          detail: request.isScreenRecording
-            ? UI_TEXT.media.recordingWarning
-            : UI_TEXT.media.contributorWarning,
-          choices: MEDIA_CONTRIBUTOR_CHOICES,
-        }),
-      )
-      if (choice === 'send' && request.contributor) this.allowed.add(request.conversationId)
-      return choice
-    }
-    if (request.isScreenRecording) return await decide()
-    const pending = this.pending.get(request.conversationId)
-    if (pending !== undefined) return await pending
-    const decision = decide()
-    this.pending.set(request.conversationId, decision)
-    try {
-      return await decision
-    } finally {
-      this.pending.delete(request.conversationId)
-    }
   }
 }

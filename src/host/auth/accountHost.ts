@@ -6,11 +6,13 @@
 // extension never sends its Model API key to it, and never keeps, logs or
 // shows the account's `label` (an e-mail address) or `avatarUrl`.
 
-import { type Connection } from '@muse-code/sdk'
+// Type-only through the SDK's own module (see museCodeBackendManager.ts):
+// activation never value-imports the package root.
+import type { Connection } from '@muse-code/sdk/dist/src/connection/connection.js'
 import * as z from 'zod/mini'
 import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
-import { environmentValue } from '../../core/backends/musecode/launch'
-import { spawnResourceMuseConnection } from '../resources/museResourceLaunch'
+import { environmentValue } from '../../core/childEnvironment'
+import { spawnResourceConnection } from '../resources/museResourceLaunch'
 import { wireWordForLog } from '../../core/logging'
 import { unlessAborted, withDeadline } from '../../core/timeouts'
 import {
@@ -229,10 +231,14 @@ export async function connectAccountSession(
   if (isAborted()) {
     throw new Error('The Muse Code account host was cancelled')
   }
+  // Loaded before the lease is taken: a bundle that will not load must
+  // refuse without holding resource admission.
+  const bundle = backend.museCodeBundle()
   const resource = await admitResource('museServe', signal)
   const env = backend.childEnvironment()
   let isStderrReported = false
-  const handshake = await spawnResourceMuseConnection(
+  const handshake = await spawnResourceConnection(
+    bundle.spawnMspConnection,
     {
       command: resolution.launch.command,
       args: resolution.launch.args,

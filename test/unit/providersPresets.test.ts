@@ -17,6 +17,9 @@ import {
   presetsByCategory,
   PRESETS,
   quirksOf,
+  replayFieldFor,
+  isKeyShape,
+  wireModelFor,
   FORMAT_QUIRKS,
   type ProviderPreset,
 } from '../../src/core/providers/presets'
@@ -102,10 +105,13 @@ describe('the preset table', () => {
       'fireworks',
       'huggingface',
       'zai',
+      // C-M95-4: live captures in docs/certification/m95-captures/<llamacpp|lmstudio>/.
+      'lmstudio',
+      'llamacpp',
     ]) {
       expect(listed).toContain(id)
     }
-    for (const id of ['azure', 'ollama', 'lmstudio', 'vllm', 'llamacpp', 'custom']) {
+    for (const id of ['azure', 'ollama', 'vllm', 'custom']) {
       expect(listed).not.toContain(id)
     }
   })
@@ -155,6 +161,26 @@ describe('the preset table', () => {
     expect(preset('ollama').authHeader).toBeUndefined()
   })
 
+  it('checks key shapes as they are typed', () => {
+    const anthropicKey = ['sk', '-', 'ant', '-', 'test-key-00001'].join('')
+    expect(isKeyShape(preset('anthropic').keyShape, anthropicKey)).toBe(true)
+    expect(isKeyShape(preset('anthropic').keyShape, '[REDACTED]')).toBe(false)
+    expect(isKeyShape(preset('anthropic').keyShape, '')).toBe(false)
+    const groqKey = ['gsk', '_', 'test-key-0000001'].join('')
+    expect(isKeyShape(preset('groq').keyShape, groqKey)).toBe(true)
+    const zaiKey = `${'a'.repeat(32)}.${'b'.repeat(16)}`
+    expect(isKeyShape(preset('zai').keyShape, zaiKey)).toBe(true)
+    expect(isKeyShape(preset('zai').keyShape, 'not-a-key')).toBe(false)
+    expect(isKeyShape(preset('mistral').keyShape, 'short')).toBe(false)
+    expect(isKeyShape(preset('mistral').keyShape, 'long-enough-key-1')).toBe(true)
+  })
+
+  it('accepts the captured Fireworks underscore key prefix', () => {
+    const key = ['fw', '_', 'synthetic-fixture-00001'].join('')
+    expect(isKeyShape(preset('fireworks').keyShape, key)).toBe(true)
+    expect(isKeyShape(preset('fireworks').keyShape, key.replace('_', '-'))).toBe(false)
+  })
+
   it('hints name where the key comes from, never a key shape', () => {
     for (const candidate of PRESETS) {
       if (candidate.auth !== 'apiKey') {
@@ -197,9 +223,14 @@ describe('the preset table', () => {
     })
     expect(quirksOf(preset('openrouter')).reasoningField).toBe('reasoning_details')
     expect(quirksOf(preset('deepseek')).reasoningField).toBe('reasoning_content')
+    // C-M95-4: LM Studio streams `reasoning_content` (capture 02-plain-reply).
+    expect(quirksOf(preset('lmstudio')).reasoningField).toBe('reasoning_content')
+    // C-M95-4: LM Studio's list carries no window (capture 01-models-list).
+    expect(preset('lmstudio').modelsList.windowField).toBeUndefined()
     expect(quirksOf(preset('gemini')).reasoningField).toBe('thoughtSignature')
     expect(quirksOf(preset('anthropic')).reasoningField).toBe('thinking')
-    expect(quirksOf(preset('llamacpp')).toolChoice).toBe('string-only')
+    // C-M95-4: b11541 accepts the object form (capture 12-toolchoice-object).
+    expect(quirksOf(preset('llamacpp')).toolChoice).toBe('auto')
     expect(quirksOf(preset('together')).outputCapParam).toBe('max_tokens')
     for (const candidate of PRESETS) {
       expect(quirksOf(candidate).neverSendEmptyTools).toBe(true)
@@ -247,6 +278,43 @@ describe('the preset table', () => {
     expect(azureOrigin('has space')).toBeUndefined()
     expect(azureOrigin('ab')).toBeUndefined()
     expect(azureOrigin('has.dot')).toBeUndefined()
+  })
+
+  it('sends the Azure deployment as the wire model, never the family', () => {
+    // PROVM95, research §1.2 [AZ1, AZ6]: `model` is the deployment name;
+    // records resolve by the family, so the deployment never leaks into one.
+    expect(wireModelFor({ preset: 'azure', deployment: 'my-gpt-deploy' }, 'gpt-5.4-nano')).toBe(
+      'my-gpt-deploy',
+    )
+    expect(wireModelFor({ preset: 'openai', deployment: 'my-gpt-deploy' }, 'gpt-5.6-luna')).toBe(
+      'gpt-5.6-luna',
+    )
+    expect(() => wireModelFor({ preset: 'azure' }, 'gpt-5.4-nano')).toThrow()
+    expect(() => wireModelFor({ preset: 'azure', deployment: '' }, 'gpt-5.4-nano')).toThrow()
+  })
+
+  it('never replays thinking to an unversioned local server (fail closed)', () => {
+    // C-M95-4 R2: neither local list carries a version, so a build older
+    // or newer than the capture may not understand the captured replay
+    // field. Local presets replay nothing; the decoder still displays
+    // every reasoning field.
+    for (const id of ['ollama', 'lmstudio', 'vllm', 'llamacpp']) {
+      expect(replayFieldFor(preset(id))).toBe('none')
+    }
+    expect(replayFieldFor(preset('openrouter'))).toBe('details')
+    expect(replayFieldFor(preset('deepseek'))).toBe('content')
+    expect(replayFieldFor(preset('openai'))).toBe('none')
+    expect(replayFieldFor(preset('groq'))).toBe('none')
+  })
+
+  it('stamps the captured server build on captured local presets only', () => {
+    // C-M95-4 R2: the stamp names what the quirks were proven against
+    // (the capture ledgers); the scan names it when it fails closed.
+    expect(preset('llamacpp').capturedBuild).toBe('b11541 (0.6.0-dev, commit f2918cabb)')
+    expect(preset('lmstudio').capturedBuild).toBe('llmster 0.0.25-1')
+    for (const id of ['openai', 'ollama', 'vllm', 'custom']) {
+      expect(preset(id).capturedBuild).toBeUndefined()
+    }
   })
 })
 

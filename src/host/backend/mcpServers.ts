@@ -11,7 +11,7 @@ import {
   type McpVaultPoolPort,
   type McpVaultRoutePorts,
 } from '../../core/vault/mcpSecrets'
-import { environmentValue } from '../../core/backends/musecode/launch'
+import { environmentValue } from '../../core/childEnvironment'
 import { readMcpServerEntries } from '../../core/backends/musecode/museConfigView'
 import { UI_TEXT } from '../../shared/constants'
 import { readTextIfPresent } from '../cliFeatures'

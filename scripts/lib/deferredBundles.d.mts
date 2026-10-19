@@ -34,6 +34,7 @@ export const sharedUiText: Plugin
 export const sharedResourceAdmission: Plugin
 export const sharedWire: Plugin
 export const sharedValidation: Plugin
+export const sharedRedaction: Plugin
 export const deferredCohort: Plugin
 
 export const DEFERRED_OUTFILES: ReadonlyMap<string, string>

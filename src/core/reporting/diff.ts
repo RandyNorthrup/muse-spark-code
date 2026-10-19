@@ -36,10 +36,12 @@ function canonical(value: unknown): string {
 
 /** Pure comparison of already scrubbed, hash-verified inputs supplied by R/history. */
 export function compareReports(before: ReportDocument, after: ReportDocument): ReportDiff {
+  const reportUi = UI_TEXT.reportUi
+
   const from = reportDocumentSchema.parse(before)
   const to = reportDocumentSchema.parse(after)
   if (from.header.kind !== to.header.kind || from.header.scope !== to.header.scope)
-    throw new Error(UI_TEXT.reportUi.generationFailed)
+    throw new Error(reportUi.generationFailed)
   const left = new Map([from.needsYou, ...from.sections].map((section) => [section.id, section]))
   const right = new Map([to.needsYou, ...to.sections].map((section) => [section.id, section]))
   const ids = [...new Set([...left.keys(), ...right.keys()])].toSorted(compareKey)

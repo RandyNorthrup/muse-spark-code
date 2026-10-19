@@ -28,6 +28,12 @@ import { legacyUsdSchema } from './usdSchema'
 
 import * as z from 'zod/mini'
 
+/** Positive safe whole-token counts shared by manual entry and the strict panel wire. */
+const contextWindowSchema = z.int().check(z.positive())
+const panelModelLimitsSchema = z
+  .strictObject({ contextTokens: contextWindowSchema, outputTokens: contextWindowSchema })
+  .check(z.refine((limits) => limits.outputTokens <= limits.contextTokens))
+
 /**
  * The panel's sections; M96 registers `roles` and `agents` beside these.
  * `vault` (C-M109-1 P1) is offered only while the host holds a vault
@@ -116,6 +122,9 @@ export type ProviderKey = z.infer<typeof providerKeySchema>
 
 /** OpenRouter's key usage, limit and remainder, in USD. */
 export const providerKeyUsageSchema = z.strictObject({
+  totalUsd: z.optional(legacyUsdSchema),
+  unlimited: z.optional(z.boolean()),
+  weekUsd: z.optional(legacyUsdSchema),
   dayUsd: z.optional(legacyUsdSchema),
   monthUsd: z.optional(legacyUsdSchema),
   limitUsd: z.optional(legacyUsdSchema),
@@ -140,9 +149,11 @@ export const providerStateSchema = z.strictObject({
   test: providerTestSchema,
   /** The chosen models (`<modelId>` as the provider lists them). */
   models: z.array(z.string()),
+  modelLimits: z.optional(z.record(z.string(), panelModelLimitsSchema)),
   /** Pinned favourites, first in the composer's picker. */
   pinned: z.array(z.string()),
   keyUsage: z.optional(providerKeyUsageSchema),
+  keyUsageError: z.optional(z.string()),
   lastScannedAtMs: z.optional(z.number()),
 })
 export type ProviderState = z.infer<typeof providerStateSchema>
@@ -276,13 +287,27 @@ const endpointFields = {
  * may still be empty while the wizard asks. The host requires both before
  * saving (the production entry schema rejects an incomplete set).
  */
-export const draftModelLimitsSchema = z.record(
-  z.string(),
-  z.strictObject({
+/**
+ * One draft's per-model limits: either bound may be absent while the person
+ * edits, but a complete pair obeys the same output-within-context rule as
+ * a saved row (a reply cannot outgrow its window), so a draft the host
+ * could never store fails parsing instead of persisting.
+ */
+const draftModelLimitSchema = z
+  .strictObject({
     contextTokens: z.optional(z.number()),
     outputTokens: z.optional(z.number()),
-  }),
-)
+  })
+  .check(
+    z.refine(
+      (limits) =>
+        limits.contextTokens === undefined ||
+        limits.outputTokens === undefined ||
+        limits.outputTokens <= limits.contextTokens,
+    ),
+  )
+
+export const draftModelLimitsSchema = z.record(z.string(), draftModelLimitSchema)
 
 export const panelDraftSchema = z.strictObject({
   ...endpointFields,
@@ -293,6 +318,7 @@ export const panelDraftSchema = z.strictObject({
   keyShapeOk: z.boolean(),
   /** OpenRouter's OAuth connect completed (the key arrived with no paste). */
   connected: z.boolean(),
+  connecting: z.optional(z.boolean()),
   costAccepted: z.boolean(),
   /** One queued Save owns this draft until it settles. */
   saving: z.optional(z.boolean()),
@@ -441,6 +467,12 @@ export type TickScope = z.infer<typeof tickScopeSchema>
 
 /** What the panel posts to the host. */
 export const panelToHostMessageSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('models/contextWindow'),
+    scope: tickScopeSchema,
+    ref: z.string(),
+    contextTokens: contextWindowSchema,
+  }),
   z.strictObject({ type: z.literal('modelsPanel/ready') }),
   // The shared shape with protocol.ts: http(s) opens in the browser
   // through the host, anything else is refused there.
@@ -482,6 +514,7 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     acceptCost: z.boolean(),
     providerId: z.optional(z.string()),
   }),
+  z.strictObject({ type: z.literal('providers/readUsage') }),
   // `next` and `back` walk the wizard; `cancel` discards the open draft
   // (the wizard's, or one provider's edit) with nothing saved. Confirming
   // is `providers/save`.

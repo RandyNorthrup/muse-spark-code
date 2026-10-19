@@ -1,3 +1,4 @@
+import { companionPost, companionEvents } from '../companionChannel'
 import { usageCompanionEventSchema, usageCompanionRequestSchema } from '../../shared/usageCompanion'
 import type { UsageCompanionEvent } from '../../shared/usageCompanion'
 import type { HttpUsagePort } from '../hostBridges/httpHostBridge'
@@ -29,14 +30,7 @@ export function companionUsagePort(): HttpUsagePort {
   )
   const send = async (message: unknown): Promise<void> => {
     const checked = usageCompanionRequestSchema.parse(message)
-    const response = await window.fetch('/post', {
-      method: 'POST',
-      credentials: 'omit',
-      signal: ending.signal,
-      headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' },
-      body: JSON.stringify(checked),
-    })
-    if (!response.ok) throw new Error('EPANEL_POST')
+    await companionPost(checked, ending.signal)
   }
   const event = async (message: UsageCompanionEvent): Promise<void> => {
     if (message.type === 'confirm') {
@@ -62,38 +56,16 @@ export function companionUsagePort(): HttpUsagePort {
   }
   const streamReady = Promise.withResolvers<undefined>()
   const stream = async (): Promise<void> => {
-    const response = await window.fetch('/events', {
-      method: 'POST',
-      credentials: 'omit',
+    await companionEvents({
       signal: ending.signal,
-      headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' },
-      body: '{}',
+      maxBytes: USAGE_COMPANION_EVENT_BYTES,
+      ready: () => {
+        streamReady.resolve(undefined)
+      },
+      event: async (raw) => {
+        await event(usageCompanionEventSchema.parse(raw))
+      },
     })
-    if (!response.ok || response.body === null) throw new Error('EPANEL_STREAM')
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder('utf-8', { fatal: true })
-    let pending = ''
-    streamReady.resolve(undefined)
-    try {
-      for (;;) {
-        const chunk = await reader.read()
-        if (chunk.done) throw new Error('EPANEL_CLOSED')
-        pending += decoder.decode(chunk.value, { stream: true })
-        let boundary = pending.indexOf('\n\n')
-        while (boundary !== -1) {
-          const frame = pending.slice(0, boundary)
-          pending = pending.slice(boundary + 2)
-          if (frame.startsWith('data: ')) {
-            const input: unknown = JSON.parse(frame.slice('data: '.length))
-            await event(usageCompanionEventSchema.parse(input))
-          }
-          boundary = pending.indexOf('\n\n')
-        }
-        if (pending.length > USAGE_COMPANION_EVENT_BYTES) throw new Error('EPANEL_EVENT')
-      }
-    } finally {
-      reader.releaseLock()
-    }
   }
   void stream().catch((error: unknown) => {
     // A broken stream closes the panel for its waiters, carrying the cause.

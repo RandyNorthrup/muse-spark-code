@@ -1,0 +1,69 @@
+{
+  "provider": "lmstudio",
+  "step": "toolchoice-object",
+  "serverVersion": "llmster 0.0.25-1",
+  "capturedAt": "2026-10-10T18:32:01.422+00:00",
+  "billed": false,
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:1234/v1/chat/completions",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "qwen3-0.6b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is the weather in Paris? Call get_weather with city Paris."
+        }
+      ],
+      "temperature": 0,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_weather",
+            "description": "Get the current weather for a city.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "city": {
+                  "type": "string"
+                }
+              },
+              "required": ["city"]
+            }
+          }
+        }
+      ],
+      "tool_choice": {
+        "type": "function",
+        "function": {
+          "name": "get_weather"
+        }
+      },
+      "max_tokens": 128
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "x-powered-by": "Express",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "93",
+      "etag": "W/\"5d-dlbEbwYRi5N/Gul2xLTGEiQ0toc\"",
+      "date": "Sat, 10 Oct 2026 18:32:01 GMT",
+      "connection": "keep-alive",
+      "keep-alive": "timeout=5"
+    },
+    "body": {
+      "error": "Invalid tool_choice type: 'object'. Supported string values: none, auto, required"
+    },
+    "chunkBytes": [93]
+  }
+}

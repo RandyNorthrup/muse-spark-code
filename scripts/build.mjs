@@ -151,6 +151,12 @@ const VALIDATION_ENTRY = 'src/shared/validationEntry.ts'
 const VALIDATION_OUTFILE = 'dist/validation.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
+// The Muse Code backend's own bundle (PR206, PLAN.md D6): the host, its
+// notification mapping and the SDK, required the first time that backend
+// starts. Nothing it bundles may import `vscode` (src/core must not), so
+// `vscode` is not external there and a stray import fails this build.
+const MUSE_CODE_ENTRY = 'src/host/backend/museCodeEntry.ts'
+const MUSE_CODE_OUTFILE = 'dist/museCode.js'
 const RESOURCE_ENTRY = 'src/core/resources/resourceGovernorEntry.ts'
 const RESOURCE_OUTFILE = 'dist/resourceGovernor.js'
 // POSTSPAWN: the governed launcher, beside (never inside) the governor.
@@ -219,6 +225,10 @@ const MEDIA_ENTRY = 'src/host/media/mediaEntry.ts'
 const MEDIA_OUTFILE = 'dist/media.js'
 // M105 lane W: the screen-recording command with the R1-R3 platform drivers,
 // loaded the first time a recording command runs.
+// RVMEDIAV 8: the window's attached-media registry, contributor consent and
+// attach binding, required on the first attach beside dist/media.js.
+const MEDIA_HOST_ENTRY = 'src/host/media/mediaHostEntry.ts'
+const MEDIA_HOST_OUTFILE = 'dist/mediaHost.js'
 const SCREEN_RECORD_ENTRY = 'src/host/media/screenRecordEntry.ts'
 const SCREEN_RECORD_OUTFILE = 'dist/screenRecord.js'
 // The browser check's own bundle (M81): the pipe, the run, the browser's processes.
@@ -231,6 +241,10 @@ const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
 const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
+const VOICE_LINUX_ENTRY = 'src/host/voice/voiceLinuxEntry.ts'
+const VOICE_LINUX_OUTFILE = 'dist/voiceLinux.js'
+const DICTATION_ENTRY = 'src/host/voice/dictationEntry.ts'
+const DICTATION_OUTFILE = 'dist/dictation.js'
 const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
@@ -280,8 +294,15 @@ const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
 const REPORT_OUTFILE = 'dist/report.js'
 const ESTIMATOR_ENTRY = 'src/host/estimator/estimatorEntry.ts'
 const ESTIMATOR_OUTFILE = 'dist/estimator.js'
+// M117 C-M117-1: the shared core adapter over M113's plan reader with the
+// host's git and `gh` reads, loaded the first time an estimate needs a plan
+// snapshot.
+const PLAN_SNAPSHOT_ENTRY = 'src/host/estimator/planSnapshotEntry.ts'
+const PLAN_SNAPSHOT_OUTFILE = 'dist/planSnapshot.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
+const CREDENTIAL_LEASE_ENTRY = 'src/core/credentialLeaseEntry.ts'
+const CREDENTIAL_LEASE_OUTFILE = 'dist/credentialLease.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
@@ -426,6 +447,22 @@ const reportingDestinationsOptions = {
   entryPoints: ['src/runtime/reporting/destinationsEntry.ts'],
   outfile: 'dist/reportingDestinations.js',
 }
+// C-M113-2: the session and usage inputs (usage journal machinery) load on
+// the first session or usage report, off the reporting engine's budget.
+const reportInputsOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/reportInputsEntry.ts'],
+  outfile: 'dist/reportInputs.js',
+}
+// C-M113-4: the playbook and schedules inputs (journal replay, schedule
+// store) load on the first playbook or schedules report. They ride their
+// own chunk because the replay and store machinery would overflow the
+// session/usage chunk's budget, which stays unchanged.
+const playbookSchedulesInputsOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/playbookSchedulesInputsEntry.ts'],
+  outfile: 'dist/playbookSchedulesInputs.js',
+}
 const reportingPanelOptions = {
   ...hostOptions,
   plugins: [sharedUiText, sharedValidation, sharedWire, sharedRedaction],
@@ -508,6 +545,15 @@ const teamRunnersOptions = {
   ...teamOptions,
   entryPoints: [TEAM_RUNNERS_ENTRY],
   outfile: TEAM_RUNNERS_OUTFILE,
+}
+
+// The Muse Code backend's own bundle (PR206, PLAN.md D6): the same plugins
+// as the team bundles, which already carry the host today, so what the entry
+// pulls in splits the same way.
+const museCodeOptions = {
+  ...teamOptions,
+  entryPoints: [MUSE_CODE_ENTRY],
+  outfile: MUSE_CODE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -624,6 +670,20 @@ const estimatorOptions = {
   target: HOST_NODE_TARGET,
 }
 
+// The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded the
+// first time an estimate needs a plan snapshot; it reads no `vscode`, so a
+// stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const planSnapshotOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [PLAN_SNAPSHOT_ENTRY],
+  outfile: PLAN_SNAPSHOT_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
 // The flight recorder's journal (M93), loaded just after activation or at
 // the first failure; it reads no `vscode`, so a stray import fails here.
 /** @type {import('esbuild').BuildOptions} */
@@ -640,6 +700,28 @@ const recorderOptions = {
   ],
   entryPoints: [RECORDER_ENTRY],
   outfile: RECORDER_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The credential lease (M95 D74), required on the first guarded credential
+// write or Connect recovery; it reads no `vscode`, so a stray import fails
+// here.
+/** @type {import('esbuild').BuildOptions} */
+const credentialLeaseOptions = {
+  ...common,
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+    sharedModelApiBoundaries,
+  ],
+  entryPoints: [CREDENTIAL_LEASE_ENTRY],
+  outfile: CREDENTIAL_LEASE_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -685,6 +767,23 @@ const voiceOptions = {
   ...planMarkdownOptions,
   entryPoints: [VOICE_ENTRY],
   outfile: VOICE_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const voiceLinuxOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [VOICE_LINUX_ENTRY],
+  outfile: VOICE_LINUX_OUTFILE,
+}
+
+// Voice dictation's setups (M9, M35): the window's dictation and Muse Voice
+// setups with the helper probes, required at their existing construction
+// points. It reads no `vscode`, so a stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const dictationOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [DICTATION_ENTRY],
+  outfile: DICTATION_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -739,6 +838,20 @@ const usageCompanionOptions = {
   ...modelApiOptions,
   entryPoints: [USAGE_COMPANION_ENTRY],
   outfile: 'dist/usageCompanion.js',
+}
+const voiceCompanionOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/runtime/companion/voiceEntry.ts'],
+  outfile: 'dist/voiceCompanion.js',
+}
+const voiceCompanionWebviewOptions = {
+  ...common,
+  plugins: isProduction ? [compactBrowserUiText] : [],
+  entryPoints: ['src/webview/voice/companion.ts'],
+  outfile: 'dist/webview/voiceCompanion.js',
+  platform: 'browser',
+  format: 'esm',
+  target: BROWSER_TARGET,
 }
 const usagePanelOptions = {
   ...hostOptions,
@@ -995,6 +1108,18 @@ const mediaOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const mediaHostOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [MEDIA_HOST_ENTRY],
+  outfile: MEDIA_HOST_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const screenRecordOptions = {
   ...common,
   plugins: [sharedUiText, sharedValidation, sharedWire],
@@ -1211,7 +1336,8 @@ const vaultBoundariesOptions = {
 
 const estimateContractsOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation],
+  // Typed refusals reuse the shipped scrubber instead of copying it into contracts.
+  plugins: [sharedUiText, sharedValidation, sharedRedaction],
   entryPoints: ['src/shared/estimateContractsEntry.ts'],
   outfile: 'dist/estimateContracts.js',
 }
@@ -1415,6 +1541,8 @@ if (isWatch) {
     esbuild.context(reportingOptions),
     esbuild.context(reportingNetworkOptions),
     esbuild.context(reportingDestinationsOptions),
+    esbuild.context(reportInputsOptions),
+    esbuild.context(playbookSchedulesInputsOptions),
     esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
@@ -1438,6 +1566,7 @@ if (isWatch) {
     esbuild.context(teamOptions),
     esbuild.context(teamRunnersOptions),
     esbuild.context(teamSchedulerOptions),
+    esbuild.context(museCodeOptions),
     esbuild.context(foreignHooksOptions),
     esbuild.context({
       ...modelApiOptions,
@@ -1448,6 +1577,21 @@ if (isWatch) {
       ...modelApiOptions,
       entryPoints: ['src/core/backends/modelapi/modelApiMcpEntry.ts'],
       outfile: 'dist/modelApiMcp.js',
+    }),
+    esbuild.context({
+      ...modelApiOptions,
+      entryPoints: ['src/host/backend/productionMediaEntry.ts'],
+      outfile: 'dist/productionMedia.js',
+    }),
+    esbuild.context({
+      ...modelApiOptions,
+      entryPoints: ['src/host/backend/productionAudioEntry.ts'],
+      outfile: 'dist/productionAudio.js',
+    }),
+    esbuild.context({
+      ...modelApiOptions,
+      entryPoints: ['src/runtime/runtimeMediaEntry.ts'],
+      outfile: 'dist/runtimeMedia.js',
     }),
     esbuild.context({
       ...modelApiOptions,
@@ -1471,6 +1615,7 @@ if (isWatch) {
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(mediaOptions),
+    esbuild.context(mediaHostOptions),
     esbuild.context(screenRecordOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
@@ -1481,6 +1626,8 @@ if (isWatch) {
     esbuild.context(legalScanOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
+    esbuild.context(voiceLinuxOptions),
+    esbuild.context(dictationOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
@@ -1492,6 +1639,8 @@ if (isWatch) {
     esbuild.context(usageServiceOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
+    esbuild.context(voiceCompanionOptions),
+    esbuild.context(voiceCompanionWebviewOptions),
     esbuild.context(usagePanelOptions),
     esbuild.context(extensionHooksOptions),
     esbuild.context(vaultOptions),
@@ -1502,7 +1651,9 @@ if (isWatch) {
     esbuild.context(vaultActionsOptions),
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
+    esbuild.context(planSnapshotOptions),
     esbuild.context(recorderOptions),
+    esbuild.context(credentialLeaseOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
     esbuild.context(scheduleBackgroundOptions),
@@ -1574,6 +1725,8 @@ if (isWatch) {
     reportingNetwork: recorded('reportingNetwork', reportingNetworkOptions),
     reportingDestinations: recorded('reportingDestinations', reportingDestinationsOptions),
     reportingPanel: recorded('reportingPanel', reportingPanelOptions),
+    reportInputs: recorded('reportInputs', reportInputsOptions),
+    playbookSchedulesInputs: recorded('playbookSchedulesInputs', playbookSchedulesInputsOptions),
     reference: recorded('reference', referenceOptions),
     schedules: recorded('schedules', schedulesOptions),
     reviewer: recorded('reviewer', reviewerOptions),
@@ -1648,6 +1801,29 @@ if (isWatch) {
     judge: recorded('judge', judgeOptions),
     scheduleBackground: recorded('scheduleBackground', scheduleBackgroundOptions),
     uiText: recorded('uiText', uiTextOptions),
+    museCode: recorded('museCode', museCodeOptions),
+    productionMedia: recorded('productionMedia', {
+      ...modelApiOptions,
+      entryPoints: ['src/host/backend/productionMediaEntry.ts'],
+      outfile: 'dist/productionMedia.js',
+    }),
+    productionAudio: recorded('productionAudio', {
+      ...modelApiOptions,
+      entryPoints: ['src/host/backend/productionAudioEntry.ts'],
+      outfile: 'dist/productionAudio.js',
+    }),
+    runtimeMedia: recorded('runtimeMedia', {
+      ...modelApiOptions,
+      entryPoints: ['src/runtime/runtimeMediaEntry.ts'],
+      outfile: 'dist/runtimeMedia.js',
+    }),
+    mediaHost: recorded('mediaHost', mediaHostOptions),
+    voiceLinux: recorded('voiceLinux', voiceLinuxOptions),
+    dictation: recorded('dictation', dictationOptions),
+    voiceCompanion: recorded('voiceCompanion', voiceCompanionOptions),
+    voiceCompanionWebview: recorded('voiceCompanionWebview', voiceCompanionWebviewOptions),
+    planSnapshot: recorded('planSnapshot', planSnapshotOptions),
+    credentialLease: recorded('credentialLease', credentialLeaseOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
         path.basename(region.output, '.js'),
@@ -1783,6 +1959,7 @@ if (isWatch) {
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(MEDIA_OUTFILE)
+  reportSize(MEDIA_HOST_OUTFILE)
   reportSize(SCREEN_RECORD_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CONVERSATION_GIT_OUTFILE)
@@ -1793,6 +1970,8 @@ if (isWatch) {
   reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
+  reportSize(VOICE_LINUX_OUTFILE)
+  reportSize(DICTATION_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
@@ -1811,6 +1990,7 @@ if (isWatch) {
   reportSize(REPORT_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
   reportSize(RECORDER_OUTFILE)
+  reportSize(CREDENTIAL_LEASE_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(JUDGE_OUTFILE)

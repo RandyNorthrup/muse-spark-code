@@ -23,8 +23,21 @@ const QUESTION_UI_BUDGET_KIB = 25
  */
 const BUDGETS = [
   // M113 W: new entries, each measured +15%, rounded to 25 KiB.
-  { path: 'dist/reporting.js', budgetKiB: 175 },
-  { path: 'dist/reportingNetwork.js', budgetKiB: 75 },
+  // MSM113 (estimate kind wired end to end): 220.4 KiB measured +15% =
+  // 253.5 KiB, rounded to 250 KiB. The kind's source, collector, typed
+  // refusal diagnostics and validated section schemas ride the reporting
+  // bundle because the engine reads every source eagerly; no lighter
+  // placement exists without engine surgery.
+  { path: 'dist/reporting.js', budgetKiB: 250 },
+  // MSM113 (estimate kind): 88.2 KiB measured +15% = 101.4 KiB, rounded
+  // to 100 KiB. Same cause: the runtime sources barrel constructs every
+  // local source, estimate included.
+  { path: 'dist/reportingNetwork.js', budgetKiB: 100 },
+  // C-M113-2: session and usage inputs, 84.1 KiB measured +15%, rounded up.
+  { path: 'dist/reportInputs.js', budgetKiB: 100 },
+  // C-M113-4: playbook and schedules inputs, 52090 bytes (50.9 KiB)
+  // measured +15% = 58.5 KiB, rounded up to the next whole KiB.
+  { path: 'dist/playbookSchedulesInputs.js', budgetKiB: 59 },
   { path: 'dist/reportingDestinations.js', budgetKiB: 75 },
   { path: 'dist/reportingPanel.js', budgetKiB: 50 },
   // M112 A: question forms, commands and late-answer admission, loaded on first use.
@@ -56,7 +69,9 @@ const BUDGETS = [
   // Versioned exec event schema: 37.5 KiB +15%, rounded to 25 KiB.
   { path: 'docs/schemas/exec-event-v2.schema.json', budgetKiB: 50 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.
-  { path: 'dist/conversation.js', budgetKiB: 250 },
+  // JOIN0190 features merge: 258.2 KiB measured (estimate diagnostics,
+  // conversation controller), +15%, rounded up to 25 KiB.
+  { path: 'dist/conversation.js', budgetKiB: 300 },
   // M94: provider, engine and ledger on first Tab use (PLAN.md D6).
   { path: 'dist/tab.js', budgetKiB: 75 },
   // M118: portable stores, native/panel adapters and chat renderer: 163.4 KiB + 15%, rounded to 25 KiB.
@@ -69,6 +84,10 @@ const BUDGETS = [
   // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
   // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
   { path: 'dist/modelApi.js', budgetKiB: 525 },
+  // PR206: the Muse Code backend's own bundle (the host, its notification
+  // mapping and the SDK), loaded on the first backend start: 97.6 KiB when
+  // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/museCode.js', budgetKiB: 125 },
   { path: 'dist/exec.js', budgetKiB: 950 },
   { path: 'dist/modelApiCodeIntel.js', budgetKiB: 100 },
   { path: 'dist/mcpPool.js', budgetKiB: 75 },
@@ -78,6 +97,17 @@ const BUDGETS = [
   // rounded up to 25 KiB. Existing Model API cap stays fixed.
   { path: 'dist/modelApiHooks.js', budgetKiB: 50 },
   { path: 'dist/modelApiMcp.js', budgetKiB: 75 },
+  // M105 W production media (replay, estimator, seeds, codec, upload ledger,
+  // session uploads): 66.2 KiB measured +15%, rounded up to 25 KiB. It
+  // returned dist/modelApi.js under its unchanged 525 KiB cap.
+  { path: 'dist/productionMedia.js', budgetKiB: 100 },
+  // M105 lane V seam 3B: transcription and the trusted converter, loaded on
+  // the first turn that carries attached sound: 58.4 KiB measured +15%,
+  // rounded up to 25 KiB.
+  { path: 'dist/productionAudio.js', budgetKiB: 75 },
+  // M105 lane V seam 5: the runtime's ACP and exec media port, loaded on the
+  // first media prompt: 52.5 KiB measured +15%, rounded up to 25 KiB.
+  { path: 'dist/runtimeMedia.js', budgetKiB: 75 },
   { path: 'dist/runtimeAccounting.js', budgetKiB: 50 },
   // TRAIN15E: credentials/model references only; 7.7 KiB +15%, rounded to 25 KiB.
   { path: 'dist/providerPolicy.js', budgetKiB: 25 },
@@ -88,11 +118,15 @@ const BUDGETS = [
   { path: 'dist/modelApiBoundaries.js', budgetKiB: 50 },
   // TRAIN15E joined M95: providers 128.4, subscriptions 29.3, configured
   // providers 24.9 and Models panel 90.3 KiB measured.
+  // JOIN0190 features merge, measured + 15%, rounded up to 25 KiB (D6/D74):
+  // providers 158.6 (OpenRouter, OAuth loopback, key shapes), configured
+  // providers 55.6 (key shapes, retry pacing) and Models panel 129.6 KiB
+  // (loopback fetch, quick pick rows).
   // New bundles use measured + 15%, rounded up to 25 KiB (D6/D74).
-  { path: 'dist/providers.js', budgetKiB: 150 },
+  { path: 'dist/providers.js', budgetKiB: 200 },
   { path: 'dist/subscriptions.js', budgetKiB: 50 },
-  { path: 'dist/configuredProviders.js', budgetKiB: 50 },
-  { path: 'dist/modelsPanel.js', budgetKiB: 125 },
+  { path: 'dist/configuredProviders.js', budgetKiB: 75 },
+  { path: 'dist/modelsPanel.js', budgetKiB: 150 },
   // PANELBUDGET: the subscriptions half (sign-in flows), split out of the
   // panel bundle; 22,917 B measured +15%, rounded up to the next 25 KiB
   // multiple (PLAN.md D6).
@@ -100,6 +134,10 @@ const BUDGETS = [
   // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
   { path: 'dist/usageService.js', budgetKiB: 100 },
   { path: 'dist/usageCompanion.js', budgetKiB: 50 },
+  // CMICCOMP: independent first-use voice page, no chat startup imports.
+  { path: 'dist/voiceCompanion.js', budgetKiB: 125 },
+  { path: 'dist/webview/voiceCompanion.js', budgetKiB: 100 },
+  { path: 'dist/webview/voiceCompanion.css', budgetKiB: 25 },
   { path: 'dist/usagePanel.js', budgetKiB: 75 },
   { path: 'dist/webview/usage.js', budgetKiB: 500 },
   { path: 'dist/webview/usage.css', budgetKiB: 25 },
@@ -161,6 +199,10 @@ const BUDGETS = [
   // sniffers, limits and modality gate), loaded on first attach: 21.0 KiB
   // after the USD split. Measured size plus 15%, rounded up to 25 KiB.
   { path: 'dist/media.js', budgetKiB: 25 },
+  // RVMEDIAV 8: the window's attached-media registry, the attach port's open
+  // hook and contributor consent, loaded on the first attach beside
+  // dist/media.js: 18.1 KiB measured. Measured size plus 15%, rounded up to 25 KiB.
+  { path: 'dist/mediaHost.js', budgetKiB: 25 },
   // M105 lane W: the screen-recording command with the R1-R3 platform
   // drivers, loaded on the first recording command: 30.2 KiB when split
   // out. Measured size plus 15%, rounded up to 25 KiB.
@@ -212,9 +254,18 @@ const BUDGETS = [
   // 2026-10-03 at 80.3 and 34.5 KiB. Measured size plus 15%, rounded up to
   // 25 KiB (PLAN.md D6).
   // M97: local legal scanner, 128.8 KiB measured; plus 15%, rounded to 25 KiB.
-  { path: 'dist/legalScan.js', budgetKiB: 150 },
+  // JOIN0190 features merge: 150.5 KiB measured, +15%, rounded up to 25 KiB.
+  { path: 'dist/legalScan.js', budgetKiB: 175 },
   { path: 'dist/codeIntel.js', budgetKiB: 100 },
   { path: 'dist/voice.js', budgetKiB: 50 },
+  // Linux's offline voice driver (M9, D140), split out of dist/voice.js on
+  // the first Linux recording: 35,907 B measured, plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/voiceLinux.js', budgetKiB: 50 },
+  // Voice dictation's setups (M9, M35), required at their existing
+  // construction points: 13,032 B measured, plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/dictation.js', budgetKiB: 25 },
   // The window's web fetch (M69), loaded on the first fetch: each hop's
   // checks and pins, the pinned transport, the decoders and the failures'
   // words. 46.7 KiB when split out on 2026-10-04, plus 15%, rounded up to
@@ -274,11 +325,20 @@ const BUDGETS = [
   { path: 'dist/paid.js', budgetKiB: 75 },
   // INT0180: estimator application contracts, measured with D6 headroom.
   { path: 'dist/estimateContracts.js', budgetKiB: 25 },
+  // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded
+  // on the first estimate needing a plan snapshot: the shared core adapter
+  // over M113's plan reader with the host's git and `gh` reads. 61.5 KiB
+  // when split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/planSnapshot.js', budgetKiB: 75 },
   // The flight recorder's journal (M93), loaded just after activation or at
   // the first failure: 51.3 KiB when split out (the journal, its policy and
   // the shared protocol it validates against), plus 15%, rounded up to 25 KiB
   // (PLAN.md D6).
   { path: 'dist/recorder.js', budgetKiB: 75 },
+  // The credential lease (M95 D74), loaded on the first guarded credential
+  // write or Connect recovery. 8.6 KiB when split out (the lease, its
+  // journal and the entry), plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/credentialLease.js', budgetKiB: 25 },
   // What's New (M99, PLAN.md D79), loaded on the first page or notice: the
   // page's renderer, its content schema (zod's mini parser) and its tab.
   // 34.8 KiB when split out, plus 15%, rounded up to 25 KiB.
@@ -338,8 +398,8 @@ const BUDGETS = [
   // headless command. Measured 246.5 KiB; plus 15%, rounded up to 25 KiB.
   { path: 'dist/runtimeAccounts.js', budgetKiB: 300 },
   // C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
-  // headless runs, loaded on the first vault need. Measured 18.9 KiB; plus
-  // 15%, rounded up to 25 KiB.
+  // headless runs, loaded on the first vault need. Measured 19.8 KiB;
+  // plus 15%, rounded up to 25 KiB.
   { path: 'dist/vaultRuntime.js', budgetKiB: 25 },
 ]
 
@@ -363,7 +423,9 @@ const WEBVIEW_SURFACE_BUDGETS = [
   // Radial menu body: 4.9 KiB by the same rule.
   { entry: 'GooeyMenuContent', budgetKiB: 25 },
   // Account & usage body: 12.7 KiB by the same rule.
-  { entry: 'UsageDialogContent', budgetKiB: 25 },
+  // JOIN0190 features merge: 25.2 KiB measured (accounts surfaces), +15%,
+  // rounded up to 25 KiB.
+  { entry: 'UsageDialogContent', budgetKiB: 50 },
   // Agent map body: 8.0 KiB by the same rule.
   { entry: 'AgentMapContent', budgetKiB: 25 },
 ]
@@ -401,14 +463,21 @@ for (const { path, budgetKiB } of BUDGETS) {
 // TRAIN15H: optional surfaces' English has its own measured closure cap in
 // webviewBundles.mjs, following measured +15%, rounded up to 25 KiB.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
-for (const { name, source, budgetKiB } of [
+for (const { name, page, source, budgetKiB } of [
   // TRAIN15G: full lazy closure 56.3 KiB +15%, rounded up to 25 KiB.
-  { name: 'models', source: 'src/webview/models/panel.tsx', budgetKiB: 75 },
+  { name: 'models', page: 'models', source: 'src/webview/models/panel.tsx', budgetKiB: 75 },
+  // CM954R4: first-use table closure, measured +15%, rounded up to 25 KiB.
+  {
+    name: 'local model table',
+    page: 'models',
+    source: 'src/webview/models/ModelsSection.tsx',
+    budgetKiB: 25,
+  },
   // TRAIN15G: full lazy closure 35.4 KiB +15%, rounded up to 25 KiB.
-  { name: 'usage', source: 'src/webview/usage/UsageApp.tsx', budgetKiB: 50 },
+  { name: 'usage', page: 'usage', source: 'src/webview/usage/UsageApp.tsx', budgetKiB: 50 },
 ]) {
-  const meta = JSON.parse(readFileSync(`dist/meta/${name}Webview.json`, 'utf8'))
-  const files = webviewPanelOutputs(meta, `dist/webview/${name}.js`, source)
+  const meta = JSON.parse(readFileSync(`dist/meta/${page}Webview.json`, 'utf8'))
+  const files = webviewPanelOutputs(meta, `dist/webview/${page}.js`, source)
   const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   if (sizeKiB > budgetKiB) hasFailure = true
   console.log(
@@ -421,6 +490,8 @@ for (const { name, source, budgetKiB } of [
 // on the release train on 2026-10-11 at the merge of b92fab054 onto
 // acf388a14: providers section 37 KiB (32,197 bytes measured, plus 15
 // percent, rounded up), models section 13 KiB (12,074 bytes measured).
+// M95 (CM954 R4): the saved-model editor's validated per-model window field
+// grew the chunk to 13,448 bytes, so the row is 14 KiB (PLAN.md §7).
 const modelsMeta = JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8'))
 const modelsSectionGroups = modelsDeferredBudgetGroups(modelsMeta)
 for (const { name, budgetKiB, outputs } of modelsSectionGroups) {

@@ -59,7 +59,7 @@ async function isPlainFile(home: string, relativePath: string): Promise<boolean>
   return true
 }
 
-/** Ambient vault file discovery, served through the panel service's import flow. */
+/** Ambient vault file discovery, served through the panel service's import flow and read by the vault panel entry. */
 export async function discoverAmbientFiles(home: string): Promise<readonly AmbientFile[]> {
   const names = ['.git-credentials', '.netrc', '.npmrc', '.aws/credentials', '.docker/config.json']
   try {

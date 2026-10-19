@@ -61,7 +61,7 @@ import type { AccountsSessionPort } from '../../acp/accounts'
 import { accountStopText, accountUsageUrl } from '../../acp/accountText'
 import { execFetch, type ExecTransport } from './execFetch'
 import { statusForStop, type Lifecycle, type StopCause } from './execLimits'
-import { createExecLogger, type ExecSink } from './execOutput'
+import { createExecLogger, redactWhole, type ExecSink } from './execOutput'
 import { createResourceExecSink } from '../resources/execSink'
 import type { RuntimeResources } from '../resources/port'
 import type { ResourceSettings } from '../../shared/resources'
@@ -347,7 +347,6 @@ function relativePaths(cwd: string, paths: readonly string[]): string[] {
 
 export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<number> {
   const { options } = deps
-  const mediaFactory = deps.media
   const cwd = path.resolve(deps.processCwd, options.cwd ?? deps.processCwd)
   const literals: string[] = []
   let isFinished = false
@@ -623,8 +622,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       await lifecycle.stopped
       transport?.close()
       cancelSession?.()
-    } catch (error_: unknown) {
-      log.error(error_ instanceof Error ? error_.message : String(error_))
+    } catch {
+      log.error('Exec cancel failed: cleanup_failed')
     }
   })()
   const cleanupStart = { value: 0 }
@@ -771,8 +770,6 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           execAttachmentBlocks(options.attachFiles ?? [], cwd, lifecycle.signal, deps.platform),
         )),
       ]
-      if ((options.attachFiles?.length ?? 0) > 0 && deps.media === undefined)
-        throw new Error(UI_TEXT.media.uploadStorageUnknown)
       let secrets = providerRun?.secrets ?? deps.storeSecrets
       if (providerRun === undefined && options.keyFromStdin) {
         const key = await lifecycle.race(readKeyLine(deps.stdin, lifecycle.signal))
@@ -1012,6 +1009,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         }
       }
       tap = observeBackend(runtime.backend, options.model)
+      // Lane V seam 5: the runtime's own media port when the caller gives none.
+      const mediaFactory = deps.media ?? runtime.media
+      if (mediaFactory === undefined && (options.attachFiles?.length ?? 0) > 0)
+        throw new Error(UI_TEXT.media.uploadUnavailable)
       const { createAcpAgent, createExecClient } = engine
       const initialModelId = providerRun?.modelRef ?? options.model
       const agent = createAcpAgent({
@@ -1051,6 +1052,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               },
             }),
         }),
+        // M105 lane F: /uploads over the runtime's account ledger, as serve
+        // forwards it. Without this the headless agent says so and deletes
+        // nothing.
+        ...(runtime.uploads !== undefined && { uploads: runtime.uploads }),
       })
       const client = createExecClient({
         onAccountNotice: (event) => {
@@ -1385,9 +1390,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             if (close !== undefined) {
               try {
                 await lifecycle.race(close())
-              } catch (error_: unknown) {
+              } catch {
                 if (lifecycle.cause === null) {
-                  log.error(error_ instanceof Error ? error_.message : String(error_))
+                  log.error('Exec session close: cleanup_failed')
                   lifecycle.latch({ kind: 'internal' })
                 }
               }
@@ -1653,13 +1658,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 })(),
           ]),
         )
-      } catch (error_: unknown) {
-        log.error(error_ instanceof Error ? error_.message : String(error_))
+      } catch {
+        log.error('Exec runtime close: cleanup_failed')
         lifecycle.latch({ kind: 'internal' })
       }
       await grace(transport?.whenSettled() ?? Promise.resolve())
       if (setup.isUsageError && lifecycle.cause === null) {
-        log.error(error)
+        log.error('Exec request refused: usage_error')
+        deps.stderr.write(`${redactWhole(error, literals)}\n`)
         await grace(deps.stderr.flush(lifecycle.remainingGraceMs()))
         return EXEC_EXIT.usage
       }

@@ -238,6 +238,60 @@ declare module '*/action/lib/lifecycle.mjs' {
   }): LauncherOwner
 }
 
+interface CiFacts {
+  system: string
+  workspace: string
+  runId: string
+  attempt: string
+  event: 'pull_request' | 'branch' | 'unsupported'
+  label: string
+  number: string | null
+  isFork: boolean
+  isProtected: boolean | null
+  headSha: string
+  base: { sha: string } | { ref: string } | { firstParent: true } | { mergeParent: true }
+  title: string
+  body: string
+}
+
+type CiInputs = ActionInputs & { trustPullRequests: boolean }
+
+declare module '*/action/lib/ci-adapters.mjs' {
+  export const CI_SYSTEMS: readonly string[]
+  export function azureBoolean(value: string | undefined, name: string): boolean | undefined
+  export function ciFacts(system: string, env: Record<string, string | undefined>): CiFacts
+  export function decideCi(
+    facts: CiFacts,
+    inputs: Pick<CiInputs, 'trustPullRequests' | 'imageGeneration' | 'mode'>,
+  ): { allowed: true } | { allowed: false; reason: string }
+}
+
+declare module '*/action/lib/ci-run.mjs' {
+  export function takeCiKey(env: Record<string, string | undefined>): string | undefined
+  export function parseCiInputs(env: Record<string, string | undefined>, system: string): CiInputs
+  export function requiredJobMinutes(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
+  export function requiredRunMs(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
+  export function jobMinutes(env: Record<string, string | undefined>, system: string): number
+  export function bootstrapStartMs(env: Record<string, string | undefined>): number
+  export function jobStartMs(
+    env: Record<string, string | undefined>,
+    system: string,
+    nowMs?: number,
+  ): number
+  export function checkJobDeadline(
+    env: Record<string, string | undefined>,
+    system: string,
+    inputs: Pick<ActionInputs, 'timeoutMinutes'>,
+    nowMs?: number,
+  ): void
+  export const CI_BOOTSTRAP_UNSET: readonly string[]
+  export function privateTemp(
+    value: string | undefined,
+    workspace: string,
+    platform: string,
+  ): string
+}
+
 declare module '*/action/lib/git.mjs' {
   export const GIT_METADATA_OPTIONS: readonly string[]
   export const INERT_CONFIG_NAMES: ReadonlySet<string>
@@ -443,6 +497,7 @@ declare module '*/action/lib/run-exec.mjs' {
   export const MODEL_API_KEY_PATTERN: RegExp
   export const KEY_VARIABLE: string
   export const INVALID_KEY_MESSAGE: string
+  export function isValidModelApiKey(value: unknown): boolean
   export function takeModelApiKey(env: Record<string, string | undefined>): string | undefined
   export function maskCommand(value: string): string
   export function execArguments(input: {

@@ -33,6 +33,8 @@ export interface AcpMediaInput {
   readonly sha256: string
   readonly source: UploadSource
   readonly isScreenRecording?: true
+  /** The confined absolute path of an attached workspace file, for the local converter only. */
+  readonly path?: string
 }
 
 export interface AcpAttachment {
@@ -46,6 +48,8 @@ export interface AcpAttachment {
 export interface AcpMediaPort extends PromptMediaPort {
   readonly attach: (given: string, signal: AbortSignal, mime?: string) => Promise<AcpAttachment>
   readonly record: (signal: AbortSignal) => Promise<AcpAttachment | undefined>
+  /** The session is let go: what it attached and no turn holds is released. */
+  readonly release: () => void
 }
 
 export interface AcpMediaContext {
@@ -74,6 +78,14 @@ export interface AcpMediaDeps extends AcpMediaContext {
   ) => Promise<void>
   /** Bind metadata carrier + private source to M2; admission includes C/A's consent and budgets. */
   readonly prepare: (input: AcpMediaInput, signal: AbortSignal) => Promise<TurnPart>
+  /**
+   * Lane V seam 5: whether this runtime transcribes attached sound (the
+   * agent's Muse Voice flag). Audio the model does not hear is then
+   * admitted for transcription; absent, the gate's refusal stands.
+   */
+  readonly transcribesSound?: (info: MediaInfo) => boolean
+  /** Releases this port's registrations when the session is let go (RVMEDIAV 7). */
+  readonly release?: () => void
   /** Native driver + user options + Stop + preview. Returns only after the user chooses Attach. */
   readonly recordAndPreview?: (
     signal: AbortSignal,
@@ -109,8 +121,7 @@ function bytesInput(name: string, info: MediaInfo, bytes: Uint8Array): AcpMediaI
   }
 }
 
-/** No bytes or provider IDs appear in ACP acknowledgements.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+/** No bytes or provider IDs appear in ACP acknowledgements. */
 export class AcpMedia implements AcpMediaPort {
   public constructor(private readonly deps: AcpMediaDeps) {}
 
@@ -123,10 +134,13 @@ export class AcpMedia implements AcpMediaPort {
     if (model.modelId !== this.deps.modelId())
       throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
     const gate = modalityGate(info, model)
-    if (!gate.ok) throw new Error(gate.reason)
+    // Audio no model hears goes to Muse Voice where the runtime transcribes it.
+    const isTranscribed =
+      !gate.ok && info.kind === 'audio' && this.deps.transcribesSound?.(info) === true
+    if (!isTranscribed && !gate.ok) throw new Error(gate.reason)
     if (info.kind === 'video' || info.kind === 'audio') {
       const limits = checkMediaLimits(info, {
-        acceptedMediaTypes: model.modalities[info.kind].formats,
+        acceptedMediaTypes: isTranscribed ? [info.mediaType] : model.modalities[info.kind].formats,
         modelName: model.modelName,
       })
       if (!limits.ok) throw new Error(limits.reason)
@@ -167,14 +181,17 @@ export class AcpMedia implements AcpMediaPort {
       if (file === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
       if (!('kind' in file)) {
         if (mime != null && mime !== file.info.mediaType) throw unknown(mime)
-        return await this.accepted({ ...file, name, source: { ...file.source, name } }, signal)
+        return await this.accepted(
+          { ...file, name, path: confined.checkedAbsolute, source: { ...file.source, name } },
+          signal,
+        )
       }
       isPdfFile = file.isPdf === true
     } else if (
       /\.(?:mp4|mov|mp3|wav|webm|mkv|m4a)$/iu.test(name) ||
       /^(?:audio|video)\//u.test(mime ?? '')
     ) {
-      throw new Error(UI_TEXT.media.uploadStorageUnknown)
+      throw new Error(UI_TEXT.media.uploadUnavailable)
     }
     const bytes = await this.deps.io.readBytes(
       confined.checkedAbsolute,
@@ -278,5 +295,9 @@ export class AcpMedia implements AcpMediaPort {
       await preview.dispose()
       throw error
     }
+  }
+
+  public release(): void {
+    this.deps.release?.()
   }
 }

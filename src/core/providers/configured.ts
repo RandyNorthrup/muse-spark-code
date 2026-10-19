@@ -2,6 +2,7 @@
 // every send rechecks configuration, credential origin and pinned DNS answers.
 import { createHash, randomUUID } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
+import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { request as httpRequest } from 'node:http'
@@ -18,6 +19,7 @@ import {
   modelRef,
   ollama,
   presets,
+  pkce,
   priceCard,
   providersFile,
   responses,
@@ -26,7 +28,11 @@ import {
   recordPlanUsage,
   metaResolvedModel,
 } from '../../host/backend/providersEntry'
-import { outputTokenMinimumMessage, providerOutputMinimum } from '../../shared/providerRouting'
+import {
+  outputTokenMinimumMessage,
+  providerOutputMinimum,
+  pruneModelLimits,
+} from '../../shared/providerRouting'
 import { pinnedHttpsRequest, pinnedPostRequest } from '../../host/backend/modelApiEntry'
 import type { PinnedResponse, PinnedTarget } from '../web/webFetch'
 import type { ProviderClient } from '../backends/modelapi/client'
@@ -44,11 +50,45 @@ import {
   RequestTransport,
   abortableSleep,
   parseJsonResponse,
+  readBoundedText,
   ModelApiError,
   assertConfirmedAllowed,
   isModelApiError,
 } from '../backends/modelapi/transport'
 import { isUserRefusal, UserRefusalError } from '../refusal'
+import {
+  anthropicPacingLimits,
+  openaiPacingLimits,
+  xaiPacingLimits,
+  type PacingLimits,
+} from '../backends/modelapi/pacing'
+
+/**
+ * The rate-limit header reader for a preset (PROVM95): each provider's own
+ * header names with their real meaning, from the 2026-10-04 captures.
+ * Presets whose providers send no limit headers get none, so only a 429
+ * pause applies; Groq's per-day scope, xAI's per-second scope and
+ * DeepSeek's concurrency need a capture that names them.
+ */
+function pacingReaderFor(
+  presetId: string,
+): ((headers: Headers) => PacingLimits | undefined) | undefined {
+  switch (presetId.replace('-plan', '')) {
+    case 'openai':
+    case 'groq': {
+      return openaiPacingLimits
+    }
+    case 'xai': {
+      return xaiPacingLimits
+    }
+    case 'anthropic': {
+      return anthropicPacingLimits
+    }
+    default: {
+      return undefined
+    }
+  }
+}
 import {
   boundProviderMessage,
   isRefusalRetryable,
@@ -58,7 +98,7 @@ import {
 } from '../backends/modelapi/providerRefusal'
 import { isConnectionFailure, networkFailureCodes } from '../networkFailure'
 import type { CoreLogger } from '../logging'
-import { withDeadline } from '../timeouts'
+import { withDeadline, unlessAborted } from '../timeouts'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
 import {
@@ -148,6 +188,60 @@ const costSchema = z.object({
     ),
   ),
 })
+// GET /api/v1/key: m95-captures/openrouter/02-key-usage.json (2026-10-04).
+/**
+ * An exact decimal the response tokenizer minted. A class instance, never a
+ * plain object: response JSON parses to plain objects only, so no wire
+ * shape can forge one (a `{"decimal": "1e101"}` object is refused below).
+ */
+class ExactDecimal {
+  public constructor(public readonly decimal: string) {}
+}
+/** Exponents past this bound never become an amount, on any path. */
+const EXACT_DECIMAL_MAX_EXPONENT = 100
+function exactDecimalToAmount(value: ExactDecimal) {
+  const exponent = Number(value.decimal.split(/[eE]/, 2)[1] ?? 0)
+  // A forged or out-of-range amount reaches `openRouterUsage`'s catch, which
+  // reports the usage read as failed (lane PROVERRORS: no generic panel error).
+  if (!Number.isSafeInteger(exponent) || Math.abs(exponent) > EXACT_DECIMAL_MAX_EXPONENT)
+    throw new Error(UI_TEXT.providerUsageFailed)
+  const amount = Usd.from(value.decimal).toAmount()
+  // Usage amounts are non-negative exact decimals on every field (RVCM952D):
+  // a negative vendor amount is refused, never reported as success.
+  if (amount.startsWith('-')) throw new Error(UI_TEXT.providerUsageFailed)
+  return amount
+}
+const keyDollars = z.pipe(z.instanceof(ExactDecimal), z.transform(exactDecimalToAmount))
+/**
+ * Replaces per-call tokenizer markers with their minted amounts. A
+ * marker-shaped wire string cannot match the call's nonce, so it survives
+ * as a string and the usage schema refuses it.
+ */
+function materializeExactDecimals(value: unknown, nonce: string): unknown {
+  const prefix = `exact-decimal:${nonce}:`
+  if (typeof value === 'string')
+    return value.startsWith(prefix) ? new ExactDecimal(value.slice(prefix.length)) : value
+  if (Array.isArray(value)) return value.map((item) => materializeExactDecimals(item, nonce))
+  if (typeof value === 'object' && value !== null) {
+    const out: Record<string, unknown> = {}
+    for (const [name, entry] of Object.entries(value))
+      out[name] = materializeExactDecimals(entry, nonce)
+    return out
+  }
+  return value
+}
+const openRouterUsageSchema = z.object({
+  data: z.object({
+    usage: keyDollars,
+    usage_daily: keyDollars,
+    usage_weekly: keyDollars,
+    usage_monthly: keyDollars,
+    limit: z.nullable(keyDollars),
+    limit_remaining: z.nullable(keyDollars),
+  }),
+})
+// Public PKCE documentation, read 2026-10-11; live exchange receipt pending CM952.
+const openRouterExchangeSchema = z.object({ key: z.string().check(z.minLength(1)) })
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
 /**
  * A provider entry the services cannot use, as a closed cause (round 2,
@@ -422,6 +516,10 @@ export function createConfiguredProviderServices(
       throw new ModelApiError(UI_TEXT.mainServiceUnavailable, 0, undefined, undefined)
     return meta
   }
+  // Production media (D85.2): the Files transport rides to the Meta
+  // delegate; a provider set without Meta keeps the established refusal.
+  const filesTransport = meta?.requestFile?.bind(meta)
+  const transcription = meta?.requestTranscription?.bind(meta)
   const base: ProviderClient = {
     hasPaidDailyBudget: meta?.hasPaidDailyBudget ?? false,
     currentKeyDigest: () => delegate().currentKeyDigest(),
@@ -434,6 +532,8 @@ export function createConfiguredProviderServices(
     streamResponse: (body, ...args) => delegate().streamResponse(body, ...args),
     createImage: (...args) => delegate().createImage(...args),
     editImage: (...args) => delegate().editImage(...args),
+    ...(filesTransport !== undefined && { requestFile: filesTransport }),
+    ...(transcription !== undefined && { requestTranscription: transcription }),
   }
   let revision = ''
   let plans = options.loadUsage?.() ?? []
@@ -512,7 +612,11 @@ export function createConfiguredProviderServices(
     const configuredUrl = new URL(entry.address)
     const base = new URL(keyTestOrigin ?? configuredUrl.href)
     if (
-      (!preset.wireCapture && entry.preset !== 'custom' && entry.auth !== 'none') ||
+      // No capture, no calls (rule 13): `custom` is the user's own server,
+      // but an uncaptured preset stays refused even when keyless
+      // (C-M95-4 R2: the old `auth !== 'none'` escape let a picked vLLM or
+      // Ollama entry send chat with no capture behind it).
+      (!preset.wireCapture && entry.preset !== 'custom') ||
       (preset.origin.kind === 'fixed' && configuredUrl.origin !== preset.origin.origin) ||
       (keyTestOrigin !== undefined &&
         (preset.keyTest.kind !== 'provider-key' || preset.keyTest.origin !== keyTestOrigin))
@@ -531,6 +635,7 @@ export function createConfiguredProviderServices(
               : (preset.authHeader ?? 'bearer'),
           )
     let target: PinnedTarget | undefined
+    const readLimits = pacingReaderFor(preset.id)
     return {
       auth,
       transport: {
@@ -540,6 +645,19 @@ export function createConfiguredProviderServices(
         now: Date.now,
         random: Math.random,
         ...(idleMs !== undefined && { streamIdleMs: idleMs }),
+        // The entry's own header interpreter: Meta's reader is the
+        // transport default, every other provider reads its own headers.
+        // A preset with no limit headers omits the reader instead of
+        // sending undefined, so only a 429 pause applies. The identity is
+        // the stable preset id, never the configurable entry id: aliases
+        // of one key (`providers add --as`) share what the account's
+        // quota observations and 429 pauses teach (the base URL and the
+        // credential digest in the account key disambiguate servers
+        // and keys).
+        pacingProvider: () =>
+          readLimits === undefined
+            ? { identity: { provider: preset.id } }
+            : { identity: { provider: preset.id }, readLimits },
         log: configuredTransportLog(options.log),
         // A send that produced no answer: the provider, Node's own failure
         // codes (never what a server wrote) and that whether the request
@@ -699,6 +817,9 @@ export function createConfiguredProviderServices(
         const verdict = endpointPolicy.checkEndpointUrl(base.href, answers)
         if (
           verdict.kind === 'refused' ||
+          (preset.origin.kind === 'fixed' &&
+            verdict.kind === 'ok' &&
+            verdict.network !== 'public') ||
           (verdict.kind === 'confirm-private' &&
             (keyTestOrigin !== undefined || entry.privateNetwork !== true))
         )
@@ -736,6 +857,7 @@ export function createConfiguredProviderServices(
     supplied: string | undefined,
     signal: AbortSignal | undefined,
     keyTestOrigin?: string,
+    isExact = false,
   ) => {
     const preset = presetFor(entry)
     const bound = transportFor(entry, supplied, keyTestOrigin)
@@ -744,7 +866,14 @@ export function createConfiguredProviderServices(
     const transport = new RequestTransport({
       ...bound.transport,
       auth: bound.auth,
-      verifyEndpoint: bound.verifyEndpoint,
+      verifyEndpoint: async (url) => {
+        if (signal === undefined) {
+          await bound.verifyEndpoint(url)
+          return
+        }
+        await unlessAborted(bound.verifyEndpoint(url), signal)
+        signal.throwIfAborted()
+      },
       baseUrl: address.baseUrl,
       // OPENAI-G20: the key-check path retries by the preset's own table too.
       retryTable: presets.quirksOf(preset).retry,
@@ -769,6 +898,28 @@ export function createConfiguredProviderServices(
       { method: 'GET', accept: 'application/json', headers, retries: 'rateLimitOnly' },
       signal,
     )
+    if (isExact) {
+      // Tokenize strings and numbers together: digits in labels or escaped
+      // strings are untouched. JSON validates syntax; only markers minted
+      // here materialize into amounts, so a wire object or string can never
+      // forge one. The nonce is per call; the exponent bound is enforced
+      // here and again in the amount schema.
+      const nonce = randomUUID()
+      const text = await readBoundedText(result.response)
+      const exact = text.replaceAll(
+        /"(?:[^"\\]|\\.)*"|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/g,
+        (token) => {
+          if (token.startsWith('"')) return token
+          const exponent = Number(token.split(/[eE]/, 2)[1] ?? 0)
+          // An out-of-range exponent reaches `openRouterUsage`'s catch, which
+          // reports the usage read as failed (lane PROVERRORS: no generic panel error).
+          if (!Number.isSafeInteger(exponent) || Math.abs(exponent) > EXACT_DECIMAL_MAX_EXPONENT)
+            throw new Error(UI_TEXT.providerUsageFailed)
+          return JSON.stringify(`exact-decimal:${nonce}:${token}`)
+        },
+      )
+      return materializeExactDecimals(JSON.parse(exact), nonce)
+    }
     return await parseJsonResponse(result, (json) => z.json().parse(json))
   }
   const scan = async (
@@ -928,6 +1079,10 @@ export function createConfiguredProviderServices(
             ...(preset.quirks.sendUndeclaredEffort === true && { sendUndeclaredEffort: true }),
           },
           pricing,
+          // The send path's record: the same joined capabilities the
+          // evidence above projects, so fresh media meets the model's own
+          // caps instead of riding through record-less.
+          record,
           displayLabel: typeof native?.['name'] === 'string' ? native['name'] : nativeModel,
           providerLabel: preset.label,
           contextTokens:
@@ -952,24 +1107,12 @@ export function createConfiguredProviderServices(
     let reasoningParam: chat.ChatPresetQuirks['reasoningParam'] = 'none'
     if (record.reasoning.effortLevels.state === 'yes')
       reasoningParam = preset.id === 'openrouter' ? 'effort-object' : 'effort-flat'
-    let replayField: chat.ChatPresetQuirks['replayField'] = 'none'
-    switch (preset.quirks.reasoningField) {
-      case 'reasoning_details': {
-        replayField = 'details'
-        break
-      }
-      case 'reasoning_content': {
-        replayField = 'content'
-        break
-      }
-      case 'content-list': {
-        {
-          replayField = 'chunks'
-          // No default
-        }
-        break
-      }
-    }
+    // C-M95-4 R2: local presets never replay thinking (fail closed on
+    // unversioned servers); see `replayFieldFor`. A `content-list` cloud
+    // preset (Mistral) still replays its chunks.
+    let replayField: chat.ChatPresetQuirks['replayField'] = presets.replayFieldFor(preset)
+    if (preset.category !== 'local' && preset.quirks.reasoningField === 'content-list')
+      replayField = 'chunks'
     const quirks: chat.ChatPresetQuirks = {
       presetId: preset.id.replace('-plan', ''),
       providerId: entry.id,
@@ -1094,7 +1237,9 @@ export function createConfiguredProviderServices(
     const codec: WireCodec = {
       format,
       models: {
-        path: preset.modelsList.path,
+        // Joined with the address root, so an Azure entry lists below its
+        // `/openai/v1` root instead of the bare origin (PROVM95).
+        path: baseAndPath(entry, preset.modelsList.path).path,
         parse: (value) =>
           modelMetadata.parseNativeModelsList(value).map((row) => ({
             id: z.string().parse(row['id']),
@@ -1191,6 +1336,11 @@ export function createConfiguredProviderServices(
               body.reasoning.effort === EFFORT_PROVIDER_DEFAULT ||
               record.reasoning.supported.state === 'no' ||
               !hasUsableEffortLevels(record.reasoning.effortLevels)
+            // Azure's v1 API is Responses as OpenAI's, rooted at the
+            // entry's `/openai/v1` address with the deployment name as the
+            // model (research §1.2 [AZ1, AZ3, AZ6]); the record above stays
+            // keyed by the model family, never the deployment name.
+            const isAzure = preset.id === 'azure'
             wire = responses
               .createResponsesCodec(
                 {
@@ -1204,9 +1354,10 @@ export function createConfiguredProviderServices(
               )
               .encodeRequest({
                 ...body,
-                model: native,
+                model: presets.wireModelFor(entry, native),
                 ...(shouldOmitReasoning && { reasoning: undefined }),
               })
+            if (isAzure) path = '/responses'
           }
         }
 
@@ -1367,6 +1518,14 @@ export function createConfiguredProviderServices(
         )
         if (body.max_output_tokens < minimum)
           throw new RangeError(outputTokenMinimumMessage(minimum))
+        // C-M95-4 R3: a local server's report is its only window. A
+        // windowless local model refuses here with a plain reason instead
+        // of sending Meta-sized history at a small server. Before the
+        // `try`, so the plain reason reaches the caller.
+        const windowTokens =
+          entry.modelLimits?.[native]?.contextTokens ?? record.limits.contextTokens
+        if (windowTokens === undefined && entry.auth === 'none' && preset.wireCapture)
+          throw new Error(fill(UI_TEXT.localModelWindowUnknown, { model: ref }))
         let usage: Usage | undefined
         const dispatch = { attempts: 0 }
         const observe = Object.assign(
@@ -1478,6 +1637,59 @@ export function createConfiguredProviderServices(
     ...(meta?.listPlanModels !== undefined && {
       listPlanModels: async () => (await delegate().listPlanModels?.()) ?? [],
     }),
+    // C-M95-4 R5: the saved record read at use time, for compaction
+    // sizing (the host's `contextModel` seam is synchronous). The file is
+    // tiny; a synchronous parse keeps every writer (panel, wizard, CLI,
+    // ACP) current with no snapshot to invalidate. A carried
+    // `modelLimits` window wins; otherwise the last listing's catalogue
+    // window stands (catalogue records are static). An unlisted model or
+    // an unknown window reads undefined.
+    peekContextModel: (ref) => {
+      const parsed = modelRef.parseModelRef(ref)
+      const native = parsed?.modelId
+      if (parsed === undefined || native === undefined) return
+      try {
+        const saved = providersFile.providersFileSchema.safeParse(
+          JSON.parse(readFileSync(options.configFile, 'utf8')) as unknown,
+        )
+        if (parsed.providerId !== 'meta' && saved.success) {
+          const entry = saved.data.providers.find((row) => row.id === parsed.providerId)
+          // The load prunes limits for unlisted models for every other
+          // reader; this synchronous read applies the same rule instead of
+          // trusting a lingering map.
+          const windowTokens = pruneModelLimits(entry?.models ?? [], entry?.modelLimits)?.[native]
+            ?.contextTokens
+          if (
+            entry !== undefined &&
+            windowTokens !== undefined &&
+            Number.isSafeInteger(windowTokens) &&
+            windowTokens > 0
+          ) {
+            const format = providersFile.providerFormatSchema.safeParse(
+              entry.format ?? presetFor(entry).format,
+            )
+            if (format.success) return { format: format.data, contextTokens: windowTokens }
+          }
+          // A readable file that no longer lists the provider or the
+          // model ends here: the cached last listing below must not
+          // resurrect a removed window. A listed model without a manual
+          // window falls through to its catalogue record below.
+          if (entry?.models.includes(native) !== true) return
+        }
+      } catch {
+        // An unreadable file keeps the last listing's answer below.
+      }
+      const bound = records.get(ref)
+      if (bound === undefined) return
+      const windowTokens =
+        bound.entry.modelLimits?.[native]?.contextTokens ?? bound.record.limits.contextTokens
+      if (windowTokens === undefined || !Number.isSafeInteger(windowTokens) || windowTokens <= 0)
+        return
+      const format = providersFile.providerFormatSchema.safeParse(
+        bound.entry.format ?? presetFor(bound.entry).format,
+      )
+      return format.success ? { format: format.data, contextTokens: windowTokens } : undefined
+    },
     streamResponse: async function* (body, ...args) {
       if (body.model.includes('/') && !meta?.isPlanModel?.(body.model)) {
         const resolved = await registry.resolve(body.model)
@@ -1489,6 +1701,95 @@ export function createConfiguredProviderServices(
     client,
     registry,
     scan,
+    openRouterExchange: async (code: string, verifier: string, callerSignal?: AbortSignal) => {
+      try {
+        // No timeout of our own: the exchange ends at the provider's
+        // answer, a network failure, or the caller's cancellation.
+        const signal = AbortSignal.any([...(callerSignal === undefined ? [] : [callerSignal])])
+        signal.throwIfAborted()
+        // A bad exchange input reaches the catch below, which reports the
+        // connect as failed (lane PROVERRORS: no generic panel error).
+        if (code.trim() === '' || !pkce.isPkceVerifier(verifier))
+          throw new Error(UI_TEXT.providerConnectFailed)
+        const origin = presets.presetById('openrouter')?.origin
+        if (origin?.kind !== 'fixed') throw new Error(UI_TEXT.providerConnectFailed)
+        const entry: ProviderEntry = {
+          id: 'openrouter',
+          preset: 'openrouter',
+          address: origin.origin,
+          auth: 'none',
+          models: [],
+        }
+        // No credential, retries or redirects: a code can be exchanged only once.
+        const bound = transportFor(entry, '')
+        const url = presets.OPENROUTER_TOKEN_URL
+        await unlessAborted(bound.verifyEndpoint(url), signal)
+        signal.throwIfAborted()
+        const response = await bound.transport.fetch(url, {
+          method: 'POST',
+          redirect: 'error',
+          signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, code_verifier: verifier, code_challenge_method: 'S256' }),
+        })
+        if (!response.ok) {
+          await response.body?.cancel()
+          throw new Error(UI_TEXT.providerConnectFailed)
+        }
+        const value: unknown = JSON.parse(await readBoundedText(response))
+        // A complete successful exchange has minted a key even if cancellation
+        // arrived while its body was read. The Connect owner must report disposal.
+        const key = openRouterExchangeSchema.parse(value).key
+        const keyShape = presets.presetById('openrouter')?.keyShape
+        if (keyShape === undefined || !presets.isKeyShape(keyShape, key))
+          throw new Error(UI_TEXT.providerConnectFailed)
+        return key
+      } catch {
+        // Never expose a response body, authorization code, verifier or returned key.
+        throw new Error(UI_TEXT.providerConnectFailed)
+      }
+    },
+    openRouterUsage: async (
+      entry: ProviderEntry,
+      supplied?: string,
+      callerSignal?: AbortSignal,
+    ) => {
+      try {
+        const origin = presets.presetById('openrouter')?.origin
+        // A misrouted usage read reaches the catch below, which reports the
+        // usage read as failed (lane PROVERRORS: no generic panel error).
+        if (
+          origin?.kind !== 'fixed' ||
+          entry.preset !== 'openrouter' ||
+          entry.auth !== 'apiKey' ||
+          entry.address !== origin.origin
+        )
+          throw new Error(UI_TEXT.providerUsageFailed)
+        // No timeout of our own: the read ends at the provider's answer, a
+        // network failure, or the caller's cancellation.
+        const value = await getJson(
+          entry,
+          '/api/v1/key',
+          supplied,
+          AbortSignal.any([...(callerSignal === undefined ? [] : [callerSignal])]),
+          undefined,
+          true,
+        )
+        callerSignal?.throwIfAborted()
+        const { data } = openRouterUsageSchema.parse(value)
+        return {
+          usedTotal: data.usage,
+          unlimited: data.limit === null,
+          usedToday: data.usage_daily,
+          usedThisWeek: data.usage_weekly,
+          usedThisMonth: data.usage_monthly,
+          limit: data.limit ?? undefined,
+          remaining: data.limit_remaining ?? undefined,
+        }
+      } catch {
+        throw new Error(UI_TEXT.providerUsageFailed)
+      }
+    },
     accountId: async () => {
       const file = await read()
       for (const entry of file.providers) {
@@ -1516,6 +1817,27 @@ export function createConfiguredProviderServices(
           .string()
           .check(z.minLength(1))
           .parse(native['id'] ?? native['name'])
+        // C-M95-4 R2: the quirks above were captured against
+        // `capturedBuild`, whose list carries the live window as
+        // `meta.n_ctx`. A list without it is an unknown build: offering
+        // its models with an unknown window would let manual compact
+        // assume Meta's window, so the scan fails closed instead.
+        if (preset.id === 'llamacpp') {
+          const meta = native['meta']
+          const live =
+            typeof meta === 'object' && meta !== null && 'n_ctx' in meta
+              ? Reflect.get(meta, 'n_ctx')
+              : undefined
+          if (typeof live !== 'number' || !(live > 0)) {
+            throw new Error(
+              fill(UI_TEXT.llamacppScanMissingWindow, {
+                build: preset.capturedBuild ?? preset.id,
+              }),
+            )
+          }
+        }
+        // `missingAddress` above fails closed on an address-less entry, so
+        // `address` is set here (lane PROVERRORS).
         const source = { kind: 'models-list' as const, ref: entry.address }
         const known =
           catalogue.providers[preset.id.replace('-plan', '')]?.models[id] ??

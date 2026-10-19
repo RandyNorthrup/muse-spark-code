@@ -13,14 +13,15 @@ import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as VoiceEntry from './voiceEntry'
+import type * as VoiceLinuxEntry from './voiceLinuxEntry'
 
-/** The bundle's two drivers, shipped and loaded together. */
+/** The bundle's drivers, shipped and loaded together. */
 export interface VoiceBundle {
   readonly createDictation: typeof VoiceEntry.createDictation
   readonly createMuseVoice: typeof VoiceEntry.createMuseVoice
 }
 
-/** Whether a required module exports both drivers. */
+/** Whether a required module exports every voice entry point. */
 export function isVoiceBundle(value: unknown): value is VoiceBundle {
   return (
     typeof value === 'object' &&
@@ -29,6 +30,24 @@ export function isVoiceBundle(value: unknown): value is VoiceBundle {
     typeof value.createDictation === 'function' &&
     'createMuseVoice' in value &&
     typeof value.createMuseVoice === 'function'
+  )
+}
+
+/** Linux dictation's driver and model removal, shipped and loaded together. */
+export interface VoiceLinuxBundle {
+  readonly createLinuxDictation: typeof VoiceLinuxEntry.createLinuxDictation
+  readonly removeLinuxDictationModel: typeof VoiceLinuxEntry.removeLinuxDictationModel
+}
+
+/** Whether a required module exports every Linux voice entry point. */
+export function isVoiceLinuxBundle(value: unknown): value is VoiceLinuxBundle {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'createLinuxDictation' in value &&
+    typeof value.createLinuxDictation === 'function' &&
+    'removeLinuxDictationModel' in value &&
+    typeof value.removeLinuxDictationModel === 'function'
   )
 }
 
@@ -46,6 +65,16 @@ export function voiceLoader(deps: VoiceLoaderDeps): () => VoiceBundle {
     ...deps,
     isBundle: isVoiceBundle,
     label: 'voice bundle',
+    unavailable: () => UI_TEXT.dictationNotLoaded,
+  })
+}
+
+/** The Linux bundle, required on the first Linux recording and kept from then on. */
+export function voiceLinuxLoader(deps: VoiceLoaderDeps): () => VoiceLinuxBundle {
+  return lazyBundleLoader({
+    ...deps,
+    isBundle: isVoiceLinuxBundle,
+    label: 'Linux voice bundle',
     unavailable: () => UI_TEXT.dictationNotLoaded,
   })
 }
@@ -82,7 +111,7 @@ export function deferredDriver(
     },
     dispose() {
       isDisposed = true
-      driver?.dispose()
+      return driver?.dispose()
     },
   }
 }

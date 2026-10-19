@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { loadL10n } from '../../scripts/lib/l10nSource.mjs'
+import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { browserTextKeys, compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -44,7 +45,7 @@ export { UI_TEXT, setUiText, uiLocale } from '${text}';
 export { installEmbeddedTable } from '${installer}';
 export { installVaultEnglish } from '${vault}';
 export async function loadPalette() { return await import('../../src/shared/paletteRegistry') }
-export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english')]) }
+export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english'), import('browser-playbook-english')]) }
 export async function loadResources() { await import('browser-resource-english') }
 export async function loadAccounts() { await import('../../src/webview/models/sections/accounts/accountsEntry') }
 export async function loadVault() { await import('../../src/webview/models/sections/vault/VaultSurface') }
@@ -174,8 +175,8 @@ describe('the production browser English and full-table contract', () => {
     expect(UI_TEXT.referenceCliOptions).toEqual(canonical.referenceCliOptions)
   })
 
-  it('checks every installed language against the same complete canonical shape and slots', () => {
-    const { EN, TABLE_LOCALES, tableFileName, tableProblems } = fixture.canonical
+  it('checks corrupt tables against the same complete canonical shape and slots', () => {
+    const { EN, tableProblems } = fixture.canonical
     const { EN_SHAPE, installEmbeddedTable } = fixture.browser
     const options = { locale: 'en', isStrict: false }
     const broken = [
@@ -192,7 +193,19 @@ describe('the production browser English and full-table contract', () => {
       expect(expected.length).toBeGreaterThan(0)
       expect(tableProblems(EN_SHAPE, table, options)).toEqual(expected)
     }
-    for (const locale of TABLE_LOCALES) {
+
+    expect(
+      installEmbeddedTable({
+        querySelector: () => ({ textContent: JSON.stringify({ locale: 'en', table: broken[0] }) }),
+      })?.message,
+    ).toContain('execBudgetRequired: missing')
+  })
+
+  it.each(TABLE_LOCALES)(
+    'checks installed %s against the complete canonical shape and slots',
+    (locale) => {
+      const { EN, tableFileName, tableProblems } = fixture.canonical
+      const { EN_SHAPE, installEmbeddedTable } = fixture.browser
       const table = JSON.parse(readFileSync(path.join('l10n', tableFileName(locale)), 'utf8'))
       expect(tableProblems(EN_SHAPE, table, { locale, isStrict: false }), locale).toEqual(
         tableProblems(EN, table, { locale, isStrict: false }),
@@ -203,13 +216,8 @@ describe('the production browser English and full-table contract', () => {
         }),
         locale,
       ).toBeUndefined()
-    }
-    expect(
-      installEmbeddedTable({
-        querySelector: () => ({ textContent: JSON.stringify({ locale: 'en', table: broken[0] }) }),
-      })?.message,
-    ).toContain('execBudgetRequired: missing')
-  })
+    },
+  )
 
   it('does not eagerly load an English group for a technical command word', () => {
     const source = path.join(fixture.folder, 'technical-group.ts')

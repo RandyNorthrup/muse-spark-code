@@ -390,6 +390,7 @@ describe('buildPalette', () => {
       '/compact',
       '/handoff',
       '/goal',
+      '/playback',
       '/legal',
       '/export',
       'Export Session Log…',
@@ -405,6 +406,12 @@ describe('buildPalette', () => {
       label: '/handoff',
       detail: 'Distil this conversation into a brief for a fresh one',
       action: { type: 'startHandoff' },
+    })
+    // D203: /playback runs at once, with no tools for its turn.
+    expect(slash?.items.find((item) => item.id === 'playback')).toMatchObject({
+      label: '/playback',
+      detail: 'Muse states its own understanding of the goal, from memory only, with no tools',
+      action: { type: 'startPlayback' },
     })
     expect(slash?.items.at(-2)?.action).toEqual({ type: 'openUsage' })
     expect(slash?.items.at(-1)?.action).toEqual({ type: 'openUsage' })
@@ -634,6 +641,7 @@ describe('slashCommandsOf', () => {
       'compact',
       'handoff',
       'goal',
+      'playback',
       'legal',
       'export',
       'clear',

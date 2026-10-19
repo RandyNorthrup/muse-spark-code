@@ -12,6 +12,7 @@ import {
   parseSandboxCheck,
   probeLinuxSandboxShell,
   resolveShellSandbox,
+  sandboxAvailabilityWarning,
   sandboxCheckInvocation,
   sandboxSetupInvocation,
   serveArguments,
@@ -140,6 +141,52 @@ describe('elevatedInvocation', () => {
     })
     expect(invocation.args.at(-1)).toContain(String.raw`-FilePath 'C:\Users\o''brien\muse.exe'`)
     expect(invocation.args.at(-1)).toContain("@('it''s')")
+  })
+})
+
+describe('sandboxAvailabilityWarning', () => {
+  const on = { isSandboxed: true, reason: 'setting', isUnsupportedWorkspace: false } as const
+  const off = { isSandboxed: false, reason: 'setting', isUnsupportedWorkspace: false } as const
+
+  it('warns with the host reason when a sandboxed window meets an unavailable host', () => {
+    const warning = sandboxAvailabilityWarning(on, {
+      availability: 'unavailable',
+      unavailableReason: 'sandbox users are not ready',
+    })
+    expect(warning).toContain('unavailable')
+    expect(warning).toContain('sandbox users are not ready')
+  })
+
+  it('warns generically when the host sends no reason, and never invents one', () => {
+    const warning = sandboxAvailabilityWarning(on, {
+      availability: 'unavailable',
+      unavailableReason: undefined,
+    })
+    expect(warning).toContain('unavailable')
+    expect(warning).not.toContain('undefined')
+  })
+
+  it('stays silent when enforcement is available, unknown, off, or from the future', () => {
+    expect(
+      sandboxAvailabilityWarning(on, { availability: 'available', unavailableReason: undefined }),
+    ).toBeUndefined()
+    // Older hosts predate the field: unknown reads as unknown, never as unavailable.
+    expect(
+      sandboxAvailabilityWarning(on, { availability: undefined, unavailableReason: undefined }),
+    ).toBeUndefined()
+    expect(
+      sandboxAvailabilityWarning(on, {
+        availability: 'something_new',
+        unavailableReason: undefined,
+      }),
+    ).toBeUndefined()
+    // The sandbox-off path already warns on its own; no second warning here.
+    expect(
+      sandboxAvailabilityWarning(off, {
+        availability: 'unavailable',
+        unavailableReason: 'sandbox users are not ready',
+      }),
+    ).toBeUndefined()
   })
 })
 

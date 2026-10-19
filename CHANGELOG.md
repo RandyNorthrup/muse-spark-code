@@ -34,7 +34,772 @@ happened, not what was planned; superseded entries are kept.
   namespace here and says so once on every surface, naming the two ways
   out, without ever switching the sandbox off on its own.
 
+### Pending
+
+- M105 lane F (C-M105-8): Delete Uploaded Files is bound. Uploads carry
+  `museSpark.mediaUploadExpiryDays` (7 days by default, 1–30); the last
+  session reference released or purged releases the provider copy once no
+  running request still carries it (each request holds its own counted
+  reference, drained at the turn's end), while explicit deletion removes
+  it early. Only orphans no release ever saw (a crash, another install)
+  wait for the provider expiry sweep. A file an active request carries is
+  never deleted. A delete cancelled before its provider call is dropped
+  and never runs later; a file used again voids its pending delete. The
+  VS Code command lists the account ledger and deletes the chosen files,
+  the usage dialog lists and deletes them too, and ACP `/uploads` lists,
+  deletes one file, or deletes all ours. No live provider receipt certified yet.
+- PORTM105 round 2: remove all 29 inherited duplication clones through shared
+  media fixtures, receipt builders and RIFF chunk parsing, preserving existing
+  behavior and the unchanged zero-clone gate.
+
+- M53 follow-up (C-M53-3): a Muse Code side chat is read-only at the panel.
+  Every approval its branch raises is refused with the card's own rejection,
+  including a staged approval's later stages, and an approving click on a
+  card the host left standing is refused too, so the branch cannot approve a
+  write. Refusals are labelled `Side Chat` with the reason. Writes the CLI's
+  own allow rules already cover still run without asking; that residual is
+  recorded for the upstream report (sdk#86).
+
+- Terminal commands (CLIFLOWS): sharing answers accept `y`/`yes` in any
+  case and the answered process exits; `share`/`prompts` print their result
+  JSON only with `--json`, and the CLI reference documents the scripted
+  `--confirm` repeat; `prompts use` asks once, after the variables, and only
+  imported prompts are called untrusted; `scan-secrets` prints only the
+  number and its help names the exits (0 clean, 10 found, 2 misuse);
+  `playbook settings` no longer shows `(panel)`; each slash command is
+  announced once; one sentence reports a dead credential store everywhere;
+  the terminal lists Meta provider accounts; non-Meta accounts are not yet
+  bound to the provider configuration. Pre-session refusals name what is missing.
+- Terminal commands (CLIFLOWSFIX): an `exec` with a ChatGPT plan model runs
+  on the shared subscription path (no Meta key needed; attempts count
+  against `--max-requests` at no USD reservation; a missing grant names the
+  ChatGPT sign-in, and a Copilot plan model names Copilot, never a Meta
+  key); with no unlocked credential store the agent starts and the host
+  opens, steps that need a stored key refuse in the one store sentence, and
+  nothing is written in plain text; `providers accounts` advice follows the
+  runner's providers file (a configured provider without account metadata
+  says its accounts are not available in this terminal yet); `prompts use`
+  takes scripted `--var name=value` and `--confirm` and its review asks to
+  print, not insert; `scan-secrets --help`, `exec --help`, `report --help`,
+  `share --help` and `prompts --help` each print their own one screen. A
+  keyless session opens with no account identity; identity and spend
+  resolve at the first step that needs a provider, and a step that needs
+  a stored key refuses in the one store sentence; grant-backed dispatch
+  still needs the owner's real-life run.
+- Review (RVCLIFLOWS2): `share --help` and `prompts --help` name exit 7 for
+  a cancelled or refused share, from the sharing handler's own codes; a key
+  step whose credential store has recovered returns the key it re-read.
+- Terminal commands (CLIFLOWS2): `share --help` and `prompts --help` list
+  every parsed option with its accepted values and defaults from the
+  sharing parser's own tables, and the CLI reference grows 23 rows without
+  dating the message range; `developer --help` prints its usage instead of
+  a stack trace, and any other misuse reports the usage with exit 2;
+  headless runs say their messages are in English instead of naming a
+  panel; a key step re-reads the credential store before reporting it
+  down, so an unlock mid-session is found.
+- RVCLIFLOWS: retain headless request and USD limits for every Model API/BYO
+  run; a user-configurable provider id is not evidence of subscription billing.
+- RVCLIFLOWS: terminal prompt save/list/use retain readable results without
+  `--json`; cancellation explains itself on stderr instead of silently exiting.
+- RVCLIFLOWS: an exact slash-command selector is announced once even if
+  repeated entries have different descriptions or argument hints.
+- RVCLIFLOWS: an unavailable credential store says stored keys cannot be
+  checked, rather than falsely claiming no key is stored (all display languages).
+- RVCLIFLOWS: `scan-secrets` no longer emits a panel-language diagnostic on
+  stderr; successful scans print only their count.
+- Lane PROVKEYS: a working Google Gemini key was refused for how it
+  looked (it did not begin with the frozen `AIza…` prefix), so the route
+  could not be set up at all. No provider key is refused for its looks
+  any more, on any surface: any non-blank key is sent to the provider's
+  own free key test, and a refusal shows the provider's reason. Values
+  that look like the wrong thing (a web address, a file path,
+  placeholder text, a key with a space in it) ask a "use it anyway?"
+  question instead of dead-ending. A key piped in that is not text is
+  now told so, instead of "No key was entered, so nothing was stored."
+  `exec --provider … --key-stdin` names a wrong-looking piped key on
+  stderr before the run starts, as the terminal surfaces do. The
+  wrong-key questions on `providers add`, `auth set --provider` and the
+  exec run are shown in the installed language.
+
+- The HTTP usage bridge settles every failed request with a read-failed
+  reply, including non-Error rejections, so later refreshes and exports are
+  not blocked behind a rejected queue.
+
+- A revoked paid-search request no longer says that an unsaved Always
+  choice applied this time. Order and grant-save failures notify only
+  after the request's currentness check.
+
+- A window reports recurring file damage again after another window has
+  observed a repair; a stale in-memory cache no longer hides the warning.
+
+- The catch baseline now identifies individual handlers and their work,
+  so repairing one failure cannot conceal a new one in the same area.
+
+- The catch audit now checks every handler branch before calling a failure
+  handled. A bare `Error` fallback, a conditional report and a partial
+  rethrow no longer pass as a named-condition handler.
+
+- Startup stays lean: the sign-in gate (AuthService and the three-valued
+  credential read) and the paid gate, consent, usage and quote authority now
+  load from `dist/auth.js` and `dist/paid.js` the first time a credential,
+  money, consent or paid path needs them, instead of at activation. Every
+  sentence, notice and scan result is unchanged.
+- A failure is never turned into a different fact. When saved credentials
+  cannot be read, sign-out keeps its safety hold, no sign-in lifts it, and
+  the person is told what could not be read and what to do (once per kind
+  of failure, and again if it comes back after the store reads again). A damaged
+  history choice, quote folder or schedule consent is announced once per
+  damage (again if it changes or comes back after a repair), with what is
+  damaged, what the product does, and the next step. A refused upload shows
+  the refusal reason, a stop clears, and a refused recording permission
+  names itself. A panel failure with no known cause says only that it did
+  not work.
+
+- Money, consent and credential failures say what happened, once, where the
+  person sees it. An "always" a store cannot keep still allows the current
+  use once, and the person is told at once (an editor warning, a session
+  message, the terminal console) instead of only the log. An unreadable
+  quote folder still asks again, but the question says the saved choices
+  could not be read and names the kind. One unreadable provider entry no
+  longer hides a working provider later in the list; each is recorded with
+  its kind. A stopped OAuth flow stays a stop only for the caller's own
+  stop; any other failure racing it denies. A corrupt history choice is
+  announced once per damaged file across windows and restarts. A schedule
+  consent file that cannot be read says what kind of problem stopped it
+  instead of reading as corrupt, and a failure with no known kind keeps
+  its kind. A failed panel
+  message reaches its draft with the fixed sentence and the queue keeps
+  going; a foreign sampler failure is recorded and dropped. Vault decoding
+  wipes copied fields on every exit, including an unexpected mid-decode
+  failure. A credential snapshot the store cannot produce says the store
+  failed instead of asking for a key that would not help, and a broken
+  account host or secret store reads as "could not say" instead of "no
+  account" or assumed presence.
+- Provider refusals read as the provider's refusal (lane PROVERR): when a
+  configured provider answers with an error — out of credit, a rejected key,
+  rate-limited, overloaded, an invalid request and the rest — the turn ends
+  with a sentence naming the provider, saying what to do, and quoting the
+  provider's own words, in every host and language. "Models & Agents is not
+  available in this build" is now said only when a part of the build is
+  really missing. A refusal answered before any processing (HTTP 400, 401,
+  402, 403, 404, 413, 422, 429) releases its cost reservation in full, so
+  settled and uncertain stay 0; anything else keeps its uncertain liability.
+  Refusals that asking again cannot fix are never retried. Record:
+  `docs/certification/provider-refusals.md`.
+
+- Provider refusals read by shape and retried by code (lanes PROVERR round
+  2 and PROVERRR2): a wrong key reads as a rejected key and an unknown
+  model as no such model at every recorded provider, whatever the envelope
+  shape; a quota or spend-cap refusal is never retried while a bare rate
+  limit still is; an Anthropic reply cut at its output limit continues
+  instead of ending the turn; an Azure content-filter block has its own
+  sentence. Masked-key remnants and account ids in a provider's words no
+  longer reach the log file or report bundles. Records:
+  `docs/certification/proverr-round2.md`,
+  `docs/certification/proverrr2.md`.
+
+- What stopped a provider request is said as it happened (lane PROVERRORS).
+  A session-budget stop on a configured provider now ends the turn with its
+  own sentence ("Stopped: the next request … would pass the session budget
+  … It was not sent.") and is not retried; it had read "Models & Agents is
+  not available in this build". `providers add` and `providers test` name a
+  failed connection's network codes and say whether the request arrived is
+  unknown, instead of "The provider could not be reached". A refusal shows
+  the provider's request id, and a rejected key, missing permission or
+  unknown model says nothing reached a model, no longer that nothing was
+  sent. Record: `docs/certification/provider-refusals.md`.
+- All fourteen translated settings tables now say Muse Code asks before a
+  command unless a permission rule allows it, matching the English modes.
+
+- Closing an ACP session no longer discards its selected permission mode;
+  loading it again on the same connection keeps that mode.
+
+- ACP waits for the selected-mode notice to leave its ordered update queue
+  before acknowledging `session/set_mode`.
+
+- ACP remembers a permission answer before dispatching it, so a stage update
+  arriving before the decision acknowledgement cannot open the same prompt again.
+
+- ACP permission answers retain the selected persistent rule's identity;
+  consent for one command prefix cannot silently install another stage's rule.
+- Tool results are bounded before they reach the model (Model API): one
+  choke point cuts any result past 16,000 estimated tokens, any line past
+  8,000 characters, or any result past a quarter of the remaining window.
+  A cut keeps the full text in `.muse-spark/tool-results/` for paging and
+  tells the model and the person what was cut and how to read more. A
+  provider "prompt is too long" refusal trims the largest results, compacts
+  once when available, then ends the turn with what to do next, in at most
+  three sends. The cap is `museSpark.modelApiMaxToolOutputBytes` (64,000
+  bytes by default); `exec --max-tool-output-bytes` raises it for one
+  headless run. One oversized result can no longer fill the model's window
+  and end the conversation.
+
+- Tool-result bound, round 2: the window share is now measured in bytes, so
+  dense text (pasted hex, minified JSON, CJK) cannot slip several times its
+  token cap past a character count; the type system holds the rule instead of
+  a source-scanning test (a bare string no longer compiles into a request).
+  Cut notices count exactly what was kept and omitted. Spill files are plain
+  workspace files, removed when their session is deleted and pruned past 30
+  days. A refusal the lane has not recorded for its format no longer triggers
+  a resend: the turn ends with the short sentence instead. A too-small
+  `--max-tool-output-bytes` is refused with its translated reason.
+
+- Lane REASONSHAPES (provider reasoning gaps, all shapes UNVERIFIED until
+  the 26-request capture plan answers): DeepSeek `ultra` now rides as
+  `reasoning_effort: "max"` per its thinking-mode table instead of
+  refusing, and beta-base entries send strict tool schemas. Groq sends `reasoning_format: "parsed"` where the model
+  reasons. Together sends the hybrid toggle `reasoning: {enabled: false}`
+  for Thinking off. Z.ai sends the `thinking` switch (off only where the
+  model affirms it), preserved thinking where a turn replays reasoning,
+  and main-turn JSON mode where affirmed. llama.cpp sends
+  `reasoning_effort` as named (`none` disables). Mistral reads chunk-list
+  thinking and replays it as a thinking chunk. Ollama sends `think: "max"`.
+  OpenRouter drops tools for models that refuse them. The effort slider
+  offers each Muse Code model's own tiers (including Ultra where served)
+  and falls back to its default. Copilot drops past search calls instead
+  of failing the turn.
+
+- Lane REASONSHAPESR2 (Anthropic/OpenAI/xAI reasoning gaps, all shapes
+  UNVERIFIED until the 27-request capture plan answers): Thinking off
+  and each effort name now follow the model's own record — a value the
+  model does not take is refused before dispatch instead of sent, and an
+  unlisted level falls back to the provider default instead of a
+  neighbour. Thinking blocks replay between tool turns; Thinking off
+  sends each model's affirmed switch (`disabled`, Sonnet 5.5's
+  `between_tools`); manual-only models think with a tier-sized budget
+  and Opus 4.5 sends the interleaved-thinking header. Models with no
+  effort evidence (xAI's `grok-build-0.1` and the 4.20 pair) send no
+  reasoning field at all, so their turns go through. The composer
+  offers each configured model's own levels and default, and OpenAI
+  turns carry pro mode and reasoning context at the wire (no switch for
+  them yet). `exec --effort` accepts `none`.
+- After Muse Code restarted, a conversation could continue on a different
+  model than the one shown (and at that model's price). It now keeps the
+  model you chose: the choice is applied and read back from Muse Code before
+  the next message is sent, the panel shows the model each request really
+  used, and a message that would run on another model is not sent.
+  A restart that finishes verification after you clear or replace the
+  conversation no longer reattaches the conversation you left. Failed model
+  verification releases its resumed handle, including command timeouts.
+  Opening Model API history on its already-selected model no longer runs
+  model-switch hooks or resets switch-related session state. ACP remembers
+  backend-reported model and effort changes too, including changes received
+  before a configuration command finishes.
+- Imported provider files reject blank force reasons, terminal controls and
+  line separators, matching the CLI's one-line reason requirement.
+
+- The feature catalogue links provider model editing and per-command help to
+  their CLI routes, with model add/remove/force details in the generated reference.
+
+- Forced-model annotations use the installed language in provider model lists.
+
+- The reference gate checks command topics only in the README's terminal-help
+  paragraph, so unrelated mentions cannot hide missing documentation.
+
+- Per-command help always shows declared value shapes, including provider
+  preset, id, address and privacy arguments.
+
+- Exit-2 CLI refusals load the display language before formatting the parser
+  error, without starting a backend or credential service.
+
+- CLI enum refusals list the accepted values from command help without
+  echoing the rejected value.
+
+- CLI review: custom provider model lists are explicitly read-only in the
+  terminal; edits require the Models panel's per-model context/output limits.
+
+- Activation budget: the Create AGENTS.md command, its rules template and
+  their redaction load on the command's first run instead of at activation,
+  leaving 830 bytes of room below the 3,072-byte growth allowance. No
+  behaviour change; a missing bundle refuses the run and the next run tries
+  again.
+
+- The chat no longer takes the keyboard from a file you just opened: a chat
+  panel that finishes loading never pulls the focus in, a focus request for
+  a panel that is no longer active is dropped instead of landing on a much
+  later click, and a question that arrives while you are elsewhere waits
+  with its badge instead of taking the keyboard. Acting on the chat
+  yourself — clicking into the panel, Focus Input, sending — focuses the
+  input as before, and Focus Input while the composer is focused hands
+  the keyboard back to the file you were in (it used to focus the editor
+  group, which keeps a chat tab active).
+
+- Linux shell sandbox that cannot start (F91): while sandboxed on Linux,
+  each host start probes whether Muse Code's bubblewrap sandbox can create
+  a user namespace here, and says so once in words on every surface (panel
+  notice, editor-protocol session update, terminal log) naming the two ways
+  out, without ever switching the sandbox off on its own. The model hears it
+  once too. Diagnostics reports the posture and the check.
+
+- Activation budget, after merging main into the F91 change: the
+  Diagnostics command's report text loads with the report dialog's bundle
+  (dist/report.js) on the command's first run instead of at activation.
+  Activation growth over the pre-K baseline goes from 4,529 bytes (over the
+  3,072-byte allowance) to 760 bytes on that merge, and measures 1,018
+  bytes after merging main 81dacaf5a in the RVPR185RED review. No
+  behaviour change.
+
+- Invariants lane: `test/unit/invariants.test.ts` re-guards the SoL-Pi
+  request-shape and savings invariants through real modules with real inputs
+  (per-scenario tool/instruction/cache-key reproduction with byte-exact
+  plain and strict golden turns, the recorded packing output, listed-tariff
+  paid quotes with per-claim tallies and a re-ask when the price rises,
+  `then_run` parsing with real-file guard ordering, overflow compaction
+  bypass, and a digest of the complete eval task definitions). The host's
+  scalar request assembly stays with the lead's loopback run pending
+  recorded exchanges.
+- Fixed: the app's own statuses (such as automatic compaction awaiting
+  evaluation) no longer speak as the model's reply on the editor
+  protocol — they arrive as their own session notice where the editor
+  can show one, as a separate panel notice as before, and on terminal
+  stderr in headless runs (F82).
+- Fixed: a configured model without confirmed tool calling is listed
+  with its limit stated instead of vanishing silently, is flagged when
+  added, and is refused for agent turns with the same sentence (F83).
+- Fixed: terminal `providers add` without `--model` lists the key's
+  models and says to pass `--model <id>` (repeatable) instead of the
+  panel's tick wording (F85).
+- Provider-truth review: resource-governor and account statuses use
+  the same session notice on the editor protocol; a refused model
+  switch keeps the session on its model and carries the refusal
+  sentence in the protocol error; `providers list` states the
+  tool-calling limit; a key test that read no model list still gets
+  the terminal's own wording (F82, F83, F85).
+
+- Test-overhaul review: paid-popup lazy-load checks now build the real
+  runtime instead of writing a replacement formatter, retaining locale
+  propagation and sub-cent search-price disclosure checks.
+
+- Test-overhaul review: account-command tests now use the real parser and
+  metadata files, not a hand-built provider metadata store or key store.
+  Credential-operation composition remains for the real-life run.
+
+- Test-overhaul review: retain real on-disk session save/load, damaged
+  history, retention-boundary and path-confinement checks without fake
+  upload ledgers, question stores or filesystem replacements.
+
+- Test-overhaul review: retain real question-dock draft, focus and session
+  boundary regressions without the deleted suite's fake-timer case.
+
+- Test-overhaul review: retain stored-zone scheduling regressions through
+  the real calendar engine and Intl, without the deleted suite's fake
+  clock or spy replacements. Covers daylight-saving gaps/folds, skipped
+  dates, sparse cron and preview/admission end bounds.
+
+- Test overhaul (not a user feature): the unit suite moves to real code
+  only — about 800 fake-driven test files deleted (the stand-ins still left
+  are named under Release infrastructure above), the screenshot
+  comparison system removed (a UI change gets one small local look,
+  `npm run ui:look -- <scene>`), the coverage gate dropped, and the
+  accessibility check moved off the pull-request path. The packed
+  product's real-life run is the product's test.
+  (docs/testing/test-overhaul-2026-10-12.md).
+
+- Test overhaul follow-up (not a user feature): the dead-code gate
+  declares the built-but-unwired in-progress source instead of deleting
+  it — one titled block in `knip.jsonc` grouping 110 files by feature
+  (vault, team workers, schedules, resources, accounts, media,
+  estimator, theme, reporting, devices, hooks, judge) with their PLAN.md
+  milestones; no file is deleted. The unused-export residue those
+  features' API surface leaves in wired files is measured in
+  docs/testing/test-overhaul-2026-10-12.md for the per-feature owners.
+
+- Panel plain words (lane PANELTEXT, findings F59–F71): the Getting Started
+  rows are grid columns that can never overlap, at any sidebar width; the
+  empty composer invites a message and names only this machine's focus key
+  ("Ask Muse… (Ctrl+Esc to focus)" on Linux, Cmd+Esc on macOS,
+  Ctrl+Alt+Esc on Windows); the Share Chat destination group is headed
+  "Share as"; Muse Code skill rows show the skill's title ("Run the {name}
+  skill."), never SKILL.md's model-facing instructions; a palette tip that
+  repeats its row's detail reads once; the Backend row says which engine
+  runs the conversation instead of the raw setting id; the model picker
+  marks contributor-suffixed models; the pill says "Checking sign-in…"
+  while the sign-in facts are read, and a signed-in credential file shows
+  at once, before the rest of the sign-in facts are read; a skills "Not now" is
+  remembered even when the click reaches a window that never showed the
+  notice.
+
+- Activation budget, after merging main into the panel wording: the Install
+  and Remove Bundled Skills commands load with the installer they run
+  (dist/bundledSkills.js) instead of at activation. Activation growth over
+  the pre-K baseline goes from 3,717 bytes (over the 3,072-byte allowance)
+  to 2,290 bytes. No behaviour change: the same steps, said in the window's
+  language; a missing bundle refuses the run and the next run tries again.
+
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes; a provider's
+  `Retry-After` is honoured as given, never refused for its length. Provider-specific retry-table binding remains pending for non-Meta transports;
+  this does not certify endpoint quota refusal.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+
+- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
+  requests. Blank text is dropped, empty tool results ride as
+  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
+  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
+  and images for a model without image input ride as an
+  image-omitted placeholder. Tool-call ids are mapped per target format
+  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
+  provider aliases) with unique
+  per-response Gemini fallback ids. Responses replays send the call `id`
+  only for the same model with an `fc_` prefix. Gemini replays thought
+  signatures on text parts (empty ones included), counts omitted usage as
+  zero, sends vision-gated tool-result images inside `functionResponse.parts`
+  and full tool schemas through `parametersJsonSchema` on Gemini 3.
+  Gemini rejects proxy-null usage and explicitly rejects negative usage
+  counters instead of retaining an earlier tally. Signed blank parts replay;
+  late response ids salt fallback call ids; `$ref` siblings stay constrained
+  through `allOf`. The Anthropic decoder tolerates
+  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
+  requests `display: summarized` so newer models stream thinking text.
+  Lone surrogates are removed from every BYO encoder; parsed JSON retains
+  own `__proto__` keys as data, including Anthropic tool arguments.
+  It landed with fake tests only. The Gemini parts (thought signatures,
+  tool-result images, `parametersJsonSchema`, the usage checks) now have no
+  test behind them, since `test/unit/geminiCodec.test.ts` was deleted; the
+  other rules still run through the real encoders in the remaining codec
+  suites. No live or paid model call has proved any of it.
+
+- Provider-specific retry-table binding remains pending for non-Meta transports;
+  the shared retry classifier does not certify endpoint quota refusal.
+
+- DEVID017B (developer machine id, review round 2): the machine id is a
+  random value created once in the machine-scoped data folder instead of a
+  hostname digest, so renames and `host` vs `host.local` keep the unlock and
+  profiles. Legacy raw-hostname and digest grants migrate on open and the
+  raw hostname leaves stored state at once; a different machine identity is
+  refused with an honest message and `developer reset` recovers.
+
+- DEVID017C (developer machine id, review round 3): the id is published by
+  staging the full value to a private temp file, fsyncing it and claiming
+  the final name with `link`, so a racing reader sees no file or the
+  complete id, never a prefix; only the exact 64-lowercase-hex format
+  loads, anything else refuses honestly. Foreign reset asks first with
+  nothing mutated before the answer, never re-binds the grant, and clears
+  without stopping through this machine's resource port; profile folders
+  stay on disk. Cancel leaves everything unchanged.
+
+- DEVID017D (developer machine id, review round 4): a published id loads
+  before any staging, so storage that refuses new files still returns the
+  existing identity, and failed staging removes its temp file. A failed
+  foreign reset never clears without recording it: the reset audit row
+  comes first, and when it cannot be written the stored state is left
+  unchanged. Foreign reset asks its own confirmation, which says exactly
+  what happens: this machine's developer state is cleared, nothing is
+  stopped, and profile folders and credentials stay as they are.
+
+- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
+  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
+  so only that clear is withheld when its audit append fails. Every other
+  revocation, own-machine Reset included, is still published after an audit
+  failure, and the caller still gets the persistence error.
+
+- M123 (Git and pull requests in every editor, PLAN.md D104): the
+  checkout of someone else's pull request outside VS Code's Git (the
+  runtime's held checkout) is built and not connected: its own git
+  launches are not yet under the resource governor, so nothing in this
+  build can start them, and the process inventory fails the day something
+  could. JetBrains IDEs, Visual Studio, Eclipse and the editor-protocol
+  editors get the Git panel with their M104 bridges, which are not in this
+  build.
+- M105 lane VB (the media converter's platform bindings), wired by lane V in
+  VS Code and the runtime:
+  - On Windows the encoder is created inside a kill-on-close kernel job
+    whose job memory limit is the conversion's memory cap. It starts
+    through the compiled job launcher, so there is no PowerShell per encoder
+    launch. Output size, the deadline and cancellation end the whole job,
+    even when the output's folder stops answering.
+  - On macOS the encoder's resident memory is read through the resource
+    governor's `/bin/ps` reader, for this process's own live child only. A
+    reading never outlives the child's exit or a reused process ID.
+  - Each conversion gets a fresh owner-only folder inside a private root in
+    the host's own storage, never in a shared temporary folder.
+    - On Windows the folder holds a protected DACL with only the current
+      user's grant. Creating it still runs one PowerShell to set that ACL
+      and read it back.
+    - Elsewhere the folder is 0700.
+    - A root that is not private, or a drive without ACLs such as exFAT, is
+      refused.
+
+  A memory-cap stop is reported as a plain conversion failure until M109's
+  job record says the cap was hit. Fakes and local processes only; no live or
+  paid call.
+
 ### Added
+
+- The Muse Code backend tracks the latest CLI and SDK (1.4.10): new
+  session-protocol notifications (model retries, Auto-review holds, plugin
+  changes, declined retracts, branch and view-health moves, foreground
+  completions) now reach the conversation. Per-model output limits, skill
+  titles and each host's sandbox posture are read from Muse Code onto the
+  backend's summaries (no surface displays them yet), a launch
+  permission-profile pick is forwarded when one is supplied, and
+  background-task, hook and plugin inventories, foreign skill import,
+  workflow resume, session recaps and the computer-use setup check are
+  wrapped on the Muse Code backend (their panels are owner design work,
+  still to come). Three machine settings replace fixed numbers with Muse
+  Code's own defaults: `museSpark.hooksMaxStopContinuations` (8),
+  `museSpark.hooksMaxRunningCommands` (0, starts them all at once, as Muse
+  Code does), and `museSpark.subagentMaxConcurrent` (8, within 1–64).
+- The Muse Code backend now loads on its first start instead of at
+  activation (its own `dist/museCode.js`), so opening a window no longer
+  carries the backend, its notification mapping or the Muse Code SDK;
+  the backend behaves as before once started.
+
+
+- **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
+  first governed launch, a **Resources** chip sits beside the heartbeat, or
+  above the composer between turns. Its popover shows CPU, memory in use and
+  available memory against your limits, what is waiting, any override, and
+  that relocation is not available on this build. Its buttons are **Resume
+  now**, **Open settings** and **Show resources** (the Usage & cost page). A
+  status bar item shows while the governor throttles or pauses. At pause, one
+  notice per conversation names the reading and its limit, with the same
+  actions. New commands: **Muse Spark: Show Resources** opens the popover in
+  the chat in view, and **Muse Spark: Resume Work Now** holds this window's
+  governor at normal for fifteen minutes. A governor you switched off stays
+  off. The governor, its status item and the chip still load on first use,
+  never at activation, and chat's first paint stays within its budget.
+  A status the chip cannot trust (unreadable, with unknown fields, or too
+  large) shows as **Resources: Unknown** with a short explanation, never as
+  an older reading. While the chip loads it says so in place, and if it
+  cannot load it offers **Try again** without disturbing the conversation.
+  JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
+  chip and status adapter once their M104 bridges bind them; none does yet.
+  ACP and terminals keep `/resources` and `resources status|resume`.
+
+- **Headless runs on GitLab CI, Azure Pipelines, Jenkins and Bitbucket
+  Pipelines** (CM80CI, CM80CI-R2). One thin template per system under
+  `ci-templates/` runs the GitHub Action's own launcher, which the
+  `muse-spark-code-acp` package now carries as `ci/` (`action/lib/ci-run.mjs`
+  with a per-system adapter, `ci-adapters.mjs`). The template checks the
+  pinned tarball's SHA-256 before anything of it runs; the launcher installs
+  it with lifecycle scripts off and checks its identity, makes its own
+  checkout from the system's clone, sends the generated diff (cut to
+  `max-diff-bytes`) and a prompt file, validates the result against the
+  Action's schema, forwards cancellation to the agent and drains every
+  pipe. The key comes from the system's secret store into the one
+  credential step that each system's own mechanism keeps untrusted runs
+  away from, leaves the environment under every name it travels by, and
+  reaches the agent over stdin only. Nothing comments or pushes. The
+  launcher's pure logic and the shipped bootstrap are tested through the
+  real modules and shells; no vendor run is simulated, no live run and no
+  release carrying `ci/` yet, so not certified (see
+  `docs/ci-other-systems.md`). `yaml` 2.9.1, already in the lock, is now a
+  declared development dependency for the template tests.
+
+
+- Local models accept a validated manual context window in the provider
+  wizard, quick pick and Models table, with the same limits in ACP's
+  provider configuration and `providers add --context-window`. Manual limits
+  survive rescans and edits, and size both manual and automatic compaction.
+  LM Studio models no longer require a scan field their captured list lacks
+  (M95 C-M95-4 R4, RVCM954B). The Models table loads on first navigation
+  with announced loading and a chunk-failure retry; existing bundle caps
+  remain fixed, with a measured cap for the table.
+
+- Local-model limits come from one resolver read at use time (M95 C-M95-4
+  R5, RVCM954C). The request cap, manual and automatic compaction, the
+  windowless refusal and the panel all read the saved provider record when
+  they run: editing a window after a warm listing changes the next compact
+  and send, and no per-host cap copy survives the edit. Manual compact
+  resolves the model first and sizes its summary from that same resolution.
+  Limits exist only for ticked models: unticking drops the manual window,
+  saves keep limits for listed models only, and loads prune the rest.
+
+- **llama.cpp server and LM Studio presets in the Models panel** (M95
+  C-M95-4). Both are listed once their own live wire captures landed
+  (`docs/certification/m95-captures/<llamacpp|lmstudio>/`, 31 frames, free
+  local runs of Qwen3-0.6B): llama.cpp b11541 and LM Studio (llmster
+  0.0.25-1). Recorded per server: reply, one and parallel tool calls,
+  streamed `reasoning_content` (LM Studio too, not `reasoning` as the
+  research said), usage placement, context-overflow and error frames, and
+  which `tool_choice` and output-cap forms each takes (llama.cpp takes the
+  object form; LM Studio takes strings only and answers engine failures as
+  SSE error events under HTTP 200, or a bare-string 400). The shared error
+  envelope now accepts llama.cpp's numeric codes and LM Studio's
+  string errors, so both still read as the server's words and the overflow
+  classifier still fires. vLLM stays hidden until its capture runs
+  off-sandbox (its engine needs `AF_UNIX`, denied on this rig). Scan this
+  computer now probes loopback over plain `node:http`, never through the
+  user's proxy.
+
+
+- OpenRouter account connection now completes browser authorization without
+  copying a key in local editor windows. Remote windows and ACP terminal
+  authentication accept the single-use code; the returned key stays in the
+  system credential store. Terminal connection and usage work before a first
+  provider is added; malformed configuration still refuses. New setups retain
+  ZDR routing.
+- Models & Agents and Account & usage show OpenRouter’s key usage, limit and
+  remaining balance from its free key endpoint. Terminal `providers connect
+  openrouter` and `providers usage <id>` share those paths, with fixed failure
+  text and no credentials in UI state or output.
+- `/playback`: ask the agent to state its own understanding of the goal and
+  instructions, from its working memory only, with no tools for the turn.
+  The reply opens with `My playback — my own understanding, from memory
+  only:`, so the person can compare it with what they asked and correct it
+  in the next message. On the Model API backend the turn is offered no
+  tools and every call is refused in code; on Muse Code it runs in Plan
+  mode and stops at the first tool use. It runs on the panel, the terminal
+  and ACP editors, in all fourteen languages.
+- Dictation setups leave the activation bundle: the window's dictation and
+  Muse Voice setups with the helper probes ship as `dist/dictation.js`,
+  required at their existing construction points, bringing the lane-K
+  activation growth (7,214 B) inside the 3,072 B cap with no behaviour
+  change (measured 13,032 B, 25 KiB budget; no existing cap changes).
+- Linux voice loads on first use: the offline driver, its helper/model
+  acquisition and pins ship as `dist/voiceLinux.js` on the first Linux
+  recording, keeping `dist/voice.js` inside its unchanged 50 KiB cap
+  (measured 35,907 B, 50 KiB budget; no existing cap changes).
+- Linux free dictation: a prebuilt CPU-only whisper.cpp helper for local x64/arm64
+  recognizes English offline. First use asks before a pinned 74 MiB tiny.en
+  model download; downloads resume, corrupt weights refuse recognition, and
+  `linuxDictationModel=false` stops recording and removes stored weights.
+  Audio stays in bounded memory; Windows/macOS retain their existing helpers.
+- Linux free dictation (D140, lead decision): the native helper leaves the
+  VSIX (the 3,700 KiB cap is unchanged) and ships as same-tag release assets
+  instead. One consent card asks once before the helper (~7.6 MB) and model
+  (74 MiB) downloads; every helper file is verified by embedded SHA-256 pins
+  before it ever runs, refuses loudly on mismatch, and is removed with the
+  model when the setting is off. Offline installs place both files in the
+  shown folder; digests are checked the same way. The feature stays off until
+  review passes and hosted receipts land.
+
+
+
+- **Companion microphone implementation held for certification** (M9/M35,
+  CMICCOMP). Adds an authenticated, bounded browser capture and reviewed
+  ACP/terminal prompt handoff, Windows/macOS file recognition, and captured
+  paid batch transcription with consent, daily admission and usage accounting.
+  Stereo is mixed before PCM rounding to avoid signed sample overflow.
+  New entry points stay hidden until all platform/editor receipts pass; no new
+  supported command or editor capability is announced.
+
+
+- **Accounts and security reports join the working report kinds** (REPORTJOIN).
+  `/report accounts` and `/report security` are listed in command Help, the
+  ACP report entry, the editor picker and the README kind table, in all
+  fourteen languages. Fleet and issues stay dormant: parsers and history
+  keep accepting every kind, but no Help, picker, README or command mentions
+  them until their branches land.
+
+- **Estimate, playbook and schedules reports join the working report kinds**
+  (M113 MSM113). `/report estimate`, `/report playbook` and
+  `/report schedules` are listed in command Help, the ACP report entry, the
+  editor picker and the README kind table, in all fourteen languages. Only
+  fleet (lane CM1135B) and issues stay dormant.
+
+
+- **Several accounts per provider, in the terminal and in ACP** (M108,
+  CM108ACC). `providers accounts` lists, adds, removes and orders a
+  provider's accounts and sets their thresholds;
+  `auth set --provider <id> --account <id>` stores one key per account, read
+  from standard input only;
+  `exec --account <id>` pins a headless run to one account. In an ACP session
+  on the Model API backend `/accounts` shows the list, the current account
+  and its thresholds, and the `account` picker shows the same. Meta's Model
+  API entry is built in, so nothing has to exist first; a vendor limit stops
+  only its own account and the stop names it. Still refused, and saying so:
+  changing account inside a session and pooled runs. The three account
+  settings keep no effect, and the editor has no Accounts page yet.
+
+- **Judge benchmark tooling (repository only, lane JEVBENCH, D107/M125).**
+  `scripts/judge-bench.mjs` judges a labelled decision set through one
+  engine interface (local Ollama SystemOne, local llama-server chat with
+  logprobs, remote Jev wire or remote chat from environment variables) and
+  reports accuracy, per-label precision/recall, per-domain accuracy,
+  unsafe-approve count, Brier, latency p50/p95/max with cold vs warm, tokens
+  and the 5 s veto-window fit. `scripts/judge-bench-decisions.json` holds
+  170 hand-labelled decisions (50 allow / 50 deny / 50 ask plus 20 hard
+  cases, all secrets synthetic). Results and the recommendation live in
+  `docs/certification/judge-bench.md`. Nothing here runs in CI or ships in
+  the extension.
+
+- **Judge engine decision (lead, 2026-10-10; lane JEVBENCH2, D107/M125).**
+  Jev online stays the Judge engine: on the Win11 GPU both local sizes
+  fit the 5 s veto window but score far below Jev on the full 170 cases
+  (0.376/0.375 vs 0.794), with 9 must-refuse cases approved by 4b.
+  Local veto engines wait for ~0 unsafe-approves and accuracy within 2
+  points of Jev; M125 lanes L/V retune the deny question first. The
+  lead's rows in `docs/certification/judge-bench.md` (§§3/8) were
+  verified cell-by-cell against the committed raw result files in
+  lane JEVBENCH2 round 2 (all matched; gaps filled), and a new unit
+  test fails if a committed result file contains anything key-like.
+
+- Internal B1 inspect confinement tooling (M125 F1a): Linux per-file Landlock
+  grants, verified system executables, a fixed environment, syscall guards,
+  session self-tests and a portable runner. `npm run build:confine` builds
+  its offline certification artifacts under `temp/`; no editor approval
+  uses this path. macOS stays off pending its captured Seatbelt policy and
+  platform receipt; Windows is excluded by D107. Fresh reviews and F1b's
+  approval integration are required before exposure.
+
+- Cursor's Tab hooks now run at Tab's two points (M94 lane K, revived as
+  M94KR on the 0.17.0 base). `beforeTabFileRead` guards fail closed before
+  completion dispatch, with verdicts cached per path and content digest and
+  invalidated on configuration changes; `afterTabFileEdit` observes accepts
+  with actual line text and never blocks. The guard and dispatch bridge stay
+  in the lazy Tab bundle, all hook callers share the production runner's
+  process cap, and a bundle-load failure logs fixed words only. The final
+  live check remains open; see `docs/certification/m94-k.md`.
+  - **What these hooks receive.** They are local processes you configure.
+    `beforeTabFileRead` gets the absolute path and the **full, unredacted
+    text** of the current file and of each context file, with the workspace
+    folders, the Tab model and the request id. `afterTabFileEdit` gets the
+    accepted text and the surrounding line text (512 characters each at
+    most) with a 1-based range. Neither payload is sent anywhere by the
+    extension; hook processes never get the Model API key.
+
+- **Production admission for automatic compaction** (M101 C-M101-1, dormant).
+  The panel backend manager and the runtime backend manager (ACP, exec) now
+  bind the one shared D78 gate and ledger for automatic compaction
+  (`admitAutoCompaction`) and the Meta catalogue model reader
+  (`autoCompactModel`), so every host that offers automatic compaction
+  admits the same way. Every automatic attempt reserves its projected cost
+  from the daily ledger before dispatch, rechecks the claim synchronously
+  at send, and settles once per attempt at its exact cost (known nonsends
+  refunded, uncertain attempts retain their liability); a refused or
+  missing ledger sends nothing. Near-window and overflow protection are
+  never blocked by economics. Nothing changes for users yet: the feature
+  stays off behind the unevaluated latch (`IS_AUTO_COMPACTION_EVALUATED`)
+  and reports "awaiting evaluation", and requests sent while it is off are
+  byte-identical.
+
+- **Keybindings report kind is real end to end** (M113 C-M113-5a).
+  `/report keybindings` lists every installed editor binding per platform
+  with its command and scope, the panel's gestures and ACP's static local
+  commands, with same-chord same-when editor conflicts flagged. VS Code, ACP
+  and the terminal pass their own install's manifest through the shared
+  report inputs, so all three report the same numbers. Desktop and TUI
+  bindings stay out for phase c (M111a, M110a0).
+- **The npm release channel reports from a captured registry shape** (M113 C-M113-6).
+  The stores source ships a default npm adapter built from M97's verbatim
+  `GET https://registry.npmjs.org/<name>/<version>` capture: it reads only the
+  `version` field of the `<name>/latest` version document, compares it against
+  the release version for channel lag (lagging channels stay first in Needs
+  you), and never sends credentials. The report engine binds it from the
+  workspace package.json (name, version, publisher, engines, private): a
+  workspace that declares no name or version keeps the previous unbound row.
+- **Store, workflow and release channels report from the lead's captures** (CM1136R3).
+  The Marketplace channel sends the captured query-form POST and reads
+  `versions[0].version` (an empty gallery answer refuses as not listed); Open
+  VSX reads `version` from the extension record (a 404 refuses as `http-404`).
+  GitHub reads release-workflow runs as release-tag CI, final releases with
+  asset names, and tag-to-commit joins (releases name no commit themselves);
+  pages are sized to the 2 MiB bound (releases 30, tags and runs 100) and
+  anything past the shared page bound refuses instead of truncating. A null
+  run conclusion, a run off any known tag, a draft or prerelease release and
+  a tagless release commit each refuse with their own reason. The npm row
+  means the workspace's own published package: a private manifest publishes
+  none under its own name, so its row refuses as `npm-private-manifest`
+  without a request (this repository's npm artifact comes from the ACP
+  agent's generated manifest, which is not in the workspace to read).
+
 
 - **GitHub sign-in from three sources, and the GitHub card in the panel**
   (PLAN.md D104). Every GitHub call (a pull request, its status and checks,
@@ -249,7 +1014,97 @@ happened, not what was planned; superseded entries are kept.
   budget refusal after the body read consumes no ceiling slot, and the
   missing-admission throw fails the turn instead of running uncompacted.
   The counted live run is still ahead; production stays off.
+
+- The terminal agent documents itself per command for `serve`, `login`, `auth`,
+  `providers`, `exec`, `scan-secrets`, `report`, `legal`, `fonts`, `playbook`,
+  `setup`, `usage` and `resources`. `<command> --help` and
+  `muse-spark-code-acp help <command>` print that command's own usage, its
+  options with defaults and bounds, and two examples that run; the full
+  Help & Reference stays behind `help --all`. A wrong option or value exits
+  2, names the option and the accepted values, and suggests the nearest
+  valid option when the name is close. `providers models <entry>`
+  lists an entry's models (and which of the provider's models the entry
+  does not offer) and changes the list with `--add`/`--remove`; a model the
+  provider does not list needs `--force '<reason>'`, and the reason is kept
+  on the entry. All of this reads in the installed language.
+- Muse Code permissions: on the Muse Code backend one command is asked
+  about once — the first answer is reused for later stages instead of
+  asking again, and an answer given while a newer stage arrives is applied
+  to that stage instead of dropped. A permission mode set in the editor is
+  reported back and kept when the session is loaded again. The Manual and
+  Edit Automatically descriptions now say commands are asked about unless
+  a permission rule allows them.
+- Usage and cost say what really happened (lane USAGETRUE): on the Muse
+  Code backend, `usage summary` now shows the cached input, reasoning
+  tokens and cache hit rate from each request's own reported counters
+  instead of Unknown. Total request time and latency percentiles come
+  from each request's own duration. Plan spend carries the equivalent
+  API price at the used tier's published rates (a `-contributor` model
+  prices at contributor rates) and is named by the subscription meter's
+  own plan name instead of a bare "Plan". The models breakdown shows the
+  model and tier each request was really sent as. The daily view no
+  longer prints the same day twice: hourly rows of one day name the hour.
+  The panel, the terminal agent and the editor protocol share the same
+  journal, aggregates and text, so all editors show the same numbers.
+
+- Usage-truth review fixes (lane USAGEFIX): a completion report the CLI
+  delivers twice is journaled once, so tokens, time and the equivalent
+  price are never doubled. Each request's start is its own start, not
+  the turn's, so later requests in one turn no longer overlap the first
+  in the calls export. Hourly rows keep the timezone they were recorded
+  in, so a later timezone change cannot move an hour onto another day.
+  The journal format is version 3 for the stored plan name; older
+  releases count the new lines as a newer version instead of dropping
+  them, and this release still reads versions 1 and 2.
+- Attached existing video and audio are wired for VS Code, ACP and headless
+  exec. The machine's `mediaAudioAction` choice is honored: transcription
+  asks paid consent first, and unsupported direct audio returns its
+  translated refusal. (RVMSM105: the composition receipts once claimed here
+  rested on stand-in tests main's no-fakes gate refuses; deleted and listed
+  in `docs/real-life/unproven.md`. End-to-end proof now waits on real use.)
+
 ### Changed
+
+- `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
+  (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
+  without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
+  after earlier bumps. The SDK now hides the `muse serve` window on Windows
+  itself (meta-models/muse-code-sdk#34). The extension's other Muse Code
+  workarounds were re-checked against 1.4.4 and are still needed
+  (`docs/certification/sdk144.md`).
+- `@agentclientprotocol/sdk` moves from 1.5.1 to 1.7.0 (SDK144). The ACP
+  agent, headless `exec` and team workers speak the same ACP v1; the SDK's
+  transport is unchanged, so the agent's 32 MiB line override and the
+  session-router seam carry over as they were.
+- **A sent message's menu is shorter and its pills fit their labels.**
+  **Fork conversation from here** is now **Fork Conversation**, and **Fork
+  conversation and rewind code** is now **Fork and Rewind**, in every
+  language. Every radial menu's pills stay one size, but that size is now
+  the longest label's own width instead of a fixed 272 px, so short menus
+  no longer carry empty blue space; only a label wider than the panel ends
+  in an ellipsis with the whole label in its tooltip.
+- The README's Resources screenshot is retaken with the rest of the set (the
+  same Linux Chrome build and fonts); the other 18 screenshots still match the
+  current UI and are unchanged.
+- README and `docs/acp.md` name all four places the project ships from (VS Code Marketplace, Open VSX, npm, GitHub Releases), add an npm version badge, and install the ACP agent with `npm install -g muse-spark-code-acp` first, the release `.tgz` second.
+- The npm package's README and the Marketplace/Open VSX page list the same four channels as the README (VS Code Marketplace, Open VSX, npm, GitHub Releases); the npm page adds the release `.tgz` install.
+- README adds a total downloads badge (all channels) and a GitHub app installs badge, both served by the project's Cloudflare Worker, now kept in `infra/marketplace-hook` (counters only; not part of any package).
+- README notes the project's unofficial GitHub OAuth app for M123 sign-in and that its GitHub Marketplace listing awaits GitHub's review; the privacy notice adds the app's device flow, `repo` scope, keychain or vault storage and revocation.
+- The working line is calmer: the heartbeat trace sweeps in about 1.4 s instead of
+  1.2 s, and the circle mark before the status text keeps its 0.16.0 loop at 75 % size
+  (12 px instead of 16 px).
+- Preserve exact decimal USD across schedule authorization, consent and agent caps,
+  rental cost estimates, reporting facts, account totals and voice consent. Read
+  historical numeric records at validated boundaries; saved reports verify their
+  original hashes before migration to exact money version 2.
+- The resource history journal is one shared bundle that the window's
+  governor and the usage page both load, instead of a copy in each; both stay
+  inside their size budgets. Usage records read the account id from a small
+  leaf instead of every account schema.
+- The Model API backend's session store loads with that backend instead of
+  at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
+  activation bundle; sessions are kept and read as before (ACTBUD017).
+
 
 - Legal scans recognize the literal affiliate and `et al.` notice suffixes,
   terminal periods after holder names, and paired email/URL contacts found in
@@ -281,7 +1136,6 @@ happened, not what was planned; superseded entries are kept.
   documented maxima govern. Record:
   `docs/certification/provider-refusals.md` ("Lane RETRYLIMITS").
 
-### Changed
 
 - Tab has no daily budget unless the person sets one: `museSpark.tabDailyBudgetUsd`
   defaults to `0` (no budget, nothing reserved or locked) instead of `$1.00`,
@@ -346,7 +1200,6 @@ happened, not what was planned; superseded entries are kept.
 
 - Give Windows a working vault broker channel and slots: the broker serves over the guarded pipe helper with DPAPI/CNG storage and Windows Hello presence where present, selected by the same broker composition as POSIX. macOS wires the Secure Enclave slot with a real presence check beside Login Keychain, and Linux adds the TPM2/systemd-creds sealed slot where the machine has one.
 
-### Changed
 
 - POSIX vault packaging includes the four installed sibling bundles and derives
   package coverage from production output and lazy-loader dependencies. Protected
@@ -516,8 +1369,673 @@ happened, not what was planned; superseded entries are kept.
 - The Model API backend's session store loads with that backend instead of
   at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
   activation bundle; sessions are kept and read as before (ACTBUD017).
+- **Accounts and security report kinds are real end to end** (M113 C-M113-3).
+  `/report accounts` reads the provider registry on disk with per-account
+  thresholds; use, swaps and confirmations arrive when their M108 adapters
+  bind, and stay empty and named until then. `/report security` reads the
+  developer audit on disk and an injected vault view: the vault tier, item
+  counts by kind, grant scopes and audit aggregates, never a value. A locked
+  or unbound vault leaves the vault facets empty and named; the developer
+  audit still reports. A canary test plants secrets in vault records and
+  proves none reaches any report output.
+- **Estimate report kind is real end to end** (M113 C-M113-4, part B).
+  `/report estimate <goal>` runs M117's estimator for the D97.2 goal in the
+  report scope with `--by <date>` as the deadline and `--fleet
+  current|minimum|optimum` as the fleet, and reports P50 and P90, the
+  critical path, the limiting resource, the setups with their marginal
+  values, the inputs and the calibration sample sizes. Any D97.2 goal text
+  parses; goals the estimator refuses (unfinished lanes with no hours,
+  unknown goals, prerequisites, rigs, releases and plan problems, missing
+  capacity, infeasible schedules) fail the source with the estimator's own
+  typed diagnostic — the same refusal code and parameters `/estimate`
+  names — rendered in the report's language (capacity and goal refusals
+  keep their named sentences; a `missing-estimate` refusal re-renders its
+  lane list and omitted count from that data in the report's language),
+  instead of invented rows or a guess. A refusal without a valid typed
+  diagnostic stays generic on both surfaces: `/estimate` prints `Estimate
+  failed: estimate-unavailable` while the report records the failed code
+  with its table sentence. `--by <date>` means midnight UTC
+  (`2026-11-01` asks for `2026-11-01T00:00:00.000Z`) on the terminal, in VS
+  Code and through ACP, exactly as `/estimate` reads it, so every path asks
+  for the same instant; offset stamps the report schema accepts (`--as-of`
+  everywhere, `--by` in the editor) are normalized to the same UTC instant
+  the estimator requires, and the run is stamped at the request instant,
+  so the same generation seals identical bytes. The report forecasts cost
+  on every editor so the numbers match.
+  Works in VS Code (through the lazy estimator bundle), ACP and
+  the terminal (through the headless estimator for the report's workspace
+  root) without a model call.
+- **Session and usage report kinds are real end to end** (M113 C-M113-2).
+  `/report session` reads the current conversation in the editor, or a stored
+  Model API session by id (`--session <id>` in the terminal and ACP); turns
+  come from the retained turn identifiers, per-session tokens and cost from
+  the usage journal, and checks run from the workspace check-run journal. The
+  transcript travels in the export, and approvals stay explicitly unavailable
+  because history items carry no approval decisions. `/report usage` reads the
+  on-disk journal through the same aggregation as Account & usage, so its
+  totals match that page for the same period, with `--by model`, `provider`,
+  `kind`, `session`, `client` or `account` breakdowns; per-tool usage is not
+  recorded, so `--by tool` reports totals with an explicit partial breakdown.
+  Both kinds work in VS Code, ACP and the terminal without a model call. The
+  inputs load lazily in `dist/reportInputs.js` (100 KiB budget), off the
+  reporting engine's budget, and failures thrown across the bundle boundary
+  keep their source code instead of degrading to a generic read failure.
+- **Playbook and schedules report kinds are real end to end** (M113 C-M113-4).
+  `/report playbook` reads M116's orchestrator journal through the owner's
+  replay, so strike counts per module and class match enforcement; design
+  decisions carry their outcomes, hook-verification receipts their pass/fail
+  results, and
+  every disabled rule its reason and actor, with route-around refusals in
+  their own section. Only true refusals are listed: admitted commands and
+  applied fallback reviewers never appear as refusals. `--module <glob>`
+  and `--milestone <id>` filter
+  modules while workspace-wide rows stay; `--milestone` matches whole
+  milestone tokens, never substrings. Paused schedules stay out of the
+  upcoming-fires timeline with their paused status shown. `/report schedules` reads M115's
+  store and fire record: upcoming fires with collisions, triggers, targets,
+  delivery, grants and creators, recent fires with outcomes, refused actions
+  and cost with a summed total. Until delivery is registered no v2 fire
+  exists, so the fire sections stay empty instead of invented. Both kinds
+  work in VS Code, ACP and the terminal without a model call, through a new
+  lazy `dist/playbookSchedulesInputs.js` chunk (50.9 KiB measured, 59 KiB
+  budget) beside the session/usage chunk, whose budget stays unchanged;
+  only their two kind-table lines changed, and every other kind still
+  reports unavailable as before.
+- **Estimator plan snapshots** (M117 C-M117-1). `/estimate` goals now resolve
+  from your workspace `PLAN.md` with its git and `gh` evidence — lane hours,
+  Starts dependencies, rigs, file affinities, the delivery order and §10
+  releases — in the VS Code extension and headless, instead of refusing with
+  `M117-W-M113-plan-reader`. A goal whose lanes lack hour estimates is refused
+  naming the lanes; per-lane metered demands the plan never carries are
+  disclosed zero-sample assumptions until calibration replaces them per kind.
+  Starting lanes, price catalogs, history and multi-machine fleets still refuse
+  with their handoff names until their lanes land.
+- **`estimate --check-plan`** (M117 CM1171R4). The headless `estimate` command
+  and the ACP agent's `/estimate` accept `--check-plan`, which lists every
+  estimator plan problem in `PLAN.md` — duplicate lanes, malformed `Starts`
+  cells (naming cell and line), unknown prerequisites, unknown rigs and
+  unknown release members — one per line, printing nothing when the plan is
+  clean. The exit code carries the verdict: 0 clean, 1 problems, 2 usage.
+- **Strict `Starts` grammar** (M117 CM1171R4). A `Starts` cell is `day 0`,
+  `first`, `last`, or `after` lane, qualified-lane and whole-milestone refs;
+  parenthetical text is a note without ordering words; anything else refuses with
+  `malformed-starts` instead of inventing or dropping dependencies. Strictness
+  applies to the goal's dependency closure, so rows outside it never block a
+  forecast. A planned lane with `Hours 0` is refused as a missing estimate,
+  and a `MERGED` pull request without a merge timestamp is refused as
+  malformed evidence.
+
+- What's New fits its content budget by itself: the newest release always
+  ships in full. The writer checks every complete plan against both decoded
+  and encoded bounds, preferring older full notes, then Highlights with a
+  full-notes link, then omission, newest first. Keeping earlier Highlights
+  never reserves bytes for a shortening flag the final plan does not need.
+  A shortened page says "Earlier notes: see the full changelog",
+  and the packaged changelog shows the same releases. A newest release that
+  alone exceeds the budget still fails the build naming the release, so its
+  notes are trimmed instead. Packaging uses the parser's heading and body
+  spans; release headings require ATX `## [version] - YYYY-MM-DD` with LF or
+  CRLF endings. CR-only files and Setext release headings fail by name.
+  Only size overflow permits reducing notes: other encoding or schema
+  failures stop the build with the releases and cause. HTTP/HTTPS schemes
+  are normalized to lowercase, including repository-derived full-notes links
+  in the page and packaged notes, so uppercase links cannot drop fitting
+  notes. An unsupported repository URL fails by name before plan selection.
+
+- Internal B1 inspect checks protected/private paths after canonicalizing
+  their spelling, sends the same operands to the grant walk and program,
+  and refuses noncanonical native input. A cancelled caller detaches from
+  the shared self-test promptly; session disposal still awaits its cleanup.
+  Regression properties and native canaries cover both review findings
+  (M125 F1a); the component remains unavailable to editor approvals.
+
+- Usage, team and schedule money is exact too (M121): journal and usage
+  page totals, provider rows, key usage, team costs, budgets and preview
+  totals, and schedule caps and liabilities are kept as exact decimal
+  dollars and shown through the exact formatters. The usage journal moves
+  to version 2; version 1 records with numeric dollars still read and
+  convert exactly, and a record that cannot convert is refused with an
+  explanation instead of being rounded or zeroed.
+
+- Keep automatic-compaction admission in the lazy Model API backend and its
+  price-card calculations in the existing providers bundle. Format paid-use
+  questions on first use through the existing imported-hook runtime. Activation
+  behavior, paid admission, displayed text and all bundle limits stay unchanged.
+  Remove the unused internal GitHub lease-result type found by the train gate.
+
+
+- Port the accepted M105 production video/audio, converter containment and
+  private media registry to the 0.17.1 base. Preserve lazy session-upload
+  cleanup, current provider/store behavior, exact budget boundaries and
+  existing native/editor qualification holds; no recording surface is enabled.
+  Windows encoder handling loads from the existing process chunk; pure session
+  and usage schemas are shared, and deferred playbook English has its own
+  bounded chunk. Original startup and feature caps remain unchanged.
+  Native/package fixtures use the shared inventory; cold setup and CLI tests
+  keep their original deadlines while isolating immutable preparation and
+  matching production minification.
+
+- Production media is one service per Model API session (M105 W redesign),
+  built by one factory in its own lazy bundle, `dist/productionMedia.js`
+  (66.2 KiB, cap 100 KiB). It moved out of `dist/modelApi.js`, which drops from
+  590.2 KiB back to 523.2 KiB under its unchanged 525 KiB cap. Activation no
+  longer imports any backend module for the session store's upload binding
+  (572.3 KiB, previously 586.3 KiB).
+  - Images and PDFs go through a single admission path, whether attached,
+    read by a tool or reopened with the session. On the Muse Spark
+    contributor models each one is priced at the calibrated image bound and
+    stays inline on the wire. A PDF has no captured page rate, so it is
+    refused with the reason in a capped session and sent at its byte count in
+    an uncapped one. Models without a media capture keep the existing inline
+    path.
+  - An unknown media rate is refused only when spending is capped (a session
+    cap or a scheduled run).
+  - A priced inline image is never treated as an upload: later turns no
+    longer fail with "The upload expired".
+  - The agent's `read_file` can send a workspace video (mp4 or mov) to the
+    contributor models. It is uploaded once through the Files API, its id is
+    replayed, and it is reserved at the calibrated bound, scheduled turns
+    included.
+  - The transcription adapter keeps a video's visual part beside its
+    soundtrack transcript, and disposes a converted WAV on every path.
+
+- Attached video and audio work in production on every surface (M105 lane V):
+  - **Attaching video.** On the Muse Spark 1.2 and 1.3 contributor models an
+    mp4 or mov can be attached in the panel (picker, drop, paste), through
+    ACP (`/attach`, resource links, embedded media) and with
+    `exec --attach`. It uploads once, replays its file id and is priced on the
+    one admission path. Other models refuse with the reason. VS Code asks once
+    per conversation on a contributor model (Send, Use the Standard model,
+    Remove) and always for a screen recording; the ACP agent's
+    `--allow-contributor-models` stands for that question.
+  - **Muse Voice transcription.** On 1.3, which does not hear a video's sound,
+    the soundtrack is transcribed and the transcript goes beside the video;
+    declining, or a machine with no converter, sends the video without its
+    sound. A WAV or MP3 is attached only while Muse Voice is on and becomes
+    its transcript; Meta audio is never sent as audio. Each transcription
+    asks first with the price and the shared daily budget, reserves exactly on
+    that budget (and on a conversation cap), settles from the billed seconds
+    and counts on the tally. The ACP agent turns it on with `--muse-voice`;
+    `exec` has none.
+  - **The trusted converter.** `ffmpeg` is used only at the machine's
+    configured path (`museSpark.mediaConverterPath`, or `mediaConverterPath`
+    in the agent's `settings.json`) or a documented install, never `PATH`,
+    after the trusted-path check (M104's verifier on macOS and Linux, the
+    owner and ACL check on Windows, on any drive). Launcher shims are refused;
+    a refused configured path says why and never falls back. Conversion runs
+    on Linux and, in a kernel job with a memory cap, on Windows (VS Code and
+    the runtime, whose package now ships the job launcher) and on macOS, with
+    its memory read through `ps` for that encoder alone. Each conversion
+    works in a fresh owner-only folder inside a private root in the host's
+    own storage, never a shared temporary folder.
+  - **Bundles.** Transcription loads with `dist/productionAudio.js` (72.8 KiB,
+    cap 75 KiB) on the first turn with attached sound, and the runtime's media
+    port with `dist/runtimeMedia.js` (49.8 KiB, cap 75 KiB). The window's
+    attached-media registry, the attach port's open hook and the contributor
+    question load with `dist/mediaHost.js` (18.1 KiB, cap 25 KiB) on the first
+    attach, so activation is 572.2 KiB, below its size before attached media.
+    `dist/modelApi.js` stays at 524.9 KiB under its 525 KiB cap; no cap rose.
+  - **One-use attachments.** An attached video or audio file belongs to the
+    turn that sends it and is let go when that turn ends; a discarded chip, a
+    new conversation and a closed ACP session let go of theirs, and the agent
+    lets go of all of them when it exits. A later turn that needs the file
+    again asks you to attach it again.
 
 ### Fixed
+
+- **Other-CI review findings** (CM80CIR6, RVCM80CI5): remove Azure's
+  timezone-sensitive vendor start expression. Admission uses measured bootstrap
+  time with a 10-minute worst-case pre-bootstrap setup reserve; the default job
+  is 45 minutes. Qualification must prove setup fits the reserve. Parent holders
+  and cleanup copies use the reserved `muse_ci_internal_` prefix, so ordinary
+  aliases cannot overwrite paths or unset cleanup ownership. Reserved aliases
+  refuse before download and in Node; bootstrap configuration prefixes
+  `MUSE_CI_`, `MUSE_INPUT_` and `MUSE_AGENT_` are reserved too, protecting the
+  exec-time transport bindings. Tests reject any Azure vendor time
+  expression, including malformed syntax, and exercise alias cleanup under sh,
+  dash and bash. Other CI systems help retains the launcher's `system` dimension.
+  Fake-tested only; hosted/live receipts remain open.
+- **Other-CI fake-agent suites removed** (RVMSM80): the process suites that
+  ran the launcher and templates against the Action's fake agent inside
+  simulated vendor hosts are gone, and the template-text guards with them.
+  What remains tests the launcher's pure logic through its real modules,
+  the templates' defaults through its grammar, and the shipped bootstrap
+  under the real shells. The end-to-end vendor behaviours those suites
+  claimed are withdrawn to `docs/real-life/unproven.md` until a hosted run
+  proves them; no product code changed.
+- **Other-CI credential and publication boundaries** (CM80CI-R4,
+  RVCM80CI3): the shell never reads/copies the key. A generated name list
+  and declared aliases are unset in the download subshell; Node reads the
+  vendor value/File variable directly, refuses conflicting values and strips
+  every value copy before children. Outputs are created outside the clone;
+  Azure/Jenkins upload only publisher files after publication. GitLab and
+  Bitbucket omit their clone-relative upload paths pending external-temp
+  transport. Bitbucket deployment scope replaces the inaccurate repository
+  scope/isolation claim; its automatic processes remain unqualified.
+  Cleanup ownership precedes launcher loading and facts/workspace validation.
+  AbortSignals terminate filesystem workers for publication, stale removal
+  and cleanup; elapsed-time admission measures vendor/bootstrap starts.
+  Azure's timing policy is superseded by CM80CIR6 above. Fake-tested only;
+  hosted/live receipts remain open.
+- On macOS 26, a process that `ps` lists with an unknown state (`?`) while
+  it changes no longer voids every resource tree's membership read, which
+  could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
+
+- The two-account Muse Code backend test waits for the usage event that
+  follows a turn instead of assuming both arrive together, and the estimator
+  browser harness pays the browser's first-navigation work once before its
+  matrix, keeping every case's two-second bound.
+
+- The estimator browser harness uses the same packed English fallback as
+  independent production pages, avoiding cold Windows navigation timeouts
+  while keeping its two-second bound and complete accessibility/keyboard matrix.
+
+- macOS UI regressions give each target-size scene its own test and await
+  the palette view's actual lazy-import rejection before checking its failure
+  row, retaining every assertion at the existing deadlines (CIR4MAC).
+
+- macOS runtimes with libuv older than 1.52 report unknown memory headroom
+  instead of counting only free pages, preventing false resource pauses and
+  ACP multi-workspace session timeouts on Node 22 (ACPM118).
+
+- Windows recorder destinations accept native 8.3 temporary-folder spelling
+  while still refusing traversal and existing destinations (CIFIX017W).
+
+- Companion uploads close their inspection handle and remove private bytes
+  before acknowledging the request, avoiding Windows cleanup races.
+  A failed inspection close returns a refusal with private diagnostics withheld.
+
+- Windows resource-history tests wait for durable disposal output before
+  checking or corrupting journal files.
+
+- Windows native probes avoid unnecessary PowerShell module startup;
+  packaging tests share one production build while retaining private outputs.
+
+- Visual capture waits for restored question rows to finish loading before
+  measuring the context-menu passage, preventing a timing-dependent 14 px
+  menu displacement in narrow captures. Pixel allowances are unchanged.
+
+- Schedule runtime tests cover Linux, Windows and macOS rearm ownership
+  explicitly; macOS wake shutdown retains its independent after-exit helper.
+
+- Reporting journal, history-engine and response-cache tests retain real OS
+  process-birth probes on macOS and Windows without requiring unrelated
+  resource-governor installation in their storage fixtures.
+- Windows: the ACP agent (`muse-spark-code-acp`) could not start a Muse
+  Code session. Its governed `muse serve` launch was missing the Windows job
+  helper the extension's launch already had, so every new session failed
+  with an internal error.
+
+- Windows: the npm package of the ACP agent now ships the C# of that job
+  helper's launcher (`MuseSparkMcpLauncher.cs`). An agent installed with
+  `npm install -g` still failed every new session with an internal error
+  without it (CIFIX017W2).
+
+- Windows: the trusted-path check behind background schedules reads each
+  folder's attributes and ACL through .NET alone. Its PowerShell no longer
+  loads the modules behind `Get-Item`, `Get-Acl` and `ConvertTo-Json`, which
+  took over 15 s per folder on machines with many PowerShell modules
+  installed, such as hosted CI runners (CIFIX017W2).
+
+- macOS with Node 22 (or an editor on its libuv): the resource governor read
+  free memory pages as headroom, judged an ordinary Mac critically short of
+  memory and held every later process start for 20 seconds, so a second ACP
+  session took over 20 s to open. That reading is now treated as unknown
+  (CIFIX017R3).
+
+- A report save could fail after two seconds when another save released
+  its lock while a third retired one: a lock file being deleted was taken
+  for an unsafe file, and the releasing save kept its lock (CIFIX017R3).
+
+- The report's plan reader no longer parses each plan line three times;
+  this repository's plan reads about 15% faster (CIFIX017R3).
+
+- Windows: `muse-spark-code-acp usage open` and sharing to the clipboard or
+  browser failed with "That did not work". The program lookup added `.exe`
+  to names that already had it (`rundll32.exe.exe`) and found nothing.
+
+- Linux: `muse-spark-code-acp usage open` waited 10 s and then reported
+  failure when `xdg-open` stayed open with the browser, as many handlers do.
+  The opener now counts as launched once it starts, in its own session, and
+  is never stopped. Any OS opener still running at the hand-off limit is
+  detached and counted as launched, not killed; one that exits with an
+  error still fails.
+
+- When a Windows job helper fails to compile, the log names the compiler's
+  errors and exit code again, not only "Bootstrap command failed".
+- Visual regression reconstructs the recorded schedule surface inside the
+  served historical revision, so clean CI can load its lazy schedule entry.
+  The current-source audit also records the accounts accessibility stylesheet.
+
+- Native schedules and helpers no longer refuse a Windows profile folder
+  that is a junction or redirected to another drive. Paths are now checked
+  from the folder the extension owns: links above it are accepted by their
+  resolved identity, and a link below it is still refused.
+
+- Scheduled prompts spend about half the time on their store per fire: the
+  store keeps one journal per workspace, so its validated snapshot and deltas
+  are reused between calls, and a read copies the folded state once instead
+  of every journal entry. Every read still rereads and checks the bytes.
+
+- Model API turns no longer reinstall the whole display-language table for
+  every recorded context read (about 4 ms each); the schedules bundle
+  installs it once per language.
+
+- ACP: an answer queued with `/answer` is sent with the next prompt once,
+  even when the backend finishes that turn before it confirms the start.
+  Before, such a turn released the answer instead of marking it sent, so the
+  following prompt carried it again.
+
+- Model API replies stream with less work per event: the stream's key
+  redaction builds its matcher once per reply (and again only when a stored
+  secret changes) instead of for every string in every event. A long reply
+  had spent most of its time there.
+
+- Contributors: a pre-commit hook that fails now stops the commit on Windows
+  even when nothing is reading Git's output any more (for example
+  `git commit … | Select-Object -First 5`). Before, husky's runtime was
+  killed by a broken pipe while reporting the failure, and Git for Windows
+  counted that as a pass. `npm run prepare` installs stubs that rule this
+  out on every OS, and the hook asks for `npm run prepare` in a worktree
+  that still has husky's own stubs.
+
+- Packaged translation tables round-trip byte-exact again: every language
+  table lists its keys in English's order, including the resource history
+  and Windows path strings merged for 0.17.0.
+
+- The dependency-cycle gate now covers every build entry, lazy import target,
+  entry-named module and knip entry, with a guard against root-list drift.
+  Remove the worker admission/environment/ref-fence cycle by sharing the
+  unchanged credential-free environment policy from the worker environment
+  module. The guard now shares integration-test discovery with the build,
+  so changes to its directory or filter also change the required cycle roots.
+
+- Start the team browser tests' card and tree deadline once the harness reports
+  the scene played, keeping bundle start-up, the ready handshake and the
+  steps' settle time outside that wait, and list still-open requests when a
+  team test's wait fails.
+
+- Settle quote-menu capture origins after final layout and isolate source-reconstruction fixtures from temporary-directory placement.
+- Capture settled share-view highlighting, usage-dialog account facts and status rows, and the palette's focus scroll so visual replays no longer race lazy renderers.
+
+- Complete integrated visual coverage through real optional UI scenes, decode packed update notes in replay, wrap narrow Models actions and use token focus rings.
+
+- Guard the lazy slash-command registration as a deferred chat entry without adding activation bytes.
+
+- Restore the Schedule Prompt, Schedules and Schedule Timeline editor commands, including panels opened on demand.
+- Reuse successful time-zone validation during repeated schedule journal reads, preserving storage checks and workload deadlines.
+- Resolve visual replay fixtures from the running gate when historical render sources predate them, and guard Help document IDs against duplication.
+- Prepare browser-English probe scratch space in fresh clones and include the merged Linux helper job in the visual CI test fixture.
+- Give plan-usage request counts localized singular/plural text so contrast checks can measure their visible content.
+- Refresh reviewed README captures from the combined UI and its real ready handshake, retaining the curated media budget.
+- Name and exercise report-root literal regex escaping across all operators and Windows separators.
+
+- Share ACP preparation cancellation and exact USD display helpers; align merged paid-ledger tests with the exact decimal contract.
+- Batch staged-file tool arguments below the Windows command-shim limit while retaining every hook check.
+
+- Include lazy account and developer surfaces in the browser English regression probe while preserving deferred fallback checks.
+
+- Remove the obsolete compact Node reference build plugin and its stale test; the production reference uses the current generated data loader.
+- Draw the independent reporting focus ring and the Models/account boundaries from the M114 token contract instead of direct host colours, so keyboard focus stays visible on low-contrast themes.
+- Give team traffic and Runners buttons the secondary-button token role instead of input-field colours, and draw their keyboard focus ring from the M114 token contract.
+- Draw Models buttons, the accounts picker and traffic buttons from a new assured boundary role that mixes the theme foreground into its background, keeping control boundaries at 3:1 or more in every captured theme.
+- Give the team merge card's path lists their own full-width row so long paths wrap instead of one character per line at narrow widths.
+
+- Media request tariffs accept exact USD amounts only and reject numeric
+  JavaScript callers before admission. Ordinary session reservations share the
+  atomic-admission lock, preventing competing owners from publishing during an
+  unfinished claim and preserving cap checks at the remaining headroom.
+
+- The Account & usage spend meter sums exact decimal amounts instead of
+  rounding through nano-USD, so sub-nano spend below a nearby cap reports
+  unreached exactly as admission evaluates it.
+
+- The media accounting core claims its calibrated upper bound
+  against both schedule and shared daily caps, including replayed file IDs,
+  settles the admitted media tariff once, and retains uncertain liabilities.
+  Above-reserve bills refuse settlement; daily claim transfers secure their
+  replacement before releasing held budget.
+  Production video/audio uploads remain unavailable in this version pending
+  the production upload and transcription bindings (PLAN D85.6, M105).
+  Scheduled reads now explain that limitation explicitly in every editor.
+  Media read-file references through a bound adapter carry their checked source
+  into the run ledger;
+  stopped reads cannot publish a new proof.
+
+- The 0.17.0 integration's daily-budget and durable schedule tests now assert
+  exact decimal money, including entered limits below nano precision, while
+  account consent fixtures persist quote ceilings and retain account refusal.
+  Account-bound paid consent carries exact decimal budgets through its popup.
+
+- Account-bound paid consent holds "Always" across instances and restarts for
+  the same workspace, provider, account and price through the binding-kept
+  grant when no host quote store is configured; it still asks again when any
+  of them changes, when the quote generation changes, or when only a
+  differently-keyed legacy grant exists.
+
+- Account-bound paid consent no longer fabricates quote approval from the
+  binding's feature grant: it requires an account-scoped quote store and
+  generation, persists the approved quote and generation per account, asks
+  again for a higher tariff or a different model on the same or a new
+  instance, and revoke() clears that account's quote grants too. No
+  production host constructs account-bound consent yet — paid approval stays
+  per workspace until M108 lane P wires it — and Help now says so.
+
+- Account-bound paid consent binds grant authority to a durable revocation
+  epoch persisted per account binding: revoke() advances the epoch before
+  clearing, so leftover grants from a failed clear stay stale on every
+  instance after a restart, and a failed advance rejects with the grants
+  still working. Every grant records its approval epoch; concurrent asks on
+  another instance cannot resurrect a revoked grant. Help says paid consent
+  stays per workspace in all fourteen translated tables.
+
+- Resource history now includes Windows contained and probe commands: the
+  helper's final CPU and memory use is recorded once in this window's
+  history (at most 512 waiting results between reads). The governed process
+  launcher and the start of vault-backed MCP servers now load on first use
+  in bundles of their own (`dist/resourceProcess.js`, new 50 KiB budget;
+  `dist/mcpVault.js`, new 25 KiB budget), so the resource governor is back
+  within its unchanged 125 KiB budget and activation no longer carries the
+  vault MCP start.
+
+
+- Web fetch no longer ships a dead second HTML-to-Markdown entry point:
+  `htmlToMarkdown` had no callers (both backends convert through
+  `convertHtmlJob` on the page worker), so it was removed. No behaviour
+  change.
+- Paid-use consent audit: the four unused consent helpers for scheduled
+  runs and per-account consent stay unwired until their owning milestones
+  land (M115 Lane U's per-schedule consent; M108 lane P's per-account
+  consent). Meanwhile a paid schedule draft from the panel is refused
+  (its caller carries no paid flag or budget) and every reachable paid
+  use still asks the popup; a unit suite now tests that surface refusal
+  through the real surface, separately from the unwired helpers' logic
+  (RVMSM58M69). No behaviour change.
+- On VS Code 1.101 to 1.111 with `http.proxy` set, Muse Voice recorded audio
+  and then failed, because those versions do not route an extension's
+  WebSocket through the proxy. The microphone now stays unavailable with the
+  reason while a proxy is set there, instead of recording audio that cannot
+  be sent.
+- Behind a proxy on VS Code 1.112 or later, a Muse Voice refusal caused by
+  the person's own settings (`http.proxySupport` off, or
+  `http.webSocketAdditionalSupport` off) wrongly blamed the VS Code
+  version. The microphone now names the setting that is off and what to
+  change; the version text stays only for VS Code before 1.112.
+- The production build no longer starts every bundle at once through one
+  esbuild service, which could fail under machine load with an error that
+  named no bundle and then hang. Bundles now run through a bounded pool
+  of 8; a failure names its bundle, in-flight bundles settle, and the
+  process exits with the true error.
+- The credential lease loads from its own bundle on the first guarded write
+  or Connect recovery instead of riding in activation (PR219W1). A crashed
+  owner's lock is reclaimed deterministically (no more raw-`ENOENT` loser
+  under contention), and a draft limit with the output cap above the context
+  window fails parsing like a saved row. The headless preflight keeps its
+  100 KiB budget.
+
+- Provider records, rate limits, media and Azure work per provider (PROVM95).
+  The provider catalogue is the live models.dev list of 2026-10-17, not the
+  2026-10-05 snapshot, and Fireworks `supports_tools`/`supports_image_input`
+  plus DeepSeek `max_output_tokens`/`effort.supported_levels` from the
+  providers' own captured lists now land in records. Rate-limit headers read
+  with their real meaning: OpenAI/Groq `x-ratelimit-*` whose duration resets
+  derive each bucket's window (Groq requests per day), xAI limits without
+  resets, Anthropic `anthropic-ratelimit-*` request and token buckets, and
+  Azure `retry-after-ms` wherever `retry-after` is honored.
+  Fresh attachments on a listed provider model no longer meet Meta's 50-slot
+  budget before send. Azure entries persist the deployment, send
+  `model: <deployment>` to `{resource}.openai.azure.com/openai/v1/responses`
+  with the list below the same root, and resolve records by the model
+  family; dispatch still refuses until Azure's own capture lands.
+
+
+- OpenRouter panel actions reuse credential-bound usage; only open, Save and
+  Refresh read the network. Freshness precedes recording, with one journal
+  entry per observation and separate credential slots.
+- Terminal Connect asks before replacing a key and preserves it across every
+  interrupted write. Discarded created keys name their label and removal page.
+- All six OpenRouter usage amounts retain exact wire decimals through terminal
+  output. Unrelated loopback callbacks no longer end Connect. Localization key
+  order is checked recursively, matching packaged plural handling.
+- Terminal provider-credential writes (Connect, its recovery and rollback,
+  `auth set/clear/status --provider`, `providers usage`) run inside one shared
+  cross-process lock, and a Connect stages a journal (phase, previous record,
+  new record) before the primary is touched. A crashed Connect is recovered —
+  compared with the primary and reported with its label and removal page — by
+  the next provider command, `auth status`, or start. A refused rollback keeps
+  the journal and says the new key is stored. Unreadable key identity hides
+  every budget, and negative usage amounts are refused on all six fields.
+
+
+- Local-server scan and panel honesty (M95 C-M95-4 R2, review RVCM954).
+  Scan this computer settles every probe answer exactly once: a 204, 205
+  or 304 answer (no body allowed) resolves with its status instead of
+  throwing past settlement and timing out as unanswered, and bracketed
+  `http://[::1]/...` probes pass the loopback allowlist. A scanned
+  llama.cpp model now evidences its live `meta.n_ctx` window (4096 in the
+  capture) instead of staying windowless while manual compact assumed
+  Meta's window, and a llama.cpp list without it fails the scan closed.
+  Presets without a wire capture stay out of the Models panel and refuse
+  to send (vLLM, Ollama), keyless or not. Thinking is still displayed
+  from every reasoning field but never replays to an unversioned local
+  server, whose list carries no version; each captured local preset
+  stamps the build its quirks were proven against (llama.cpp b11541, LM
+  Studio llmster 0.0.25-1).
+
+- Local-model context windows end to end (M95 C-M95-4 R3, review
+  RVCM954B). A scanned local model now carries its server's reported
+  window in `providers.json` `modelLimits`: the quick pick, the Models
+  panel wizard save and the panel tick all write it (output bounded by
+  the window, which is the only cap the server reports), so the
+  composer's context limit is set from the save instead of staying
+  empty. A local model from a captured preset with no known window
+  refuses the request with a plain reason before anything is sent. The
+  configured registry exposes its last listing's window to the host's
+  context seam, so manual compact sizes the summary to the live window
+  and automatic compact sees it (the legacy Meta window still applies
+  where it did). The closed-scan and save refusal reasons moved into
+  the translated UI table. Note: the LM Studio list reports no window,
+  so a saved LM Studio model refuses until a window is known; enter one by
+  hand in the provider wizard, the quick pick, the Models table, or
+  `providers add --context-window` (M95 C-M95-4 R4).
+
+- Keep translated UI keys in canonical English order and reject source key
+  order drift before ACP or headless packaging.
+- OpenRouter cancellation now interrupts token exchanges and usage reads,
+  releases the panel queue, and discards late credentials. Provider adds
+  preserve concurrent key rotation/removal and never rewrite a reused key.
+- Key usage clears on missing, unreadable, changed or failed observations;
+  new total and weekly amounts use the existing exact-dollar boundary.
+- Terminal Connect is one locked transaction: rollback never runs after the
+  lock is released, so it cannot overwrite an independent rotation or bring
+  back a removed key; a crashed Connect is reported and cleaned on the next
+  start, and a refusing credential store still yields both the connection
+  result and the created-key removal notice.
+- Usage budgets follow the stored credential: rotated or removed keys'
+  numbers disappear from the usage page and CLI, and no wire object or string
+  can forge an exact usage amount. Malformed loopback requests are refused
+  without endangering the listener.
+- The Models panel lists the Custom server again alongside the captured
+  presets (M95 D205): it is the user's own server, admitted without a
+  capture, while presets without one (vLLM, Ollama) stay out until their
+  captures land.
+
+
+- Review (RVMSM9M35): the Linux dictation helper downloads from its own
+  release tag instead of the latest release, so a later release's helpers
+  can no longer fail this version's embedded digests; the helper binary is
+  owner-only (0700) as its record states; and this changelog no longer
+  repeats thirteen already-released entries under Unreleased.
+- Review (RVMSM9M35, PR #224 threads): a refused recorder kill keeps its
+  ownership until the process really exits; a failed Muse Voice stream
+  returns the button to idle once its capture is released; Allow once for
+  Muse Voice covers one recording, not the window; Linux dictation's
+  reset publishes idle and its dispose returns the helper cleanup
+  promise; CI installs dependencies before the Linux helper pin checker
+  (it imports esbuild) and SHA256SUMS names the released helpers by the
+  basenames they are downloaded under.
+- Muse Voice gives each recording one owner from Start until its end: a queued
+  Start keeps the budget scope, consent and context fence it was pressed under
+  (rechecked at its turn, refused with the true reason when no longer valid),
+  every end awaits the native recorder process exit (bounded, then killed and
+  said) before reporting, and admission on a fresh session waits for the
+  parent session save to land instead of reporting missing storage.
+- Muse Voice keeps every recording's helper events and hard cap isolated across
+  rapid Stop/Start. Refused budget admission never starts the microphone.
+  Backend stop, closed tabs and window shutdown await admission and settlement
+  writes. Voice bills the stored Meta key independently of the conversation
+  provider or local model, with an explicit missing-key notice. Linux reports
+  listening only after resource admission and a successful OS spawn.
+- Muse Voice now works on Model API with a finite budget, through the existing
+  Windows, macOS and Linux microphone adapters. Three-minute recordings reserve
+  the shared daily budget and any conversation cap before connecting, then
+  settle from the final reported audio duration. The tally shows estimated
+  cost and explains that Meta’s invoice cannot be read back; interrupted audio
+  keeps its reserved liability. Idle streams with no audio settle zero.
+  Allow once covers one recording; workspace Always remains revocable.
+
+- **The terminal report usage names every kind and its required argument**
+  (RVMSM113). `report milestone`, `report release` and `report estimate`
+  without their scope printed a usage text that never said what was missing,
+  and `report --help` printed the whole help reference. The usage now lists
+  the thirteen working kinds (`milestone <id>`, `release <version|latest>`,
+  `estimate <milestone>`, …) in all fourteen languages, and `report --help`
+  shows the report command's own usage.
+
+- On Windows, two requests that reserve session spend at the same moment
+  could end one of them with "The session spend ledger could not be read or
+  saved", although nothing was wrong with the ledger. Windows answers a lock
+  that is just being released differently from one that is held; the product
+  now waits for both the same way, within the same one-second bound.
+- Hook processes and plugin hooks now honor `museSpark.hooksMaxRunningCommands`:
+  the production process gate and the plugin path used the fixed fallback of
+  4 no matter what the setting said, so 0 still queued the fifth hook
+  process. An aborted capped waiter now wakes the waiters queued behind it
+  instead of stalling them for a full hook timeout.
+- `museSpark.hooksMaxStopContinuations` governs only Stop-hook continuations,
+  as documented: refused task writes pause the turn after 8 in a row and an
+  idle teammate stops being kept working after 8 keeps, each on its own
+  bound, so lowering the setting no longer ends turns after the first
+  rejected todo update.
+- `skill/import` quarantine entries keep their `reasons` and failure entries
+  their required `reason`: the receipt parser read both through one shape
+  with an optional singular reason, so a real quarantine's reasons were
+  silently dropped.
+- `museSpark.hooksMaxStopContinuations` never passes Muse Code's own bound
+  of 8: higher values are refused at the settings boundary and clamped at
+  the use site, so no workspace (a dev-container definition can write
+  machine settings) raises billed Stop-hook spending past what Muse Code
+  itself spends.
+- A configured `ToolUseStart` hook warns that it is not wired on the Model
+  API backend instead of being silently ignored: no tool-start firing
+  point exists yet.
+- A session view that reports `unavailable` keeps the host's `noneReason`
+  in its notice, and a host that reports its sandbox `unavailable` while
+  the shell sandbox is on now warns with the host's reason instead of
+  leaving the configured "sandbox on" standing.
+- Turn-level `turn/retryScheduled` frames keep their scheduled attempt:
+  the parser dropped the `nextAttempt` the CLI's schema requires.
+
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
   `htmlToMarkdown` had no callers (both backends convert through
@@ -580,6 +2098,32 @@ happened, not what was planned; superseded entries are kept.
   also refuses directory entries shaped like session files, so a folder
   named `*.jsonl` can no longer mark a usage read partial (C-M113-1,
   RVM113S tie-breaks, RVCM1131 findings 1–3).
+- **Strict estimator snapshots** (M117 C-M117-1R3). Unresolved prerequisites,
+  release members and unfinished rig names now refuse together by name;
+  duplicate lane identities cannot merge silently. Completion follows origin's
+  default branch and current lane evidence, while completed goals and
+  prerequisites retain zero remaining work without placement. Failed or capped
+  evidence collection refuses explicitly. Every estimate rereads Reports
+  network, sign-in and trust admission; unused issue collection is removed.
+  ACP, CLI and TUI retain safe named diagnostics. Portable M103/M104 forecast
+  goldens and per-finding red drills cover the review repairs.
+
+- Estimator plan snapshots refuse loudly instead of accepting or inventing
+  data (M117 C-M117-1R2). The fleet is stamped with the request's `asOf`
+  instead of a second clock, so production estimates pass input validation.
+  ACP and headless estimates read the requesting session's workspace root
+  (one cached estimator per root), never the process working directory.
+  Release membership comes from the delivery-order titles, not prerequisites.
+  A `last` lane depends on every other unfinished lane of its milestone; an
+  unknown prerequisite, any plan-reader drift record and an unknown rig each
+  fail with a named diagnostic. Issue and label goals are refused naming the
+  missing lane associations until M113 N links them. A lane's state comes
+  from its current branch or PR, never an older merged PR, and merged lanes
+  without hour estimates stay out instead of blocking unfinished work. The
+  networked `gh` collection runs only while the host allows it, cancellation
+  reaches the snapshot reads, and a PR goal without PR evidence refuses
+  instead of reporting not found. The snapshot bundle installs the caller's
+  language table before first use.
 
 - Tab's Help description and all 14 translations now explain that only
   **Allow always in this workspace** saves the model and price; **Allow once**
@@ -767,6 +2311,397 @@ happened, not what was planned; superseded entries are kept.
   filters configured (for example without Git LFS installed). Broken since
   0.15.0, it refused every native review there with "Git could not read the
   changes to review" (lane REVIEWEXIT).
+
+
+- RVPORTM105: cancellation after a Files receipt permits bounded provider
+  cleanup, with durable retry intent when deletion fails. Audio-action changes
+  during preparation refuse before transcription. Exec attachment tests use a
+  Files-capable provider fixture. Media refusal logs retain reason codes while
+  detailed attachment names stay in the user-facing error only.
+
+- Muse Voice transcription of an attached file (RVMEDIAV):
+  - It sends only the bytes that were attached. They are read through the
+    attachment's digest check (and checked again around a conversion), and a
+    file replaced since it was attached refuses before anything is sent;
+    previously the replacement could be sent under the original's smaller
+    reservation.
+  - The last paid check (Muse Voice on, the daily and session budgets, the
+    selected model) now runs immediately before the request goes out, after
+    the key and endpoint checks. Turning Muse Voice off, or a budget closing,
+    while the key was read no longer lets the request through; turning it off
+    during the price question stops the preparation.
+  - A request that never left the machine (no key stored, another account's
+    key, the endpoint check) refunds its reservation and adds nothing to the
+    usage tally; previously it was kept as an unknown charge.
+  - Changing the model while the price question is open no longer pays for a
+    transcription the turn then discards.
+
+- A file attached again after its earlier copy was discarded and deleted now
+  uploads from the new copy, not the deleted one (RVMEDIAV).
+
+- Embedded ACP media no longer stays in memory for the agent's lifetime;
+  see "One-use attachments" above (RVMEDIAV).
+
+- On Linux and macOS a converter whose final output check stalls after a
+  clean exit now ends with Stop or its deadline, as on Windows (RVMEDIAV).
+
+- Attached video and audio, redesigned ownership (RVMEDIAV2):
+  - A converted MP3 or video soundtrack is encoded from the attachment's
+    digest-checked bytes, copied into the conversion's private folder, never
+    from your file's path; a file swapped and restored during conversion is
+    no longer what gets transcribed.
+  - Each attachment uploads only from its own file. Another session
+    attaching a byte-identical copy can no longer point your upload at its
+    (possibly deleted) file.
+  - A message waiting in the queue, or steered into a running reply, now
+    holds its attachments from the moment it is accepted: attaching many
+    more files elsewhere no longer drops them. Taking the message back, Stop
+    or the reply ending lets them go.
+  - When 64 attachments are all in use, VS Code now says so ("Too many video
+    and audio attachments are in use. Wait for a reply to finish, then
+    attach again.") instead of "The file could not be read."
+
+- Attached video and audio, fix round (RVMEDIAV3):
+  - The private copy a conversion encodes is now the whole verified file.
+    A write that lands only part of a chunk (a nearly full disk, a quota)
+    continues from where it stopped, and the copy is read back and compared
+    with the verified bytes before anything encodes it. Before, a short
+    write could cut the copy, and a shorter recording was transcribed with
+    no error. Now a copy that cannot be made whole stops with "Conversion
+    failed: private copy".
+  - Closing a conversation while a message steered into its reply is still
+    waiting no longer uploads that message's video. The steer goes with the
+    conversation and its attachment is let go at once. A closed
+    conversation's media service reads and uploads nothing.
+  - Copies that a crash or a kill left in the private media folder are now
+    removed when the next window or agent process converts something. A
+    window that is still running keeps its own copies.
+
+- Attached video and audio, fix round (RVMEDIAV4): a window whose lock on the
+  private media folder failed can no longer have its conversion's copy
+  removed by another window while it converts. Its copies are kept until
+  removed by hand.
+
+- On Windows, a stdio MCP server, a plugin hook's runtime or a team run is now
+  created inside its kill-on-close job. Previously it was added to the job
+  just after creation. A launcher ended in between (cancelled, timed out)
+  could leave the new process suspended outside the job; now none survives
+  (RVMEDIAVB).
+
+- The Windows owner-only ACL helper finds PowerShell under `SystemRoot`, then
+  `windir`, and refuses when neither is set instead of assuming `C:\Windows`.
+
+- An image an MCP tool returns is priced at the calibrated image bound on the
+  Muse Spark contributor models, like every other image, so a capped turn no
+  longer under-reserves it at its few encoded bytes. Models without a media
+  capture keep counting its bytes (RVMEDIAW2).
+
+- The Model API factory drops a caller-supplied audio preparation callback;
+  the only audio path is the one the bundle binds itself (RVMEDIAW2).
+
+- An RSS sample of a converter that already exited no longer fails a
+  conversion that finished cleanly: after close only the output decides
+  (M105 lane V).
+
+- "Storage billing has not been verified" is gone from every refusal: U6c
+  recorded that storage is not billed. A session without a file upload
+  service now says so (M105 lane V).
+
+- The privacy notice and the README now say what a contributor-model
+  `read_file` of a video already does: the bytes go to Meta's Files API, the
+  upload expires after seven days, and session deletion or the retention purge
+  deletes it (RVMEDIAW2).
+
+- The media accounting core claims its calibrated upper bound
+  against both schedule and shared daily caps, including replayed file IDs,
+  settles the admitted media tariff once, and retains uncertain liabilities.
+  Above-reserve bills refuse settlement; daily claim transfers secure their
+  replacement before releasing held budget.
+  What production media users can do now is under Changed above. A scheduled
+  run without the production media service (no storage or key) explains the
+  limitation in every editor.
+  Media read-file references through a bound adapter carry their checked source
+  into the run ledger;
+  stopped reads cannot publish a new proof.
+
+- Video reaching any non-Meta request now refuses with the model's own
+  reason ("{model} is not known to take video."), read from the installed
+  language table, before anything is sent (M105 lane V R2). The chat and
+  Gemini codecs already refused at the codec stage, but as a plain Error
+  the production client replaced the reason with the generic unavailable
+  message; the refusal is now the typed error the client passes through.
+  Responses requests forwarded Meta's file id uncaptured while Anthropic
+  and Ollama requests dropped the part and sent the rest; every encoder
+  now refuses instead. No vendor outside Meta has a captured media wire
+  yet.
+
+- The same typed video refusal now reaches the user as its own sentence on
+  every remaining route (M105 lane V R3, RVCM1054B): the ChatGPT
+  subscription route (which had replaced it with the generic retry text),
+  the Copilot subscription leg, the runtime accounting wrapper, and the ACP
+  agent (whose SDK had generalized a raw start failure to "Internal
+  error"). One shared helper decides what counts as a codec refusal, and
+  the route matrix is driven by both the provider registry and the plan-key
+  registry. The lead capture recipes run as written.
+
+- The review round's findings on that refusal are fixed as a class (M105
+  lane V R4, RVCM1054C): the Copilot client itself raises the shared typed
+  refusal with the model's own sentence for a held video (and for an image
+  the model cannot take) before any request, instead of the generic
+  "Copilot models are unavailable" text; the Meta passthrough is pinned to
+  rethrow the refusal unchanged; the plan-key route runs through the real
+  production client; the ACP agent's unreachable start-rejection branch is
+  deleted and the real session path (failed turn carrying the sentence as
+  its reason) is pinned through the real agent; headless exec reports the
+  sentence in both its error and its incomplete reason with exit code 4 and
+  no model request sent; and the lead capture recipes no longer waste or
+  mis-record a paid call. The editor shows an ACP failure as "Internal
+  error: <sentence>", today's shape for every failed turn there.
+
+- The review round's findings on that refusal are fixed as a class (M105
+  lane V R5, RVCM1054D): the Copilot client raises the refusal through the
+  provider bundle seam (one helper re-exported by the providers entry) and
+  the subscriptions bundle takes the shared type from a small leaf module,
+  so the Models panel bundle is back under its unchanged size cap and the
+  split gate passes with no codec source outside the providers bundle; the
+  ACP and exec regressions now run a real Model API session (the former
+  session double and session proxy are gone — a broken session mapping
+  fails them); and the OpenAI audio capture recipes name the audio-input
+  model `gpt-realtime-2.1` from the repository catalog instead of `gpt-5.4`.
+- M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
+  and P are merged and switched off until the milestone is complete, so
+  nothing changes for users yet. No GitHub setting is offered, and an
+  editor built on VS Code without its Git extension (Arduino IDE 2, some
+  forks) keeps its earlier behaviour. Merged: the GitHub token-source
+  contracts (`src/core/git/tokenSource.ts`, lane 0), whose tests ran on
+  fakes of GitHub, the device flow, `gh` and Git remotes and were deleted,
+  so nothing tests those contracts now; the runtime's native Git service (status, the commit form,
+  commit, a push confirmed with every URL Git will use and the same
+  refusals as VS Code, never a force-push, commit-message drafts),
+  revalidated after every wait and serialized per repository across
+  windows by one fenced lease (LOCKLIB) that renews every third of its
+  30-second lease, is checked synchronously at each Git dispatch and is
+  never re-created once lost (lane G, with M123G4 and M123G4C); pull
+  requests in the runtime (draft, open and link, status and checks, a
+  fork onto its parent) and checkouts of other people's pull requests
+  held under the runtime data folder, whose records take that lease with
+  fenced compare-and-swap generations, so at most one window gets a
+  checkout and no folder is left without its record (lane P, with
+  M123P9's logged sweep failures and translated uncertain writes). Still
+  to land: the GitHub sign-in (lane A, accepted on its branch), the
+  editors' leases (lane L), the panel and its strings (lane U) and each
+  editor's qualification (lane Q). The pull-request checkout's own git
+  launches are not yet under the resource governor; nothing in this release
+  can start them, and the process inventory fails the day something could.
+- Uploaded-file cleanup no longer blocks saving when the provider refuses a
+  deletion: the failure is recorded with backoff and retried by a later
+  sweep, and repeated failures are reported once in Account & usage as a
+  count. A cancelled re-upload keeps the shared entry, and an explicit
+  delete names the file with a fixed reason.
+- The delete-failure notice reads the ledger failure by name across bundles.
+
+### Packaging
+
+- The Get Started walkthrough's four screenshots ship as lossless WebP
+  instead of PNG (`open.webp`, `welcome.webp`, `chat.webp`,
+  `sign-in.webp` in `resources/walkthrough/`): pixel-identical, about
+  54 KB smaller on disk. The packaged extension no longer includes
+  `docs/PRIVACY.md`, which no code read; the file stays in the
+  repository and the packaged readme still links the privacy policy by
+  its URL.
+
+- Report generations keep their requested language across overlapping reads and lazy input bundles; network bindings also belong to each generation (REPORTJOIN).
+
+- **Report review round 2: every source keeps good records beside damage, bounded and cancellable** (REPORTJOIN).
+  Each array element and JSONL line parses on its own, so one bad record is
+  a named problem beside the good rows, never a lost source; forwarded
+  sections admit rows before parsing against the row limit; partial text is
+  a count plus the first examples plus the localized remainder, so it can
+  never exceed the reason bound and drop evidence. Cancellation is checked
+  before each next read, a deadline waits for the reader to settle within
+  its grace, and an expired deadline starts nothing. Bundle paths stay out
+  of the log; a held usage journal reports busy with the busy sentence.
+
+- **Report sources stop on cancellation instead of racing it, and name held resources busy** (REPORTJOIN).
+  Every source read awaits its own settlement past an abort and performs no
+  further read, write or publish after one; each generation hands its sources
+  one abort signal and one deadline. A wait that outlasts its deadline with a
+  live holder reports busy, never cancelled; repeated refreshes leave no
+  waiting admission readers behind. Dollar-unit usage limits stay exact
+  decimals from journal to cell, and per-record fault isolation covers every
+  registered kind.
+
+- **Repeated report rows preserve saved identities without delaying the host** (CM1132R7).
+  Duplicate suffixes reserve every original key, including later rows and
+  maximum-length keys, and allocation advances without rescanning. Definitive
+  release records for one version produce plan drift across heading, bold and
+  status forms; preparation followed by release remains the normal lifecycle.
+- **GitHub report reads retain accepted facts across every read failure** (CM1136R6).
+  Failed body streams and invalid UTF-8 name their page without discarding
+  earlier rows. A failed endpoint stops immediately, preserving other
+  endpoints' share of the ten-request allowance. Pulls, scoped checks,
+  workflow runs, releases and adapter reasons validate independently;
+  a nameless corrupt tag keeps its own reason, and missing facets,
+  conflicting facts and row bounds leave explicit reasons; distinct run
+  identities remain distinct when tags or workflow names contain separators
+  while accepted rows remain. The isolation gate compares observed requests
+  directly with its executable fault cases.
+- **Workflow and release report reads survive any single failed request** (CM1136R5).
+  Each tag, release and workflow-run page returns its own rows or its own
+  paged refusal (`tags-page-2: http-500`) while the other pages' rows stay;
+  a corrupt tag keeps its own reason and is never blamed on the release or
+  run that named it; and a row that fails the strict fact shape is skipped
+  with its reason instead of dropping the whole section.
+
+
+
+- **Accounts and security reports preserve independently valid evidence at every read boundary** (CM1133R4).
+  Account metadata and individual limits survive malformed siblings. Vault audits
+  survive invalid view fields; absent adapter results name unavailable facets.
+  Row limits apply before admission, and bounded file reads tolerate short reads
+  while retaining other sources after read, decode or validation failures. All
+  five TypeScript projects validate the fault-injection tests, whose sole malformed
+  port cast is documented in the escape-hatch register.
+- **Accounts and security reports keep each source's true reason** (RVCM1133).
+  A security read with neither vault nor developer audit is partial naming
+  both reasons instead of a generic missing file; a schema-invalid registry
+  entry is skipped with the invalid reason while good entries still report;
+  the accounts Count column counts the account instead of showing its
+  placement order; usage, denial and lock rows show the audit outcome
+  instead of the authority; linked registry and audit files refuse like
+  linked session files; and a vault view that fails validation no longer
+  hides a readable developer audit.
+- **Accounts and security reports never drop good rows for one bad record** (RVCM1133B).
+  Every registry entry, usage, event and confirmation row, every vault item,
+  grant and audit record, and every developer audit line validates on its
+  own: a bad one is skipped with the invalid reason while the good rows
+  still report, and a registry, adapter, vault view or audit rotation that
+  fails outright keeps its own reason beside the rows the other sub-sources
+  return. Hard-linked registry and audit files refuse like linked session
+  files, and the vault view's state and tier validate before use.
+- **Schedule fence ownership is unforgeable and cleanups settle on timeout** (CM1134AR8).
+  The fence handle is issued only for a proved publication and release verifies
+  it, refusing forged, re-released or foreign handles. Cleanup retires the hint
+  before publishing the release and only on the completed path, never taking
+  another holder's hint. Takeover and queue cases register their settlement up
+  front so a timeout leaves nothing running, the queue test proves
+  non-overlapping critical sections across real processes, and migration
+  verifies from the completion snapshot with fewer journal transactions.
+
+- **A cancelled schedule contender can no longer release the winner's fence** (CM1134AR7).
+  Only the exclusive-publication success path constructs the release handle, and
+  an interrupted publication is claimed only when the stored bytes carry the
+  acquisition's token; a lost publication releases nothing. Heartbeats without
+  a fencing token are previous-version pulses and stay compatible, while a
+  present contradicting token stays invalid. Playbook goldens follow the
+  `hookVerification` rename, and translated tables keep the English key order.
+
+- **Cancelled schedules reads release their writer leases** (CM1134AR6).
+  Every storage step uses one stop rule, and release has its own short window
+  even when the read is cancelled. A waiting deadline ends busy; a cancelled
+  read leaves the next writer able to acquire immediately. A heartbeat that
+  contradicts any immutable lease identity reports invalid on the first
+  attempt. The real port and its in-memory twin share the same lifecycle;
+  completion drains a pending heartbeat before deciding success.
+
+- **Schedules report waits end busy and name corruption invalid** (CM1134AR5).
+  A source read that is cancelled or times out stops instead of publishing late:
+  the reader passes its signal and deadline to the lock acquisition, which
+  checks them on every turn and before every write. A lease held by a valid
+  writer past the wait reports Host busy, and repeated refreshes accumulate no
+  readers. A fence header that contradicts its file name reports invalid at
+  once instead of retrying as busy.
+
+- **Playbook and schedules reports reflect current state and their request language** (CM1134AR4).
+  Disabled rules replay the latest settings per team, with current actor, reason
+  and date. Schedule reports reconcile revisions around fire history, omit fired
+  one-shots and occurrences at or beyond their end date, and retry writer
+  contention as busy. Every recent-fire outcome uses the request's language;
+  overlapping reports retain their own table. The shipped report schema now
+  accepts every emitted label, including `ended`. The plan records the existing
+  59 KiB reader budget and translated labels/templates.
+
+- **Session and usage reports agree with their notes and show the shared daily budget everywhere** (CM1132R3).
+  Session totals exclude rolled-up history and say so; budget stamps use the
+  machine-local day like the report period; terminal and ACP usage reports show
+  the shared daily paid budget beside live session budgets; a failed history
+  read reports a failure with its reason instead of missing history; limit rows
+  render dollars as dollars and percentages as percents; session files reached
+  through linked folders read normally while linked files still refuse; and
+  another session's questions report as unbound rather than missing history.
+- **Report row identity is guaranteed centrally so duplicated ids never fail a report** (CM1132R6).
+  The document builder makes row keys unique itself — the first row keeps the
+  bare key and each later duplicate takes a stable positional suffix — so no
+  collector can fail validation through a repeated milestone id, release
+  version, question, risk, residual, lane, check run, tag, pull request or
+  forwarded row. A repeated definitive release record is plan drift
+  (`release-duplicate`); preparation beside its released record stays clean.
+- **The npm release channel reaches the registry on every production transport** (CM1136R2).
+  The report network routes `registry.npmjs.org` through the credential-free
+  public fetch under the existing network consent, while `api.github.com`
+  stays on the surface's own lane (the editor's signed fetch, the CLI/ACP `gh`
+  process); anything else stays refused. An invalid package name is a refused
+  npm row with its reason instead of a failed report; workspace identity is
+  re-read on every networked report, so a version bump or a newly declared
+  manifest shows up on the next refresh; scoped names keep the captured
+  `@scope%2Fname` form for every `@scope/name` shape; and a non-semver local
+  version names the manifest instead of the registry document.
+- **Session and usage reports preserve source honesty and identity** (CM1132R2).
+  Concurrent sources share a flushed journal snapshot. Damage, newer versions,
+  missing session attribution and unavailable budget snapshots produce partial
+  rows. Stored reads reject links and mismatched IDs. Provider/account grouping,
+  explicit UTC periods, period-scoped limits and budgets, deterministic ties and
+  monetary uncertainty prevent misleading totals. Lazy inputs receive the
+  caller's language and load only for consuming kinds; primary history is bound
+  in ACP and CLI, questions stay session-scoped, and closed chats stay closed.
+  CLI end-to-end builds use production resource admission.
+- **Estimator refusal state** (M117 CM1171R7). Typed diagnostics survive the
+  webview boundary and appear unchanged in the real card, including first-wave
+  refusals. One shared display state replaces old forecasts on every failed
+  estimate or refresh in the panel, view session and terminal. The diagnostic
+  inventory is crossed with all six surfaces in regression tests.
+
+- **Estimator refusal diagnostics** (M117 CM1171R6). Late self dependencies
+  and cycles retain their named reason across the panel, CLI, ACP and TUI.
+  All estimator guards and schema failures carry typed diagnostics through
+  one localized renderer; raw external errors hide private details. A core
+  throw-site inventory rejects new untyped refusals.
+
+- **Estimator plan grammar and boundaries** (M117 CM1171R5). Explicit local
+  M-number lanes retain their prerequisites; ordering cannot hide in notes.
+  Every row is parsed before closure validation, so unrelated reader drift and
+  invalid identities do not block clean goals. Self prerequisites reach the DAG
+  guard, and unknown milestone references are reported together. Whole-plan
+  checks reject missing structure. Restored plan ordering is pinned by a reviewed
+  prerequisite fixture. Command parsing runs in the lazy host bundle within the
+  unchanged browser cap. Check-mode help is translated in all fourteen languages,
+  and the CLI/ACP guide documents its exclusive syntax and verdicts.
+
+
+- The Get Started walkthrough's four screenshots ship as lossless WebP
+  instead of PNG (`open.webp`, `welcome.webp`, `chat.webp`,
+  `sign-in.webp` in `resources/walkthrough/`): pixel-identical, about
+  54 KB smaller on disk. The packaged extension no longer includes
+  `docs/PRIVACY.md`, which no code read; the file stays in the
+  repository and the packaged readme still links the privacy policy by
+  its URL.
+- One package per platform (D123). The release ships six platform
+  packages (win32-x64, win32-arm64, darwin-x64, darwin-arm64, linux-x64,
+  linux-arm64) instead of one universal package (`node
+  scripts/package-vsix.mjs --target <platform>`): each carries only its
+  own platform's native pieces, and each is checked against the same
+  unchanged size budget. CI packs and checks all six. The keyring
+  binaries stay out of every package (the target's own binary alone
+  exceeds the remaining headroom), so the OS store loads where
+  installed. No behaviour change on any platform.
+- The other-CI shared bootstrap no longer runs a `case` statement inside its
+  download command substitution. macOS `sh` (bash 3.2) parses that only at
+  run time and then fails, which broke every template's run there with a
+  syntax error and a knock-on unbound-variable failure; Linux shells never
+  showed it. Alias names were already validated by the reserved-prefix loop
+  before the subshell, so only the value removals stay inside and the
+  download children stay blind exactly as before.
+- The ACP package ships the sessions bundle its backend requires.
 
 ### Documentation
 
@@ -1563,25 +3498,6 @@ happened, not what was planned; superseded entries are kept.
   said only by a backend that truly has no checkpoint, and every other retry
   failure carries its own cause.
 
-### Packaging
-
-- The Get Started walkthrough's four screenshots ship as lossless WebP
-  instead of PNG (`open.webp`, `welcome.webp`, `chat.webp`,
-  `sign-in.webp` in `resources/walkthrough/`): pixel-identical, about
-  54 KB smaller on disk. The packaged extension no longer includes
-  `docs/PRIVACY.md`, which no code read; the file stays in the
-  repository and the packaged readme still links the privacy policy by
-  its URL.
-- One package per platform (D123). The release ships six platform
-  packages (win32-x64, win32-arm64, darwin-x64, darwin-arm64, linux-x64,
-  linux-arm64) instead of one universal package (`node
-  scripts/package-vsix.mjs --target <platform>`): each carries only its
-  own platform's native pieces, and each is checked against the same
-  unchanged size budget. CI packs and checks all six. The keyring
-  binaries stay out of every package (the target's own binary alone
-  exceeds the remaining headroom), so the OS store loads where
-  installed. No behaviour change on any platform.
-
 ### Release infrastructure
 
 - The fake tests are being removed (the owner's order: "there can be no more
@@ -1629,532 +3545,10 @@ happened, not what was planned; superseded entries are kept.
   cumulative merge diff, so a follow-up push that touches only an unrelated
   file no longer passes with no Windows or macOS run anywhere; a capacity
   run that never appears now fails its relay instead.
-
-### Pending
-
-- M53 follow-up (C-M53-3): a Muse Code side chat is read-only at the panel.
-  Every approval its branch raises is refused with the card's own rejection,
-  including a staged approval's later stages, and an approving click on a
-  card the host left standing is refused too, so the branch cannot approve a
-  write. Refusals are labelled `Side Chat` with the reason. Writes the CLI's
-  own allow rules already cover still run without asking; that residual is
-  recorded for the upstream report (sdk#86).
-
-- Terminal commands (CLIFLOWS): sharing answers accept `y`/`yes` in any
-  case and the answered process exits; `share`/`prompts` print their result
-  JSON only with `--json`, and the CLI reference documents the scripted
-  `--confirm` repeat; `prompts use` asks once, after the variables, and only
-  imported prompts are called untrusted; `scan-secrets` prints only the
-  number and its help names the exits (0 clean, 10 found, 2 misuse);
-  `playbook settings` no longer shows `(panel)`; each slash command is
-  announced once; one sentence reports a dead credential store everywhere;
-  the terminal lists Meta provider accounts; non-Meta accounts are not yet
-  bound to the provider configuration. Pre-session refusals name what is missing.
-- Terminal commands (CLIFLOWSFIX): an `exec` with a ChatGPT plan model runs
-  on the shared subscription path (no Meta key needed; attempts count
-  against `--max-requests` at no USD reservation; a missing grant names the
-  ChatGPT sign-in, and a Copilot plan model names Copilot, never a Meta
-  key); with no unlocked credential store the agent starts and the host
-  opens, steps that need a stored key refuse in the one store sentence, and
-  nothing is written in plain text; `providers accounts` advice follows the
-  runner's providers file (a configured provider without account metadata
-  says its accounts are not available in this terminal yet); `prompts use`
-  takes scripted `--var name=value` and `--confirm` and its review asks to
-  print, not insert; `scan-secrets --help`, `exec --help`, `report --help`,
-  `share --help` and `prompts --help` each print their own one screen. A
-  keyless session opens with no account identity; identity and spend
-  resolve at the first step that needs a provider, and a step that needs
-  a stored key refuses in the one store sentence; grant-backed dispatch
-  still needs the owner's real-life run.
-- Review (RVCLIFLOWS2): `share --help` and `prompts --help` name exit 7 for
-  a cancelled or refused share, from the sharing handler's own codes; a key
-  step whose credential store has recovered returns the key it re-read.
-- Terminal commands (CLIFLOWS2): `share --help` and `prompts --help` list
-  every parsed option with its accepted values and defaults from the
-  sharing parser's own tables, and the CLI reference grows 23 rows without
-  dating the message range; `developer --help` prints its usage instead of
-  a stack trace, and any other misuse reports the usage with exit 2;
-  headless runs say their messages are in English instead of naming a
-  panel; a key step re-reads the credential store before reporting it
-  down, so an unlock mid-session is found.
-- RVCLIFLOWS: retain headless request and USD limits for every Model API/BYO
-  run; a user-configurable provider id is not evidence of subscription billing.
-- RVCLIFLOWS: terminal prompt save/list/use retain readable results without
-  `--json`; cancellation explains itself on stderr instead of silently exiting.
-- RVCLIFLOWS: an exact slash-command selector is announced once even if
-  repeated entries have different descriptions or argument hints.
-- RVCLIFLOWS: an unavailable credential store says stored keys cannot be
-  checked, rather than falsely claiming no key is stored (all display languages).
-- RVCLIFLOWS: `scan-secrets` no longer emits a panel-language diagnostic on
-  stderr; successful scans print only their count.
-- Lane PROVKEYS: a working Google Gemini key was refused for how it
-  looked (it did not begin with the frozen `AIza…` prefix), so the route
-  could not be set up at all. No provider key is refused for its looks
-  any more, on any surface: any non-blank key is sent to the provider's
-  own free key test, and a refusal shows the provider's reason. Values
-  that look like the wrong thing (a web address, a file path,
-  placeholder text, a key with a space in it) ask a "use it anyway?"
-  question instead of dead-ending. A key piped in that is not text is
-  now told so, instead of "No key was entered, so nothing was stored."
-  `exec --provider … --key-stdin` names a wrong-looking piped key on
-  stderr before the run starts, as the terminal surfaces do. The
-  wrong-key questions on `providers add`, `auth set --provider` and the
-  exec run are shown in the installed language.
-
-- The HTTP usage bridge settles every failed request with a read-failed
-  reply, including non-Error rejections, so later refreshes and exports are
-  not blocked behind a rejected queue.
-
-- A revoked paid-search request no longer says that an unsaved Always
-  choice applied this time. Order and grant-save failures notify only
-  after the request's currentness check.
-
-- A window reports recurring file damage again after another window has
-  observed a repair; a stale in-memory cache no longer hides the warning.
-
-- The catch baseline now identifies individual handlers and their work,
-  so repairing one failure cannot conceal a new one in the same area.
-
-- The catch audit now checks every handler branch before calling a failure
-  handled. A bare `Error` fallback, a conditional report and a partial
-  rethrow no longer pass as a named-condition handler.
-
-- Startup stays lean: the sign-in gate (AuthService and the three-valued
-  credential read) and the paid gate, consent, usage and quote authority now
-  load from `dist/auth.js` and `dist/paid.js` the first time a credential,
-  money, consent or paid path needs them, instead of at activation. Every
-  sentence, notice and scan result is unchanged.
-- A failure is never turned into a different fact. When saved credentials
-  cannot be read, sign-out keeps its safety hold, no sign-in lifts it, and
-  the person is told what could not be read and what to do (once per kind
-  of failure, and again if it comes back after the store reads again). A damaged
-  history choice, quote folder or schedule consent is announced once per
-  damage (again if it changes or comes back after a repair), with what is
-  damaged, what the product does, and the next step. A refused upload shows
-  the refusal reason, a stop clears, and a refused recording permission
-  names itself. A panel failure with no known cause says only that it did
-  not work.
-
-- Money, consent and credential failures say what happened, once, where the
-  person sees it. An "always" a store cannot keep still allows the current
-  use once, and the person is told at once (an editor warning, a session
-  message, the terminal console) instead of only the log. An unreadable
-  quote folder still asks again, but the question says the saved choices
-  could not be read and names the kind. One unreadable provider entry no
-  longer hides a working provider later in the list; each is recorded with
-  its kind. A stopped OAuth flow stays a stop only for the caller's own
-  stop; any other failure racing it denies. A corrupt history choice is
-  announced once per damaged file across windows and restarts. A schedule
-  consent file that cannot be read says what kind of problem stopped it
-  instead of reading as corrupt, and a failure with no known kind keeps
-  its kind. A failed panel
-  message reaches its draft with the fixed sentence and the queue keeps
-  going; a foreign sampler failure is recorded and dropped. Vault decoding
-  wipes copied fields on every exit, including an unexpected mid-decode
-  failure. A credential snapshot the store cannot produce says the store
-  failed instead of asking for a key that would not help, and a broken
-  account host or secret store reads as "could not say" instead of "no
-  account" or assumed presence.
-- Provider refusals read as the provider's refusal (lane PROVERR): when a
-  configured provider answers with an error — out of credit, a rejected key,
-  rate-limited, overloaded, an invalid request and the rest — the turn ends
-  with a sentence naming the provider, saying what to do, and quoting the
-  provider's own words, in every host and language. "Models & Agents is not
-  available in this build" is now said only when a part of the build is
-  really missing. A refusal answered before any processing (HTTP 400, 401,
-  402, 403, 404, 413, 422, 429) releases its cost reservation in full, so
-  settled and uncertain stay 0; anything else keeps its uncertain liability.
-  Refusals that asking again cannot fix are never retried. Record:
-  `docs/certification/provider-refusals.md`.
-
-- Provider refusals read by shape and retried by code (lanes PROVERR round
-  2 and PROVERRR2): a wrong key reads as a rejected key and an unknown
-  model as no such model at every recorded provider, whatever the envelope
-  shape; a quota or spend-cap refusal is never retried while a bare rate
-  limit still is; an Anthropic reply cut at its output limit continues
-  instead of ending the turn; an Azure content-filter block has its own
-  sentence. Masked-key remnants and account ids in a provider's words no
-  longer reach the log file or report bundles. Records:
-  `docs/certification/proverr-round2.md`,
-  `docs/certification/proverrr2.md`.
-
-- What stopped a provider request is said as it happened (lane PROVERRORS).
-  A session-budget stop on a configured provider now ends the turn with its
-  own sentence ("Stopped: the next request … would pass the session budget
-  … It was not sent.") and is not retried; it had read "Models & Agents is
-  not available in this build". `providers add` and `providers test` name a
-  failed connection's network codes and say whether the request arrived is
-  unknown, instead of "The provider could not be reached". A refusal shows
-  the provider's request id, and a rejected key, missing permission or
-  unknown model says nothing reached a model, no longer that nothing was
-  sent. Record: `docs/certification/provider-refusals.md`.
-- All fourteen translated settings tables now say Muse Code asks before a
-  command unless a permission rule allows it, matching the English modes.
-
-- Closing an ACP session no longer discards its selected permission mode;
-  loading it again on the same connection keeps that mode.
-
-- ACP waits for the selected-mode notice to leave its ordered update queue
-  before acknowledging `session/set_mode`.
-
-- ACP remembers a permission answer before dispatching it, so a stage update
-  arriving before the decision acknowledgement cannot open the same prompt again.
-
-- ACP permission answers retain the selected persistent rule's identity;
-  consent for one command prefix cannot silently install another stage's rule.
-- Tool results are bounded before they reach the model (Model API): one
-  choke point cuts any result past 16,000 estimated tokens, any line past
-  8,000 characters, or any result past a quarter of the remaining window.
-  A cut keeps the full text in `.muse-spark/tool-results/` for paging and
-  tells the model and the person what was cut and how to read more. A
-  provider "prompt is too long" refusal trims the largest results, compacts
-  once when available, then ends the turn with what to do next, in at most
-  three sends. The cap is `museSpark.modelApiMaxToolOutputBytes` (64,000
-  bytes by default); `exec --max-tool-output-bytes` raises it for one
-  headless run. One oversized result can no longer fill the model's window
-  and end the conversation.
-
-- Tool-result bound, round 2: the window share is now measured in bytes, so
-  dense text (pasted hex, minified JSON, CJK) cannot slip several times its
-  token cap past a character count; the type system holds the rule instead of
-  a source-scanning test (a bare string no longer compiles into a request).
-  Cut notices count exactly what was kept and omitted. Spill files are plain
-  workspace files, removed when their session is deleted and pruned past 30
-  days. A refusal the lane has not recorded for its format no longer triggers
-  a resend: the turn ends with the short sentence instead. A too-small
-  `--max-tool-output-bytes` is refused with its translated reason.
-
-- Lane REASONSHAPES (provider reasoning gaps, all shapes UNVERIFIED until
-  the 26-request capture plan answers): DeepSeek `ultra` now rides as
-  `reasoning_effort: "max"` per its thinking-mode table instead of
-  refusing, and beta-base entries send strict tool schemas. Groq sends `reasoning_format: "parsed"` where the model
-  reasons. Together sends the hybrid toggle `reasoning: {enabled: false}`
-  for Thinking off. Z.ai sends the `thinking` switch (off only where the
-  model affirms it), preserved thinking where a turn replays reasoning,
-  and main-turn JSON mode where affirmed. llama.cpp sends
-  `reasoning_effort` as named (`none` disables). Mistral reads chunk-list
-  thinking and replays it as a thinking chunk. Ollama sends `think: "max"`.
-  OpenRouter drops tools for models that refuse them. The effort slider
-  offers each Muse Code model's own tiers (including Ultra where served)
-  and falls back to its default. Copilot drops past search calls instead
-  of failing the turn.
-
-- Lane REASONSHAPESR2 (Anthropic/OpenAI/xAI reasoning gaps, all shapes
-  UNVERIFIED until the 27-request capture plan answers): Thinking off
-  and each effort name now follow the model's own record — a value the
-  model does not take is refused before dispatch instead of sent, and an
-  unlisted level falls back to the provider default instead of a
-  neighbour. Thinking blocks replay between tool turns; Thinking off
-  sends each model's affirmed switch (`disabled`, Sonnet 5.5's
-  `between_tools`); manual-only models think with a tier-sized budget
-  and Opus 4.5 sends the interleaved-thinking header. Models with no
-  effort evidence (xAI's `grok-build-0.1` and the 4.20 pair) send no
-  reasoning field at all, so their turns go through. The composer
-  offers each configured model's own levels and default, and OpenAI
-  turns carry pro mode and reasoning context at the wire (no switch for
-  them yet). `exec --effort` accepts `none`.
-- After Muse Code restarted, a conversation could continue on a different
-  model than the one shown (and at that model's price). It now keeps the
-  model you chose: the choice is applied and read back from Muse Code before
-  the next message is sent, the panel shows the model each request really
-  used, and a message that would run on another model is not sent.
-  A restart that finishes verification after you clear or replace the
-  conversation no longer reattaches the conversation you left. Failed model
-  verification releases its resumed handle, including command timeouts.
-  Opening Model API history on its already-selected model no longer runs
-  model-switch hooks or resets switch-related session state. ACP remembers
-  backend-reported model and effort changes too, including changes received
-  before a configuration command finishes.
-- Imported provider files reject blank force reasons, terminal controls and
-  line separators, matching the CLI's one-line reason requirement.
-
-- The feature catalogue links provider model editing and per-command help to
-  their CLI routes, with model add/remove/force details in the generated reference.
-
-- Forced-model annotations use the installed language in provider model lists.
-
-- The reference gate checks command topics only in the README's terminal-help
-  paragraph, so unrelated mentions cannot hide missing documentation.
-
-- Per-command help always shows declared value shapes, including provider
-  preset, id, address and privacy arguments.
-
-- Exit-2 CLI refusals load the display language before formatting the parser
-  error, without starting a backend or credential service.
-
-- CLI enum refusals list the accepted values from command help without
-  echoing the rejected value.
-
-- CLI review: custom provider model lists are explicitly read-only in the
-  terminal; edits require the Models panel's per-model context/output limits.
-
-- Activation budget: the Create AGENTS.md command, its rules template and
-  their redaction load on the command's first run instead of at activation,
-  leaving 830 bytes of room below the 3,072-byte growth allowance. No
-  behaviour change; a missing bundle refuses the run and the next run tries
-  again.
-
-- The chat no longer takes the keyboard from a file you just opened: a chat
-  panel that finishes loading never pulls the focus in, a focus request for
-  a panel that is no longer active is dropped instead of landing on a much
-  later click, and a question that arrives while you are elsewhere waits
-  with its badge instead of taking the keyboard. Acting on the chat
-  yourself — clicking into the panel, Focus Input, sending — focuses the
-  input as before, and Focus Input while the composer is focused hands
-  the keyboard back to the file you were in (it used to focus the editor
-  group, which keeps a chat tab active).
-
-- Linux shell sandbox that cannot start (F91): while sandboxed on Linux,
-  each host start probes whether Muse Code's bubblewrap sandbox can create
-  a user namespace here, and says so once in words on every surface (panel
-  notice, editor-protocol session update, terminal log) naming the two ways
-  out, without ever switching the sandbox off on its own. The model hears it
-  once too. Diagnostics reports the posture and the check.
-
-- Activation budget, after merging main into the F91 change: the
-  Diagnostics command's report text loads with the report dialog's bundle
-  (dist/report.js) on the command's first run instead of at activation.
-  Activation growth over the pre-K baseline goes from 4,529 bytes (over the
-  3,072-byte allowance) to 760 bytes on that merge, and measures 1,018
-  bytes after merging main 81dacaf5a in the RVPR185RED review. No
-  behaviour change.
-
-- Invariants lane: `test/unit/invariants.test.ts` re-guards the SoL-Pi
-  request-shape and savings invariants through real modules with real inputs
-  (per-scenario tool/instruction/cache-key reproduction with byte-exact
-  plain and strict golden turns, the recorded packing output, listed-tariff
-  paid quotes with per-claim tallies and a re-ask when the price rises,
-  `then_run` parsing with real-file guard ordering, overflow compaction
-  bypass, and a digest of the complete eval task definitions). The host's
-  scalar request assembly stays with the lead's loopback run pending
-  recorded exchanges.
-- Fixed: the app's own statuses (such as automatic compaction awaiting
-  evaluation) no longer speak as the model's reply on the editor
-  protocol — they arrive as their own session notice where the editor
-  can show one, as a separate panel notice as before, and on terminal
-  stderr in headless runs (F82).
-- Fixed: a configured model without confirmed tool calling is listed
-  with its limit stated instead of vanishing silently, is flagged when
-  added, and is refused for agent turns with the same sentence (F83).
-- Fixed: terminal `providers add` without `--model` lists the key's
-  models and says to pass `--model <id>` (repeatable) instead of the
-  panel's tick wording (F85).
-- Provider-truth review: resource-governor and account statuses use
-  the same session notice on the editor protocol; a refused model
-  switch keeps the session on its model and carries the refusal
-  sentence in the protocol error; `providers list` states the
-  tool-calling limit; a key test that read no model list still gets
-  the terminal's own wording (F82, F83, F85).
-
-- Test-overhaul review: paid-popup lazy-load checks now build the real
-  runtime instead of writing a replacement formatter, retaining locale
-  propagation and sub-cent search-price disclosure checks.
-
-- Test-overhaul review: account-command tests now use the real parser and
-  metadata files, not a hand-built provider metadata store or key store.
-  Credential-operation composition remains for the real-life run.
-
-- Test-overhaul review: retain real on-disk session save/load, damaged
-  history, retention-boundary and path-confinement checks without fake
-  upload ledgers, question stores or filesystem replacements.
-
-- Test-overhaul review: retain real question-dock draft, focus and session
-  boundary regressions without the deleted suite's fake-timer case.
-
-- Test-overhaul review: retain stored-zone scheduling regressions through
-  the real calendar engine and Intl, without the deleted suite's fake
-  clock or spy replacements. Covers daylight-saving gaps/folds, skipped
-  dates, sparse cron and preview/admission end bounds.
-
-- Test overhaul (not a user feature): the unit suite moves to real code
-  only — about 800 fake-driven test files deleted (the stand-ins still left
-  are named under Release infrastructure above), the screenshot
-  comparison system removed (a UI change gets one small local look,
-  `npm run ui:look -- <scene>`), the coverage gate dropped, and the
-  accessibility check moved off the pull-request path. The packed
-  product's real-life run is the product's test.
-  (docs/testing/test-overhaul-2026-10-12.md).
-
-- Test overhaul follow-up (not a user feature): the dead-code gate
-  declares the built-but-unwired in-progress source instead of deleting
-  it — one titled block in `knip.jsonc` grouping 110 files by feature
-  (vault, team workers, schedules, resources, accounts, media,
-  estimator, theme, reporting, devices, hooks, judge) with their PLAN.md
-  milestones; no file is deleted. The unused-export residue those
-  features' API surface leaves in wired files is measured in
-  docs/testing/test-overhaul-2026-10-12.md for the per-feature owners.
-
-- Panel plain words (lane PANELTEXT, findings F59–F71): the Getting Started
-  rows are grid columns that can never overlap, at any sidebar width; the
-  empty composer invites a message and names only this machine's focus key
-  ("Ask Muse… (Ctrl+Esc to focus)" on Linux, Cmd+Esc on macOS,
-  Ctrl+Alt+Esc on Windows); the Share Chat destination group is headed
-  "Share as"; Muse Code skill rows show the skill's title ("Run the {name}
-  skill."), never SKILL.md's model-facing instructions; a palette tip that
-  repeats its row's detail reads once; the Backend row says which engine
-  runs the conversation instead of the raw setting id; the model picker
-  marks contributor-suffixed models; the pill says "Checking sign-in…"
-  while the sign-in facts are read, and a signed-in credential file shows
-  at once, before the rest of the sign-in facts are read; a skills "Not now" is
-  remembered even when the click reaches a window that never showed the
-  notice.
-
-- Activation budget, after merging main into the panel wording: the Install
-  and Remove Bundled Skills commands load with the installer they run
-  (dist/bundledSkills.js) instead of at activation. Activation growth over
-  the pre-K baseline goes from 3,717 bytes (over the 3,072-byte allowance)
-  to 2,290 bytes. No behaviour change: the same steps, said in the window's
-  language; a missing bundle refuses the run and the next run tries again.
-
-- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
-  reads and writes, and 1-hour cache writes settle at their own price.
-  The shared retry classifier refuses known quota codes; a provider's
-  `Retry-After` is honoured as given, never refused for its length. Provider-specific retry-table binding remains pending for non-Meta transports;
-  this does not certify endpoint quota refusal.
-  One-shot OAuth callbacks retain every parameter and destroy keep-alive
-  connections on settlement. Custom servers accept validated compatibility
-  overrides. Session saves coalesce into one in-flight write plus the latest;
-  parallel save failures are observed immediately while other sessions drain.
-  History listing validates headers without replay/transcript validation.
-
-- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
-  requests. Blank text is dropped, empty tool results ride as
-  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
-  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
-  and images for a model without image input ride as an
-  image-omitted placeholder. Tool-call ids are mapped per target format
-  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
-  provider aliases) with unique
-  per-response Gemini fallback ids. Responses replays send the call `id`
-  only for the same model with an `fc_` prefix. Gemini replays thought
-  signatures on text parts (empty ones included), counts omitted usage as
-  zero, sends vision-gated tool-result images inside `functionResponse.parts`
-  and full tool schemas through `parametersJsonSchema` on Gemini 3.
-  Gemini rejects proxy-null usage and explicitly rejects negative usage
-  counters instead of retaining an earlier tally. Signed blank parts replay;
-  late response ids salt fallback call ids; `$ref` siblings stay constrained
-  through `allOf`. The Anthropic decoder tolerates
-  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
-  requests `display: summarized` so newer models stream thinking text.
-  Lone surrogates are removed from every BYO encoder; parsed JSON retains
-  own `__proto__` keys as data, including Anthropic tool arguments.
-  It landed with fake tests only. The Gemini parts (thought signatures,
-  tool-result images, `parametersJsonSchema`, the usage checks) now have no
-  test behind them, since `test/unit/geminiCodec.test.ts` was deleted; the
-  other rules still run through the real encoders in the remaining codec
-  suites. No live or paid model call has proved any of it.
-
-- Provider-specific retry-table binding remains pending for non-Meta transports;
-  the shared retry classifier does not certify endpoint quota refusal.
-
-- DEVID017B (developer machine id, review round 2): the machine id is a
-  random value created once in the machine-scoped data folder instead of a
-  hostname digest, so renames and `host` vs `host.local` keep the unlock and
-  profiles. Legacy raw-hostname and digest grants migrate on open and the
-  raw hostname leaves stored state at once; a different machine identity is
-  refused with an honest message and `developer reset` recovers.
-
-- DEVID017C (developer machine id, review round 3): the id is published by
-  staging the full value to a private temp file, fsyncing it and claiming
-  the final name with `link`, so a racing reader sees no file or the
-  complete id, never a prefix; only the exact 64-lowercase-hex format
-  loads, anything else refuses honestly. Foreign reset asks first with
-  nothing mutated before the answer, never re-binds the grant, and clears
-  without stopping through this machine's resource port; profile folders
-  stay on disk. Cancel leaves everything unchanged.
-
-- DEVID017D (developer machine id, review round 4): a published id loads
-  before any staging, so storage that refuses new files still returns the
-  existing identity, and failed staging removes its temp file. A failed
-  foreign reset never clears without recording it: the reset audit row
-  comes first, and when it cannot be written the stored state is left
-  unchanged. Foreign reset asks its own confirmation, which says exactly
-  what happens: this machine's developer state is cleared, nothing is
-  stopped, and profile folders and credentials stay as they are.
-
-- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
-  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
-  so only that clear is withheld when its audit append fails. Every other
-  revocation, own-machine Reset included, is still published after an audit
-  failure, and the caller still gets the persistence error.
-
-- M123 (Git and pull requests in every editor, PLAN.md D104): the
-  checkout of someone else's pull request outside VS Code's Git (the
-  runtime's held checkout) is built and not connected: its own git
-  launches are not yet under the resource governor, so nothing in this
-  build can start them, and the process inventory fails the day something
-  could. JetBrains IDEs, Visual Studio, Eclipse and the editor-protocol
-  editors get the Git panel with their M104 bridges, which are not in this
-  build.
-- M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
-  and P are merged and switched off until the milestone is complete, so
-  nothing changes for users yet. No GitHub setting is offered, and an
-  editor built on VS Code without its Git extension (Arduino IDE 2, some
-  forks) keeps its earlier behaviour. Merged: the GitHub token-source
-  contracts (`src/core/git/tokenSource.ts`, lane 0), whose tests ran on
-  fakes of GitHub, the device flow, `gh` and Git remotes and were deleted,
-  so nothing tests those contracts now; the runtime's native Git service (status, the commit form,
-  commit, a push confirmed with every URL Git will use and the same
-  refusals as VS Code, never a force-push, commit-message drafts),
-  revalidated after every wait and serialized per repository across
-  windows by one fenced lease (LOCKLIB) that renews every third of its
-  30-second lease, is checked synchronously at each Git dispatch and is
-  never re-created once lost (lane G, with M123G4 and M123G4C); pull
-  requests in the runtime (draft, open and link, status and checks, a
-  fork onto its parent) and checkouts of other people's pull requests
-  held under the runtime data folder, whose records take that lease with
-  fenced compare-and-swap generations, so at most one window gets a
-  checkout and no folder is left without its record (lane P, with
-  M123P9's logged sweep failures and translated uncertain writes). Still
-  to land: the GitHub sign-in (lane A, accepted on its branch), the
-  editors' leases (lane L), the panel and its strings (lane U) and each
-  editor's qualification (lane Q). The pull-request checkout's own git
-  launches are not yet under the resource governor; nothing in this release
-  can start them, and the process inventory fails the day something could.
-
-### Added
-
-- The terminal agent documents itself per command for `serve`, `login`, `auth`,
-  `providers`, `exec`, `scan-secrets`, `report`, `legal`, `fonts`, `playbook`,
-  `setup`, `usage` and `resources`. `<command> --help` and
-  `muse-spark-code-acp help <command>` print that command's own usage, its
-  options with defaults and bounds, and two examples that run; the full
-  Help & Reference stays behind `help --all`. A wrong option or value exits
-  2, names the option and the accepted values, and suggests the nearest
-  valid option when the name is close. `providers models <entry>`
-  lists an entry's models (and which of the provider's models the entry
-  does not offer) and changes the list with `--add`/`--remove`; a model the
-  provider does not list needs `--force '<reason>'`, and the reason is kept
-  on the entry. All of this reads in the installed language.
-- Muse Code permissions: on the Muse Code backend one command is asked
-  about once — the first answer is reused for later stages instead of
-  asking again, and an answer given while a newer stage arrives is applied
-  to that stage instead of dropped. A permission mode set in the editor is
-  reported back and kept when the session is loaded again. The Manual and
-  Edit Automatically descriptions now say commands are asked about unless
-  a permission rule allows them.
-- Usage and cost say what really happened (lane USAGETRUE): on the Muse
-  Code backend, `usage summary` now shows the cached input, reasoning
-  tokens and cache hit rate from each request's own reported counters
-  instead of Unknown. Total request time and latency percentiles come
-  from each request's own duration. Plan spend carries the equivalent
-  API price at the used tier's published rates (a `-contributor` model
-  prices at contributor rates) and is named by the subscription meter's
-  own plan name instead of a bare "Plan". The models breakdown shows the
-  model and tier each request was really sent as. The daily view no
-  longer prints the same day twice: hourly rows of one day name the hour.
-  The panel, the terminal agent and the editor protocol share the same
-  journal, aggregates and text, so all editors show the same numbers.
-
-- Usage-truth review fixes (lane USAGEFIX): a completion report the CLI
-  delivers twice is journaled once, so tokens, time and the equivalent
-  price are never doubled. Each request's start is its own start, not
-  the turn's, so later requests in one turn no longer overlap the first
-  in the calls export. Hourly rows keep the timezone they were recorded
-  in, so a later timezone change cannot move an hour onto another day.
-  The journal format is version 3 for the stored plan name; older
-  releases count the new lines as a newer version instead of dropping
-  them, and this release still reads versions 1 and 2.
+- Real-use CI drives the packed product against the real provider by hand
+  (PR #232): `.github/workflows/real-use.yml` (`workflow_dispatch` only)
+  runs the release candidate's steps under a dollar cap and an
+  expected-calls guard and publishes a transcript artifact.
 
 ## [0.18.2] - 2026-10-12
 

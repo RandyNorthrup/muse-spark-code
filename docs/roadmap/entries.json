@@ -65,7 +65,8 @@
     {
       "id": "M9",
       "title": "Voice dictation",
-      "summary": "Dictate into the prompt box with a microphone button (tap or hold, or Ctrl+D) on Windows and macOS, using the operating system's own speech recogniser at no cost.",
+      "summary": "Dictate at no cost with tap, hold or Ctrl+D on Windows and macOS, with an offline Linux helper downloading on consent as same-tag release assets (never in the package).",
+
       "area": "voice-media",
       "release": "0.1.0"
     },
@@ -252,7 +253,8 @@
     {
       "id": "M35",
       "title": "Muse Voice dictation",
-      "summary": "Optional paid dictation with Meta's Muse Voice Transcribe, while your computer's free speech recogniser stays the default; the Model API backend currently refuses it, because its billed audio length has no verified limit.",
+      "summary": "Optional dictation billed to your Meta key on either backend and conversation model, with isolated three-minute recordings admitted before capture, drained on restart or shutdown, and settled from reported duration; free system dictation remains the default.",
+
       "area": "voice-media",
       "release": "0.9.0"
     },
@@ -558,7 +560,7 @@
     {
       "id": "M80",
       "title": "Headless runs and a GitHub Action",
-      "summary": "Headless runs use atomic reservations, show unresolved liability separately from spend, and stop after recorded overages while certification and GitHub Action support remain pending.",
+      "summary": "Headless runs reserve atomically, show unresolved liability apart from spend, and stop after recorded overages; other-CI support and the GitHub Action stay as qualified in the notes.",
       "area": "platform",
       "release": "0.12.0"
     },
@@ -678,7 +680,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Cloud or local models with address-bound keys, captured prices, saved selections, slash model ids and reasoning levels in ACP and headless runs; the panel stays visible while loading, and a low output cap is refused before sending.",
+      "summary": "Bring your own cloud or local models with provider-bound keys, captured prices, saved selections, browser connect, usage views, local context windows and reasoning-aware model ids.",
       "area": "models-providers",
       "release": "0.15.0"
     },
@@ -829,7 +831,7 @@
     {
       "id": "M113",
       "title": "Deterministic reports",
-      "summary": "Run /report for project, quality, milestone, release and change reports built from local facts in Markdown, HTML, JSON or text, with saved history and comparisons and nothing sent to a model, while additional report kinds are in progress.",
+      "summary": "Run /report for project, quality, milestone, release, change, session, usage, keybindings, accounts, security, estimate, playbook, schedules as Markdown, HTML, JSON or text, with snapshots, lease release on cancellation and no model call.",
       "area": "platform",
       "release": "0.17.0"
     },
@@ -856,8 +858,9 @@
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Capacity estimator is in progress.",
-      "area": "agents"
+      "summary": "Forecast goal completion with explicit prerequisite grammar and closure-scoped validation; check every plan row with --check-plan, preserve typed refusal diagnostics and replace stale forecasts across all surfaces, and honor the current Reports network policy.",
+      "area": "agents",
+      "release": "0.17.0"
     },
     {
       "id": "M118",
@@ -1339,6 +1342,12 @@
       "id": "VSIXDIET2",
       "public": false,
       "note": "package size budget"
+    },
+    {
+      "id": "M127",
+      "title": "Muse Code at its latest release",
+      "summary": "The Muse Code backend tracks the latest CLI and SDK: new session-protocol methods, notifications and error kinds, per-model output limits, and Muse Code's own session and hook settings read from Muse Code instead of fixed numbers.",
+      "area": "models-providers"
     },
     {
       "id": "TOOLROUNDS",

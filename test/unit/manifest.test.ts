@@ -86,10 +86,11 @@ describe('package.json manifest', () => {
   it('offers paid Tab by default while retaining its machine scope and daily cap', () => {
     const properties = manifest.contributes.configuration.properties
     expect(properties['museSpark.modelApiTab']).toMatchObject({ default: true, scope: 'machine' })
+    // NOLIMITS5: no default Tab budget. 0 is no budget; a set budget starts
+    // at $0.05 with no maximum, so there is no maximum to declare.
     expect(properties['museSpark.tabDailyBudgetUsd']).toMatchObject({
-      default: 1,
-      minimum: 0.05,
-      maximum: 50,
+      default: 0,
+      minimum: 0,
       scope: 'machine',
     })
   })
@@ -237,21 +238,23 @@ describe('package.json manifest', () => {
     const budget = properties['museSpark.modelApiSessionBudgetUsd']
     expect(budget?.scope).toBe('machine')
     expect(budget?.default).toBe(0)
-    // The description resolves through package.nls.json. It says what the
-    // cap does (a request that cannot fit is not sent) and what it cannot
-    // promise: billed usage can differ from the estimates, sent requests keep
-    // their reservation, and it makes no claim that the estimate's error is
-    // the only way past the cap (the review of PR #58's "overclaims").
+    // The description resolves through package.nls.json. D121 says what the
+    // limit does (a request whose estimate would pass what is left is not
+    // sent) and what it cannot promise: 0 means nothing is checked, nothing
+    // is held for a request in flight, a response without its usage counts
+    // as cost unknown never as its estimate, and billed usage can differ
+    // from the estimates (the review of PR #58's "overclaims").
     const here = path.dirname(fileURLToPath(import.meta.url))
     const nls = JSON.parse(
       readFileSync(path.join(here, '..', '..', 'package.nls.json'), 'utf8'),
     ) as Record<string, string>
     const description = nls[budget?.description?.replace(/^%(.+)%$/, '$1') ?? '']
-    expect(description).toContain('0 means no cap')
-    expect(description).toContain('a request that cannot fit what is left is not sent')
+    expect(description).toContain('0 (the default) means none, and then nothing is checked')
+    expect(description).toContain('a request whose estimate would pass what is left is not sent')
+    expect(description).toContain('nothing is held for a request in flight')
+    expect(description).toContain('counts as cost unknown, never as its estimate')
     expect(description).toContain('input estimates may differ from billed usage')
-    expect(description).toContain('Unknown sent requests keep their reservation')
-    expect(description).toContain('Web search is unavailable while capped')
+    expect(description).toContain('Web search is unavailable while a limit is set')
     expect(description).not.toMatch(/only through|only overrun|only way/i)
   })
 
@@ -451,9 +454,13 @@ describe('packaging (M26)', () => {
     )
     // The notices name every bundled runtime dependency (the build's check
     // keeps the whole list current; this pins the obvious ones).
+    // @napi-rs/keyring is a dependency but not a bundled one: the build
+    // keeps it external and only the ACP agent ships it, so the extension's
+    // notices never list it (scripts/build.mjs).
     const notices = read('THIRD_PARTY_NOTICES.txt')
     expect(notices.startsWith('THIRD-PARTY SOFTWARE NOTICES\n')).toBe(true)
-    for (const name of [...Object.keys(manifest.dependencies), 'react', 'zod', '@muse-code/sdk']) {
+    const bundled = Object.keys(manifest.dependencies).filter((name) => name !== '@napi-rs/keyring')
+    for (const name of [...bundled, 'react', 'zod', '@muse-code/sdk']) {
       expect(notices, name).toContain(`\n${name} (`)
     }
   })
@@ -534,16 +541,22 @@ describe('packaging (M26)', () => {
     expect(reuse).toContain('actions: read')
     expect(count(release, /^ {6}actions: read$/gm)).toBe(5)
     expect(reuse).toContain('FORCE_REBUILD: ${{ vars.RELEASE_FORCE_REBUILD }}')
-    expect(count(reuse, /run-id: \$\{\{ steps.lookup.outputs.run-id \}\}/g)).toBe(4)
-    expect(count(reuse, /github-token: \$\{\{ github.token \}\}/g)).toBe(4)
-    expect(count(reuse, /uses: actions\/download-artifact@[a-f\d]{40}/g)).toBe(4)
+    // D140: the reuse job also downloads the two Linux helper builds, so
+    // every per-download count moves from four to six.
+    expect(count(reuse, /run-id: \$\{\{ steps.lookup.outputs.run-id \}\}/g)).toBe(6)
+    expect(count(reuse, /github-token: \$\{\{ github.token \}\}/g)).toBe(6)
+    expect(count(reuse, /uses: actions\/download-artifact@[a-f\d]{40}/g)).toBe(6)
     for (const id of ['receipt', 'vsix', 'acp', 'sboms']) {
+      expect(reuse).toContain(`steps.${id}.outcome == 'success'`)
+    }
+    for (const id of ['helpers-x64', 'helpers-arm64']) {
       expect(reuse).toContain(`steps.${id}.outcome == 'success'`)
     }
     expect(reuse).toContain('node scripts/release-reuse.mjs verify reused')
     expect(reuse).toContain("echo 'reused=false'")
     expect(reuse).toContain('Full rebuild: a CI artifact download failed.')
-    expect(count(reuse, /if: steps.check.outputs.reused == 'true'/g)).toBe(3)
+    // D140 re-uploads the two helper builds on reuse: three becomes five.
+    expect(count(reuse, /if: steps.check.outputs.reused == 'true'/g)).toBe(5)
     expect(build).toContain('needs: [verify, reuse]')
     expect(build).toContain("github.event_name == 'push' && needs.reuse.outputs.reused != 'true'")
     expect(build).toContain('uses: ./.github/workflows/build.yml')
@@ -574,8 +587,10 @@ describe('packaging (M26)', () => {
     expect(reuse).toContain(
       "echo '::error::Recovery download failed; preserve the original bytes.' >&2\n              exit 1",
     )
-    expect(count(publishers, /run-id: \$\{\{ github.run_id \}\}/g)).toBe(6)
-    expect(count(publishers, /github-token: \$\{\{ github.token \}\}/g)).toBe(6)
+    // D140: the release job stages the two Linux helper builds, so both
+    // per-download counts move from six to eight.
+    expect(count(publishers, /run-id: \$\{\{ github.run_id \}\}/g)).toBe(8)
+    expect(count(publishers, /github-token: \$\{\{ github.token \}\}/g)).toBe(8)
     expect(publishers).not.toContain('inputs.artifacts_run_id')
   })
   it('blocks every release publisher and tag mover after cancellation (RELFAST2)', () => {
@@ -671,22 +686,30 @@ describe('tiered CI (CIFLOW)', () => {
     )
     expect(job('checks')).toContain('      - run: npx run-s ${{ matrix.part.gates }}\n')
     expect(job('unit')).toContain('npx vitest run\n')
-    // D122: the capacity repository's own run carries only the Windows and
-    // macOS unit shards; every other job stays out of its way.
-    for (const id of ['integration', 'native-build', 'linux-native-build', 'packages']) {
-      expect(job(id)).toContain("if: ${{ inputs.part != 'org' && !inputs.fast }}")
-    }
-    for (const id of ['checks', 'secrets', 'sast']) {
+    // CISHARDS2: slow legs move to the capacity run through each job's own
+    // matrix instead of a shared skip. Integration splits its OS matrix by
+    // part and runs every part's own legs; the macOS helper stays out of
+    // `home`; the Linux helper and the packages stay out of `org`.
+    expect(job('integration')).toContain('if: ${{ !inputs.fast }}')
+    expect(job('integration')).toContain(
+      `os: \${{ fromJSON(inputs.part == 'home' && '["ubuntu-latest"]' || inputs.part == 'org' && '["windows-latest"]' || '["ubuntu-latest","windows-latest"]') }}`,
+    )
+    expect(job('native-build')).toContain("if: ${{ inputs.part != 'home' && !inputs.fast }}")
+    expect(job('linux-native-build')).toContain("if: ${{ inputs.part != 'org' && !inputs.fast }}")
+    expect(job('packages')).toContain("if: ${{ always() && inputs.part != 'org' && !inputs.fast }}")
+    // The static gates have no job-level skip: the matrix picks the part's
+    // operating systems, so every part's legs run somewhere.
+    expect(job('checks')).not.toMatch(/^ {4}if: /m)
+    for (const id of ['secrets', 'sast']) {
       expect(job(id)).toContain("if: ${{ inputs.part != 'org' }}")
     }
     // Accessibility additionally leaves the pull-request path.
     expect(job('accessibility')).toContain(
       "if: ${{ inputs.part != 'org' && !inputs.fast && github.event_name != 'pull_request' }}",
     )
-    // D122: at home the Windows and macOS unit shards move to the capacity
-    // repository through the `org` job; there only they run.
-    expect(job('unit')).toContain("inputs.part == 'home' && '[\"ubuntu-latest\"]'")
-    expect(job('unit')).toContain('inputs.part == \'org\' && \'["windows-latest","macos-latest"]\'')
+    // D122: a `home` run keeps no unit shard here; the capacity run (`org`)
+    // runs all forty (eight Ubuntu plus sixteen each Windows and macOS).
+    expect(job('unit')).toContain("if: ${{ inputs.part != 'home' }}")
     expect(job('org')).toContain("if: ${{ inputs.part == 'home' }}")
     expect(job('org')).toContain('scnetsolutions/muse-spark-code-ci')
     expect(job('org')).toContain('test "$conclusion" = success')
@@ -698,7 +721,7 @@ describe('tiered CI (CIFLOW)', () => {
     expect(manifest.scripts.quality.split(' ')).toEqual(
       expect.arrayContaining(['run-s', 'quality:gates', 'test:a11y', 'test:legal-a11y']),
     )
-    expect(job('integration')).toContain('os: [ubuntu-latest, windows-latest]')
+    expect(job('integration')).toContain('run: xvfb-run -a npm run test:integration')
     expect(job('packages')).toContain('name: muse-spark-code-vsix')
     expect(job('packages')).toContain('name: muse-spark-code-acp')
     expect(job('packages')).toContain('name: muse-spark-code-sboms')
@@ -719,14 +742,16 @@ describe('tiered CI (CIFLOW)', () => {
     // the process-test deletions; the dist block above is the remaining pin.
   })
 
-  it('runs every shard per OS (eight on Windows and macOS, four on Ubuntu) with no coverage gate', () => {
+  it('runs every shard per OS (sixteen on Windows and macOS, eight on Ubuntu) with no coverage gate', () => {
+    // CISHARDS: Windows and macOS run files one at a time and split sixteen
+    // ways; Ubuntu runs files in parallel and takes eight.
     expect(job('unit')).toContain(
-      "shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}",
+      "shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]') }}",
     )
     expect(job('unit')).toContain(
-      `exclude: \${{ fromJSON((inputs.fast || inputs.part == 'org') && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}`,
+      `exclude: \${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":9},{"os":"ubuntu-latest","shard":10},{"os":"ubuntu-latest","shard":11},{"os":"ubuntu-latest","shard":12},{"os":"ubuntu-latest","shard":13},{"os":"ubuntu-latest","shard":14},{"os":"ubuntu-latest","shard":15},{"os":"ubuntu-latest","shard":16}]') }}`,
     )
-    expect(job('unit')).toContain("SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 8 }}")
+    expect(job('unit')).toContain("SHARDS: ${{ matrix.os == 'ubuntu-latest' && 8 || 16 }}")
     expect(job('unit')).toContain('--shard="$SHARD/$SHARDS" --reporter=default')
     expect(job('unit')).not.toContain('--coverage')
     expect(job('unit')).not.toContain('blob-reports')
@@ -856,11 +881,14 @@ describe('tiered CI (CIFLOW)', () => {
       // `org` is neither always- nor full-tier-required: only a home run
       // reads its result (the verdict cases below carry the part).
       expect(ids.toSorted(byText)).toEqual([...always, ...fullOnly, 'org'].toSorted(byText))
+      // CISHARDS2: the required job is a matrix over check names, so it
+      // also reads matrix.check to pick the verdict for its own name.
       expect(pairs.map(([expression]) => expression).toSorted(byText)).toEqual(
         [
           'github.event_name',
           'inputs.fast',
           'inputs.part',
+          'matrix.check',
           ...ids.map((id) => `needs.${id}.result`),
         ].toSorted(byText),
       )
@@ -950,15 +978,34 @@ describe('tiered CI (CIFLOW)', () => {
           false,
         ],
       ]
+      // CISHARDS2: the required job runs once per matrix check name, and
+      // the tier passes only when every name's run passes. Each case runs
+      // once per name with CHECK set, so a checks failure fails the names
+      // that read it instead of passing unseen.
+      const names = Array.from(required.matchAll(/^ {10}- (.+)$/gm), ([, name = '']) => name)
+      expect(names).toEqual([
+        'quality (ubuntu-latest)',
+        'quality (windows-latest)',
+        'quality (macos-latest)',
+        'dictation helper (macos)',
+        'package (.vsix)',
+      ])
+      const check = env.get('matrix.check')
+      if (check === undefined) throw new Error('required job lost its CHECK env')
       // One shell for every case (Windows starts each process slowly); each
       // case runs in its own subshell as a plain statement, so -e applies.
       const wrapper = cases
-        .map(([, values]) => {
-          const exports = Object.entries(values)
-            .map(([name, value]) => `${name}=${value}`)
-            .join(' ')
-          return `( export ${exports}; set -eo pipefail; eval "$STEP" ) >/dev/null 2>&1; echo "$?"`
-        })
+        .map(([, values]) =>
+          names
+            .map((checkName) => {
+              const exports = [
+                ...Object.entries(values).map(([varName, value]) => `${varName}=${value}`),
+                `${check}='${checkName}'`,
+              ].join(' ')
+              return `( export ${exports}; set -eo pipefail; eval "$STEP" ) >/dev/null 2>&1; echo "$?"`
+            })
+            .join('\n'),
+        )
         .join('\n')
       const run = spawnSync(bash ?? '', ['--noprofile', '--norc', '-c', wrapper], {
         env: { STEP: body.join('\n') },
@@ -967,9 +1014,17 @@ describe('tiered CI (CIFLOW)', () => {
       })
       expect(run.status).toBe(0)
       const codes = run.stdout.trim().split(/\r?\n/)
-      expect(cases.map(([label], index) => verdict(label, codes[index] === '0'))).toEqual(
-        cases.map(([label, , isPassing]) => verdict(label, isPassing)),
-      )
+      expect(codes).toHaveLength(cases.length * names.length)
+      expect(
+        cases.map(([label], index) =>
+          verdict(
+            label,
+            codes
+              .slice(index * names.length, (index + 1) * names.length)
+              .every((code) => code === '0'),
+          ),
+        ),
+      ).toEqual(cases.map(([label, , isPassing]) => verdict(label, isPassing)))
     },
   )
 })

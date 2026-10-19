@@ -15,7 +15,7 @@ import {
 describe('teamCeilings', () => {
   it('computes the Contributor ceiling from the documented limits: about 9 workers', () => {
     const { rpm, tpm } = metaTeamLimits('contributor')
-    expect({ rpm, tpm }).toEqual({ rpm: 100, tpm: 3_000_000 })
+    expect({ rpm, tpm }).toEqual({ rpm: 150, tpm: 3_000_000 })
     expect(
       computeTeamCeiling({
         kind: 'engine',
@@ -105,16 +105,22 @@ describe('teamCeilings', () => {
   })
 
   it('ceilings are per agent kind: Muse Code sessions and external agents', () => {
-    expect(
-      computeTeamCeiling({
-        kind: 'museCode',
-        providerRpm: undefined,
-        providerTpm: undefined,
-        workerRpm: undefined,
-        workerTpm: undefined,
-        machineLimit: 20,
-      }),
-    ).toBe(4)
+    // Muse Code's documented loaded-session bound, read from the served
+    // version (M-CL 1.4.5): 32 through 1.4.4, 256 from 1.4.5.
+    const museCodeSource = {
+      kind: 'museCode' as const,
+      providerRpm: undefined,
+      providerTpm: undefined,
+      workerRpm: undefined,
+      workerTpm: undefined,
+      machineLimit: 300,
+    }
+    expect(computeTeamCeiling({ ...museCodeSource, museCodeVersion: '1.4.4-R5419.1' })).toBe(32)
+    expect(computeTeamCeiling({ ...museCodeSource, museCodeVersion: '1.4.5' })).toBe(256)
+    expect(computeTeamCeiling({ ...museCodeSource, museCodeVersion: '1.4.9-R6297.1' })).toBe(256)
+    expect(computeTeamCeiling(museCodeSource)).toBe(32)
+    // The machine still binds below the kind's ceiling.
+    expect(computeTeamCeiling({ ...museCodeSource, machineLimit: 20 })).toBe(20)
     expect(
       computeTeamCeiling({
         kind: 'external',

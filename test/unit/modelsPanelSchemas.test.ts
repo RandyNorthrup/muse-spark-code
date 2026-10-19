@@ -256,3 +256,34 @@ it('pins subscription messages to their two supported providers and rejects cred
   ])
     expect(parsePanelToHostMessage(message).ok).toBe(false)
 })
+
+describe('local context boundary', () => {
+  it('accepts only positive safe whole-token manual windows and retains draft limits', () => {
+    for (const contextTokens of [4096, 0, -1, 1.5, Infinity, 9_007_199_254_740_992]) {
+      const parsed = parsePanelToHostMessage({
+        type: 'models/contextWindow',
+        scope: { scope: 'wizard' },
+        ref: 'lmstudio/qwen3-0.6b',
+        contextTokens,
+      })
+      expect(parsed.ok).toBe(contextTokens === 4096)
+    }
+    const state = makeState({
+      drafts: {
+        edits: {},
+        wizard: makeDraft({
+          auth: 'none',
+          modelLimits: { model: { contextTokens: 4096, outputTokens: 1024 } },
+        }),
+      },
+    })
+    expect(parseModelsPanelState(state).ok).toBe(true)
+    const bad = makeState({
+      drafts: {
+        edits: {},
+        wizard: makeDraft({ modelLimits: { model: { contextTokens: 4096, outputTokens: 8192 } } }),
+      },
+    })
+    expect(parseModelsPanelState(bad).ok).toBe(false)
+  })
+})

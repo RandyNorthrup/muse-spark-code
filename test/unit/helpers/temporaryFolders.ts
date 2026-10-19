@@ -5,7 +5,7 @@
 // orphans, PLAN.md M27, sat in `toolIo.test.ts`'s folder this way).
 
 import { readdirSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -51,6 +51,14 @@ export async function usingTempDir<T>(
   } finally {
     await removeFolder(folder)
   }
+}
+
+/**
+ * A fresh directory under the process temporary folder (resolved, so
+ * macOS's `/var` symlink never leaks into hashed paths).
+ */
+export async function temporaryDir(prefix: string): Promise<string> {
+  return await realpath(await mkdtemp(path.join(tmpdir(), prefix)))
 }
 
 /** Every file under a folder, as absolute paths: what a key scan reads. */

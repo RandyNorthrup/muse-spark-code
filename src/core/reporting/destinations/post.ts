@@ -30,9 +30,9 @@ export class ReportPostDelivery {
     private readonly redaction: ReportRedaction = {},
   ) {}
   private body(payload: ReportDeliveryPayload): string {
-    return reportScrubber(this.redaction)(
-      `${payload.markdown}\n\n${UI_TEXT.reportUi.automatedNote}\n`,
-    )
+    const reportUi = UI_TEXT.reportUi
+
+    return reportScrubber(this.redaction)(`${payload.markdown}\n\n${reportUi.automatedNote}\n`)
   }
   async confirm(target: PostTarget, payload: ReportDeliveryPayload): Promise<boolean> {
     const checked = reportPostTargetSchema.parse(target)

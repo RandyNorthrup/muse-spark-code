@@ -4,5 +4,6 @@ export const ESTIMATE_OPTIONS = {
   fleet: { type: 'string' },
   format: { type: 'string' },
   seed: { type: 'string' },
+  'check-plan': { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const
