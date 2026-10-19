@@ -476,8 +476,13 @@ on this lane, no budget, bound, timeout or cap raised.
   the executables brand machinery and the reporting tables reachable
   from it) linked into `dist/extension.js` before the first deferred
   import. The fix moves the implementation to `src/core/execGuard.ts`,
-  shipped as `dist/execGuard.js` and loaded on first guarded use
-  through the deferred-entry pattern the build already has
+  shipped as `dist/execGuard.js` and required when the extension
+  module is evaluated: the extension's static import builds to a
+  top-level require of the external file, even when no process
+  starts. The activation cap still holds because the body lives in
+  the external file, and a missing file fails extension load instead
+  of starting an unguarded process. The wiring uses the
+  deferred-entry pattern the build already has
   (`src/core/execGuardEntry.ts`, the `sharedExecGuard`
   externalization in `scripts/lib/deferredBundles.mjs`, the
   `EXEC_GUARD` deferred record, registry row, size/split/host-globals
