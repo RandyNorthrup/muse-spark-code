@@ -179,7 +179,7 @@ describe('Cursor Tab contracts from M91 saved examples', () => {
 })
 
 describe('real hook output, no model calls', () => {
-  it.each(['allow', 'deny', 'crash'] as const)(
+  it.each(['allow', 'deny', 'crash', 'garbage'] as const)(
     '%s output goes through the Tab guard',
     async (mode) => {
       const requests: TabHookRun[] = []

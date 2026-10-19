@@ -253,7 +253,10 @@ export class MuseVoiceStream {
     let frame: unknown
     try {
       frame = JSON.parse(text)
-    } catch {
+    } catch (error) {
+      // Only a malformed helper line fails the stream: the parser raises
+      // SyntaxError for exactly that, so anything else keeps its kind.
+      if (!(error instanceof SyntaxError)) throw error
       this.fail(UI_TEXT.museVoiceMalformed)
       return
     }
@@ -859,6 +862,7 @@ export class MuseVoiceDictation implements DictationHandle {
           try {
             consentFence?.(state.keyDigest, false)
           } catch {
+            // Fail closed: a consent fence that cannot confirm delivers no transcript.
             return
           }
           if (state.scope?.isStillAllowed(state.keyDigest) === false) {

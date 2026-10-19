@@ -1,5 +1,4 @@
 import { SpendLedgerError } from './core/paid/spendLedgerError'
-import { failureForLog } from './core/backends/musecode/logText'
 import {
   checkScheduleOwnCap,
   paidExtraAdmission,
@@ -145,7 +144,7 @@ import { isJudgeEngineOn } from './core/judge/engine'
 import { promptBundleLoader } from './host/prompts/promptBundle'
 import type { createPromptHost } from './host/prompts/promptEntry'
 import { judgeWindowPort } from './host/judge/judgeBundle'
-import { storeErrorCode } from './host/backend/storeErrors'
+import { isCodedError } from './core/workspaceRoot'
 
 import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
 import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
@@ -292,6 +291,7 @@ import {
   deferredRefresh,
 } from './host/tab/tabBundle'
 import { createCliFeatures } from './host/cliFeatures'
+import { hasIgnoreFile } from './host/tab/tabIgnoreFile'
 import {
   bundledSkillsLoader,
   createBundledSkillsOffer,
@@ -348,6 +348,7 @@ import {
   reportScrubContext,
 } from './host/support/reportFacts'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
+import { failureForLog } from './core/backends/musecode/logText'
 import {
   liveFetch,
   managedConfiguration,
@@ -463,7 +464,10 @@ async function isExistingPath(fsPath: string): Promise<boolean> {
   try {
     await vscode.workspace.fs.stat(vscode.Uri.file(fsPath))
     return true
-  } catch {
+  } catch (error) {
+    // Only the file system's own failure reads absent: anything else
+    // keeps its kind past the check.
+    if (!(error instanceof vscode.FileSystemError)) throw error
     return false
   }
 }
@@ -502,7 +506,10 @@ function signInMethodFor(
 function readTextFileSync(fsPath: string): string | undefined {
   try {
     return readFileSync(fsPath, 'utf8')
-  } catch {
+  } catch (error: unknown) {
+    // Only a missing file is absent: anything else (no permission, a
+    // folder) is raised, so a broken config never reads as unset.
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     return undefined
   }
 }
@@ -511,7 +518,10 @@ function readTextFileSync(fsPath: string): string | undefined {
 function modifiedAt(fsPath: string): number | undefined {
   try {
     return statSync(fsPath).mtimeMs
-  } catch {
+  } catch (error: unknown) {
+    // Only a missing file is timeless: anything else (no permission, a
+    // folder) is raised, so a broken credential file never reads as gone.
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     return undefined
   }
 }
@@ -627,8 +637,11 @@ function windowsJobHelper<T>(
 function pathSpellings(fsPath: string): readonly string[] {
   try {
     return [fsPath, realpathSync.native(fsPath)]
-  } catch {
-    // Not there yet (no pull request checked out anywhere): the given path is all there is.
+  } catch (error: unknown) {
+    // Not there yet (no pull request checked out anywhere): only a shaped
+    // file-system failure reads as the given path alone, so anything else
+    // keeps its kind past the spellings.
+    if (!isCodedError(error)) throw error
     return [fsPath]
   }
 }
@@ -692,7 +705,9 @@ function registerLoggedCommand(
     try {
       return await run(...args)
     } catch (error: unknown) {
-      log.error(`${id} failed: ${errorDetail(error)}`)
+      // The log names the failure, never its text; the person still hears
+      // the reason the command gives.
+      log.error(`${id} failed: ${failureForLog(error)}`)
       const reason = error instanceof Error ? error.message : String(error)
       void vscode.window.showErrorMessage(`${UI_TEXT.actionFailed}: ${reason}`)
       return
@@ -1315,8 +1330,10 @@ async function activateWindow(
       try {
         return readFileSync(museSettingsPath(museConfig()), 'utf8')
       } catch (error: unknown) {
-        if (storeErrorCode(error) === 'ENOENT') return
-        throw error
+        // Only a missing settings file reads absent: anything else is
+        // raised, so a broken settings file never reads as default.
+        if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
+        return
       }
     },
     startSession: async (options) => {
@@ -1534,13 +1551,10 @@ async function activateWindow(
         .map((folder) => folder.uri.fsPath)
         .filter((root) => isTabWorkspaceRoot(root, absolutePath))
         .toSorted((a, b) => b.length - a.length),
-    ignoreFileExists: (absolutePath) => {
-      try {
-        return statSync(absolutePath).isFile()
-      } catch {
-        return false
-      }
-    },
+    // Fail closed and total: a file that cannot be proven absent reads
+    // present, so a broken check denies (never widens) what Tab reads and
+    // never rejects the completion.
+    ignoreFileExists: hasIgnoreFile,
     runGit: (args, cwd) =>
       runGit(args, cwd, undefined, undefined, () => {
         if (!isProjectTrusted()) {
@@ -2508,7 +2522,10 @@ async function activateWindow(
       try {
         await ideServer.start()
       } catch (error: unknown) {
-        log.warn(`IDE tool server could not start; diagnostics stay unavailable: ${String(error)}`)
+        // The start failure is named, never its text; a later session retries.
+        log.warn(
+          `IDE tool server could not start; diagnostics stay unavailable: ${failureForLog(error)}`,
+        )
       } finally {
         ideServerStart = undefined
       }
@@ -4718,7 +4735,9 @@ async function activateWindow(
             },
           })
         })().catch((error: unknown) => {
-          logRejection(log, 'help reference')(error)
+          // A failed reference read answers empty, logging only the named
+          // failure, never its text.
+          log.error(`help reference failed: ${failureForLog(error)}`)
           surface.post({ type: 'referenceValues', model: '', values: {}, nls: {}, error: true })
         })
         return
@@ -4740,7 +4759,8 @@ async function activateWindow(
           try {
             await sharing().handle(surface, message)
           } catch (error: unknown) {
-            logRejection(log, 'sharing action')(error)
+            // A failed sharing action logs only the named failure, never its text.
+            log.error(`sharing action failed: ${failureForLog(error)}`)
           }
         })()
         return
@@ -4832,7 +4852,8 @@ async function activateWindow(
     try {
       await sharing().run('synchronise')
     } catch (error: unknown) {
-      logRejection(log, 'prompt sync')(error)
+      // A failed prompt sync logs only the named failure, never its text.
+      log.error(`prompt sync failed: ${failureForLog(error)}`)
     }
   }
   if (
@@ -5657,6 +5678,7 @@ async function activateWindow(
               await vscode.window.showTextDocument(target)
               return
             } catch {
+              // A document that will not show leaves no stale target behind.
               lastTextDocumentUri = undefined
             }
           }

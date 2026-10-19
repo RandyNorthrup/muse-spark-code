@@ -199,8 +199,9 @@ export class IndexLineStoppedError extends Error {
   public constructor(
     public readonly written: string,
     stopped: unknown,
+    options?: { cause?: unknown },
   ) {
-    super(`the ${MEMORY_INDEX_FILE} line was stopped`)
+    super(`the ${MEMORY_INDEX_FILE} line was stopped`, options)
     this.name = 'IndexLineStoppedError'
     this.stopped = stopped instanceof Error ? stopped : new Error(describe(stopped))
   }
@@ -414,10 +415,10 @@ export class MemoryStore {
         index.checked,
         assertCurrent,
       )
-    } catch (error: unknown) {
-      this.deps.warn(
-        `${place.display} was written, but its ${MEMORY_INDEX_FILE} line was not: ${describe(error)}`,
-      )
+    } catch {
+      // The note is written; only its index line failed. The warning stays
+      // fixed words (paths stay out of it); an owner stop still rethrows.
+      this.deps.warn(`${place.display} was written, but its ${MEMORY_INDEX_FILE} line was not`)
       rethrowOwner(assertCurrent)
     }
   }
@@ -637,7 +638,12 @@ export class MemoryStore {
       }
     } catch (error: unknown) {
       rethrowOwner(assertCurrent)
-      return failed(isTaken(error) ? MODEL_TEXT.memoryNoteExists : describe(error))
+      if (isTaken(error)) {
+        // A taken name refuses in fixed words.
+        return failed(MODEL_TEXT.memoryNoteExists)
+      }
+      // Any other write failure keeps its text in the refusal the tool answers with.
+      return failed(describe(error))
     }
     const result = written(place, OPERATION_ADD, MODEL_TEXT.memoryNoteWritten)
     if (existing === undefined) {
@@ -649,8 +655,9 @@ export class MemoryStore {
           writes,
         )
       } catch (error: unknown) {
-        // Only the owner's throw reaches here: the note is published already.
-        throw new IndexLineStoppedError(result, error)
+        // The note is published already: the owner tells its Stop from a
+        // refusal of the line alone through `stopped`, carrying the failure.
+        throw new IndexLineStoppedError(result, error, { cause: error })
       }
     }
     return { ok: true, value: result }
@@ -804,8 +811,10 @@ export class MemoryStore {
             hasMoreNotes: others.length > MEMORY_SNAPSHOT_MAX_NOTES,
           })
         }
-      } catch (error: unknown) {
-        this.deps.warn(`the ${scope} memory could not be read: ${describe(error)}`)
+      } catch {
+        // An unreadable scope reads absent from the snapshot in fixed
+        // words; the other scopes still load.
+        this.deps.warn(`the ${scope} memory could not be read`)
       }
     }
     return snapshots

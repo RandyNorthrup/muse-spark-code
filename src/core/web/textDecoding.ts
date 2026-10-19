@@ -45,8 +45,11 @@ const CHUNK = 0x80_00
 
 /** The page is in an encoding this runtime has no decoder for. */
 export class UndecodableText extends Error {
-  public constructor(public readonly encoding: string) {
-    super(`no decoder for ${encoding}`)
+  public constructor(
+    public readonly encoding: string,
+    options?: { cause?: unknown },
+  ) {
+    super(`no decoder for ${encoding}`, options)
     this.name = 'UndecodableText'
   }
 }
@@ -62,7 +65,10 @@ export function encodingOf(label: string): string | undefined {
   }
   try {
     return new TextDecoder(name).encoding
-  } catch {
+  } catch (error) {
+    // Only an unknown label reads absent: the constructor raises
+    // RangeError for exactly that, so anything else keeps its kind.
+    if (!(error instanceof RangeError)) throw error
     return undefined
   }
 }
@@ -101,8 +107,11 @@ export function decodeIn(bytes: Uint8Array, encoding: string): string {
   let decoder: TextDecoder
   try {
     decoder = new TextDecoder(encoding)
-  } catch {
-    throw new UndecodableText(encoding)
+  } catch (error) {
+    // Only a missing decoder reads undecodable: the constructor raises
+    // RangeError for exactly that, so anything else keeps its kind.
+    if (!(error instanceof RangeError)) throw error
+    throw new UndecodableText(encoding, { cause: error })
   }
   return decoder.decode(bytes)
 }

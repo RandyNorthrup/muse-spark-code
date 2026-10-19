@@ -102,6 +102,8 @@ import { isCredentialStoreDown } from '../host/auth/credentialStore'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
+import { MediaRefusal } from './media'
+import { UserRefusalError } from '../shared/refusal'
 import { parseSkillInvocation, slashCommandText } from '../shared/mentions'
 import type { PaidUseRequest } from '../shared/paid'
 import {
@@ -337,6 +339,14 @@ const EARLY_FINISHES_KEPT = 8
 
 function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
+}
+
+/**
+ * The bundle loader's refusal: the legal scanner that could not load (its
+ * cause stays in the log). Only this failure says the scan could not run.
+ */
+export function isLegalScanUnavailable(error: unknown): boolean {
+  return error instanceof Error && error.message === UI_TEXT.legalScanUnavailable
 }
 
 function accountRequestError(error: unknown): RequestError {
@@ -1006,10 +1016,13 @@ class AcpSession {
       attachment = isRecord ? await port.record(signal) : await port.attach(given ?? '', signal)
     } catch (error: unknown) {
       if (signal.aborted) throw error
-      throw RequestError.invalidParams(
-        undefined,
-        error instanceof Error ? error.message : UI_TEXT.attachmentUnreadable,
-      )
+      // Refusals name themselves in UI sentences (answered as written); a
+      // refusal the user chose names itself too. Anything else answers
+      // unreadable, never in its own words.
+      if (error instanceof MediaRefusal) throw RequestError.invalidParams(undefined, error.message)
+      if (error instanceof UserRefusalError)
+        throw RequestError.invalidParams(undefined, error.message)
+      throw RequestError.invalidParams(undefined, UI_TEXT.attachmentUnreadable)
     }
     if (attachment === undefined) return true
     if (signal.aborted || this.isDisposed) {
@@ -1356,10 +1369,30 @@ class AcpSession {
         requirementId: settled.requirementId,
       })
     } catch (error: unknown) {
-      const level = isPromptSettledError(error) ? 'info' : 'warn'
-      this.deps.log[level](
-        `ACP session ${this.sessionId}: approval ${settled.approvalId}: ${failureForLog(error)}`,
-      )
+      // A settled approval the session already forgot is routine; anything
+      // else warns. Both log the redacted failure, never its text.
+      const message = `ACP session ${this.sessionId}: approval ${settled.approvalId}: ${failureForLog(error)}`
+      if (isPromptSettledError(error)) this.deps.log.info(message)
+      else this.deps.log.warn(message)
+    }
+  }
+
+  /**
+   * Cancels a failed form when the turn still owns it; an already-settled
+   * form stays settled, never surfacing the client's error text.
+   */
+  private async cancelElicitation(
+    pending: PendingPrompt | undefined,
+    elicitationId: string,
+  ): Promise<void> {
+    if (this.isCurrentPrompt(pending)) {
+      try {
+        await this.session.settleElicitation?.call(this.session, elicitationId, {
+          kind: 'cancelled',
+        })
+      } catch {
+        this.deps.log.info('ACP elicitation was already settled')
+      }
     }
   }
 
@@ -1429,13 +1462,7 @@ class AcpSession {
     } catch {
       this.deps.log.warn(`ACP session ${this.sessionId}: elicitation ${event.elicitationId} failed`)
       // A form that failed is cancelled, so the tool call goes on without the answer.
-      if (this.isCurrentPrompt(pending)) {
-        try {
-          await settle?.call(this.session, event.elicitationId, { kind: 'cancelled' })
-        } catch {
-          this.deps.log.info('ACP elicitation was already settled')
-        }
-      }
+      await this.cancelElicitation(pending, event.elicitationId)
     }
   }
 
@@ -1574,7 +1601,7 @@ class AcpSession {
       // bundle loader's contract throws exactly `legalScanUnavailable` (the
       // log has the cause). A failing scan, a refused permission prompt or a
       // lost update carries its own cause instead.
-      if (error instanceof Error && error.message === UI_TEXT.legalScanUnavailable)
+      if (isLegalScanUnavailable(error))
         throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
       throw error
     } finally {

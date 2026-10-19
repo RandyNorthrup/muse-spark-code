@@ -146,11 +146,27 @@ function parseFile(
     offset = index + 1
     if (line.byteLength >= USAGE_RECORD_MAX_BYTES)
       throw new ResourceJournalError('resourceHistoryCorrupt')
+    let text: string
+    try {
+      text = decoder.decode(line)
+    } catch (error) {
+      // Bytes that are not UTF-8 corrupt the line; anything else keeps its
+      // kind past the journal.
+      if (error instanceof TypeError) {
+        throw new ResourceJournalError('resourceHistoryCorrupt')
+      }
+      throw error
+    }
     let value: unknown
     try {
-      value = JSON.parse(decoder.decode(line))
-    } catch {
-      throw new ResourceJournalError('resourceHistoryCorrupt')
+      value = JSON.parse(text)
+    } catch (error) {
+      // Malformed JSON corrupts the line; anything else keeps its kind past
+      // the journal.
+      if (error instanceof SyntaxError) {
+        throw new ResourceJournalError('resourceHistoryCorrupt')
+      }
+      throw error
     }
     // A newer build's line is skipped, as M102 skips newer usage records.
     if (isNewer(value)) continue
@@ -369,10 +385,26 @@ export class ResourceJournal implements ResourceRecordSink {
     if (stat.size > budget) throw new ResourceJournalError('resourceHistoryTooLarge')
     const content = await this.fs.read(file, 0, stat.size)
     if (content.byteLength > budget) throw new ResourceJournalError('resourceHistoryTooLarge')
+    let text: string
     try {
-      return { value: JSON.parse(decoder.decode(content)), bytes: content.byteLength }
-    } catch {
-      throw new ResourceJournalError('resourceHistoryCorrupt')
+      text = decoder.decode(content)
+    } catch (error) {
+      // Bytes that are not UTF-8 corrupt the file; anything else keeps its
+      // kind past the journal.
+      if (error instanceof TypeError) {
+        throw new ResourceJournalError('resourceHistoryCorrupt')
+      }
+      throw error
+    }
+    try {
+      return { value: JSON.parse(text), bytes: content.byteLength }
+    } catch (error) {
+      // Malformed JSON corrupts the file; anything else keeps its kind past
+      // the journal.
+      if (error instanceof SyntaxError) {
+        throw new ResourceJournalError('resourceHistoryCorrupt')
+      }
+      throw error
     }
   }
 
@@ -626,6 +658,8 @@ export class ResourceJournal implements ResourceRecordSink {
       await this.retain()
       this.retentionReportedAt = undefined
     } catch {
+      // A failed retention is reported through the retention channel and
+      // retried later: nothing about it is hidden, and it fails no call.
       const now = this.options.now()
       if (isWithinRetainInterval(this.retentionReportedAt, now)) return
       this.retentionReportedAt = now

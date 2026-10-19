@@ -27,6 +27,7 @@ import {
   LEGAL_TOTAL_MAX_BYTES,
 } from '../../shared/constants'
 import { sameFile } from '../fs/fileIdentity'
+import { isCodedError } from '../workspaceRoot'
 import {
   assertWorkspaceRelative,
   compareLegalText,
@@ -326,7 +327,18 @@ export async function createLegalSnapshot(
         else incompleteChecks.push(fill(UI_TEXT.legalScanner.m143, { v0: local }))
       } catch (error) {
         if (signal?.aborted === true) throw error
-        incompleteChecks.push(fill(UI_TEXT.legalScanner.m144, { v0: local }))
+        // A refused path is an incomplete entry; the enumeration moves on.
+        if (error instanceof LegalScanError) {
+          incompleteChecks.push(fill(UI_TEXT.legalScanner.m144, { v0: local }))
+          continue
+        }
+        // A shaped store failure is an incomplete entry; anything else keeps
+        // its kind past the enumeration.
+        if (isCodedError(error)) {
+          incompleteChecks.push(fill(UI_TEXT.legalScanner.m144, { v0: local }))
+          continue
+        }
+        throw error
       }
       await checkYield()
     }
@@ -370,8 +382,18 @@ export async function createLegalSnapshot(
         const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
         cache.set(local, text)
         return text
-      } catch {
-        return undefined
+      } catch (error: unknown) {
+        checkCancellation()
+        // Undecodable bytes read absent.
+        if (error instanceof TypeError) {
+          return undefined
+        }
+        // A shaped store failure reads absent; anything else keeps its kind
+        // past the read.
+        if (isCodedError(error)) {
+          return undefined
+        }
+        throw error
       }
     },
   }

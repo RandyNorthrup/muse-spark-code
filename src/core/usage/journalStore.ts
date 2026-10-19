@@ -470,6 +470,7 @@ export class UsageJournalStore {
       await previous
       if (this.options.isEnabled()) await this.fs.append(file, line)
     } catch {
+      // Diagnostics cannot fail a model call: the once-only write error stands in.
       this.logWriteError()
     }
   }
@@ -510,12 +511,24 @@ export class UsageJournalStore {
     ) {
       const line = bytes.subarray(offset, index)
       offset = index + 1
+      let text: string
+      try {
+        text = decoder.decode(line)
+      } catch (error) {
+        // Bytes that are not UTF-8 are not a line: the line counts invalid
+        // and the scan moves on; anything else keeps its kind past the journal.
+        if (error instanceof TypeError) {
+          invalidLines += 1
+          continue
+        }
+        throw error
+      }
       try {
         if (line.byteLength >= USAGE_RECORD_MAX_BYTES) {
           invalidLines += 1
           continue
         }
-        const { value, isExact } = parseUsageJson(decoder.decode(line))
+        const { value, isExact } = parseUsageJson(text)
         if (isNewer(value)) {
           newerVersionRecords += 1
           continue
@@ -527,8 +540,14 @@ export class UsageJournalStore {
         const result = usageJournalReadSchema.safeParse(value)
         if (result.success) entries.push(result.data)
         else invalidLines += 1
-      } catch {
-        invalidLines += 1
+      } catch (error) {
+        // Malformed JSON counts the line invalid and the scan moves on;
+        // anything else keeps its kind past the journal.
+        if (error instanceof SyntaxError) {
+          invalidLines += 1
+          continue
+        }
+        throw error
       }
     }
     const next = {
@@ -648,6 +667,7 @@ export class UsageJournalStore {
       if (!this.options.isEnabled()) return
       this.append(createUsageRecord(usage, context))
     } catch {
+      // Diagnostics cannot fail a model call: the once-only write error stands in.
       this.logWriteError()
     }
   }
@@ -660,6 +680,7 @@ export class UsageJournalStore {
       const line = `${JSON.stringify(entry)}\n`
       this.queue = this.write(this.queue, file, line)
     } catch {
+      // Diagnostics cannot fail a model call: the once-only write error stands in.
       this.logWriteError()
     }
   }

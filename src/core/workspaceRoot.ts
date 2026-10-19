@@ -11,6 +11,16 @@
 
 import path from 'node:path'
 
+/**
+ * A shaped store failure: it carries an errno code, never just words. Only
+ * one reads as an expected store outcome; anything else keeps its kind.
+ */
+export function isCodedError(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+  )
+}
+
 export interface WorkspaceFolderRef<U> {
   /** `WorkspaceFolder.index`: 0 is the root. */
   readonly index: number
