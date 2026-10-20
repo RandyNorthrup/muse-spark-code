@@ -1,12 +1,18 @@
 import type { ExecFileOptionsWithStringEncoding } from 'node:child_process'
+import { homedir } from 'node:os'
 import path from 'node:path'
 import {
   ResourceCapRefusedError,
   ResourceMemoryLimitError,
   type ResourceHandoffUntil,
 } from './launch'
-import { type GuardedChildEnv } from '../executables'
-import { isWorkspacePath, resolveExecutable, workspaceChildEnvironment } from '../execGuard'
+import { NO_WORKSPACE, type GuardedChildEnv } from '../executables'
+import {
+  isWorkspacePath,
+  noWorkspaceChildEnvironment,
+  resolveExecutable,
+  workspaceChildEnvironment,
+} from '../execGuard'
 import { environmentValue } from '../execGuard'
 import { existsSync, realpathSync } from 'node:fs'
 import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
@@ -21,22 +27,54 @@ export interface GovernedWorkspace {
   readonly workspaceRoot: string
 }
 
+/**
+The workspace a governed call guards when its caller names none: the given
+folder (the spawn's working directory, else this process's), unless it is
+a filesystem root or the home folder. An editor host starts in one of
+those (VS Code keeps its launch folder on macOS and Linux: `/` from the
+Dock or Finder, the home folder from a desktop launcher); such a folder is
+no project and holds every program, so it names no workspace, and lookups
+then read absolute PATH entries only, links followed.
+*/
+export function defaultGovernedWorkspace(folder: string): GovernedWorkspace | undefined {
+  const resolved = path.resolve(folder)
+  if (resolved === path.parse(resolved).root) return undefined
+  return comparablePath(resolved) === comparablePath(path.resolve(homedir()))
+    ? undefined
+    : { workspaceRoot: resolved }
+}
+
+/** A path as this platform compares it: Windows ignores case. */
+function comparablePath(value: string): string {
+  return process.platform === 'win32' ? value.toLowerCase() : value
+}
+
 function resolveCommand(
   command: string,
   env: NodeJS.ProcessEnv,
-  workspace: GovernedWorkspace,
+  workspace: GovernedWorkspace | undefined,
 ): string {
   // The running runtime itself (the editor's Node, the agent's node) is no
   // lookup a workspace can plant: this process already runs it. VS Code's
   // extension host on Windows works in its own install folder, so Code.exe
   // sat "inside the workspace" and every vault broker launch was refused.
   if (command === process.execPath) return command
-  const scope = { workspaceRoot: workspace.workspaceRoot, realpath: realpathSync }
+  const scope =
+    workspace === undefined
+      ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+      : { workspaceRoot: workspace.workspaceRoot, realpath: realpathSync }
   if (path.isAbsolute(command)) {
     // An absolute configured path inside the workspace is refused like a
     // bare name there: a planted absolute `gh` must not run with the
     // person's login when a report reads GitHub.
-    if (isWorkspacePath(process.platform, scope, command))
+    if (
+      workspace !== undefined &&
+      isWorkspacePath(
+        process.platform,
+        { ...scope, workspaceRoot: workspace.workspaceRoot },
+        command,
+      )
+    )
       throw new Error('Governed command unavailable')
     if (!existsSync(command)) throw new Error('Governed command unavailable')
     return command
@@ -51,12 +89,17 @@ function resolveCommand(
   return file
 }
 
-/** The child's environment: the guarded child PATH for its workspace. */
-function childEnvironment(env: NodeJS.ProcessEnv, workspace: GovernedWorkspace): GuardedChildEnv {
-  return workspaceChildEnvironment(process.platform, env, {
-    workspaceRoot: workspace.workspaceRoot,
-    realpath: realpathSync,
-  })
+/** The child's environment: the guarded child PATH for its workspace, if it has one. */
+function childEnvironment(
+  env: NodeJS.ProcessEnv,
+  workspace: GovernedWorkspace | undefined,
+): GuardedChildEnv {
+  return workspace === undefined
+    ? noWorkspaceChildEnvironment(process.platform, env, realpathSync)
+    : workspaceChildEnvironment(process.platform, env, {
+        workspaceRoot: workspace.workspaceRoot,
+        realpath: realpathSync,
+      })
 }
 
 /**
@@ -81,7 +124,10 @@ export async function handoffResourceFile(
     readonly workspaceRoot?: string | undefined
   },
 ): Promise<void> {
-  const workspace = { workspaceRoot: options.workspaceRoot ?? process.cwd() }
+  const workspace =
+    options.workspaceRoot === undefined
+      ? defaultGovernedWorkspace(process.cwd())
+      : { workspaceRoot: options.workspaceRoot }
   const file = resolveCommand(command, options.env, workspace)
   const { child, handedOff } = await spawnResourceProcess('handoff', file, args, {
     env: childEnvironment(options.env, workspace),
@@ -123,10 +169,10 @@ export async function execResourceFile(
   },
 ): Promise<{ stdout: string; stderr: string }> {
   const env = options.env ?? process.env
-  const workspace = {
-    workspaceRoot:
-      options.workspaceRoot ?? (typeof options.cwd === 'string' ? options.cwd : process.cwd()),
-  }
+  const workspace =
+    options.workspaceRoot === undefined
+      ? defaultGovernedWorkspace(typeof options.cwd === 'string' ? options.cwd : process.cwd())
+      : { workspaceRoot: options.workspaceRoot }
   const file = resolveCommand(command, env, workspace)
   const childEnv = childEnvironment(env, workspace)
   const deadline = AbortSignal.timeout(options.timeout ?? PROCESS_TABLE_TIMEOUT_MS)

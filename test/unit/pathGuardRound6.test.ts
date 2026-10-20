@@ -4,11 +4,11 @@
 // workspace program never runs from the team probe, the report's `gh`, a
 // linked playbook worktree, or the Linux recorder lookup.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { chmodSync, existsSync, realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { execResourceFile } from '../../src/core/resources/commands'
+import { defaultGovernedWorkspace, execResourceFile } from '../../src/core/resources/commands'
 import { configureResources } from '../../src/core/resources/admission'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import { ghReportTransport } from '../../src/core/reporting/sources/github'
@@ -81,6 +81,39 @@ describe('round-6 planted programs (real filesystem)', () => {
         },
       )
       expect(result.stdout).toBe('runtime ran')
+    } finally {
+      dispose()
+    }
+  })
+
+  it('a filesystem root or the home folder names no workspace; a project folder does', () => {
+    // VS Code keeps its launch folder on macOS and Linux: `/` from the Dock,
+    // the home folder from a desktop launcher. Neither is a project.
+    expect(defaultGovernedWorkspace(path.parse(root).root)).toBeUndefined()
+    expect(defaultGovernedWorkspace(homedir())).toBeUndefined()
+    expect(defaultGovernedWorkspace(root)).toEqual({ workspaceRoot: path.resolve(root) })
+  })
+
+  it('a product program runs when the working folder is the filesystem root', async () => {
+    // Before, `/` (or `C:\`) read as the workspace and every absolute
+    // program was refused as a planting inside it: the POSIX vault's
+    // identity probe and the gh session probe in a Dock-started VS Code.
+    const program =
+      PLATFORM === 'win32'
+        ? path.join(process.env['SystemRoot'] ?? String.raw`C:\Windows`, 'System32', 'whoami.exe')
+        : '/bin/echo'
+    const dispose = configureResources({
+      inspect: () => ({}),
+      onError: () => undefined,
+      windowsJob: runtimeWindowsJob(path.join(root, 'jobs-root'), process.cwd()),
+    })
+    try {
+      const result = await execResourceFile('probe', program, PLATFORM === 'win32' ? [] : ['ran'], {
+        env: process.env,
+        cwd: path.parse(root).root,
+        timeout: 60_000,
+      })
+      expect(result.stdout.trim().length).toBeGreaterThan(0)
     } finally {
       dispose()
     }
