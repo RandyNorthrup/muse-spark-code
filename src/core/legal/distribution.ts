@@ -284,8 +284,11 @@ export function bundleFreshnessProblems(
         problems.push(fill(UI_TEXT.legalScanner.m206, { v0: bundle.name, v1: input }))
     }
     const generatedModules = bundle.generated ?? []
-    for (const module of generatedModules) {
-      if (bundle.generatedHashes?.[module] === undefined)
+    for (const listed of generatedModules) {
+      // A Windows metafile keeps backslashes in a plugin namespace's path;
+      // the build records it with forward slashes, like every other entry.
+      const module = normalizeEvidencePath(listed)
+      if (digestOf(bundle.generatedHashes, module) === undefined)
         problems.push(fill(UI_TEXT.legalScanner.m206, { v0: bundle.name, v1: module }))
     }
     for (const listed of bundle.outputs) {
