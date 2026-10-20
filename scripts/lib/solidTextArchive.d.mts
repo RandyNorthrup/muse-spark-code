@@ -18,12 +18,13 @@ export function encodeSolidTextArchive(
   members: Record<string, { sha256: string; text: string }>,
 ): string
 export function packSolidTextArchive(
-  stage: string,
-  sourceRel: string,
-  archiveRel: string,
-  keep?: ReadonlySet<string>,
-  quality?: number,
-  exclude?: ReadonlySet<string>,
+  sourceDir: string,
+  archiveFile: string,
+  options?: {
+    keep?: ReadonlySet<string>
+    exclude?: ReadonlySet<string>
+    quality?: number
+  },
 ): SolidTextArchiveStats
 export function parseSolidTextArchive(
   packed: Uint8Array,
@@ -37,7 +38,4 @@ export function assertArchiveMembers(
   expectedVersion: number,
   hasChunks?: boolean,
 ): number
-export function solidMemberBytes(
-  entry: { sha256: string; text: string },
-  relative: string,
-): Buffer
+export function solidMemberBytes(entry: { sha256: string; text: string }, relative: string): Buffer

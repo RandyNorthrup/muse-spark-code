@@ -5,8 +5,6 @@
 // re-verifies, a stale digest is removed, a tampered stored copy is
 // restored from the archive, and a damaged member, a damaged archive and a
 // missing tree each refuse with the panel's sentence instead of files.
-import { createHash } from 'node:crypto'
-import { brotliCompressSync, brotliDecompressSync, constants as zlibConstants } from 'node:zlib'
 import {
   cpSync,
   existsSync,
@@ -20,6 +18,14 @@ import {
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import {
+  copyRig,
+  damageSolidArchiveBytes,
+  damageSolidArchiveMember,
+  readSolidArchiveMembers,
+  sha256Text,
+  writeSolidArchiveMembers,
+} from './helpers/solidArchive'
 import { webviewBundleErrorHtml } from '../../src/host/views/webviewBundle'
 import { resolveWebviewBundleDir, WebviewBundleError } from '../../src/host/views/webviewBundleRoot'
 import { WEBVIEW_ARCHIVE_FILE, WEBVIEW_ARCHIVE_VERSION } from '../../src/shared/constants'
@@ -40,30 +46,16 @@ const extensionDir = path.join(root, 'ext')
 const looseSource = path.join(root, 'loose')
 const storageDir = path.join(root, 'storage')
 
-function isRecord(value: unknown): value is Record<string, { sha256: string; text: string }> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    Object.values(value).every(
-      (member: unknown) =>
-        typeof member === 'object' &&
-        member !== null &&
-        typeof Reflect.get(member, 'sha256') === 'string' &&
-        typeof Reflect.get(member, 'text') === 'string',
-    )
-  )
-}
-
-/** A private copy of the whole rig whose archive the test then damages. */
+/** A private copy of the rig whose archive and empty storage the test then uses. */
 function damagedRig(): { extensionDir: string; storageDir: string; cleanup: () => void } {
-  const copy = mkdtempSync(path.join(root, 'damaged-'))
-  rmSync(copy, { recursive: true, force: true })
-  cpSync(extensionDir, path.join(copy, 'ext'), { recursive: true })
+  const rig = copyRig(extensionDir)
+  const storage = mkdtempSync(path.join(tmpdir(), 'muse-webview-storage-'))
   return {
-    extensionDir: path.join(copy, 'ext'),
-    storageDir: path.join(copy, 'storage'),
+    extensionDir: rig.dir,
+    storageDir: storage,
     cleanup: () => {
-      rmSync(copy, { recursive: true, force: true })
+      rig.cleanup()
+      rmSync(storage, { recursive: true, force: true })
     },
   }
 }
@@ -78,9 +70,11 @@ beforeAll(() => {
     mkdirSync(path.dirname(target), { recursive: true })
     cpSync(path.join('dist', 'webview', ...member.split('/')), target)
   }
-  cpSync(path.join(looseSource, 'dist'), path.join(extensionDir, 'dist'), { recursive: true })
   mkdirSync(storageDir, { recursive: true })
-  packSolidTextArchive(extensionDir, 'dist/webview', `dist/${WEBVIEW_ARCHIVE_FILE}`)
+  packSolidTextArchive(
+    path.join(looseSource, 'dist', 'webview'),
+    path.join(extensionDir, 'dist', WEBVIEW_ARCHIVE_FILE),
+  )
 })
 
 afterAll(() => {
@@ -130,27 +124,16 @@ describe('webview bundle resolver', () => {
       const locations = { extensionPath: rig.extensionDir, globalStoragePath: rig.storageDir }
       const first = resolveWebviewBundleDir(locations)
       expect(resolveWebviewBundleDir(locations)).toBe(first)
-      const stale = path.join(rig.storageDir, `webview-${'0'.repeat(56)}`)
+      const stale = path.join(rig.storageDir, `webview-${'f'.repeat(64)}`)
       mkdirSync(stale, { recursive: true })
       writeFileSync(path.join(stale, 'junk.txt'), 'stale')
       // A new archive digest extracts again and drops every older folder.
       const rigArchive = path.join(rig.extensionDir, 'dist', WEBVIEW_ARCHIVE_FILE)
-      const parsed: unknown = JSON.parse(
-        brotliDecompressSync(readFileSync(rigArchive)).toString('utf8'),
-      )
-      const files: unknown =
-        typeof parsed === 'object' && parsed !== null ? Reflect.get(parsed, 'files') : undefined
-      if (!isRecord(files)) throw new Error('Test archive is malformed')
-      files['extra.txt'] = {
-        sha256: createHash('sha256').update('extra').digest('hex'),
-        text: 'extra',
+      const files = {
+        ...readSolidArchiveMembers(rigArchive),
+        'extra.txt': { sha256: sha256Text('extra'), text: 'extra' },
       }
-      writeFileSync(
-        rigArchive,
-        brotliCompressSync(JSON.stringify({ version: WEBVIEW_ARCHIVE_VERSION, files }), {
-          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 1 },
-        }),
-      )
+      writeSolidArchiveMembers(rigArchive, files, WEBVIEW_ARCHIVE_VERSION)
       const second = resolveWebviewBundleDir(locations)
       expect(second).not.toBe(first)
       expect(existsSync(stale)).toBe(false)
@@ -181,20 +164,7 @@ describe('webview bundle resolver', () => {
     const rig = damagedRig()
     try {
       const rigArchive = path.join(rig.extensionDir, 'dist', WEBVIEW_ARCHIVE_FILE)
-      const parsed: unknown = JSON.parse(
-        brotliDecompressSync(readFileSync(rigArchive)).toString('utf8'),
-      )
-      const files: unknown =
-        typeof parsed === 'object' && parsed !== null ? Reflect.get(parsed, 'files') : undefined
-      if (!isRecord(files)) throw new Error('Test archive is malformed')
-      const original = files[VICTIM]?.text ?? ''
-      files[VICTIM] = { sha256: files[VICTIM]?.sha256 ?? '', text: `X${original.slice(1)}` }
-      writeFileSync(
-        rigArchive,
-        brotliCompressSync(JSON.stringify({ version: WEBVIEW_ARCHIVE_VERSION, files }), {
-          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 1 },
-        }),
-      )
+      damageSolidArchiveMember(rigArchive, VICTIM, WEBVIEW_ARCHIVE_VERSION)
       expect(() =>
         resolveWebviewBundleDir({
           extensionPath: rig.extensionDir,
@@ -213,11 +183,7 @@ describe('webview bundle resolver', () => {
     const rig = damagedRig()
     try {
       const rigArchive = path.join(rig.extensionDir, 'dist', WEBVIEW_ARCHIVE_FILE)
-      const packed = readFileSync(rigArchive)
-      const last = packed.at(-1)
-      expect(last).toBeDefined()
-      packed.writeUInt8((last ?? 0) ^ 0xff, packed.length - 1)
-      writeFileSync(rigArchive, packed)
+      damageSolidArchiveBytes(rigArchive)
       expect(() =>
         resolveWebviewBundleDir({
           extensionPath: rig.extensionDir,

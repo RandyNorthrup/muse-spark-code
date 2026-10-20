@@ -3,7 +3,7 @@
 // real solid archive the real producer packed; a planted gap, a loose
 // member, no input and a symlinked start directory each refuse.
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -43,11 +43,7 @@ function pack(members) {
     mkdirSync(path.dirname(target), { recursive: true })
     writeFileSync(target, `// ${member}\n`)
   }
-  rmSync(path.join(root, 'stage'), { recursive: true, force: true })
-  mkdirSync(path.join(root, 'stage'), { recursive: true })
-  cpSync(source, path.join(root, 'stage', 'webview'), { recursive: true })
-  packSolidTextArchive(path.join(root, 'stage'), 'webview', 'webview.json.br')
-  cpSync(path.join(root, 'stage', 'webview.json.br'), archive)
+  packSolidTextArchive(source, archive)
 }
 
 /** A fixture .vsix holding the packed archive, optionally with loose members. */
