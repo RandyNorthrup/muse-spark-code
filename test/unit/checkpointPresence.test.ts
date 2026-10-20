@@ -18,8 +18,11 @@ describe('isProcessAlive', () => {
   })
 
   it('answers true where signalling is not permitted', () => {
-    // Root or not, pid 1 answers: EPERM says it exists, success says so.
-    expect(isProcessAlive(1)).toBe(true)
+    // A process that always exists and that this one may not signal: pid 1
+    // (init or launchd) on POSIX, the System process (pid 4) on Windows.
+    // EPERM says it exists; success says so too.
+    const unsignalled = process.platform === 'win32' ? 4 : 1
+    expect(isProcessAlive(unsignalled)).toBe(true)
   })
 
   it('answers false for a reaped child', async () => {

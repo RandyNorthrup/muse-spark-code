@@ -5,7 +5,7 @@
 // that never answered) throws to the caller with its cause.
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -16,6 +16,7 @@ import {
   type WorktreeDeps,
 } from '../../src/host/commands/worktreeCommands'
 import { UI_TEXT } from '../../src/shared/constants'
+import { denyAccess } from './helpers/deniedAccess'
 import { realGit } from './helpers/realGit'
 
 const runFile = promisify(execFile)
@@ -194,8 +195,9 @@ describe('worktreeCommands failures', () => {
 
   it('still offers the worktree when its record was refused', async () => {
     const vault = await mkdtemp(path.join(tmpdir(), 'worktree-vault-'))
+    // A real permission failure (chmod 0 on POSIX, a deny entry on Windows).
+    const restore = await denyAccess(vault)
     try {
-      await chmod(vault, 0)
       const seenMessages = seen()
       let wasOffered = false
       await newWorktree(
@@ -213,7 +215,7 @@ describe('worktreeCommands failures', () => {
       expect(wasOffered).toBe(true)
       expect(seenMessages.warnings).toEqual([expect.stringContaining('was not recorded')])
     } finally {
-      await chmod(vault, 0o755)
+      await restore()
       await rm(vault, { recursive: true, force: true })
     }
   })

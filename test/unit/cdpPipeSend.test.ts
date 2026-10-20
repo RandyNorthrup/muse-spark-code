@@ -1,11 +1,13 @@
 import { EventEmitter } from 'node:events'
 import { closeSync, openSync, writeSync } from 'node:fs'
+import { devNull } from 'node:os'
 import { describe, expect, it } from 'vitest'
 import { CdpConnection, type PipeReader } from '../../src/core/browser/cdpPipe'
 
 /** A writer around a closed file descriptor: the write genuinely fails with EBADF. */
 function brokenWriter(): { write(chunk: string): boolean } {
-  const fd = openSync('/dev/null', 'w')
+  // The platform's null device (/dev/null, or \\.\nul on Windows).
+  const fd = openSync(devNull, 'w')
   closeSync(fd)
   return {
     write: (chunk: string) => {
