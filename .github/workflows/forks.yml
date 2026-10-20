@@ -268,12 +268,16 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r .github/vsix-compress/requirements.txt
-      # One package per platform, no universal package (PLAN.md D209): the
-      # forks ship Linux builds, so this proves the Linux x64 target, whose
-      # size gate runs inside packaging.
+      # One package per platform plus the untargeted fallback (PLAN.md D209):
+      # the forks ship Linux builds, so this proves the Linux x64 target and
+      # the fallback (both Linux helpers are downloaded above); each size
+      # gate runs inside packaging.
       - run: npm run package -- --target linux-x64
         env:
           # The packaged-README badge check lists public main (GitHub API).
+          GITHUB_TOKEN: ${{ github.token }}
+      - run: node scripts/package-vsix.mjs
+        env:
           GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

@@ -96,10 +96,10 @@ export async function stageVsix(root, stage, target) {
   const listed = await listFiles({ cwd: root, dependencies: false })
   assertNoVsixFonts(listed)
   assertPackagedBundles(root, listed)
-  // One package per platform (PLAN.md D210): a targeted package stages
-  // only its own platform's native pieces; the universal stage keeps all.
-  const files =
-    target === undefined ? listed : listed.filter((file) => isVsixTargetFile(target, file))
+  // One package per platform (PLAN.md D209, D210): a targeted package
+  // stages only its own platform's native pieces; the untargeted fallback
+  // keeps the neutral content plus the Linux helpers only.
+  const files = listed.filter((file) => isVsixTargetFile(target, file))
   for (const page of [
     'webview',
     'modelsWebview',

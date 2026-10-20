@@ -46,8 +46,9 @@ function execute(command, args) {
 function sha256(file) {
   return createHash('sha256').update(readFileSync(file)).digest('hex')
 }
-// One package per platform (PLAN.md D209), no universal package: the
-// release carries every target's VSIX beside the agent tarball and the SBOMs.
+// One package per platform plus the untargeted fallback (PLAN.md D209):
+// the release carries every target's VSIX beside the agent tarball and
+// the SBOMs.
 function assetNames(version) {
   return [
     ...vsixReleaseAssets('muse-spark-code', version),
