@@ -848,6 +848,17 @@ vite's own ranges move `postcss` to 8.5.30 and `nanoid` to 3.3.20 in the
 lock. Test tooling only; shipped bundles, metafiles and notices contain
 none of it. `security:audit` exits 0 with the standing braces exception.
 
+CIFINAL0190 audit exception (2026-10-20, D29): GHSA-gfr2-rv44-r23c (high,
+quadratic-time rendering of one multi-line link reference definition) in
+`markdown-it` >=14.1.0 <14.3.3, reached only through `ovsx` → `@vscode/vsce`
+(development packaging; it renders this repository's own README and
+CHANGELOG). The fix, 14.3.3, was published 2026-10-16 and stays inside
+`.npmrc`'s seven-day release-age rule until 2026-10-23, so the rule is kept
+and the advisory carries a reviewed exception in
+`.github/audit-exceptions.json` that expires 2026-10-24: pin 14.3.3 through
+`overrides` once it is old enough, then remove the exception. No VSIX or ACP
+bundle imports markdown-it; no user or model input reaches it.
+
 SDK142 update (2026-10-02): `@muse-code/sdk` 1.4.2, published September 30,
 matches CLI 1.4.2-R4684.1 and is a drop-in for the runtime code imported by
 the extension. It waits for `.npmrc`'s seven-day release-age rule until
