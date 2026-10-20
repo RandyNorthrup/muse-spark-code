@@ -92,13 +92,15 @@ const KNOWN: Record<string, KnownSpawn> = {
   },
   'src/host/media/recordingLatest.ts': {
     kind: 'reviewed',
-    anchor: 'System32',
-    reason: 'absolute System32 powershell/icacls only, no shell, hidden window',
+    anchor: 'windowsPowerShell',
+    reason:
+      "absolute System32 powershell only (windowsPowerShell: guarded, credential-free, 5.1's own module path), no shell, hidden window",
   },
   'src/runtime/converterTrust.ts': {
     kind: 'reviewed',
     anchor: 'systemPowerShell',
-    reason: 'absolute System32 powershell only (verifier-selected), scrubbed env, no shell',
+    reason:
+      "absolute System32 powershell only (verifier-selected, windowsPowerShell: guarded, credential-free, 5.1's own module path), no shell",
   },
   'src/runtime/vault/windowsPipeRelay.ts': {
     kind: 'reviewed',

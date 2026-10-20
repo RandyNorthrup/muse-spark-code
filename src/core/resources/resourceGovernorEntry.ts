@@ -43,11 +43,11 @@ import {
   type ResourceHistoryRecorder,
 } from '../../runtime/resources/history'
 import { probeChildEnvironment } from '../executables'
+import { windowsPowerShell } from '../execGuard'
 import { runTreeProgram } from './trees/run'
 import { powerShellQuoted } from '../shellQuote'
 import {
   WINDOWS_POWERSHELL_COMMAND_ARGS,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
   darwinDictationHelperSegments,
 } from '../../shared/constants'
 
@@ -135,13 +135,14 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
           const job = await options.windowsJob?.()
           if (systemRoot === undefined || job === undefined || process.platform !== 'win32')
             throw new Error('Native creation directory helper is required')
+          const powershell = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
           return await runTreeProgram(
-            path.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
+            powershell.file,
             [
               ...WINDOWS_POWERSHELL_COMMAND_ARGS,
               `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(job.assemblyPath)}); [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')})) } catch { exit 1 }`,
             ],
-            probeChildEnvironment({ SystemRoot: systemRoot }),
+            powershell.env,
           )
         })
   let registryPending: Promise<CreatedRegistry> | undefined

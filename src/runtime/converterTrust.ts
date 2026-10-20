@@ -8,17 +8,22 @@ import { execFile } from 'node:child_process'
 import { realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { MEDIA_CONVERTER_TRUST_TIMEOUT_MS } from '../shared/constants'
-import { withoutCredentials } from './credentialVariables'
+import { windowsPowerShell } from '../core/execGuard'
 import { posixTrustedPathVerifier } from './trustedPath'
 import type { TrustedPathVerifier } from './trustedPathPort'
 import { windowsTrustedPathVerifier } from './windowsTrustedPath'
 
-/** `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`, or undefined. */
-function systemPowerShell(env: NodeJS.ProcessEnv): string | undefined {
+/**
+`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe` with its own
+module path and no credentials (`windowsPowerShell`), or undefined.
+*/
+function systemPowerShell(
+  env: NodeJS.ProcessEnv,
+): ReturnType<typeof windowsPowerShell> | undefined {
   const root = Object.entries(env).find(([name]) => name.toUpperCase() === 'SYSTEMROOT')?.[1]
   return root === undefined || !path.win32.isAbsolute(root) || /\p{Cc}/u.test(root)
     ? undefined
-    : path.win32.join(root, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    : windowsPowerShell(root, env)
 }
 
 export function converterTrustedPath(
@@ -31,10 +36,10 @@ export function converterTrustedPath(
     if (program === undefined) return Promise.resolve({ exitCode: 1, stdout: '' })
     return new Promise((resolve) => {
       execFile(
-        program,
+        program.file,
         [...args],
         {
-          env: withoutCredentials(env),
+          env: program.env,
           windowsHide: true,
           timeout: MEDIA_CONVERTER_TRUST_TIMEOUT_MS,
         },

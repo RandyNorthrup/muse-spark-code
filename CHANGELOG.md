@@ -289,6 +289,16 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- On Windows, steps that run in Windows PowerShell work when VS Code, or the
+  terminal agent, was opened from a PowerShell 7 terminal: the
+  screen-recording preview's private folder, the agent's owner-only folders
+  and every other Windows PowerShell step load Windows PowerShell's own
+  modules instead of PowerShell 7's, which it cannot use ("Unprotected
+  preview directory").
+- On Windows, `ssh` runs where the product starts it with a narrow
+  environment: an MCP server started through `ssh`, `ssh` or git over ssh in
+  a hook, and Muse Code under the terminal agent now keep `ProgramData`,
+  without which Windows' own OpenSSH quit without a word.
 - On Windows the vault no longer refuses to write on a machine whose
   Windows PowerShell starts slowly (a fresh machine, heavy antivirus): the
   process identity a vault writer records is read by a small native reader

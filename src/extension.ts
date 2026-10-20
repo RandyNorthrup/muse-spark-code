@@ -240,7 +240,7 @@ import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 
 import type { AccountFacts } from './shared/usage'
 import { terminalEnvironment } from './core/backends/musecode/launch'
-import { environmentValue } from './core/execGuard'
+import { environmentValue, windowsPowerShellEnvironment } from './core/execGuard'
 import {
   createToolIo,
   runResourceCommand as runProcess,
@@ -531,6 +531,28 @@ function modifiedAt(fsPath: string): number | undefined {
 }
 
 /**
+The pinned Windows PowerShell terminal: its absolute path, and `env` (the
+variables added to the terminal's own environment) under the guarded
+layer's rule, so Windows PowerShell 5.1 loads its own modules whatever
+shell VS Code came from. Undefined when Windows names no system folder.
+*/
+function windowsTerminalShell(
+  env: Record<string, string>,
+): { readonly shellPath: string; readonly env: Record<string, string> } | undefined {
+  const systemRoot = process.env['SystemRoot']
+  return systemRoot === undefined
+    ? undefined
+    : {
+        shellPath: `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`,
+        env: windowsPowerShellEnvironment(
+          env,
+          systemRoot,
+          environmentValue(process.env, 'win32', 'ProgramFiles'),
+        ),
+      }
+}
+
+/**
 Runs the CLI where the user can see and interact with it. The terminal's
 shell is pinned so the call syntax is known (PLAN.md D25): Windows
 PowerShell on Windows (the CLI's own shim shell), `/bin/sh` elsewhere (a
@@ -544,15 +566,13 @@ function runInTerminal(
   env: Record<string, string>,
 ): void {
   const isWindows = process.platform === 'win32'
-  const systemRoot = process.env['SystemRoot']
-  const windowsShell =
-    systemRoot === undefined ? undefined : `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`
-  const shellPath = isWindows ? windowsShell : POSIX_TERMINAL_SHELL
+  const windowsShell = isWindows ? windowsTerminalShell(env) : undefined
+  const shellPath = isWindows ? windowsShell?.shellPath : POSIX_TERMINAL_SHELL
   const terminal = vscode.window.createTerminal({
     name: options.name,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
     ...(shellPath !== undefined && { shellPath }),
-    env,
+    env: windowsShell?.env ?? env,
   })
   terminal.show(true)
   // The path and each argument single-quoted for the pinned shell (M31):
@@ -2109,17 +2129,12 @@ async function activateWindow(
       runInstallerInTerminal: async () => {
         await backend.startWorkspaceCommand(() => {
           const isWindows = process.platform === 'win32'
-          const systemRoot = process.env['SystemRoot']
-          let shellPath: string | undefined = POSIX_TERMINAL_SHELL
-          if (isWindows) {
-            shellPath =
-              systemRoot === undefined
-                ? undefined
-                : `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`
-          }
+          const windowsShell = isWindows ? windowsTerminalShell({}) : undefined
+          const shellPath = isWindows ? windowsShell?.shellPath : POSIX_TERMINAL_SHELL
           const terminal = vscode.window.createTerminal({
             name: UI_TEXT.installStartAction,
             ...(shellPath !== undefined && { shellPath }),
+            ...(windowsShell !== undefined && { env: windowsShell.env }),
           })
           terminal.show(true)
           terminal.sendText(isWindows ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix)

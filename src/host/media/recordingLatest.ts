@@ -1,7 +1,8 @@
 // M105 lane W + PARITYREC: the VS Code host's recording temp roots and
 // latest-file discovery on Linux, Windows and macOS. Activation-safe: only
-// node builtins and lazy M1 sniffing; the portal capture itself stays
-// unbound (no D-Bus transport in this round).
+// node builtins, the guarded process layer (dist/execGuard.js) and lazy M1
+// sniffing; the portal capture itself stays unbound (no D-Bus transport in
+// this round).
 import { execFile } from 'node:child_process'
 import { chmod, copyFile, lstat, mkdir, mkdtemp, open, readdir, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -12,6 +13,7 @@ import type { ScreenRecordingPreview } from '../../core/media/record/driver'
 import { UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { powerShellQuoted } from '../../core/shellQuote'
+import { windowsPowerShell } from '../../core/execGuard'
 
 const OWNER_DIRECTORY_MODE = 0o700
 const OWNER_FILE_MODE = 0o600
@@ -211,14 +213,21 @@ function windowsSystemRoot(override?: string): string | undefined {
   return override ?? process.env['SystemRoot'] ?? process.env['windir']
 }
 
-/** A system query: absolute path, no shell, hidden window. */
-function runSystemCommand(executable: string, args: readonly string[]): Promise<string> {
+/**
+A system query through `%SystemRoot%`'s Windows PowerShell: absolute path,
+its own module path and no credentials (`windowsPowerShell`), no shell,
+hidden window.
+*/
+function runSystemCommand(
+  powershell: ReturnType<typeof windowsPowerShell>,
+  args: readonly string[],
+): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     execFile(
-      executable,
+      powershell.file,
       [...args],
       // No deadline of ours: the system's answer ends the query.
-      { windowsHide: true },
+      { windowsHide: true, env: powershell.env },
       (error, stdout) => {
         if (error === null) resolve(stdout)
         else reject(error instanceof Error ? error : new Error('The command failed'))
@@ -235,13 +244,7 @@ export async function resolveWindowsVideosDir(
   try {
     const systemRoot = windowsSystemRoot(deps.systemRoot)
     if (systemRoot === undefined) return undefined
-    const powershell = path.win32.join(
-      systemRoot,
-      'System32',
-      'WindowsPowerShell',
-      'v1.0',
-      'powershell.exe',
-    )
+    const powershell = windowsPowerShell(systemRoot)
     return parseWindowsVideosDir(
       await runSystemCommand(powershell, [
         '-NoLogo',
@@ -279,13 +282,7 @@ export async function createWindowsPrivateDirectory(
   await mkdir(tempRoot, { recursive: true })
   const dir = await mkdtemp(path.join(tempRoot, 'latest-'))
   try {
-    const powershell = path.win32.join(
-      systemRoot,
-      'System32',
-      'WindowsPowerShell',
-      'v1.0',
-      'powershell.exe',
-    )
+    const powershell = windowsPowerShell(systemRoot)
     // The exact DACL, protected, with one grant to the object's owner
     // (OWNER RIGHTS): replacing only the inherited grants would keep the
     // explicit ones a new folder can carry (an elevated administrator's,
