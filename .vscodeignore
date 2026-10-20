@@ -85,21 +85,8 @@
 !dist/screenRecord.js
 !dist/uiTextMedia.js
 !dist/reference.js
-!dist/webview/main.js
-!dist/webview/resourceSurface.js
-!dist/webview/resourceHistory.js
-!dist/webview/resourceHistory.css
-!dist/webview/referencePage.js
-!dist/webview/referencePage.css
-!dist/webview/chunks/*.js
-!dist/webview/main.css
-!dist/webview/models.js
-!dist/webview/models.css
+!dist/webview.json.br
 !dist/providerCatalog.js
-!dist/webview/usage.js
-!dist/webview/usage.css
-!dist/webview/whatsNew.js
-!dist/webview/whatsNew.css
 !media/icon.svg
 !media/icon.png
 !resources/walkthrough/**
@@ -130,7 +117,9 @@
 !THIRD_PARTY_NOTICES.txt
 !docs/judge.md
 # VSCE's allowlist overrides positive ignores; filter optional font/map types here.
-!vendor/high-quality-projects-skill/**/!(*.woff*|*.ttf|*.otf|*.eot|*.map)
+!vendor/high-quality-projects-skill/LICENSE
+!vendor/high-quality-projects-skill/VENDOR.json
+!vendor/high-quality-projects-skill.json.br
 !vendor/models-dev/LICENSE
 !first-party-skills/**
 !skills/**
@@ -146,11 +135,7 @@
 
 !dist/reporting.js
 !dist/reportingPanel.js
-!dist/webview/reportingPage.js
-!dist/webview/reportingPage.css
 !dist/reportingDestinations.js
-!dist/webview/reportingDestinations.js
-!dist/webview/reportingDestinations.css
 !dist/reportingNetwork.js
 !dist/reportInputs.js
 !dist/playbookSchedulesInputs.js

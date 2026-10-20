@@ -278,6 +278,7 @@
   "estimateDisclosureMissing": "수치의 보정 정보가 불완전합니다.",
   "estimateRuntimeUnavailable": "이 호스트에서는 추정을 사용할 수 없습니다. 계획 스냅샷이 연결되어 있지 않습니다.",
   "estimateUnavailable": "추정 모듈을 로드할 수 없어 추정을 실행할 수 없습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그에 있습니다.",
+  "webviewBundleUnavailable": "패널을 로드하지 못해 표시할 수 없습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그에 있습니다.",
   "estimateStaleBase": "베이스가 오래되었습니다({lanes}). 시작하기 전에 리베이스하세요.",
   "estimateWaveStarted": "시작됨: {lanes}.",
   "referenceAgentControls": "에이전트 제어; 중단; 중지; 재개; 에이전트 닫기; 에이전트 다시 열기; 결과를 읽음으로 표시; 메시지 보내기; 후속 작업",

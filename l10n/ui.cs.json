@@ -281,6 +281,7 @@
   "estimateDisclosureMissing": "Údaje o kalibraci číselných hodnot nejsou úplné.",
   "estimateRuntimeUnavailable": "Odhady nejsou v tomto hostiteli dostupné. Není připojen žádný snímek plánu.",
   "estimateUnavailable": "Odhadovací modul se nepodařilo načíst, takže nelze spustit žádný odhad; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
+  "webviewBundleUnavailable": "Panel se nepodařilo načíst, a proto jej nelze zobrazit; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "estimateStaleBase": "Zastaralý základ ({lanes}): před zahájením proveďte rebase.",
   "estimateWaveStarted": "Spuštěno {lanes}.",
   "referenceAgentControls": "Ovládání agenta; Přerušit; Zastavit; Pokračovat; Zavřít agenta; Znovu otevřít agenta; Označit výsledek jako přečtený; Odeslat zprávu; Navazující úkol",

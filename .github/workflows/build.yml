@@ -828,16 +828,17 @@ jobs:
       - name: every target VSIX stays within its measured budget
         run: node scripts/check-vsix-size.mjs ./*.vsix
       # What must be inside each package: the licence, the third-party
-      # notices and every runtime bundle (the webview loads main.css beside
-      # main.js; the extension requires modelApi.js when the Model API
-      # backend first starts, M57, starts pageWorker.js as a worker for each
-      # web page it converts, M69, and requires browserCheck.js on the first
-      # browser check, M81), plus only that target's own native helpers and
-      # its TargetPlatform in the packed manifest — and none of the other
-      # platforms' helpers (PLAN.md D209). The untargeted fallback carries
-      # the same neutral content plus both Linux helpers, no TargetPlatform
-      # and no darwin or Windows pieces: it only ever serves Linux-family
-      # servers without their own package.
+      # notices and every runtime bundle (the webview ships as one solid
+      # archive holding main.css beside main.js, VSIXWEB A; the extension
+      # requires modelApi.js when the Model API backend first starts, M57,
+      # starts pageWorker.js as a worker for each web page it converts, M69,
+      # and requires browserCheck.js on the first browser check, M81), plus
+      # only that target's own native helpers and its TargetPlatform in the
+      # packed manifest — and none of the other platforms' helpers (PLAN.md
+      # D209). The untargeted fallback carries the same neutral content plus
+      # both Linux helpers, no TargetPlatform and no darwin or Windows
+      # pieces: it only ever serves Linux-family servers without their own
+      # package.
       - name: each .vsix carries its own helpers, the bundles and its target
         run: |
           version="$(node -p "require('./package.json').version")"
@@ -855,8 +856,9 @@ jobs:
             extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js
             extension/dist/report.js extension/dist/recorder.js
             extension/dist/webFetch.js extension/dist/judge.js extension/docs/judge.md extension/dist/whatsNew.js extension/dist/whatsNew.json
-            extension/dist/webview/main.js extension/dist/webview/main.css
-            extension/dist/webview/whatsNew.js extension/dist/webview/whatsNew.css'
+            extension/dist/webview.json.br
+            extension/vendor/high-quality-projects-skill/LICENSE extension/vendor/high-quality-projects-skill/VENDOR.json
+            extension/vendor/high-quality-projects-skill.json.br'
           windows='extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1
             extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/windows/MuseSparkScreenRecord.cs
@@ -924,6 +926,14 @@ jobs:
             exit 1
           fi
           echo "$vsix holds $(wc -l <<< "$listing") entries: neutral content plus both Linux helpers, no TargetPlatform"
+      # The webview ships as one solid archive (VSIXWEB A): each package
+      # carries it with every file each panel's HTML needs and no loose
+      # webview member beside it.
+      - name: each .vsix carries the verified webview archive
+        run: |
+          for vsix in ./*.vsix; do
+            node scripts/check-webview-archive.mjs "$vsix"
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-spark-code-vsix

@@ -227,6 +227,9 @@ import {
 } from './host/support/reportFacts'
 import type { ChatSurface } from './host/views/chatSurface'
 import type { WebviewHostContext } from './host/views/webviewSetup'
+import type { WebviewBundleResolution } from './host/views/webviewBundle'
+import { withFailureDocument } from './host/views/webviewBundle'
+import { tryResolveWebviewBundleDir } from './host/views/webviewBundleRoot'
 import {
   modelsPanelLoader,
   providerCredentials,
@@ -2768,6 +2771,18 @@ async function activateWindow(
     bundledSkillsBundle().runBundledSkillsInstall(bundledSkillsCommand(), UI_TEXT, uiLocale())
   const removeBundledSkills = (): Promise<void> =>
     bundledSkillsBundle().runBundledSkillsRemove(bundledSkillsCommand(), UI_TEXT, uiLocale())
+  // The lazy panels' webview resolution (VSIXWEB A): the activation
+  // bundle parses, verifies and renders the failure document, so the lazy
+  // bundles only read the tiny shared shape and call this back.
+  const resolveWebviewBundle = (): WebviewBundleResolution =>
+    withFailureDocument(
+      tryResolveWebviewBundleDir({
+        extensionPath: context.extensionUri.fsPath,
+        globalStoragePath: context.globalStorageUri.fsPath,
+      }),
+      UI_TEXT.webviewBundleUnavailable,
+      uiLocale(),
+    )
   // What's New after an update (M99, PLAN.md D79): decided at the end of
   // activation, shown once the window is quiet (no turn running, no edit for
   // a moment), its page from its own bundle. The last edit's time tells quiet.
@@ -2783,6 +2798,7 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', WHATS_NEW_BUNDLE_FILE).fsPath,
     pages: {
       extensionUri: context.extensionUri,
+      resolveWebviewBundle,
       contentPath: vscode.Uri.joinPath(context.extensionUri, 'dist', WHATS_NEW_CONTENT_FILE).fsPath,
       current: version,
       isShownOnUpdate: () => currentSettings().showWhatsNewOnUpdate,
@@ -3808,7 +3824,12 @@ async function activateWindow(
       const reportController = surface === undefined ? undefined : controllerFor(surface)
       reportingPanel = loadReportingPanel().createReportingWindow(
         {
-          context: { extensionUri: context.extensionUri, l10n, log },
+          context: {
+            extensionUri: context.extensionUri,
+            resolveWebviewBundle,
+            l10n,
+            log,
+          },
           generatorVersion: version,
           ...(reportController !== undefined && {
             questions: reportController.reportingQuestions(),
@@ -4687,6 +4708,8 @@ async function activateWindow(
 
   const hostContext: WebviewHostContext = {
     extensionUri: context.extensionUri,
+    globalStoragePath: context.globalStorageUri.fsPath,
+    resolveWebviewBundle,
     l10n,
     log,
     getSettings: () => toSettingsSnapshot(currentSettings()),
@@ -5008,6 +5031,7 @@ async function activateWindow(
           isConfidential: () => currentSettings().confidentialWorkspace,
           secrets: bundle.credentialLeaseSecrets(context.secrets),
           extensionUri: context.extensionUri,
+          resolveWebviewBundle,
           // The key-store migration's source material: the raw store for
           // its legacy port (never the shell above — the shell mirrors
           // through the migration and would deadlock it), the shell to
@@ -5098,6 +5122,7 @@ async function activateWindow(
     usagePanel ??= (async () => {
       const panel = await usageBundle().createUsagePanel({
         extensionUri: context.extensionUri,
+        resolveWebviewBundle,
         l10n,
         log,
         beforeRead: () => usageRecording.flush(),

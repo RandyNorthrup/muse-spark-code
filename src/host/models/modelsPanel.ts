@@ -7,7 +7,6 @@ import {
   MODELS_WEBVIEW_STYLE_FILE,
   PROVIDER_HARNESS_MIN_CONTEXT_TOKENS,
   UI_TEXT,
-  WEBVIEW_DIST_SEGMENTS,
 } from '../../shared/constants'
 import {
   parsePanelToHostMessage,
@@ -30,6 +29,7 @@ import {
   type VaultHostMessage,
 } from '../../shared/hostApi/vaultMessages'
 import { buildWebviewHtml, createNonce } from '../html'
+import type { WebviewBundleResolution } from '../views/webviewBundle'
 import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import { editedOutputTokens, modelLimitsSchema } from '../../shared/providerRouting'
@@ -65,6 +65,8 @@ export interface ModelsPanelDeps {
   readonly removeSubscription?: ((id: string) => Promise<void>) | undefined
   readonly isConfidential?: (() => boolean) | undefined
   readonly extensionUri: vscode.Uri
+  /** The verified webview copy (VSIXWEB A), resolved in the activation bundle. */
+  readonly resolveWebviewBundle: () => WebviewBundleResolution
   readonly l10n: UiTable
   readonly log: Logger
   readonly providers: ProvidersHost
@@ -188,7 +190,24 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     vscode.ViewColumn.One,
     { retainContextWhenHidden: true },
   )
-  const root = vscode.Uri.joinPath(deps.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
+  const resolved = deps.resolveWebviewBundle()
+  if (!resolved.ok) {
+    deps.log.error(`Models webview bundle failed: ${resolved.detail}`)
+    panel.webview.options = { enableScripts: true, localResourceRoots: [] }
+    panel.webview.html = resolved.html
+    // No verified bundle behind the panel: it shows the fixed sentence,
+    // and revealing still brings the failure into view.
+    return {
+      reveal: () => {
+        panel.reveal(vscode.ViewColumn.One)
+      },
+      onDidDispose: (run) => panel.onDidDispose(run),
+      dispose: () => {
+        panel.dispose()
+      },
+    }
+  }
+  const root = vscode.Uri.file(resolved.dir)
   panel.webview.options = { enableScripts: true, localResourceRoots: [root] }
   panel.webview.html = buildWebviewHtml({
     scriptUri: panel.webview
