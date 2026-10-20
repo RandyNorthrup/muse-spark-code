@@ -11,6 +11,7 @@ import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { EN } from '../../src/shared/l10n/en'
 import { currentWhatsNewText } from './helpers/currentWhatsNew'
 import { featureCatalog } from '../../src/shared/featureCatalog'
+import { REPORT_KINDS, REPORT_WORKING_KINDS } from '../../src/shared/constants'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
 import { metaArgumentPreviewCapabilities } from '../../src/core/backends/modelapi/modelCapabilities'
 
@@ -146,22 +147,14 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
     )
   })
 
-  it('keeps only five working report kind instructions', () => {
-    for (const kind of [
-      'usage',
-      'session',
-      'playbook',
-      'issues',
-      'estimate',
-      'fleet',
-      'security',
-      'accounts',
-      'schedules',
-      'keybindings',
-    ]) {
-      expect(readme).not.toContain(`/report ${kind}`)
-    }
-    expect(readme).toContain('/report project')
+  it('documents the thirteen working report kinds, never the dormant two', () => {
+    // CX1R4 F3 lists the working kinds the sources serve on every surface;
+    // the README teaches exactly those, and no instruction for a dormant one.
+    const dormant = REPORT_KINDS.filter(
+      (kind) => !(REPORT_WORKING_KINDS as readonly string[]).includes(kind),
+    )
+    for (const kind of REPORT_WORKING_KINDS) expect(readme).toContain(`/report ${kind}`)
+    for (const kind of dormant) expect(readme).not.toContain(`/report ${kind}`)
   })
 
   it('roadmap places dormant work in progress with no shipped note or capability claims', () => {

@@ -79,7 +79,7 @@ describe('estimate view session failures', () => {
     const first = session.refresh(AS_OF_1)
     await session.refresh(AS_OF_2)
     // Settled, never an unsettled rejection: the view reports through its
-    // error port.
+    // publish port.
     await first
     expect(texts).toEqual([fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' })])
   })

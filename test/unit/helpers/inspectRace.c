@@ -1,6 +1,7 @@
 // Slow the verified program's exec only in this fixture, after grants and descriptor closure.
-// Strict C11 hides the declarations this fixture uses, so name the same
-// feature level the confine program itself uses, with its header, explicitly.
+// nanosleep and struct timespec need feature exposure under strict C11 (gcc 15
+// promotes the implicit declaration to an error under -Werror), the same
+// _GNU_SOURCE the confined program itself defines.
 #define _GNU_SOURCE
 #include <time.h>
 #define main confine_main

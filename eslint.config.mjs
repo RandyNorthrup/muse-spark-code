@@ -532,6 +532,7 @@ const config = tseslint.config(
       'harness-shots/**',
       '.claude/**',
       'vendor/**',
+      'temp/**',
     ],
   },
   {

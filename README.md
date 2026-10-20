@@ -5855,11 +5855,7 @@ Reset/Restore process-death recovery also passes on Win11. The installed
 broker/panel bindings are connected; macOS replay and the Windows pipe
 helper stay pending as named in the record.
 
-One encrypted vault per user holds API keys, OAuth tokens, SSH keys, sudo and
-other passwords, website logins with their TOTP seeds, session cookies and any
-named secret. Agents get handles and approved, scoped, logged uses, never
-values. Every approval names the exact use and binds to it. One click locks
-everything. It works the same in every editor; see
+The per-user encrypted vault is still moving in as the key store: it will hold API keys, OAuth tokens, SSH keys, sudo and other passwords, website logins with their TOTP seeds, session cookies and any named secret. Agents get handles and approved, scoped, logged uses, never values. Every approval names the exact use and binds to it. One click locks everything where the vault panel runs; see
 [the M109 record](docs/certification/m109.md) for the lanes, the captures and
 what is still open.
 

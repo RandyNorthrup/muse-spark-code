@@ -11,10 +11,12 @@ describe('EXECPROV command-local help', () => {
     expect(help).toContain('muse-spark-code-acp')
     expect(help).toContain('--help')
   })
+  // Bare `report --help` is not here: it reaches the reports command,
+  // which prints its usage with the working kinds (RVMSM113 F34,
+  // pinned in cx1r4Truth), instead of the help topic.
   it.each([
     'exec',
     'scan-secrets',
-    'report',
     'usage',
     'legal',
     'resources',
@@ -66,6 +68,9 @@ describe('deep command help', () => {
     let count = 0
     for (const entry of cliCommands()) {
       for (const argv of entry.invocations) {
+        // Bare `report --help` is the reports command's own help (F34 above),
+        // not the help topic, so the walk below does not apply to it.
+        if (argv.length === 1 && argv[0] === 'report') continue
         count += 1
         const command = parseCommandLine([...argv, '--help'])
         expect(['help', 'vaultHelp']).toContain(command.command)

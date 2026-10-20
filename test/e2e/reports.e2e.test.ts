@@ -250,10 +250,11 @@ beforeAll(async () => {
     `${JSON.stringify({ v: 1, time: 1, action: 'unlock', source: 'palette' })}\n`,
   ])
   journal.append({
-    // The writer is v2-only: the version literal and the exact decimal cost
-    // string must match usageRecordSchema, or append drops the record behind
-    // its diagnostic fence and every grouping case reads an empty journal.
-    v: 2,
+    // The writer is version-gated: the version literal and the exact decimal
+    // cost string must match usageRecordSchema, or append drops the record
+    // behind its diagnostic fence and every grouping case reads an empty
+    // journal.
+    v: 3,
     type: 'usage',
     id: 'e2e-r1',
     at: Date.parse(LIVE_AS_OF),

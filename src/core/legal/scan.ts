@@ -474,8 +474,16 @@ export async function scanLegal(
       }
       if (!allowed.has(path)) return
       if (cache.has(path)) return cache.get(path)
-      // Absence reads undefined from the snapshot itself; a refusal keeps its kind.
-      let text: string | undefined = snapshot.readFile(path)
+      // Absence reads undefined from the snapshot itself; a read failure reads
+      // absent with the unreadable marker below, while cancellation keeps its
+      // kind past the read.
+      let text: string | undefined
+      try {
+        text = snapshot.readFile(path)
+      } catch (error) {
+        if (error instanceof LegalScanError) throw error
+        text = undefined
+      }
       if (text === undefined) incomplete.push(fill(UI_TEXT.legalScanner.m113, { v0: path }))
       else if (
         new TextEncoder().encode(text).byteLength > LEGAL_FILE_MAX_BYTES ||

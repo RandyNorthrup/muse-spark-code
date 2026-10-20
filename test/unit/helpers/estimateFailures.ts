@@ -3,10 +3,22 @@
 // estimator modules, never fakes.
 import { lookupEstimatePrices } from '../../../src/core/estimator/prices'
 import { estimatorSourcePorts } from '../../../src/host/estimator/localFleet'
-import { createPlanSnapshotSource } from '../../../src/host/estimator/planSnapshotSource'
+import { planSnapshotLoader } from '../../../src/host/estimator/planSnapshotBundle'
 import { estimateSectionSchema } from '../../../src/shared/estimate'
+import { collectingLogger } from './collectingLogger'
 
 export const ESTIMATE_AS_OF = '2026-10-17T00:00:00.000Z'
+
+/** The snapshot binding every shell assembles (M117 C-M117-1): the
+production loader, lazy, so no bundle loads unless a snapshot is asked
+for (these probes only read prices, so none ever is). */
+export function estimateSnapshotBinding() {
+  return planSnapshotLoader({
+    bundlePath: 'dist/planSnapshot.js',
+    log: collectingLogger([]),
+    root: process.cwd(),
+  })
+}
 
 export function estimatePricePorts() {
   return estimatorSourcePorts(
@@ -16,7 +28,7 @@ export function estimatePricePorts() {
       maxAgeMs: 60_000,
       catalogUrls: [],
     }),
-    createPlanSnapshotSource({ root: '' }),
+    estimateSnapshotBinding(),
   ).prices()
 }
 
