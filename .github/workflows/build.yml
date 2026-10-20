@@ -242,6 +242,7 @@ jobs:
         if: runner.os == 'macOS'
         run: bash native/darwin/build.sh
       - name: unit tests
+        if: runner.os != 'Windows'
         shell: bash
         env:
           FAST: ${{ inputs.fast }}
@@ -253,6 +254,26 @@ jobs:
           else
             npx vitest run --shard="$SHARD/$SHARDS" --reporter=default
           fi
+      # Windows starts the suite from PowerShell, as a person's editor starts
+      # the product. Git Bash's MSYS runtime turns on an administrator's
+      # backup and restore privileges in every process it starts, and with
+      # them the system skips file permissions: the suites that prove a real
+      # permission refusal could never be refused (measured on the hosted
+      # runner: a denied folder listed under Git Bash, EPERM under PowerShell).
+      - name: unit tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          FAST: ${{ inputs.fast }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: 16
+        run: |
+          if ($env:FAST -eq 'true') {
+            npx vitest run
+          } else {
+            npx vitest run "--shard=$($env:SHARD)/$($env:SHARDS)" --reporter=default
+          }
+          exit $LASTEXITCODE
 
   accessibility:
     name: accessibility (WCAG 2.2 AA)
