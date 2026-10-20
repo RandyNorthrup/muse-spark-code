@@ -35,7 +35,7 @@ try/catch fails the marker test.
 
 Gates on the final tree: `test/unit/legalScan.test.ts` 25/25 green with the
 repo default timeout; prettier clean; eslint zero warnings on touched files;
-`npm run typecheck` shows only the tree's known unrelated errors;
+`npm run typecheck` exit 0, all projects green;
 `check:catches` NARROW confirmed for the site (the full gate stays red on
 pre-existing baseline drift in unrelated areas, recorded by the lead).
 No settings or user-visible text changed: `check:reference`/`check:l10n`
