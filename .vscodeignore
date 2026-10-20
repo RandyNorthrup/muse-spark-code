@@ -115,7 +115,6 @@
 !native/linux/arm64/muse-vault-peer
 !native/darwin/muse-vault-peer
 !native/windows/MuseSparkScreenRecord.cs
-!native/darwin/muse-dictate
 !native/darwin/muse-dictate-screen.app/**
 !package.json
 !package.nls.json

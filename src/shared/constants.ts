@@ -5963,7 +5963,16 @@ export const META_DASHBOARD_URL = 'https://dev.meta.ai/'
 // macOS. Linux has no built-in recogniser, so the button explains itself.
 export const DICTATION_HELPER_DIR = 'native'
 export const DICTATION_WINDOWS_SCRIPT_SEGMENTS = ['windows', 'dictate.ps1'] as const
-export const DICTATION_DARWIN_HELPER_SEGMENTS = ['darwin', 'muse-dictate'] as const
+// The signed .app's executable serves every role (dictation, screen
+// recording, created-directory, process identity): the bare binary no longer
+// ships, and the bundle's localized resources stand behind the prompts.
+export const DICTATION_DARWIN_HELPER_SEGMENTS = [
+  'darwin',
+  'muse-dictate-screen.app',
+  'Contents',
+  'MacOS',
+  'muse-dictate',
+] as const
 export const DICTATION_HELPER_COMMANDS = { start: 'start', stop: 'stop', quit: 'quit' } as const
 /** A press shorter than this is a tap (toggle); longer is push-to-talk. */
 export const DICTATION_HOLD_MS = 300

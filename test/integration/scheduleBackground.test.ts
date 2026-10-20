@@ -70,7 +70,11 @@ suite('schedule background entry in the real host', () => {
     // above. The CI jobs that run these tests build the helper first.
     if (process.platform === 'linux' || process.platform === 'darwin') {
       const helperDir = process.platform === 'linux' ? path.join('linux', process.arch) : 'darwin'
-      const helperName = process.platform === 'linux' ? 'muse-created' : 'muse-dictate'
+      // One copy serves every role: the signed .app's executable on darwin.
+      const helperName =
+        process.platform === 'linux'
+          ? 'muse-created'
+          : path.join('muse-dictate-screen.app', 'Contents', 'MacOS', 'muse-dictate')
       const staged = path.join(__dirname, '..', 'native', helperDir, helperName)
       await mkdir(path.dirname(staged), { recursive: true })
       await copyFile(path.join(extensionPath, 'native', helperDir, helperName), staged)

@@ -126,7 +126,16 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
       : async (args: readonly string[]) => {
           if (process.platform === 'darwin')
             return await runTreeProgram(
-              path.join(__dirname, '..', 'native', 'darwin', 'muse-dictate'),
+              path.join(
+                __dirname,
+                '..',
+                'native',
+                'darwin',
+                'muse-dictate-screen.app',
+                'Contents',
+                'MacOS',
+                'muse-dictate',
+              ),
               ['--created-directory', ...args],
               probeChildEnvironment({ LC_ALL: 'C' }),
             )

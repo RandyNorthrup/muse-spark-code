@@ -28,7 +28,6 @@ const WINDOWS_FILES = [
   'native/windows/MuseSparkVaultPipe.cs',
 ]
 const DARWIN_FILES = [
-  'native/darwin/muse-dictate',
   'native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate',
   'native/darwin/muse-vault-peer',
   'dist/native/darwin/muse-vault',

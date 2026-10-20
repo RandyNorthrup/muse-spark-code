@@ -235,9 +235,9 @@ jobs:
       - name: Linux OpenSSL headers for the fixture helper build
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libssl-dev
-      # The broker fixtures stage the product's own muse-dictate for created
-      # paths and a unit checkout holds no built binary, so build it the way
-      # the native job does.
+      # The broker fixtures stage the product's own .app executable for
+      # created paths and a unit checkout holds no built binary, so build
+      # it the way the native job does.
       - name: macOS dictation helper for the fixture created paths
         if: runner.os == 'macOS'
         run: bash native/darwin/build.sh
@@ -509,14 +509,12 @@ jobs:
           rm -rf "$base"
           gh run download "$RUN_ID" --repo "$CAPACITY" --name muse-dictate-darwin --dir "$base/darwin"
           gh run download "$RUN_ID" --repo "$CAPACITY" --name muse-vault-darwin --dir "$base/vault"
-          test -f "$base/darwin/muse-dictate"
           test -f "$base/darwin/muse-dictate-screen.tgz"
           test -f "$base/vault/muse-vault"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-dictate-darwin
           path: |
-            ${{ runner.temp }}/back/darwin/muse-dictate
             ${{ runner.temp }}/back/darwin/muse-dictate-screen.tgz
           if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -673,7 +671,6 @@ jobs:
         with:
           name: muse-dictate-darwin
           path: |
-            native/darwin/muse-dictate
             native/darwin/muse-dictate-screen.tgz
           if-no-files-found: error
 
@@ -786,7 +783,6 @@ jobs:
       - run: chmod +x native/linux/x64/muse-vault-peer native/linux/arm64/muse-vault-peer native/darwin/muse-vault-peer
       - run: chmod +x native/linux/x64/muse-dictate native/linux/arm64/muse-dictate
       - run: chmod +x dist/native/darwin/muse-vault
-      - run: chmod +x native/darwin/muse-dictate
       - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
       # Dependencies first: the pin checker imports esbuild to load the
       # pins module, so it cannot run before `npm ci`.
@@ -853,8 +849,7 @@ jobs:
             extension/native/windows/MuseSparkVault.cs extension/native/windows/MuseSparkVaultCng.cs
             extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs
             extension/native/windows/MuseSparkVaultPipe.cs'
-          darwin='extension/native/darwin/muse-dictate
-            extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate
+          darwin='extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate
             extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources
             extension/native/darwin/muse-vault-peer
             extension/dist/native/darwin/muse-vault'
@@ -950,7 +945,7 @@ jobs:
             package/dist/recorder.js package/dist/resourceGovernor.js package/dist/resourceAdmission.js \
             package/dist/exec.js package/dist/mcpPool.js package/dist/modelApiCodeIntel.js package/dist/structuredSchema.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \
-            package/native/darwin/muse-dictate \
+            package/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate \
             package/native/linux/x64/muse-created package/native/linux/arm64/muse-created \
             package/native/linux/x64/muse-vault-peer package/native/linux/arm64/muse-vault-peer package/native/darwin/muse-vault-peer \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \

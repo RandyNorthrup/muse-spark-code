@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# Builds the macOS dictation helper (native/darwin/muse-dictate): a universal
-# binary from Dictation.swift with Info.plist embedded in the __info_plist
-# section (the usage descriptions behind the permission prompts) and an
-# ad-hoc signature. Runs in CI's macOS job, which hands the binary to the
-# package job (Ubuntu) that packs the .vsix. The binary is git-ignored: a
-# Windows or Linux checkout cannot build it, and a package built there says
+# Builds the macOS dictation helper: a universal binary from Dictation.swift
+# with Info.plist embedded in the __info_plist section (the usage
+# descriptions behind the permission prompts), shipped only as the signed
+# .app's executable
+# (native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate), which
+# serves every role (dictation, screen recording, created-directory,
+# process identity). Runs in CI's macOS job, which hands the bundle to the
+# package job (Ubuntu) that packs the .vsix. The outputs are git-ignored: a
+# Windows or Linux checkout cannot build them, and a package built there says
 # so in the panel.
 #
 # The bundle version is the extension's own, read from package.json here
-# and checked in the finished binary (M26, PLAN.md D29): Info.plist carries
+# and checked in the finished executable (M26, PLAN.md D29): Info.plist carries
 # no version, so the two cannot drift apart by hand.
 #
 # Size (PLAN.md D6, the .vsix budget): optimised for size, unreferenced code
@@ -23,8 +26,8 @@ cd "$(dirname "$0")"
 
 MIN_MACOS=12.0
 ARCHES=(arm64 x86_64)
-OUTPUT=muse-dictate
 SCREEN_BUNDLE=muse-dictate-screen.app
+SCREEN_EXECUTABLE=muse-dictate
 MANIFEST=../../package.json
 VERSION_KEY=CFBundleShortVersionString
 
@@ -34,7 +37,7 @@ PLIST="$(mktemp -t muse-dictate-plist)"
 CREATED_OBJECT_DIR="$(mktemp -d -t muse-created-objects)"
 CREATED_OBJECT="${CREATED_OBJECT_DIR}/created.o"
 BUILD_DIR="$(mktemp -d -t muse-dictate-build)"
-trap 'rm -f "$CREATED_OBJECT" "$PLIST" "${OUTPUT}-arm64" "${OUTPUT}-x86_64"; rmdir "$CREATED_OBJECT_DIR"; rm -rf "$BUILD_DIR"' EXIT
+trap 'rm -f "$CREATED_OBJECT" "$PLIST" "${SCREEN_EXECUTABLE}-arm64" "${SCREEN_EXECUTABLE}-x86_64"; rmdir "$CREATED_OBJECT_DIR"; rm -rf "$BUILD_DIR"' EXIT
 cp Info.plist "$PLIST"
 plutil -replace "$VERSION_KEY" -string "$VERSION" "$PLIST"
 
@@ -59,22 +62,22 @@ for arch in "${ARCHES[@]}"; do
     -target "${arch}-apple-macos${MIN_MACOS}" \
     -Xlinker -dead_strip \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$PLIST" \
-    -o "${OUTPUT}-${arch}" \
+    -o "${SCREEN_EXECUTABLE}-${arch}" \
     "$BUILD_DIR/main.swift" ScreenRecord.swift "$CREATED_OBJECT"
-  strip -x "${OUTPUT}-${arch}"
+  strip -x "${SCREEN_EXECUTABLE}-${arch}"
 done
 
-lipo -create -output "$OUTPUT" "${OUTPUT}-arm64" "${OUTPUT}-x86_64"
-codesign --force --sign - "$OUTPUT"
-
-# A command-line Mach-O has no localized bundle resources for TCC. Screen
-# recording therefore launches the signed .app executable, through R1's
-# trusted-path/signature ports. Keep the existing bare dictation path too.
+# A command-line Mach-O has no localized bundle resources for TCC, so every
+# role runs the signed .app executable, through R1's trusted-path/signature
+# ports; no bare binary is produced or shipped. Dictation's microphone
+# permission now comes from the bundle's localized resources, as screen
+# recording's already does.
 APP="$BUILD_DIR/$SCREEN_BUNDLE"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$OUTPUT" "$APP/Contents/MacOS/muse-dictate"
-# Bundle-only keys belong in the generated .app, never the bare helper's
-# sibling Info.plist: otherwise codesign treats native/darwin as a flat app.
+lipo -create -output "$APP/Contents/MacOS/$SCREEN_EXECUTABLE" \
+  "${SCREEN_EXECUTABLE}-arm64" "${SCREEN_EXECUTABLE}-x86_64"
+# Bundle-only keys belong in the generated .app, never the sibling
+# Info.plist: otherwise codesign treats native/darwin as a flat app.
 plutil -insert CFBundleExecutable -string muse-dictate "$PLIST"
 plutil -insert CFBundlePackageType -string APPL "$PLIST"
 cp "$PLIST" "$APP/Contents/Info.plist"
@@ -104,19 +107,25 @@ cp -R "$APP" "$SCREEN_BUNDLE"
 echo "screen helper signed with 14 translated InfoPlist.strings resources"
 
 
-# `launchctl plist` prints a Mach-O's embedded __info_plist section.
-EMBEDDED="$(launchctl plist __TEXT,__info_plist "$OUTPUT" |
+# `launchctl plist` prints a Mach-O's embedded __info_plist section; it runs
+# against the .app's executable, the one copy every role runs.
+EXECUTABLE="$SCREEN_BUNDLE/Contents/MacOS/$SCREEN_EXECUTABLE"
+EMBEDDED="$(launchctl plist __TEXT,__info_plist "$EXECUTABLE" |
   sed -n "s/.*\"${VERSION_KEY}\" = \"\\(.*\\)\";/\\1/p")"
 if [ "$EMBEDDED" != "$VERSION" ]; then
   echo "the helper embeds ${VERSION_KEY} '${EMBEDDED}', package.json says '${VERSION}'" >&2
   exit 1
 fi
 echo "embedded ${VERSION_KEY}: ${EMBEDDED}"
-codesign --verify --strict "$OUTPUT"
+codesign --verify --strict "$EXECUTABLE"
 # Process identity is read-only and dispatched before any audio/privacy setup.
-"./$OUTPUT" proc-identity "$$" > /dev/null
-lipo -info "$OUTPUT"
-ls -l "$OUTPUT"
+"./$EXECUTABLE" proc-identity "$$" > /dev/null
+lipo -info "$EXECUTABLE"
+ls -l "$EXECUTABLE"
+if [ -e muse-dictate ]; then
+  echo "the bare helper must not be produced: only the .app executable ships" >&2
+  exit 1
+fi
 
 # M109 P: this helper has no provisioned data-protection-keychain entitlement.
 # The SE path stays disabled under Q-M109. dist/ keeps native outputs untracked;

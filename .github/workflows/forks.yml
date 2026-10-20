@@ -170,7 +170,6 @@ jobs:
             os: macos-latest
             artifact: muse-dictate-darwin
             path: |
-              native/darwin/muse-dictate
               native/darwin/muse-dictate-screen.tgz
           - platform: linux-x64
             os: ubuntu-24.04
