@@ -35,10 +35,8 @@ export interface SchedulesBridgeDeps {
   readonly log: Logger
   readonly isEnabled: () => boolean
   readonly defaultDelivery: () => (typeof SCHEDULE_DELIVERIES)[number]
-  /**
-   * D121: the person's pause-after-failures count, read live on every
-   * settlement. 0 never pauses a schedule on failures.
-   */
+  // D121: the person's pause-after-failures count, read live on every
+  // settlement. 0 never pauses a schedule on failures.
   readonly pauseAfterFailures: () => number
   readonly isDeliveryReady?: () => boolean
 }
