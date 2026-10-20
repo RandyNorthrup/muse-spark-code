@@ -11,7 +11,17 @@ function noExecutable(): Promise<string | undefined> {
   return Promise.resolve(undefined)
 }
 
-function failingSource(now: () => number, calls: { count: number }, messages: string[]) {
+/** A launcher preparation that finds its executable only while `shouldSucceed` says so. */
+function togglingExecutable(shouldSucceed: () => boolean): () => Promise<string | undefined> {
+  return () => Promise.resolve(shouldSucceed() ? String.raw`C:\job.exe` : undefined)
+}
+
+function failingSource(
+  now: () => number,
+  calls: { count: number },
+  messages: string[],
+  maxFailures?: () => number,
+) {
   return pluginContainment({
     platform: 'win32',
     newJobExecutable: () => {
@@ -22,6 +32,7 @@ function failingSource(now: () => number, calls: { count: number }, messages: st
     log: (message: string) => {
       messages.push(message)
     },
+    ...(maxFailures !== undefined && { maxFailures }),
   })
 }
 
@@ -73,5 +84,83 @@ describe('plugin containment without a failure latch', () => {
       log: () => undefined,
     })
     expect(await source.containment()).toEqual({ kind: 'processGroup' })
+  })
+})
+
+describe('person-set plugin failure latch (D121)', () => {
+  it('sets plugin hooks aside at the set count until Retry', async () => {
+    let at = 0
+    const calls = { count: 0 }
+    const messages: string[] = []
+    const source = failingSource(
+      () => at,
+      calls,
+      messages,
+      () => 2,
+    )
+    expect(await source.containment()).toMatchObject({ kind: 'unavailable' })
+    at += PLUGIN_JOB_RETRY_BACKOFF_MS
+    expect(await source.containment()).toMatchObject({ kind: 'unavailable' })
+    expect(messages[1]).toContain('stay off until Retry Plugin Hooks')
+    // Latched: the third dispatch past the pacing delay prepares nothing new.
+    at += PLUGIN_JOB_RETRY_BACKOFF_MS
+    expect(await source.containment()).toMatchObject({ kind: 'unavailable' })
+    expect(calls.count).toBe(2)
+    expect(messages).toHaveLength(2)
+    // Retry clears even a latched count: the next failure reads as the first again.
+    source.reset()
+    at += PLUGIN_JOB_RETRY_BACKOFF_MS
+    expect(await source.containment()).toMatchObject({ kind: 'unavailable' })
+    expect(calls.count).toBe(3)
+    expect(messages[2]).toContain('once more shortly')
+  })
+
+  it('Retry clears the count before the latch engages', async () => {
+    let at = 0
+    const calls = { count: 0 }
+    const messages: string[] = []
+    const source = failingSource(
+      () => at,
+      calls,
+      messages,
+      () => 2,
+    )
+    await source.containment()
+    expect(messages[0]).toContain('once more shortly')
+    source.reset()
+    at += PLUGIN_JOB_RETRY_BACKOFF_MS
+    await source.containment()
+    // Without the reset this second failure would latch the hooks aside.
+    expect(messages[1]).toContain('once more shortly')
+    expect(calls.count).toBe(2)
+  })
+
+  it('a success clears the count before the latch engages', async () => {
+    let at = 0
+    const calls = { count: 0 }
+    const messages: string[] = []
+    let shouldSucceed = false
+    const source = pluginContainment({
+      platform: 'win32',
+      newJobExecutable: () => {
+        calls.count += 1
+        return togglingExecutable(() => shouldSucceed)
+      },
+      now: () => at,
+      log: (message: string) => {
+        messages.push(message)
+      },
+      maxFailures: () => 2,
+    })
+    await source.containment()
+    shouldSucceed = true
+    at += PLUGIN_JOB_RETRY_BACKOFF_MS
+    const ready = await source.containment()
+    expect(ready).toMatchObject({ kind: 'job' })
+    shouldSucceed = false
+    at += PLUGIN_JOB_RETRY_BACKOFF_MS
+    await source.containment()
+    // The earlier failure was cleared by the success: this reads as the first again.
+    expect(messages.at(-1)).toContain('once more shortly')
   })
 })

@@ -24,6 +24,7 @@ describe('stillWaitingSubjectText (PR #214 review)', () => {
     expect(stillWaitingSubjectText({ key: 'shellCommand' })).toBe('the shell command')
     expect(stillWaitingSubjectText({ key: 'museServeStarting' })).toBe('muse serve starting')
     expect(stillWaitingSubjectText({ key: 'webFetch' })).toBe('the web page')
+    expect(stillWaitingSubjectText({ key: 'pluginHook' })).toBe('the plugin hook')
     expect(stillWaitingSubjectText({ key: 'mcpServerStartup', name: 's' })).toBe(
       'MCP server "s" startup',
     )
