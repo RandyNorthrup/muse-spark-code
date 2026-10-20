@@ -279,10 +279,13 @@ jobs:
       - run: node scripts/package-vsix.mjs
         env:
           GITHUB_TOKEN: ${{ github.token }}
+      # Only the Linux x64 target: the fallback is proved by its own pack
+      # above, and the fork step below passes a single .vsix (a second
+      # match would shift run-fork.sh's arguments onto the package itself).
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: forks-vsix
-          path: '*.vsix'
+          path: '*-linux-x64-*.vsix'
           if-no-files-found: error
 
   fork:

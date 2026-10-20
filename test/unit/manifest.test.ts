@@ -862,8 +862,8 @@ describe('tiered CI (CIFLOW)', () => {
   })
 
   const bash = findBash()
-  // 24 subshells: about 7.5 s on a loaded Windows host, where each one is a
-  // new process; well under a second on Linux.
+  // 29 subshells per shell: about 9 s on a loaded Windows host, where each
+  // subshell is a new process; well under a second on Linux.
   const BASH_CASES_TIMEOUT_MS = 60_000
   // The aggregate's own step, run the way GitHub runs a bash step (-e, pipefail)
   // over every way a selected-tier job can end: only all green passes.
@@ -1012,36 +1012,35 @@ describe('tiered CI (CIFLOW)', () => {
       ])
       const check = env.get('matrix.check')
       if (check === undefined) throw new Error('required job lost its CHECK env')
-      // One shell for every case (Windows starts each process slowly); each
-      // case runs in its own subshell as a plain statement, so -e applies.
-      const wrapper = cases
-        .map(([, values]) =>
-          names
-            .map((checkName) => {
-              const exports = [
-                ...Object.entries(values).map(([varName, value]) => `${varName}=${value}`),
-                `${check}='${checkName}'`,
-              ].join(' ')
-              return `( export ${exports}; set -eo pipefail; eval "$STEP" ) >/dev/null 2>&1; echo "$?"`
-            })
-            .join('\n'),
-        )
-        .join('\n')
-      const run = spawnSync(bash ?? '', ['--noprofile', '--norc', '-c', wrapper], {
-        env: { STEP: body.join('\n') },
-        encoding: 'utf8',
-        timeout: BASH_CASES_TIMEOUT_MS,
+      // One shell per check name (Windows starts each process slowly and
+      // forks every subshell: every case for every name in a single shell
+      // overran the case timeout on a loaded Windows host); each case runs
+      // in its own subshell as a plain statement, so -e applies.
+      const codesByName = names.map((checkName) => {
+        const wrapper = cases
+          .map(([, values]) => {
+            const exports = [
+              ...Object.entries(values).map(([varName, value]) => `${varName}=${value}`),
+              `${check}='${checkName}'`,
+            ].join(' ')
+            return `( export ${exports}; set -eo pipefail; eval "$STEP" ) >/dev/null 2>&1; echo "$?"`
+          })
+          .join('\n')
+        const run = spawnSync(bash ?? '', ['--noprofile', '--norc', '-c', wrapper], {
+          env: { STEP: body.join('\n') },
+          encoding: 'utf8',
+          timeout: BASH_CASES_TIMEOUT_MS,
+        })
+        expect(run.status).toBe(0)
+        const codes = run.stdout.trim().split(/\r?\n/)
+        expect(codes).toHaveLength(cases.length)
+        return codes
       })
-      expect(run.status).toBe(0)
-      const codes = run.stdout.trim().split(/\r?\n/)
-      expect(codes).toHaveLength(cases.length * names.length)
       expect(
         cases.map(([label], index) =>
           verdict(
             label,
-            codes
-              .slice(index * names.length, (index + 1) * names.length)
-              .every((code) => code === '0'),
+            codesByName.every((codes) => codes[index] === '0'),
           ),
         ),
       ).toEqual(cases.map(([label, , isPassing]) => verdict(label, isPassing)))
