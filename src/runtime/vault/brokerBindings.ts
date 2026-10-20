@@ -22,7 +22,7 @@ import {
 import type { KeyringEntryFactory } from '../keyStore'
 import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
 import { KeyringVaultAnchor } from './keyringAnchor'
-import { FileVaultAnchor, vaultAnchorFile } from './fileAnchor'
+import { FileVaultAnchor, fileRecordEntries, vaultAnchorFile } from './fileAnchor'
 import type { VaultAnchorPort } from '../../core/vault/broker/repository'
 import type { VaultBrokerBindings, VaultBrokerContext } from './vaultBrokerEntry'
 import { isPosixVaultHost } from './posixHost'
@@ -43,26 +43,10 @@ const auditAnchorSchema = z.strictObject({
 export type VaultAuditLock = <T>(work: () => Promise<T>) => Promise<T>
 
 /**
-The OS binding is not installed (a staged package carries no
-`node_modules`): every OS-store use reports the fixed storeUnavailable
-repair through the existing per-operation mapping, while the file and
-hardware tiers keep working. Never an empty success, never a startup
-refusal for a missing binding.
+Authenticated audit history plus its rotation checkpoint in the protected
+OS store, or in owner-only files beside the file anchor where the OS
+binding is not installed.
 */
-function unavailableOperation(): Promise<never> {
-  return Promise.reject(new VaultStoreUnavailableError())
-}
-
-function unavailableKeyring(): KeyringEntryFactory {
-  const entry = {
-    getPassword: unavailableOperation,
-    setPassword: unavailableOperation,
-    deletePassword: unavailableOperation,
-  }
-  return () => entry
-}
-
-/** Authenticated audit history plus its rotation checkpoint in the protected OS store. */
 function auditLog(
   context: VaultBrokerContext,
   repository: VaultStoreRepository,
@@ -205,10 +189,20 @@ function auditLog(
       return await next
     },
   }
-  return new VaultAuditLog(directory, anchors)
+  // The log writes through the same platform files as the anchors read:
+  // on Windows the relay-guarded files, never the POSIX default (which
+  // refuses there, so every audited operation failed).
+  return new VaultAuditLog(directory, anchors, VAULT_AUDIT_MAX_BYTES, files)
 }
 
-/** The OS store is missing where the binding is not installed; the file anchor keeps the broker up. */
+/**
+The OS store is missing where the binding is not installed (a staged
+package carries no `node_modules`): the rollback anchor and the audit
+checkpoint both live in owner-only files beside the vault files, with the
+OS store's own records and rules, so the broker starts and audited
+operations (setup's first unlock, every unlock) work. Never an empty
+success, never a startup refusal for a missing binding.
+*/
 function missingOsKeyring(
   context: VaultBrokerContext,
   protect?: (file: string, kind: 'directory' | 'file') => Promise<void>,
@@ -217,7 +211,7 @@ function missingOsKeyring(
   readonly anchor: VaultAnchorPort
 } {
   return {
-    keyring: unavailableKeyring(),
+    keyring: fileRecordEntries(context.dataDir, protect),
     anchor: new FileVaultAnchor(vaultAnchorFile(context.dataDir), protect),
   }
 }

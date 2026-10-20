@@ -47,6 +47,14 @@ in the product, and the suite re-run green.
 | 20 | The guard held a file it checked with read-only sharing, so a check that met the owner's own link, rename or delete of the same record (the broker publishing `broker.lock`) read as a refusal: the client then reported "The broker cannot start" now and then. | Files are held against writers only (read and delete sharing); the hold ends with the check. | windowsPipeHelperStart "checks a file another process holds open for deletion" `No access` (break-once: read-only sharing restored) | checked |
 | 21 | WINPSMOD (2026-10-20): VS Code or the agent started from a PowerShell 7 terminal hands every child pwsh 7's `PSModulePath`; a Windows PowerShell 5.1 child the product started without resetting it (the preview folder's lockdown, the converter's trust check, the schedule runner, the clipboard share, the resource helpers, the vault helper, the terminals that run the CLI) could not load Microsoft.PowerShell.Security: `Set-Acl`/`Get-Acl` CouldNotAutoloadMatchingModule, "Unprotected preview directory". Found when hosted CI moved the Windows unit step to pwsh. | One rule, `windowsPowerShellEnvironment` in `src/core/execGuard.ts` (the existing `buildChildEnvironment`/`shellEnvironment`/`windowsPowerShell` reset, now shared): `PSModulePath`, every spelling, is set to Windows PowerShell's own folders, from which 5.1 builds its default (measured: the same value as dropping the variable). Every 5.1 start applies it; `windowsPowerShellModules` gates new ones. pwsh 7 children are untouched. | recordingLatest from pwsh "Unprotected preview directory" | locked down from pwsh and Git Bash, also with pwsh 7's real module path set explicitly |
 | 22 | Windows' own OpenSSH exits 255 without a word when its environment has no `ProgramData`; the MCP stdio allowlist (also the terminal agent's `muse serve` allowlist) and the hook environment dropped it, so an MCP server started through `ssh`, and `ssh` in a hook, never ran. | `ProgramData` kept in both lists. The test's own key generator (`vault/sshImport`) passes it too. | windowsOpenSshEnvironment `expected 255 to be +0` ×3; sshImport from pwsh `Command failed: ssh-keygen` | `ssh -G` exit 0 |
+| 23 | The broker's audit log was built without the platform's files port, so on Windows it fell back to the POSIX files class, which refuses there: setup's first unlock and every Unlock Vault failed. The unlock's unnamed error closed the channel connection, the pipe helper disconnected the client (`read EPIPE`, about 3 s after the click: the DPAPI unwrap ran first) and the panel toasted "The vault operation failed. Try again." (lane WINVAULTW, the reported release blocker). | `auditLog` passes its platform files to `VaultAuditLog`. | windowsVaultPanelFlow (new): setup settles `locked`, never `unlocked` (break-once below) | unlocks |
+| 24 | The Windows private files' writer verified before opening, so the audit log could never be created (`missing`): POSIX opens with `O_CREAT`. | A missing file is created exclusively, protected through a synchronous helper `protect`, then opened like any verified file. | windowsVaultPanelFlow: setup settles `locked` (break-once below) | created |
+| 25 | The audit checkpoint lived only in the OS keyring, which the VSIX does not ship (the rollback anchor already fell back to an owner-only file): every audited operation was refused `storeUnavailable`. | Where the binding is missing, the checkpoint and its pending intent are owner-only files beside the file anchor (`fileRecordEntries`), with the same records and rules. | windowsVaultPanelFlow: setup settles `locked` (break-once below) | unlocks |
+| 26 | The guard held a checked file against writers, so the audit log's own reads (it appends through an open writer) were refused. | File checks (`Verify`, `Protect`) share writing: they read the owner, DACL and attributes, which no writer can change. A launch still holds the binary it hashes against writers. | windowsVaultPanelFlow: setup settles `locked` (break-once below) | read |
+| 27 | The relay wiped the payload it had pushed into a connection stream; a stream not yet flowing (paused until its peer is verified, or never read) holds that Buffer by reference, so the channel received zeros: a hello that arrived before verification was lost and the connection hung until the broker's 120 s transport deadline. The channel now wipes each chunk once copied. | The stream gets its own copy; the channel wipes it after reading. | windowsVaultPanelFlow: the first-party read waits out the 120 s deadline, then "The broker cannot start" caused by `VaultChannelError` `closed` (break-once below) | answered |
+| 28 | The pipe helper kept one instance and created the next only after handling a connection, and a client that connected and left before the wait (`ERROR_NO_DATA`) sent the loop to its 100 ms error sleep with no instance: the pipe name vanished, dials failed with `ENOENT` and server inspections answered `missing` (the client's "No access" at `isVaultPipeServerTrusted`). Seen in a traced flow run, as hosted CI's windowsBrokerClient `connect ENOENT` (windows shard 9; the raw error comes from `VaultBrokerClient.open`'s dial right after `verifyPipe`'s inspection connection ended), and as the intermittent local "No access". | The next instance exists before the current one can be released; a vanished client releases its instance without the error path. The pipe exists before the claim names it and while it stands, so the record is the readiness: discovery's dial-and-drop probe (one of the connections that released the only instance) is gone, and only the claim's lock-before-token window still waits. | windowsPipeRelay (new waves): 185 and 191 of 200 dial-and-leave clients found no pipe; with inspections beside them, 196/200 dials and 20/20 inspections, then 178 and 17 (break-once below) | 0 and 0 |
+| 29 | A `send` frame for a connection the helper had already dropped (its client left while the broker answered or pushed a watch event) was a protocol fault that ended the helper, every connection and the pipe. | Late bytes for an id once opened are dropped; only an id never opened is a fault. | windowsPipeRelay (new late write): `relay fixture refused: Error: vault-pipe-protocol` (break-once below) | serves |
+| 30 | The relay bounded its buffered stdout with the slot helpers' limit (one wrapped key, 4,132 bytes), so a request past 4 KiB (a key bundle) or answers arriving together failed the relay and every connection. It also flattened incomplete frames into copies it never wiped. | The drain's own frame bound (one 4 MiB channel frame) holds; only a complete frame is flattened. | windowsVaultPanelFlow (9.6 KB first-party value): `VaultChannelError` on the write (break-once below) | round trip |
 
 ## Tests that were wrong about the product, corrected
 
@@ -59,18 +67,28 @@ in the product, and the suite re-run green.
 - vaultExecSpawn: a read-only folder on Windows is a real denial of new entries (`denyWrites`, icacls `(WD,AD)`), as mode 0555 is on POSIX.
 - recordingLatest: the scripted `run` answers for PowerShell and icacls are gone with the seam itself; the Videos folder is compared with the registry's own value, the lockdown is read back with icacls (one `OWNER RIGHTS:(OI)(CI)(F)` grant), and the failure paths use a system root without the tools, on every platform.
 - legalBuildEvidence: the shared build call extracted (duplication 0).
+- windowsBrokerClient (lane WINVAULTW, hosted CI windows shard 9): the teardown ended the broker only when a connection had succeeded, so a failed dial left the broker, its job launcher and its pipe helper running and the folder removal failed `EBUSY`. The shared fixture ends the broker the claim names whether or not a connection succeeded, then every process still running from the fixture folder, and waits for them before removing it.
 
 ## Break-once drills
 
-| Change broken                                                                      | Suite                                      | Result                                                                                                                                     |
-| ---------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Close handler removed (defect 4)                                                   | windowsPipeHelperStart                     | "refuses at once" timed out at 15 s, exit 1                                                                                                |
-| `SystemRoot` removed (defect 3)                                                    | windowsPipeHelperStart                     | "starts" `No access`, exit 1                                                                                                               |
-| `isAbsentBelowFolder` answers `true` for any existing ancestor                     | absentPath + paidGrants                    | 2 failed, exit 1                                                                                                                           |
-| `windowsPowerShellEnvironment` made a no-op (row 21)                               | recordingLatest + windowsPowerShellModules | pwsh: 3 failed ("Unprotected preview directory" ×2, `Get-Acl` CouldNotAutoloadMatchingModule); Git Bash: the 2 pwsh 7 cases failed, exit 1 |
-| converterTrust spells the path itself; `windowsPowerShell` skips the rule (row 21) | windowsPowerShellModules gate              | `src/runtime/converterTrust.ts: line 24, 24, 33` and `[ 'windowsPowerShell' ]`, exit 1                                                     |
-| `ProgramData` removed from the MCP allowlist and hook names (row 22)               | windowsOpenSshEnvironment (pwsh)           | 3 failed, `expected 255 to be +0`, exit 1                                                                                                  |
-| sshImport's generator without `ProgramData` (row 22)                               | vault/sshImport (pwsh)                     | `Command failed: ssh-keygen -q -t ed25519 …`, exit 1                                                                                       |
+| Change broken                                                                           | Suite                                      | Result                                                                                                                                                                                                             |
+| --------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Close handler removed (defect 4)                                                        | windowsPipeHelperStart                     | "refuses at once" timed out at 15 s, exit 1                                                                                                                                                                        |
+| `SystemRoot` removed (defect 3)                                                         | windowsPipeHelperStart                     | "starts" `No access`, exit 1                                                                                                                                                                                       |
+| `isAbsentBelowFolder` answers `true` for any existing ancestor                          | absentPath + paidGrants                    | 2 failed, exit 1                                                                                                                                                                                                   |
+| `windowsPowerShellEnvironment` made a no-op (row 21)                                    | recordingLatest + windowsPowerShellModules | pwsh: 3 failed ("Unprotected preview directory" ×2, `Get-Acl` CouldNotAutoloadMatchingModule); Git Bash: the 2 pwsh 7 cases failed, exit 1                                                                         |
+| converterTrust spells the path itself; `windowsPowerShell` skips the rule (row 21)      | windowsPowerShellModules gate              | `src/runtime/converterTrust.ts: line 24, 24, 33` and `[ 'windowsPowerShell' ]`, exit 1                                                                                                                             |
+| `ProgramData` removed from the MCP allowlist and hook names (row 22)                    | windowsOpenSshEnvironment (pwsh)           | 3 failed, `expected 255 to be +0`, exit 1                                                                                                                                                                          |
+| sshImport's generator without `ProgramData` (row 22)                                    | vault/sshImport (pwsh)                     | `Command failed: ssh-keygen -q -t ed25519 …`, exit 1                                                                                                                                                               |
+| Audit log without the platform files (defect 23)                                        | windowsVaultPanelFlow                      | setup settles `expected 'locked' to be 'unlocked'`, exit 1                                                                                                                                                         |
+| Relay pushes the payload it wipes (defect 27)                                           | windowsVaultPanelFlow                      | read back after 261.8 s: "The broker cannot start…" caused by `VaultChannelError` `{ code: 'closed' }`, exit 1                                                                                                     |
+| Writer refuses a missing file (defect 24)                                               | windowsVaultPanelFlow                      | setup settles `expected 'locked' to be 'unlocked'`, exit 1 (an earlier run toasted "The vault operation failed. Try again." twice)                                                                                 |
+| Audit checkpoint only in the absent keyring (defect 25)                                 | windowsVaultPanelFlow                      | setup settles `expected 'locked' to be 'unlocked'`, exit 1                                                                                                                                                         |
+| File checks hold against the owner's writer (defect 26)                                 | windowsVaultPanelFlow                      | setup settles `expected 'locked' to be 'unlocked'`, exit 1                                                                                                                                                         |
+| Relay bounded by the slot limit (defect 30)                                             | windowsVaultPanelFlow                      | first-party write `VaultChannelError: The vault operation failed. Try again.`, exit 1                                                                                                                              |
+| Late bytes for a dropped connection fault the helper (defect 29)                        | windowsPipeRelay                           | `relay fixture refused: Error: vault-pipe-protocol`, exit 1                                                                                                                                                        |
+| The original accept loop (defect 28)                                                    | windowsPipeRelay                           | dials only: `expected 185 to be +0`, then `191`; with inspections: `{ missedDials: 196, missedInspections: 20 }`, then `178` and `17`, exit 1                                                                      |
+| Teardown drill: the broker launched, the test fails before any connection (the CI case) | windowsBrokerClient                        | the base tree's teardown: `EBUSY: resource busy or locked, rmdir '…\vs-wbroker-aCZLhP'` (its broker, job launcher and pipe helper still running); the shared fixture's: folder removed, only the drill's own error |
 
 Every other row above went red to green as its fix landed, in the order
 listed; the red line is the observed failure.
@@ -92,3 +110,57 @@ build`: every size budget ok; its split step fails only on
 `node_modules/…` inputs, which this worktree's linked `node_modules` names
 `../mx-final/node_modules/…`; `mediaHost.js` now requires `execGuard.js`
 instead of carrying it.
+
+## Lane WINVAULTW: a set-up vault unlocks (2026-10-20)
+
+Reported: after Set Up Vault and "I Saved It" the section read "Vault —
+Locked", and every Unlock Vault toasted "The vault operation failed. Try
+again." (the client's pipe read `EPIPE` about 3 s after the click). Rows
+23–30 above are this lane's.
+
+- New suite `test/unit/vault/windowsVaultPanelFlow.test.ts` (Windows only)
+  drives the vault exactly as the Models & Agents panel does: the real
+  `VaultPanelHost` (its watch stream, reloads and authorize guards) over
+  `vaultPanelService` and `VaultManageSession`, wired as `vaultPanelEntry`
+  wires them, against the real broker the real client platform launches
+  (`test/unit/helpers/vault/windowsBrokerFixture.ts`, now shared with
+  `windowsBrokerClient`). It sets up, locks, unlocks, adds through the
+  native editor's own code, writes and reads back a 9.6 KB first-party row
+  the way the key-store migration does, locks, unlocks and reads again, and
+  settles on the published state with no toast after each step. Like the
+  VSIX, the fixture carries no keyring binding. It was red on the base tree
+  (first at a hang, then at each defect in turn) and is green after rows
+  23–30.
+- Diagnosis traced the broker and the client into a log under the test
+  TEMP (removed before commit; `process._debugProcess` was unusable).
+- Governed launches inside the broker with an editor-like working folder:
+  the suite runs with the working folder holding every helper (built pipe
+  and slot helpers, job helpers, dist), and passes. On Windows the broker
+  starts its pipe and slot helpers through the absolute system PowerShell
+  (`spawnResourceProcess`, working folder System32's PowerShell folder) and
+  its synchronous file commands with `spawnSync` from the helper's own
+  folder: none goes through `resolveCommand`, so none can be refused as a
+  workspace planting. Outside Windows, `vaultProcessIdentity`
+  (`src/runtime/vault/posixNative.ts`) runs the peer helper through
+  `execResourceFile` with no workspace, so its workspace is the process's
+  working folder; not exercised here (no macOS or Linux on this PC).
+- `windowsPipeRelay` gained two checks on the real helper: bytes written
+  after a client left, and 20 waves of 10 dial-and-leave clients with a
+  server inspection beside each wave.
+- Hosted CI's windowsBrokerClient failure (windows shard 9: `connect ENOENT`
+  on the pipe the claim names, then `EBUSY` removing the folder) and the
+  intermittent local "No access" at `isVaultPipeServerTrusted` are defect
+  26 and the teardown correction above. Readiness is exact without a wait
+  or deadline of ours: the serve helper's first instance exists before its
+  ready frame, the claim follows the ready frame, an instance exists for as
+  long as the helper serves, and the broker releases the claim before it
+  stops the helper. The discovery deadline that remains is the existing one
+  for the claim's lock-before-token window.
+
+Gates (Git Bash, `TEMP`/`TMP` = `C:\Users\Randy\mx-vtmp`): every vault suite
+plus `pathGuardSpawns`, 257 passed, 34 skipped, 2 failed: the two
+`brokerSocketDirectory` symlink cases fail in their own setup with `EPERM`
+on `symlink()` (this PC grants no symlink privilege; code untouched).
+`npm run typecheck` 0; eslint (zero warnings, touched files) 0; prettier
+clean; `npm run cycles` 0; `npm run deadcode` 0; `npm run check:roadmap` 0.
+`npm run check:catches` 1 and `npm run duplication` 1. The base tree alone raises core GENERIC 267 → 271 and host 113 → 115 with core SWALLOW 72 → 68 (sites in `src/core/resources/admission.ts`, `src/core/resources/launchHost.ts`, `src/host/support/reportJournal.ts`, none touched here) and holds the one clone (inside `reportJournal.ts`). This lane raises no count: it adds one NARROW catch, and editing the try in `WindowsDiscovery.discover` (the probe gone) changed that accepted GENERIC site's identity, so the ratchet asks for a regenerated baseline. The baseline was not written while the base tree's counts rose; once they are handled, `--write-baseline` accepts this site with no rise.

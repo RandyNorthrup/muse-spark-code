@@ -318,6 +318,18 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   its own install folder, so the editor's own runtime read as a program
   planted in a workspace and the vault's broker was never launched: the
   panel only said "The vault operation failed".
+- On Windows a vault you just set up now unlocks. After "I Saved It" the
+  vault read "Locked" and every Unlock Vault said "The vault operation
+  failed. Try again.": the vault's activity log was written the macOS and
+  Linux way, which Windows refuses, could not be created on first use,
+  could not be read while it was open for writing, and needed the system
+  keyring the extension does not ship (it now keeps its checkpoint in a
+  private file beside the vault, as the vault's rollback record already
+  did). The vault's Windows connection also no
+  longer drops a request it receives before the caller is verified, no
+  longer briefly disappears between callers, no longer fails on a request
+  larger than 4 KB (a key bundle, a certificate), and no longer stops
+  serving every window when one window closes while it answers.
 - The Models panel and `auth status` tell apart two providers made from
   one preset (two Anthropic keys): each adds the provider's id instead of
   showing the same name twice.
