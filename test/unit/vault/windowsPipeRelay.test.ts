@@ -77,6 +77,7 @@ const resultsSchema = z.strictObject({
     processResult: z.string(),
     processId: z.union([z.number(), z.null()]),
     processUserId: z.union([z.string(), z.null()]),
+    serverClosed: z.literal(true),
   }),
 })
 

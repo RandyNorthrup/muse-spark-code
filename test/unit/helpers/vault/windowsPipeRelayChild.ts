@@ -54,7 +54,11 @@ void (async () => {
   process.send({ built: true, ownerSid: serve.relay.owner() })
   // The build is slow (a cold C# compile); the run below stays fast.
   await once(process, 'message')
+  const serverClosed = Promise.withResolvers<undefined>()
   await serve.listen(context.pipe, (socket) => {
+    socket.once('close', () => {
+      serverClosed.resolve(undefined)
+    })
     socket.on('error', () => undefined)
     socket.on('data', (bytes: Buffer) => {
       socket.write(bytes)
@@ -72,6 +76,10 @@ void (async () => {
     client.write(Buffer.from(echo, 'utf8'))
   })
   client.destroy()
+  // The client's going away closes the relayed server socket, as a net
+  // socket closes when its peer ends: a socket that never closed kept the
+  // broker from its idle shutdown.
+  await serverClosed.promise
   const guard = new WindowsPipeFiles(serve.relay, () => new VaultError('io'))
   const target = path.join(context.workDir, 'anchor-probe.json')
   await writeFile(target, '{}')
@@ -92,6 +100,7 @@ void (async () => {
       processResult: examined.result,
       processId: examined.process?.processId ?? null,
       processUserId: examined.process?.userId ?? null,
+      serverClosed: true,
     },
   })
   // Windows has no graceful SIGTERM for node: the parent says stop, the
