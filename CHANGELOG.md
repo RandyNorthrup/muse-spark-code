@@ -660,6 +660,12 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   own lazily fetched chunks beside their deferred surfaces instead of riding
   the shared surface-English closure. No sentence changed in any language.
 
+- Bundled skills load when the extensions or storage folder is reached
+  through a symlink or a short Windows name. A symlinked or short-named
+  ancestor of the installed package itself is no longer mistaken for a link
+  inside the skill tree, while a link inside the tree that leads outside it
+  is still refused with its warning.
+
 ### Security
 
 - Starting Muse Code no longer lets a program planted in the workspace run
