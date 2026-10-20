@@ -131,7 +131,7 @@ export class AccountSecrets implements AccountCredentialVault {
       value = await this.deps.vault.read(binding)
     } catch (error) {
       // A failed storage call may echo the attempted value in an error:
-      // only the fixed kind crosses, with its cause (D119).
+      // only the fixed kind crosses, with its cause (D207).
       throw error instanceof AccountStoreError
         ? error
         : new AccountStoreError('unavailable', 'unavailable', { cause: error })
@@ -156,7 +156,7 @@ export class AccountSecrets implements AccountCredentialVault {
       await this.deps.vault.write(binding, record)
     } catch (error: unknown) {
       // A store failure is unavailable, with its cause: anything else keeps
-      // its kind (D119).
+      // its kind (D207).
       if (!(error instanceof Error)) throw error
       throw new AccountStoreError('unavailable', 'unavailable', { cause: error })
     }
@@ -180,7 +180,7 @@ export class AccountSecrets implements AccountCredentialVault {
       // crosses this boundary instead of becoming a generic unavailable.
       if (isRevokeUnsupportedError(error)) throw error
       // A store failure is unavailable, with its cause: anything else keeps
-      // its kind (D119).
+      // its kind (D207).
       if (!(error instanceof Error)) throw error
       throw new AccountStoreError('unavailable', 'unavailable', { cause: error })
     }

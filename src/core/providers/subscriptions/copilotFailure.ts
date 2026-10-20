@@ -1,4 +1,4 @@
-// The Copilot adapter's own failure (PLAN.md D119): the class lives in
+// The Copilot adapter's own failure (PLAN.md D207): the class lives in
 // core beside the other provider failure types (ChatGptSignInError,
 // AccountStoreError) because core's subscription dispatch tells a Copilot
 // failure from any other error, while the adapter itself stays behind the

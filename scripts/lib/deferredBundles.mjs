@@ -17,7 +17,7 @@ export const SUBSCRIPTION_ONLY = [
   'src/core/providers/subscriptions/chatgpt.ts',
   'src/core/providers/subscriptions/chatgptHostId.ts',
   'src/core/providers/subscriptions/registry.ts',
-  // D119 (2026-10-17): the Copilot adapter's failure rides with the
+  // D207 (2026-10-17): the Copilot adapter's failure rides with the
   // subscription dispatch, like ChatGptSignInError rides in chatgpt.ts. The
   // host adapter reads it through subscriptionsEntry so both bundles share
   // the subscriptions bundle's copy (one `instanceof` across the boundary).
@@ -1173,14 +1173,6 @@ export function checkDeferredBundles(inputsOf) {
         ) &&
         !(
           source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js'
-        ) &&
-        // JOIN0190: the image call resolves the provider's documented
-        // edit-item cap through the capability record beside the call.
-        // Image tools never list providers; the record rides the image
-        // machinery in the two entries that run image turns.
-        !(
-          source === 'src/core/providers/capabilityRecord.ts' &&
-          (bundle.output === 'dist/extension.js' || bundle.output === 'dist/modelApi.js')
         ) &&
         // C-M113-2: the session and usage inputs read M102's journal
         // through its store, whose static record import carries the card.

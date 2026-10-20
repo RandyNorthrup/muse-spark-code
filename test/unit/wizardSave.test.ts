@@ -4,8 +4,9 @@
 // fails still reports every completed, failed and skipped step.
 import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
-import type { ProviderCredentialStore } from '../../src/host/providers/credentialRecords'
+import { ProviderCredentialStore } from '../../src/host/providers/credentialRecords'
 import type { ProviderEntry, ProvidersStore } from '../../src/host/providers/providerPorts'
+import { memorySecretStoreFor } from '../../src/runtime/exec/keyInput'
 import {
   saveWizardDraft,
   type WizardDraft,
@@ -22,7 +23,7 @@ function entry(): ProviderEntry {
   }
 }
 
-function stores(options: { failCredential?: Error } = {}) {
+function stores() {
   const added: ProviderEntry[] = []
   let defaultModel: string | undefined
   const store: ProvidersStore = {
@@ -41,13 +42,9 @@ function stores(options: { failCredential?: Error } = {}) {
       return Promise.resolve()
     },
   }
-  const credentials = {
-    getProviderCredential: () => Promise.resolve(undefined),
-    setProviderCredential: () =>
-      options.failCredential === undefined
-        ? Promise.resolve()
-        : Promise.reject(options.failCredential),
-  } as unknown as ProviderCredentialStore
+  // The product's own credential store over its headless in-memory secrets:
+  // reads find nothing, and every write is refused with the product's words.
+  const credentials = new ProviderCredentialStore(memorySecretStoreFor({}), () => undefined)
   const deps: WizardSaveDeps = {
     store,
     credentials,
@@ -82,10 +79,10 @@ describe('saveWizardDraft', () => {
   })
 
   it('reports a failed credential save step by step', async () => {
-    const { deps } = stores({ failCredential: new Error('secret store is down') })
+    const { deps } = stores()
     const outcome = await saveWizardDraft(deps, draft('http://127.0.0.1:1/'))
     expect(outcome.failedStep).toBe('credential')
     expect(outcome.notice).toContain(UI_TEXT.providerSaved)
-    expect(outcome.notice).toContain('secret store is down')
+    expect(outcome.notice).toContain(UI_TEXT.execTrustRefused)
   })
 })

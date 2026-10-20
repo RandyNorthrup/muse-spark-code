@@ -19,7 +19,7 @@ export class AccountStoreError extends Error {
   ) {
     // A fixed code, or a fixed sentence filled with a fixed word: store and
     // revocation errors can contain the secret itself. A cause stays off the
-    // message (D119: the handler keeps it, never shows it).
+    // message (D207: the handler keeps it, never shows it).
     super(message, options)
     this.name = 'AccountStoreError'
   }
