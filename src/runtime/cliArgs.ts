@@ -353,15 +353,25 @@ function invalidStrictOption(
   valid: readonly string[],
   error: unknown,
 ): Extract<RuntimeCommand, { command: 'invalid' }> {
-  if (error instanceof Error && /unknown option/i.test(error.message)) {
-    return refused(unknownOptionReason(UI_TEXT, ACP_AGENT_NAME, topic, valid, error.message))
+  const message = error instanceof Error ? error.message : String(error)
+  if (/unknown option/i.test(message)) {
+    return refused(unknownOptionReason(UI_TEXT, ACP_AGENT_NAME, topic, valid, message))
   }
   // A bad or missing value names the option and its help, never the value
   // and never the parser's English sentence.
-  const option = parserOptionName(error)
-  if (option !== undefined) return refused(valueInvalidReason(topic, option))
-  const raw = error instanceof Error ? error.message : String(error)
-  return refused(unknownOptionReason(UI_TEXT, ACP_AGENT_NAME, topic, valid, raw))
+  if (
+    error instanceof Error &&
+    'code' in error &&
+    error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE'
+  ) {
+    const option = parserOptionName(message)
+    if (option !== undefined) return refused(valueInvalidReason(topic, option))
+  }
+  // Anything else is a downstream refusal already in the product's words
+  // (such as the resource bounds); it passes through, still exit 2. An
+  // unexpected-positional throw cannot reach these parsers: every one of
+  // them allows positionals.
+  return refused(message)
 }
 
 /** An option-parser failure on one topic as its usage refusal (D120): a wrong
