@@ -1505,7 +1505,17 @@ export function publishedReference(model, source) {
       (command) =>
         !['estimate', 'vault', ...(isScheduleReady ? [] : ['schedule'])].includes(command.name),
     ),
-    cli: model.cli.filter((command) => !hiddenRoutes.has(command.route)),
+    cli: model.cli.filter(
+      (command) =>
+        !hiddenRoutes.has(command.route) &&
+        // `--vault` stays unpublished while M109 is in progress (no
+        // published surface until the lead's complete receipts); the
+        // schedule flag follows the delivery certification like every
+        // other delivery route. Accepted flags the parser takes stay in
+        // the complete inventory and the terminal help (cliHelpConsistency).
+        !/(?:^|\s)--vault(?:\s|$)/.test(command.name) &&
+        (isScheduleReady || !/(?:^|\s)--scheduled-prompts(?:\s|$)/.test(command.name)),
+    ),
     shortcuts: model.shortcuts.filter(
       (shortcut) => !commands.has(shortcut.command) && shortcut.command !== 'team.tree',
     ),

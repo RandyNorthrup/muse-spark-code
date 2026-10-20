@@ -141,7 +141,7 @@ measured `ECONNRESET`), is a live listener. Any other failure is a local
 failure, reported with its OS code.
 */
 async function isLive(file: string): Promise<boolean> {
-  const code = await new Promise<string | undefined>((resolve) => {
+  const failure = await new Promise<NodeJS.ErrnoException | undefined>((resolve) => {
     const client = createConnection(file)
     client.once('connect', () => {
       client.destroy()
@@ -149,12 +149,14 @@ async function isLive(file: string): Promise<boolean> {
     })
     client.once('error', (error: NodeJS.ErrnoException) => {
       client.destroy()
-      resolve(errorCode(error) ?? 'unknown')
+      resolve(error)
     })
   })
-  if (code === undefined || LIVE_LISTENER_CODES.has(code)) return true
+  if (failure === undefined) return true
+  const code = errorCode(failure) ?? 'unknown'
+  if (LIVE_LISTENER_CODES.has(code)) return true
   if (DEAD_ENTRY_CODES.has(code)) return false
-  throw new NamedLockError('unavailable', { reason: code })
+  throw new NamedLockError('unavailable', { reason: code, cause: failure })
 }
 
 /** A stopped owner can resume; only ESRCH proves its entry cannot become live. */

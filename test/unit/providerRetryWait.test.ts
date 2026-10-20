@@ -30,12 +30,15 @@ const silent = {
 }
 
 /** The real transport with real timers; `request` never runs, so its fetch is never called. */
-function transport(): RequestTransport {
+function transport(seen?: number[]): RequestTransport {
   return new RequestTransport({
     fetch,
     baseUrl: 'https://example.invalid',
     apiKey: () => Promise.resolve('test-key'),
-    sleep: (ms: number) => new Promise<void>((done) => setTimeout(done, ms)),
+    sleep: (ms: number) => {
+      seen?.push(ms)
+      return new Promise<void>((done) => setTimeout(done, ms))
+    },
     now: () => FIXED_NOW,
     random: () => 0,
     log: silent,
@@ -117,42 +120,55 @@ describe('a provider-named 429 wait', () => {
   })
 
   it('really sleeps the whole named wait over real timers', async () => {
-    // A 250 ms provider wait over real timers really elapses whole — the
-    // elapsed floor proves the sleep happened, not just its value.
-    const started = performance.now()
-    await transport().pause(250, new AbortController().signal)
-    expect(performance.now() - started).toBeGreaterThanOrEqual(250)
+    // The whole named wait reaches the real timer, and the pause does not
+    // resolve before it: still waiting 50 ms in proves the wait was not
+    // skipped, with no wall-clock floor for timer jitter to trip.
+    const seen: number[] = []
+    let isResolved = false
+    const waiting = (async () => {
+      await transport(seen).pause(250, new AbortController().signal)
+      isResolved = true
+    })()
+    await new Promise((done) => setTimeout(done, 50))
+    expect(isResolved).toBe(false)
+    expect(seen).toEqual([250])
+    await waiting
+    expect(isResolved).toBe(true)
   })
 
   it('pauses background dispatch for the whole derived wait while the foreground passes', async () => {
     // The wait derived from the header values holds admitted background
     // work: the background acquire really sleeps it out over real timers
-    // while the user's turn, acquired beside it, resolves first.
+    // while the user's turn, acquired beside it, resolves first. The
+    // product's own clock advances through the wait, so the waited
+    // remainder is exact with no wall-clock floor for load or jitter.
     const derived = providerWaitMs(new Headers({ 'retry-after-ms': '250' }), Date.now())
     expect(derived).toBe(250)
     const waits: number[] = []
+    let nowMs = 1_000_000
     const pacing = new ModelApiPacing({
-      now: () => Date.now(),
+      now: () => nowMs,
       wait: (ms: number) => {
         waits.push(ms)
+        nowMs += ms
         return new Promise<void>((done) => setTimeout(done, ms))
       },
     })
     pacing.observe('rogue', undefined, derived)
     const order: string[] = []
-    const started = performance.now()
-    const backgrounded = pacing.acquire('rogue', 'subagent', 0, AbortSignal.timeout(5000))
-    const foregrounded = pacing.acquire('rogue', 'foreground', 0, AbortSignal.timeout(5000))
+    const backgrounded = (async () => {
+      await pacing.acquire('rogue', 'subagent', 0, AbortSignal.timeout(5000))
+      order.push('background')
+    })()
+    const foregrounded = (async () => {
+      await pacing.acquire('rogue', 'foreground', 0, AbortSignal.timeout(5000))
+      order.push('foreground')
+    })()
     await foregrounded
-    order.push('foreground')
+    // The foreground passed while the background was still sleeping.
+    expect(order).toEqual(['foreground'])
     await backgrounded
-    order.push('background')
-    const elapsed = performance.now() - started
     expect(order).toEqual(['foreground', 'background'])
-    expect(elapsed).toBeGreaterThanOrEqual(200)
-    expect(waits).toHaveLength(1)
-    // Within one clock tick of the whole named wait (the observe-to-acquire
-    // gap can straddle a millisecond boundary).
-    expect(waits[0]).toBeGreaterThanOrEqual(249)
+    expect(waits).toEqual([250])
   })
 })

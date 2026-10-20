@@ -771,12 +771,21 @@ async function runInScope(
   deps: PluginRunDeps,
   scope: RunScope | undefined,
 ): Promise<ForeignHookAnswer> {
+  // A call refused because the session was already closed reads as refused;
+  // a call Stop ends after it started names the wait it kept.
+  if (scope?.isClosed() === true)
+    return { status: 'failed', reason: `${call.system}: the session is closed` }
   const platform = deps.platform ?? process.platform
-  const closed = (): ForeignHookAnswer => ({
+  const startedAt = Date.now()
+  const waitedText = (): string =>
+    formatUnit(
+      Math.max(0, Math.round((Date.now() - startedAt) / MILLISECONDS_PER_SECOND)),
+      'second',
+    )
+  const closedAfterWait = (): ForeignHookAnswer => ({
     status: 'failed',
-    reason: `${call.system}: the session is closed`,
+    reason: `${call.system}: the session is closed after ${waitedText()}`,
   })
-  if (scope?.isClosed() === true) return closed()
   const tree = treeFor(deps, platform)
   if (tree === undefined) {
     return settled(
@@ -785,13 +794,13 @@ async function runInScope(
     )
   }
   const runtime = await resolvePluginRuntime(call.system, deps, scope?.signal)
-  if (scope?.isClosed() === true) return closed()
+  if (scope?.isClosed() === true) return closedAfterWait()
   if (!runtime.ok) return settled(call, transportFailure(call, runtime.reason))
   const source = deps.childSource ?? pluginChildSource()
   const resource = await admitResource('hook', scope?.signal)
   if (scope?.isClosed() === true) {
     resource?.complete(true)
-    return closed()
+    return closedAfterWait()
   }
   let child: PluginChildHandle
   try {
@@ -825,7 +834,7 @@ async function runInScope(
   }
   if (scope?.isClosed() === true) {
     endTree(tree, child)
-    return closed()
+    return closedAfterWait()
   }
   // D121: no deadline of ours — the call waits for the child's answer
   // line, an explicit per-hook timeout, the person's own plugin wait, or
@@ -834,21 +843,9 @@ async function runInScope(
   // names the wait it kept.
   return await new Promise<ForeignHookAnswer>((resolve) => {
     scope?.owned.add(child)
-    const startedAt = Date.now()
-    const waitedText = (): string =>
-      formatUnit(
-        Math.max(0, Math.round((Date.now() - startedAt) / MILLISECONDS_PER_SECOND)),
-        'second',
-      )
     const onAbort = (): void => {
       finish(transportFailure(call, `the plugin call was cancelled after ${waitedText()}`))
     }
-    // A call its session ended while it waited: the session is gone, and
-    // the answer names the wait Stop kept.
-    const closedAfterWait = (): ForeignHookAnswer => ({
-      status: 'failed',
-      reason: `${call.system}: the session is closed after ${waitedText()}`,
-    })
     let isDone = false
     const chunks: Buffer[] = []
     let bytes = 0
