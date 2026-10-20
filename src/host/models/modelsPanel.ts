@@ -53,6 +53,7 @@ import {
   createOpenRouterDraftDiscard,
 } from '../backend/providersEntry'
 import { Usd } from '../../shared/usd'
+import { distinctProviderLabels } from '../../core/providers/distinctLabels'
 import { redactSecrets } from '../../shared/redact'
 import { wireWordForLog } from '../../core/logging'
 import { type SessionBudgetConfig } from './sessionBudget'
@@ -600,70 +601,73 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
     }
     const providerStates = await providers.providerStates()
-    state.providers = providerStates.flatMap(({ entry, hasKey, origin }) => {
-      const preset = state.presets.find((candidate) => candidate.id === entry.preset)
-      const info = providers.preset(entry.preset)
-      if (preset === undefined) {
-        // One stale card never hides a valid saved provider: the affected
-        // row stays, marked unavailable with its reason. Names ids only.
-        const label = info?.name ?? entry.id
-        // Only a known wire format rides along; anything else stays absent.
-        let infoFormat: 'responses' | 'chat' | 'anthropic' | 'gemini' | 'ollama' | undefined
-        switch (info?.format) {
-          case 'responses':
-          case 'chat':
-          case 'anthropic':
-          case 'gemini':
-          case 'ollama': {
-            infoFormat = info.format
-            break
+    // Two providers made from one preset are told apart by id (two Anthropic keys).
+    state.providers = distinctProviderLabels(
+      providerStates.flatMap(({ entry, hasKey, origin }) => {
+        const preset = state.presets.find((candidate) => candidate.id === entry.preset)
+        const info = providers.preset(entry.preset)
+        if (preset === undefined) {
+          // One stale card never hides a valid saved provider: the affected
+          // row stays, marked unavailable with its reason. Names ids only.
+          const label = info?.name ?? entry.id
+          // Only a known wire format rides along; anything else stays absent.
+          let infoFormat: 'responses' | 'chat' | 'anthropic' | 'gemini' | 'ollama' | undefined
+          switch (info?.format) {
+            case 'responses':
+            case 'chat':
+            case 'anthropic':
+            case 'gemini':
+            case 'ollama': {
+              infoFormat = info.format
+              break
+            }
+            default: {
+              infoFormat = undefined
+              break
+            }
           }
-          default: {
-            infoFormat = undefined
-            break
-          }
+          const parsed = providerStateSchema.safeParse({
+            id: entry.id,
+            presetId: entry.preset,
+            unavailable: fill(UI_TEXT.providerPresetUnsupported, {
+              provider: label,
+              preset: entry.preset,
+            }),
+            label,
+            address: entry.address,
+            format: entry.format ?? infoFormat,
+            auth: entry.auth,
+            key: {
+              state: hasKey ? 'stored' : 'missing',
+              origin,
+            },
+            test: { status: 'untested' },
+            models: [...entry.models],
+            pinned: [...(entry.pinned ?? [])],
+          })
+          log.warn(`Provider ${entry.id} left out of the panel: ${entry.preset}`)
+          return parsed.success ? [parsed.data] : []
         }
-        const parsed = providerStateSchema.safeParse({
+        const isBound = origin === undefined || origin === new URL(entry.address).origin
+        return {
           id: entry.id,
           presetId: entry.preset,
-          unavailable: fill(UI_TEXT.providerPresetUnsupported, {
-            provider: label,
-            preset: entry.preset,
-          }),
-          label,
+          label: preset.label,
           address: entry.address,
-          format: entry.format ?? infoFormat,
+          format: entry.format ?? preset.format,
           auth: entry.auth,
           key: {
-            state: hasKey ? 'stored' : 'missing',
+            state: hasKey ? (isBound ? 'stored' : 'needs-again') : 'missing',
             origin,
+            actualOrigin: isBound ? undefined : new URL(entry.address).origin,
           },
           test: { status: 'untested' },
           models: [...entry.models],
+          modelLimits: entry.modelLimits,
           pinned: [...(entry.pinned ?? [])],
-        })
-        log.warn(`Provider ${entry.id} left out of the panel: ${entry.preset}`)
-        return parsed.success ? [parsed.data] : []
-      }
-      const isBound = origin === undefined || origin === new URL(entry.address).origin
-      return {
-        id: entry.id,
-        presetId: entry.preset,
-        label: preset.label,
-        address: entry.address,
-        format: entry.format ?? preset.format,
-        auth: entry.auth,
-        key: {
-          state: hasKey ? (isBound ? 'stored' : 'needs-again') : 'missing',
-          origin,
-          actualOrigin: isBound ? undefined : new URL(entry.address).origin,
-        },
-        test: { status: 'untested' },
-        models: [...entry.models],
-        modelLimits: entry.modelLimits,
-        pinned: [...(entry.pinned ?? [])],
-      }
-    })
+        }
+      }),
+    )
     await refreshUsage(
       state.providers,
       providerStates.map(({ entry }) => entry),
