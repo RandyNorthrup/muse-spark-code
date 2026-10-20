@@ -25,48 +25,32 @@ import {
   liveEvidence,
 } from '../legalFix'
 import type { LegalScanResult, LegalFinding } from '../../shared/legal'
+import type { LegalFixPreviewApplier, LegalFixPreviewFiles } from '../../shared/legalScanEntry'
 import {
   findingDigest,
   legalFixPatchSchema,
   type LegalFixPatch,
   type ConfirmLegalFixMessage,
   type LegalFixExcluded,
-  type LegalFixFailure,
   type LegalFixPreviewMessage,
   type LegalFixResultMessage,
   type LegalFixSnapshot,
   type RequestLegalFixMessage,
 } from '../../shared/legalFix'
 
-/** The guarded files, resolved and read through the host's own checks. */
-export interface LegalFixFileAccess {
-  /**
-  The workspace-confined absolute path for a finding's relative file;
-  undefined when it escapes the workspace (denied traversal).
-  */
-  resolveRelativePath(relativePath: string): Promise<string | undefined>
-  /** Up to `maxBytes` of the file; undefined when it cannot be read. */
-  readBytes(absolutePath: string, maxBytes: number): Promise<Uint8Array | undefined>
-}
+/**
+The guarded files, resolved and read through the host's own checks: the
+bundle surface's file shape, so the surface never imports this module.
+*/
+export type LegalFixFileAccess = LegalFixPreviewFiles
 
 /**
 Lane B's seam: applies the authorized findings through the normal edit
 tools and the current permission mode's approvals. Partial failures are
-returned per path, never thrown away.
+returned per path, never thrown away. The bundle surface's applier shape,
+so the surface never imports this module.
 */
-export interface LegalFixApplier {
-  /** Read-only preparation; apply must use these exact diffs and check isCurrent before every write. */
-  prepare?(
-    findings: readonly LegalFinding[],
-    paths: readonly string[],
-  ): Promise<readonly LegalFixPatch[]>
-  apply(
-    findings: readonly LegalFinding[],
-    paths: readonly string[],
-    patches: readonly LegalFixPatch[],
-    isCurrent: () => boolean,
-  ): Promise<{ readonly applied: readonly string[]; readonly failed: readonly LegalFixFailure[] }>
-}
+export type LegalFixApplier = LegalFixPreviewApplier
 
 /** The live host state a preview is taken in and a confirm rechecks. */
 export interface LegalFixHostState {

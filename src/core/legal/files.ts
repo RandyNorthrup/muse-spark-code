@@ -1,6 +1,8 @@
 import { UI_TEXT } from '../../shared/constants'
 import { redactSecrets } from '../redact'
 import { REDACTED_MARK } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
+import type * as LegalFix from './legalFixEntry'
 // The legal scanner's file access (M97, PLAN.md D76): every read goes
 // through one injected snapshot, so the scanner itself performs no
 // file-system, network or process call. Paths are workspace-relative with
@@ -32,6 +34,25 @@ export interface LegalFileSnapshot {
 /** A scan that cannot run honestly throws this instead of guessing. */
 export class LegalScanError extends Error {
   override readonly name = 'LegalScanError'
+}
+
+/**
+The header-fix planner from the fix chunk (dist/legalFix.js, D6): a scan
+or fix request with nothing fixable never loads it. A request that needs
+it and cannot load it is refused, never silently unpatched.
+*/
+export async function loadFixPlanner(): Promise<typeof LegalFix.prepareLegalHeaderPatches> {
+  try {
+    const fix = await import('./legalFixEntry.js')
+    return fix.prepareLegalHeaderPatches
+  } catch (error) {
+    throw new LegalScanError(
+      fill(UI_TEXT.legalScanFailed, {
+        reason: error instanceof Error ? error.message : String(error),
+      }),
+      { cause: error },
+    )
+  }
 }
 
 /** The errno codes a file read can raise that mean 'this file cannot be

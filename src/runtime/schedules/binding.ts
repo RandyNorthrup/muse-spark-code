@@ -25,16 +25,20 @@ export interface RuntimeSchedulesBinding extends AcpSchedulePort {
   close(): Promise<void>
 }
 
+export type CreateRuntimeSchedulesArgs = [
+  table: UiText,
+  locale: string,
+  delivery?: ScheduleEditorDeliveryPorts,
+  runtimeDelivery?: RuntimeScheduleDeliveryPorts,
+  migration?: { source: ScheduleMigrationSource; zone: string },
+  scheduleEngine?: RuntimeScheduleEngineModule,
+  // D121: the person's pause-after-failures count (0 never pauses), read
+  // live on every settlement when it is a function. Absent never pauses.
+  pauseAfterFailures?: number | (() => number),
+]
+
 interface RuntimeSchedulesModule {
-  createRuntimeSchedules(
-    table: UiText,
-    locale: string,
-    delivery?: ScheduleEditorDeliveryPorts,
-    runtimeDelivery?: RuntimeScheduleDeliveryPorts,
-    migration?: { source: ScheduleMigrationSource; zone: string },
-    scheduleEngine?: RuntimeScheduleEngineModule,
-    pauseAfterFailures?: number | (() => number),
-  ): Promise<RuntimeSchedulesBinding>
+  createRuntimeSchedules(...args: CreateRuntimeSchedulesArgs): Promise<RuntimeSchedulesBinding>
 }
 
 function isSchedulesModule(value: unknown): value is RuntimeSchedulesModule {
@@ -54,10 +58,8 @@ export function runtimeSchedulesBinding(
   runtimeDelivery?: RuntimeScheduleDeliveryPorts,
   migration?: { source: ScheduleMigrationSource; zone: string },
   scheduleEngine?: RuntimeScheduleEngineModule,
-  /**
-   * D121: the person's pause-after-failures count (0 never pauses), read
-   * live on every settlement when it is a function. Absent never pauses.
-   */
+  // D121: the person's pause-after-failures count (0 never pauses), read
+  // live on every settlement when it is a function. Absent never pauses.
   pauseAfterFailures?: number | (() => number),
 ): () => Promise<RuntimeSchedulesBinding> {
   const load = lazyBundleLoader({

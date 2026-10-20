@@ -313,6 +313,18 @@ function parseVersion(text: string): readonly [number, number, number] | undefin
     : undefined
 }
 
+/**
+Stop and the person's own wait end the probe with the wait's own words, not
+the absent-runtime reason: a cancelled or timed-out probe reports itself.
+*/
+function probeAbsentReason(error: unknown, absent: string): string {
+  return error instanceof Error &&
+    (error.message.startsWith('Plugin runtime probe cancelled after') ||
+      error.message.startsWith('Plugin runtime probe timed out after'))
+    ? error.message
+    : absent
+}
+
 function isAtLeast(have: readonly [number, number, number], want: string): boolean {
   const minimum = want.split('.').map(Number)
   for (let index = 0; index < VERSION_PARTS; index += 1) {
@@ -371,16 +383,9 @@ export async function resolvePluginRuntime(
     try {
       text = await runVersion(command, env)
     } catch (error: unknown) {
-      // Stop and the person's own wait end the probe with the wait's own
-      // words, not 'not installed'.
       return {
         ok: false,
-        reason:
-          error instanceof Error &&
-          (error.message.startsWith('Plugin runtime probe cancelled after') ||
-            error.message.startsWith('Plugin runtime probe timed out after'))
-            ? error.message
-            : 'amp: the system node runtime is not installed',
+        reason: probeAbsentReason(error, 'amp: the system node runtime is not installed'),
       }
     }
     const version = parseVersion(text)
@@ -409,16 +414,9 @@ export async function resolvePluginRuntime(
   try {
     await runVersion(command, env)
   } catch (error: unknown) {
-    // Stop and the person's own wait end the probe with the wait's own
-    // words, not 'absent'.
     return {
       ok: false,
-      reason:
-        error instanceof Error &&
-        (error.message.startsWith('Plugin runtime probe cancelled after') ||
-          error.message.startsWith('Plugin runtime probe timed out after'))
-          ? error.message
-          : 'opencode: the installed bun runtime is absent',
+      reason: probeAbsentReason(error, 'opencode: the installed bun runtime is absent'),
     }
   }
   // D121: no memory bound of ours on any platform — without a set ceiling
