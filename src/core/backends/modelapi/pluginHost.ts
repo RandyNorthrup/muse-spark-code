@@ -79,6 +79,8 @@ export interface PluginSpawnOptions {
 /** One running plugin child, as the host drives it. */
 export interface PluginChildHandle {
   readonly pid: number | undefined
+  /** True once the child's exit event fired; its pid may already be reused. */
+  readonly exited: boolean
   /** Writes the request and closes stdin; a write error reaches `onError`. */
   write(text: string): void
   onStdout(listener: (chunk: Buffer) => void): void
@@ -484,8 +486,18 @@ export function nodeChildHandle(child: ChildProcess): PluginChildHandle {
   child.stdin?.on('error', failed)
   // Plugin logs stay on the child's stderr; the host never parses them.
   child.stderr?.resume()
+  // The exit event is the only proof this pid is dead: a later liveness
+  // probe cannot tell a dead pid from a reused one, and the tree kill must
+  // never signal a group it does not own.
+  let hasExited = false
+  child.on('exit', () => {
+    hasExited = true
+  })
   return {
     pid: child.pid,
+    get exited() {
+      return hasExited
+    },
     write: (text) => {
       const { stdin } = child
       if (stdin === null) {
@@ -547,7 +559,9 @@ export const posixProcessTree: PluginProcessTree = {
     return Promise.resolve(handle)
   },
   killTree: async (child) => {
-    if ((await didStopRegisteredPlugin(child)) || child.pid === undefined) return
+    // An exited child owns no group: its pid may already name a process
+    // that never belonged to this tree, so only a live child is signalled.
+    if ((await didStopRegisteredPlugin(child)) || child.pid === undefined || child.exited) return
     try {
       process.kill(-child.pid, 'SIGKILL')
     } catch {
