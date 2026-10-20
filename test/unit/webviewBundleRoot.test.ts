@@ -17,7 +17,8 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
+import { PRODUCTION_BUILD_KEY } from './helpers/productionPackage'
 import {
   copyRig,
   damageSolidArchiveBytes,
@@ -32,14 +33,16 @@ import { WEBVIEW_ARCHIVE_FILE, WEBVIEW_ARCHIVE_VERSION } from '../../src/shared/
 import { packSolidTextArchive } from '../../scripts/lib/solidTextArchive.mjs'
 
 // Real build output, small enough to pack per run: the document the panels
-// serve beside a chunk and the style they load with it. The chunk name is
-// content-hashed, so the test reads whatever the build emitted.
+// serve beside a chunk and the style they load with it, read from the
+// once-per-run shared production build (test/unit/globalSetup.mjs), never
+// from a checkout's dist, which a unit run does not build. The chunk name
+// is content-hashed, so the test reads whatever the build emitted.
 const VICTIM = 'main.js'
-const FIRST_CHUNK =
-  readdirSync(path.join('dist', 'webview', 'chunks')).toSorted((left, right) =>
-    left.localeCompare(right, 'en'),
-  )[0] ?? 'missing.js'
-const REAL_MEMBERS = [VICTIM, 'main.css', `chunks/${FIRST_CHUNK}`]
+const built = { webview: '', members: [] as string[] }
+/** The shared build's copy of one webview member. */
+function builtMember(member: string): string {
+  return path.join(built.webview, ...member.split('/'))
+}
 
 const root = mkdtempSync(path.join(tmpdir(), 'muse-webview-bundle-'))
 const extensionDir = path.join(root, 'ext')
@@ -63,12 +66,18 @@ function damagedRig(): { extensionDir: string; storageDir: string; cleanup: () =
 beforeAll(() => {
   // Real build output the tests never alter; the packaged rig is a copy the
   // real producer packs (its loose files leave with the archive).
+  built.webview = path.join(inject(PRODUCTION_BUILD_KEY), 'dist', 'webview')
+  const firstChunk = readdirSync(path.join(built.webview, 'chunks')).toSorted((left, right) =>
+    left.localeCompare(right, 'en'),
+  )[0]
+  if (firstChunk === undefined) throw new Error('The production build emitted no webview chunk')
+  built.members = [VICTIM, 'main.css', `chunks/${firstChunk}`]
   const looseDir = path.join(looseSource, 'dist', 'webview')
   mkdirSync(looseDir, { recursive: true })
-  for (const member of REAL_MEMBERS) {
+  for (const member of built.members) {
     const target = path.join(looseDir, ...member.split('/'))
     mkdirSync(path.dirname(target), { recursive: true })
-    cpSync(path.join('dist', 'webview', ...member.split('/')), target)
+    cpSync(builtMember(member), target)
   }
   mkdirSync(storageDir, { recursive: true })
   packSolidTextArchive(
@@ -111,9 +120,9 @@ describe('webview bundle resolver', () => {
     })
     expect(path.dirname(resolved)).toBe(storageDir)
     expect(path.basename(resolved).length).toBeGreaterThan('webview-'.length)
-    for (const member of REAL_MEMBERS) {
+    for (const member of built.members) {
       expect(readFileSync(path.join(resolved, ...member.split('/')))).toEqual(
-        readFileSync(path.join('dist', 'webview', ...member.split('/'))),
+        readFileSync(builtMember(member)),
       )
     }
   })
@@ -157,7 +166,7 @@ describe('webview bundle resolver', () => {
       globalStoragePath: storageDir,
     })
     expect(again).toBe(resolved)
-    expect(readFileSync(stored)).toEqual(readFileSync(path.join('dist', 'webview', VICTIM)))
+    expect(readFileSync(stored)).toEqual(readFileSync(builtMember(VICTIM)))
   })
 
   it('a damaged member refuses with the panel sentence', () => {

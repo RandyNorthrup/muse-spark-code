@@ -3,8 +3,7 @@
 // person's own hook code, as data); parsing, dispatch, answer protocol and
 // verdict mapping are the real production modules. The process cases run on
 // POSIX only; the payload builders run everywhere.
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { spawn } from 'node:child_process'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -23,17 +22,22 @@ import {
   type ExtensionHookEvent,
 } from '../../src/core/backends/modelapi/extensionHooks'
 import type { ElicitationHookVerdict } from '../../src/core/backends/modelapi/mcp/elicitation'
+import { hookEnvironment } from '../../src/core/execGuard'
 import { posixQuoted } from '../../src/core/shellQuote'
 import type { ShellResult } from '../../src/core/shellResult'
+import { runCommand } from '../../src/host/backend/toolIo'
+import { HOOK_OUTPUT_MAX_BYTES } from '../../src/shared/constants'
 
 const SERVER = 'calendar'
 
 /**
-A minimal real process runner: /bin/sh runs the hook command with the
-payload on stdin and bounded time, and the observed exit code and streams
-come back. It stands in only for process entry (the production runner in
-toolIo adds resource admission and credential fencing); selection,
-serialization, the answer protocol and verdicts are all production code.
+The production hook process entry: toolIo's runCommand starts /bin/sh with
+the hook command, the product's hook environment and the payload on stdin
+(an early hook exit closing stdin is the product's own EPIPE handling), and
+the observed exit code and streams come back. Only resource admission and
+the job object, which the extension host adds around it, are absent;
+selection, serialization, the answer protocol and verdicts are production
+code too.
 */
 function spawnHookResult(
   command: string,
@@ -43,50 +47,21 @@ function spawnHookResult(
   // it; only an explicitly set timeout still kills it.
   timeoutMs: number | undefined,
   signal: AbortSignal | undefined,
+  extraEnvNames?: readonly string[],
 ): Promise<ShellResult> {
-  return new Promise<ShellResult>((resolve) => {
-    const child = spawn('/bin/sh', ['-c', command], { cwd, stdio: ['pipe', 'pipe', 'pipe'] })
-    let stdout = ''
-    let stderr = ''
-    let isDone = false
-    const finish = (result: ShellResult): void => {
-      if (isDone) return
-      isDone = true
-      resolve(result)
-    }
-    const timer =
-      timeoutMs === undefined
-        ? undefined
-        : setTimeout(() => {
-            child.kill('SIGKILL')
-            finish({ stdout, stderr, exitCode: null, isTimedOut: true, isCancelled: false })
-          }, timeoutMs)
-    child.stdout.on('data', (chunk: unknown) => {
-      stdout += String(chunk)
-    })
-    child.stderr.on('data', (chunk: unknown) => {
-      stderr += String(chunk)
-    })
-    child.on('error', () => {
-      if (timer !== undefined) clearTimeout(timer)
-      finish({ stdout, stderr, exitCode: null, isTimedOut: false, isCancelled: false })
-    })
-    child.on('close', (code) => {
-      if (timer !== undefined) clearTimeout(timer)
-      finish({
-        stdout,
-        stderr,
-        exitCode: code,
-        isTimedOut: false,
-        isCancelled: signal?.aborted === true,
-      })
-    })
-    try {
-      child.stdin.write(payload)
-      child.stdin.end()
-    } catch {
-      // The child already exited; its close event settles the result.
-    }
+  return runCommand({
+    file: '/bin/sh',
+    args: ['-c', command],
+    cwd,
+    env: hookEnvironment(process.env, process.platform, extraEnvNames, {
+      workspaceRoot: cwd,
+      realpath: realpathSync,
+    }),
+    timeoutMs,
+    signal,
+    tree: { platform: process.platform, systemRoot: undefined, log: () => undefined },
+    stdin: payload,
+    maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
   })
 }
 
