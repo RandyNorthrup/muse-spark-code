@@ -195,7 +195,10 @@ describe('legal coverage and metadata', () => {
       {
         files: ['x.ts'],
         readFile: () => {
-          throw new Error('private details')
+          // The narrowed read guard matches unreadable files by errno code,
+          // never by message words, so the private message still exercises
+          // the marker path without leaking into the report.
+          throw Object.assign(new Error('private details'), { code: 'EACCES' })
         },
       },
       { headerPolicy: 'required' },
