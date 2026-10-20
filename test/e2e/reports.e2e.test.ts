@@ -174,12 +174,7 @@ beforeAll(async () => {
   }
   // An isolated data folder: the live CLI must never read the developer's own
   // journal or sessions, and the numbers below must be exactly these fixtures.
-  const home = path.join(state.liveData, 'home')
-  const input: DataFolderInput = {
-    platform: process.platform,
-    env: { XDG_DATA_HOME: path.join(state.liveData, 'data') },
-    homeDir: home,
-  }
+  const input = liveDataInput()
   const sessions = workspaceSessionsFolder(input, state.live)
   await mkdir(sessions, { recursive: true })
   await writeFile(
@@ -277,11 +272,7 @@ beforeAll(async () => {
   // C-M113-4: the playbook journal and one schedule the live CLI reports.
   // Same folders and workspace key the delivery engine uses, so the report
   // reads exactly what the hosts wrote.
-  const liveInput: DataFolderInput = {
-    platform: process.platform,
-    env: { XDG_DATA_HOME: path.join(state.liveData, 'data') },
-    homeDir: path.join(state.liveData, 'home'),
-  }
+  const liveInput = liveDataInput()
   const liveDataFolder = agentDataFolder(liveInput)
   const liveModule = {
     id: 'e2e-module',
@@ -380,11 +371,27 @@ async function cli(args: readonly string[]) {
   })
 }
 
-async function liveCli(args: readonly string[]) {
-  // An isolated data folder: the live CLI must never read the developer's
-  // own journal or sessions.
+/**
+The live CLI's isolated data folder, exactly as the CLI resolves it: the
+fixtures are seeded through the same environment the CLI runs with
+(Windows reads LOCALAPPDATA, Linux XDG_DATA_HOME, macOS the home), so the
+CLI never reads the developer's own journal or sessions.
+*/
+function liveDataEnv() {
   const home = path.join(state.liveData, 'home')
   const data = path.join(state.liveData, 'data')
+  return { HOME: home, USERPROFILE: home, XDG_DATA_HOME: data, LOCALAPPDATA: data }
+}
+
+function liveDataInput(): DataFolderInput {
+  return {
+    platform: process.platform,
+    env: liveDataEnv(),
+    homeDir: path.join(state.liveData, 'home'),
+  }
+}
+
+async function liveCli(args: readonly string[]) {
   return await runCli(path.join(state.live, 'dist', 'acpLive.js'), args, state.live, {
     PATH: process.env['PATH'],
     SystemRoot: process.env['SystemRoot'],
@@ -392,10 +399,7 @@ async function liveCli(args: readonly string[]) {
     // Pin the fixture frame: relative periods resolve in the CLI's own
     // machine-local day, which this stamp's expectations fix to UTC.
     TZ: 'UTC',
-    HOME: home,
-    USERPROFILE: home,
-    XDG_DATA_HOME: data,
-    LOCALAPPDATA: data,
+    ...liveDataEnv(),
   })
 }
 
@@ -530,11 +534,7 @@ describe('session and usage report kinds over real journals', () => {
     // A stored envelope that fails validation carries its precise reason even
     // though the host has no such session either (RVCM1132B finding 4): a
     // failed read is a failure, never a silent miss collapsed to history.
-    const input: DataFolderInput = {
-      platform: process.platform,
-      env: { XDG_DATA_HOME: path.join(state.liveData, 'data') },
-      homeDir: path.join(state.liveData, 'home'),
-    }
+    const input = liveDataInput()
     const sessions = workspaceSessionsFolder(input, state.live)
     await writeFile(
       path.join(sessions, 'corrupt1.json'),
