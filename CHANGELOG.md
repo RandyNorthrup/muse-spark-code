@@ -693,6 +693,14 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   ancestor of the installed package itself is no longer mistaken for a link
   inside the skill tree, while a link inside the tree that leads outside it
   is still refused with its warning.
+- The agent's command line now names the real cause of a bad option value:
+  a known option with a value it cannot take (such as
+  `--questions-defer-after abc` or `--backend foo`) says the value is
+  invalid, names the option and points at the help that lists what it
+  takes, instead of calling the argument unknown. A value that starts with
+  a dash or is missing answers in the same words instead of the parser's
+  English, on every command, and a truly unknown argument keeps its
+  unknown-argument answer.
 
 ### Security
 
