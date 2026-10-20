@@ -18000,6 +18000,44 @@ scope: `npm run build` stops at What's New (the 0.17.0 notes exceed the
 75 KiB content budget), and `usageIntegration.test.ts`'s panel-auth case
 expects 401 but the server answers 502.
 
+**Live rule (JOIN0190, 2026-10-19).** The two paragraphs below stand here,
+not in the archive: the exact-money guard cites them by text, so a carve
+must never move them again.
+
+**Sanctioned numeric money (M121 decision, 2026-10-09).** The type-checker
+guard reads all of `src` (host, runtime, ACP and webview too), so it judges
+more than the 0.17 inventory. Six kinds of number stay numeric, each listed
+in the guard's `sanctioned` category with this paragraph as its citation:
+(1) per-unit rates — USD per million tokens, per token or per hour on a price
+card or catalog row, display and comparison only, settled through `Usd`;
+(2) vendor wire units captured as sent (xAI `cost_in_usd_ticks`), converted
+exactly at the named boundary; (3) VS Code number settings and their declared
+defaults/limits (`paidDailyBudgetUsd`, `tabDailyBudgetUsd`,
+`modelApiSessionBudgetUsd`, `PAID_DAILY_BUDGET` limits), which VS Code stores
+as JSON numbers and every reader converts with `Usd.from` on read; (4) the
+estimator's demand quantities (RVM121A P3-3, 2026-10-09: `accountUsdPerHour`
+and the `usd` rate read from it), USD/hour forecasts compared as numbers
+inside scheduling math beside requests/tokens/percent per hour through the
+shared number-based `Quantity` machinery — converting one unit would fracture
+it, so conversion waits for estimator-milestone work; (5) the connector's
+integer micro-USD amounts (grant paid caps, approval prices), exact integer
+math end to end and never float, shown as micros until the paid-authority UI
+decides their display (PR #227, 2026-10-18); (6) the frozen eval plan's
+recorded budget and measured cost (`src/core/eval/plan.json`), the live run's
+own numbers read back for estimates only, never billed or enforced (PR #227,
+2026-10-18). Everything
+else is converted to `UsdAmount`; old persisted numbers are read through a
+versioned schema whose number member pipes straight to the canonical string.
+
+**Citations by text (INT0180, 2026-10-11).** The guard cites the six clauses
+above by this milestone's heading and their own words
+(`test/unit/helpers/planCitation.ts`, `moneyPlanCitations.ts`), not by line
+number: a line number moved with every edit above it, and the old check only
+asked that the numbered line was not blank. Each clause must now be in this
+file exactly once, under this heading; rewording or moving one is a deliberate
+change that updates its citation in the same commit. Record:
+`docs/certification/m121.md`.
+
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
 **Status 2026-10-07: built.** Linux receipts in `docs/certification/int0180.md`; the package job stays red without genuine macOS artifacts.

@@ -160,7 +160,7 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     anchor: 'workspaceRoot',
     reason: 'fixed clipboard/browser adapters handed off with the shared workspace',
   },
-  'src/core/orchestration/playbook/modules.ts': {
+  'src/core/orchestration/playbook/renamedFiles.ts': {
     kind: 'guarded',
     anchor: 'processGitPath',
     reason: 'git resolved outside the workspace + guarded child env for rename reads',
@@ -197,20 +197,16 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     reason:
       "'gh' resolved through the guarded lookup (workspace excluded) before the governed probe run",
   },
-  'src/runtime/vault/posixClientPlatform.ts': {
+  'src/runtime/vault/clientLaunch.ts': {
     kind: 'guarded',
     anchor: 'handoffResourceFile',
-    reason: 'fixed node plus the packaged broker script through the governed handoff',
+    reason:
+      'current-process node plus the packaged broker script through the governed handoff (shared by the POSIX and Windows clients)',
   },
   'src/runtime/vault/posixNative.ts': {
     kind: 'guarded',
     anchor: 'execResourceFile',
     reason: 'digest-pinned native peer identity probe with an empty env through the governed exec',
-  },
-  'src/runtime/vault/windowsClientPlatform.ts': {
-    kind: 'guarded',
-    anchor: 'handoffResourceFile',
-    reason: 'fixed node plus the packaged broker script through the governed handoff',
   },
 }
 
