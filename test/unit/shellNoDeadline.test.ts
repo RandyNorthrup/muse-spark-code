@@ -49,6 +49,10 @@ describe('shell runs without invented ceilings (NOLIMITS2 A20)', () => {
 
   it('an unnamed run waits until the process ends instead of killing it', async () => {
     const cwd = scratch()
+    // Scoped to this run: other tests' kills may log through the shared
+    // collector on their own platform path, and must not read as this wait
+    // speaking.
+    const before = notices.length
     const result = await runCommand({
       file: process.execPath,
       args: ['-e', 'setTimeout(() => { console.log("done") }, 400)'],
@@ -62,7 +66,7 @@ describe('shell runs without invented ceilings (NOLIMITS2 A20)', () => {
     expect(result.exitCode).toBe(0)
     expect(result.stdout).toContain('done')
     // No minute passed: the wait said nothing, it just waited.
-    expect(notices).toEqual([])
+    expect(notices.slice(before)).toEqual([])
   })
 
   it('a named timeout past one timer range does not kill the run at once', async () => {
