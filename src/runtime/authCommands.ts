@@ -123,6 +123,19 @@ export async function authStatusAll(
     return EXIT_FAILED
   }
   const entries = read.ok ? read.file.providers : []
+  // Two providers can carry one preset's label (two Anthropic keys): each
+  // line then adds the provider's own id, so the lines tell them apart.
+  const labels = new Map<string, string>()
+  const sharing = new Map<string, number>()
+  for (const entry of entries) {
+    const label = await providerLabel(read, entry.id)
+    labels.set(entry.id, label)
+    sharing.set(label, (sharing.get(label) ?? 0) + 1)
+  }
+  const labelFor = (id: string): string => {
+    const label = labels.get(id) ?? id
+    return label !== id && (sharing.get(label) ?? 0) > 1 ? `${label} (${id})` : label
+  }
   let hasAnyKey = hasMetaKey
   let hasFailure = false
   for (const entry of entries) {
@@ -133,7 +146,7 @@ export async function authStatusAll(
     } catch (error: unknown) {
       return unavailable(deps, error)
     }
-    const label = await providerLabel(read, entry.id)
+    const label = labelFor(entry.id)
     if (value === undefined || value === '') {
       deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: label }))
       continue

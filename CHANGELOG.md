@@ -289,6 +289,9 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- `auth status` tells apart two providers made from one preset (two
+  Anthropic keys): each line adds the provider's id instead of printing the
+  same sentence twice.
 - `exec` names the options it refuses for the chosen backend (for example
   "--max-budget-usd, --max-requests" on Muse Code) and how to choose the
   other backend, instead of a bare "These options require…".
