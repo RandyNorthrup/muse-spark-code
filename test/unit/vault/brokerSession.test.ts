@@ -7,6 +7,7 @@ import os from 'node:os'
 import * as z from 'zod/mini'
 import { setTimeout as delay } from 'node:timers/promises'
 import { vaultBrokerLockSchema } from '../../../src/shared/vaultProtocol'
+import { isVaultFileMissing } from '../../../src/core/vault/broker/files'
 import { DICTATION_HELPER_DIR, darwinDictationHelperSegments } from '../../../src/shared/constants'
 import { buildBrokerChildren } from '../helpers/vault/sessionBrokerBuild'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
@@ -102,7 +103,22 @@ async function status(child: ChildProcess) {
   const messages = await reply
   expect(messages[0]).toMatchObject({ kind: 'status' })
 }
+async function epochOf(runDirectory: string): Promise<number> {
+  try {
+    const record = z
+      .strictObject({ v: z.literal(1), epoch: z.number() })
+      .parse(JSON.parse(await readFile(path.join(runDirectory, 'lock-epoch.v1'), 'utf8')))
+    return record.epoch
+  } catch (error: unknown) {
+    // No lock has bumped the epoch yet in this run folder.
+    if (isVaultFileMissing(error)) return 0
+    throw error
+  }
+}
 async function cleaned(directory: string) {
+  // Shutdown locks exactly once: the close-time lock advances the epoch and
+  // the dispose that follows keeps it, so the record below moves by one.
+  const before = await epochOf(path.dirname(directory))
   const lock = vaultBrokerLockSchema.parse(
     JSON.parse(await readFile(path.join(directory, 'broker.lock'), 'utf8')),
   )
@@ -114,6 +130,7 @@ async function cleaned(directory: string) {
   }
   const files = await readdir(directory)
   expect(files.toSorted((a, b) => a.localeCompare(b))).toEqual(['launch.lock', 'startup.lock'])
+  expect(await epochOf(path.dirname(directory))).toBe(before + 1)
   expect(await readdir(path.join(path.dirname(directory), 'hosts'))).toEqual([])
   for (const file of ['launch.lock', 'startup.lock']) {
     const sample = await stat(path.join(directory, file))
