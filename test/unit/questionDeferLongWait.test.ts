@@ -23,8 +23,26 @@ interface PendingPiece {
   revoked: boolean
 }
 
-const settle = async (): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, 50))
+/**
+Waits on the registry's own events (a timer armed, a deferral delivered, a
+change published), never on a clock of ours: a loaded runner finishes the
+file-store work late, and a fixed sleep read that as no deferral.
+*/
+function eventWaiter() {
+  const waiting: (() => void)[] = []
+  return {
+    notify: () => {
+      for (const check of waiting.splice(0)) check()
+    },
+    until: (isReady: () => boolean) =>
+      new Promise<void>((resolve) => {
+        const check = (): void => {
+          if (isReady()) resolve()
+          else waiting.push(check)
+        }
+        check()
+      }),
+  }
 }
 
 describe('question deferral with no ceiling of ours', () => {
@@ -45,22 +63,27 @@ describe('question deferral with no ceiling of ours', () => {
       const pieces: PendingPiece[] = []
       const deferred: string[] = []
       const failures: unknown[] = []
+      const events = eventWaiter()
       const registry = new QuestionRegistry('s1', 'modelApi', {
         store: createQuestionStore(directory),
         now: () => clockMs,
         setTimer: (delayMs: number, callback: () => void) => {
           const piece: PendingPiece = { delayMs, fire: callback, revoked: false }
           pieces.push(piece)
+          events.notify()
           return () => {
             piece.revoked = true
           }
         },
         deferQuestions: (userInputId: string) => {
           deferred.push(userInputId)
+          events.notify()
           return Promise.resolve()
         },
         reply: () => Promise.resolve(),
-        changed: () => undefined,
+        changed: () => {
+          events.notify()
+        },
         failed: () => {
           failures.push(new Error('registry failed'))
         },
@@ -92,7 +115,7 @@ describe('question deferral with no ceiling of ours', () => {
       // reaching its end only re-arms toward the still-ahead deadline.
       clockMs += TIMER_MAX_DELAY_MS
       pieces[0]?.fire()
-      await settle()
+      await events.until(() => pieces.length === 2)
       expect(deferred).toEqual([])
       expect(registry.snapshot().questions[0]?.state).toBe('waiting')
       expect(pieces).toHaveLength(2)
@@ -100,7 +123,9 @@ describe('question deferral with no ceiling of ours', () => {
 
       clockMs = deadlineAt ?? clockMs
       pieces[1]?.fire()
-      await settle()
+      await events.until(
+        () => deferred.length > 0 && registry.snapshot().questions[0]?.state === 'open',
+      )
       expect(deferred).toEqual(['q-1'])
       expect(registry.snapshot().questions[0]?.state).toBe('open')
       expect(failures).toEqual([])

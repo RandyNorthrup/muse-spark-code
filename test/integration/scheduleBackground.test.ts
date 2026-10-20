@@ -34,6 +34,7 @@ import {
   realBackgroundHarness,
   saveBackgroundConsent,
 } from '../unit/helpers/schedules/realBackgroundEntry'
+import { removeFolder } from '../unit/helpers/temporaryFolders'
 
 const NOW = 1_700_000_000_000
 const WAKE = 1_700_000_100_000
@@ -123,7 +124,7 @@ suite('schedule background entry in the real host', () => {
     disposeGovernor = undefined
     governorChannel?.dispose()
     governorChannel = undefined
-    if (governorDir !== undefined) await rm(governorDir, { recursive: true, force: true })
+    if (governorDir !== undefined) await removeFolder(governorDir)
     governorDir = undefined
   })
 
@@ -136,7 +137,7 @@ suite('schedule background entry in the real host', () => {
       assert.deepEqual(entry.registered, [])
       assert.deepEqual(await entry.status(), { registered: false })
     } finally {
-      await rm(folder, { recursive: true, force: true })
+      await removeFolder(folder)
     }
   })
 
@@ -159,7 +160,7 @@ suite('schedule background entry in the real host', () => {
         assert.equal(failure.name, 'UnsafeScheduleLauncherError')
         assert.deepEqual(await entry.status(), { registered: false })
       } finally {
-        await rm(folder, { recursive: true, force: true })
+        await removeFolder(folder)
       }
     },
   )
@@ -171,7 +172,7 @@ suite('schedule background entry in the real host', () => {
       assert.equal(entry.removed, 1)
       assert.deepEqual(await entry.status(), { registered: false })
     } finally {
-      await rm(folder, { recursive: true, force: true })
+      await removeFolder(folder)
     }
   })
 })
