@@ -311,6 +311,22 @@ function fileAnchor(directory: string): VaultAnchorPort {
   return anchor
 }
 
+/** Open a real store on a throwaway root and zero the recovery code: each test builds the same setup. */
+async function openRealStore(
+  directory: string,
+  key: Buffer,
+): Promise<{ store: VaultStore; files: NodeVaultFiles; anchor: VaultAnchorPort }> {
+  const files = new NodeVaultFiles(path.join(directory, 'vault'), VAULT_LIMITS.frameBytes)
+  const anchor = fileAnchor(directory)
+  const recovery = createRecoverySlot(key, vaultId, { now: Date.now })
+  try {
+    const store = await VaultStore.create({ files, anchor, key }, vaultId, [recovery.slot])
+    return { store, files, anchor }
+  } finally {
+    recovery.code.fill(0)
+  }
+}
+
 beforeEach(async () => {
   // The vault refuses roots under a symlinked ancestor (macOS spells its
   // temporary root through /var, a symlink to /private/var): resolve to the
@@ -323,15 +339,8 @@ beforeEach(async () => {
   }
   const directory = await mkdtemp(path.join(base, 'v-migrate-'))
   const key = randomBytes(32)
-  const files = new NodeVaultFiles(path.join(directory, 'vault'), VAULT_LIMITS.frameBytes)
-  const anchor = fileAnchor(directory)
-  const recovery = createRecoverySlot(key, vaultId, { now: Date.now })
-  try {
-    const store = await VaultStore.create({ files, anchor, key }, vaultId, [recovery.slot])
-    openStores.push({ directory, store, key, files, anchor })
-  } finally {
-    recovery.code.fill(0)
-  }
+  const { store, files, anchor } = await openRealStore(directory, key)
+  openStores.push({ directory, store, key, files, anchor })
 })
 
 /** Lock the store and reopen it from the same files, key and anchor: an unlock. */
@@ -535,15 +544,8 @@ describe.skipIf(process.platform === 'win32')('key-store migration against a rea
     try {
       const key = randomBytes(32)
       try {
-        const files = new NodeVaultFiles(path.join(directory, 'vault'), VAULT_LIMITS.frameBytes)
-        const anchor = fileAnchor(directory)
-        const recovery = createRecoverySlot(key, vaultId, { now: Date.now })
-        try {
-          const store = await VaultStore.create({ files, anchor, key }, vaultId, [recovery.slot])
-          store.lock()
-        } finally {
-          recovery.code.fill(0)
-        }
+        const { store } = await openRealStore(directory, key)
+        store.lock()
       } finally {
         key.fill(0)
       }

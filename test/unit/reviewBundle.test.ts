@@ -8,20 +8,13 @@ import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
-import type { Logger } from '../../src/host/logger'
 import { lazyReview, type LazyReviewDeps } from '../../src/host/review/reviewBundle'
+import { errorLogger } from './helpers/collectingLogger'
 import { usingTempDir } from './helpers/temporaryFolders'
 
 function harness(bundlePath: string) {
   const errors: string[] = []
-  const log: Logger = {
-    trace: () => undefined,
-    info: () => undefined,
-    warn: () => undefined,
-    error: (message) => {
-      errors.push(message)
-    },
-  }
+  const log = errorLogger(errors)
   const deps: LazyReviewDeps = {
     bundlePath,
     log,

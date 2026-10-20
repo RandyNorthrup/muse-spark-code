@@ -1,9 +1,11 @@
 // The named lock's local-failure rule: a bind the OS refuses reads as
 // unavailable with the OS code and the failure on cause, never as a held lock.
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { createServer } from 'node:net'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { NamedLockError, withNamedLock } from '../../src/runtime/namedLock'
+import { captureFailure } from './helpers/captureFailure'
 
 const NAMES = { pipe: 'test-unavailable-pipe', folder: 'test-unavailable', file: 'test.lock' }
 
@@ -26,12 +28,9 @@ describe.runIf(process.platform !== 'win32')('namedLock local failures', () => {
     const directory = path.join(base, 'x'.repeat(200))
     await mkdir(directory, { recursive: true })
     try {
-      let failure: unknown
-      try {
-        await withNamedLock(held, NAMES, { directory, timeoutMs: 1000 })
-      } catch (error) {
-        failure = error
-      }
+      const failure = await captureFailure(() =>
+        withNamedLock(held, NAMES, { directory, timeoutMs: 1000 }),
+      )
       expect(failure).toBeInstanceOf(NamedLockError)
       if (!(failure instanceof NamedLockError)) throw new Error('unreachable')
       expect(failure.kind).toBe('unavailable')
@@ -44,25 +43,26 @@ describe.runIf(process.platform !== 'win32')('namedLock local failures', () => {
 
   it('reports an unreadable foreign entry as unavailable with its OS code and cause', async () => {
     const base = await scratch('foreign-')
+    // A foreign listener the lock cannot read is a local failure, never a
+    // held lock: the OS code reads as the reason and the failure itself
+    // stays on cause. The listener is real and bound; only its mode refuses
+    // the connect, which fails EACCES on every platform (an unbound file
+    // instead reads as a dead entry, and the lock is rightly had).
+    const foreign = path.join(base, 'test.lock.foreign')
+    const listener = createServer(() => undefined)
+    await new Promise<void>((resolve) => listener.listen(foreign, resolve))
+    await chmod(foreign, 0o000)
     try {
-      // A foreign entry the lock cannot read is a local failure, never a
-      // held lock: the OS code reads as the reason and the failure itself
-      // stays on cause.
-      const foreign = path.join(base, 'test.lock.1.abcdef')
-      await writeFile(foreign, 'unreadable')
-      await chmod(foreign, 0o000)
-      let failure: unknown
-      try {
-        await withNamedLock(held, NAMES, { directory: base, timeoutMs: 1000 })
-      } catch (error) {
-        failure = error
-      }
+      const failure = await captureFailure(() =>
+        withNamedLock(held, NAMES, { directory: base, timeoutMs: 1000 }),
+      )
       expect(failure).toBeInstanceOf(NamedLockError)
       if (!(failure instanceof NamedLockError)) throw new Error('unreachable')
       expect(failure.kind).toBe('unavailable')
       expect(failure.reason).toBe('EACCES')
       expect(failure.cause).toBeInstanceOf(Error)
     } finally {
+      listener.close()
       await rm(base, { recursive: true, force: true })
     }
   })
