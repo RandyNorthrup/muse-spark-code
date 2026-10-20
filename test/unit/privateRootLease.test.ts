@@ -267,6 +267,28 @@ async function lease(root: PrivateRoot, options: LeaseOptions): Promise<LeasedRo
   return held(await leasePrivateRoot(root, options))
 }
 
+/** Crash-left folders carrying lease lines, swept once: which folders stay. */
+async function sweepFolders(
+  root: PrivateRoot,
+  entries: Record<string, string>,
+  tokenBase: number,
+): Promise<Record<string, boolean>> {
+  const folders: Record<string, string> = {}
+  for (const [index, [name, value]] of Object.entries(entries).entries()) {
+    const owner = token(String(tokenBase + index))
+    folders[name] = await crashLeft(root.path, owner)
+    await fs.writeFile(path.join(root.path, `${PREFIX}${owner}.lease`), value)
+  }
+  const { leasePrivateRoot } = await import('../../src/runtime/privateRootLease')
+  held(await leasePrivateRoot(root))
+  const stayed: Record<string, boolean> = Object.fromEntries(
+    await Promise.all(
+      Object.entries(folders).map(async ([name, folder]) => [name, await isPresent(folder)]),
+    ),
+  )
+  return stayed
+}
+
 /** A sleeper the lease can read in the real /proc, reaped by `afterEach`. */
 function sleeper(): { child: ChildProcess; pid: number } {
   const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
@@ -337,19 +359,7 @@ describe.runIf(process.platform === 'linux')('the lease rules on Linux, on the r
       live: secondLine,
       garbled: `${firstLine} trailing`,
     }
-    const folders: Record<string, string> = {}
-    for (const [index, [name, value]] of Object.entries(owners).entries()) {
-      const owner = token(String(index))
-      folders[name] = await crashLeft(root.path, owner)
-      await fs.writeFile(path.join(root.path, `${PREFIX}${owner}.lease`), value)
-    }
-    const { leasePrivateRoot } = await import('../../src/runtime/privateRootLease')
-    held(await leasePrivateRoot(root))
-    const kept = Object.fromEntries(
-      await Promise.all(
-        Object.entries(folders).map(async ([name, folder]) => [name, await isPresent(folder)]),
-      ),
-    )
+    const kept = await sweepFolders(root, owners, 0)
     expect(kept).toEqual({ exited: false, reused: false, live: true, garbled: true })
     expect(await fs.readFile(path.join(root.path, `${PREFIX}${root.owner}.lease`), 'utf8')).toBe(
       await linuxLine(process.pid),
@@ -370,19 +380,7 @@ describe.runIf(process.platform === 'linux')('the lease rules on Linux, on the r
       otherMachine: `${'e'.repeat(32)} ${boot} ${namespace} ${String(process.pid)} ${start}`,
       otherNamespace: `${machine} ${boot} pid:[4242424242] ${String(process.pid)} ${start}`,
     }
-    const folders: Record<string, string> = {}
-    for (const [index, [name, value]] of Object.entries(lines).entries()) {
-      const owner = token(String(4 + index))
-      folders[name] = await crashLeft(root.path, owner)
-      await fs.writeFile(path.join(root.path, `${PREFIX}${owner}.lease`), value)
-    }
-    const { leasePrivateRoot } = await import('../../src/runtime/privateRootLease')
-    held(await leasePrivateRoot(root))
-    const kept = Object.fromEntries(
-      await Promise.all(
-        Object.entries(folders).map(async ([name, folder]) => [name, await isPresent(folder)]),
-      ),
-    )
+    const kept = await sweepFolders(root, lines, 4)
     expect(kept).toEqual({ earlierBoot: false, otherMachine: true, otherNamespace: true })
   })
 })

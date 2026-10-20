@@ -54,6 +54,16 @@ function countingRun() {
   return { run, calls }
 }
 
+/** A live child with a clock, a counting runner and its PID, for the sampler rows below. */
+async function liveSample() {
+  const time = clock()
+  const { child, closed } = await liveChild()
+  const pid = child.pid
+  if (pid === undefined) throw new Error('the child has no PID')
+  const { run, calls } = countingRun()
+  return { time, child, closed, pid, run, calls }
+}
+
 /**
 A wrapper that forwards to the real runner once released, so a ps run can
 be held in flight while the test arranges what it must outlive (a kill).
@@ -287,11 +297,7 @@ describe('macRssSampler on real children through the real /bin/ps', () => {
   })
 
   it('keeps a failure final for the child it watches', async () => {
-    const time = clock()
-    const { child } = await liveChild()
-    const pid = child.pid
-    if (pid === undefined) throw new Error('the child has no PID')
-    const { run, calls } = countingRun()
+    const { time, child, pid, run, calls } = await liveSample()
     // A live row under another parent: a real ps refusal, not a scripted one.
     const read = macRssSampler(child, { run, parentPid: 1, now: time.now })
     await expect(read(pid)).rejects.toBeInstanceOf(RssSampleRefused)
@@ -301,11 +307,7 @@ describe('macRssSampler on real children through the real /bin/ps', () => {
   })
 
   it('drops its reading when the child exits, even inside the refresh interval', async () => {
-    const time = clock()
-    const { child, closed } = await liveChild()
-    const pid = child.pid
-    if (pid === undefined) throw new Error('the child has no PID')
-    const { run, calls } = countingRun()
+    const { time, child, closed, pid, run, calls } = await liveSample()
     const read = macRssSampler(child, { run, now: time.now })
     await expect(read(pid)).resolves.toBeGreaterThan(MIB)
     child.kill('SIGKILL')
@@ -366,11 +368,7 @@ describe('macRssSampler on real children through the real /bin/ps', () => {
   })
 
   it('waits for a fresh reading past the maximum age and refuses a late one', async () => {
-    const time = clock()
-    const { child } = await liveChild()
-    const pid = child.pid
-    if (pid === undefined) throw new Error('the child has no PID')
-    const { run, calls } = countingRun()
+    const { time, child, pid, run, calls } = await liveSample()
     const read = macRssSampler(child, { run, now: time.now })
     await expect(read(pid)).resolves.toBeGreaterThan(MIB)
     time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
