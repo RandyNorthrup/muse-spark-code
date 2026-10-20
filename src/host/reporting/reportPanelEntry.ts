@@ -325,6 +325,11 @@ export function createReportingWindow(
               'reports.keepHistory'
             ]
           },
+          get planMaxBytes() {
+            return readSettings(vscode.workspace.getConfiguration('museSpark'), deps.context.log)[
+              'reports.planMaxBytes'
+            ]
+          },
           get enabledAgents() {
             return readSettings(vscode.workspace.getConfiguration('museSpark'), deps.context.log)[
               'reports.agentSources'

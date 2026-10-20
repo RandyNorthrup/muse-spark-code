@@ -652,6 +652,9 @@ export const SETTING_DEFAULTS = {
   syncPromptsAndBookmarks: false,
   'reports.network': 'whenSignedIn',
   'reports.keepHistory': true,
+  // D121: the person's own plan byte limit for reports; 0 reads the whole
+  // plan however large, machine-scoped so a repository cannot set it.
+  'reports.planMaxBytes': 0,
   'reports.agentSources': [],
   // M123 (PLAN.md D104 source c): read the user's own `gh` login, off by
   // default; machine-scoped so a repository cannot turn it on.
@@ -946,6 +949,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'questions.deferAfterSeconds',
   'reports.network',
   'reports.keepHistory',
+  'reports.planMaxBytes',
   'reports.agentSources',
   // M108 (PLAN.md D88.5 and amendment b2): pooling the user's accounts and
   // testing several on this PC are the user's choice, never a repository's.

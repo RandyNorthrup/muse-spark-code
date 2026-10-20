@@ -263,5 +263,6 @@
   "config.reports.network.enumDescriptions.off": "Nur lokale Quellen lesen.",
   "config.reports.keepHistory.description": "Die neuesten 50 Berichte je Art auf diesem Rechner für Verlauf und Vergleiche aufbewahren.",
   "config.reports.agentSources.description": "Das Lesen Ihrer eigenen Claude-Code- oder Codex-Nutzungs- und Limitdateien erlauben. Standard: keine. Gesprächstexte und Zugangsdaten werden niemals als Berichtsquellen gelesen.",
+  "config.reports.planMaxBytes.description": "Größte Plandatei, die Berichte lesen, in Byte. Keine Begrenzung, sofern Sie keine festlegen: 0 (Standard) liest den gesamten Plan unabhängig von seiner Größe, und ein Plan über einem festgelegten Wert wird mit einer input-size-Abweichung abgelehnt, die Ihren Grenzwert nennt. Es gilt nur die Einstellung dieses Rechners.",
   "config.linuxDictationModel.description": "Kostenlose englische Offline-Spracheingabe auf lokalem Linux x64/arm64. Fragt vor dem ersten Download des 74-MiB-Modells. Ausschalten stoppt die Spracheingabe und entfernt Modell und Teil-Download; zum Aktivieren einschalten und Fenster neu laden. Windows/macOS bleiben unverändert."
 }

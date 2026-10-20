@@ -137,6 +137,7 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { reportsLoader } from './reporting/reportsLoader'
 import { reportInputsLoader } from './reporting/reportInputsLoader'
+import { runtimeReportsPlanMaxBytes } from './runtimeReportsPlan'
 import { playbookSchedulesInputsLoader } from './reporting/playbookSchedulesInputsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding, type RuntimeSchedulesBinding } from './schedules/binding'
@@ -636,6 +637,9 @@ function runtimeReports(
             l10n,
             generatorVersion: packageVersion(),
             keepHistory: policy.keepHistory,
+            // D121: the person's own plan byte limit from the agent data
+            // folder's settings.json; 0 (the default) reads whole.
+            planMaxBytes: runtimeReportsPlanMaxBytes(dataFolder),
             enabledAgents: [],
             session: {
               read: (context) =>
