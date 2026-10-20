@@ -7,10 +7,13 @@
 // real runner refuses here ("Schedules are unavailable in this host"); these
 // tests prove the routing — which entry call reconcile makes, with which
 // arguments — on the real entry, and pin that refusal rather than scripting
-// around it. The real outcomes (an entry actually retired, a due wake really
-// refused by the launcher check) are proved in
-// test/integration/scheduleBackground.test.ts, where the extension host
-// binds the real governor.
+// around it. The due-wake test stages a real launcher file the product's
+// real verifier accepts, so the launcher trust check passes and the runner
+// refuses identically on every machine — never whichever refusal the
+// machine's own tool paths happen to give. The real outcomes (an entry
+// actually retired, a due wake really refused by the launcher check) are
+// proved in test/integration/scheduleBackground.test.ts, where the
+// extension host binds the real governor.
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -19,26 +22,27 @@ import { UI_TEXT } from '../../src/shared/constants'
 import {
   realBackgroundHarness,
   saveBackgroundConsent,
+  stageTrustedBackgroundLauncher,
 } from './helpers/schedules/realBackgroundEntry'
 
 const NOW = 1_700_000_000_000
 const WAKE = 1_700_000_100_000
 
-async function coordinator(nextWake: number | undefined) {
+async function coordinator() {
   const folder = await mkdtemp(path.join(tmpdir(), 'schedule-background-reconcile-'))
   onTestFinished(() => rm(folder, { recursive: true, force: true }))
-  return realBackgroundHarness(folder, nextWake)
+  return realBackgroundHarness(folder, undefined)
 }
 
 it('leaves the OS entry alone when no consent was ever recorded', async () => {
-  const { background, entry } = await coordinator(undefined)
+  const { background, entry } = await coordinator()
   await background.reconcile()
   expect(entry.removed).toBe(0)
   expect(entry.registered).toEqual([])
 })
 
 it('routes a stale entry to entry.remove while consent says yes and nothing is due', async () => {
-  const { background, consent, entry } = await coordinator(undefined)
+  const { background, consent, entry } = await coordinator()
   // Consent is stored first through the real store; the entry below is only
   // ever contacted by reconcile, never by this setup.
   await saveBackgroundConsent(consent, { choice: 'yes', decidedAtMs: NOW })
@@ -55,10 +59,17 @@ it('routes the due wake to entry.register with the stored consent', async () => 
   // The coordinator saves consent before touching the entry, then routes
   // the due wake to entry.register: the recorded call proves the routing
   // on the real entry. Registering for real would create a genuine OS
-  // background entry, which never happens here: with no bound governor
-  // the real runner refuses first, on every platform, before any OS
-  // contact (on Windows the same call would otherwise reach schtasks).
-  const { background, consent, entry } = await coordinator(WAKE)
+  // background entry, which never happens here: the staged launcher passes
+  // the product's real trust check, and with no bound governor the real
+  // runner refuses next, on every platform, before any OS contact (on
+  // Windows the same call would otherwise reach schtasks).
+  const folder = await mkdtemp(path.join(tmpdir(), 'schedule-background-reconcile-'))
+  onTestFinished(() => rm(folder, { recursive: true, force: true }))
+  const { background, consent, entry } = realBackgroundHarness(
+    folder,
+    WAKE,
+    stageTrustedBackgroundLauncher(folder),
+  )
   await expect(background.register(WAKE, { choice: 'yes', decidedAtMs: NOW })).rejects.toThrow(
     UI_TEXT.scheduleV2.runtime.unavailable,
   )
@@ -77,7 +88,7 @@ it('routes an explicit never-consent to entry.remove on reconcile', async () => 
   // A stored 'never' still owns an entry from before: reconcile must retire
   // it. No bound governor here, so the real runner refuses after the call
   // reached the entry; the routing below holds governed or not.
-  const { background, consent, entry } = await coordinator(undefined)
+  const { background, consent, entry } = await coordinator()
   await saveBackgroundConsent(consent, { choice: 'never', decidedAtMs: NOW })
   await expect(background.reconcile()).rejects.toThrow(UI_TEXT.scheduleV2.runtime.unavailable)
   expect(entry.removed).toBe(1)
@@ -85,7 +96,7 @@ it('routes an explicit never-consent to entry.remove on reconcile', async () => 
 })
 
 it('an explicit removal still reaches the entry with no consent record', async () => {
-  const { background, entry } = await coordinator(undefined)
+  const { background, entry } = await coordinator()
   await expect(background.remove()).rejects.toThrow(UI_TEXT.scheduleV2.runtime.unavailable)
   expect(entry.removed).toBe(1)
 })
