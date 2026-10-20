@@ -14197,3 +14197,1773 @@ returns`void`, so every bus mapping is observation only; a throw fails
         m91.md.
 
 <!-- plan-archive:end id="milestones-a07e4a8e2-23179" -->
+
+## ### M53 — Conversation rewind and side chat (D46)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19703" lines="19703-19716" at="3087b10dd" bytes="1043" sha256="262f5079bd4bd4b4ca7ee156fad3b13bb53e6b2675dfa5125ebe97b978f30c26" -->
+
+- **C-M53-1 Windows retest (2026-10-10, probes complete).** Captured Muse Code
+  1.4.4-R5419.1 rename and forks with/without a completed-turn cut, after
+  host close and from a second host, plus TUI `/fork`, in an empty Win11
+  workspace with an isolated credential-free home. All nine MSP forks
+  and both TUI `/fork` probes fail; owning-host rename fails too. The
+  all-version Windows guard stays. Record captures in
+  `docs/certification/m53.md` and `docs/certification/m53-captures/win11-1.4.4/`.
+- **C-M53-3 read-only side fork (2026-10-11, merged here).** A Muse Code side
+  chat is read-only at the panel: every approval its branch raises is refused
+  with the card's own rejection, and an approving click on a card the host
+  left standing is refused too. Writes the CLI's own allow rules already cover
+  still run without asking (upstream sdk#86). Record in
+  `docs/certification/cm53-3.md` and `docs/certification/msm53.md`.
+- **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+
+<!-- plan-archive:end id="milestones-3087b10dd-19703" -->
+
+## ### M56 — Enterprise network and posture (D43)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19734" lines="19734-19739" at="3087b10dd" bytes="406" sha256="7f2f2fc050d90229428dddfd1484f2880cfa18c47d98bd017f0c17f4ce0f0d3a" -->
+
+- **MSM56 finish (2026-10-17).** While `http.proxy` is set on an editor
+  that does not route the extension host's `WebSocket` (VS Code 1.101 to
+  1.111, or an editor built on it that routes neither global), the Muse
+  Voice microphone stays unavailable with the reason instead of recording
+  audio that cannot be sent (`src/core/voice/voiceNetwork.ts`,
+  `museVoiceNoProxy`, `docs/certification/m56.md`).
+
+<!-- plan-archive:end id="milestones-3087b10dd-19734" -->
+
+## ### PROVWIRE — Provider setup through the real transport and panel (2026-10-09)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-16792" lines="16792-16798" at="3087b10dd" bytes="538" sha256="fd29e7cd45ca5aaa068eb0347a0769dd9abb80351eefa01a729f594af0494529" -->
+
+Completed: F2–F7 are capture-backed through the real facade, with 14
+byte-exact red/restored drills. Final macmini verification passes 44 complete
+provider/models files (739 tests at repository deadlines), five typechecks,
+changed-file ESLint/formatting, localization (0), reference, host API, plain
+knip, zero-clone duplication and the production build within all existing caps.
+The optional persisted format remains unchanged. Full quality, hosted CI and
+installed-editor/live certification remain with the lead under the lane brief.
+
+<!-- plan-archive:end id="milestones-3087b10dd-16792" -->
+
+## ### BCSTART — The browser check's start on Windows (2026-10-18)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-16700" lines="16700-16710" at="3087b10dd" bytes="761" sha256="828b64d2111eaef9d58cd39feed2162bc728970abe2c85aa2ebee1fcdf08b4ca" -->
+
+- **Rule.** The browser check's contract read (M81) waits for the browser to
+  start its network service, asking again every 50 ms, before it reads the
+  service's id, and reads the startup targets after that wait. The wait has
+  no cap of its own (AGENTS.md, "Limits"): the check's lifetime (its life,
+  the person's Stop, admission) ends it, so a service that never starts ends
+  the check `timedOut` or `cancelled`. The contract is unchanged: an
+  out-of-process service, its id the restart tripwire, read before any
+  request, and exactly one `about:blank` page.
+- **Why.** The service starts after the browser already answers on the
+  pipe; one early read ended Windows checks `unrecognized` at random (8 of
+  200 checks measured; hosted run 39083561745).
+
+<!-- plan-archive:end id="milestones-3087b10dd-16700" -->
+
+## ### M71 — Git and pull requests (D49)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19788" lines="19788-19792" at="3087b10dd" bytes="319" sha256="803c94497047d7480d43c47c24eec24dfdb87cd25d5f718756c41c5cf5e7f3ec" -->
+
+**Every editor (2026-10-08):** D104 and M123 bring these features to every
+editor. This section stays the record for VS Code. Since MSM71M123
+(2026-10-16) every GitHub call takes D104's three sign-in sources, and a VS
+Code-family host without `vscode.git` runs these features through the
+user's own git (PLAN.md M123).
+
+<!-- plan-archive:end id="milestones-3087b10dd-19788" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20255" lines="20255-20311" at="3087b10dd" bytes="3902" sha256="0199080d2ebc712bc2a9bb69f3b380dedfabee1626c125f19f23dc6f271d241e" -->
+
+- **Where it lives.** `src/core/git/` (the push plan, the GitHub REST
+  client, remote parsing, the draft prompts), `src/core/worktreeConversations.ts`
+  (the worktree records and the hold, the piece M77 reuses),
+  `src/host/git/` (VS Code's Git extension API, its GitHub sign-in, the
+  pull request checkout, one `ConversationGit` per conversation) and
+  `GitPanel.tsx` above the composer.
+- **Push.** Three arguments to the Git extension's `push` (remote,
+  refspec, set-upstream); its fourth, force parameter is not in the typed
+  subset. Refused before anything asks: a detached HEAD, a branch behind its
+  upstream, and a branch, upstream or remote name starting with `+` or
+  `-` or holding `:` or whitespace. A first push goes to the only remote,
+  `origin`, or one the user picks, with `-u`.
+- **Commit.** `commit(message, { all?, postCommitCommand: null })`, so
+  `git.postCommitCommand` never pushes or syncs on its own.
+- **Drafts.** "Write with Muse" sends the user's own message (a
+  localized sentence the transcript shows) with one extra text part: the
+  instructions (`MODEL_TEXT`), a line saying what follows is data, and the
+  diff or the commit subjects in a fence longer than any run of backticks
+  in them, cut at 60,000 characters with a line saying so. The reply to
+  that turn fills the form; a turn that fails, is cancelled or is ended by a
+  restart gives the button back. It is the user's own turn (D49), so no
+  paid-use popup.
+- **Pull requests.** `POST /repos/{owner}/{repo}/pulls`, draft by default
+  in the form. From a fork (the repository's `parent`, captured) it opens
+  on the parent with `owner:branch` as the head. An open pull request for
+  the branch is linked instead of a second one. Title and description over
+  GitHub's limits, or holding a credential shape (`redactSecrets`, which
+  M71 extends with GitHub tokens, PEM private keys, AWS key ids and Slack
+  tokens), go back to the form masked. VS Code's GitHub sign-in with the
+  `repo` scope, read per call.
+- **Status.** The link (session id to number, address, title) in
+  workspace state, the newest 200 kept; state and checks read from GitHub
+  when the conversation shows and on Refresh, one page of 100 check runs
+  plus the commit statuses, counted into passed, failed (named), running,
+  skipped, cancelled, and anything else as it came (D36).
+- **A conversation in a worktree.** The new window's first folder is the
+  worktree, so both backends already run there (M32); the extension records
+  each worktree it makes in global state (`museSpark.worktreeConversations`)
+  and the panel names its branch or pull request.
+- **Someone else's pull request.** Fetched as `pull/<n>/head` through the
+  Git extension, checked that GitHub's head commit arrived, and added
+  detached under `<globalStorage>/pr-worktrees/<n>-<repo digest>`, recorded
+  before the folder exists. Git never checks it out (RV71c, 2026-10-02):
+  `worktree add --no-checkout`, `read-tree <sha>`, and the extension writes
+  each file from one `cat-file --batch` exactly as stored
+  (`core/git/heldTree.ts`, `host/git/heldCheckout.ts`). A window whose folder, as given or resolved
+  through links, is under that root is held at activation, by location
+  alone; only a record whose trust the user confirmed in the card
+  (`trustConfirmedAt`) lets it go, and the deepest record holding the
+  folder decides. Held means: Plan mode (the Modes menu
+  and Shift+Tab refused), no `!` commands, and every place that loads the
+  project's configuration reads "untrusted" (Muse Code starts with
+  `--disable-shell` in place of `--trust-workspace`; the Model API backend
+  loads no rules, skills, hooks, MCP servers or memory and offers no shell
+  tool; `muse skills` and `muse init` are not run). Trusting restarts the
+  backends so the next message loads them. The user's own pull request
+  goes beside the repository as `pr-<n>`, not held.
+
+<!-- plan-archive:end id="milestones-3087b10dd-20255" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19794" lines="19794-19812" at="3087b10dd" bytes="1337" sha256="e6932dd3d4d810faf963fdf4b70543be3d456e42be1bccd564f24d5bbe212f6c" -->
+
+**FIX78W browser budget repair (2026-10-04, bounded rig proof complete;
+lead gates open).** Compare production metafiles for `main-sync` and this
+branch on Kubuntu. Defer the Git panel until it has state to show and
+Account & usage until the user opens it;
+the Git panel alone cannot recover the 13 KiB overflow. Use React's lazy
+components and esbuild's browser ESM splitting, preserving the installed
+language and all form state in the shared runtime. Keep the nonce-only CSP,
+ship every generated chunk, and enforce the existing 900 KiB cap on the
+entire static import graph, not just the smaller entry file. Prove loading,
+form behavior, packaging and the guards with owning tests and byte-exact
+negative controls. Run serial scoped checks and M71/M83/UI owners directly
+on this rig; full quality and publication remain lead-owned under the
+lane's shared rules. Evidence: `docs/certification/fix78w.md`.
+The repaired startup graph is 898.4/900 KiB (entry 699.3 KiB), down from
+913.0 KiB on this rig; both deferred chunks together are 19.6 KiB. Owning
+tests pass 1,666 cases in 46 files, with one existing Windows-only skip.
+Eleven byte-exact negative controls fire, production Chrome verifies the
+nonce-only CSP in English and German, and axe passes 52 pages. The
+loading Account dialog stays keyboard-dismissable. No cap is raised.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19794" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19814" lines="19814-19823" at="3087b10dd" bytes="745" sha256="02bab3053cc42ef05ac92c08fa65cb500a6a9072823a6bc771dc227d64c7fd04" -->
+
+**MRG78 rig main join (2026-10-04, bounded proof complete; size gate open).** Merge
+`main-sync` `244d5905` into `cb00e78f`, preserving M71 and FIX78B trust
+guards alongside main's activation diet, tiered CI, release reuse, M80
+receipts and M87 panel behavior. Fix merge breakage only. Regenerate notices
+and the host API inventory; keep released changelog bytes identical to
+main and union translated keys. Run serial bounded Win11 compilers, lint,
+formatting, localization, dead-code, duplication, host API, production build
+and M71/M83 plus changelog/manifest owners. No live calls or push; full
+quality and hosted/editor certification remain lead-owned under the rig
+brief and common rules. Evidence belongs in `docs/certification/mrg78.md`.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19814" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19825" lines="19825-19831" at="3087b10dd" bytes="501" sha256="9c37a4271583d1b23434b8a4dc5e989a178d42eec18f6b89800862a95c972fec" -->
+
+Win11: 45 owning files pass 1,580 tests with three existing platform/tool
+skips. Final five-project compilers, scoped JavaScript/CSS lint, knip,
+zero-clone duplication, cycles, localization, regenerated host API, split,
+host globals and notices pass. Three negative controls fail and restore
+byte-exact. Production build remains red at the unchanged browser cap
+(913.5/900 KiB); the additional PowerShell lint cannot load the rig's
+missing pinned analyzer. See section 7 and the certification record.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19825" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19833" lines="19833-19839" at="3087b10dd" bytes="495" sha256="9b46a3e412e5e4da6aee8c9235485c29285ec11ecc01b15ad18cfd64eec391af" -->
+
+Merge `c32ded4d` initially found the copied rig missing its ignored Husky
+wrappers, so Git ran no pre-commit hook. Pinned wrappers are restored
+locally without a configuration change. The exact committed merge delta
+passes stock lint-staged tasks (Windows argument batches at 4,000
+characters, unchanged commands/rules) and gitleaks (one merge patch, zero
+leaks), leaving the worktree unchanged. A normal hook-on evidence commit
+records this limitation and correction; history is not rewritten.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19833" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19841" lines="19841-19860" at="3087b10dd" bytes="1475" sha256="9e52eb0b1620a3c179c3ef6811ec83292a1b529cee65ad9e5f2f06eb238630c1" -->
+
+**FIX78B repair (2026-10-04, bounded rig proof complete; lead gates open):** close RVFIX78's remaining P2/P3
+without merging main. Classify the Muse settings destination by canonical
+workspace containment before the planning read, refusing held/untrusted
+project bytes and binding permitted reads to the existing native project
+root guard. Reuse `readPlanFile`, canonical path IO and held refusal text.
+Prove XDG-in-workspace and personal-link-to-project regressions, plus an
+actual host UI regression with raw VS Code trust true and combined trust
+false, personal import and released controls. Drill both guards on Mac mini
+through the prescribed rig helpers, restore exact source bytes, and record
+bounded evidence in `docs/certification/m71.md`. Full quality, hosted/native
+editor certification and the later main join remain lead-owned. Readiness:
+brief, existing source and tests settle behavior; no new wire shape, UI,
+dependency or owner decision. Existing plan remains the proof ledger; the
+skill's separate structural ledger validator remains deferred under the
+recorded no-extra-planning-layer decision.
+Evidence: 137 tests in four whole files on Mac mini, three guards drilled
+red/restored-green with exact source hashes, five type projects and scoped
+static/build gates. Host API inventory regenerated. Current receipts and
+the pre-existing Model API budget versus common.md mismatch are recorded
+in `docs/certification/m71.md`; no budget changed in this repair.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19841" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19862" lines="19862-19884" at="3087b10dd" bytes="1670" sha256="5413394c5d6fcb882a31e3e8c715de5dfe71ad443cc340609e368319fec72cfe" -->
+
+**MG78b current-main join, 2026-10-04 (merge review fix in; lead gates open).**
+Join main `77800e8f` into `8a796842`, retaining Git and every main feature
+and lazy bundle. Preserve main budgets, including UI text at 125 KiB; an
+activation overflow stays assigned to the separate activation-diet lane.
+Resolve by behavior, share the duplicate Git version check in the existing
+Git module and reuse the existing memento fixture without changing behavior
+or gates, then run serial bounded static checks, the full configured
+Win11 suite in slot `mg78b` (more than 30 conflict owners) and M71 axe
+scenarios, then commit with hooks and no origin push. Evidence and limits:
+`docs/certification/mg78b.md`. Build passes (activation 598.5/600 KiB),
+all five type projects have passing receipts, and localization, host API,
+knip, zero-clone duplication, cycles, formatting and 16 Git axe pages pass.
+Win11 full run: 7,236 tests pass, one test fails and one suite fails setup
+(M80 D9 uncertain-cost assertion; Bash missing for M80 stdio guards).
+The merge review (Codex RVMG78, P2) found main's Best-of-N, session-board
+worktree reads and `/review` Git presets admitted by VS Code's trust alone,
+so a held PR window VS Code trusts ran their Git. They now require M71's
+project trust (VS Code trust and no hold) at the controller and at
+Best-of-N's native entry, until the card releases the hold: behavior tests
+and eight red drills in `docs/certification/m71.md` (2026-10-04 merge
+review fix). Scoped lint passes after the shared version check became
+`hasGitProgramControls`. The two Win11 M80 failures stay open; no origin
+push. Full quality/editor/hosted gates remain lead-owned.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19862" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19886" lines="19886-19901" at="3087b10dd" bytes="1124" sha256="d97c6eae7c1b42bcc8cce32ab8a5300e622b9ec8c31b3a3c1932bddf7a77149f" -->
+
+**MG78 main join after M86 and CLI recovery, 2026-10-03 (bounded verification
+complete; lead gates open).** Merge main `d7c0e46f` into M71 `0c6873dc`.
+The controller keeps Git session tracking and draft generation alongside
+the CLI recovery's effort synchronization and M86's pending running mark.
+All translated additions and manifest keys remain; the changelog is rebuilt
+on main with its released bytes unchanged, and the host API record is
+regenerated. Main's shared `BUNDLE_SAFE_ERRORS`, including
+`SteerRefusedError`, stays in both lint blocks. No feature, refactor,
+dependency, test or gate change beyond the merge. All five type projects,
+scoped ESLint/Prettier, localization, knip, zero-clone duplication, cycles,
+host API and production build pass. Mac mini full suite, snapshot
+`8e062479`: 304 files and 5,495 tests passed, 3 files and 57 tests skipped
+by existing live/platform conditions. Activation is 580.8/600 KiB; the Git
+bundle is 128.4/150 KiB. The lane's common brief reserves full quality and
+publication for the lead. Evidence: `docs/certification/m71.md`, "MG78 main
+join after M86 and CLI recovery".
+
+<!-- plan-archive:end id="milestones-3087b10dd-19886" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19903" lines="19903-19911" at="3087b10dd" bytes="604" sha256="6c1c2a01b265dc03617e4a20cf3c707265c37e115ec23208f76b685db5f3e092" -->
+
+**MG78 main join, 2026-10-02 (bounded verification complete; lead gates
+open).** Join main `0e9546e0` into M71 `cee8c830`, retaining M71 and main's
+M73, M74, M83, M84 and released documentation. The shared send path keeps
+handoff card/session parameters and Git draft/base parameters in separate
+positions, with both acceptance and cleanup paths. Both CLI dependency
+ports, panel callbacks and all translated keys remain. The host API record
+is regenerated on Kubuntu. Unreleased has one Added, Changed and Fixed
+section; milestones stay under Added, while every byte from 0.10.1 onward
+comes from main.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19903" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19913" lines="19913-19924" at="3087b10dd" bytes="811" sha256="bd1f3f95a2202bf8dbd07a167afe642017d74c9196ffe69e243cb098be0afc53" -->
+
+The merged activation bundle exceeded its unchanged 600 KiB cap at
+607.0 KiB. The existing conversation Git adapter now ships as
+`dist/conversationGit.js`, loaded synchronously at its original
+construction point with the installed language table and activation's
+error constructors, preserving GitHub sign-in classification. The importer
+shim stays separate from its UI adapter and top-level configuration schema.
+No feature behavior, existing cap, dependency, hook or gate level changes.
+Final sizes: activation 585.0/600 KiB, conversation Git 75.3/100 KiB,
+Model API 356.4/400 KiB and checkpoints 130.1/225 KiB. The new Git cap follows
+D6: initial measured size plus 15%, rounded up to 25 KiB. Build/watch,
+VSIX member checks, notices, host-global/split checks and graph entries all
+include the new artifact.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19913" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19926" lines="19926-19936" at="3087b10dd" bytes="774" sha256="bcfe1706f7cae703683b677bf1a14a2cb8ec4e25830fd6c380cd87c39653170b" -->
+
+Kubuntu snapshot `3fea958b` passes all five type projects, scoped lint and
+formatting, knip, zero-clone duplication, localization, host API, cycles,
+production build and VSIX member listing; 23 owning files pass 1,415 tests
+with no skips. Eight semantic drills and both split-guard drills fail as
+intended and pass after byte-exact restoration. A missing handoff routing
+assertion exposed by a drill is added; the compiled Git bundle's error
+identity regression fails before repair and passes after it. The source
+fingerprint binds the merged files to the tested snapshot. Evidence:
+`docs/certification/m71.md`, MG78 main join, and `mg78-gates.json` /
+`mg78-drills.json` beside it. Full quality, editor/hosted checks and
+publication remain the lead's gates; no public push.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19926" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19938" lines="19938-19948" at="3087b10dd" bytes="719" sha256="8c18123bc5a91a66c9bc111b1ec84cc88c21361efc909f486d91eb2cab75ed55" -->
+
+**Late main advance included (MG78, 2026-10-02).** After merge
+`57f1c236` completed, main advanced to `8dac84cf` (PR #80, M84 keyboard
+focus in narrow share views). Join it normally too, without conflicts,
+retaining the initial merge and both feature sets. Kubuntu snapshot
+`70de9c55` repeats all five types, scoped lint/format,
+knip, duplication, localization, host API, cycles, build and VSIX membership
+successfully, and all 23 owning files still pass 1,415 tests without skips.
+The host API record is regenerated from this newer tree. Released
+changelog bytes remain identical to the newer main. The current and initial
+join proofs are both in `mg78-gates.json`; full quality/editor/hosted gates
+remain the lead's.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19938" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19950" lines="19950-19962" at="3087b10dd" bytes="886" sha256="c3bfa93eb4c3bcd8489fb5cde196adcb741fb66b221904b6ebba3fb5386d9c6e" -->
+
+**Activation headroom (2026-10-03).** After joining main `bb9649bd`,
+activation built 598.2/600 KiB, with about 13 KiB more queued ahead of
+#78; main alone builds 566.0 KiB. The window's git and pull request
+features (VS Code's git adapter, the GitHub client and sign-in, the pull
+request links, the checkout and its untrusted git lane, the prompt words)
+now ship in `dist/conversationGit.js`, made there with the first
+conversation or pull request command from activation's primitives; the
+adapter recognises its own window's errors, and a bundle that cannot load
+refuses the command with `gitUnavailable`. Activation: 573.8/600 KiB, M71's
+share 7.8 KiB (the hold, the protocol's Git schemas, the controller port,
+wiring and loader stay). The Git bundle measures 127.4 KiB; its cap becomes
+150 KiB by this decision's rule. Evidence: `docs/certification/m71.md`,
+"Activation headroom".
+
+<!-- plan-archive:end id="milestones-3087b10dd-19950" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19964" lines="19964-19979" at="3087b10dd" bytes="1156" sha256="d764d7599edcaf3294041a506ab6204fd4f549ad2b4af16164da77f256c3027d" -->
+
+**Main join, M71m, 2026-10-02 (bounded verification complete; lead gates
+open).** Merge `a08bd8d4` joins main `2a03a79b` (M84 and 0.10.1) into M71
+`4e0d8ba0`, preserving Git/held-checkout and session export/import/share.
+Main's redactor rule list retains M71 credential coverage through the
+compatibility follow-up below. The host API record is regenerated on
+Kubuntu. Both README sections and main's released changelog bytes remain.
+Final owning suites pass on Kubuntu (45 files, 1,695 tests) and Windows 11
+(33 files, 1,153 tests), with the existing genuine short-name skip and the
+compiled Model API bundle included. Import/share routing assertions and
+nine exact-restored semantic drills pass. All five types, scoped lint and
+formatting, knip, zero-clone duplication, localization, host API and the
+production build pass on the final source. Real-time Playwright/axe
+measures 20 owning pages with zero failures; the CLI virtual-time runner
+still produces no measurements, deferred in section 7. Proof and limits:
+`docs/certification/m71.md`, M71m main join. The lead retains full quality,
+editor/hosted checks and publication; this lane does not push.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19964" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19981" lines="19981-19993" at="3087b10dd" bytes="938" sha256="4d1f5efaa47b8c73ed6d8d167a3f167a8bd3aecdbf1c7ba1a8c6ee4f5a78508b" -->
+
+**M71m redactor compatibility follow-up (2026-10-02, bounded proof complete).**
+The final pattern comparison found M71 coverage missing from main: the
+`xoxe-` Slack prefix, complete suffixes past 255 characters, and whole legacy
+encrypted PEM blocks with Proc-Type/DEK-Info headers. Preserve all seven
+M71 Slack prefixes and complete linear suffixes in the existing rule;
+retain main's bounded PEM edge names and mask complete bodies first.
+The prefilter and export slicer remain unchanged. Nine regressions expose
+all three missing behaviors before repair. The existing 4,000-case slicing
+differential catches an edge consumed by an earlier rule; PEM-first order
+preserves equivalence. Four exact-restored compatibility drills pass,
+as do all 102 redactor cases and both complete owning batches above.
+All requested static/build checks were refreshed successfully. The repair
+is a follow-up commit; the completed merge is not rewritten.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19981" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19995" lines="19995-20007" at="3087b10dd" bytes="925" sha256="05452bb8d770c21cd11c9e8e3b00a14ef655fc584018b482ab7c34abd68d4350" -->
+
+**Pre-push repair, M71f, 2026-10-02 (bounded lane verified; lead review
+and full gates open).** P2-1 and P3-1/2/3 in `m71-prepush.md` are repaired:
+failed opens remove only their matching publication and restore a displaced
+pending record, preserving the successful open's identity in both orders;
+`createHeldCheckout` rejects non-commit SHA arguments before Git; an
+`ls-tree` output-cap overflow uses the existing too-large refusal. No new
+dependency, setting or UI text. Three owning files pass 50 tests on both
+Kubuntu and Windows 11; six byte-restored red drills (these three regressions
+plus missing object, trailing byte and truncated BlobAnswers) are recorded
+beside D6 in `docs/certification/m71.md`. Kubuntu tsc and local changed-file
+ESLint/Prettier, dead code, duplication, localization, host API and build
+passed; full quality remains the lead's gate. The shared candidate merge
+is already present at `c0bff49f`.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19995" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20009" lines="20009-20044" at="3087b10dd" bytes="2596" sha256="30237d7a30d361f1f12b059474a58acddfec141bf610248537f00215426fc9b6" -->
+
+**Structural fix, review round 3 (RV71c), 2026-10-02 (built; lead review,
+merge and full gates open).** The confirmation review found the
+filter-enumeration design still open in four ways (the real caller's `-c`
+prefix skipped attribute discovery; a destination-only include could name
+`core.attributesFile`; the attribute parser disagreed with Git's on quotes
+and whitespace; the name-refusal tests were vacuous). Lead decision: stop
+enumerating filter drivers. Someone else's pull request is materialized
+without Git's checkout pipeline: `git worktree add --no-checkout --detach`
+in the untrusted lane (no hooks, fsmonitor, replacement objects or
+maintenance; named hooks the configuration defines switched off), the
+index from `git read-tree <sha>` run in the new worktree, then every file
+written by the extension from one streamed `git cat-file --batch`, raw,
+through the existing exclusive writer (`createFileExclusively`, now also
+taking bytes) after `confineWorkspacePath` and a canonical-spelling check.
+No Git command runs in the worktree after its first foreign byte, and the
+held window's own Git features already show the held message. The listing
+(`ls-tree -r -z --full-tree --long`) is refused whole before anything is
+created for: empty, `.` or `..` segments, any `.git` form (case-insensitive,
+trailing dots/spaces, `GIT~1`, HFS-ignorable characters), backslashes,
+undecodable names, Windows-illegal names on Windows, folded collisions
+(case and NFC on Windows/macOS; file-versus-folder and duplicates
+everywhere), and unknown modes. The former entry and size caps
+(`HELD_CHECKOUT_MAX_ENTRIES`, `HELD_CHECKOUT_MAX_BYTES`) are removed: no limit of ours. Mode 100755 sets the
+execute bit on POSIX, 120000 becomes a file holding the link text, 160000
+an empty folder. A failure after the add removes the worktree with
+`worktree remove --force` (no status, so no filter), when trust still holds.
+Deleted: the attribute parser, the attribute/info/global-attributes
+discovery, every filter override of the untrusted lane and their tests
+(RV71c 1–3 and 6 disappear by construction). `createGitProcess` gained a
+paced stdout taker; a native probe showed a child closes before a paused
+taker finishes, so takes are chained and the command settles after the
+chain. Also fixed: `holdFor` lets the deepest containing record decide (a
+trusted parent never releases a held PR below it; RV71c 4), and reopening
+a commit or PR form clears the webview's pending-generation marker so Write
+with Muse is free again (RV71c 5). Proof: `docs/certification/m71.md`,
+"Structural fix, review round 3".
+
+<!-- plan-archive:end id="milestones-3087b10dd-20009" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20046" lines="20046-20061" at="3087b10dd" bytes="1180" sha256="e6d382d86d3dfd94134733f4382a4258cf6c387396692891dcdcfb01eb5a5df3" -->
+
+**Independent review repair, M71b, 2026-10-01 (bounded lane complete).**
+The six findings in `RV71.report.md` at `badbe5bb` are accepted for repair:
+bind held trust to each root and select the backend's first workspace folder;
+discover checkout filter selectors from the foreign tree's attributes, shared
+info attributes and effective global attributes, including macros, while
+retaining source-config overrides; bind draft generations to their form
+instance and retire them on successful completion; compare fork PR drafts
+against a verified destination-remote base, fetching only through checkpoint
+admission when missing; report a completed PR POST as successful even after
+Cancel, then stop later steps; localize GitHub fallback failures in all 14
+tables. Extend the owning suites and native conditional-include canary,
+then prove each repair by semantic red and exact byte restoration in
+`docs/certification/m71.md`. No merge, push, live call, dependency or gate
+change is authorized in this lane. Serial bounded checks run here; full
+quality and platform/editor certification remain with the lead. Reuse the
+existing canonical plan and its prior structured-ledger deferral.
+
+<!-- plan-archive:end id="milestones-3087b10dd-20046" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20063" lines="20063-20078" at="3087b10dd" bytes="1192" sha256="c4efcad5316bc822f8d1fd16999f2ca1efa901e7a6037b542ee9447c34726c3d" -->
+
+The final effective-attributes boundary review found that Git treats an empty
+`XDG_CONFIG_HOME` as unset (a native Windows fixture selected the filter in
+`HOME/.config/git/attributes`). Normalize that empty value before the existing
+default lookup; the native configured/global-attributes witness now includes
+the empty-XDG case. This stays within finding 2's required
+effective attributes-file discovery; no new option or helper layer is needed.
+All six repairs have regression and semantic red/restored-green proof. The
+final six owning files pass 128 tests each on Kubuntu, Mac mini and Windows
+11 VM, zero skips; thirteen distinct guard mutations are detected, including
+three refreshed filter mutations on the final runner. All five tsconfigs,
+owned ESLint/Prettier, knip, zero-clone jscpd, localization, normal host-API
+check and production build pass serially on Windows. Generated host-API docs
+reflect only the two standard-library import counts. Final sizes and exact
+restoration hashes are in `docs/certification/m71.md`. No lane code blocker
+remains; no merge is performed. The lead retains full quality, independent
+review, the M72 join and editor/platform/hosted release gates.
+
+<!-- plan-archive:end id="milestones-3087b10dd-20063" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20080" lines="20080-20123" at="3087b10dd" bytes="3151" sha256="f9f3488a2ca2c2f89cc39ca1475e5060718a29ed39aaf6715a740cb2e95d725c" -->
+
+**Resumed lane review, 2026-09-30 (in progress).** The shared English table
+is isolated in build commit `28cd4876`; M71 source will follow separately.
+The named PR32 handoff was read and its eleven M72 findings were checked
+against the current candidate. Preserve its memory, final shell admission,
+no-launch provenance, canonical-root and native long-path repairs. The
+installed feature-delivery package was found through its junction target;
+stack inventory succeeded. Its separate structured ledger remains deferred
+under the existing no-extra-design-layer decision. One additional M71 seam
+needs correction before closure: PR fetch and worktree checkout start
+workspace-capable Git processes without the existing checkpoint admission.
+Pass that admission through the current checkout dependencies, check the
+captured trust/physical owner after its wait and before each writer entry,
+and prove admission loss starts neither fetch nor checkout. No new layer,
+dependency, bundle or loader is needed. Complete owning tests with the
+worktree's genuine short TEMP alias, restore-hash drills, current-candidate
+merge and all serial checks from `common.md`. Full quality, four-platform
+and publication gates belong to the lead.
+The repaired source passed five typechecks and all 824 owning cases in 29
+files with zero skips. Eight semantic source mutants failed for their
+intended reasons and restored green with exact source hashes. The current
+record is `docs/certification/m71.md`; final candidate join and serial
+static/build checks follow the M71 source commit.
+The join to `669e8301` retains M72's selected lexical `workspaceRoot` for
+sessions and uses the canonical root only for checkpoints. Its removed
+`displayRoot` local left M71's window argument unresolved; pass the same
+selected `workspaceRoot` into Git and update the activation wiring assertion.
+The merge hook and compiler caught this seam before a merge commit.
+**Lane implementation complete, bounded verification passed.** Source
+commit `55f5e55f` follows the separate build commit. Join `7decc32c` contains
+candidate `669e8301`; all serial checks requested by `common.md` pass on the
+joined source, with 826 owning tests in 29 files and zero skips. All sixteen
+M71 accessibility pages pass; fresh held/commit/300 px PR renders were
+inspected. The final ACP tarball installs offline and its runtime smoke,
+the extension/Model API smoke and both package file lists pass. Final sizes
+and exact limits are in `docs/certification/m71.md`. No code blocker remains;
+the lead still owns independent review, full quality/coverage/security,
+actual editor, four-platform and hosted checks. The POST 201/GET schema,
+`repo` scope and terminology decisions remain unchanged.
+The final policy pass places M71's existing 1,000-character Git error-detail
+limit in `src/shared/constants.ts` as rule 5 requires. Its name, value and
+behavior are unchanged. All serial source checks were rerun successfully
+after the relocation, including 826 tests with zero skips; reported sizes
+remain unchanged. The five installed ACP bundles match that final build
+byte-for-byte, and the runtime smoke passes again.
+
+<!-- plan-archive:end id="milestones-3087b10dd-20080" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20125" lines="20125-20130" at="3087b10dd" bytes="452" sha256="36fbf822ffad07a504740b9881fac81edeefa1ba7fce40c03b23a65503609540" -->
+
+The host-API gate also found the recovered controller's type import reaches
+`vscode` through the Git adapter. Keep the controller portable: declare its
+existing Git surface and required method contract in the controller itself,
+then have the adapter implement that injected contract. Do not weaken the
+host-API gate or introduce another module. Existing controller/Git behavior
+tests and the normal host-API check must pass after this boundary repair.
+
+<!-- plan-archive:end id="milestones-3087b10dd-20125" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20132" lines="20132-20152" at="3087b10dd" bytes="1547" sha256="caa747dfadb5e05ca360d0193ce34597db704a14cf0f1951e41e1252aef920d0" -->
+
+**Previous-run release-candidate checkpoint, 2026-09-30 (historical).** Continue
+the partial port on `feature/m71-git-prs`, based on `1fd98aaf`; preserve the
+prepared `754082e651` behavior and recorded owner decisions. Five typechecks
+and 811 owning tests passed on the recovered source; one existing genuine
+short-TEMP case requires an actual 8.3 TEMP alias before closure. The first
+production build failed: activation 648.4/600 KiB, Model API 409.3/400 KiB.
+M71's translated English fallback table is duplicated in each host bundle.
+Share that existing table as `dist/uiText.js` across the Node bundles,
+including the ACP package, using the build's existing manual splitting
+approach. Keep each bundle's mutable installed-language state separate and
+leave the browser's fallback bundled. Add a 100 KiB table budget and split
+checks; every existing cap stays unchanged. Recheck trust/owner/lifetime
+before push's first Git API entry after checkpoint admission. Prove both
+guards with semantic reds and exact byte restoration, merge the current
+release candidate, then run the brief's serial owning checks. The lane's
+explicit `common.md` forbids full quality, network/live calls and push;
+the lead owns complete quality, platform review and publication. The named
+`muse-extension-pr32/temp/HANDOFF_2026-09-30.md` is absent; its external
+finding list cannot yet be reconciled. The installed feature-delivery skill
+contains only SKILL.md, so its supplemental inventory/validator resources
+are unavailable; no structured-validator pass is claimed.
+
+<!-- plan-archive:end id="milestones-3087b10dd-20132" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20154" lines="20154-20171" at="3087b10dd" bytes="1313" sha256="74feea85fee58bc7ed56325f5bd9b22351b167dbe42f1a5635b00b0ec673403e" -->
+
+**Short-name compatibility review, 2026-09-30 (bounded proof complete).** Keep
+the existing async `canonicalPath` for owner capture: actual Host evidence
+shows it expands the genuine 8.3 alias just as `memoryIo.systemPath` does.
+JavaScript sync realpath retains the short spelling on Node 24.20.0; use it
+only to prove the fixture is genuine. The temporary native-port change is
+reverted because the original async resolver is not confirmed defective.
+Retain
+the directory/nonzero identity checks, both lexical/canonical stat fences,
+sticky loss and original own-PR location semantics. The existing filesystem
+fixture will exercise an actual short-TEMP alias against the API's long root
+when available; the allocated Windows runner must prove that case executes.
+Lean `5e4956f2` passed five types, 135 affected Git cases in 12 files, owned
+lint, whole-repository duplication and 14 localization tables. Real short-root
+and own-alias positives ran; omitted-owner, sticky-loss, lexical-location and
+raw-versus-canonical root comparison mutants each showed green → red → restored
+green with exact hashes restored. Fixture setup failures are retained, not
+counted as semantic reds. No fake alias rewriting or NTFS setting changes;
+independent final review, latest-main join and root's complete gates remain open.
+
+<!-- plan-archive:end id="milestones-3087b10dd-20154" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20173" lines="20173-20182" at="3087b10dd" bytes="755" sha256="335a1afef1c7987d26b0bfbca1c1296a974070afb07a45712f6239c7a8e29e95" -->
+
+**Alias destination compatibility, 2026-09-30 (bounded proof complete).**
+Keep the selected lexical workspace root for an own-PR sibling folder's name
+and its stored `repositoryRoot`. Carry the captured canonical cwd separately
+for native Git execution and the existing physical-owner fences. No guard
+requires renaming the destination. A real unchanged-alias own-PR fixture must
+assert its lexical folder/record and canonical Git cwd before the next gates.
+Prior `5466687d` bounded proof remains valid only for its frozen source. The
+own-alias positive passed within Host `81df`'s 1,147 owning cases; its one
+test-arrow lint finding is repaired and lean `5e4956f2` subsequently passed
+the affected suites and static gates. That remains bounded evidence.
+
+<!-- plan-archive:end id="milestones-3087b10dd-20173" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20184" lines="20184-20203" at="3087b10dd" bytes="1500" sha256="bd237c5400ab802e4a7a43e9159fd77a6949be9d30031ee76374664ac5f70dd1" -->
+
+**Confirmed physical-owner repair, 2026-09-30 (bounded proof complete).** A
+native junction witness retargeted the selected root during PR consent while
+HEAD, remotes and the cached Git API root stayed identical. Three subsequent
+Git calls reached the foreign repository, wrote its `FETCH_HEAD` and opened
+a worktree from it. Preserve that failing evidence. Bind the selected physical
+directory before repository lookup, validate the cached API root against it,
+and synchronously check both lexical and canonical directory identities before
+each API/native entry and after awaits. Observed ownership loss is permanent
+for that operation. Native calls use the captured canonical cwd. Reuse
+`canonicalPath`, bigint directory identity and the existing dependency ports;
+production always captures real identity, while virtual fixtures explicitly
+inject test-only owners. Real unchanged-link success, held-link refusal,
+commit/push consent and sticky-loss regressions passed. Exact source
+`5466687dacdd1959da9e07774fb6b54e7f198373` passed five typechecks,
+1,145 focused tests in 28 files, owned lint, whole-repository duplication and
+all 14 localization tables on the Windows fixture. Two physical-owner
+production mutants showed green → red → restored green with canonical hashes
+unchanged. The preceding 14 semantic receipts remain preserved. Independent
+current-source review, root's full quality and installed/platform gates are
+still required; these bounded results are not final certification.
+
+<!-- plan-archive:end id="milestones-3087b10dd-20184" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20205" lines="20205-20214" at="3087b10dd" bytes="724" sha256="37d19f26b83026aafdbfbc6d79ca279164c3ec435dab567d36323b50add164f7" -->
+
+**Main integration, 2026-09-30:** exact `24ff09bc` to main
+`327094412dac315b1f8dcf971b014c6c69b27104` content joins the preserved
+M71 source through a three-way delta. Host, controller, ToolIO and Plan
+capture seams retain current M68 behavior; the Plan recorder stays bound to
+the original session before confirmation and reports only actual creation.
+M71 retains its generation/edited-base/trust/activation/native Git guards.
+Docs, translations, constants and harness scenarios keep both milestones.
+Early old-main evidence is preliminary: c316 has five types, 768 tests in
+23 files and 14 localization tables green, with two combined-guard lint
+findings repaired. Fresh current-main gates and semantic reds are required.
+
+<!-- plan-archive:end id="milestones-3087b10dd-20205" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20216" lines="20216-20236" at="3087b10dd" bytes="1559" sha256="30dbd3fb1c854fea8bbbc2dee44224932fb1d1baad772b85c9a834915e01cbfc" -->
+
+**Independent current-source repairs, 2026-09-30 (verification queued).**
+M32 worktree actions recheck current project trust and their owning window
+after pickers and confirmations, and immediately before native Git entry.
+Untrusted PR checkout uses a scoped lane of the existing bounded Git runner:
+Git 2.36 or newer, names-only filter configuration discovery, empty external
+clean/smudge/process commands, non-required passthrough, and disabled hooks,
+fsmonitor, replacement objects, automatic maintenance and GC. Ordinary
+commit/push Git keeps its existing consent and configuration behavior.
+The confirmation explains that LFS pointers and other stored filter input
+stay unfiltered until explicitly trusted; normal built-in Git newline,
+ident and encoding conversions still apply. Primary Git gitattributes and
+convert.c confirm empty commands execute no filter. Real native positive
+and negative canaries remain required; no proof is inferred from source.
+Program subsection names containing equals/newlines cannot be represented
+by these `-c key=value` overrides and explicitly refuse before checkout.
+Native filter canaries and metadata tests cover that configuration boundary.
+WorktreeRegistry persistence reads validated raw records, separately from
+its existing-folder display view, and serializes local writes so a pending
+PR record cannot be erased by a concurrent M32 put. Cleanup removes only
+the explicitly owned record. Native held-trust and actual-state persistence
+regressions are drafted before the allocated gates and external red drills.
+
+<!-- plan-archive:end id="milestones-3087b10dd-20216" -->
+
+## ### M88 — Prompts, bookmarks and timed sends (D67)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21022" lines="21022-21023" at="3087b10dd" bytes="112" sha256="cf1007a4032f9a7e53f65f67c053f425987924562c161da0a1492f39fa5857bd" -->
+
+**Lanes and file ownership.** Lanes 0 and W follow the lane rules; lane 0
+owns the same string files as in M87.
+
+<!-- plan-archive:end id="milestones-3087b10dd-21022" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21034" lines="21034-21036" at="3087b10dd" bytes="164" sha256="cb47610247b08f7c395f19f01d817fb1b52aea0ed22cedc04a674d86242676c4" -->
+
+**Lane C moved to M115 (D95, 2026-10-06):** its one-shot cadence, Muse Code
+timed sends and Resume later are built there, unattended. Lanes 0, P, A, B
+and W stand.
+
+<!-- plan-archive:end id="milestones-3087b10dd-21034" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21038" lines="21038-21038" at="3087b10dd" bytes="47" sha256="d38de9622b8cc434ef6b2bf74886a9c0d032a3a1ca48aaa67b9fd49cdd29f40a" -->
+
+**Lane 0's strings** (English; all 14 tables):
+
+<!-- plan-archive:end id="milestones-3087b10dd-21038" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21040" lines="21040-21106" at="3087b10dd" bytes="4509" sha256="478a328f283d4f2aab8db8a735460eef59a881eadde0dd1eca4be3b4f68f7901" -->
+
+- **A, the library:** `promptLibraryTitle` "Saved prompts",
+  `promptLibrarySearch`, `promptLibraryEmpty`, `promptSaveCurrent` "Save
+  current prompt", `promptName`, `promptText`, `promptScope` "Available in",
+  `promptScopeUser` "All workspaces", `promptScopeWorkspace` "This
+  workspace", `promptInsert` "Insert", `promptEdit`, `promptDelete`,
+  `promptDeleteConfirm` "Delete “{name}”?", `promptSecretsNote` "Saved
+  prompts are stored as plain text on this computer, and in Settings Sync
+  if you turn sync on. Don't save passwords or keys.", `promptStoreDamaged`
+  "The saved prompts could not be read: {reason}. Nothing was changed.",
+  `promptStoreReset`, `promptStoreResetConfirm` "Delete the unreadable
+  saved prompts in {scope} and start again with none?",
+  `promptLimitReached` (plural forms), `promptTooLong`, `promptScopeSynced`
+  "Synced with Settings Sync", `promptScopeWorkspaceLocal` "Kept on this
+  computer only, even with sync on".
+- **P, the setting** (in `package.nls*.json`, lane P's, as M87's lane D
+  owned its manifest key): `config.syncPromptsAndBookmarks.description`
+  "Add your saved prompts for all workspaces and your bookmarks to Settings
+  Sync. Off by default: they stay on this computer. Prompts saved for one
+  workspace never sync."
+- **A, sequences:** `sequenceNew`, `sequenceStep` "Step {index}",
+  `sequenceAddStep`, `sequenceRun` "Run", `sequenceStartTitle` "Run
+  “{name}”?", `sequenceStartDetail` (plural forms: "{count} messages are
+  sent to this conversation, each after the previous turn completes."),
+  `sequenceStartBilled` "On the Model API, each message is billed as a
+  normal turn.", `sequenceModeWarning` "This conversation is in {mode}
+  mode: steps run without asking.", `sequenceRunning` "Sequence “{name}”:
+  step {step} of {total}", `sequenceStopped` "Sequence stopped after step
+  {step}: {reason}", `sequenceDone`.
+- **A, palette tips:** for the new rows (`prompts`, `schedule`).
+- **B:** `bookmarkAdd` "Bookmark", `bookmarkRemove` "Remove bookmark",
+  `bookmarkCurrentTitle` "Bookmark this conversation",
+  `historyGroupBookmarked` "Bookmarked", `bookmarkedState` "Bookmarked" (the
+  option's hidden state text), `bookmarkUnavailable` "Not available here",
+  `bookmarkLimitReached` (plural forms: "A workspace keeps up to {count}
+  bookmarks.").
+- **C, timed sends:** `scheduleSendTitle` "Schedule this prompt",
+  `scheduleSendWhen` "Send at", `scheduleSendRange` "Between a minute and
+  six days from now", `scheduleSendConfirm` "Schedule",
+  `scheduleSendModelApiNote` "You confirm its price now. At its time it is
+  sent only if the prompt, model, conversation and key are unchanged;
+  otherwise it waits for Run.", `scheduleSendConfirmTitle` "Send this prompt
+  with {model} at {time}?" (the popup's title; its body reuses M52's
+  `scheduleRunConfirmPrompt`, `scheduleRunConfirmPrice` and
+  `scheduleRunConfirmExtras`), `scheduleSendPaidOff` "Turn on Scheduled
+  prompts (paid) and accept its price before scheduling on the Model API.",
+  `scheduleSendMuseCodeNote` "It is sent at its time, in this
+  conversation's permission mode at that moment. Nothing is sent while VS
+  Code is closed.", `scheduleSendModeWarning` "This conversation is in
+  {mode} mode now: its tools run without asking.",
+  `scheduleOnceAt` "Once at {time}", `scheduleDueSince` "Due since {time}",
+  `scheduleWaitingForTurn` "Due · sent when the current turn ends",
+  `scheduleBindingChanged` "Due · the prompt, model, conversation or key
+  changed, so it waits for Run", `scheduleSendNow` "Send now",
+  `scheduleOpenConversation` "Open conversation", `scheduleSignInChanged`
+  "The Muse Code sign-in changed, so this workspace's timed sends were
+  deleted.", `scheduleEnvKeyUnavailable` "Timed sends on Muse Code are not
+  offered while META_API_KEY is set for VS Code.", `timedSendMark` "Sent on
+  schedule", `notifyScheduleDue` "A scheduled prompt is due."
+- **C, resume:** `resumeLater` "Resume later…", `resumeLaterTitle`
+  "Schedule a “continue” message for when the limit resets",
+  `resumeRateLimited` "Meta's rate limit stopped this turn.",
+  `resumeUsageFull` "Your Muse Code usage window is full. It resets at
+  {time}.", `resumeUsageNote` "Based on the usage report.",
+  `resumeBudgetStopped` "The session budget stopped this turn.",
+  `resumeOpenBudget` "Change the budget", `resumeBeyondHorizon` "The limit
+  lifts at {time}, later than a send can be scheduled."
+- `MODEL_TEXT.resumePrompt` stays English, in `constants.ts` (lane C).
+
+<!-- plan-archive:end id="milestones-3087b10dd-21040" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21108" lines="21108-21108" at="3087b10dd" bytes="26" sha256="739012387bf616b939e5729d0bb00be03d1a97b29cbaa22229c636148ca5ecef" -->
+
+**Implementation steps.**
+
+<!-- plan-archive:end id="milestones-3087b10dd-21108" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21110" lines="21110-21254" at="3087b10dd" bytes="9024" sha256="74b588e3e7007f4cff2f7aa880e25d6ca0e4639caddb2b69080f3d273802811b" -->
+
+- **P Plumbing.**
+  1. **Messages.**
+     - The library: `promptLibraryRead`, `promptSave`, `promptUpdate`,
+       `promptDelete`, `promptLibraryReset` (`scope`: `user` or
+       `workspace`), `sequenceStart` and `sequenceStop`, answered by
+       `promptLibrary` and `sequenceState`. `promptLibrary` carries each
+       scope's state (`ok` or `damaged` with its reason) and whether sync is
+       on.
+     - Bookmarks: `bookmarkSet`, answered by `bookmarks`.
+     - Timed sends: `timedSendCreate`, whose `origin` is `prompt` or
+       `resume`. `schedulesChanged` now carries the once cadence.
+  2. **Turn ends.** `turnCompleted` gains an optional `limit` (`kind`,
+     `retryAfterMs`, `resetsAtMs`), set only by lane C's classifiers.
+  3. **Reducer.** `uiState` holds the library, the run, the bookmark ids
+     and the due sends, and puts a turn's `limit` on its failed row's
+     entry, for lane C's Resume later. A user entry sent by `sendAsUser`
+     keeps its `origin`, so lane C's card can show `timedSendMark`.
+  4. **`deferredSend.ts`.**
+     - `canSendNow(sessionId)` says synchronously whether the session is
+       loaded and idle, with no turn queued and no sequence running, or why
+       not (`busy`, `notLoaded`).
+     - `sendAsUser(text, origin)` submits as the composer's Send does, only
+       while `canSendNow` holds; otherwise it refuses with that reason and
+       sends nothing.
+     - `onTurnSettled` reports each turn's terminal, so a waiting send can
+       go.
+     - The controller implements all three.
+  5. **`featurePorts.ts`** declares `PromptLibraryPort`, `BookmarkPort` and
+     `TimedSendPort`. The controller answers the new messages through
+     them, and refuses with an explicit error while a port is missing.
+  6. **The sync setting.** `museSpark.syncPromptsAndBookmarks` (boolean,
+     default false, `machine` scope) is read by `settings.ts`.
+     `stateSync.ts` calls `globalState.setKeysForSync` with the two keys
+     while it is on and with `[]` while it is off, at activation and on
+     every change of the setting (D67). Nothing else calls it.
+- **A Library and sequences.**
+  1. `promptLibrary.ts` holds the versioned zod schema and the caps.
+  2. `promptStore.ts` reads, validates and writes the two scopes: "All
+     workspaces" in `globalState` under lane P's synced key, "This
+     workspace" in `workspaceState`. It leaves sync to `stateSync.ts`.
+     - Each scope is validated on its own. A damaged value, read from disk
+       or arriving through sync, is kept, reported with its reason, and
+       blocks writes to that scope until reset.
+     - `reset(scope)` replaces only that scope's value with an empty
+       library of the current version. It runs only on
+       `promptLibraryReset`, after the dialog's inline confirmation.
+  3. `PromptLibraryDialog` is built on `paletteDialog.tsx`: search, insert
+     (Enter), edit inline, delete with an inline confirmation, and a save
+     form prefilled with the draft. Its scope picker marks "All workspaces"
+     as synced and "This workspace" as kept on this computer while sync is
+     on. A damaged scope shows `promptStoreDamaged` with Reset and its
+     inline confirmation.
+  4. `promptSequence.ts` is the run's pure state machine: start, step sent,
+     turn settled, stop, and end on any terminal other than `completed`.
+     `sequenceRunner.ts` drives it through `deferredSend`.
+  5. The `/prompts` palette row opens the dialog.
+- **B Bookmarks.**
+  1. `bookmarkStore.ts` keeps the records in `globalState` under lane P's
+     synced key, one list per workspace digest (D67), and refreshes titles
+     from listed rows. It validates what it reads, a value that arrived
+     through sync included, and refuses a bookmark past the cap with
+     `bookmarkLimitReached`. `has(backend, sessionId)` answers for this
+     workspace.
+  2. `fileSessionStore.ts` gains an optional `isKept(sessionId)`
+     dependency. Retention skips a session it keeps, and lane W's
+     `extension.ts` passes the bookmark store's `has`. The ACP agent's
+     store passes none and is unchanged.
+  3. `sessions.ts` gains `bookmarkedIds` and puts the Bookmarked group
+     first. A bookmark not found once the list has ended is a row marked
+     `bookmarkUnavailable`, whose only action is Remove.
+  4. `HistoryDialog` keeps its listbox (D67). Alt+B (`event.code` `KeyB`)
+     in the search box toggles the highlighted row's bookmark. The row's
+     star is `aria-hidden` and for the mouse only, as the archive control
+     is. The option's name includes `bookmarkedState` when bookmarked, its
+     `aria-keyshortcuts` is "Delete Alt+B", and its description names both
+     commands. The Bookmarked group loads pages until every id is found.
+  5. `Header` gets the star for the open session: a toggle button with
+     `bookmarkCurrentTitle` and `aria-pressed`.
+- **C Timed sends and resume.**
+  1. `schedule.ts` gains the once cadence. `nextScheduleFire` returns
+     `atMs` once, then nothing. `fileScheduleStore` gains `listAll()`, the
+     workspace's jobs, to list due sends at start.
+  2. **The Model API's one-shot** is M52's job with that cadence, the same
+     store, claim and paid row, confirmed when it is scheduled (D67).
+     - Schedule refuses with `scheduleSendPaidOff`, offering the setting,
+       while the gate is off. Otherwise it shows the D48 popup
+       (`scheduleSendConfirmTitle`) through `PaidUseConsent`. Deny or
+       closing it stores nothing.
+     - The job stores the confirmation: the prompt, the model, the session,
+       the key digest and the gate's price generation.
+     - At its time the host checks all of them again, and the gate. A match
+       sends without a popup; any change marks the job
+       `scheduleBindingChanged`, and it waits for M52's Run, which asks
+       again.
+  3. **`museCodeTimedSends.ts`** is a second store instance at
+     `storageUri/musecode-timed-sends`, with a 60 s poll.
+     - Its jobs' account field holds the credential file's signature
+       (`readCredentialFile` in `cliAccount.ts`: size and modification
+       time). It is never an account, a label or a backend name (D67).
+     - At start, at each poll, and on the panel's sign-in or sign-out, a
+       current signature that differs from a job's deletes the workspace's
+       Muse Code jobs before any list is published, and the pane shows
+       `scheduleSignInChanged`.
+     - Before that rests on the signature, lane C records whether a day's
+       ordinary use changes it without a sign-in. If it does, the binding
+       uses the file's structure instead, as D67 says.
+     - While `META_API_KEY` is present in the host's environment, creation
+       refuses with `scheduleEnvKeyUnavailable`.
+  4. **The send at its time, both backends** (D67). On each poll and each
+     `onTurnSettled`, a due job that was seen on time and whose binding
+     matches is sent this way:
+     - `canSendNow` false: the job stays unclaimed and pending
+       (`scheduleWaitingForTurn`) while this window is open.
+     - `canSendNow` true: claim, then, as the claim resolves, check
+       `canSendNow` again and call `sendAsUser`. If the session turned busy
+       or was unloaded meanwhile, `fileScheduleStore` deletes the receipt it
+       just wrote (`releaseClaim`, new: only its own, only before any turn
+       was admitted) and the job waits again.
+     - A job seen late, one whose session is not loaded, and a Model API
+       job whose binding changed are due and wait for Run or Send now.
+  5. `ScheduleSendDialog` uses `datetime-local` with `step` 60, between now
+     plus a minute and now plus six days, with the backend's note and, from
+     the session's current mode, `scheduleSendModeWarning` for Auto and
+     Bypass. `SchedulePanel` lists one-shots on both backends.
+  6. **`limits.ts`**:
+     - the Model API's final 429, with `Retry-After` (seconds or an HTTP
+       date) carried from `client.ts`;
+     - M82's budget error;
+     - on Muse Code, only a captured usage-limit signal: the goal status
+       `usage_limited`, or a turn failure in the shape the capture below
+       records. The time is the reset of a window at 100 % in a `usage/read`
+       made after the signal. A failure of any other kind is not a limit,
+       whatever the report says.
+  7. **The default time** is `resumeDefaultAt(limitAtMs, nowMs)`: rounded
+     up to a whole minute, at least a minute ahead, and undefined beyond
+     six days. Undefined means no Resume later, and the row shows
+     `resumeBeyondHorizon` instead.
+  8. **On the failed row**, `Transcript.tsx` shows "Resume later…", which
+     opens the dialog with `MODEL_TEXT.resumePrompt` and the default time,
+     or "Change the budget".
+  9. **`turnNotifications.ts`** gains the `scheduleDue` notice, once per job
+     that waits.
+- **W Wiring and join.** `extension.ts` builds the stores, the runner and
+  the ports per surface, and `App.tsx` mounts the dialogs and rows. Then
+  W runs the theme capture, if a token is new, and the full gate.
+
+<!-- plan-archive:end id="milestones-3087b10dd-21110" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21256" lines="21256-21257" at="3087b10dd" bytes="123" sha256="6af5b3ddf95f69fc196f873ff4226777c0ab09244b0397de721ee4f49dfa9dad" -->
+
+**Live capture (lane C, AGENTS.md rule 13).** The error a full Muse Code
+usage window gives has never been captured (§3).
+
+<!-- plan-archive:end id="milestones-3087b10dd-21256" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21259" lines="21259-21270" at="3087b10dd" bytes="744" sha256="36ea5db17d939df7ad77ae353a40f3829475ab9b61401433140d53eb47ee6a18" -->
+
+- **The run:** the next time the owner's usage window reads 100 %, a script
+  over `@muse-code/sdk`, as the earlier captures were, in an empty workspace
+  on the contributor model. It sends one short reply-only turn, records
+  every frame up to its end, then calls `usage/read`.
+- **Expected:** one turn. The expected attempts are stated in the record
+  before the run and counted from the CLI's trace log afterwards (the
+  owner's live-spend rule of 2026-10-02).
+- Frames go into `helpers/m88Capture.ts`, and the record goes into
+  `docs/certification/m88-c.md`.
+- Until the capture exists, the turn-failure path is not written: Muse Code
+  offers Resume later only for the goal status `usage_limited`, and the
+  README and the record say so.
+
+<!-- plan-archive:end id="milestones-3087b10dd-21259" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21272" lines="21272-21272" at="3087b10dd" bytes="16" sha256="ca8a3c500627952254d778f1a98479e2c794c0334172b40594e0d8c6e66c80cb" -->
+
+**Acceptance.**
+
+<!-- plan-archive:end id="milestones-3087b10dd-21272" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21274" lines="21274-21338" at="3087b10dd" bytes="3618" sha256="ea51129f8aa7ca00e949131e0644ee6b21dc93262a1c4787edec9f38577fa546" -->
+
+- **13, saved prompts.**
+  - Save, name, insert (into the caret, nothing sent), edit and delete
+    work in both scopes.
+  - The caps refuse, and say why.
+  - A damaged scope is never overwritten, the other scope keeps working,
+    and Reset, after its confirmation, empties only the damaged scope.
+  - With `museSpark.syncPromptsAndBookmarks` off (the default),
+    `setKeysForSync` registers no key and nothing leaves the computer.
+  - With it on, exactly two keys are registered: the "All workspaces"
+    prompts and the bookmarks. "This workspace" prompts are never
+    registered, and the scope picker says so. Turning it off registers
+    none again.
+- **13, sequences.**
+  - A sequence sends step N+1 only after turn N ends `completed`.
+  - It ends on a failed or cancelled turn, Stop, a session switch or the
+    panel closing.
+  - A run on the Model API states the turns it bills.
+- **14, bookmarks.**
+  - A bookmark set from History or the header persists across reloads, in
+    this workspace only, with sync on and off.
+  - Alt+B in History's search box toggles the highlighted row's bookmark;
+    the option's name says it is bookmarked. The header's star is a toggle
+    button with `aria-pressed`.
+  - The Bookmarked group finds an old chat beyond the first page.
+  - Archived and bookmarked shows under Show archived.
+  - A bookmarked Model API session outlives `museSpark.cleanupPeriodDays`;
+    once unbookmarked, retention takes it at the next listing.
+  - A bookmark whose session is not found shows as not available here,
+    with Remove.
+  - The cap refuses the next bookmark, and says why.
+- **15, timed sends.**
+  - A one-shot fires once.
+  - **On the Model API**, Schedule asks once through the D48 popup, and
+    Bypass cannot skip it. Deny, a closed popup or the gate off stores
+    nothing and makes zero requests.
+  - At its time a confirmed send whose prompt, model, session, key digest
+    and gate price all match goes without a popup. Any change, or the gate
+    off, sends it to Run, which asks again; nothing is billed before.
+  - **On Muse Code** it goes at its time with no Send now, in the
+    conversation's mode at that moment: in Manual its approvals still
+    wait.
+  - A send due during a turn stays unclaimed and goes when the turn
+    settles. A session that turns busy while the claim is written releases
+    the claim, and the send goes after that turn, once.
+  - A Muse Code sign-in change deletes the workspace's Muse Code timed
+    sends before any list, and says so; none is listed or sent across it.
+    With `META_API_KEY` set, Muse Code offers no timed send.
+  - Two windows send once.
+  - With VS Code closed through the due time, the next start lists it as
+    "due since" and sends nothing by itself. A send whose session is not
+    loaded waits the same way.
+  - The picker refuses less than a minute ahead and more than six days
+    ahead.
+- **16, resume.**
+  - A final 429 offers Resume later at `Retry-After` (five minutes without
+    it). A `Retry-After` under a minute opens at one minute ahead, rounded
+    up to the minute. One beyond six days offers no timer and says when the
+    limit lifts.
+  - The budget stop offers the setting and no timer.
+  - On Muse Code, a goal stopped `usage_limited`, or a turn failing in the
+    captured usage-limit shape, offers the reset of the full window from a
+    `usage/read` made after it, and says it rests on the report.
+  - Any other failure offers nothing, even while a usage window reads
+    100 %. So does an unclassified failure on the Model API.
+  - The resume is a timed send with every rule of item 15.
+
+<!-- plan-archive:end id="milestones-3087b10dd-21274" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21340" lines="21340-21340" at="3087b10dd" bytes="11" sha256="cc7ba5feeb75a54fc2804739256b14c6154b00d8160ca55e962f6ead6253bba1" -->
+
+**Tests.**
+
+<!-- plan-archive:end id="milestones-3087b10dd-21340" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21342" lines="21342-21401" at="3087b10dd" bytes="3064" sha256="81b97d1a0e6a2c90cd0a3f252146fa0458ded941366a3579c79a0e9c2f63ce4a" -->
+
+- **Unit and webview.**
+  - Every new file.
+  - The store schemas: damaged values per scope, a damaged value arriving
+    through sync, caps, scopes, and Reset (only the damaged scope, only on
+    its request).
+  - The controller's new cases, `promptLibraryReset` included: validated,
+    answered through the ports, and refused with an explicit error while a
+    port is missing.
+  - `stateSync.ts` with `setKeysForSync` spied: the setting off, on, and
+    turned off again.
+  - Every state of the sequence machine.
+  - Bookmark grouping and paging, the unavailable row, the cap, Alt+B and
+    the option's state, and the retention exemption in
+    `fileSessionStore.test.ts`.
+  - The once cadence's next fire and expiry, at the six-day edge and
+    around a daylight-saving change.
+  - `listAll`, and the claim race across two stores.
+  - `deferredSend` and the scheduler: a send due while busy stays
+    unclaimed; a claim released when the session turns busy during its
+    write; a send seen late waits.
+  - The Model API binding: each of prompt, model, session, key digest and
+    gate price changed in turn sends the job back to Run.
+  - The Muse Code binding: a changed signature deletes and reports;
+    `META_API_KEY` present refuses creation.
+  - The limit classifier on the Model API client's captured 429 path and on
+    M82's error; on Muse Code, the goal status and the captured frames, and
+    a network failure while a window reads 100 % (no limit).
+  - `resumeDefaultAt` at `Retry-After` 0 s, 5 s, 59 s, exactly six days
+    and six days and a minute, and as an HTTP date.
+- **End to end.**
+  - A sequence of three steps against the fake Model API: one billed turn
+    each, stopping on a failure.
+  - A Muse Code timed send against the fake CLI, at its time with no Send
+    now, and one that falls due during a turn.
+- **The native modal.** M52's ordinary-window probe is rerun for the
+  one-shot's popup at scheduling: decline stores nothing and makes zero
+  fetches, in Manual and in Bypass. It is rerun for Run after a changed
+  binding, with the same result.
+- **Harness screenshots** at 690 px and 320 px. Scenarios:
+  - `prompt-library`, `prompt-library-edit`, `prompt-library-delete`,
+    `prompt-library-damaged`
+  - `sequence-running`
+  - `history-bookmarks`, `header-bookmarked`
+  - `schedule-send`, `schedule-due-once`, `schedule-due-musecode`
+  - `resume-offer`, `resume-dialog`
+- **Red drills:**
+  - a step sent before its turn completes;
+  - a damaged store overwritten;
+  - a key registered for sync with the setting off;
+  - the one-shot fired twice;
+  - a closed-window send sent at start;
+  - a Bypass schedule without the popup;
+  - a confirmed send sent after its model changed;
+  - a due send claimed while its session was busy;
+  - a Muse Code job listed after the sign-in signature changed;
+  - a 429 not classified;
+  - a Muse Code network failure classified as usage-limited because a
+    window read 100 %;
+  - a `Retry-After` of 5 s giving a default the picker refuses;
+  - a bookmarked session deleted by retention.
+
+<!-- plan-archive:end id="milestones-3087b10dd-21342" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21403" lines="21403-21403" at="3087b10dd" bytes="11" sha256="4808281f1b5cafd15ba4abe681dc6794edf9b4b29e874c81dcd787498efd5f9a" -->
+
+**Gates.**
+
+<!-- plan-archive:end id="milestones-3087b10dd-21403" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21405" lines="21405-21420" at="3087b10dd" bytes="966" sha256="0fea75251e0d21cc52c9580ba23002151694a6d3716c764fc20450248beec922" -->
+
+- **Accessibility.** The 12 scenarios in four themes, 48 pages, at zero.
+  The dialogs trap focus as `Modal` does. The header's star is a toggle
+  with a name and `aria-pressed`; History's stars stay out of the
+  accessibility tree, as the archive control does, and each option carries
+  its bookmarked state and both shortcuts.
+- **Localization.** All keys in all 14 tables, with plural forms. The
+  date-time picker's labels and the due times go through `Intl`.
+- **Bundle budgets (D6).** M88's allowance: webview +22 KiB, extension +14,
+  uiText +6, modelApi +3, measured after M87. If they do not fit, the same
+  rule applies as in M87: the lead amends D6 first.
+- **Other gates.**
+  - `npm run check:host-api -- --write` refreshes the host-API record for
+    any VS Code API use the new host files add.
+  - The bundle split keeps `schedules.ts`'s one-shot code where M57's
+    allowed list puts the schedule store's next occurrence.
+  - No dependency is added.
+
+<!-- plan-archive:end id="milestones-3087b10dd-21405" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21422" lines="21422-21422" at="3087b10dd" bytes="10" sha256="70039184e60236416dbe48a13446f505a2f964be45aecfe3f229e260ae23d07b" -->
+
+**Docs.**
+
+<!-- plan-archive:end id="milestones-3087b10dd-21422" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21424" lines="21424-21435" at="3087b10dd" bytes="745" sha256="0012765e5cbc3c008c854eeed0ded10ab4aa78279b04b9e6d270497132c87a5a" -->
+
+- **`README.md`:** saved prompts and sequences, bookmarks, the sync
+  setting, timed sends and resume, with the closed-VS-Code rule, the
+  per-backend confirmation, and the Muse Code sign-in rule (with its limit,
+  if lane C's record finds one).
+- **`docs/PRIVACY.md`:** where saved prompts, bookmarks and timed sends are
+  stored, that they are unencrypted, what the sync setting adds to Settings
+  Sync (and that "This workspace" prompts never sync), and that nothing
+  runs while VS Code is closed.
+- **`CHANGELOG.md`,** `CONTRIBUTING.md` (the scenarios), **`AGENTS.md`**
+  (the layout for `src/host/prompts`, `src/host/schedules`,
+  `src/core/limits.ts`), **`PLAN.md`** (status), and
+  **`docs/certification/m88.md`** with the lane records.
+
+<!-- plan-archive:end id="milestones-3087b10dd-21424" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21437" lines="21437-21437" at="3087b10dd" bytes="26" sha256="8044edd02e8c7b9f192e3dd5e1164c4aae39e5d258cbc8c83954830559e0c007" -->
+
+**Security and privacy.**
+
+<!-- plan-archive:end id="milestones-3087b10dd-21437" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21439" lines="21439-21459" at="3087b10dd" bytes="1306" sha256="1c2b55654dc7f6bc9dd0ba09202d9fbc9507caa6b81cfcd1afea843b3cdd4361" -->
+
+- **Storage.** Saved prompts and bookmarks live in VS Code's state
+  database, unencrypted. They leave the machine only through Settings Sync,
+  only while the user has turned on `museSpark.syncPromptsAndBookmarks` on
+  this computer, and "This workspace" prompts never do. Bookmarks store
+  workspace digests, never paths. Neither is logged: the log gets counts
+  and ids.
+- **The timed-send stores** hold the prompt text and, on the Model API, the
+  key's digest, never the key (M52). Muse Code's hold the credential file's
+  signature (size and modification time), never an account or a value
+  from the file.
+- **Every message** across the bridge is zod-validated, and so is every
+  value read from state, synced or not.
+- **Sequences and timed sends** send as the user's own message, under the
+  session's permission mode at that moment. The start and schedule dialogs
+  name Auto and Bypass.
+- **Money.** No path sends a Model API timed send or resume without the
+  scheduled-prompts gate and the D48 popup answered for that run, at
+  scheduling or at Run, and no confirmed send goes unless its prompt,
+  model, session, key digest and gate price still match. No path sends
+  anything while VS Code is closed, or late on its own after it starts.
+  Muse Code's timed sends bill only the subscription.
+
+<!-- plan-archive:end id="milestones-3087b10dd-21439" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-21461" lines="21461-21461" at="3087b10dd" bytes="29" sha256="7a14427397c6bec9f8be57307bdce753a6bc5e41622df2572c6789f6fce62d50" -->
+
+**Certification checklist.**
+
+<!-- plan-archive:end id="milestones-3087b10dd-21461" -->
+
+## ### M87 — Panel polish (D66)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-20958" lines="20958-20971" at="3087b10dd" bytes="977" sha256="d7db96ea2b6250b200826c524694c3189e52a8260f3485da01c193ed89656ae0" -->
+
+- **MENUFAN follow-up (2026-10-10).** Tighten both menu bursts around the
+  row opener and anchor highlighted-text actions there; English menu labels
+  use Title Case (D66). Round 2 caps uniform pill widths by the space on
+  the fan’s side of the opener so narrow checkpoint submenus never cover
+  it; clipped labels retain their full tooltip. Highlighted-text menus keep
+  the opener element and follow it across panel resizes. Sweep 280–700 px,
+  one to six items and left/right/centre openers; certify the exact 320 px
+  checkpoint Rewind scene, resize regression and byte-exact red drills.
+  Round 3 repairs RVMENUFAN2’s two P2 classes: the shared anchor lifecycle
+  tracks scroll/reflow/removal, and inside pointer borders leave 2 px clear
+  beside keyboard focus rings with CSS-token-derived spacing. Certify all
+  eight menu scenes at 320/480/900 px in light/dark/high contrast and review
+  only menu baseline changes.
+  Evidence: `docs/certification/menufan.md`.
+
+<!-- plan-archive:end id="milestones-3087b10dd-20958" -->
+
+## ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18244" lines="18244-18251" at="3087b10dd" bytes="596" sha256="0f483e0c754a18ebcafe0908b364c7b2751fb4fb3cd80cd47729e064dedc1a4b" -->
+
+Base `5abee29bd`, branch `int/0180b`. The assigned rig brief supersedes the
+legacy common-rule stop limit and initially permits three ordered `--no-ff`
+merges: `main-0150` (`c22be5d0d`), `m105/e3-fix` (`b95323eee`), then
+`m117/w-fix3` (`c487fe828`). Preserve both sides, union translated keys,
+regenerate inventories, keep version 0.15.0 and new notes under Unreleased.
+The lead's 17:35 update accepts M108 D/X and additionally requires
+`m108/w-fix4` (`313c1df87`), then `main-latest` (`18dc73651`), each `--no-ff`,
+before completion. No push, rebase, model calls or fabricated native artifacts.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18244" -->
+
+## ### M87–M88 — The owner's panel requests of 2026-10-03 (D66, D67)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18711" lines="18711-18711" at="3087b10dd" bytes="25" sha256="811c46c02b9281593fc77b83a8e310baae483ab79cfa4aaec07edd27c6b14818" -->
+
+**Found already built.**
+
+<!-- plan-archive:end id="milestones-3087b10dd-18711" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18713" lines="18713-18718" at="3087b10dd" bytes="311" sha256="8d506744e7563f158c9ad6d9894a7980ec6d7d9bf66ffe799c8d5a4482750df0" -->
+
+- Item 11 is M82 (PR #89).
+- The grouping behind item 3 is Focus view (M16).
+- The prompt going back into the composer (item 12) is M53's rewind.
+- Reusable prompts exist as skills: they run as slash commands, and M83
+  imports other agents' commands as skills (item 13).
+- Scheduled prompts are M52 (item 15).
+
+<!-- plan-archive:end id="milestones-3087b10dd-18713" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18720" lines="18720-18720" at="3087b10dd" bytes="27" sha256="a52b4db0a8c53cf242e664c990c3e84957737f8cde15beebad313ccd821b7074" -->
+
+**Not feasible as asked.**
+
+<!-- plan-archive:end id="milestones-3087b10dd-18720" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18722" lines="18722-18726" at="3087b10dd" bytes="302" sha256="788c0b167563ae9104bbd05507f329daed2036b29614b67939cbbc042109a7d2" -->
+
+- A floating window for the sidebar view, or one an extension opens (item
+  6). M87 offers an editor tab that the user moves instead (D66).
+- Tooltips in VS Code's own Command Palette (item 7).
+- Any send while VS Code is closed (items 15 and 16). A missed send shows
+  as due at the next start (D67).
+
+<!-- plan-archive:end id="milestones-3087b10dd-18722" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18728" lines="18728-18730" at="3087b10dd" bytes="183" sha256="ac2c1bdaa529e973cc4b473fcbd3766c56cd6f999f9eb934b83ef7ee3d543d4c" -->
+
+**When they start.** Every lane edits the stylesheet and the harness, and
+most edit `App.tsx`, `uiState.ts` or the conversation controller. These open
+branches change the same files:
+
+<!-- plan-archive:end id="milestones-3087b10dd-18728" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18741" lines="18741-18745" at="3087b10dd" bytes="291" sha256="e80028519a4f55da55114c19c12dc84d4451ed63a6278b91193690f6a8505c39" -->
+
+So M87's integration branch starts from main once those six have merged
+or closed. M88's starts from main after M87 merges, because both
+milestones edit the strings, the controller, `palette.ts` and the
+stylesheet. Within a milestone, the "Starts" column below gives the order
+of the lanes.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18741" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18747" lines="18747-18747" at="3087b10dd" bytes="34" sha256="019f35872ba66f323c690b5554d4414754cbd633b8c08d8418b794b3633b2e20" -->
+
+**Lane rules (both milestones).**
+
+<!-- plan-archive:end id="milestones-3087b10dd-18747" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18749" lines="18749-18778" at="3087b10dd" bytes="1810" sha256="9c2376309b158d18ea9511ee9f36cbe333b0f63f7024d5b4d5ad575448826e0e" -->
+
+1. **Branches.** Each milestone has an integration branch
+   (`feature/m87-panel-polish`, `feature/m88-prompts-timed-sends`) and one
+   worktree per lane. The lead reviews every lane's diff before merging it
+   into the integration branch. One pull request per milestone goes to
+   main, and hosted CI is the gate.
+2. **Lane 0 goes first.** It writes every new English string below and its
+   14 translations. A key nobody reads yet passes every gate. A lane that
+   needs a new or changed string asks the lead. Lane W deletes the keys that
+   go, once nothing reads them.
+3. **Lane P (plumbing) goes next.** It lands the shared schemas, the
+   controller's cases and the ports. The backends' new methods are
+   optional, so every later lane compiles on its own.
+4. **One owner per file at a time** (the tables below).
+   - Five files cannot be split without restructuring the codebase:
+     - `src/shared/constants.ts`: AGENTS.md rule 5 keeps every tunable
+       there.
+     - `src/webview/styles.css`: one stylesheet, ordered by specificity.
+     - `test/harness/index.html` and `scripts/lib/harnessServer.mjs`: one
+       scenario list.
+     - In M88, `src/shared/palette.ts`.
+   - These are region-owned. A lane edits only the region named for it,
+     beside the related existing block and never at the file's end, so the
+     merges never touch the same lines. A harness scenario goes after the
+     existing scenario its table row names.
+   - Any other shared edit goes through the lead.
+5. **Lane W (wiring) goes last.** It owns `App.tsx`, the theme capture, the
+   docs, the milestone record and the full gate.
+6. **Records.** Each lane records its red drills, captures and bundle delta
+   in `docs/certification/m87-<lane>.md` (as M83's lanes did), and Lane W
+   writes `m87.md`. M88 does the same.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18749" -->
+
+## ### M121 — Exact money everywhere (current money ports) (2026-10-08)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18141" lines="18141-18142" at="3087b10dd" bytes="121" sha256="34f05647773305f738b10a60614f7d03c294e618f2287addcc9cf3bb834f51dc" -->
+
+**Order:** right after 0.17.0. M121 must be complete before M110/M111 resume,
+as part of the owner's certification rule.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18141" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18144" lines="18144-18148" at="3087b10dd" bytes="379" sha256="6485c534c08902f6716d297d25e19c45db68bdc3180104a6d3f573c34b6b7194" -->
+
+**Why:** the debt predates 0.17, and the old regex guard could not see it: its
+pre-filter missed snake_case keys, its line scanner missed semicolon-joined
+members, and its initializer exemption missed numeric pipes, transforms,
+defaults, imported aliases, quoted keys and records. The runtime walk sees
+all of them; the `trackedDebt` category is the complete inventory it found.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18144" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18150" lines="18150-18150" at="3087b10dd" bytes="484" sha256="9f03c3202c6bd8f47b11f26e2da2ad9557595a368d733556e7778aea2b1df4a2" -->
+
+**Additions from RVPORTS017D (2026-10-08).** The 0.17 money guard (`test/unit/paidMoneyStructure.test.ts`) is a runtime zod walk plus a text fallback. It can't see everything. M121 replaces it with a TypeScript type-checker guard (the compiler API over `src`), which flags any money-named property or schema output whose type is `number`, through aliases, literals, enums, maps and sets, records, transforms and module-local schemas. Its regressions must cover the reviewer's probes:
+
+<!-- plan-archive:end id="milestones-3087b10dd-18150" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18152" lines="18152-18158" at="3087b10dd" bytes="253" sha256="5308bf5cd3aa10826cf3fdccec789f28e55010bc41bf8d42349ce0f2c7b0f3d3" -->
+
+- a sometimes-numeric transform;
+- `z.literal(2)` and a numeric `z.enum`;
+- `z.map` and `z.set` with numeric members;
+- private schemas behind exported parsers;
+- Mini `_default`;
+- quoted keys;
+- a plain `interface { fooUsd: Record<string, number> }`.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18152" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18160" lines="18160-18183" at="3087b10dd" bytes="1756" sha256="0d45b1e84f47550d795ff871a5acce77ed22de9b8a7328be87bffef10215693d" -->
+
+**Sanctioned numeric money (M121 decision, 2026-10-09).** The type-checker
+guard reads all of `src` (host, runtime, ACP and webview too), so it judges
+more than the 0.17 inventory. Six kinds of number stay numeric, each listed
+in the guard's `sanctioned` category with this paragraph as its citation:
+(1) per-unit rates — USD per million tokens, per token or per hour on a price
+card or catalog row, display and comparison only, settled through `Usd`;
+(2) vendor wire units captured as sent (xAI `cost_in_usd_ticks`), converted
+exactly at the named boundary; (3) VS Code number settings and their declared
+defaults/limits (`paidDailyBudgetUsd`, `tabDailyBudgetUsd`,
+`modelApiSessionBudgetUsd`, `PAID_DAILY_BUDGET` limits), which VS Code stores
+as JSON numbers and every reader converts with `Usd.from` on read; (4) the
+estimator's demand quantities (RVM121A P3-3, 2026-10-09: `accountUsdPerHour`
+and the `usd` rate read from it), USD/hour forecasts compared as numbers
+inside scheduling math beside requests/tokens/percent per hour through the
+shared number-based `Quantity` machinery — converting one unit would fracture
+it, so conversion waits for estimator-milestone work; (5) the connector's
+integer micro-USD amounts (grant paid caps, approval prices), exact integer
+math end to end and never float, shown as micros until the paid-authority UI
+decides their display (PR #227, 2026-10-18); (6) the frozen eval plan's
+recorded budget and measured cost (`src/core/eval/plan.json`), the live run's
+own numbers read back for estimates only, never billed or enforced (PR #227,
+2026-10-18). Everything
+else is converted to `UsdAmount`; old persisted numbers are read through a
+versioned schema whose number member pipes straight to the canonical string.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18160" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18185" lines="18185-18192" at="3087b10dd" bytes="530" sha256="e67392e06f0b1e1fbe9d4800ce54de6887896b72129d7a99a02243e09e64db63" -->
+
+**Citations by text (INT0180, 2026-10-11).** The guard cites the six clauses
+above by this milestone's heading and their own words
+(`test/unit/helpers/planCitation.ts`, `moneyPlanCitations.ts`), not by line
+number: a line number moved with every edit above it, and the old check only
+asked that the numbered line was not blank. Each clause must now be in this
+file exactly once, under this heading; rewording or moving one is a deliberate
+change that updates its citation in the same commit. Record:
+`docs/certification/m121.md`.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18185" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18210" lines="18210-18224" at="3087b10dd" bytes="1151" sha256="76fc2ce37f4788edd32559c7a4066bd40922b0509530933ad56478dadbed13e8" -->
+
+**RVM121B repair scope (2026-10-09, M121A round 3).** Refuse every legacy
+money literal whose exactness cannot be proved, including canonicalization
+failures, negative zero and out-of-range exponents, through the shared JSON
+reader used by journals and schedules. Calculate period changes and money
+ordering from original `UsdAmount` values in the usage page and portable text;
+numeric chart values serve geometry only. Resolve mapped properties through
+apparent types, union/intersection members and inherited interfaces in the
+type-checker guard, resolving numeric generic constraints before apparent-type
+boxing can hide them. Add reviewer and generated-literal regressions, prove each
+repair with byte-exact red drills, and retain every existing bundle cap.
+Receipts and scoped verification belong in `docs/certification/m121.md`;
+aggregate quality and the inherited What's New build blocker stay with the lead.
+The generated comparison extremes exposed a money-label failure beyond Intl's
+fraction-digit limit: reuse its localized currency pattern with at most two
+fraction digits, then substitute the original exact fractional digits as before.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18210" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18226" lines="18226-18238" at="3087b10dd" bytes="1447" sha256="dd179d1bf4d8dba6615090cf4adeb7c01d5163e0c28ed8a08e231e11173f725e" -->
+
+**RVM121CG repair scope (2026-10-09, M121A round 4).** Decide legacy monthly
+rollup exactness before validating money, refuse the entire unproved month
+without aborting the remaining journal read, preserve its bytes and show the
+installed-language refusal notice. Count refused records using validated
+non-money metadata. Whole-percent changes that round to zero return positive
+zero. The type-checker guard examines mapped declarations beneath ordinary
+names, arrays and promises, and resolves generic mapped key constraints.
+Regression tests and byte-exact red drills cover all three review findings;
+owning usage/money suites, one unit-project typecheck, lint, formatting and
+scoped production measurements retain every cap, including usagePanel's.
+Aggregate quality and the inherited build blocker remain with the lead.
+**RVM121DC P3 (2026-10-09, M121F): closed.** The guard resolves remapped (`as`) mapped keys through the checker's base constraint and walks ordinary wrapper properties to lib-declared mapped money, judging schemas by output only; receipts in `docs/certification/m121.md`.
+**RVM121F and RVM121F2 P3 (2026-10-10, M121F round 3): closed by redesign.** Every guard type walk is one breadth-first pass bounded at `MAX_TYPE_DEPTH` (12) edges, replacing declaration pruning: recursive generics terminate, finite nesting of one generic is judged and sibling order cannot change a finding; receipts in `docs/certification/m121.md`.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18226" -->
+
+## ### M9 — Voice dictation on the operating system's recogniser
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19276" lines="19276-19292" at="3087b10dd" bytes="1247" sha256="666e33a2c8ba3d110743ac60a47eea334e9efc012d48a43caa6e058747368d0e" -->
+
+**CM9LNX scope accepted 2026-10-10:** the owner supersedes Q4's Linux-only
+third-party prohibition and authorizes a bundled permissive, offline CPU
+recognizer. Compare whisper.cpp tiny.en/base.en and Vosk small English on
+three generated speech fixtures before choosing; record measured accuracy,
+10-second latency, sizes and both engine/model licences. Build Linux x64 and
+arm64 helpers in CI, preserving the existing admitted helper protocol and
+Windows/macOS engines. Acquire pinned SHA-256 model weights only after a
+size-bearing consent prompt; keep resumable downloads in global storage,
+refuse corrupt weights and offer removal. No model belongs in the VSIX.
+Capture PulseAudio/PipeWire audio inside the helper without persistent audio.
+Require fake-engine protocol, real-helper fixture, refusal/resume/hash tests
+and byte-exact red drills, localization, notices, reference and documentation.
+The Linux surface remains hidden until this entire scope is certified.
+Native editor composer bindings (JetBrains, Visual Studio, Eclipse, companion)
+remain C-M9-1/C-M104-1; terminal ACP, Zed, Xcode, Neovim, Emacs and Sublime
+need the composer/microphone bridge or their recorded C-M9-1 exception.
+Certification: `docs/certification/m9-linux.md`.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19276" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19294" lines="19294-19302" at="3087b10dd" bytes="680" sha256="f018546d563963ea1620d6358992b065f5dc42299c71a5273b10753a30393d5d" -->
+
+**CM9LNX implementation 2026-10-10:** whisper.cpp 1.7.6/tiny.en chosen
+from measured Vosk/tiny/base receipts; CPU baseline and runtime-selected
+variants preserve older x64/arm64 compatibility. Source and model hashes
+are pinned. Capture and inference hold bounded PCM only; download ownership,
+resumption, integrity, cancellation and removal live in the lazy voice bundle.
+The host uses the existing admitted helper, installed-language text and native
+size/storage consent. Package staging requires both architectures, baseline
+libraries and notices, and excludes weights and source. Full local receipts
+and deliberate SHA-256-restored failures are recorded in the certification.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19294" -->
+
+## ### M35 — Muse Voice dictation, paid and opt-in (D30)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19474" lines="19474-19482" at="3087b10dd" bytes="657" sha256="811fe876940f075cce95e79d4627ea1547257d163044a8d0b5353687021ac2c0" -->
+
+- RVCM352 repair: recording-owned helpers/callbacks and serialized restarts;
+  no microphone before both admissions; awaited shutdown and closed-tab drains;
+  independent Meta-key scope; Linux readiness follows successful OS spawn.
+- Cap: three minutes plus 80 ms reservation headroom; reported-duration tariff
+  settlement and window consent. See [CM352 certification](docs/certification/cm352.md).
+- Physical microphone/editor receipts and external Grok review remain with
+  C-M35-3/the lead; no live calls in this lane, and no captured-frame
+  replay suite is in this tree (candidate fake suites stayed out under the
+  owner's testing rules; RVMSM9M35).
+
+<!-- plan-archive:end id="milestones-3087b10dd-19474" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19484" lines="19484-19501" at="3087b10dd" bytes="1343" sha256="b9d855029e88273c5bd7a4f545a5172d6fdd5b6fe88b3e812db7e978ab198ecd" -->
+
+**CMICCOMP completion lane, 2026-10-10 (implemented; Linux-certified; hidden).** Extend M9/M35
+to the authenticated loopback companion for ACP and terminal users. D34's
+stored-key Muse Code support supersedes the archive's original backend limit.
+Use U18's captured mono PCM WAV batch endpoint, not unbounded realtime billing.
+The browser captures at most 60 seconds / 1,920,044 WAV bytes; the server
+independently validates origin, bearer, byte count, WAV geometry, ticket age,
+single-use ownership and concurrency. Stereo channels are mixed in float
+precision before one clip/round to PCM16, preventing positive full-scale wrap.
+Audio is memory-only on the paid path;
+free OS recognition uses an owner-only temporary WAV deleted in finally.
+Windows reuses `dictate.ps1 -InputWav`; macOS adds file recognition to the
+same signed helper, without opening the host microphone. No free Linux engine.
+Paid voice is explicitly chosen, uses PaidUseConsent once per companion
+window, the runtime's shared durable daily ledger, and PaidUsage's tally.
+Keys remain in the runtime; no child receives one. No automatic retry.
+ACP paid consent uses the editor's permission request; CLI uses the browser
+dialog. Dropping the voice flag revokes remembered voice grants on either
+backend, and opening the free-only CLI route does the same before recognition.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19484" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19503" lines="19503-19510" at="3087b10dd" bytes="615" sha256="7795dc7d6a52ffca5dbd336a86e8755d2d88f929cef7f850a677af9b4c07e8b5" -->
+
+ACP has no client-draft mutation method. The companion therefore inserts
+transcripts into its reviewable prompt; an explicit Send submits that prompt
+through the owning ACP session. CLI writes reviewed text to stdout for the
+calling terminal, with paid calls recorded through the existing lazy usage
+journal and flushed before process exit. Neither transcription nor opening the page starts a turn. A capture ticket
+blocks Send on the host, and recording disables Send in the browser, including
+a second recording after an earlier transcript. Cancel releases that ticket
+before a reviewed prior prompt can be sent.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19503" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19512" lines="19512-19512" at="3087b10dd" bytes="26" sha256="504b44ce0dd9a188182e8198da9d45e002ee94313f1c71184f9b81365779ce5e" -->
+
+Lane plan (keep current):
+
+<!-- plan-archive:end id="milestones-3087b10dd-19512" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19525" lines="19525-19529" at="3087b10dd" bytes="342" sha256="369d8112b7ef2a091f599749780b46b59a629b6b5271a9a48fd6be8455d05fa2" -->
+
+Release hold: new command/control entry points remain off and unannounced
+until all lane acceptance rows are certified, including the other OS rigs.
+Existing M9/M35 behaviour is unchanged. No paid/live calls are authorized
+in this lane. Full quality is the lead's four-machine gate; the shared lane
+rules require focused checks here instead.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19525" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-19531" lines="19531-19531" at="3087b10dd" bytes="75" sha256="bfbdaec1ca3a0d19945b657109dff19a1556b7c8f54c536425f993f81308287b" -->
+
+First-use bundle measurements and separate budgets are recorded in §2 D6.
+
+<!-- plan-archive:end id="milestones-3087b10dd-19531" -->
+
+## ### SECWINPATH — Windows path alias security repair (2026-10-08, win11)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18445" lines="18445-18448" at="3087b10dd" bytes="257" sha256="20223fdd6190b362a25fe39f3a6471718f01aedae2e525c6afc2e01a050996cd" -->
+
+Follow-up 2026-10-17 (MSWINPATH): the trusted-root walk no longer refuses
+ordinary `..`-prefixed names (`..foo`), and the spelling refusal plus the
+walk's pre-query refusals have D108-compliant regression cover.
+Receipts: `docs/certification/mswinpath.md`.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18445" -->
+
+## ### LEFT017 — Combined 0.17.0 integration leftovers (2026-10-08)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18842" lines="18842-18845" at="3087b10dd" bytes="319" sha256="9b95ea2eb9a2415ee5720899a1c1f71f8807941bf8084610ec112b049cc05e05" -->
+
+The lane brief authorizes hook batching and scanner network access required by
+its exact SAST command, overriding older shared prohibitions for these actions.
+No quality aggregate, merge, push, paid call or credential read is authorized.
+Build caps owned by the separate shrinking lane remain an explicit §7 deferral.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18842" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18847" lines="18847-18853" at="3087b10dd" bytes="547" sha256="cad35b7f4fb2639dc51968452e916b09317898b968bc04059141134731b1d1f1" -->
+
+Earlier LEFT017 source 08d9c8ce2: all five typechecks, changed-file lint/format, knip,
+jscpd, localization, reference, host API, plan, tokens, SAST and full axe pass.
+All changed owners pass; the additional whole visualMatrix owner retains three
+failing stale-inventory assertions (396 selected tests pass, none skipped).
+Build retains nine old size failures; the extra split replay identifies an
+unlisted deferred slashCommands source. Neither caps nor allowlists change.
+Final receipt-only edits preserve every tested production and test input.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18847" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18855" lines="18855-18860" at="3087b10dd" bytes="440" sha256="d0f32d1c622a098f8d176708f3193a29f38f588781dbc259113c6599dbedd4e0" -->
+
+Fresh-clone follow-up: create the browser English probe's ignored parent
+directory before its temporary entry graph. Restore the visual CI fixture's
+successful LINUX_HELPER result for the merged required job, retaining every
+success/failure/cancelled/skipped visual assertion. The lane uses the existing
+dated milestone status grammar. The fixture source edit
+also requires real README screenshot replay before refreshing its input digest.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18855" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18862" lines="18862-18865" at="3087b10dd" bytes="316" sha256="a0341bbb16d8be1599ab51bcdf2f9b885d03449eb3fb715ef2e820124ab6d791" -->
+
+The real 18-image README replay is reviewed under LEFT017 Linux (2026-10-08):
+seven captures remain byte-identical and eleven current renders replace stale
+combined-tree media. Refresh the existing input digest only after that capture;
+keep its failure guard, the 2 MiB curated budget and the blocked full M114 map.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18862" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18867" lines="18867-18871" at="3087b10dd" bytes="389" sha256="7009cdb8ab5e649cb03e7f621623f92cc104cf8d4c68c7595d8798e925f5d8ae" -->
+
+Accessibility follow-up: the fresh full matrix has all 1,068 pages ready, no
+violations and four undecided contrast checks on the plan-usage request count.
+Render its request counts with the existing localized singular/plural request
+template, retaining exact totals, unknown-token distinctions and responsive
+fact layout. Re-run its whole UI owner and all four themes before full replay.
+
+<!-- plan-archive:end id="milestones-3087b10dd-18867" -->
+
+## ### FIXM116P4 — Final outcome verification repairs (2026-10-06)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-35859" lines="35859-35877" at="3087b10dd" bytes="1354" sha256="1969e2e3085dadbb38d60b5c7b464cbbb1b512a0ef4619799e6873e096d182c7" -->
+
+**DEP138 rig verification.** The lane's rig note limits each test invocation
+to three files. Certify every configured unit/process-e2e file in batches of
+at most three, with `CI=true`, V8 coverage and repository deadlines. Partial
+blob reports use the repository's existing shard handling; merge every report
+with the original global thresholds enabled. Run every other locally runnable
+quality gate separately in the same fresh `npm ci` clone. The monolithic
+`npm run quality` is deferred only because its test command exceeds the rig's
+explicit file cap; no gate, assertion, file, threshold or timeout is removed.
+The certification record must name every actual exit and any unavailable
+platform/hosted checks rather than claim an aggregate-command pass.
+Amended 2026-10-07 (lead): the rig's batched coverage run was not completed.
+Hosted CI on the pull request is the full gate for coverage and the
+accessibility harness (merged coverage on three OSes with the original
+thresholds and deadlines, accessibility on Ubuntu, static gates with lint at
+the unchanged 6144 MiB heap on three OSes; pull requests run the full tier
+while `CI_MERGE_QUEUE` is not `on`). None of the bumped packages takes part in
+the harness, and main's PR #139, merged into this branch, fixed harness
+readiness.
+The rig's failed first full accessibility run stays in the record.
+
+<!-- plan-archive:end id="milestones-3087b10dd-35859" -->
+
+## ### M67–M85 — Coding quality first (D49, D50)
+
+<!-- plan-archive:begin id="milestones-3087b10dd-18679" lines="18679-18682" at="3087b10dd" bytes="284" sha256="0bc87aa1e32df54f7fb64e77c3ab0c1445e4cb79d3341439df5427e96c26ae2e" -->
+
+The program D49 ranks, and D50's M85. Each milestone follows AGENTS.md:
+tests first, red drills, docs landing with the change, strings in all 14
+tables, and the full gate. A paid item follows D30/D48. New UI gets a
+harness scenario, which is what the accessibility gate checks (D32).
+
+<!-- plan-archive:end id="milestones-3087b10dd-18679" -->
+
+## ### PROVWIRE
+
+<!-- plan-archive:begin id="milestones-3087b10dd-16800" lines="16800-16809" at="3087b10dd" bytes="758" sha256="c1439a1d29f92343069b5483f643f0e437fa5bed5ac8d32961767f1869002547" -->
+
+Round 2 (RVPROVWIREG finding 1, P2): seed every saved-provider edit draft,
+including Change key and Change key followed by Edit, with the saved routing's
+privacy, provider order and fallback choice. Save uses that seeded draft;
+new OpenRouter providers still default to ZDR. Regressions replay the saved
+`any`/ordered/fallback-enabled row through replacement key, Edit, Test and
+Save, and cover plain Edit and direct Change key, including `no-training`
+and disabled fallbacks. Record failing-first and byte-exact routing drills
+in the PROVWIRE certification, then run provider/models suites at repository
+deadlines, changed-file lint/format and all five typechecks before a normal-hook
+local commit. No new feature, wire shape, dependency or live/paid call.
+
+<!-- plan-archive:end id="milestones-3087b10dd-16800" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-16811" lines="16811-16818" at="3087b10dd" bytes="569" sha256="85e2115b62863e188a9c0caca4a57d2fb23fc6dc50edd19e7026a163e1fec489" -->
+
+Round 2 completed: saved routing and the replacement key survive every edit
+flow; new providers remain ZDR. Macmini passes 44 complete provider/models
+files (746 tests, default deadlines), all five typechecks, changed-file
+ESLint/formatting, localization/reference/host-API checks, plain Knip,
+zero-clone duplication and the production build within unchanged caps.
+Four deliberate routing breaks fail and restore SHA-256-exact bytes; see
+the round-2 PROVWIRE certification. Aggregate quality and hosted/editor/live
+qualification remain lead-owned under the lane rules.
+
+<!-- plan-archive:end id="milestones-3087b10dd-16811" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-16820" lines="16820-16828" at="3087b10dd" bytes="695" sha256="1fa52f936f49e35b2d28bfd7366c45be5cd609ad47e775768704eca0e47c5024" -->
+
+**CX1R3 removal pass (RVCX1B, 2026-10-10; ships in 0.17.1).** Remove dormant
+feature claims and usage from current README, Help, What's New and editor
+records; retain historical changelog text with dated corrections. Put dormant
+work in roadmap In progress without capability or shipped claims. Keep complete
+reference coverage validation before filtering its user-facing publication;
+archive corrected release bullets from What's New rather than qualifying them.
+The compact CLI help is also a current Help surface: remove its v2 schedule
+grammar and inactive automatic-compaction option without altering parsers.
+No feature implementation, dependency, gate widening, merge, push or live call.
+
+<!-- plan-archive:end id="milestones-3087b10dd-16820" -->
+
+<!-- plan-archive:begin id="milestones-3087b10dd-16830" lines="16830-16832" at="3087b10dd" bytes="238" sha256="9b8cdc6c0470a9342b79b764be11c5cd628d5d6d68f76667dca8a9f6dc504e0e" -->
+
+Plan: [x] current surfaces and roadmap; [x] regression tests and byte-exact red
+drills for every finding and sibling class; [x] scoped rig gates; [x] hooked
+commits, committed-diff review and certification in `docs/certification/cx1.md`.
+
+<!-- plan-archive:end id="milestones-3087b10dd-16830" -->
+
+## ### ENVFENCE
+
+<!-- plan-archive:begin id="milestones-3087b10dd-35534" lines="35534-35545" at="3087b10dd" bytes="870" sha256="590ad165d2a7604632ca59917ab72c0e9d0828a22e96b2ab84a3ab50ea8ac81e" -->
+
+- [x] Shared credential matcher and fences at model process entry.
+- [x] Machine-scoped interactive name-only exception, with 14 translations.
+- [x] Spawn environment snapshots and real-shell fake-credential probe;
+      deliberately remove guards, observe failures and restore byte-exact.
+- [x] Focused rig tests, typecheck/lint/format, localization, host API,
+      deadcode/duplication and production bundle budgets.
+- [x] Certification: `docs/certification/envfence.md`; hooks-on local commit.
+      The lead runs aggregate quality on the rigs (lane common rules).
+- [x] FIXENVFENCE: repair both RVENVFENCE P1s with regression tests and red
+      drills (25 matcher failures, 2 delayed-origin failures), followed by
+      byte-exact restoration. Focused certification is appended to
+      `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
+
+<!-- plan-archive:end id="milestones-3087b10dd-35534" -->
+
+## ### TRAIN15H
+
+<!-- plan-archive:begin id="milestones-3087b10dd-35801" lines="35801-35816" at="3087b10dd" bytes="1228" sha256="91d6aa90123f4eb5042c2f782eb92fd49e13a63be00c399ee5093d7f899b21a6" -->
+
+- [x] Compare emitted startup input bytes against main `61d8647c2` and train
+      `fe3c3fe16`; retain the complete module measurement with milestone owners.
+- [x] Defer LegalReport and the review comment form through `deferred()`,
+      preserving dismissal, focus and fresh arrivals. Harness actions use
+      `whenFound` for the newly lazy form and workflow-map controls; readiness
+      also requires the map's loaded tree. The first full scan's isolated
+      workflow readiness failure is retained, followed by a full rerun.
+- [x] Keep only first-paint English values in startup, with a complete
+      canonical structure/slot contract for all installed languages. Load optional
+      English before each lazy surface; preserve installed language state. Keep
+      canonical keyboard matching with optional contexts beside their surfaces.
+- [x] Register independent 25-KiB budgets from measured closures plus 15%,
+      rounded up to 25 KiB. Keep the 900/50-KiB caps and 733.8/32.1-KiB ratchets.
+- [x] Certify complete owning suites, deliberate failures and byte-exact
+      restoration, full accessibility, static gates and actual VSIX measurements
+      in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.
+
+<!-- plan-archive:end id="milestones-3087b10dd-35801" -->
+
+## ### CI0150A
+
+<!-- plan-archive:begin id="milestones-3087b10dd-35843" lines="35843-35853" at="3087b10dd" bytes="849" sha256="ad16e17125c97002ed8445df5cc135ddb7a034d4355de4a5eb9d84cac5d3798d" -->
+
+- [x] Reproduce clean `CI=true` failures for configured providers, headless BYO,
+      deferred bundles, VSIX packaging/compression and worker certification.
+- [x] Use the pinned provider snapshot and private production-plugin bundles;
+      isolate scanner/gate drills and compression inputs from shared `dist/`.
+- [x] Remove repeated expensive packaging setup and bind historical worker
+      receipts to checked-in certified bytes, preserving their original hashes.
+- [x] Run each complete owning file three times after
+      `git clean -xdf -e node_modules`, with default Vitest test timeouts;
+      run five typechecks, lint, changed-file formatting, plain knip and duplication.
+- [x] Deliberately regress one fixed behavior, observe failure, restore exact
+      bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
+
+<!-- plan-archive:end id="milestones-3087b10dd-35843" -->
