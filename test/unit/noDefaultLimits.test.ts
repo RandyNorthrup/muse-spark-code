@@ -65,11 +65,21 @@ describe('no default limits: questions deferral', () => {
     expect(manifestDefault('museSpark.questions.deferAfterSeconds')).toBe(0)
   })
 
-  it('waits indefinitely with nothing set and still applies a person-set delay', () => {
+  it('waits indefinitely with nothing set and uses a person-set delay as set', () => {
     expect(questionDeferSeconds()).toBe(0)
     expect(questionDeferSeconds(0)).toBe(0)
+    expect(questionDeferSeconds(1)).toBe(1)
+    expect(questionDeferSeconds(5)).toBe(5)
     expect(questionDeferSeconds(60)).toBe(60)
-    expect(questionDeferSeconds(5)).toBe(10)
+    expect(questionDeferSeconds(3601)).toBe(3601)
+    expect(questionDeferSeconds(100_000)).toBe(100_000)
+  })
+
+  it('refuses what is not a count instead of replacing it', () => {
+    expect(questionDeferSeconds(NaN)).toBeUndefined()
+    expect(questionDeferSeconds(-5)).toBeUndefined()
+    expect(questionDeferSeconds(1.5)).toBeUndefined()
+    expect(questionDeferSeconds(Infinity)).toBeUndefined()
   })
 })
 

@@ -32,7 +32,6 @@ import {
   ESTIMATE_OPTIMIZE_MODES,
   type EstimateOptimizeMode,
   PROMPT_CACHE_RETENTIONS,
-  QUESTION_DEFER_MAX_SECONDS,
   type PromptCacheRetention,
   SANDBOX_NETWORK_MODES,
   type SandboxNetworkMode,
@@ -254,7 +253,9 @@ const settingSchemas = {
   environmentVariables: z.array(environmentVariableSchema),
   'shell.passEnvironmentVariables': z.array(z.string().check(z.regex(/^[A-Za-z_][A-Za-z0-9_]*$/))),
   syncPromptsAndBookmarks: z.boolean(),
-  'questions.deferAfterSeconds': z.int().check(z.gte(0), z.lte(QUESTION_DEFER_MAX_SECONDS)),
+  // D121: no bound of ours — any whole number of seconds at or above zero
+  // is taken as set (0 never defers); the host reader refuses the rest.
+  'questions.deferAfterSeconds': z.int().check(z.gte(0)),
   'reports.network': z.enum(['whenSignedIn', 'always', 'off']),
   'reports.keepHistory': z.boolean(),
   'reports.planMaxBytes': z.int().check(z.gte(0)),

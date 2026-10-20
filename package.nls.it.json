@@ -186,7 +186,7 @@
   "config.resourceRelocate.enumDescriptions.off": "Nasconde l’avviso di percorso mancante nelle pause dovute alle risorse; il lavoro resta su questa macchina.",
   "command.nextOpenQuestion.title": "Domanda aperta successiva",
   "command.previousOpenQuestion.title": "Domanda aperta precedente",
-  "config.questions.deferAfterSeconds.description": "Secondi prima che una domanda senza risposta venga rimandata per consentire a Muse di continuare a lavorare. Nessun limite salvo impostazione: 0 (il valore predefinito) significa mai; 1–9 vengono interpretati come 10; massimo 3.600. La domanda resta aperta e può ricevere una risposta in seguito. Si usa solo l’impostazione di questo computer.",
+  "config.questions.deferAfterSeconds.description": "Secondi prima che una domanda senza risposta venga rimandata per consentire a Muse di continuare a lavorare. Nessun limite salvo impostazione: 0 (il valore predefinito) significa mai; qualsiasi altro numero intero di secondi viene usato come impostato. La domanda resta aperta e può ricevere una risposta in seguito. Si usa solo l’impostazione di questo computer.",
   "command.startWithOwnModel.title": "Inizia con il tuo modello",
   "command.modelsAndAgents.title": "Modelli e agenti",
   "command.addModelProvider.title": "Aggiungi un provider di modelli…",
