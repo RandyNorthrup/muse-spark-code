@@ -3687,7 +3687,8 @@
     "sessionDeletion": "usuwanie sesji",
     "shellCommand": "polecenie powłoki",
     "museServeStarting": "uruchamianie muse serve",
-    "webFetch": "strona internetowa"
+    "webFetch": "strona internetowa",
+    "pluginHook": "hook wtyczki"
   },
   "userShellLabel": "Twoje polecenie",
   "userShellExitCode": "Kod wyjścia {code}",

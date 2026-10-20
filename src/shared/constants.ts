@@ -702,6 +702,13 @@ export const SETTING_DEFAULTS = {
   hooksMaxStopContinuations: 0,
   hooksMaxRunningCommands: 0,
   subagentMaxConcurrent: 0,
+  // D121 (owner 2026-10-16): no bound of ours on plugin children — each 0
+  // is none; the person sets a wait, a memory ceiling, an answer size, or a
+  // failure latch in `museSpark.` settings, applied only when set.
+  pluginHookTimeoutSeconds: 0,
+  pluginChildMaxMemoryMiB: 0,
+  pluginAnswerMaxBytes: 0,
+  pluginMaxFailures: 0,
   // The Model API shell keeps its directory between calls (M91 lane S, PLAN.md
   // D70). On by default, the owner's ruling of 2026-10-04 that enhancements
   // ship on; a machine setting turns it off.
@@ -897,6 +904,12 @@ export const MACHINE_SCOPED_SETTINGS = [
   'hooksMaxStopContinuations',
   'hooksMaxRunningCommands',
   'subagentMaxConcurrent',
+  // D121: a plugin child's wait, memory, answer size and failure latch are
+  // the user's choice too, never a repository's.
+  'pluginHookTimeoutSeconds',
+  'pluginChildMaxMemoryMiB',
+  'pluginAnswerMaxBytes',
+  'pluginMaxFailures',
   'modelApiCommandRules',
   'modelApiPermissionProfiles',
   'modelApiPermissionProfile',
@@ -958,6 +971,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   'schedules',
   'scheduleDefaultDelivery',
   'scheduleAgentCreation',
+  // D121: pausing a schedule on failures chooses what runs too (the
+  // manifest already ships it machine-scoped; the list omitted it).
+  'schedulePauseAfterFailures',
   // M105 (PLAN.md D85): upload bytes, provider retention, recording length
   // and the audio action are billed on the key, so a repository sets none.
   'mediaMaxUploadMiB',

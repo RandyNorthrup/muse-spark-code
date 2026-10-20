@@ -954,6 +954,34 @@
           "minimum": 0,
           "maximum": 64
         },
+        "museSpark.pluginHookTimeoutSeconds": {
+          "type": "number",
+          "default": 0,
+          "scope": "machine",
+          "description": "%config.pluginHookTimeoutSeconds.description%",
+          "minimum": 0
+        },
+        "museSpark.pluginChildMaxMemoryMiB": {
+          "type": "number",
+          "default": 0,
+          "scope": "machine",
+          "description": "%config.pluginChildMaxMemoryMiB.description%",
+          "minimum": 0
+        },
+        "museSpark.pluginAnswerMaxBytes": {
+          "type": "number",
+          "default": 0,
+          "scope": "machine",
+          "description": "%config.pluginAnswerMaxBytes.description%",
+          "minimum": 0
+        },
+        "museSpark.pluginMaxFailures": {
+          "type": "number",
+          "default": 0,
+          "scope": "machine",
+          "description": "%config.pluginMaxFailures.description%",
+          "minimum": 0
+        },
         "museSpark.modelApiShellKeepsDirectory": {
           "type": "boolean",
           "default": true,

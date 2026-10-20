@@ -1251,7 +1251,11 @@
         "museSpark.hookHttpAllowedHosts",
         "museSpark.modelApiShellKeepsDirectory",
         "museSpark.hooksMaxStopContinuations",
-        "museSpark.hooksMaxRunningCommands"
+        "museSpark.hooksMaxRunningCommands",
+        "museSpark.pluginHookTimeoutSeconds",
+        "museSpark.pluginChildMaxMemoryMiB",
+        "museSpark.pluginAnswerMaxBytes",
+        "museSpark.pluginMaxFailures"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#hooks",
       "backends": ["museCode", "modelApi"],
@@ -3298,6 +3302,60 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "number", "default": 0, "minimum": 0, "maximum": 64 }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "hooks", "text": { "setting": "pluginHookTimeoutSeconds" } }]
+      },
+      "id": "museSpark.pluginHookTimeoutSeconds",
+      "name": "museSpark.pluginHookTimeoutSeconds",
+      "description": "How long a plugin hook waits for its child, in seconds. No wait bound unless you set one: 0 (the default) waits for the child's answer or Stop, and the wait says how long it has waited.",
+      "descriptionKey": "config.pluginHookTimeoutSeconds.description",
+      "type": "number",
+      "default": 0,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 0, "minimum": 0 }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "hooks", "text": { "setting": "pluginChildMaxMemoryMiB" } }]
+      },
+      "id": "museSpark.pluginChildMaxMemoryMiB",
+      "name": "museSpark.pluginChildMaxMemoryMiB",
+      "description": "How much memory a plugin child may use, in MiB. No memory bound unless you set one: 0 (the default) is the runtime's own default.",
+      "descriptionKey": "config.pluginChildMaxMemoryMiB.description",
+      "type": "number",
+      "default": 0,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 0, "minimum": 0 }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "hooks", "text": { "setting": "pluginAnswerMaxBytes" } }]
+      },
+      "id": "museSpark.pluginAnswerMaxBytes",
+      "name": "museSpark.pluginAnswerMaxBytes",
+      "description": "How large a plugin answer may be, in bytes. No answer bound unless you set one: 0 (the default) reads answers whole.",
+      "descriptionKey": "config.pluginAnswerMaxBytes.description",
+      "type": "number",
+      "default": 0,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 0, "minimum": 0 }
+    },
+    {
+      "text": { "conditions": [{ "when": "hooks", "text": { "setting": "pluginMaxFailures" } }] },
+      "id": "museSpark.pluginMaxFailures",
+      "name": "museSpark.pluginMaxFailures",
+      "description": "How many Windows job-launcher failures set plugin hooks aside until Retry Plugin Hooks. No latch unless you set one: 0 (the default) keeps trying.",
+      "descriptionKey": "config.pluginMaxFailures.description",
+      "type": "number",
+      "default": 0,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 0, "minimum": 0 }
     },
     {
       "id": "museSpark.modelApiShellKeepsDirectory",
