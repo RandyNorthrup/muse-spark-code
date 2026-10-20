@@ -8,7 +8,11 @@ import { noWorkspaceChildEnvironment } from '../core/execGuard'
 import { runProgram } from '../host/processTree'
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { handleIdentity, lstatIdentity, sameFile } from '../core/fs/fileIdentity'
-import { LSP_LIMITS, WORKSPACE_IDENTITY_ZERO } from '../shared/constants'
+import {
+  LSP_LIMITS,
+  WORKSPACE_IDENTITY_ZERO,
+  darwinDictationHelperSegments,
+} from '../shared/constants'
 import type { TrustedPathVerifier } from './trustedPathPort'
 
 /** System lookups only: never infer exclusive membership from a matching name. */
@@ -25,7 +29,7 @@ async function isUserPrivateGroup(gid: bigint, packageRoot: string): Promise<boo
   try {
     if (process.platform === 'darwin') {
       const output = await runProgram(
-        path.join(packageRoot, 'native', 'darwin', 'muse-dictate'),
+        path.join(packageRoot, 'native', ...darwinDictationHelperSegments(process.arch)),
         ['private-group', String(gid)],
         env,
       )

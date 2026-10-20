@@ -1,6 +1,7 @@
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
-  DARWIN_HELPER,
+  DARWIN_PEERS,
   JOB_SOURCES,
   LINUX_HELPERS,
   VOICE_WINDOWS_HELPERS,
@@ -11,12 +12,14 @@ import { VSIX_TARGETS } from '../../scripts/lib/vsixTargets.mjs'
 // A platform's ACP package carries only its own helpers, so packaging it
 // never demands a helper only another OS builds. A wrong row here ships
 // a person a package missing the helper their platform runs, or refuses
-// a package the platform could have built.
+// a package the platform could have built. Darwin's thin vault peers ride
+// in this list; its signed .apps are copied as bundles beside them
+// (scripts/package-acp.mjs).
 describe('per-platform ACP native inventory', () => {
   it('keeps the universal package whole without a target', () => {
     expect(acpNativeFiles()).toEqual([
       ...JOB_SOURCES,
-      DARWIN_HELPER,
+      ...DARWIN_PEERS,
       ...LINUX_HELPERS,
       ...VOICE_WINDOWS_HELPERS,
     ])
@@ -31,7 +34,8 @@ describe('per-platform ACP native inventory', () => {
           LINUX_HELPERS.filter((helper) => helper.replaceAll('\\', '/').split('/').includes(arch)),
         )
       } else if (platform === 'darwin') {
-        expect(files).toEqual([DARWIN_HELPER])
+        // One thin peer per Mac architecture (D209): this target's only.
+        expect(files).toEqual([path.join('native', 'darwin', `muse-vault-peer-${arch}`)])
       } else {
         expect(files).toEqual([...JOB_SOURCES, ...VOICE_WINDOWS_HELPERS])
       }

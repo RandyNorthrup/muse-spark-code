@@ -113,10 +113,11 @@
 !native/linux/arm64/muse-created
 !native/linux/x64/muse-vault-peer
 !native/linux/arm64/muse-vault-peer
-!native/darwin/muse-vault-peer
+!native/darwin/muse-vault-peer-arm64
+!native/darwin/muse-vault-peer-x64
 !native/windows/MuseSparkScreenRecord.cs
-!native/darwin/muse-dictate
-!native/darwin/muse-dictate-screen.app/**
+!native/darwin/muse-dictate-screen-arm64.app/**
+!native/darwin/muse-dictate-screen-x64.app/**
 !package.json
 !package.nls.json
 !package.nls.*.json
@@ -166,7 +167,8 @@
 !dist/estimator.js
 !dist/estimateContracts.js
 !dist/planSnapshot.js
-!dist/native/darwin/muse-vault
+!dist/native/darwin/muse-vault-arm64
+!dist/native/darwin/muse-vault-x64
 !native/windows/MuseSparkVault.cs
 !native/windows/MuseSparkVaultCng.cs
 !native/windows/MuseSparkVaultHello.cs

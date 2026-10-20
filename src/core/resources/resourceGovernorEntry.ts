@@ -48,6 +48,7 @@ import { powerShellQuoted } from '../shellQuote'
 import {
   WINDOWS_POWERSHELL_COMMAND_ARGS,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
+  darwinDictationHelperSegments,
 } from '../../shared/constants'
 
 import { isErrno } from '../fs/errno'
@@ -126,7 +127,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
       : async (args: readonly string[]) => {
           if (process.platform === 'darwin')
             return await runTreeProgram(
-              path.join(__dirname, '..', 'native', 'darwin', 'muse-dictate'),
+              path.join(__dirname, '..', 'native', ...darwinDictationHelperSegments(process.arch)),
               ['--created-directory', ...args],
               probeChildEnvironment({ LC_ALL: 'C' }),
             )

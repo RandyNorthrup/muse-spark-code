@@ -235,9 +235,9 @@ jobs:
       - name: Linux OpenSSL headers for the fixture helper build
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libssl-dev
-      # The broker fixtures stage the product's own muse-dictate for created
-      # paths and a unit checkout holds no built binary, so build it the way
-      # the native job does.
+      # The broker fixtures stage the product's own .app executable for
+      # created paths and a unit checkout holds no built binary, so build
+      # it the way the native job does.
       - name: macOS dictation helper for the fixture created paths
         if: runner.os == 'macOS'
         run: bash native/darwin/build.sh
@@ -509,15 +509,15 @@ jobs:
           rm -rf "$base"
           gh run download "$RUN_ID" --repo "$CAPACITY" --name muse-dictate-darwin --dir "$base/darwin"
           gh run download "$RUN_ID" --repo "$CAPACITY" --name muse-vault-darwin --dir "$base/vault"
-          test -f "$base/darwin/muse-dictate"
-          test -f "$base/darwin/muse-dictate-screen.tgz"
+          test -f "$base/darwin/muse-dictate-screen-arm64.tgz"
+          test -f "$base/darwin/muse-dictate-screen-x64.tgz"
           test -f "$base/vault/muse-vault"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-dictate-darwin
           path: |
-            ${{ runner.temp }}/back/darwin/muse-dictate
-            ${{ runner.temp }}/back/darwin/muse-dictate-screen.tgz
+            ${{ runner.temp }}/back/darwin/muse-dictate-screen-arm64.tgz
+            ${{ runner.temp }}/back/darwin/muse-dictate-screen-x64.tgz
           if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -657,24 +657,32 @@ jobs:
           bash test/native/darwin/check-screen-resources.sh
           bash native/darwin/check-disclaim.sh --screen-only
       # Archive on macOS: artifact upload otherwise discards executable modes.
-      - run: tar -czf native/darwin/muse-dictate-screen.tgz -C native/darwin muse-dictate-screen.app
+      # One thin signed .app per architecture (D209).
+      - run: |
+          for arch in arm64 x64; do
+            tar -czf "native/darwin/muse-dictate-screen-${arch}.tgz" -C native/darwin "muse-dictate-screen-${arch}.app"
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-vault-peer-darwin
-          path: native/darwin/muse-vault-peer
+          path: |
+            native/darwin/muse-vault-peer-arm64
+            native/darwin/muse-vault-peer-x64
           if-no-files-found: error
       - run: bash native/darwin/check-vault.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-vault-darwin
-          path: dist/native/darwin/muse-vault
+          path: |
+            dist/native/darwin/muse-vault-arm64
+            dist/native/darwin/muse-vault-x64
           if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-dictate-darwin
           path: |
-            native/darwin/muse-dictate
-            native/darwin/muse-dictate-screen.tgz
+            native/darwin/muse-dictate-screen-arm64.tgz
+            native/darwin/muse-dictate-screen-x64.tgz
           if-no-files-found: error
 
   # The .vsix with the helpers from both accounts: what release.yml publishes.
@@ -783,11 +791,13 @@ jobs:
           name: muse-vault-peer-darwin
           path: native/darwin
       - run: chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created
-      - run: chmod +x native/linux/x64/muse-vault-peer native/linux/arm64/muse-vault-peer native/darwin/muse-vault-peer
+      - run: chmod +x native/linux/x64/muse-vault-peer native/linux/arm64/muse-vault-peer native/darwin/muse-vault-peer-arm64 native/darwin/muse-vault-peer-x64
       - run: chmod +x native/linux/x64/muse-dictate native/linux/arm64/muse-dictate
-      - run: chmod +x dist/native/darwin/muse-vault
-      - run: chmod +x native/darwin/muse-dictate
-      - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
+      - run: chmod +x dist/native/darwin/muse-vault-arm64 dist/native/darwin/muse-vault-x64
+      # One thin signed .app per architecture (D209): both extract; each
+      # darwin target's filter keeps only its own architecture's slices.
+      - run: tar -xzf native/darwin/muse-dictate-screen-arm64.tgz -C native/darwin
+      - run: tar -xzf native/darwin/muse-dictate-screen-x64.tgz -C native/darwin
       # Dependencies first: the pin checker imports esbuild to load the
       # pins module, so it cannot run before `npm ci`.
       - run: npm ci
@@ -853,17 +863,23 @@ jobs:
             extension/native/windows/MuseSparkVault.cs extension/native/windows/MuseSparkVaultCng.cs
             extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs
             extension/native/windows/MuseSparkVaultPipe.cs'
-          darwin='extension/native/darwin/muse-dictate
-            extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate
-            extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources
-            extension/native/darwin/muse-vault-peer
-            extension/dist/native/darwin/muse-vault'
+          # One thin binary per Mac architecture (D209): each darwin target
+          # carries only its own architecture's slices.
+          darwin_arm64='extension/native/darwin/muse-dictate-screen-arm64.app/Contents/MacOS/muse-dictate
+            extension/native/darwin/muse-dictate-screen-arm64.app/Contents/_CodeSignature/CodeResources
+            extension/native/darwin/muse-vault-peer-arm64
+            extension/dist/native/darwin/muse-vault-arm64'
+          darwin_x64='extension/native/darwin/muse-dictate-screen-x64.app/Contents/MacOS/muse-dictate
+            extension/native/darwin/muse-dictate-screen-x64.app/Contents/_CodeSignature/CodeResources
+            extension/native/darwin/muse-vault-peer-x64
+            extension/dist/native/darwin/muse-vault-x64'
           for target in win32-x64 win32-arm64 darwin-x64 darwin-arm64 linux-x64 linux-arm64; do
             vsix="muse-spark-code-${target}-${version}.vsix"
             listing="$(unzip -Z1 "$vsix")"
             case "$target" in
               win32-*) want="$windows"; reject='extension/native/darwin/ extension/native/linux/ extension/dist/native/darwin/' ;;
-              darwin-*) want="$darwin"; reject='extension/native/windows/ extension/native/linux/' ;;
+              darwin-arm64) want="$darwin_arm64"; reject='extension/native/windows/ extension/native/linux/ muse-dictate-screen-x64.app muse-vault-peer-x64 muse-vault-x64' ;;
+              darwin-x64) want="$darwin_x64"; reject='extension/native/windows/ extension/native/linux/ muse-dictate-screen-arm64.app muse-vault-peer-arm64 muse-vault-arm64' ;;
               linux-x64) want='extension/native/linux/x64/muse-created extension/native/linux/x64/muse-vault-peer'; reject='extension/native/windows/ extension/native/darwin/ extension/dist/native/darwin/ extension/native/linux/arm64/' ;;
               linux-arm64) want='extension/native/linux/arm64/muse-created extension/native/linux/arm64/muse-vault-peer'; reject='extension/native/windows/ extension/native/darwin/ extension/dist/native/darwin/ extension/native/linux/x64/' ;;
             esac
@@ -943,16 +959,17 @@ jobs:
             package/native/windows/MuseSparkVault.cs package/native/windows/MuseSparkVaultCng.cs \
             package/native/windows/MuseSparkVaultHello.cs package/native/windows/MuseSparkVaultLock.cs \
             package/native/windows/MuseSparkVaultPipe.cs \
-            package/dist/native/darwin/muse-vault \
+            package/dist/native/darwin/muse-vault-arm64 package/dist/native/darwin/muse-vault-x64 \
             package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js package/dist/media.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
             package/dist/providers.js package/dist/subscriptions.js package/dist/configuredProviders.js package/dist/providerCatalog.js \
             package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
             package/dist/recorder.js package/dist/resourceGovernor.js package/dist/resourceAdmission.js \
             package/dist/exec.js package/dist/mcpPool.js package/dist/modelApiCodeIntel.js package/dist/structuredSchema.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \
-            package/native/darwin/muse-dictate \
+            package/native/darwin/muse-dictate-screen-arm64.app/Contents/MacOS/muse-dictate \
+            package/native/darwin/muse-dictate-screen-x64.app/Contents/MacOS/muse-dictate \
             package/native/linux/x64/muse-created package/native/linux/arm64/muse-created \
-            package/native/linux/x64/muse-vault-peer package/native/linux/arm64/muse-vault-peer package/native/darwin/muse-vault-peer \
+            package/native/linux/x64/muse-vault-peer package/native/linux/arm64/muse-vault-peer package/native/darwin/muse-vault-peer-arm64 package/native/darwin/muse-vault-peer-x64 \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/native/windows/MuseSparkMcpLauncher.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \

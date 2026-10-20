@@ -5,8 +5,11 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { removeFolder } from './temporaryFolders'
 
-// build.sh's own outputs; a developer Mac may hold them from an earlier build.
-const BUILT = /(?:^|[/\\])muse-dictate(?:-screen\.app|-screen\.tgz)?$/u
+// build.sh's own outputs; a developer Mac may hold them from an earlier build:
+// one thin signed .app and tgz per architecture, the thin vault peer, and
+// the legacy universal names.
+const BUILT =
+  /(?:^|[/\\])(?:muse-dictate(?:-screen(?:-(?:arm64|x64))?\.app|-screen(?:-(?:arm64|x64))?\.tgz)?|muse-vault-peer(?:-(?:arm64|x64))?)$/u
 
 /** Build/sign the production sources in a private fixture, including on a clean Mac checkout. */
 export async function darwinProcessHelper(): Promise<{
@@ -49,7 +52,13 @@ export async function darwinProcessHelper(): Promise<{
       env: { PATH: `${path.dirname(process.execPath)}:/usr/bin:/bin`, LC_ALL: 'C' },
       timeout: 120_000,
     })
-    return { helperPath: path.join(native, 'muse-dictate'), remove: () => removeFolder(folder) }
+    // One thin signed .app per Mac architecture (D209): this Mac runs its own.
+    const app =
+      process.arch === 'arm64' ? 'muse-dictate-screen-arm64.app' : 'muse-dictate-screen-x64.app'
+    return {
+      helperPath: path.join(native, app, 'Contents', 'MacOS', 'muse-dictate'),
+      remove: () => removeFolder(folder),
+    }
   } catch (error: unknown) {
     await removeFolder(folder)
     throw error

@@ -2788,7 +2788,7 @@
   "dictationUnavailable": "Dyktowanie głosowe nie jest dostępne na tej platformie.",
   "dictationUnavailableLinux": "Dyktowanie w Linuksie wymaga komputera x64 lub arm64 z uruchomionym PulseAudio lub PipeWire.",
   "dictationUnavailableWindows": "Dyktowanie głosowe wymaga programu Windows PowerShell, którego nie znaleziono (zmienna SystemRoot nie jest ustawiona).",
-  "dictationUnavailableDarwin": "Dyktowanie głosowe wymaga programu pomocniczego macOS (native/darwin/muse-dictate), którego ta kompilacja nie zawiera.",
+  "dictationUnavailableDarwin": "Dyktowanie głosowe wymaga programu pomocniczego macOS (native/darwin/{app}/Contents/MacOS/muse-dictate), którego ta kompilacja nie zawiera.",
   "dictationNotLoaded": "nie udało się wczytać kodu dyktowania; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
   "announceListening": "Słuchanie",
   "announceStoppedListening": "Zatrzymano słuchanie",
