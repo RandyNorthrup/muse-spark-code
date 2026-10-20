@@ -47,9 +47,9 @@ const realRun: ResourceTreeRun = boundedTreeProgram(
 /** A wrapper that forwards to the real runner and only records what it did. */
 function countingRun() {
   const calls: (readonly [string, readonly string[]])[] = []
-  const run: ResourceTreeRun = (file, args) => {
+  const run: ResourceTreeRun = (file, args, env) => {
     calls.push([file, args])
-    return realRun(file, args)
+    return realRun(file, args, env)
   }
   return { run, calls }
 }
@@ -63,10 +63,10 @@ function gatedRun() {
   const calls: (readonly [string, readonly string[]])[] = []
   let gate = Promise.withResolvers<undefined>()
   gate.resolve(undefined)
-  const run: ResourceTreeRun = async (file, args) => {
+  const run: ResourceTreeRun = async (file, args, env) => {
     calls.push([file, args])
     await gate.promise
-    return await realRun(file, args)
+    return await realRun(file, args, env)
   }
   return {
     run,
