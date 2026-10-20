@@ -1,7 +1,9 @@
-// The webview bundle's one shared root resolver (VSIXWEB A). Every panel
-// that serves the webview bundle resolves its `localResourceRoots`/script
-// root through `resolveWebviewBundleDir`, never by joining the extension
-// path itself: a packaged install (the solid archive beside `dist/`)
+// The webview bundle's one shared root resolver (VSIXWEB A). The chat and
+// the tasks tab resolve through it in the activation bundle; the lazy
+// panel bundles only read the tiny `webviewBundle.ts` and resolve through
+// the callback their host hands in (`tryResolveWebviewBundleDir` below
+// wraps this resolver for them), so the archive's parser never rides the
+// lazy bundles. A packaged install (the solid archive beside `dist/`)
 // extracts once per archive digest into the extension's own global storage
 // and serves the verified copy; the source tree, a dev build and tests
 // (no archive) serve `dist/webview` as today. The extracted folder is
@@ -25,6 +27,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { parseSolidTextArchive, solidMemberBytes } from '../../core/archives/solidTextArchive'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { isCodedError } from '../../core/workspaceRoot'
 import {
   WEBVIEW_ARCHIVE_DIR_PREFIX,
@@ -34,6 +37,7 @@ import {
   WEBVIEW_ARCHIVE_VERSION,
   WEBVIEW_DIST_SEGMENTS,
 } from '../../shared/constants'
+import { webviewBundleDirName, type WebviewBundleOutcome } from './webviewBundle'
 
 /** Where the webview bundle lives: the install and the machine's storage. */
 export interface WebviewBundleLocations {
@@ -193,7 +197,7 @@ export function resolveWebviewBundleDir(locations: WebviewBundleLocations): stri
       )
     throw error
   }
-  const target = path.join(locations.globalStoragePath, `${WEBVIEW_ARCHIVE_DIR_PREFIX}${digest}`)
+  const target = path.join(locations.globalStoragePath, webviewBundleDirName(digest))
   if (existsSync(target)) {
     try {
       verifyExtracted(target, members)
@@ -210,27 +214,19 @@ export function resolveWebviewBundleDir(locations: WebviewBundleLocations): stri
   return target
 }
 
-const HTML_ESCAPES: Readonly<Record<string, string>> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;',
-}
-
-function escapeHtml(text: string): string {
-  return text.replaceAll(/[&<>"']/gu, (character) => HTML_ESCAPES[character] ?? character)
-}
-
 /**
-The document a panel shows instead of an unverified bundle: the fixed
-sentence, no scripts, no remote origins, so the failure needs no bundle
-at all.
+The lazy panels' resolution: the verified folder, or the failure with its
+cause already worded for the log. A panel shows the fixed sentence and
+logs the detail, never the files. Anything unexpected keeps its kind past
+the resolution.
 */
-export function webviewBundleErrorHtml(sentence: string, locale: string): string {
-  return `<!DOCTYPE html>
-<html lang="${escapeHtml(locale)}"><head><meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'">
-<title>${escapeHtml(sentence)}</title></head>
-<body><main><p>${escapeHtml(sentence)}</p></main></body></html>`
+export function tryResolveWebviewBundleDir(
+  locations: WebviewBundleLocations,
+): WebviewBundleOutcome {
+  try {
+    return { ok: true, dir: resolveWebviewBundleDir(locations) }
+  } catch (error: unknown) {
+    if (error instanceof WebviewBundleError) return { ok: false, detail: failureForLog(error) }
+    throw error
+  }
 }

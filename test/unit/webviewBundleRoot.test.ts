@@ -20,18 +20,20 @@ import {
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  resolveWebviewBundleDir,
-  webviewBundleErrorHtml,
-  WebviewBundleError,
-} from '../../src/host/views/webviewBundleRoot'
+import { webviewBundleErrorHtml } from '../../src/host/views/webviewBundle'
+import { resolveWebviewBundleDir, WebviewBundleError } from '../../src/host/views/webviewBundleRoot'
 import { WEBVIEW_ARCHIVE_FILE, WEBVIEW_ARCHIVE_VERSION } from '../../src/shared/constants'
 import { packSolidTextArchive } from '../../scripts/lib/solidTextArchive.mjs'
 
 // Real build output, small enough to pack per run: the document the panels
-// serve beside a chunk and the style they load with it.
+// serve beside a chunk and the style they load with it. The chunk name is
+// content-hashed, so the test reads whatever the build emitted.
 const VICTIM = 'main.js'
-const REAL_MEMBERS = [VICTIM, 'main.css', 'chunks/22BDA6UX.js']
+const FIRST_CHUNK =
+  readdirSync(path.join('dist', 'webview', 'chunks')).toSorted((left, right) =>
+    left.localeCompare(right, 'en'),
+  )[0] ?? 'missing.js'
+const REAL_MEMBERS = [VICTIM, 'main.css', `chunks/${FIRST_CHUNK}`]
 
 const root = mkdtempSync(path.join(tmpdir(), 'muse-webview-bundle-'))
 const extensionDir = path.join(root, 'ext')

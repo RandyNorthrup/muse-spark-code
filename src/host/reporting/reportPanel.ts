@@ -1,12 +1,6 @@
 import * as vscode from 'vscode'
-import { failureForLog } from '../../core/backends/musecode/logText'
 import { REPORT_WORKING_KINDS, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import {
-  resolveWebviewBundleDir,
-  webviewBundleErrorHtml,
-  WebviewBundleError,
-} from '../views/webviewBundleRoot'
 import { reportsMethods } from '../../shared/hostApi/reports'
 import {
   reportDiffSchema,
@@ -37,7 +31,10 @@ function newestFirst(a: HistoryEntry, b: HistoryEntry): number {
 export type { ReportPanelEngine } from '../../shared/reportingEngine'
 import type { ReportPanelEngine } from '../../shared/reportingEngine'
 export interface ReportPanelDeps {
-  readonly context: Pick<WebviewHostContext, 'extensionUri' | 'globalStoragePath' | 'l10n' | 'log'>
+  readonly context: Pick<
+    WebviewHostContext,
+    'extensionUri' | 'l10n' | 'log' | 'resolveWebviewBundle'
+  >
   readonly workspaceKey: string
   readonly engine: () => ReportPanelEngine
   readonly now: () => string
@@ -77,22 +74,10 @@ export class ReportPanel implements vscode.Disposable {
       this.panel.reveal()
       return
     }
-    // The verified webview copy (VSIXWEB A): a packaged install extracts it
-    // once per archive digest into global storage, the source tree serves
-    // its loose files. A missing, damaged or unwritable extraction shows
-    // the fixed sentence, never unverified files.
-    let bundleRoot: vscode.Uri | undefined
-    try {
-      bundleRoot = vscode.Uri.file(
-        resolveWebviewBundleDir({
-          extensionPath: this.deps.context.extensionUri.fsPath,
-          globalStoragePath: this.deps.context.globalStoragePath,
-        }),
-      )
-    } catch (error: unknown) {
-      if (!(error instanceof WebviewBundleError)) throw error
-      this.deps.context.log.error(`Reporting webview bundle failed: ${failureForLog(error)}`)
-    }
+    // The verified webview copy (VSIXWEB A), resolved in the activation
+    // bundle: a missing, damaged or unwritable extraction shows the fixed
+    // sentence, never unverified files.
+    const resolved = this.deps.context.resolveWebviewBundle()
     const panel = vscode.window.createWebviewPanel(
       'museSpark.reportingPanel',
       UI_TEXT.reportUi.title,
@@ -100,17 +85,21 @@ export class ReportPanel implements vscode.Disposable {
       {
         enableScripts: true,
         enableCommandUris: false,
-        localResourceRoots: bundleRoot === undefined ? [] : [bundleRoot],
+        localResourceRoots: [],
       },
     )
     this.panel = panel
-    if (bundleRoot === undefined) {
-      panel.webview.html = webviewBundleErrorHtml(
-        UI_TEXT.webviewBundleUnavailable,
-        this.deps.context.l10n.locale,
-      )
+    if (!resolved.ok) {
+      this.deps.context.log.error(`Reporting webview bundle failed: ${resolved.detail}`)
+      panel.webview.html = resolved.html
       this.finishShow(panel)
       return
+    }
+    const bundleRoot = vscode.Uri.file(resolved.dir)
+    panel.webview.options = {
+      enableScripts: true,
+      enableCommandUris: false,
+      localResourceRoots: [bundleRoot],
     }
     this.nonce = createNonce()
     panel.webview.html = buildWebviewHtml({

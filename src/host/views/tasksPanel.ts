@@ -14,11 +14,8 @@ import { type TasksHostMessage, tasksWebviewMessageSchema } from '../../shared/t
 import { buildWebviewHtml, createNonce } from '../html'
 import { logRejection } from '../logger'
 import type { TasksTabPort, TasksTabView } from './tasksTabPort'
-import {
-  resolveWebviewBundleDir,
-  webviewBundleErrorHtml,
-  WebviewBundleError,
-} from './webviewBundleRoot'
+import { webviewBundleErrorHtml } from './webviewBundle'
+import { resolveWebviewBundleDir, WebviewBundleError } from './webviewBundleRoot'
 import type { WebviewHostContext } from './webviewSetup'
 
 export class TasksPanel implements TasksTabPort, vscode.Disposable {

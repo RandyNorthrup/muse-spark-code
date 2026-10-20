@@ -1,7 +1,6 @@
 // Lane M's strict bridge is shared by both sides. Credentials stay in this
 // host-owned draft and never join state, exceptions, logs or postMessage.
 import * as vscode from 'vscode'
-import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   MODELS_PANEL_VIEW_TYPE,
   MODELS_WEBVIEW_SCRIPT_FILE,
@@ -30,11 +29,7 @@ import {
   type VaultHostMessage,
 } from '../../shared/hostApi/vaultMessages'
 import { buildWebviewHtml, createNonce } from '../html'
-import {
-  resolveWebviewBundleDir,
-  webviewBundleErrorHtml,
-  WebviewBundleError,
-} from '../views/webviewBundleRoot'
+import type { WebviewBundleResolution } from '../views/webviewBundle'
 import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import { editedOutputTokens, modelLimitsSchema } from '../../shared/providerRouting'
@@ -70,8 +65,8 @@ export interface ModelsPanelDeps {
   readonly removeSubscription?: ((id: string) => Promise<void>) | undefined
   readonly isConfidential?: (() => boolean) | undefined
   readonly extensionUri: vscode.Uri
-  /** The machine's storage for the verified webview copy (VSIXWEB A). */
-  readonly globalStoragePath: string
+  /** The verified webview copy (VSIXWEB A), resolved in the activation bundle. */
+  readonly resolveWebviewBundle: () => WebviewBundleResolution
   readonly l10n: UiTable
   readonly log: Logger
   readonly providers: ProvidersHost
@@ -195,19 +190,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     vscode.ViewColumn.One,
     { retainContextWhenHidden: true },
   )
-  let root: vscode.Uri
-  try {
-    root = vscode.Uri.file(
-      resolveWebviewBundleDir({
-        extensionPath: deps.extensionUri.fsPath,
-        globalStoragePath: deps.globalStoragePath,
-      }),
-    )
-  } catch (error: unknown) {
-    if (!(error instanceof WebviewBundleError)) throw error
-    deps.log.error(`Models webview bundle failed: ${failureForLog(error)}`)
+  const resolved = deps.resolveWebviewBundle()
+  if (!resolved.ok) {
+    deps.log.error(`Models webview bundle failed: ${resolved.detail}`)
     panel.webview.options = { enableScripts: true, localResourceRoots: [] }
-    panel.webview.html = webviewBundleErrorHtml(UI_TEXT.webviewBundleUnavailable, deps.l10n.locale)
+    panel.webview.html = resolved.html
     // No verified bundle behind the panel: it shows the fixed sentence,
     // and revealing still brings the failure into view.
     return {
@@ -220,6 +207,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       },
     }
   }
+  const root = vscode.Uri.file(resolved.dir)
   panel.webview.options = { enableScripts: true, localResourceRoots: [root] }
   panel.webview.html = buildWebviewHtml({
     scriptUri: panel.webview

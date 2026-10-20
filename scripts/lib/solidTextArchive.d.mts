@@ -30,6 +30,13 @@ export function parseSolidTextArchive(
   maxOutputBytes: number,
   expectedVersion: number,
 ): Record<string, { sha256: string; text: string }>
+export function assertArchiveMembers(
+  packed: Uint8Array,
+  required: readonly string[],
+  maxOutputBytes: number,
+  expectedVersion: number,
+  hasChunks?: boolean,
+): number
 export function solidMemberBytes(
   entry: { sha256: string; text: string },
   relative: string,
