@@ -537,13 +537,15 @@ PYHASH
 
 <!-- CM1134AR6 port SHA-256: 0a8062bc336a7f918b2fe7e4237ef473c75fa9aea5a6af55d47c7701b6e113ff -->
 <!-- CM1134AR7 port SHA-256: 5fae331fdc1d00fd1c779c6e5c166ac2485a002815f3402c16f4b592259bea42 -->
-<!-- CM1134AR8 port SHA-256: a56001ab13cd70e96c11fe20e97ef6aa97aa47fd0c4ce7c5920e9c271b72c238 -->
+<!-- CM1134AR8 port SHA-256: 5acaed327f88cebd40550ff39e4b659ad49f376810f59225e0613e6cabca247a -->
 
 `nodeScheduleFs.ts` markers: AR6 `0a8062bc…`, AR7 `5fae331f…`, AR8
-`a56001ab13cd70e96c11fe20e97ef6aa97aa47fd0c4ce7c5920e9c271b72c238`.
+`5acaed327f88cebd40550ff39e4b659ad49f376810f59225e0613e6cabca247a`.
 The lifecycle suite compares the AR8 marker against the actual source; a
 stale certification fails. (Correction 2026-10-12: this line named only the
-AR6 marker while the suite already compared the AR7 one.)
+AR6 marker while the suite already compared the AR7 one. Correction
+2026-10-19, JOIN0190: the AR8 marker now certifies the joined port bytes,
+which carry the lane's newer schedule-filesystem work past 164's base.)
 
 ### Red drills — observed failure, then byte-exact restoration
 

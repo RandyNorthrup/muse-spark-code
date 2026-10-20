@@ -7,6 +7,7 @@ import {
   MEDIA_RSS_SAMPLE_INTERVAL_MS,
   MEDIA_RSS_SAMPLE_MAX_AGE_MS,
 } from '../../src/shared/constants'
+import { canReadProcessBirth } from './helpers/processBirth'
 
 const PID = 4242
 const PARENT = 777
@@ -33,8 +34,8 @@ function fakeChild(pid: number | null = PID) {
   return child
 }
 
-function clock(start = 1000) {
-  let time = start
+function clock() {
+  let time = 1000
   return {
     now: () => time,
     advance: (ms: number) => {
@@ -232,17 +233,30 @@ describe.skipIf(process.platform === 'win32')('macRssSampler on the real /bin/ps
     return { child, pid: child.pid }
   }
 
-  it('reads a live child encoder’s resident memory', async () => {
+  it('reads a live child encoder’s resident memory, or refuses where the table is silent', async () => {
     const { child, pid } = await liveChild()
-    const bytes = await macRssSampler(child)(pid)
-    expect(Number.isSafeInteger(bytes)).toBe(true)
-    expect(bytes).toBeGreaterThan(MIB)
+    if (canReadProcessBirth()) {
+      const bytes = await macRssSampler(child)(pid)
+      expect(Number.isSafeInteger(bytes)).toBe(true)
+      expect(bytes).toBeGreaterThan(MIB)
+    } else {
+      // No process table: the sampler never invents a reading; the live
+      // child is refused exactly like a dead one.
+      await expect(macRssSampler(child)(pid)).rejects.toMatchObject({
+        code: 'EMEDIA_RSS_UNAVAILABLE',
+      })
+    }
   })
 
   it('a warm sampler refuses its child once it is killed and closed', async () => {
     const { child, pid } = await liveChild()
     const read = macRssSampler(child)
-    await expect(read(pid)).resolves.toBeGreaterThan(MIB)
+    if (canReadProcessBirth()) {
+      await expect(read(pid)).resolves.toBeGreaterThan(MIB)
+    } else {
+      // No reading ever exists, so the refusal already holds while live.
+      await expect(read(pid)).rejects.toMatchObject({ code: 'EMEDIA_RSS_UNAVAILABLE' })
+    }
     const closed = once(child, 'close')
     child.kill('SIGKILL')
     await closed
@@ -254,8 +268,15 @@ describe.skipIf(process.platform === 'win32')('macRssSampler on the real /bin/ps
     const parent = fakeChild(process.ppid)
     await expect(macRssSampler(parent)(process.ppid)).rejects.toBeInstanceOf(RssSampleRefused)
     const self = fakeChild(process.pid)
-    await expect(
-      macRssSampler(self, { parentPid: process.ppid })(process.pid),
-    ).resolves.toBeGreaterThan(MIB)
+    if (canReadProcessBirth()) {
+      await expect(
+        macRssSampler(self, { parentPid: process.ppid })(process.pid),
+      ).resolves.toBeGreaterThan(MIB)
+    } else {
+      // Our own live process is refused too: no table, no reading.
+      await expect(
+        macRssSampler(self, { parentPid: process.ppid })(process.pid),
+      ).rejects.toBeInstanceOf(RssSampleRefused)
+    }
   })
 })

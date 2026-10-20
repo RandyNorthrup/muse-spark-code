@@ -295,9 +295,10 @@ describe('native Git against the fixture repositories', () => {
     })
   }, FIXTURE_BUILD_TIMEOUT_MS)
 
+  // Removing the fixture tree is the same long operation the build timeout covers.
   afterAll(() => {
     rmSync(root, { recursive: true, force: true })
-  })
+  }, FIXTURE_BUILD_TIMEOUT_MS)
 
   it('reads the own fixture one commit ahead of its upstream', async () => {
     const { snapshot, remotes } = await readNativeStatus(runner(), contextFor(repos(), repos().own))

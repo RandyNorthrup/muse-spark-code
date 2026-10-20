@@ -16,15 +16,15 @@ import {
   LEGAL_RESULT_VERSION,
   LEGAL_FINDINGS_MAX,
   type PermissionMode,
-} from '../shared/constants'
+} from '../../shared/constants'
 import {
   authorizeLegalFix,
   compareStrings,
   eligibleFixTargets,
   fixPaths,
   liveEvidence,
-} from '../core/legalFix'
-import type { LegalScanResult, LegalFinding } from '../shared/legal'
+} from '../legalFix'
+import type { LegalScanResult, LegalFinding } from '../../shared/legal'
 import {
   findingDigest,
   legalFixPatchSchema,
@@ -36,7 +36,7 @@ import {
   type LegalFixResultMessage,
   type LegalFixSnapshot,
   type RequestLegalFixMessage,
-} from '../shared/legalFix'
+} from '../../shared/legalFix'
 
 /** The guarded files, resolved and read through the host's own checks. */
 export interface LegalFixFileAccess {

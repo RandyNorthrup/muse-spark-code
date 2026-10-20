@@ -248,7 +248,8 @@ import { uploadedFilesReportSchema } from '../../shared/media'
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { DescribedFile, EditReviewActions, ReviewNotice } from '../editor/editReview'
-import { LegalFixPreviews, type LegalFixFileAccess, type LegalFixApplier } from '../legalFix'
+import type { LegalFixFileAccess, LegalFixApplier } from '../../core/legal/fixPreviews'
+import type { LegalFixPreviewStore } from '../../shared/legalScanEntry'
 import type { ReviewCollection } from '../review/reviewCollector'
 import type { ReviewTurnFeatures } from '../review/reviewBundle'
 import type { Logger } from '../logger'
@@ -514,6 +515,13 @@ export interface ConversationDeps {
     ((result: LegalScanResult, signal: AbortSignal) => Promise<string>) | undefined
   readonly legalMarkdown?: ((result: LegalScanResult) => string) | undefined
   readonly legalFixApplier?: LegalFixApplier | undefined
+  /**
+  The selected-fix preview store (M97 lane W): built from the legal
+  scanner's bundle on the first legal command, so the conversation bundle
+  never carries it. Undefined where the host does not wire it; every
+  legal-fix command then refuses as unavailable.
+  */
+  readonly createLegalFixPreviews?: (() => LegalFixPreviewStore) | undefined
   readonly legalScan?: LegalScanRunner | undefined
   /**
    * The Plan-mode hold a live Muse Code conversation takes for a `/legal`
@@ -1474,11 +1482,13 @@ export class ConversationController {
    */
   private readonly revertedHunks = new Map<string, symbol>()
   /**
-   * The legal report's stored fix previews (M97 lane W): each confirm
-   * rechecks the preview's evidence and file hashes, so a changed file,
-   * a lost trust, or a dropped session refuses instead of writing.
-   */
-  private readonly legalFixPreviews = new LegalFixPreviews()
+  The legal report's stored fix previews (M97 lane W): each confirm
+  rechecks the preview's evidence and file hashes, so a changed file,
+  a lost trust, or a dropped session refuses instead of writing. Built
+  from the scanner's bundle on the first legal command; absent until
+  then, and nothing needs invalidating while absent.
+  */
+  private legalFixPreviews: LegalFixPreviewStore | undefined
   /**
    * The turns this panel started in Plan mode that finished with the panel
    * in Plan mode throughout (M79): only their replies are plans. A restart
@@ -2037,8 +2047,8 @@ export class ConversationController {
     this.revertedHunks.clear()
     // A dropped session's fix previews go with it (M97 lane W): later
     // confirms refuse with `previewExpired` instead of authorizing.
-    if (this.isDisposed) this.legalFixPreviews.dispose()
-    else this.legalFixPreviews.invalidate()
+    if (this.isDisposed) this.legalFixPreviews?.dispose()
+    else this.legalFixPreviews?.invalidate()
     const didHaveSkills = this.skills !== undefined
     this.skills = undefined
     this.skillsRefresh = undefined
@@ -7722,7 +7732,9 @@ export class ConversationController {
         return
       }
       this.legalScanSequence += 1
-      this.legalFixPreviews.setScan(
+      // The scan ran, so its bundle loads: the previews establish their
+      // baseline, or stay unavailable where the host never wired them.
+      this.loadLegalFixPreviews()?.setScan(
         `legal-${String(this.legalScanSequence)}`,
         result,
         this.deps.workspaceRoot ?? '',
@@ -8367,9 +8379,15 @@ export class ConversationController {
    * A host without that capability refuses explicitly.
    */
   private async explainLegalReport(): Promise<void> {
-    const report = this.legalFixPreviews.report
+    const previews = this.loadLegalFixPreviews()
+    const report = previews?.report
     const explain = this.deps.legalExplanation
-    if (report === undefined || explain === undefined || !this.deps.isWorkspaceTrusted()) {
+    if (
+      previews === undefined ||
+      report === undefined ||
+      explain === undefined ||
+      !this.deps.isWorkspaceTrusted()
+    ) {
       this.notice('warning', UI_TEXT.legalExplainUnavailable)
       return
     }
@@ -8381,14 +8399,10 @@ export class ConversationController {
     this.legalScanStop = stop
     try {
       const paidExplanation = await explain(report, stop.signal)
-      if (
-        stop.signal.aborted ||
-        !this.deps.isWorkspaceTrusted() ||
-        this.legalFixPreviews.report !== report
-      )
+      if (stop.signal.aborted || !this.deps.isWorkspaceTrusted() || previews.report !== report)
         return
       const result = { ...report, paidExplanation }
-      this.legalFixPreviews.setScan(
+      previews.setScan(
         `legal-${String(this.legalScanSequence)}`,
         result,
         this.deps.workspaceRoot ?? '',
@@ -8409,6 +8423,20 @@ export class ConversationController {
     } finally {
       if (this.legalScanStop === stop) this.legalScanStop = undefined
     }
+  }
+
+  /** The preview store, built once; undefined where the host never wired it or the bundle cannot load. */
+  private loadLegalFixPreviews(): LegalFixPreviewStore | undefined {
+    if (this.legalFixPreviews === undefined) {
+      const create = this.deps.createLegalFixPreviews
+      if (create === undefined) return undefined
+      try {
+        this.legalFixPreviews = create()
+      } catch {
+        return undefined
+      }
+    }
+    return this.legalFixPreviews
   }
 
   private legalFixFiles(): LegalFixFileAccess {
@@ -8452,14 +8480,24 @@ export class ConversationController {
   private async previewLegalFix(
     message: Extract<ConversationMessage, { type: 'requestLegalFix' }>,
   ): Promise<void> {
-    const preview = await this.legalFixPreviews.preview(message, this.legalFixHostState())
+    const previews = this.loadLegalFixPreviews()
+    if (previews === undefined) {
+      this.notice('warning', UI_TEXT.legalFixRefusedUnavailable)
+      return
+    }
+    const preview = await previews.preview(message, this.legalFixHostState())
     this.post(preview)
   }
 
   private async confirmLegalFix(
     message: Extract<ConversationMessage, { type: 'confirmLegalFix' }>,
   ): Promise<void> {
-    const result = await this.legalFixPreviews.confirm(message, this.legalFixHostState())
+    const previews = this.loadLegalFixPreviews()
+    if (previews === undefined) {
+      this.notice('warning', UI_TEXT.legalFixRefusedUnavailable)
+      return
+    }
+    const result = await previews.confirm(message, this.legalFixHostState())
     if (result.outcome !== 'refused') await this.startLegalScan(undefined)
     this.post(result)
   }
@@ -8949,7 +8987,7 @@ export class ConversationController {
   private async setPermissionMode(mode: PermissionMode): Promise<void> {
     if (this.session !== undefined) this.deps.judge?.discardSession(this.session.sessionId)
     this.clearJudgeCards()
-    this.legalFixPreviews.invalidate()
+    this.legalFixPreviews?.invalidate()
     if (mode !== 'plan' && this.isSideChat) {
       this.notice('info', UI_TEXT.sideChatPlanOnly)
       this.postComposerState()
@@ -10938,7 +10976,7 @@ export class ConversationController {
         break
       }
       case 'exportLegalReport': {
-        const report = this.legalFixPreviews.report
+        const report = this.loadLegalFixPreviews()?.report
         if (report === undefined || this.deps.legalMarkdown === undefined) {
           this.notice('warning', UI_TEXT.legalScanUnavailable)
           break

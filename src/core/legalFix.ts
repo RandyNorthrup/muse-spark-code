@@ -1,6 +1,6 @@
 // The selected-fix handoff's guards (M97 lane W, PLAN.md D76). Pure and
 // backend-agnostic: no `vscode`, no Node, no DOM. The host
-// (`src/host/legalFix.ts`) supplies the live state; the webview
+// (`src/core/legal/fixPreviews.ts`) supplies the live state; the webview
 // (`LegalReport.tsx`) reuses the eligibility preview. Every refusal names a
 // LEGAL_FIX_REFUSALS word; every exclusion a LEGAL_FIX_EXCLUSIONS word.
 
