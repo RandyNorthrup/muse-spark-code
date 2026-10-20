@@ -547,3 +547,44 @@ Proofs:
   the branch: `planArchive` (7), `planReader` (49), `checkPlan` (28),
   `planCitation` (19), `m113cLaneClosure` (2), `teamPlanRecord` (2),
   `autoCompact` (26), `geminiCodec` (67), `paidMoneyStructure` (46).
+
+## M95-K closed repair records (2026-10-20, lane JOIN0190)
+
+The test-pinned restores (M91/M93/M118/M97 lane tables, M121 money rule)
+had pushed `PLAN.md` back over the 85% gate (3,580,933 bytes, over by
+15,775). No closed milestone, decision or gate section with room remained:
+every large section is open work or keep-listed. The room came from 46
+closed 2026-10-05/06 repair records inside §6's M95-K residuals list, each
+stating its findings fixed/resolved/closed with receipts in
+`docs/certification/m*.md`, moved with the command to `milestones.md`
+under `## M95 K repair residuals` (`--allow-fact-change`: the parsed
+residuals fact-set intentionally shrinks).
+
+|                             |     Bytes | Share of the bound |
+| --------------------------- | --------: | -----------------: |
+| `PLAN.md` before            | 3,580,933 |              85.4% |
+| `PLAN.md` after             | 3,552,447 |              84.7% |
+| Moved out (46 blocks gross) |    33,868 |                    |
+| Room under the gate's line  |    12,711 |                    |
+
+Left in place on purpose: lanes whose own deliverable is unmerged
+(M109C pair, M107-H-W) or uncertified (M114-P2), open scope/residual notes
+(M107-W-T3, M107-W-production-bindings, M118INT-remaining,
+HOST-INVENTORY-class handoffs, undescribed behavior notes such as N3),
+live rules and the D93 limit prose next to the moved repairs. Repair-done
+records moved even where follow-ups belong to others (W adoption, lead
+quality runs, shipment): the text is preserved byte-for-byte and the
+pointers name the archive heading.
+
+Proofs:
+
+- Reassembly: the command rebuilt the old `PLAN.md` from the result byte-identical before writing.
+- Parsed facts: only the archived residuals left the set; format drift after: 0.
+- `npm run check:plan`: `plan-format-v1; 222 milestones; 0 drift`, exit 0.
+- `npm run roadmap:generate` + `npm run check:roadmap`: 222 entries, current.
+- `npx prettier --check PLAN.md docs/plan-archive/milestones.md`: clean.
+- Suites that read the plan, all green at the repo default timeout:
+  `planReader` (55), `estimatorPlanSnapshotRealPlan` (43),
+  `estimatorPlanSnapshot`/`estimatorSnapshotStrict`/`estimatorPlanSnapshotSource`
+  (62), `paidMoneyStructure` (46), `planCitation` (19), `autoCompact` (26),
+  `sharingArtifacts` (1).
