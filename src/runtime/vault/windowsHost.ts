@@ -86,7 +86,6 @@ async function pruneHosts(
 
 /**
 Local trusted hosts publish launch facts in owner-only files, never in a wire claim.
-@unwired M109 Windows host registration (waits on the Windows broker join)
 */
 export async function registerWindowsVaultHost(
   runDirectory: string,

@@ -442,3 +442,21 @@ or skipped to pass (the skips are the file's existing platform gates).
 Still open: hosted Windows CI on this head (the wall's elevated branch
 needs an elevated runner to fire; the medium branch fires anywhere);
 the packed product has not been run with this change.
+
+## This process's exact evidence through the reader; no query deadline (lead, 2026-10-20)
+
+Hosted Windows CI on the final 0.19.0 tree refused every vault writer in the
+crash fixture: "this process's exact operating-system birth could not be
+established". The exact evidence a writer lease keeps (the creation
+FILETIME and this boot's identifier) still came from a Windows PowerShell
+line with `Add-Type`, under the same 10 s query deadline; on the hosted
+runner that start passed the deadline and was killed, as recorded above for
+start times. The sealed reader now prints both (`--exact <pid>`:
+`FILETIME:guid`, `NtQuerySystemInformation` class 90), so no PowerShell
+starts. On this PC the reader's FILETIME for the running process equals
+PowerShell's `(Get-Process).StartTime.ToFileTimeUtc()` exactly (two fresh
+processes, 180 and 223 ms including the build), so lease records written
+before stay comparable. `PROCESS_START_QUERY_TIMEOUT_MS` is removed (a
+limit of ours): a query ends when the system answers. Suites: processOwner
+and lease suites, writerCrashPosix, reportStorageWriterLock (which read
+`birth-unavailable` on this PC before), recordingLatest — 141 passed.
