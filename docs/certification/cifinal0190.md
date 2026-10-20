@@ -41,3 +41,35 @@ absent on these POSIX cases).
 
 Green: linuxlt 18/18. The red is the hosted run's uncaught EPIPE above
 (timing-dependent: the hook must exit before the write lands).
+
+## 3. macOS session-broker cases timed out (macos shard 7)
+
+Cause: the suite forks its client with only `HOME` (the fixture root) and
+`XDG_RUNTIME_DIR`. The product forwards `TMPDIR` too
+(`posixClientPlatform`), but the fixture's client had none, so the broker's
+temporary root fell to `/tmp` (world-writable, refused as a socket base)
+and then to the fixture HOME, whose socket path under `/var/folders/...`
+exceeds the bind limit: `assertVaultSocketLength` refused ("The broker
+cannot start") and three cases waited out the test clock. Found with a
+diagnostic run on the mirror (client and broker failures printed) and
+reproduced on the macmini with its default `TMPDIR`; the earlier lane ran
+with `TMPDIR=/tmp/bmt`, where the fallback fits.
+
+Fix: the fixture passes the worker's `TMPDIR` to the client as the editor
+host has it. macmini, default `TMPDIR`: 3 red without the change, 4/4
+green with it.
+
+## 4. Windows integration teardown (VS Code 1.142)
+
+`unsaved buffers refuse memory writes (D27)` failed in its after-all hook:
+`EBUSY: resource busy or locked, rmdir …\.agents\memory\notes` right after
+closing the editors. The teardown now uses `removeFolder`, the retrying
+removal the unit suites use for the same Windows behaviour.
+
+## 5. check:catches after the Windows real-use fixes
+
+Passing the error to `onError` from four governor catch sites moved them
+from SWALLOW to GENERIC, and `clearMarker` copied two catch sites. The
+governor sites went back to their accepted form and the journal's marker
+removals share one method; no count rose, so the baseline was regenerated
+(615a0ae396).
