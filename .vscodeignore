@@ -25,6 +25,7 @@
 !dist/legalScan.js
 !dist/legalFix.js
 !dist/legal-data/**
+!dist/legal-data.json.br
 !dist/subscriptions.js
 !dist/configuredProviders.js
 !dist/credentialLease.js

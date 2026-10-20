@@ -667,9 +667,12 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   and the packaged extension no longer carries the privacy file, which no
   code read; the file stays in the repository and the packaged readme still
   links the privacy policy by its URL.
-- One package per platform: the release ships six platform packages
-  instead of one universal package. Each carries only its own platform's
-  native pieces and is checked against the same unchanged size budget.
+- One package per platform, plus a fallback: the release ships six platform
+  packages instead of one universal package. Each carries only its own
+  platform's native pieces and is checked against the same unchanged size
+  budget, and the untargeted fallback carries the Linux helpers for servers
+  without their own package (Alpine, 32-bit ARM Linux), so they keep
+  installing the way they always have.
 
 ### Release infrastructure
 

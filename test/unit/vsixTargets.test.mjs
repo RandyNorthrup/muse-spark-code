@@ -106,15 +106,27 @@ describe('per-platform VSIX inventory', () => {
     expect(targetOfVsix('out/muse-spark-code-0.19.0.vsix')).toBeUndefined()
   })
 
-  it('publishes one artifact per target and no universal package', () => {
+  it('publishes one artifact per target plus the untargeted fallback', () => {
     const assets = vsixReleaseAssets('muse-spark-code', '0.19.0')
-    expect(assets).toHaveLength(VSIX_TARGETS.length)
+    expect(assets).toHaveLength(VSIX_TARGETS.length + 1)
     for (const target of VSIX_TARGETS) {
       const asset = `muse-spark-code-${target}-0.19.0.vsix`
       expect(assets).toContain(asset)
       expect(targetOfVsix(`release/${asset}`)).toBe(target)
     }
-    expect(assets).not.toContain('muse-spark-code-0.19.0.vsix')
+    expect(assets).toContain('muse-spark-code-0.19.0.vsix')
+    expect(targetOfVsix('release/muse-spark-code-0.19.0.vsix')).toBeUndefined()
+  })
+
+  it('keeps the fallback Linux-only: neutral content plus both Linux helpers', () => {
+    for (const file of [...WINDOWS_FILES, ...DARWIN_FILES])
+      expect(isVsixTargetFile(undefined, file)).toBe(false)
+    expect(isVsixTargetFile(undefined, String.raw`native\windows\dictate.ps1`)).toBe(false)
+    expect(isVsixTargetFile(undefined, String.raw`dist\native\darwin\muse-vault`)).toBe(false)
+    for (const files of Object.values(LINUX_HELPERS))
+      for (const file of files) expect(isVsixTargetFile(undefined, file)).toBe(true)
+    expect(isVsixTargetFile(undefined, String.raw`native\linux\arm64\muse-created`)).toBe(true)
+    for (const file of SHARED_FILES) expect(isVsixTargetFile(undefined, file)).toBe(true)
   })
 
   it('requires each stage to hold its own git-kept helpers', () => {

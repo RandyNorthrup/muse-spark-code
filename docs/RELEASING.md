@@ -154,9 +154,11 @@ This lane admits those successful runs without changing `ci.yml`.
 
 CI's full tier produces one VSIX per VS Code target platform (win32-x64,
 win32-arm64, darwin-x64, darwin-arm64, linux-x64, linux-arm64), including the macOS helper
-compiled on macOS, and `muse-spark-code-acp-X.Y.Z.tgz`. No universal package
-ships (PLAN.md D209): each platform package carries only its own platform's native pieces
-within the unchanged size budget. The full tier runs in
+compiled on macOS, plus the untargeted fallback carrying the Linux helpers
+for servers without their own package, and `muse-spark-code-acp-X.Y.Z.tgz`.
+Seven VSIX packages ship (PLAN.md D209): each platform package carries only
+its own platform's native pieces, and the fallback only the Linux helpers,
+each within the unchanged size budget. The full tier runs in
 the merge queue, on manual runs, in the release workflow's own build, and on
 every PR until the merge queue is on; a fast PR run builds no packages
 (CONTRIBUTING.md, "CI tiers"). The same six packages go to GitHub,

@@ -792,6 +792,8 @@ temp/planfix0190/d2-summary.txt Full record:
 **`@types/jsdom`** — PR #227 lane (2026-10-18): the approval-page double-decision suite drives the real shipped page script in a real jsdom DOM; the pinned jsdom 30.1.1 ships no types, so the suite imports untyped without it. MIT; no peers; a dev dependency, never bundled.
 **`@napi-rs/keyring`** — The vault's OS store (D61, D89): Secret Service on Linux and login Keychain on macOS, loaded at runtime by the broker child, the ACP agent and headless runs alike. MIT; no peer dependencies (its per-OS/arch binaries are same-version optional dependencies); `npm audit` clean. Moved from devDependencies to dependencies (PR216FIX T1): a runtime load declared dev-only hid the VSIX gap. Staging its platform binaries in the universal VSIX stays a lead follow-up: the six VS Code platforms measure 4,716,310 bytes compressed (`npm pack` tarballs, 2026-10-17) against ~0.9 MB of size-budget headroom, so shipping them needs per-platform packaging or a re-set cap, never a raised one here.
 
+**`zopfli`** — VSIXFIT B (D6): the `.vsix` recompressor (`scripts/compress-vsix.py`) writes Zopfli raw-deflate members (stored for already-brotli members), about 1.2% smaller than zlib level 9 (44,904 bytes measured on the 0.19.0 linux-x64 package). A build tool, never shipped: it runs in the `packages` steps only, from the pinned `.github/vsix-compress/requirements.txt`. 0.4.3; Apache-2.0; no dependencies; `zopfli.zlib.compress(data, numiterations=15)` minus its 2-byte header and 4-byte trailer, written as raw deflate with correct CRC and sizes. Without it packaging fails with a named requirements file, never silently falling back to level 9.
+
 DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
 Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
 typescript-eslint 8.71.0. Their exact registry peers accept the existing
@@ -15129,6 +15131,8 @@ VSX: every artifact is published before any visibility poll runs, all share
 one 30-minute poll deadline inside 60-minute jobs, and unfinished targets
 are re-checked in the same job, so a cancelled job never leaves only some
 targets published.
+
+VSIXFIT C (2026-10-20): the fallback stopped carrying every platform's helpers — the full universal measured 4,443,930 bytes and cannot meet the unchanged budget. It now carries the platform-neutral content plus the Linux helpers only (`native/linux/x64/*`, `native/linux/arm64/*`, `native/runner/*`), never the darwin or Windows pieces: VS Code never serves the fallback where a targeted package exists, so it only ever reaches Linux-family platforms, and that is exactly what those servers ran before. Measured on the linuxlt rig: the linux-x64 target passes the 3,788,800-byte gate with headroom and the fallback is estimated to pass with thin headroom (see `docs/certification/vsix-platform.md` §2); darwin stages pack helperless locally with the CI binaries estimated on top, and the complete win32 stages fail the gate by 12 KB, all confirmed by CI.
 Evidence: `docs/certification/vsix-platform.md`.
 
 ### D210 — One package per platform target (lane RUTRUTHL2, 2026-10-18; numbered D123 until the 0.19.0 join, when that number was found shared)

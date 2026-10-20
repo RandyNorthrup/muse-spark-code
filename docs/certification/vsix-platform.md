@@ -71,6 +71,23 @@ the six. Both registries serve the matching target package where one
 exists (vsce 4.0.0 `--target`; ovsx documents target-platform downloads)
 and the universal package everywhere else.
 
+### Fallback goes Linux-only (lane VSIXFIT, 2026-10-20, linuxlt rig)
+
+The full universal (every platform's helpers) measured 4,443,930 bytes
+on the lead's rig and cannot meet the unchanged budget, so the fallback
+stopped carrying every helper: the untargeted stage now keeps the platform-neutral content
+plus the Linux helpers only (`native/linux/x64/*`, `native/linux/arm64/*`,
+`native/runner/*`), never the darwin or Windows pieces (`isVsixTargetFile`
+with no target, `requiredNativeFiles` still demanding both Linux
+helpers). VS Code never serves the fallback where a targeted package
+exists, so it only ever reaches Linux-family platforms — exactly what
+those servers ran before. Seven artifacts ship; every workflow that builds,
+checks and publishes packages packs, size-checks and asserts all seven
+(the fallback asserting both Linux helpers, no foreign pieces and no
+`TargetPlatform`), and `vsixReleaseAssets` names all seven for the release
+receipt, reuse verification and the registry poller. PLAN.md D209 carries
+the one-paragraph amendment; §2 below holds the 0.19.0 measurements.
+
 ## 2. Measured per-target sizes and headroom (2026-10-18; linuxlt and macmini rigs)
 
 Budget for every package: 3,788,800 bytes (3700 KiB, `scripts/check-vsix-size.mjs`, unchanged).
@@ -94,16 +111,82 @@ are byte-identical: the `TargetPlatform` string alone differs per target
 | darwin-arm64 | CI             | CI       | same CI binaries as darwin-x64                                                                                                                                                                                                                          |
 | universal    | CI             | CI       | packed by CI's package job with all helpers (both muse-created binaries, Windows sources, darwin binaries); reference only: 3,272,933 bytes on Kubuntu with the real x64 helper, an empty arm64 helper and no macOS artifacts (not a shippable package) |
 
+### 0.19.0 after VSIXFIT (2026-10-20, linuxlt rig)
+
+Full production build (`npm run build` green with budgets), then each
+target through the real pipeline (`node scripts/package-vsix.mjs
+[--target <t>]`: l10n, badges, module-exports, vsce pack, archive,
+zopfli recompress, size check) with the pinned zopfli on PATH. Budget for
+every package: 3,788,800 bytes, unchanged. The legal archive
+(`extension/dist/legal-data.json.br`, 32,440 bytes) is byte-identical in
+all three packed targets, as are the other shared brotli archives.
+
+| Target       | Measured bytes | Headroom  | Method                                                                                                                                                                                                                                                          |
+| ------------ | -------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| linux-x64    | 3,764,200      | 24,600    | complete local package (x64 helper built there: `muse-created` 43,208 bytes, `muse-vault-peer` 14,544 bytes); real size check green                                                                                                                             |
+| linux-arm64  | ~3,765,900     | ~22,900   | estimate: linux-x64 minus the x64 pair (17,295 compressed) plus the arm64 pair at x64 sizes with 10% margin; arm64 helper is CI-built, CI confirms exact                                                                                                        |
+| fallback     | ~3,783,400     | ~5,400    | estimate: linux-x64 plus the arm64 pair at x64 sizes with 10% margin; tight, CI confirms exact; fallback needs both Linux helpers, so this rig cannot pack it (no arm64 toolchain)                                                                              |
+| win32-x64    | 3,800,822      | -12,022   | complete local package (all Windows helpers are git-kept sources); real size check RED — needs a follow-up                                                                                                                                                      |
+| win32-arm64  | 3,800,823      | -12,023   | complete local package, one byte heavier than x64 (`TargetPlatform` string); real size check RED — needs a follow-up                                                                                                                                            |
+| darwin-x64   | 3,746,591      | 42,209    | helperless stage only (all darwin binaries are CI-built): passes without them; full package needs CI                                                                                                                                                            |
+| darwin-arm64 | 3,746,592      | 42,208    | helperless stage only, same universal binaries as x64 in CI                                                                                                                                                                                                     |
+| darwin full  | ~3,921,000+    | ~-135,000 | estimate: helperless stage plus the documented `muse-dictate` (80,798 deflated, shipped twice: loose and inside the `.app`), `.app` resources (~6,000), universal vault peer (~7,000), and `muse-vault` (Swift `-Osize` universal, size CI) — needs a follow-up |
+
+Attribution of the 138,577-byte saving against the INTEGFIX proof
+(`proof-linux-x64.vsix`, 3,902,777 bytes): the legal archive saves 96,967
+(133,144 bytes of loose deflated members, the lead's figure, down to the
+32,440-byte archive plus the two loose attribution files) and Zopfli saves
+39,514 measured member-by-member against zlib level 9 on the final package
+(the lead measured 44,904 on the pre-archive member set). `.br` members
+are stored, everything else is Zopfli raw deflate with correct CRC and
+sizes; the VSIX-shipped archive loads all 21 templates with no problems
+(probed from the packed bytes).
+
+### Diet exhaustion (VSIXFIT follow-up, 2026-10-20, linuxlt rig)
+
+win32 (complete, gate red at −12,022) and the full darwin package
+(estimated −135,000 or worse) have no legitimate lever left inside "budget
+never raised, no feature/locale/helper/text cut":
+
+- Compression is maxed and measured: Zopfli numiterations=15 deflate with
+  stored `.br`; both solid brotli archives already at quality 11, and
+  larger windows on the real payloads measure identical or worse (code
+  archive lgwin 23 vs 24: same 1,349,336 bytes; locale tables lgwin 22 vs
+  23/24: 993,162 vs 993,666).
+- Exact-duplicate scan of the win32 package: one 1,071-byte LICENSE pair
+  (both copies required), nothing else.
+- All JS/CSS minified (esbuild production), no `.map`/`.d.ts` members, no
+  vendored-code duplication across webview chunks (0/200 shingle overlap),
+  no embedded fonts/assets in the webview CSS, tables already indexed and
+  JSON already compact.
+- The arithmetic is airtight: neutral content measures ~3,746,900 bytes in
+  every target (byte-identical shared members across all three local
+  packs), leaving ~42,000 bytes for platform helpers. The x64 pair costs
+  17,295, the arm64 pair ~19,000 estimated, the fallback ~36,500 estimated
+  (thin) — but the Windows sources cost ~55,500 and the darwin binaries
+  ~175,000 or more (the `muse-dictate` binary ships twice at 80,798
+  deflated each: loose and inside the `.app`, a byte copy per
+  `native/darwin/build.sh`).
+- Concrete blockers: darwin's dictate duplication (161,596 bytes) can only
+  go with signed-bundle surgery (a symlink or single-copy layout inside
+  the codesigned `.app`); even that leaves darwin over before `muse-vault`
+  (Swift `-Osize` universal, size CI). win32 is short 12,022 bytes with
+  images (~85 KB shipped) the only unmaxed surface, worth a few KB at most
+  under its own pipeline — not this lane. Further neutral diet past this
+  point needs product-level changes, which no packaging lane makes.
+
 CI's package job prints every package's bytes (`stat -c '%n %s' ./*.vsix`),
 checks each against the budget, and asserts per target: all shared
 bundles present, only its own helpers present, no other platform's
 helpers, and its `TargetPlatform` in the manifest — and for the fallback:
-every helper present and no `TargetPlatform` at all.
+both Linux helpers present, no foreign pieces and no `TargetPlatform` at
+all.
 
 ## 3. Every place that assumed one universal package
 
 - `scripts/package-vsix.mjs`: staged everything VSCE allowlisted and packed
-  one archive. Now stages per `--target` and packs six.
+  one archive. Now stages per `--target` and packs six, plus the untargeted
+  fallback (Linux helpers only) with no `--target`.
 - `scripts/check-vsix-size.mjs`: took exactly one path. Now checks every
   artifact against the same budget, and a failure names the artifact that
   went over.
@@ -120,8 +203,8 @@ every helper present and no `TargetPlatform` at all.
   fallback name and reads all seven manifests.
 - `.github/workflows/build.yml` packages job: built and checked one
   universal VSIX. Now builds once, packs and checks six targeted packages
-  plus the universal fallback (asserting the fallback carries every helper
-  and no `TargetPlatform`); the ACP agent's
+  plus the Linux-only fallback (asserting the fallback carries both Linux
+  helpers, no foreign pieces and no `TargetPlatform`); the ACP agent's
   npm package is unchanged (one tarball for every platform).
 - `.github/workflows/release.yml`: comments said "universal VSIX". Now
   per-target packages plus the fallback; every glob (`release/*.vsix`, `./*.vsix`,
@@ -134,9 +217,9 @@ every helper present and no `TargetPlatform` at all.
   needs every platform's sources), `native/runner/*` (ships in every
   target: the SSH runner copies the helper to the remote side), the
   `required` aggregate's `package (.vsix)` check name (release recovery
-  matches on it), and the universal `npm run package` path itself
-  (hosts.yml and forks.yml still install the all-platforms package into
-  test editors; the stores only ever receive the six targeted ones).
+  matches on it), and the untargeted `npm run package` path itself
+  (hosts.yml and forks.yml prove the Linux x64 target and the fallback;
+  the stores receive all seven).
 
 No behaviour change for a person on any platform: same bundles, same
 helpers, same panel; only the store serves the matching package.

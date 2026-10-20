@@ -1,9 +1,12 @@
 // Lane T: the orchestrator slot. The pure resolutions (the picker while the
 // user never touches roles, the override once set, Default following the
-// picker live) need no store and stay here. The drills — Reset clears the
-// stored override (not just the pill's label), reads see a real stored
-// override — run over the real settings store in
-// test/integration/orchestratorSlot.test.ts.
+// picker live) need no store and stay here. The store drills — Reset clears
+// the stored override, reads see a real stored override — have no executable
+// real-store path yet: the product keeps the slot in workspace state (PLAN.md
+// M96 lane T), which no test can reach until the slot's owner wires it, and
+// the key is not a registered configuration (VS Code refuses the write on
+// every host). They return with that owner wiring; until then the read/reset
+// functions carry @unwired M96.
 
 import { describe, expect, it } from 'vitest'
 import {
