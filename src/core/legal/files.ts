@@ -34,6 +34,38 @@ export class LegalScanError extends Error {
   override readonly name = 'LegalScanError'
 }
 
+/** The errno codes a file read can raise that mean 'this file cannot be
+read' (M97): the entry vanished past enumeration (`ENOENT`), the read
+is refused (`EACCES`, `EPERM`), the path is not a readable file
+(`EISDIR`, `ENOTDIR`), the path cannot resolve (`ELOOP`,
+`ENAMETOOLONG`), the store failed the read (`EIO`), or the file is
+busy (`EBUSY`). Process-wide exhaustion (`EMFILE`, `ENFILE`) and
+caller bugs (`EBADF`, `EINVAL`) are not in this set: they surface. */
+const LEGAL_UNREADABLE_CODES = new Set([
+  'ENOENT',
+  'EACCES',
+  'EPERM',
+  'EISDIR',
+  'ENOTDIR',
+  'ELOOP',
+  'ENAMETOOLONG',
+  'EIO',
+  'EBUSY',
+])
+
+/** Whether a read failure is one of the named unreadable-file conditions,
+matched by errno code, never by message words (a message can quote a
+path). Anything else keeps its kind past the read. */
+export function isUnreadableFileError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    LEGAL_UNREADABLE_CODES.has(error.code)
+  )
+}
+
 /** The Unicode byte-order mark, compared by code point, never as a literal. */
 export const BYTE_ORDER_MARK_CODE = 0xfe_ff
 const WINDOWS_ABSOLUTE = /^[a-zA-Z]:[\\/]/

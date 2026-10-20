@@ -8,6 +8,7 @@ import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX, UI_TEXT } from '../../src/
 import { fingerprint } from '../../src/core/verify/fingerprint'
 import { fill } from '../../src/shared/l10n/text'
 import { buildRecordProblems, scanLegal } from '../../src/core/legal/scan'
+import { LegalScanError } from '../../src/core/legal/files'
 import { prepareLegalFixes } from '../../src/core/legal/entry'
 import { legalScanResultSchema } from '../../src/shared/legal'
 import {
@@ -416,5 +417,58 @@ describe('scanLegal', () => {
 
   it('answers an empty fix request without touching the workspace', async () => {
     await expect(prepareLegalFixes('/nonexistent-fulltest-empty-fix', [])).resolves.toEqual([])
+  })
+
+  it('reads a file that throws a named unreadable error absent, with the marker', async () => {
+    const inner = snapshotFrom(project)
+    const vanished = Object.assign(
+      new Error("ENOENT: no such file or directory, open 'src/ok.ts'"),
+      {
+        code: 'ENOENT',
+      },
+    )
+    const result = await scanLegal(
+      {
+        files: inner.files,
+        readFile: (path: string) => {
+          if (path === 'src/ok.ts') throw vanished
+          return inner.readFile(path)
+        },
+      },
+      { headerPolicy: 'optional' },
+    )
+    expect(result.incompleteChecks).toContain(fill(UI_TEXT.legalScanner.m113, { v0: 'src/ok.ts' }))
+  })
+
+  it('lets a cancelling read keep its kind past the throwing file', async () => {
+    const inner = snapshotFrom(project)
+    await expect(
+      scanLegal(
+        {
+          files: inner.files,
+          readFile: (path: string) => {
+            if (path === 'src/ok.ts') throw new LegalScanError(UI_TEXT.legalScanner.m111)
+            return inner.readFile(path)
+          },
+        },
+        { headerPolicy: 'optional' },
+      ),
+    ).rejects.toThrow(UI_TEXT.legalScanner.m111)
+  })
+
+  it('surfaces an unexpected read failure instead of reading it absent', async () => {
+    const inner = snapshotFrom(project)
+    await expect(
+      scanLegal(
+        {
+          files: inner.files,
+          readFile: (path: string) => {
+            if (path === 'src/ok.ts') throw new Error('boom-test-unexpected-read')
+            return inner.readFile(path)
+          },
+        },
+        { headerPolicy: 'optional' },
+      ),
+    ).rejects.toThrow('boom-test-unexpected-read')
   })
 })
