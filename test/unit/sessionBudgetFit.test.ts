@@ -1,4 +1,4 @@
-// A person-set session limit (M82, PLAN.md D121): a request is fitted into
+// A person-set session limit (M82, PLAN.md D208): a request is fitted into
 // what is left by lowering its output allowance, and one whose smallest
 // estimate would pass the limit is refused with the plain stop sentence.
 import { describe, expect, it } from 'vitest'

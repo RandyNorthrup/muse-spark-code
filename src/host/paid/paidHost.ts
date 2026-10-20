@@ -127,7 +127,7 @@ function confirmationDetail(feature: PaidFeature): string {
     const budget = dailyBudgetSchema.safeParse(
       vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
     )
-    // The person's D78 limit, or that none is set (D121); an invalid hand edit
+    // The person's D78 limit, or that none is set (D208); an invalid hand edit
     // reads as none, and no charge is enabled by this formatter.
     return fill(details.judge, {
       price: paidFeaturePrice(feature),

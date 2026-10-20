@@ -644,7 +644,7 @@ export interface ResponseAttemptGuard {
   The provider refused this attempt before generating anything (a status
   in `NON_BILLABLE_HTTP_REJECTIONS`), told before the error is thrown, so a
   caller still knows nothing was billed when a wrapper rethrows the error
-  without its status (D121).
+  without its status (D208).
   */
   readonly onRefused?: (status: number) => void
 }

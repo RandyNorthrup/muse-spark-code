@@ -1,4 +1,4 @@
-// Two windows, one session (PLAN.md D121): each window saves the running
+// Two windows, one session (PLAN.md D208): each window saves the running
 // spend total it saw, and both increments survive instead of the larger
 // snapshot dropping the other's. Each store instance is one window: its own
 // base, one directory, real files, the real clock.
@@ -106,10 +106,10 @@ describe('one session open in two windows', () => {
   })
 })
 
-// A file saved before D121 while a request reservation was open holds that
+// A file saved before D208 while a request reservation was open holds that
 // reservation in its total (the old snapshot added it). The legacy journal
 // beside the session files still names the settled charges, so the load
-// rebuilds the settled-only total from them (D121: a reservation is never
+// rebuilds the settled-only total from them (D208: a reservation is never
 // spend). Same directory layout the removed session journal wrote.
 const LEGACY_ACCOUNT = 'ab'.repeat(32)
 const LEGACY_SCOPE = '11111111-1111-1111-1111-111111111111'

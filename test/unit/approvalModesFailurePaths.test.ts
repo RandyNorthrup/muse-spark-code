@@ -1,5 +1,5 @@
 // The approval-mode failure paths, proven through the real session on saved
-// wire (lane PR251FIX5, PLAN.md D123, GRV251F finding 3).
+// wire (lane PR251FIX5, PLAN.md D211, GRV251F finding 3).
 //
 // Every wire byte below is recorded live from the pinned Muse Code 1.4.7
 // binary (`serve --provider echo`, zero model calls, 2026-10-19,

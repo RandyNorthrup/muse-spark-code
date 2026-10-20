@@ -1,4 +1,4 @@
-// The agent's daily limit (PLAN.md D121) over its real settings file and data
+// The agent's daily limit (PLAN.md D208) over its real settings file and data
 // folder: with none set nothing is written and no spend record is read for a
 // request; with one,
 // a request whose estimate would pass what is left is refused in plain words,

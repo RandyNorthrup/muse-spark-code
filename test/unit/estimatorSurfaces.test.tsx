@@ -52,7 +52,7 @@ const port = (diagnostic: EstimateDiagnostic): EstimatorPanelPort => ({
   context: () => context,
   estimate: () => Promise.resolve(diagnostic),
   subscribe: () => unsubscribe,
-  // The host log's copy of a failure the card already said in words (D119);
+  // The host log's copy of a failure the card already said in words (D207);
   // the run boundary pins its contents, the surfaces pin the sentences.
   report: () => undefined,
   startExisting: () => Promise.resolve(diagnostic),

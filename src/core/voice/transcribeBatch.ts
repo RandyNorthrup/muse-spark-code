@@ -191,7 +191,7 @@ export interface AudioConversionPort {
 export interface BatchSpendClaim {
   /** Final synchronous admission, including the current budget and owner. */
   readonly admitSend: () => void
-  /** Undefined is a cost unknown: nothing is counted, never the estimate (D121). */
+  /** Undefined is a cost unknown: nothing is counted, never the estimate (D208). */
   readonly settle: (costUsd: Usd | undefined) => Promise<void>
 }
 
@@ -205,7 +205,7 @@ export interface AudioPreparationDeps {
   readonly gate: Pick<PaidFeatureGate, 'isOn'>
   /** Shared PaidUseConsent, with voice's window-once policy and batch question. */
   readonly consent: Pick<PaidUseConsent, 'allows'>
-  /** D78 daily and M82 session limits the person set, checked before dispatch (D121). */
+  /** D78 daily and M82 session limits the person set, checked before dispatch (D208). */
   readonly reserve: (costUsd: Usd, signal: AbortSignal) => Promise<BatchSpendClaim>
   readonly usage: Pick<PaidUsage, 'addVoiceBatch'>
 }

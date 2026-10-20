@@ -1,4 +1,4 @@
-// The pre-D121 spend journal both spend migrations read (removed by the
+// The pre-D208 spend journal both spend migrations read (removed by the
 // spend-simple lane): settled charges lived in
 // `budget-journal/<account>/<scope>/seed.json` plus
 // `claims/<claimId>/claim.json` beside the spend files. The writer named
@@ -57,7 +57,7 @@ export function legacyClaimIdentityError(
 }
 
 /**
-What a legacy claim contributes to a migrated total (D121: a
+What a legacy claim contributes to a migrated total (D208: a
 reservation is never spend). A settled charge counts; an unsettled
 claim whose retained liability was written down counts that liability
 instead — fees its run incurred past the reservation, known before

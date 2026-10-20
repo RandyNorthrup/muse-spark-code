@@ -327,7 +327,7 @@ async function requestHookStep(
   let hasResponseFrame = false
   try {
     // Under the conversation's limit the request is fitted into what is left
-    // (D121); its estimate is compared again before the send, never held.
+    // (D208); its estimate is compared again before the send, never held.
     // The estimate below is the number actually sent: the record's maximum
     // fitted into the person's budget, or the fit alone when the record is
     // silent. With neither, the provider's own minimum floors the hold and
@@ -431,7 +431,7 @@ async function requestHookStep(
     context.deps.log.warn('The hook model call failed')
     throw error
   } finally {
-    // After the call, its reported cost (or cost unknown) joins the running totals (D121).
+    // After the call, its reported cost (or cost unknown) joins the running totals (D208).
     const costUsd = helperRequestCost(
       modelId,
       usage,

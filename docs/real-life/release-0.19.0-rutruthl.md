@@ -159,7 +159,7 @@ it arrived with PR #161), so the merged tree never had a matching
 baseline. All 35 files holding the 86 unmatched sites are files the 8
 merges touched. A pairing analysis (current classifier run on fork-point
 sources vs head) shows most are identity churn from the merges' own edits
-(moved error classes, the D121 spend rewrite, narrowed try blocks) plus
+(moved error classes, the D208 spend rewrite, narrowed try blocks) plus
 handlers in group-added files whose bodies implement the designed fallback
 (e.g. label→id fallback, exact-count→byte-bound fallback, abort rethrow);
 the 7 apparent NARROW→worse pairs inspected are different handlers sharing
@@ -350,7 +350,7 @@ Follow-up orders: make this platform's packaging pack, and drive the
 panel Retry path to its exact words. Both done, with one honest miss
 recorded below.
 
-## Per-platform packaging implemented on this branch (D123)
+## Per-platform packaging implemented on this branch (D210)
 
 The VSIX side mirrors upstream PR #246 file-for-file
 (`scripts/lib/vsixTargets.mjs` + `.d.mts`,
@@ -366,7 +366,7 @@ lane's. The ACP side is new (upstream did not cover it):
 darwin-only extras gated, targeted `-<target>.tgz` filename).
 `--target` values and refusals share the six desktop targets; the
 universal packages keep every platform's helpers and still refuse
-when one is missing. Docs: PLAN.md D123 (scoped to this branch —
+when one is missing. Docs: PLAN.md D210 (scoped to this branch —
 mechanism plus local proof, no CI claims), CHANGELOG Packaging,
 README command rows, `docs/RELEASING.md` local-package note.
 

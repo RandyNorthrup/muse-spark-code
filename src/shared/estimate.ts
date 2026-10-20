@@ -763,7 +763,7 @@ export interface EstimateProviderPort {
 }
 
 /**
-The estimator's own worded refusal (D119): every `refuse()`, handoff wait
+The estimator's own worded refusal (D207): every `refuse()`, handoff wait
 and scheduling refusal words its failure as `estimateFailed` or
 `estimateWaiting` with an identifier detail (a fixed word, a handoff name
 or a schema-bounded `word:word` composite like `unschedulable:lane-1`).

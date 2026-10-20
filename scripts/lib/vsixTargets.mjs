@@ -1,4 +1,4 @@
-// One .vsix per supported desktop target (PLAN.md D123): the six targets
+// One .vsix per supported desktop target (PLAN.md D209): the six targets
 // the release ships, which native files each target's package keeps, and
 // the artifact filename each is packed under. `native/runner/*` ships in
 // every target because the SSH runner copies the helper to the remote

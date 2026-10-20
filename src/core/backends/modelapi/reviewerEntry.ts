@@ -251,7 +251,7 @@ async function requestReviewer(
   let served: string | undefined
   try {
     // Under the conversation's limit the review is fitted into what is left
-    // (D121); its estimate is compared again before the send, never held.
+    // (D208); its estimate is compared again before the send, never held.
     const input = Buffer.byteLength(JSON.stringify(body), 'utf8')
     const capUsd = budgetScope?.capUsd() ?? Usd.from(0).toAmount()
     if (budgetScope !== undefined && isPositiveUsd(capUsd)) {
@@ -409,7 +409,7 @@ async function requestReviewer(
       }
     }
     // After the call, its reported cost (or cost unknown) joins the
-    // conversation's running total (D121).
+    // conversation's running total (D208).
     budgetScope?.charge(
       helperRequestCost(
         modelId,

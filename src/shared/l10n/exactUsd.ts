@@ -4,7 +4,7 @@
 import { Usd } from '../usd'
 import { numberFormat, UI_TEXT } from './text'
 
-/** A daily limit the person set, for display: its amount, or that none is set (D121). */
+/** A daily limit the person set, for display: its amount, or that none is set (D208). */
 export function formatDailyBudget(amount: number | string): string {
   return Usd.from(amount).compare(Usd.from(0)) > 0
     ? formatUsd(amount, 2)

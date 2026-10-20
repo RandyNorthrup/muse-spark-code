@@ -1211,7 +1211,7 @@ export const EN = {
   },
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
-  // D121: a daily budget shown where none is set; the person sets one, none by default.
+  // D208: a daily budget shown where none is set; the person sets one, none by default.
   paidDailyBudgetNone: 'none set',
   paidDailyLedgerUnavailable:
     'The daily paid spend ledger is unavailable. Repair it before another paid request.',
@@ -3396,15 +3396,15 @@ export const EN = {
     'The full tool result could not be kept in {spill}; only the cut text remains.',
   toolResultCutPreviewUnkept:
     'Tool result cut: {total} characters, kept the start and end ({omitted} left out). The full result could not be kept.',
-  // The Model API session budget (M82, D121): a limit the person set. A
+  // The Model API session budget (M82, D208): a limit the person set. A
   // request whose estimate would pass it is not sent, and the turn's cost is
   // shown against it afterwards.
   sessionBudgetStopped:
     'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent.',
-  // D121: said once when what is left no longer fits a request like the last one.
+  // D208: said once when what is left no longer fits a request like the last one.
   sessionBudgetNearLimit:
     'Session budget: {spent} of {cap} used. What is left may not fit the next request.',
-  // D121: a response that ended without its usage adds nothing; {spent} is what the conversation counts.
+  // D208: a response that ended without its usage adds nothing; {spent} is what the conversation counts.
   sessionBudgetCostUnknown:
     'A response ended without reporting its usage, so its cost is unknown. It was not added to what this conversation spent ({spent} so far).',
   spendLedgerDamaged:
@@ -4742,7 +4742,7 @@ export const EN = {
     'This model has no known tariff, so a capped run cannot reserve for {model}. Add a price for this model in {file}, or choose a priced model.',
   execUnpricedModel:
     'This model has no known tariff, so a capped run cannot reserve for it. Choose a priced model.',
-  // D1, D121: a daily stop names its numbers: the request's estimate, the
+  // D1, D208: a daily stop names its numbers: the request's estimate, the
   // limit the person set, what is spent today, when the day resets, and the
   // setting that raises it. Nothing is held, so nothing else is counted.
   execPaidDailyStopped:
@@ -6074,7 +6074,7 @@ export const EN = {
     providersFileUnwritable:
       'The providers file could not be saved ({reason}). Check that its folder is writable, then try again.',
   },
-  // D119: each sign-in failure below says its own cause; the general line
+  // D207: each sign-in failure below says its own cause; the general line
   // stays for the callers the merges kept.
   // GitHub sign-in outside VS Code (M123 lane A, PLAN.md D104): the device
   // flow's code, shown by the CLI, the ACP notice and the panel alike.

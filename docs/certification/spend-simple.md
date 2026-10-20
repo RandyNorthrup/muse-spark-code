@@ -1,4 +1,4 @@
-# Spend simple: no spending check without a limit the person set (D121)
+# Spend simple: no spending check without a limit the person set (D208)
 
 Lane spend-simple, branch `fix/spend-simple` (continues `rv/ledger` at
 `3e5b3aad2d`, origin/main merged at `f6acebd838`), 2026-10-17.
@@ -79,7 +79,7 @@ same amount was kept as "unresolved" liability, still blocking requests.
   limit the person set. `mx-lanebuild\dist` keeps the old behaviour until
   it is rebuilt from this branch.
 
-## The design (PLAN.md D121)
+## The design (PLAN.md D208)
 
 - **No limit, no check.** `ModelApiSession.assertEstimateFits`
   (`ModelApiHost.ts:3986`) returns at once without a cap; the daily paths
@@ -118,7 +118,7 @@ text and is excluded):
 | ModelApiHost: `budgetJournal`, `budgetWrites`, `openReservation`, `persistReservation`, `persistBudgetReservation`, `isPaidBudgetAllowed`, `recordBudgetCost`, `refreshBudgetSpend`, `settleReservation`, `retainedLiabilityUsd`, `uncertainUsd`, `budgetOverage` | The per-call journal write, refresh and reservation paths |
 | runtime: `daily.precheck`, `dailyCapUsd`, `dailyStop`, `initialBudget`                                                                                                                                                                                            | The per-request daily precheck and the journal options    |
 | UI text: `spendLedgerBudget`, `spendLedgerBusy`, `spendLedgerRecovery`, `sessionBudgetLegacyFeesUnknown`, `sessionBudgetConversationFeesUnknown`, `execPaidOpenRequests` (en and the 14 tables)                                                                   | Sentences only the removed paths said                     |
-| `museSpark.paidDailyBudgetUsd` minimum 0.5 and maximum 500; `PAID_DAILY_BUDGET.minimumUsd`, `.maximumUsd`; default 5                                                                                                                                              | Limits of ours (D121 and the standing rule)               |
+| `museSpark.paidDailyBudgetUsd` minimum 0.5 and maximum 500; `PAID_DAILY_BUDGET.minimumUsd`, `.maximumUsd`; default 5                                                                                                                                              | Limits of ours (D208 and the standing rule)               |
 | PLAN.md §8 row for `spendLedger.ts` `serialise`                                                                                                                                                                                                                   | Its escape hatch went with the file                       |
 
 Kept, changed: `LedgerFailureKind` and `SpendLedgerError` (the daily files'
@@ -177,7 +177,7 @@ Anthropic 401 ended "uncertain $3.39", and the next run in the same data
 folder reported "$3.40 used" with nothing billed.
 
 - **The next run's "$3.40 used"** was the old daily ledger counting the
-  refused request's reservation. Under D121 the daily total holds only
+  refused request's reservation. Under D208 the daily total holds only
   reported costs, so it cannot recur.
 - **Inside the run**, `withRuntimeAccounting` settled a refused attempt
   through the run ledger. When the error reached it untyped (an adapter
@@ -247,8 +247,8 @@ plus `test/e2e/reports.e2e.test.ts` (Windows symlink permission).
 One line per thread; fixes and red drills below, answers with the
 measurement that decides them.
 
-- `dailySpend.ts:6` concurrent admission — ANSWER: D121 supersedes the cross-process admission lock; the daily total is lock-free by design.
-- `paidDailyBudget.ts:106` unknown charge blocks — ANSWER: D121 counts cost unknown as nothing; blocking or bounded liability is the removed behaviour.
+- `dailySpend.ts:6` concurrent admission — ANSWER: D208 supersedes the cross-process admission lock; the daily total is lock-free by design.
+- `paidDailyBudget.ts:106` unknown charge blocks — ANSWER: D208 counts cost unknown as nothing; blocking or bounded liability is the removed behaviour.
 - `runtimeAccountingEntry.ts:625` swallowed settle failure — FIX: preserve the rejection instead of the no-op retry.
 - `fileSessionStore.ts:497` concurrent session-spend increments — FIX: merge deltas instead of keeping the larger snapshot.
 - `execArgs.ts:248` output-token floor — FIX: parse at 1; the selected model's own policy minimum applies at admission and at the send.
@@ -258,16 +258,16 @@ measurement that decides them.
 
 ### Answers, measured
 
-- **Concurrent admission (`dailySpend.ts:6`).** PLAN.md D121: "A daily
+- **Concurrent admission (`dailySpend.ts:6`).** PLAN.md D208: "A daily
   budget's total is lock-free: each process adds to its own file in the
-  day's folder, and a read sums the files", and D121 "supersedes the
+  day's folder, and a read sums the files", and D208 "supersedes the
   LEDGER design (§3, §6, §7): the atomic claim journal, its
   cross-process admission lock, the 100 ms admission bound and its
   benchmark." Cross-process admission coordination IS that removed lock.
   The accepted bound is stated in the same decision: "A reply may cost
   more than its estimate; the next request is then the one stopped."
   Changed nothing.
-- **Unknown charge blocks (`paidDailyBudget.ts:106`).** PLAN.md D121:
+- **Unknown charge blocks (`paidDailyBudget.ts:106`).** PLAN.md D208:
   "A reservation is never spend. A response that ended without its
   usage counts as cost unknown, with what is known, and adds nothing
   to the total", and §3's resolved LEDGER question: "the owner chose
@@ -289,10 +289,10 @@ All drills: the break made, the failure seen, the code restored, green rerun.
 | `fileSessionStore.ts:497`       | Each store instance keeps its loaded/saved total as its base and adds only its snapshot's delta onto the file's total                                                                                                                           | `fileSessionSpend.test.ts`: two windows from 1 save 3 and 5, the file holds 7; an older snapshot never lowers the file                                                                          | `expected '5' to be '7'`, the thread's own example                                                                                                                 |
 | `execArgs.ts:248`               | `--max-output-tokens` parses at 1; Meta's 16 still applies at its own send path (`execFetch.ts`), a configured provider's own minimum at its send (`configured.ts:1175`) with its sentence, and run-ledger admission floors qualified refs at 1 | `execArgs.test.ts`: 1 and 15 parse, 0 does not                                                                                                                                                  | `docs/acp.md` minimum updated alongside                                                                                                                            |
 | `configured.ts:554`             | An injected-send failure skips the `not_sent` branch and keeps the uncertain mapping, so accounting holds liability instead of releasing the ticket at zero                                                                                     | `configuredInjectedSend.test.ts`: the real key probe over the real transport with a failing injected send returns the uncertain sentence, through no network and no lookup (IP-literal address) | Old mapping returns the probe's `providerProbeUnparseable` fallback instead                                                                                        |
-| `dailySpend.ts:43`              | The day's read adds the pre-D121 `budget-journal/<account>/<day>` total (seed plus settled, open reservations as the old total counted them), read-only                                                                                         | `dailySpend.test.ts`: legacy 2.5 + 1.25 + 0.5 reads 4.25 and a new 0.75 settles to 5; another day's journal is ignored and a mismatched seed refuses as damaged                                 | `expected '4.25'` reads `'0'`; the mismatched seed reads clean instead of damaged                                                                                  |
+| `dailySpend.ts:43`              | The day's read adds the pre-D208 `budget-journal/<account>/<day>` total (seed plus settled, open reservations as the old total counted them), read-only                                                                                         | `dailySpend.test.ts`: legacy 2.5 + 1.25 + 0.5 reads 4.25 and a new 0.75 settles to 5; another day's journal is ignored and a mismatched seed refuses as damaged                                 | `expected '4.25'` reads `'0'`; the mismatched seed reads clean instead of damaged                                                                                  |
 | `paidDailyBudget.ts:306`        | `readToday` carries `unknownChargeCalls` (new optional `usageBudgetSchema` field) when above zero; the budget card and the text summary name the count beside the settled total, in all 15 usage tables                                         | `usageLiability.test.ts`: `Uncertain: 2 calls with unknown cost` beside `$0.25 of $1.00`; `usageL10nTables`/`usageL10nGate` green (the gate caught three tables missing the `other` form first) | Row removed: the count line is gone; tables without `other` fail the gate                                                                                          |
 
-D121 holds throughout: with no limit set nothing new is read or
+D208 holds throughout: with no limit set nothing new is read or
 written before a send (every addition above runs only under a limit the
 person set), no default limit exists, and no reservation, journal or
 lock came back.
@@ -313,7 +313,7 @@ lock came back.
   is PROVERRORS's to fix.
 - Untouched: the Tab ledger, the team meter, account thresholds; schedule
   paid consent still requires a non-zero shared daily budget; sessions saved
-  before D121 keep their old, inflated `budgetSpentUsd`; old ledger files
+  before D208 keep their old, inflated `budgetSpentUsd`; old ledger files
   under `paid-daily` and `budget-journal` stay on disk, unread.
 - After the VS Code crash, `dist/runtimeAccounting.js` was found without
   the fix while the source had it; it was rebuilt and every proof above
@@ -335,13 +335,13 @@ the fix restored, green rerun.
 | Thread                                  | Fix                                                                                                                                                                                                                                                                                                                                                                                                                      | Test                                                                                                                                                 | While broken                                                         |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | `fileSessionStore.ts:526` (security P2) | The save stored the merged file total as the window's base, dropping that window's next increment. The base is now the window's own unmerged `incomingSpend`, stored only after `writeFileAtomically` lands (a failed save no longer advances the base either)                                                                                                                                                           | `fileSessionSpend.test.ts`: two windows load 1 and save 3/5 (file 7), then the second saves 6 — the file holds 8                                     | `expected '7' to be '8'`, the thread's own numbers                   |
-| `dailySpend.ts:152` (P1)                | The upgrade-day fallback added an open claim's `reservedUsd` to `spentUsd`. D121: a reservation is never spend (the old ledger's own stop text subtracted held), so only `settledUsd` enters the migrated total — a dead process's unsettled claim no longer stops paid requests until midnight                                                                                                                          | `dailySpend.test.ts`: legacy seed 2.5 + settled 1.25 reads 3.75 (was 4.25), a new 0.75 settles to 4.5; the open 0.5 stays out                        | `expected { spentUsd: '4.25' } to deeply equal { spentUsd: '3.75' }` |
+| `dailySpend.ts:152` (P1)                | The upgrade-day fallback added an open claim's `reservedUsd` to `spentUsd`. D208: a reservation is never spend (the old ledger's own stop text subtracted held), so only `settledUsd` enters the migrated total — a dead process's unsettled claim no longer stops paid requests until midnight                                                                                                                          | `dailySpend.test.ts`: legacy seed 2.5 + settled 1.25 reads 3.75 (was 4.25), a new 0.75 settles to 4.5; the open 0.5 stays out                        | `expected { spentUsd: '4.25' } to deeply equal { spentUsd: '3.75' }` |
 | `runExec.ts:1222` (P1)                  | The start line's no-arg `outputCap()` ran before model resolution and the `??=` cache pinned the global Model API cap; the model bind's resolved policy (`wrap` → `modelOutputMaxTokens`, plus every request body) could not replace it. New `createExecOutputCap` in `runLedger.ts` (used by `runExec`): a passed policy always recomputes and replaces the cache, so admission and bodies reserve the provider maximum | `runLedger.test.ts`: no-arg reads 32768, the resolved 16384-maximum policy reads 16384, later no-arg reads keep 16384; an explicit flag still floors | `expected 32768 to be 16384`                                         |
 | `providerExec.ts:199` (P2)              | `isModelUnpriced` treated an `unpriced` catalogue entry as price evidence. It is capability evidence only — configured resolution still leaves the model unpriced and an exec run refuses it — so only a priced record or a user-entered price suppresses the warning in `providers add`, `test` and `list`                                                                                                              | `providerUnpriced.test.ts`: unpriced-only warns; priced, user-priced, custom and keyless stay silent                                                 | `expected false to be true`                                          |
 
 Correction to the earlier row (`dailySpend.ts:43`): "open reservations as
-the old total counted them" was wrong — the pre-D121 ledger subtracted held
-from spend in its stop text, and D121 settled that a reservation is never
+the old total counted them" was wrong — the pre-D208 ledger subtracted held
+from spend in its stop text, and D208 settled that a reservation is never
 spend. The migrated total is seed plus settled only.
 
 Gates on the final tree: typecheck (all projects) 0, eslint zero warnings on
@@ -372,7 +372,7 @@ open and were re-verified against the current tree below.
   true for `mistral-plan` with an unpriced-only model while
   `configured.ts:806` assigns `{ kind: 'plan' }`, so add/test/list warn for
   a model the run never refuses as unpriced.
-- `ModelApiHost.ts:16603` (P1, legacy session totals): OPEN — pre-D121
+- `ModelApiHost.ts:16603` (P1, legacy session totals): OPEN — pre-D208
   `snapshot()` added the open reservation into the saved `budgetSpentUsd`
   (`b6ba938849^:16708-16713`) and `adopt` takes the stored value whole, so
   the phantom survives the upgrade.
@@ -393,11 +393,11 @@ Threads 1–4 were fixed under PR217FIX2 (`11f98e72b`, `5b72b8607`). Threads
   `{ kind: 'plan' }`). Plan-key presets now return false up front, read
   from the same preset table the run resolves. Red drill for the new test:
   `expected true to be false`; 4/4 pass after. Commit `d3b765e4b0`.
-- `ModelApiHost.ts:16603` (P1, legacy session totals): pre-D121
+- `ModelApiHost.ts:16603` (P1, legacy session totals): pre-D208
   `snapshot()` added the open reservation into the saved `budgetSpentUsd`
   (`b6ba938849^:16708-16713`, written mid-request by `persistSpend`), and
   `adopt` took it whole. `fileSessionStore.load` now rebuilds seed plus
-  settled legacy claims (open reservations stay out; D121), stamps
+  settled legacy claims (open reservations stay out; D208), stamps
   `spendSettledOnly`, and the save lands the rebuild instead of merging
   onto the phantom; later saves merge as before. Unreadable journals keep
   the stored total with a log line, and sessions without a journal keep
@@ -425,7 +425,7 @@ Suites with the repository's own timeout: `fileSessionSpend` (7),
 
 Left named plainly: a legacy file with spend but no journal keeps its
 total (nothing to rebuild from); legacy retained liability (sent but
-usageless, once counted as spend) is dropped by the rebuild per D121 and
+usageless, once counted as spend) is dropped by the rebuild per D208 and
 is not back-counted as unknown calls; the migration assumes all writers
 are new builds (an old build's save keeps old merge behaviour).
 
@@ -550,8 +550,8 @@ tests fail with the quoted message, the fix restored, green rerun.
   zero readers repo-wide — src, test, scripts, action, native,
   skills, exact and literal): `execBudgetStartExact` (superseded by
   the Rule/Bytes start lines), `execStaleHoldsClosed` (holds-aging is
-  gone under D121), `execBudgetMinimum` (no run minimum remains under
-  D121) and `sessionBudgetWriteFailed` (the wizard reports through
+  gone under D208), `execBudgetMinimum` (no run minimum remains under
+  D208) and `sessionBudgetWriteFailed` (the wizard reports through
   `sessionBudgetPartialSave` only); `check:l10n` 0 problems, l10n
   suites green. Re-staging after the removals measures the same total
   within solid-compression noise (±200 B on the brotli archives),

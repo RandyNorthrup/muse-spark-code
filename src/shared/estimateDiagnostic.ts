@@ -127,7 +127,7 @@ export async function collectEstimateView(
   } catch (error: unknown) {
     // A cancelled run stays silent. Any other failure reaches the panel's
     // run boundary, which says it in words and keeps a foreign failure's
-    // kind past the panel through the port's report (D119).
+    // kind past the panel through the port's report (D207).
     if (!isCurrent() || (error instanceof DOMException && error.name === 'AbortError'))
       return { status: 'idle' }
     throw error

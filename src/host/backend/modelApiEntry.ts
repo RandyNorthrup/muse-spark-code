@@ -306,7 +306,7 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
         prepareAudioMessage: async (request) => {
           if (request.parts.every((part) => part.type !== 'media')) return
           const audio = await import('./productionAudioEntry.js')
-          // The owner's running total for the batch cost (D121): read at
+          // The owner's running total for the batch cost (D208): read at
           // request time, once the host below exists. A lookup failure
           // carries its true reason; the audio entry fails closed under a
           // cap for callers with no scope.

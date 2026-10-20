@@ -1,4 +1,4 @@
-// The Model API session budget (M82; PLAN.md D121): a dollar limit per
+// The Model API session budget (M82; PLAN.md D208): a dollar limit per
 // conversation that the person sets, none by default.
 //
 // With no limit there is no spending check at all on the request path. With

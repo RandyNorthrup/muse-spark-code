@@ -200,7 +200,7 @@ USD figure is exposed in the local records; nothing else was sent).
   `Required Linux created-path helper is missing:
 native/linux/x64/muse-created` (exit non-zero), because
   `build-linux-helper.mjs` returns early off Linux by design.
-- Fix (per the brief's rule 3, mirroring D123): `acpHelperPlan` in
+- Fix (per the brief's rule 3, mirroring D210): `acpHelperPlan` in
   `scripts/lib/acpNativeSources.mjs` requires only the helpers the
   running platform builds (darwin helper on macOS, current-arch Linux
   helpers on Linux, none on Windows where C# compiles on first use)

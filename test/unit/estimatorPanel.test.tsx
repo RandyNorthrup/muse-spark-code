@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The estimator panel's run boundary (D119): the estimator's own refusal
+// The estimator panel's run boundary (D207): the estimator's own refusal
 // keeps its detail in the panel's words; anything else reads failed and
 // keeps its kind past the panel for the host log.
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'

@@ -926,7 +926,7 @@
       "heading": "### Webview estimator import closure budget rationale (near-duplicate)",
       "firstLine": "**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB",
       "kind": "near-duplicate-for-review",
-      "reason": "The older sentence stands next to the newer D119 re-baseline that supersedes it, but the older block continues with unique R7 diagnostic-vocabulary text. The join keeps the newer sentence and re-homes the R7 continuation. Not counted in the byte proof."
+      "reason": "The older sentence stands next to the newer D207 re-baseline that supersedes it, but the older block continues with unique R7 diagnostic-vocabulary text. The join keeps the newer sentence and re-homes the R7 continuation. Not counted in the byte proof."
     },
     {
       "heading": "## 7. Gates",

@@ -867,7 +867,7 @@ export const PAID_DAILY_BUDGET = {
   stopDirectory: 'stopped',
 } as const
 export const RUNTIME_SETTINGS_FILE = 'settings.json'
-// D121: each process's running total for a day lives in this folder of the day's scope.
+// D208: each process's running total for a day lives in this folder of the day's scope.
 export const DAILY_SPEND_FOLDER = 'spent'
 export const SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT = 25
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */

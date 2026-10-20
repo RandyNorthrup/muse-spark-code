@@ -345,7 +345,7 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
     // like the packing thresholds above.
     expect(tariff).toBe('0.0025')
     expect(paidAuthorityKey(searchA)).not.toBe(paidAuthorityKey(searchB))
-    // D121 keeps no daily ledger state in the reducer: no cap by default,
+    // D208 keeps no daily ledger state in the reducer: no cap by default,
     // nothing reserved before a send. The gate below is quotes and grants
     // only; each claim still settles its own tally.
     let state = initialPaidAuthorityState()

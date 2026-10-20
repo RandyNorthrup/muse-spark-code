@@ -308,7 +308,7 @@ export class ModelApiClient implements TransportProviderClient {
       return parsed
     } finally {
       stopNoticing()
-      // Unsent: nothing; sent with no answer: its cost is unknown, never its price (D121).
+      // Unsent: nothing; sent with no answer: its cost is unknown, never its price (D208).
       if (paid?.isSent === false) {
         await paid.claim.settle(Usd.from(0).toAmount())
       } else if (paid !== undefined && !hasOutcome) {
@@ -744,7 +744,7 @@ export class ModelApiClient implements TransportProviderClient {
               // M105 media settles its own claims on counted usage, with or without a token claim.
               if (isCountedUsage) await media?.settle(usage)
               // After the call: its reported cost, or cost unknown when the
-              // usage is missing or unpriced; never its estimate (D121).
+              // usage is missing or unpriced; never its estimate (D208).
               if (claim !== undefined && media === undefined) {
                 let tokenCostUsd: UsdAmount | undefined
                 if (isCountedUsage) {
@@ -755,7 +755,7 @@ export class ModelApiClient implements TransportProviderClient {
                   }
                   // A schedule's price policy settles its own reported cost;
                   // without one the reported cost is estimated as usual, and
-                  // an unsettled policy leaves the cost unknown (D121).
+                  // an unsettled policy leaves the cost unknown (D208).
                   const scheduled =
                     this.scheduledPrice === undefined
                       ? undefined
@@ -770,7 +770,7 @@ export class ModelApiClient implements TransportProviderClient {
                 }
                 // A scheduled run settles at its pinned price even when the
                 // usage is uncounted; otherwise the reported cost settles,
-                // or cost unknown when unpriced — never the estimate (D121).
+                // or cost unknown when unpriced — never the estimate (D208).
                 // Without a usage object there is nothing to price.
                 const providerCost =
                   usage === null || usage === undefined
@@ -821,7 +821,7 @@ export class ModelApiClient implements TransportProviderClient {
       try {
         if (!hasTerminal) noteSearchAnomaly()
         // A claim settles once: unsent, nothing; sent with no terminal usage,
-        // its cost is unknown (D121). A terminal frame settled it already.
+        // its cost is unknown (D208). A terminal frame settled it already.
         if (paid !== undefined && admitAttempt?.mediaAccounting === undefined)
           await paid.claim.settle(paid.isSent ? undefined : Usd.from(0).toAmount())
       } finally {

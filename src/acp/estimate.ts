@@ -55,7 +55,7 @@ export function createAcpEstimate(deps: {
         return renderEstimate(section, parsed.options.format, deps.money)
       } catch (error: unknown) {
         // Cancellation stays cancellation (an abort throws past Error). A
-        // foreign typed failure keeps its kind past the boundary (D119); a
+        // foreign typed failure keeps its kind past the boundary (D207); a
         // refusal keeps its sentence with identity, special sentences
         // included; anything else unstructured is scrubbed to the
         // unavailable words (F12) — a path or account never reaches the

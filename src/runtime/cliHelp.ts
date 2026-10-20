@@ -145,7 +145,7 @@ function factFor(name: string): CliOptionFact | undefined {
       }
     }
     case 'max-budget-usd': {
-      // D121: the person's budget has no ceiling of ours, so no bound fact;
+      // D208: the person's budget has no ceiling of ours, so no bound fact;
       // the meaning sentence carries the exact decimal grammar.
       return undefined
     }

@@ -205,7 +205,7 @@ export function paidVoiceWindow(deps: {
             )
         } finally {
           const billedCost = billedMs === undefined ? bound : voiceCost(billedMs)
-          // An unknown bill is counted as cost unknown, never the bound (D121).
+          // An unknown bill is counted as cost unknown, never the bound (D208).
           const hasUnknownCost = hasSent && billedMs === undefined
           if (claim !== undefined) {
             if (!hasSent) await claim.settle(Usd.from(0).toAmount())

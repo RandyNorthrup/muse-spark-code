@@ -1,6 +1,6 @@
 import { SpendLedgerError } from '../../paid/spendLedgerError'
 import type { SpendClaim } from '../../paid/spendClaim'
-// C-M101-1: paid consent and, under a person-set daily limit (D121), per-attempt
+// C-M101-1: paid consent and, under a person-set daily limit (D208), per-attempt
 // daily claims shared by editor and runtime.
 import { Usd, type UsdAmount } from '../../../shared/usd'
 import { MODEL_API_PRICES_PER_MILLION, TOKENS_PER_MILLION } from '../../../shared/constants'

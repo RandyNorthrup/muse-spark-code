@@ -1104,7 +1104,7 @@ export function App({
         }
       },
       // A foreign estimate failure the panel already said in words keeps its
-      // kind past the panel through the host log (D119), like any other
+      // kind past the panel through the host log (D207), like any other
       // rejected webview promise.
       report: (error) => {
         postMessage(webviewErrorReport('promise', error))

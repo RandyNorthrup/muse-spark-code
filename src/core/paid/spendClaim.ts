@@ -1,4 +1,4 @@
-// One call admitted under a spending limit the person set (PLAN.md D121).
+// One call admitted under a spending limit the person set (PLAN.md D208).
 // Nothing is held for it: before each send the limit is compared with what
 // was already spent plus this call's estimate, and once the call ends its
 // real cost, from the usage the provider reported, is added. A call that went
@@ -44,7 +44,7 @@ export function paidExtraAdmission(
 }
 
 /**
-D121 for a schedule fire with no shared daily limit: the fire still
+D208 for a schedule fire with no shared daily limit: the fire still
 settles its accounting through a claim, but the claim enforces nothing.
 Paid consent always carries a shared budget, so this covers only the
 limit the person never set.
@@ -61,7 +61,7 @@ export function passthroughSpendClaim(costUsd: UsdAmount, signal: AbortSignal): 
 
 /**
 A schedule fire against the person's own per-schedule caps (consent,
-schedule and grant daily caps, PLAN.md D121): the same day pool the
+schedule and grant daily caps, PLAN.md D208): the same day pool the
 shared cap enforces, compared with the tighter own bound. Only person-set
 positive caps bind; with none, or nothing over, it returns quietly.
 */

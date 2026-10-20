@@ -66,7 +66,7 @@ describe('accepted remedies and sent output caps', () => {
     expect(
       Usd.from(reserveForOutput(request.max_output_tokens)).compare(Usd.from(23)),
     ).toBeGreaterThan(0)
-    // D121: any cap the person sets admits, so the raise remedy always names
+    // D208: any cap the person sets admits, so the raise remedy always names
     // the admitting cap; the fitting output cap below is the smaller remedy.
     expect(details.admitCapUsd).toBe(
       Usd.from(reserveForOutput(request.max_output_tokens)).ceiling(2).toAmount(),
@@ -128,7 +128,7 @@ describe('accepted remedies and sent output caps', () => {
   })
   it('an input too large for the budget still names the admitting cap', () => {
     const { details, reserveForOutput } = quote(5_000_000, 32_768)
-    // D121: no spend cap of ours makes any input unadmittable — the remedy
+    // D208: no spend cap of ours makes any input unadmittable — the remedy
     // names the cap that admits, even past the model's own output limit.
     expect(details).toMatchObject({
       inputAloneExceeds: true,
