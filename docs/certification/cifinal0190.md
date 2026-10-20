@@ -73,3 +73,16 @@ from SWALLOW to GENERIC, and `clearMarker` copied two catch sites. The
 governor sites went back to their accepted form and the journal's marker
 removals share one method; no count rose, so the baseline was regenerated
 (615a0ae396).
+
+## 6. Two Windows timing failures on 6d580d2cdf
+
+- `questionDeferLongWait.test.ts` (lane NOLIMITSQ) waited a fixed 50 ms for
+  the registry's file-store work after each timer piece; a loaded Windows
+  runner finished later, and the deferral read as missing. The test now
+  waits on the registry's own events (a timer armed, a deferral delivered,
+  a change published), never on a clock of ours. 3/3 green locally.
+- Integration `schedule background entry in the real host`: its teardown
+  hit `ENOTEMPTY` removing the governor folder right after disposal. Every
+  recursive removal in `test/integration` now uses `removeFolder`, the
+  retrying removal the unit suites use, instead of fixing them one flake at
+  a time.
