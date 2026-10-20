@@ -8,6 +8,7 @@ import { rawBytesFingerprint } from '../verify/fingerprint'
 import {
   closeSync,
   constants,
+  existsSync,
   fstatSync,
   lstatSync,
   openSync,
@@ -17,7 +18,9 @@ import {
   type BigIntStats,
 } from 'node:fs'
 import path from 'node:path'
+import { brotliDecompressSync } from 'node:zlib'
 import {
+  LEGAL_ARCHIVE_MAX_BYTES,
   LEGAL_DIRECTORY_ENTRIES_MAX,
   LEGAL_FILE_MAX_BYTES,
   LEGAL_HASH_FILE_MAX_BYTES,
@@ -42,14 +45,65 @@ and `dist/` share.
 export const PINNED_LEGAL_DATA_DIRECTORY = path.join(__dirname, 'legal-data')
 
 /**
-Read one pinned data file's bytes, read-only and without following a
-final link, bounded like a workspace file. `undefined` when it is
-missing, a link, oversized or unreadable; the caller fails closed.
+The solid brotli archive the packagers write beside the loose directory
+(`dist/legal-data.json.br`, VSIXFIT A): every pinned template and word
+list by its relative path, so the near-identical GPL/LGPL/AGPL pairs
+compress as one run instead of per-member deflate. The caller still
+checks each member's SHA-256 against `provenance.json`, so the archive
+is only transport: a missing, damaged or unreadable archive or member
+reads absent exactly as a missing file does.
 */
-export function readPinnedLegalData(
-  relativePath: string,
-  directory: string = PINNED_LEGAL_DATA_DIRECTORY,
-): Uint8Array | undefined {
+const LEGAL_DATA_ARCHIVE_FILE = 'legal-data.json.br'
+const LEGAL_DATA_ARCHIVE_VERSION = 1
+
+/** The packaged archive beside `directory`, when the stage carries one. */
+function legalDataArchivePath(directory: string): string {
+  return path.join(path.dirname(directory), LEGAL_DATA_ARCHIVE_FILE)
+}
+
+/**
+One member's exact bytes from the packaged archive: bound the compressed
+read and the decoded form through LEGAL_ARCHIVE_MAX_BYTES, then the
+decoded member through LEGAL_FILE_MAX_BYTES. Anything unexpected —
+missing or oversized file, bad brotli, malformed JSON, unknown version,
+missing member — throws to the reader's fail-closed handler.
+*/
+function readArchivedLegalData(relativePath: string, directory: string): Uint8Array | undefined {
+  const archive = legalDataArchivePath(directory)
+  if (lstatSync(archive).isSymbolicLink()) return undefined
+  const fd = openSync(
+    archive,
+    constants.O_RDONLY | (Object.hasOwn(constants, 'O_NOFOLLOW') ? constants.O_NOFOLLOW : 0),
+  )
+  try {
+    const held = fstatSync(fd)
+    if (!held.isFile() || held.size > LEGAL_ARCHIVE_MAX_BYTES) return undefined
+    const packed = Buffer.alloc(held.size)
+    if (readSync(fd, packed) !== held.size) return undefined
+    const text = brotliDecompressSync(packed, {
+      maxOutputLength: LEGAL_ARCHIVE_MAX_BYTES,
+    }).toString('utf8')
+    const parsed: unknown = JSON.parse(text)
+    if (typeof parsed !== 'object' || parsed === null) return undefined
+    const version: unknown = Reflect.get(parsed, 'version')
+    const files: unknown = Reflect.get(parsed, 'files')
+    if (version !== LEGAL_DATA_ARCHIVE_VERSION || typeof files !== 'object' || files === null)
+      return undefined
+    // Windows checkouts join with `\`; the archive keys stay posix, as the
+    // packager writes them, so the lookup normalises before comparing.
+    // Members are exact UTF-8 text (the packager refuses anything else),
+    // so decoding restores the pinned bytes byte-for-byte.
+    const encoded: unknown = Reflect.get(files, relativePath.replaceAll('\\', '/'))
+    if (typeof encoded !== 'string') return undefined
+    const member = Buffer.from(encoded, 'utf8')
+    return member.byteLength <= LEGAL_FILE_MAX_BYTES ? member : undefined
+  } finally {
+    closeSync(fd)
+  }
+}
+
+/** One loose member's exact bytes, read-only and without following a final link. */
+function readLooseLegalData(relativePath: string, directory: string): Uint8Array | undefined {
   const absolute = path.join(directory, ...relativePath.split('/'))
   if (!isWithin(directory, absolute)) return undefined
   let fd: number | undefined
@@ -63,10 +117,34 @@ export function readPinnedLegalData(
     if (!held.isFile() || held.size > LEGAL_FILE_MAX_BYTES) return undefined
     const bytes = Buffer.alloc(held.size)
     return readSync(fd, bytes) === held.size ? bytes : undefined
-  } catch {
-    return undefined
   } finally {
     if (fd !== undefined) closeSync(fd)
+  }
+}
+
+/**
+Read one pinned data file's bytes, bounded like a workspace file.
+`undefined` when it is missing, a link, oversized or unreadable; the
+caller fails closed. When the packaged archive is present beside the
+module, the member's bytes come from it; otherwise the loose directory
+(the source tree and dev builds). Every throw below — archive or loose —
+lands here and reads absent.
+*/
+export function readPinnedLegalData(
+  relativePath: string,
+  directory: string = PINNED_LEGAL_DATA_DIRECTORY,
+): Uint8Array | undefined {
+  try {
+    // existsSync never throws: false means the stage carries no archive
+    // (the source tree and dev builds), and the loose directory serves. A
+    // present archive answers from the archive only — readArchivedLegalData
+    // still refuses links, bounds both reads and fails closed — so a
+    // damaged archive never falls back to loose members.
+    return existsSync(legalDataArchivePath(directory))
+      ? readArchivedLegalData(relativePath, directory)
+      : readLooseLegalData(relativePath, directory)
+  } catch {
+    return undefined
   }
 }
 
