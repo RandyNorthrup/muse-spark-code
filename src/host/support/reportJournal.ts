@@ -232,6 +232,13 @@ export interface ReportJournalOptions {
   readonly now?: () => number
   /** Whether a process id is still running; a dead marker owner means a crash. */
   readonly isAlive: (pid: number) => boolean
+  /**
+  Whether `pid` now names a process born after `at` (the marker's own
+  time): the system gave the id to someone else, so the marker's window is
+  gone. Windows hands ids out again quickly; without this a marker whose
+  id was reused stayed forever. Absent reads as never reused.
+  */
+  readonly isReusedAfter?: (pid: number, at: number) => Promise<boolean>
   readonly fs?: ReportJournalFs
 }
 
@@ -292,6 +299,7 @@ export class ReportJournal {
   private readonly pid: number
   private readonly instance: string
   private readonly isAlive: (pid: number) => boolean
+  private readonly isReusedAfter: (pid: number, at: number) => Promise<boolean>
   private readonly log: Logger
   private readonly vaultScrub: SecretScrubPort | undefined
   private tail: Promise<void> = Promise.resolve()
@@ -321,6 +329,7 @@ export class ReportJournal {
     this.pid = options.pid
     this.instance = options.instance
     this.isAlive = options.isAlive
+    this.isReusedAfter = options.isReusedAfter ?? (() => Promise.resolve(false))
     this.log = options.log
     this.vaultScrub = options.vaultScrub
   }
@@ -456,7 +465,12 @@ export class ReportJournal {
               }
               // A live window's marker stays: only a consumed stale marker
               // produces an offer, so a second live window is never a crash.
-              if (!isStaleMarker(marker, this.instance, this.isAlive)) continue
+              // A live id born after the marker is someone else's process.
+              const isGone =
+                isStaleMarker(marker, this.instance, this.isAlive) ||
+                (marker.instance !== this.instance &&
+                  (await this.isReusedAfter(marker.pid, marker.at)))
+              if (!isGone) continue
               await this.store.remove(file)
               isOfferReport = true
             } catch (error: unknown) {
@@ -604,6 +618,26 @@ export class ReportJournal {
         skipped,
       }
     })
+  }
+
+  /**
+  The editor asked this window to stop: clear its marker at once, before
+  the rest of the shutdown runs, because the editor ends the extension
+  host on its own clock and a stop it cuts short is no crash. Recording
+  continues until shutdown. Never throws.
+  */
+  public async clearMarker(): Promise<void> {
+    try {
+      await this.enqueue(async () => {
+        try {
+          await this.store.remove(this.ownMarker)
+        } catch (error: unknown) {
+          if (!isMissingPath(error)) this.disable(error)
+        }
+      })
+    } catch (error: unknown) {
+      this.disable(error)
+    }
   }
 
   /** Clear only this activation's marker on deactivate. Never throws. */

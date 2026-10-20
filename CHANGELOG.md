@@ -289,6 +289,12 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- "Muse Spark Code stopped unexpectedly last time — report it?" no longer
+  appears after an ordinary close. The window's crash marker is cleared as
+  soon as VS Code asks the extension to stop, instead of after a shutdown
+  VS Code cuts short; and on Windows and macOS a marker whose process id now
+  belongs to a newer process is recognised as left over instead of being
+  kept forever.
 - On Windows the vault starts inside VS Code. VS Code runs extensions from
   its own install folder, so the editor's own runtime read as a program
   planted in a workspace and the vault's broker was never launched: the
