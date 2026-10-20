@@ -491,7 +491,8 @@ Releases and npm.
   addresses, raced as RFC 8305 says (TLS verifies the name); through a proxy
   the tunnel is asked for that address, and only an answer that arrived over
   TLS is read. Same-host redirects are checked and pinned again on every
-  hop until the fetch's deadline (30 seconds); another host's is handed
+  hop, with no deadline of ours: the fetch waits until the page answers or
+  Stop ends the wait, saying how long it has waited; another host's is handed
   back to the model, which asks again. At most 5 MiB of decompressed body
   is ever buffered per page (a caller-named smaller ingress cap still
   refuses past itself); past the window the stream stops and the page
