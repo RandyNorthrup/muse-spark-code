@@ -668,7 +668,9 @@ export class VaultChannelServer {
       try {
         buffer = Buffer.concat([previous, bytes])
       } finally {
+        // This listener is the chunk's only reader: once copied, it is wiped.
         previous.fill(0)
+        bytes.fill(0)
       }
       drain()
     })

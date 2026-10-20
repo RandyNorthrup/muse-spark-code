@@ -391,62 +391,100 @@ internal static class MuseSparkVaultPipe
         Array.Clear(buffer, 0, buffer.Length);
         RemoveConnection(connection.Id, true);
     }
+    // One owner-only instance of the pipe. Only the first may fail as
+    // squatted: it carries FILE_FLAG_FIRST_PIPE_INSTANCE, so a pipe of that
+    // name that already exists is another process's.
+    private static SafePipeHandle CreateInstance(string pipe, bool first)
+    {
+        var security = new SecurityAttributes();
+        IntPtr descriptor = IntPtr.Zero;
+        uint length;
+        try
+        {
+            if (!ConvertStringSecurityDescriptorToSecurityDescriptor(
+                "O:" + OwnerSid + "G:" + OwnerSid + "D:P(A;;GA;;;" + OwnerSid + ")", 1, out descriptor, out length))
+                throw new InvalidOperationException();
+            security.Length = Marshal.SizeOf(typeof(SecurityAttributes));
+            security.Descriptor = descriptor;
+            security.Inherit = false;
+            // Overlapped, so a connection's waiting read never holds back its
+            // writes: synchronous calls on one handle run one at a time, and an
+            // answer could never leave while the read waits for the client.
+            uint openMode = PipeAccessDuplex | FileFlagOverlapped;
+            if (first) openMode |= FileFlagFirstPipeInstance;
+            SafePipeHandle handle = CreateNamedPipe(pipe, openMode, PipeTypeByte | PipeReadmodeByte | PipeRejectRemoteClients,
+                PipeUnlimitedInstances, PipeBufferBytes, PipeBufferBytes, 0, ref security);
+            if (handle == null || handle.IsInvalid)
+            {
+                int error = Marshal.GetLastWin32Error();
+                if (handle != null) handle.Dispose();
+                if (first && (error == (int)ErrorAccessDenied || error == (int)ErrorPipeBusy))
+                {
+                    WriteFrame(Fault, 0, Encoding.UTF8.GetBytes("\"squatted\""));
+                    Console.Error.WriteLine("vault-pipe-fault squatted");
+                    Environment.Exit(1);
+                }
+                throw new InvalidOperationException();
+            }
+            return handle;
+        }
+        finally { if (descriptor != IntPtr.Zero) LocalFree(descriptor); }
+    }
     private static void AcceptLoop(string pipe)
     {
         bool first = true;
+        SafePipeHandle next = null;
         for (;;)
         {
             lock (TableLock) { if (Shutdown) return; }
-            var security = new SecurityAttributes();
-            IntPtr descriptor = IntPtr.Zero;
-            uint length;
             SafePipeHandle handle = null;
             try
             {
-                if (!ConvertStringSecurityDescriptorToSecurityDescriptor(
-                    "O:" + OwnerSid + "G:" + OwnerSid + "D:P(A;;GA;;;" + OwnerSid + ")", 1, out descriptor, out length))
-                    throw new InvalidOperationException();
-                security.Length = Marshal.SizeOf(typeof(SecurityAttributes));
-                security.Descriptor = descriptor;
-                security.Inherit = false;
-                // Overlapped, so a connection's waiting read never holds back its
-                // writes: synchronous calls on one handle run one at a time, and an
-                // answer could never leave while the read waits for the client.
-                uint openMode = PipeAccessDuplex | FileFlagOverlapped;
-                if (first) openMode |= FileFlagFirstPipeInstance;
-                handle = CreateNamedPipe(pipe, openMode, PipeTypeByte | PipeReadmodeByte | PipeRejectRemoteClients,
-                    PipeUnlimitedInstances, PipeBufferBytes, PipeBufferBytes, 0, ref security);
-                if (handle == null || handle.IsInvalid)
+                if (next == null)
                 {
-                    int error = Marshal.GetLastWin32Error();
-                    if (first && (error == (int)ErrorAccessDenied || error == (int)ErrorPipeBusy))
+                    next = CreateInstance(pipe, first);
+                    if (first)
                     {
-                        WriteFrame(Fault, 0, Encoding.UTF8.GetBytes("\"squatted\""));
-                        Console.Error.WriteLine("vault-pipe-fault squatted");
-                        Environment.Exit(1);
+                        bool ownerOnly = IsOwnerOnlyPipe(next);
+                        var ready = new Dictionary<string, object>
+                        { { "v", RelayVersion }, { "pipe", pipe }, { "ownerSid", OwnerSid } };
+                        if (!ownerOnly)
+                        {
+                            WriteFrame(Fault, 0, Encoding.UTF8.GetBytes("\"integrity\""));
+                            Console.Error.WriteLine("vault-pipe-fault integrity");
+                            Environment.Exit(1);
+                        }
+                        WriteFrame(Ready, 0, Encoding.UTF8.GetBytes(Json.Serialize(ready)));
+                        first = false;
                     }
-                    throw new InvalidOperationException();
                 }
-                if (first)
-                {
-                    bool ownerOnly = IsOwnerOnlyPipe(handle);
-                    var ready = new Dictionary<string, object>
-                    { { "v", RelayVersion }, { "pipe", pipe }, { "ownerSid", OwnerSid } };
-                    if (!ownerOnly)
-                    {
-                        WriteFrame(Fault, 0, Encoding.UTF8.GetBytes("\"integrity\""));
-                        Console.Error.WriteLine("vault-pipe-fault integrity");
-                        Environment.Exit(1);
-                    }
-                    WriteFrame(Ready, 0, Encoding.UTF8.GetBytes(Json.Serialize(ready)));
-                    first = false;
-                }
+                handle = next;
+                next = null;
                 // The async stream owns the instance from here and waits for its
                 // client (an overlapped handle needs an overlapped connect).
                 var listening = new NamedPipeServerStream(PipeDirection.InOut, true, false, handle);
                 lock (TableLock) { ListenHandle = handle; }
-                listening.WaitForConnection();
+                bool connected;
+                // A client that connected and already closed before the wait
+                // (ERROR_NO_DATA) leaves this instance nothing to serve.
+                try { listening.WaitForConnection(); connected = true; }
+                catch (IOException) { connected = false; }
                 lock (TableLock) { ListenHandle = null; }
+                // The next instance exists before this one can be released, so the
+                // pipe's name never vanishes between connections: a client never
+                // meets a missing pipe while the broker runs (an instance released
+                // before the next existed left none, and a client dialing then
+                // failed with ENOENT), and no other process can create a first
+                // instance of it. A failed creation is retried at the top of the
+                // loop while this instance still holds the name.
+                try { next = CreateInstance(pipe, false); }
+                catch (InvalidOperationException) { next = null; }
+                if (!connected)
+                {
+                    listening.Dispose();
+                    handle = null;
+                    continue;
+                }
                 int simultaneous;
                 lock (TableLock) { simultaneous = Connections.Count; }
                 if (simultaneous >= MaxConnections)
@@ -488,7 +526,6 @@ internal static class MuseSparkVaultPipe
                 lock (TableLock) { if (Shutdown) return; }
                 Thread.Sleep(100);
             }
-            finally { if (descriptor != IntPtr.Zero) LocalFree(descriptor); }
         }
     }
 
@@ -596,8 +633,18 @@ internal static class MuseSparkVaultPipe
     private static void OnSend(int id, byte[] payload)
     {
         Connection connection;
-        lock (TableLock) { Connections.TryGetValue(id, out connection); }
-        if (connection == null) throw new InvalidDataException();
+        bool opened;
+        lock (TableLock) { Connections.TryGetValue(id, out connection); opened = id <= NextId; }
+        if (connection == null)
+        {
+            // Ids are never reused, so only an id never opened is a protocol
+            // fault. One that ended (its client went away; the End frame is
+            // sent or on its way) drops the broker's late bytes: an answer or
+            // watch event crossing the client's close used to fault the whole
+            // helper, and every connection and the pipe with it.
+            if (!opened) throw new InvalidDataException();
+            return;
+        }
         lock (connection.WriteLock)
         {
             lock (connection) { if (connection.Closed) return; }

@@ -42,8 +42,8 @@ import {
   type WindowsVaultPipeHelper,
 } from '../../core/vault/broker/windowsPipe'
 import type { VaultPrivateFilesPort, VaultFileWriter } from '../../core/vault/broker/files'
-import { privateFileWriter } from '../../core/vault/broker/files'
-import { collectSlotChunk, drainSlotStderr, watchSlotChildErrors } from './slots/slotChild'
+import { isVaultFileMissing, privateFileWriter } from '../../core/vault/broker/files'
+import { drainSlotStderr, watchSlotChildErrors } from './slots/slotChild'
 import { spawnGuardedVaultHelper, type WindowsVaultExecutable } from './slots/windowsVaultTransport'
 
 /** A new random pipe name per broker start, published only in the owner-only lock file. */
@@ -189,19 +189,32 @@ export class PipeRelay {
     }
   }
 
+  /** The first `count` buffered bytes, copied across chunk boundaries. */
+  private peek(count: number): Buffer {
+    const head = Buffer.alloc(count)
+    let offset = 0
+    for (const chunk of this.chunks) {
+      if (offset >= count) break
+      offset += chunk.copy(head, offset, 0, Math.min(chunk.length, count - offset))
+    }
+    return head
+  }
+
   private drain(): void {
     for (;;) {
-      const buffered = this.chunks.reduce((sum, part) => sum + part.length, 0)
-      if (buffered < WINDOWS_VAULT_PIPE_HEADER_BYTES) return
-      const flat = Buffer.concat(this.chunks)
-      const type = flat.readUInt8(0)
-      const id = flat.readUInt32BE(WINDOWS_VAULT_PIPE_ID_OFFSET)
-      const length = flat.readUInt32BE(WINDOWS_VAULT_PIPE_LENGTH_OFFSET)
+      if (this.size < WINDOWS_VAULT_PIPE_HEADER_BYTES) return
+      const header = this.peek(WINDOWS_VAULT_PIPE_HEADER_BYTES)
+      const type = header.readUInt8(0)
+      const id = header.readUInt32BE(WINDOWS_VAULT_PIPE_ID_OFFSET)
+      const length = header.readUInt32BE(WINDOWS_VAULT_PIPE_LENGTH_OFFSET)
       if (length > WINDOWS_VAULT_PIPE_MAX_PAYLOAD) {
         this.fail(new Error(UI_TEXT.vault.noAccess))
         return
       }
-      if (flat.length < WINDOWS_VAULT_PIPE_HEADER_BYTES + length) return
+      // Only a complete frame is flattened: an incomplete one waits in its
+      // chunks, never in a copy left behind unwiped.
+      if (this.size < WINDOWS_VAULT_PIPE_HEADER_BYTES + length) return
+      const flat = Buffer.concat(this.chunks)
       for (const chunk of this.chunks) chunk.fill(0)
       // Copy before clearing: rest views flat's bytes, and dispatch runs below.
       const payload = Buffer.from(
@@ -229,7 +242,11 @@ export class PipeRelay {
         case WINDOWS_VAULT_PIPE_FRAME.data: {
           const connection = this.connections.get(id)
           if (!connection || this.mode !== 'serve') throw new Error(UI_TEXT.vault.noAccess)
-          if (!connection.push(payload)) {
+          // The stream keeps a pushed chunk by reference until the channel
+          // reads it (a connection paused until its peer is verified, or
+          // not yet read once, buffers it), so it gets its own copy: the
+          // payload is wiped below, and the channel wipes the copy once read.
+          if (!connection.push(Buffer.from(payload))) {
             /* The channel applies backpressure; the helper's pipe buffers. */
           }
           return
@@ -372,9 +389,13 @@ export class PipeRelay {
       chunk.fill(0)
       return
     }
-    this.size = collectSlotChunk(this.chunks, this.size, chunk, () => {
-      this.fail(new Error(UI_TEXT.vault.noAccess))
-    })
+    // A relay frame carries up to one channel frame (4 MiB), and the drain
+    // refuses any header that declares more, so the buffer never holds more
+    // than one frame and the chunk completing it. The slot helpers' bound
+    // (one wrapped key) failed the relay, and with it every connection, on
+    // the first request past 4 KiB or on answers arriving together.
+    this.chunks.push(chunk)
+    this.size += chunk.length
     this.drain()
   }
   awaitReady(): Promise<void> {
@@ -626,10 +647,19 @@ export class WindowsVaultPrivateFiles implements VaultPrivateFilesPort {
     }
   }
   writer(path: string): VaultFileWriter {
-    // Synchronous interface, so the one helper round trip it needs runs
-    // synchronously: a one-shot files-mode verify of the digest-pinned
-    // executable, never the guarded PowerShell chain.
-    verifyWindowsVaultFileSync(this.helperFile, path)
+    // Synchronous interface, so each helper round trip it needs runs
+    // synchronously: a one-shot files-mode command of the digest-pinned
+    // executable, never the guarded PowerShell chain. Opened or created,
+    // like the POSIX writer (O_APPEND | O_CREAT): a missing file (the audit
+    // log before its first record) is created exclusively and protected,
+    // then opened like any verified file.
+    try {
+      windowsVaultFileCommandSync(this.helperFile, 'verify', path)
+    } catch (error: unknown) {
+      if (!isVaultFileMissing(error)) throw error
+      closeSync(openSync(path, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL))
+      windowsVaultFileCommandSync(this.helperFile, 'protect', path)
+    }
     let descriptor: number | null = openSync(path, 'a')
     const sample = fstatSync(descriptor)
     if (!sample.isFile()) {
@@ -659,22 +689,31 @@ export class WindowsVaultPrivateFiles implements VaultPrivateFilesPort {
   }
 }
 
-/**
-One synchronous helper round trip for the synchronous writer: the mode
-line plus one `verify` file frame into the digest-pinned executable,
-answered before the timeout. Anything else fails closed.
-*/
 function pipeRefused(): Error {
   return new Error(UI_TEXT.vault.noAccess)
 }
 
+/** The synchronous owner-only check of one existing file (a missing one is ENOENT). */
 export function verifyWindowsVaultFileSync(helperFile: string, path: string): void {
+  windowsVaultFileCommandSync(helperFile, 'verify', path)
+}
+
+/**
+One synchronous helper round trip for the synchronous writer: the mode
+line plus one `protect` or `verify` file frame into the digest-pinned
+executable, answered before the timeout. Anything else fails closed.
+*/
+function windowsVaultFileCommandSync(
+  helperFile: string,
+  command: 'protect' | 'verify',
+  path: string,
+): void {
   const id = 1
   const frame = Buffer.from(
     JSON.stringify({
       v: WINDOWS_VAULT_PIPE_RELAY_VERSION,
       id,
-      command: 'verify',
+      command,
       kind: 'file',
       path,
     }),

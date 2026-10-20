@@ -131,12 +131,22 @@ public static class VaultPathGuard
     }
     private static SafeFileHandle Hold(string name, bool strict, bool directory)
     {
+        return Hold(name, strict, directory, false);
+    }
+    private static SafeFileHandle Hold(string name, bool strict, bool directory, bool shareWrite)
+    {
         // FILE_LIST_DIRECTORY makes directory handles participate in sharing checks; metadata-only opens do not.
-        // A file is held against writers only: delete sharing lets the owner
-        // publish or retire a record (a link, a rename, a delete) while another
-        // process checks it, instead of refusing that check. The hold ends with
-        // the check, so it pins nothing a delete could take away.
-        var handle = CreateFile(name, ReadControl | (directory ? 0x81u : 0x80000000u), directory ? 3u : 5u, IntPtr.Zero, OpenExisting, OpenReparse | BackupSemantics, IntPtr.Zero);
+        // A file is held against writers unless the caller shares writing:
+        // delete sharing lets the owner publish or retire a record (a link, a
+        // rename, a delete) while another process checks it, instead of
+        // refusing that check. The hold ends with the check, so it pins
+        // nothing a delete could take away. Only a launch keeps writers out
+        // (the binary it hashes must not change before it starts); a file
+        // check reads the owner, DACL and attributes, which no writer can
+        // change, so it shares writing with the owner's own open writer (the
+        // audit log appends through one while its reads are checked).
+        uint share = directory ? 3u : (shareWrite ? 7u : 5u);
+        var handle = CreateFile(name, ReadControl | (directory ? 0x81u : 0x80000000u), share, IntPtr.Zero, OpenExisting, OpenReparse | BackupSemantics, IntPtr.Zero);
         if (handle.IsInvalid)
         {
             int error = Marshal.GetLastWin32Error();
@@ -205,7 +215,7 @@ public static class VaultPathGuard
                 security.AddAccessRule(new FileSystemAccessRule(owner, FileSystemRights.FullControl, AccessControlType.Allow));
                 File.SetAccessControl(target, security);
             }
-            using (Hold(target, true, directory)) { }
+            using (Hold(target, true, directory, true)) { }
         }
         catch (FileNotFoundException) { throw; }
         catch (DirectoryNotFoundException) { throw new FileNotFoundException(); }
@@ -216,7 +226,7 @@ public static class VaultPathGuard
     public static void Verify(string target, bool directory)
     {
         var held = Parents(target);
-        try { using (Hold(target, true, directory)) { } }
+        try { using (Hold(target, true, directory, true)) { } }
         catch (FileNotFoundException) { throw; }
         catch (DirectoryNotFoundException) { throw new FileNotFoundException(); }
         catch (IOException) { throw new InvalidDataException(); }
