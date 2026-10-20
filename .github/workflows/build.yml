@@ -222,6 +222,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The VSIX recompression suite needs the pinned Zopfli (VSIXFIT B):
+      # the compressor refuses to run without it, on every shard that
+      # reaches it.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - run: pip install -r .github/vsix-compress/requirements.txt
       # The vault broker fixtures compile muse-created through the product's
       # own build script, which links -lcrypto: the same package the native
       # job installs below.
@@ -789,6 +796,12 @@ jobs:
       # the packaged extension embeds their exact digests; unset pins fail.
       - run: node scripts/build-linux-helper-pins.mjs native/linux/x64 native/linux/arm64
       - run: node scripts/check-linux-helper-pins.mjs --require-values
+      # The .vsix recompressor needs the pinned Zopfli (VSIXFIT B): without
+      # it packaging fails rather than falling back to zlib level 9.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - run: pip install -r .github/vsix-compress/requirements.txt
       # One production build for every target; each target is packed from
       # its own filtered stage (PLAN.md D209, no universal package ships).
       - run: npm run build
