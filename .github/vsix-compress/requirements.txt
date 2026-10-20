@@ -1,0 +1,7 @@
+# The Zopfli compressor the VSIX `packages` steps pin (scripts/compress-vsix.py).
+# Pinned so the recompressor itself changes only in a reviewed pull request;
+# Dependabot's pip entry proposes each new release (PLAN.md D6, VSIXFIT B).
+# A build tool, never shipped: it rewrites each .vsix member with Zopfli
+# raw-deflate streams (stored for already-brotli members) and refuses to
+# pack without it rather than falling back to zlib level 9.
+zopfli==0.4.3
