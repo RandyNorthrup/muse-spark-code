@@ -132,6 +132,11 @@ describe('acquireCredentialLock', () => {
     // write one now): the contender's first read sees nothing.
     await mkdir(dir, { recursive: false })
     const attempt = acquireCredentialLock(dir)
+    // Observe the refusal from this tick: the contender rejects during the
+    // settle while the record write below is still in flight, and a later
+    // `expect` alone leaves that rejection unhandled (an unhandled rejection
+    // fails the shard even when every test passes).
+    const refusal = expect(attempt).rejects.toBeInstanceOf(CredentialLockBusyError)
     await writeFile(
       path.join(dir, 'owner.json'),
       JSON.stringify({
@@ -140,7 +145,7 @@ describe('acquireCredentialLock', () => {
         nonce: 'holder',
       }),
     )
-    await expect(attempt).rejects.toBeInstanceOf(CredentialLockBusyError)
+    await refusal
     await rm(dir, { recursive: true, force: true })
   })
 
