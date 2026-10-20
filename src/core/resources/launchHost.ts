@@ -180,15 +180,15 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     const previous = this.snapshot
     try {
       if (this.status() === previous?.status) return
-    } catch (error: unknown) {
-      this.options.onError(error)
+    } catch {
+      this.options.onError()
       return
     }
     for (const listener of this.statusListeners) {
       try {
         listener()
-      } catch (error: unknown) {
-        this.options.onError(error)
+      } catch {
+        this.options.onError()
       }
     }
   }
@@ -346,7 +346,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       work.ticket = undefined
       work.usage = undefined
       work.samplerCause = samplerCauseOf(error)
-      this.options.onError(error)
+      this.options.onError()
     }
   }
 
