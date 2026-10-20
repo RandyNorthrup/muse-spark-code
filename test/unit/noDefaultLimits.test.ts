@@ -299,13 +299,32 @@ describe('no default limits: media upload and screen recording', () => {
     expect(
       checkMediaLimits(bigVideo, { maxUploadBytes: 200 * 1024 * 1024, maxDurationSeconds: 120 }),
     ).toEqual({ ok: false, reason: expect.any(String) })
+  })
+
+  // D121: no floor and no ceiling of ours on the person's recording length.
+  // The setting reads it as set and the recorder options carry it unchanged.
+  it.each([5, 3600])('takes a set recording length of %i seconds as set', (seconds) => {
+    const warnings: string[] = []
+    const read = readSettings(
+      settingSource({ screenRecordingMaxSeconds: seconds }),
+      silentLog(warnings),
+    )
+    expect(read.screenRecordingMaxSeconds).toBe(seconds)
+    expect(warnings).toHaveLength(0)
     expect(
-      screenRecordingOptionsSchema.safeParse({
-        maxSeconds: 5,
+      screenRecordingOptionsSchema.parse({
+        maxSeconds: read.screenRecordingMaxSeconds,
         microphone: false,
         systemAudio: false,
-      }).success,
-    ).toBe(false)
+      }),
+    ).toEqual({ maxSeconds: seconds, microphone: false, systemAudio: false })
+    expect(
+      mediaLimitsFromSettings({
+        mediaMaxUploadMiB: 0,
+        screenRecordingMaxSeconds: read.screenRecordingMaxSeconds,
+        mediaAudioAction: 'transcribe',
+      }),
+    ).toEqual({ maxDurationSeconds: seconds })
   })
 })
 

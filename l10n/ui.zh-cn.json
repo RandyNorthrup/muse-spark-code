@@ -957,7 +957,7 @@
     "recordingRemote": "此窗口在没有本地屏幕的远程主机上运行。请使用配套页面或选择录制文件。",
     "recordingBrowserUnsupported": "{browser} 无法录制 mp4。请选择 mp4 录制文件。",
     "recordingUserOnly": "只有交互式用户可以开始屏幕录制。",
-    "recordingNoRecent": "未找到最近的屏幕录制。",
+    "recordingNotFound": "在 {folders} 中未找到屏幕录制。",
     "recorderUnavailable": "此主机上没有可用的屏幕录制工具。",
     "attachHeadless": "无头运行已拒绝：请改用 --attach 传递文件。",
     "uploadStorageUnknown": "此版本暂不支持视频和音频上传：生产环境上传与转录绑定尚未就绪。",

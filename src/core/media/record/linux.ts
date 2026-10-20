@@ -6,11 +6,11 @@ import {
   MEDIA_FILE_ID_MIN_BYTES,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   MILLISECONDS_PER_SECOND,
-  SCREEN_RECORDING_RECENT_MAX_AGE_MS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { mediaInfoSchema, screenRecordingOptionsSchema } from '../../../shared/media'
+import { recordingNotFound } from './driver'
 import type {
   ScreenRecordingDriver,
   ScreenRecordingOptions,
@@ -409,13 +409,19 @@ function recordingRun(
 
 export interface LatestRecordingPort {
   /** The OS recordings locations: Linux Videos roots, Windows Screen
-  Recordings, or the macOS Desktop default. The host factory sets them. */
+  Recordings and Captures, or the macOS Desktop default. The host factory
+  sets them. */
   readonly roots: readonly string[]
+  /**
+  The person's names for those locations (`Videos\Screen Recordings`,
+  `Desktop`), never a profile path: the not-found sentence names them.
+  */
+  readonly places: readonly string[]
   /**
   An extra per-platform file-name gate for a general-purpose directory:
   macOS scans the Desktop, so only Screenshot names qualify. Absent means
-  every recent media file qualifies (Linux Videos, Windows Screen
-  Recordings are dedicated recordings folders).
+  every media file qualifies (Linux Videos, Windows Screen Recordings and
+  Captures are dedicated recordings folders).
   */
   readonly isRecordingFileName?: (fileName: string) => boolean
   /** Nonrecursive, confined regular files only; reject symlinks/special files. */
@@ -442,7 +448,12 @@ export function isWithinRecordingRoot(root: string, file: string): boolean {
   )
 }
 
-/** Explicit Attach latest action; never walks arbitrary home/workspace trees. */
+/**
+Explicit Attach latest action; never walks arbitrary home/workspace trees.
+D121: no age cutoff of ours. The newest recording across the roots wins,
+whatever its age (the preview shows the person what they attach); only a
+file dated in the future is refused.
+*/
 export async function findLatestRecording(
   port: LatestRecordingPort,
   now = Date.now(),
@@ -458,8 +469,7 @@ export async function findLatestRecording(
           isWithinRecordingRoot(root, file.path) &&
           /\.(?:mp4|mov|webm)$/iu.test(normalFile) &&
           (port.isRecordingFileName?.(fileName) ?? true) &&
-          file.modifiedAt <= now &&
-          now - file.modifiedAt <= SCREEN_RECORDING_RECENT_MAX_AGE_MS
+          file.modifiedAt <= now
         )
           candidates.push(file)
       }
@@ -469,7 +479,7 @@ export async function findLatestRecording(
   }
   candidates.sort((a, b) => b.modifiedAt - a.modifiedAt)
   const latest = candidates[0]
-  if (latest === undefined) return { ok: false, reason: UI_TEXT.media.recordingNoRecent }
+  if (latest === undefined) return { ok: false, reason: recordingNotFound(port.places) }
   try {
     const preview = await port.copyForPreview(
       latest.path,

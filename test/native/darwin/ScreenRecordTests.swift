@@ -118,8 +118,13 @@ func options(replacing flag: String, with value: String) throws -> ScreenRecordO
     return try ScreenRecordOptions(arguments: arguments)
 }
 
-for value in ["9", "601", "10.5"] {
+for value in ["-1", "10.5", "ten"] {
     refuses("duration \(value) is refused", code: .invalidOptions) { _ = try options(replacing: "--max-seconds", with: value) }
+}
+// D121: no floor and no ceiling of ours; a set length is used as set.
+for value in ["5", "3600"] {
+    let set = try options(replacing: "--max-seconds", with: value)
+    check(set.seconds == Int(value), "duration \(value) is used as set")
 }
 // D121: 0 records until stopped (no stop of ours); the product default.
 // Positive durations a person sets still bound the run (base uses 10).

@@ -233,7 +233,7 @@
   "command.deleteUploadedFiles.title": "删除已上传的文件…",
   "config.mediaMaxUploadMiB.description": "扩展打开的最大媒体文件，单位 MiB。除非自行设置，否则不限：默认为0，可打开任意大小；设置值没有上限。更大的文件将在读取前被拒绝。仅使用本机的设置。",
   "config.mediaUploadExpiryDays.description": "提供商上传在列表中保留、直到提供清理的天数。默认为 7；1–30。过期由提供商决定；仍被其他会话引用的上传永远不会被删除。仅使用本机的设置。",
-  "config.screenRecordingMaxSeconds.description": "扩展捕获的最长屏幕录制，以秒为单位。除非自行设置，否则不限：默认为0，会一直录制到停止；设置值须在10–600范围内。录制在达到设置上限时停止并保留已捕获的内容。仅使用本机的设置。",
+  "config.screenRecordingMaxSeconds.description": "扩展捕获的最长屏幕录制，以秒为单位。除非自行设置，否则不限：默认为0，会一直录制到停止；其他任何整数秒数按设置使用。录制在达到设置上限时停止并保留已捕获的内容。仅使用本机的设置。",
   "config.mediaAudioAction.description": "`transcribe` 在发送前将附加的音频转成文本；`sendAudio` 在模型接受时发送音频。默认为转录。转录按付费语音费率计费，且必先征得同意。仅使用本机的设置。",
   "config.mediaConverterPath.description": "本机将附加的音频和视频转换以供转写时所用 ffmpeg 的绝对路径。默认为空：只使用文档列出的安装位置（Windows 上为 Program Files 和 winget，macOS 上为 Homebrew 和 MacPorts，Linux 上为 /usr/bin 和 /usr/local/bin），从不使用 PATH。在此设置的路径是唯一候选：它必须通过可信路径检查，否则会拒绝转换并说明原因。启动器 shim 会被拒绝。只使用本机的设置。",
   "config.accountSwap.description": "为兼容性保留；此偏好设置在此构建中不起作用。",

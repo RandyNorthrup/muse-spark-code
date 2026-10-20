@@ -13,6 +13,7 @@ import { UI_TEXT } from '../../shared/constants'
 import type {
   LatestRecordingPlatformHost,
   WindowsPrivateDirectoryDeps,
+  WindowsRecordingFolders,
   WindowsVideosDeps,
 } from './recordingLatest'
 
@@ -33,7 +34,11 @@ export interface RecordingCommandDeps extends RecordingPreviewDeps {
   /** R1–R3's native binding. Absence is an explicit refusal. */
   readonly driver?: ScreenRecordingDriver
   readonly maxSeconds: number
-  readonly latest?: () => Promise<ScreenRecordingPreview | undefined>
+  /**
+  Attach Latest's discovery: the newest recording in the OS recorders'
+  folders, or the refusal that names where it looked (or why the copy failed).
+  */
+  readonly latest: () => Promise<ScreenRecordingResult>
   /**
   False once the conversation that started the recording cleared or
   closed: the bundle cancels the run instead of previewing it (M105 E1
@@ -49,7 +54,7 @@ export interface RecordingCommandDeps extends RecordingPreviewDeps {
 }
 
 export type LatestRecordingResolution =
-  | { readonly status: 'absent' }
+  | { readonly status: 'absent'; readonly reason: string }
   | { readonly status: 'ready'; readonly preview: ScreenRecordingPreview }
   | { readonly status: 'stale' }
 
@@ -57,14 +62,16 @@ export type LatestRecordingResolution =
 The latest-file branch's settlement, beside the driver branch's own
 checks: discovery ran, so liveness is rechecked now. A stale copy is
 disposed here and never previewed (nor, once admission is wired, attached
-to the replacement conversation). No `vscode` import, so unit tests drive
-it directly.
+to the replacement conversation). Nothing found keeps discovery's reason,
+which names the folders it searched. No `vscode` import, so unit tests
+drive it directly.
 */
 export async function resolveLatestRecording(
   deps: RecordingCommandDeps,
 ): Promise<LatestRecordingResolution> {
-  const preview = await deps.latest?.()
-  if (preview === undefined) return { status: 'absent' }
+  const found = await deps.latest()
+  if (!found.ok) return { status: 'absent', reason: found.reason }
+  const preview = found.preview
   if ((deps.isLive ?? (() => true))()) return { status: 'ready', preview }
   try {
     await preview.dispose()
@@ -90,10 +97,10 @@ interface ScreenRecordBundle {
     port: LatestRecordingPort,
     now?: number,
   ) => Promise<ScreenRecordingResult>
-  readonly resolveWindowsVideosDir: (
+  readonly resolveWindowsRecordingFolders: (
     deps?: WindowsVideosDeps,
     platform?: NodeJS.Platform,
-  ) => Promise<string | undefined>
+  ) => Promise<WindowsRecordingFolders>
   readonly createWindowsPrivateDirectory: (
     tempRoot: string,
     deps?: WindowsPrivateDirectoryDeps,
@@ -113,8 +120,8 @@ function isScreenRecordBundle(value: unknown): value is ScreenRecordBundle {
     typeof value.createLatestRecordingPort === 'function' &&
     'findLatestRecording' in value &&
     typeof value.findLatestRecording === 'function' &&
-    'resolveWindowsVideosDir' in value &&
-    typeof value.resolveWindowsVideosDir === 'function' &&
+    'resolveWindowsRecordingFolders' in value &&
+    typeof value.resolveWindowsRecordingFolders === 'function' &&
     'createWindowsPrivateDirectory' in value &&
     typeof value.createWindowsPrivateDirectory === 'function'
   )

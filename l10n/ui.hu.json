@@ -962,7 +962,7 @@
     "recordingRemote": "Ez az ablak távoli gépen fut, helyi képernyő nélkül. Használja a kísérőoldalt, vagy válasszon egy felvételfájlt.",
     "recordingBrowserUnsupported": "A(z) {browser} nem tud mp4 felvételt készíteni. Válasszon egy mp4 felvételfájlt.",
     "recordingUserOnly": "Képernyőfelvételt csak interaktív felhasználó indíthat.",
-    "recordingNoRecent": "Nem található friss képernyőfelvétel.",
+    "recordingNotFound": "Nem található képernyőfelvétel a következő helyen: {folders}.",
     "recorderUnavailable": "Ezen a hoszton nem érhető el képernyőrögzítő.",
     "attachHeadless": "Headless futtatásoknál elutasítva: adja át a fájlt a --attach kapcsolóval.",
     "uploadStorageUnknown": "A videó- és hangfeltöltés ebben a verzióban nem érhető el: a feltöltés és az átírás éles kötései még hiányoznak.",

@@ -967,7 +967,7 @@
     "recordingRemote": "Questa finestra viene eseguita su un host remoto senza schermo locale. Usa la pagina complementare o scegli un file di registrazione.",
     "recordingBrowserUnsupported": "{browser} non può registrare mp4. Scegli un file di registrazione mp4.",
     "recordingUserOnly": "Solo un utente interattivo può avviare una registrazione dello schermo.",
-    "recordingNoRecent": "Nessuna registrazione dello schermo recente trovata.",
+    "recordingNotFound": "Nessuna registrazione dello schermo trovata in {folders}.",
     "recorderUnavailable": "Su questo host non è disponibile alcun registratore dello schermo.",
     "attachHeadless": "Rifiutato per le esecuzioni headless: passa il file con --attach.",
     "uploadStorageUnknown": "I caricamenti di video e audio non sono disponibili in questa versione: mancano ancora i collegamenti di produzione per caricamento e trascrizione.",

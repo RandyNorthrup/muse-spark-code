@@ -972,7 +972,7 @@
     "recordingRemote": "To okno działa na zdalnym hoście bez lokalnego ekranu. Użyj strony towarzyszącej lub wybierz plik nagrania.",
     "recordingBrowserUnsupported": "{browser} nie może nagrywać mp4. Wybierz plik nagrania mp4.",
     "recordingUserOnly": "Tylko użytkownik interaktywny może rozpocząć nagrywanie ekranu.",
-    "recordingNoRecent": "Nie znaleziono niedawnego nagrania ekranu.",
+    "recordingNotFound": "Nie znaleziono nagrania ekranu w folderze {folders}.",
     "recorderUnavailable": "Na tym hoście nie jest dostępny żaden rejestrator ekranu.",
     "attachHeadless": "Odrzucono w trybie headless: zamiast tego przekaż plik za pomocą --attach.",
     "uploadStorageUnknown": "Przesyłanie wideo i audio jest niedostępne w tej wersji: wciąż brakuje produkcyjnych powiązań przesyłania i transkrypcji.",

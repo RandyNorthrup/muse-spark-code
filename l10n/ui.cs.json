@@ -972,7 +972,7 @@
     "recordingRemote": "Toto okno běží na vzdáleném hostiteli bez místní obrazovky. Použijte doprovodnou stránku nebo vyberte soubor záznamu.",
     "recordingBrowserUnsupported": "{browser} neumí nahrávat mp4. Vyberte soubor záznamu mp4.",
     "recordingUserOnly": "Záznam obrazovky může spustit pouze interaktivní uživatel.",
-    "recordingNoRecent": "Nebyl nalezen žádný nedávný záznam obrazovky.",
+    "recordingNotFound": "V umístění {folders} nebyl nalezen žádný záznam obrazovky.",
     "recorderUnavailable": "Na tomto hostiteli není k dispozici žádný nástroj pro záznam obrazovky.",
     "attachHeadless": "Pro headless běhy odmítnuto: předejte soubor pomocí --attach.",
     "uploadStorageUnknown": "Nahrávání videa a zvuku není v této verzi k dispozici: produkční vazby pro nahrávání a přepis zatím chybí.",

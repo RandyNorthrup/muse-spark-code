@@ -15,7 +15,7 @@ import {
   type WindowsRecorderProcess,
 } from '../../src/core/media/record/windows'
 import type { ScreenRecordingRun } from '../../src/core/media/record/driver'
-import { MEDIA_FILE_ID_MIN_BYTES, MEDIA_MAX_UPLOAD_MIB } from '../../src/shared/constants'
+import { MEDIA_FILE_ID_MIN_BYTES, MEDIA_MAX_UPLOAD_MIB, UI_TEXT } from '../../src/shared/constants'
 
 function codedError(message: string, code: string): Error {
   return Object.assign(new Error(message), { code })
@@ -108,6 +108,22 @@ function noopCountdown(): void {
   // Countdown display is the host's.
 }
 
+/** A recorder whose helper launches are kept with their argument arrays. */
+function launchRecording(): {
+  deps: WindowsRecorderDeps
+  launched: { args: readonly string[]; child: TestProcess }[]
+} {
+  const launched: { args: readonly string[]; child: TestProcess }[] = []
+  const { deps } = depsWith({
+    launch: (_executable, args) => {
+      const child = testProcess()
+      launched.push({ args, child })
+      return child
+    },
+  })
+  return { deps, launched }
+}
+
 describe('windows screen recorder removal', () => {
   it('resolves when the directory is already gone instead of burning retries', async () => {
     const removed: string[] = []
@@ -181,6 +197,55 @@ describe('windows screen recorder runs', () => {
     expect(reserved).toHaveLength(1)
     await expect(rm(reserved[0] ?? '', { recursive: true, force: false })).rejects.toMatchObject({
       code: 'ENOENT',
+    })
+  })
+
+  // D121: the person's length reaches the helper's --record as set, with no
+  // floor or ceiling of ours (the helper's own parsing is proven natively).
+  it.each([5, 3600])(
+    'hands the helper a set recording length of %i seconds as set',
+    async (seconds) => {
+      const { deps, launched } = launchRecording()
+      const run = await windowsScreenRecorder(deps).start(
+        { maxSeconds: seconds, microphone: false, systemAudio: false },
+        noopCountdown,
+      )
+      expect(launched.map((call) => call.args)).toEqual([
+        [
+          '--record',
+          expect.any(String),
+          String(deps.maxBytes),
+          String(process.pid),
+          String(seconds),
+          'false',
+          'false',
+          UI_TEXT.media.recordingStart,
+          UI_TEXT.media.recordingStop,
+        ],
+      ])
+      launched[0]?.child.emitExit(1)
+      const outcome = await run.result
+      expect(outcome.ok).toBe(false)
+    },
+  )
+
+  // D121: --latest carries no age of ours, and a helper that found nothing
+  // is told to the person with the two folders it searched.
+  it('asks the helper for the latest recording at any age and names both folders when none is found', async () => {
+    const { deps, launched } = launchRecording()
+    const result = windowsScreenRecorder(deps).attachLatest()
+    await expect.poll(() => launched.length).toBe(1)
+    expect(launched[0]?.args).toEqual([
+      '--latest',
+      expect.any(String),
+      String(deps.maxBytes),
+      String(process.pid),
+    ])
+    launched[0]?.child.emitLine('{"type":"error","code":"notFound"}')
+    launched[0]?.child.emitExit(1)
+    await expect(result).resolves.toEqual({
+      ok: false,
+      reason: String.raw`No screen recording was found in Videos\Screen Recordings or Videos\Captures.`,
     })
   })
 

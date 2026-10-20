@@ -16,7 +16,9 @@ internal static class WindowsScreenRecorderChecks
     private static extern uint GetShortPathName(string path, System.Text.StringBuilder shortPath, uint capacity);
     private const BindingFlags PrivateStatic = BindingFlags.NonPublic | BindingFlags.Static;
     private const BindingFlags Instance = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
-    public static string LatestFolder;
+    // The recorder folders a check searches, '|'-separated on the command line
+    // ('|' cannot appear in a Windows path).
+    public static string[] LatestFolders;
     private static bool pauseCopy;
     private static object Call(string method, params object[] args)
     {
@@ -34,9 +36,9 @@ internal static class WindowsScreenRecorderChecks
     }
     // Only known-folder resolution is replaced in the test compilation. Main's
     // dispatch, owner binding, stdin and CopyLatest are the production methods.
-    public static void Latest(string directory, long maximum, long maxAge, object lifetime)
+    public static void Latest(string directory, long maximum, object lifetime)
     {
-        try { Call("CopyLatest", LatestFolder, directory, maximum, maxAge, lifetime); }
+        try { Call("CopyLatest", LatestFolders, directory, maximum, lifetime); }
         catch (TargetInvocationException error) { throw error.InnerException ?? error; }
     }
     public static void CopyBarrier(object lifetime)
@@ -63,8 +65,20 @@ internal static class WindowsScreenRecorderChecks
             if (mode == "owner") { Thread.Sleep(Timeout.Infinite); return; }
             if (mode == "mainLatest" || mode == "controlledLatest") {
                 pauseCopy = mode == "controlledLatest";
-                LatestFolder = args[1];
-                Console.WriteLine("exit:" + Call("Main", (object)new string[] { "--latest", args[2], args[3], args[4], args[5] })); return;
+                LatestFolders = args[1].Split('|');
+                Console.WriteLine("exit:" + Call("Main", (object)new string[] { "--latest", args[2], args[3], args[4] })); return;
+            }
+            if (mode == "folders") {
+                // The production known-folder resolution, read only: what --latest searches.
+                Console.WriteLine(String.Join("|", (string[])Call("RecordingFolders"))); return;
+            }
+            if (mode == "record") {
+                // The production --record argument parsing (the form is built, never
+                // shown, so nothing is captured): the length the helper will use.
+                using (Form form = (Form)Activator.CreateInstance(typeof(MuseSparkScreenRecord), Instance, null,
+                    new object[] { new string[] { "--record", args[1], "100", args[2], args[3], "false", "false", "Start", "Stop" } }, null))
+                    Console.WriteLine(typeof(MuseSparkScreenRecord).GetField("maxSeconds", Instance).GetValue(form));
+                return;
             }
             if (mode == "accessDenied") { Console.WriteLine(Call("ErrorCode", new System.ComponentModel.Win32Exception(5), false)); return; }
             if (mode == "disposeFailure") {
@@ -89,7 +103,7 @@ internal static class WindowsScreenRecorderChecks
             }
             if (mode == "latest" || mode == "lateCopyCancel") {
                 using (IDisposable lifetime = (IDisposable)Construct("Lifetime")) {
-                    Call("CopyLatest", args[1], args[2], Int64.Parse(args[3]), Int64.Parse(args[4]), lifetime);
+                    Call("CopyLatest", args[1].Split('|'), args[2], Int64.Parse(args[3]), lifetime);
                     if (mode == "lateCopyCancel") Invoke(lifetime, "Stop", true);
                     bool complete = (bool)Invoke(lifetime, "Finish", true);
                     if (mode == "lateCopyCancel") Console.WriteLine("finish:" + complete);
@@ -123,10 +137,7 @@ internal static class WindowsScreenRecorderChecks
                     else if (mode == "streamClone") sink.CloneStream().Size = 101;
                 }
             } else if (mode == "constants") {
-                Console.WriteLine(typeof(MuseSparkScreenRecord).GetField("MinSeconds", PrivateStatic).GetRawConstantValue() + "," +
-                    typeof(MuseSparkScreenRecord).GetField("MaxSeconds", PrivateStatic).GetRawConstantValue() + "," +
-                    typeof(MuseSparkScreenRecord).GetField("MaxBytes", PrivateStatic).GetRawConstantValue() + "," +
-                    typeof(MuseSparkScreenRecord).GetField("RecentMaxAgeMilliseconds", PrivateStatic).GetRawConstantValue());
+                Console.WriteLine(typeof(MuseSparkScreenRecord).GetField("MaxBytes", PrivateStatic).GetRawConstantValue());
                 return;
             } else throw new ArgumentException();
             Console.WriteLine("ok");

@@ -295,6 +295,16 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- A screen recording length you set is used as set, any whole number of
+  seconds: 5 or 3600 now records for 5 or 3600 seconds, with no floor of 10
+  and no ceiling of 600. 0 (the default) still records until you stop.
+- **Attach Latest Screen Recording** takes your newest recording however
+  long ago you made it, instead of only one from the last ten minutes. On
+  Windows it also finds Xbox Game Bar's recordings (Win+Alt+R, saved in
+  `Videos\Captures`) beside Snipping Tool's (`Videos\Screen Recordings`),
+  and the newer one wins. When there is none it says where it looked, for
+  example "No screen recording was found in Videos\Screen Recordings or
+  Videos\Captures.", instead of "No recent screen recording was found."
 - Usage history keeps recording after a write was cut off mid-way (a power
   loss or a killed process): a usage lock file left holding only empty
   bytes is taken over once it is stale, instead of stopping every later
