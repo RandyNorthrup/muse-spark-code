@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createHash, randomBytes } from 'node:crypto'
 import { chmod, readFile, rename, unlink, writeFile } from 'node:fs/promises'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { NodeVaultFiles, VaultStore } from '../../../src/core/vault/store'
 import type { VaultAnchorPort } from '../../../src/core/vault/broker/repository'
@@ -518,6 +518,39 @@ async function expectOpaqueSaveKept(
 // directly with no security port, which the constructor refuses on win32, so
 // these proofs run where that direct open is the real product path.
 describe.skipIf(process.platform === 'win32')('key-store migration against a real store', () => {
+  beforeAll(async () => {
+    // Warm the product's per-process birth evidence once, outside any
+    // test's timeout: the first VaultStore open in this worker reads the
+    // boot identity, the process start and the machine identity, and that
+    // first test would otherwise pay those spawns under the parallel
+    // setup load of the neighbouring suites. A real store on a throwaway
+    // root, locked and removed — the same setup each test below builds.
+    let base = tmpdir()
+    try {
+      base = realpathSync(base)
+    } catch {
+      /* The store open below reports the unusable base instead. */
+    }
+    const directory = await mkdtemp(path.join(base, 'v-migrate-warm-'))
+    try {
+      const key = randomBytes(32)
+      try {
+        const files = new NodeVaultFiles(path.join(directory, 'vault'), VAULT_LIMITS.frameBytes)
+        const anchor = fileAnchor(directory)
+        const recovery = createRecoverySlot(key, vaultId, { now: Date.now })
+        try {
+          const store = await VaultStore.create({ files, anchor, key }, vaultId, [recovery.slot])
+          store.lock()
+        } finally {
+          recovery.code.fill(0)
+        }
+      } finally {
+        key.fill(0)
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
   it('copies the model API key and a provider key, verified, legacy retained', async () => {
     const first = modelApiKey()
     const secret = providerSecret()
