@@ -2018,7 +2018,8 @@
     "serialize-javascript": "7.1.1",
     "diff": "8.0.3",
     "source-map-js": "1.2.2",
-    "follow-redirects": "1.16.1"
+    "follow-redirects": "1.16.1",
+    "vite": "8.3.4"
   },
   "dependencies": {
     "@napi-rs/keyring": "2.1.1",
