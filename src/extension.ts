@@ -799,8 +799,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     dispose: configureResources({
       history: resourceHistory,
       inspect: (key) => vscode.workspace.getConfiguration('museSpark').inspect(key),
-      onError: () => {
-        log.warn('Resource tree or sampler reading is unavailable')
+      // The cause, when there is one: a usage-history write failure once
+      // read as an unavailable sampler every 30 seconds.
+      onError: (error?: unknown) => {
+        log.warn(
+          error === undefined
+            ? 'Resource tree or sampler reading is unavailable'
+            : `The resource governor carried on after a failure: ${errorDetail(error)}`,
+        )
       },
       windowsJob: async () => {
         const assemblyPath = await resourceAssembly?.()

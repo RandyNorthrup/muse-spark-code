@@ -76,7 +76,8 @@ export interface ResourceHostSettings {
   /** M107 J/M102: record this window's samples into the machine journal, with usage consent. */
   readonly history?: ResourceHistoryBinding | undefined
   readonly inspect: ResourceSettingsReader
-  readonly onError: () => void
+  /** A failure the governor survives; the error, when there is one, names its cause. */
+  readonly onError: (error?: unknown) => void
   readonly windowsJob?: (() => Promise<ResourceWindowsJob | undefined>) | undefined
 }
 const state: { host?: ResourceLaunchHost; recorder?: ResourceHistoryRecorder } = {}

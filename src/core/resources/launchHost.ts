@@ -106,7 +106,8 @@ export interface ResourceLaunchHostOptions {
   readonly clock: ResourceClock
   readonly settings: () => ResourceSettings
   readonly bindTree: (process: ResourceProcessLaunch) => Promise<ResourceTreeBinding | null>
-  readonly onError: () => void
+  /** A failure the governor survives; the error, when there is one, names its cause. */
+  readonly onError: (error?: unknown) => void
   readonly disks?: ResourceDiskSampler | undefined
   readonly tempRoots?: ResourceTempRoots | undefined
   readonly created?: Pick<CreatedRegistry, 'finish' | 'clean'> | undefined
@@ -179,15 +180,15 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     const previous = this.snapshot
     try {
       if (this.status() === previous?.status) return
-    } catch {
-      this.options.onError()
+    } catch (error: unknown) {
+      this.options.onError(error)
       return
     }
     for (const listener of this.statusListeners) {
       try {
         listener()
-      } catch {
-        this.options.onError()
+      } catch (error: unknown) {
+        this.options.onError(error)
       }
     }
   }
@@ -345,7 +346,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       work.ticket = undefined
       work.usage = undefined
       work.samplerCause = samplerCauseOf(error)
-      this.options.onError()
+      this.options.onError(error)
     }
   }
 
