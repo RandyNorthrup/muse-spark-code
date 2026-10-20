@@ -65,17 +65,21 @@ afterAll(async () => {
 })
 function client(data: string, id: string) {
   const runtimeDir = process.env['XDG_RUNTIME_DIR']
+  const tempDir = process.env['TMPDIR']
   const child = fork(
     path.join(fixture.root, 'dist', 'client.cjs'),
     [data, fixture.root, id.repeat(32)],
     {
-      // The product forwards the session runtime directory to the broker
-      // (posixClientPlatform); the fixture passes the worker's own through,
-      // so the broker resolves its socket base the way an installed session
-      // does instead of falling back to the fixture root.
+      // The product forwards the session runtime directory and the
+      // temporary root to the broker (posixClientPlatform); the fixture
+      // passes the worker's own through, so the broker resolves its socket
+      // base the way an installed session does instead of falling back to
+      // the fixture root. Without TMPDIR, macOS's broker fell back to the
+      // fixture HOME, whose socket path is too long under /var/folders.
       env: {
         HOME: fixture.root,
         ...(runtimeDir !== undefined && { XDG_RUNTIME_DIR: runtimeDir }),
+        ...(tempDir !== undefined && { TMPDIR: tempDir }),
       },
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
     },
