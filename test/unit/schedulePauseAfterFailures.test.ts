@@ -17,6 +17,7 @@ import {
   scheduleFixture,
 } from './helpers/reporting/reportKindFixtures'
 import { removeFolder, temporaryDir } from './helpers/temporaryFolders'
+import { warningLogger } from './helpers/collectingLogger'
 
 function silentLog(): Logger {
   return {
@@ -83,14 +84,7 @@ describe('schedule pause after failures', () => {
 
   it('still applies a person-set count and refuses what it cannot hold', () => {
     const warnings: string[] = []
-    const log: Logger = {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: (message: string) => {
-        warnings.push(message)
-      },
-      error: () => undefined,
-    }
+    const log = warningLogger(warnings)
     expect(readSettings(settingSource({ schedulePauseAfterFailures: 2 }), log)).toMatchObject({
       schedulePauseAfterFailures: 2,
     })

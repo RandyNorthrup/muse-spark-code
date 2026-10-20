@@ -327,6 +327,17 @@ const noRunner = {
   runHook: () => Promise.reject(new Error('no plugin hook runs natively')),
 }
 
+/** One plugin source through the standard PreToolUse dispatch, with optional person-set bounds. */
+async function dispatchPluginSource(source: string, bounds?: () => PluginPersonBounds) {
+  const plugin = writePlugin(source)
+  return await dispatch(
+    definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
+    'PreToolUse',
+    toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+    adapterWith(bounds === undefined ? host() : host([], bounds)),
+  )
+}
+
 function toolPayload(
   event: HookEvent,
   tool: string,
@@ -579,14 +590,8 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
   })
 
   it('a plugin answer arrives whole past the old frame bound', async () => {
-    const plugin = writePlugin(
+    const result = await dispatchPluginSource(
       `export const Big = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = 'x'.repeat(100 * 1024) } })`,
-    )
-    const result = await dispatch(
-      definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
-      'PreToolUse',
-      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-      adapterWith(host()),
     )
     expect(result.blockedReason).toBeUndefined()
     expect(result.updatedInput).toEqual({ command: 'x'.repeat(100 * 1024) })
@@ -751,14 +756,9 @@ describe.runIf(IS_REAL)('person-set plugin bounds (D121)', () => {
   })
 
   it('a person-set answer size fails an over-long answer through dispatch', async () => {
-    const plugin = writePlugin(
+    const result = await dispatchPluginSource(
       `export const Big = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = 'x'.repeat(100 * 1024) } })`,
-    )
-    const result = await dispatch(
-      definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
-      'PreToolUse',
-      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-      adapterWith(host([], () => ({ maxAnswerBytes: 1024 }))),
+      () => ({ maxAnswerBytes: 1024 }),
     )
     expect(result.blockedReason).toContain('exceeded')
   })
@@ -1026,14 +1026,8 @@ describe.runIf(IS_REAL && process.platform === 'darwin' && BUN !== undefined)(
   'OpenCode on macOS',
   () => {
     it('runs directly, with no memory bound left to refuse it', async () => {
-      const plugin = writePlugin(
+      const result = await dispatchPluginSource(
         `export const Quiet = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = output.args.command + ' --quiet' } })`,
-      )
-      const result = await dispatch(
-        definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
-        'PreToolUse',
-        toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-        adapterWith(host()),
       )
       expect(result.blockedReason).toBeUndefined()
       expect(result.updatedInput).toEqual({ command: 'ls --quiet' })

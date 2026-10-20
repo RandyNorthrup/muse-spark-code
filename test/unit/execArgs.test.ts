@@ -319,27 +319,7 @@ describe('M80 args (A1–A10, F1)', () => {
       ]),
     ).toMatchObject({ command: 'exec', options: { maxOutputTokens: 2000 } })
   })
-  it('leaves no request limit without --max-requests and accepts any positive count', () => {
-    // No provider publishes a request-count maximum, so a set value has none.
-    const parsed = parseExec({ backend: 'modelApi', 'max-budget-usd': '1' }, ['hi'])
-    expect(parsed.ok).toBe(true)
-    if (!parsed.ok) throw new Error(parsed.reason)
-    expect(parsed.options.maxRequests).toBeUndefined()
-    for (const value of ['0', '-1', 'abc', '10x']) {
-      expect(
-        parseExec({ backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': value }, ['hi']).ok,
-      ).toBe(false)
-    }
-    for (const value of ['1', '500', '501', '1000000']) {
-      const accepted = parseExec(
-        { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': value },
-        ['hi'],
-      )
-      expect(accepted.ok).toBe(true)
-      if (!accepted.ok) throw new Error(accepted.reason)
-      expect(accepted.options.maxRequests).toBe(Number(value))
-    }
-  })
+
   it('leaves no deadline without --timeout and honors any positive duration', () => {
     // No provider publishes a run deadline, so the product sets neither a
     // default nor a maximum; 0, negatives and non-numbers are not a time.

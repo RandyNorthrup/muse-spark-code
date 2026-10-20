@@ -30,6 +30,26 @@ function isPresent(pid: number): boolean {
   }
 }
 
+/** Polls signal 0 until the pid is gone (reaped by init or launchd). */
+async function waitAbsent(pid: number): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (!isPresent(pid)) break
+    await setTimeout(1)
+  }
+}
+
+/** Polls the native reader until the pid is reaped, then asserts it is gone. */
+async function waitReaped(
+  reader: { identity(pid: number): Promise<unknown> },
+  pid: number,
+): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if ((await reader.identity(pid)) === null) break
+    await setTimeout(1)
+  }
+  expect(await reader.identity(pid)).toBeNull()
+}
+
 describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
   'native registered lifecycle',
   () => {
@@ -267,21 +287,14 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
             const grandchild = await nextBirth('grandchild')
             expect(await registry.members(ticket)).toContainEqual(grandchild)
             rootProcess.stdin.write('e')
-            for (let attempt = 0; attempt < 100; attempt++) {
-              if ((await reader.identity(detached.pid)) === null) break
-              await setTimeout(1)
-            }
-            expect(await reader.identity(detached.pid)).toBeNull()
+            await waitReaped(reader, detached.pid)
             rootProcess.stdin.write('q')
             await death
             // The root never reaps `detached`; launchd or init does once the root
             // exits. Hosted macOS 26 once read no members here (CIFIX017 round 5,
             // not reproduced on macOS 15 rigs): wait out that reap, and report the
             // raw reads if it recurs.
-            for (let attempt = 0; attempt < 100; attempt++) {
-              if (!isPresent(detached.pid)) break
-              await setTimeout(1)
-            }
+            await waitAbsent(detached.pid)
             reads.length = 0
             expect(
               await registry.members(ticket),
@@ -290,11 +303,7 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
             const result = await registry.kill(ticket)
             expect(result.status).toBe('done')
             expect(result.members).toContainEqual({ identity: grandchild, result: 'done' })
-            for (let attempt = 0; attempt < 100; attempt++) {
-              if ((await reader.identity(grandchild.pid)) === null) break
-              await setTimeout(1)
-            }
-            expect(await reader.identity(grandchild.pid)).toBeNull()
+            await waitReaped(reader, grandchild.pid)
             expect(await registry.signal(ticket, grandchild, 'SIGKILL')).toBe('gone')
           } else {
             // No process table: nothing is listable, so the registry invents
@@ -305,17 +314,10 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
             const grandchild = await nextBirth('grandchild')
             expect(await registry.members(ticket)).toEqual([])
             rootProcess.stdin.write('e')
-            for (let attempt = 0; attempt < 100; attempt++) {
-              if ((await reader.identity(detached.pid)) === null) break
-              await setTimeout(1)
-            }
-            expect(await reader.identity(detached.pid)).toBeNull()
+            await waitReaped(reader, detached.pid)
             rootProcess.stdin.write('q')
             await death
-            for (let attempt = 0; attempt < 100; attempt++) {
-              if (!isPresent(detached.pid)) break
-              await setTimeout(1)
-            }
+            await waitAbsent(detached.pid)
             // Discovery stays refused, and the ticket alone confers no
             // membership: the never-enrolled grandchild is refused even
             // named, while the enrolled root stays answerable through the

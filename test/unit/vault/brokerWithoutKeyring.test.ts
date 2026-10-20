@@ -1,55 +1,30 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { spawn, type ChildProcess } from 'node:child_process'
-import { once } from 'node:events'
 import { lstat, mkdtemp } from 'node:fs/promises'
 import { constants, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { buildBrokerChildren } from '../helpers/vault/sessionBrokerBuild'
+import { hasBrokerSocketFit, resolveRuntimeBase } from '../helpers/vault/socketFit'
 import {
   awaitFixtureMessage,
+  stopFixtureChild,
   sweepFixtureChildren,
   trackFixtureChild,
 } from '../helpers/vault/fixtureChildren'
-import {
-  VAULT_SOCKET_DIR_HASH_CHARS,
-  VAULT_SOCKET_DIR_PREFIX,
-  VAULT_SOCKET_FILE,
-  VAULT_SOCKET_PATH_LIMIT_BYTES,
-} from '../../../src/shared/constants'
-
 // A staged package carries no node_modules, so the OS keyring binding is
 // genuinely absent in this fixture: the broker must still start its
 // channel (the OS-store tier degrades per operation), never refuse startup.
 const fixture = { root: '', sockBase: '', unusable: '' }
 const children = new Set<ChildProcess>()
-// The socket base must verify owner-only and stay within the bind limit:
-// the leaf the broker adds is fixed size, so a temporary root longer than
-// the limit minus that leaf cannot fit the socket on this OS. macOS ignores
-// XDG_RUNTIME_DIR, so TMPDIR is the base there; Linux prefers
-// XDG_RUNTIME_DIR. No subdirectory is created: every extra character costs
-// bind bytes, and the leaf already names this data folder uniquely.
-let runtimeBase = process.env['XDG_RUNTIME_DIR'] ?? tmpdir()
-try {
-  // The vault refuses roots under a symlinked ancestor (macOS spells its
-  // temporary root through /var, a symlink to /private/var): resolve to
-  // the real path, or the broker's shutdown snapshot refuses at close.
-  runtimeBase = realpathSync(runtimeBase)
-} catch {
-  /* The run-time owner-only check below skips when the base is unusable. */
-}
-const socketLength =
-  Buffer.byteLength(runtimeBase, 'utf8') +
-  1 +
-  VAULT_SOCKET_DIR_PREFIX.length +
-  VAULT_SOCKET_DIR_HASH_CHARS +
-  1 +
-  VAULT_SOCKET_FILE.length
+// The socket base must verify owner-only and stay within the bind limit.
+// No subdirectory is created: every extra character costs bind bytes, and
+// the leaf already names this data folder uniquely.
+const runtimeBase = resolveRuntimeBase()
 // Collection-time skip with a reason (certification record): rigs whose
 // temporary root cannot fit the socket would hang to the test timeout.
-const hasSocketFit =
-  socketLength <= VAULT_SOCKET_PATH_LIMIT_BYTES[process.platform === 'darwin' ? 'darwin' : 'other']
+const hasSocketFit = hasBrokerSocketFit()
 beforeAll(async () => {
   if (!hasSocketFit || process.platform === 'win32') return
   // The base must already exist owner-only; anything else makes the child
@@ -135,11 +110,7 @@ describe.skipIf(!hasSocketFit || process.platform === 'win32')(
       // Ready is sent only after the fixture connected to the broker
       // socket and the in-process OS-store refusal held, so a clean
       // shutdown is the remaining assertion.
-      const exited = once(child, 'exit')
-      child.kill('SIGTERM')
-      const [code] = await exited
-      children.delete(child)
-      expect(code).toBe(0)
+      await stopFixtureChild(children, child)
     })
   },
 )

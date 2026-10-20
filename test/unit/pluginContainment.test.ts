@@ -36,16 +36,29 @@ function failingSource(
   })
 }
 
+/** A failing source on a controllable clock: `advance` moves past the pacing delay. */
+function clockedSource() {
+  let at = 0
+  const calls = { count: 0 }
+  const messages: string[] = []
+  const source = failingSource(() => at, calls, messages)
+  return {
+    calls,
+    messages,
+    source,
+    advance: () => {
+      at += PLUGIN_JOB_RETRY_BACKOFF_MS
+    },
+  }
+}
+
 describe('plugin containment without a failure latch', () => {
   it('tries again on every dispatch past the pacing delay', async () => {
-    let at = 0
-    const calls = { count: 0 }
-    const messages: string[] = []
-    const source = failingSource(() => at, calls, messages)
+    const { calls, messages, source, advance } = clockedSource()
     expect(await source.containment()).toMatchObject({ kind: 'unavailable' })
-    at += PLUGIN_JOB_RETRY_BACKOFF_MS
+    advance()
     expect(await source.containment()).toMatchObject({ kind: 'unavailable' })
-    at += PLUGIN_JOB_RETRY_BACKOFF_MS
+    advance()
     expect(await source.containment()).toMatchObject({ kind: 'unavailable' })
     // No latch: the third dispatch prepares fresh and tries again.
     expect(calls.count).toBe(3)
@@ -54,10 +67,7 @@ describe('plugin containment without a failure latch', () => {
   })
 
   it('holds a dispatch inside the pacing delay without preparing again', async () => {
-    const at = 0
-    const calls = { count: 0 }
-    const messages: string[] = []
-    const source = failingSource(() => at, calls, messages)
+    const { calls, messages, source } = clockedSource()
     expect(await source.containment()).toMatchObject({ kind: 'unavailable' })
     expect(await source.containment()).toMatchObject({ kind: 'unavailable' })
     expect(calls.count).toBe(1)

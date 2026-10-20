@@ -52,6 +52,21 @@ export async function awaitFixtureMessage(
   return raced.kind === 'message' ? { message: raced.message } : { diagnostics: raced.diagnostics }
 }
 
+/**
+Stop one ready fixture child and say it exited clean: SIGTERM, the exit
+code, out of the tracked set. Anything else fails the calling test.
+*/
+export async function stopFixtureChild(
+  children: Set<ChildProcess>,
+  child: ChildProcess,
+): Promise<void> {
+  const exited = once(child, 'exit')
+  child.kill('SIGTERM')
+  const [code] = await exited
+  children.delete(child)
+  if (code !== 0) throw new Error(`fixture child exited ${String(code)}`)
+}
+
 /** Kill every remaining fixture child and remove the fixture root. */
 export async function sweepFixtureChildren(
   children: Set<ChildProcess>,
