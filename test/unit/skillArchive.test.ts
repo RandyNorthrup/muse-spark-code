@@ -13,6 +13,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -244,6 +245,97 @@ describe('packaged skill archive', () => {
       expect(refused.warnings.length).toBeGreaterThan(0)
     } finally {
       rig.cleanup()
+    }
+  })
+
+  it('loads a packed install reached through a link to its own folder', async () => {
+    // A symlinked ancestor of the install root itself (a linked
+    // extensions or storage folder): the roots name the linked spelling
+    // while the link check compares the canonical one, so every skill
+    // loads with no warning. A junction on Windows, where a directory
+    // link needs no privilege.
+    const realBase = mkdtempSync(path.join(tmpdir(), 'muse-skill-link-real-'))
+    const linkBase = `${realBase}-link`
+    symlinkSync(realBase, linkBase, process.platform === 'win32' ? 'junction' : 'dir')
+    try {
+      const linkedParent = path.join(linkBase, 'packaged')
+      const vendorRoot = path.join(linkedParent, PACKAGE)
+      mkdirSync(vendorRoot, { recursive: true })
+      for (const name of ['LICENSE', 'VENDOR.json']) {
+        cpSync(path.join(packagedVendor, name), path.join(vendorRoot, name))
+      }
+      cpSync(packagedArchive, path.join(linkedParent, BUNDLED_SKILLS_ARCHIVE_FILE))
+      const packed = await loadSkills(
+        {
+          io: withBundledSkillsArchive(fileContextIo, vendorRoot, process.platform),
+          platform: process.platform,
+        },
+        rootsFor(vendorRoot),
+      )
+      expect(packed.warnings).toEqual([])
+      const loose = await loadSkills(
+        { io: fileContextIo, platform: process.platform },
+        rootsFor(looseVendor),
+      )
+      expect(packed.skills.map((skill) => skill.id)).toEqual(loose.skills.map((skill) => skill.id))
+      for (const skill of packed.skills) {
+        const looseBody = loose.skills.find((candidate) => candidate.id === skill.id)?.body
+        expect(skill.body).toBe(looseBody)
+      }
+      // The plain loader over a linked folder reads the same way: both
+      // sides of its link check canonicalise together.
+      const linkedLoose = path.join(linkBase, 'loose')
+      cpSync(looseVendor, linkedLoose, { recursive: true })
+      const plain = await loadSkills(
+        { io: fileContextIo, platform: process.platform },
+        rootsFor(linkedLoose),
+      )
+      expect(plain.warnings).toEqual([])
+      expect(plain.skills.map((skill) => skill.id)).toEqual(loose.skills.map((skill) => skill.id))
+    } finally {
+      rmSync(linkBase, { force: true })
+      rmSync(realBase, { recursive: true, force: true })
+    }
+  })
+
+  it('still refuses a skill that is a link leading outside the tree', async () => {
+    // A link INSIDE the tree still refuses exactly that skill: the rest
+    // load, and the warning names the refusal. A junction on Windows,
+    // where a link needs no privilege.
+    const area = mkdtempSync(path.join(tmpdir(), 'muse-skill-link-inside-'))
+    try {
+      const vendorRoot = path.join(area, PACKAGE)
+      cpSync(looseVendor, vendorRoot, { recursive: true })
+      const outside = path.join(area, 'outside', 'project_setup')
+      mkdirSync(outside, { recursive: true })
+      cpSync(
+        path.join(looseVendor, 'skills/project_setup/SKILL.md'),
+        path.join(outside, 'SKILL.md'),
+      )
+      rmSync(path.join(vendorRoot, 'skills/project_setup'), { recursive: true })
+      symlinkSync(
+        outside,
+        path.join(vendorRoot, 'skills/project_setup'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      )
+      const loaded = await loadSkills(
+        {
+          io: withBundledSkillsArchive(fileContextIo, vendorRoot, process.platform),
+          platform: process.platform,
+        },
+        rootsFor(vendorRoot),
+      )
+      expect(loaded.skills.map((skill) => skill.id)).toEqual([
+        'feature_delivery',
+        'quality_retrofit',
+      ])
+      expect(loaded.warnings).toHaveLength(1)
+      expect(loaded.warnings[0]).toContain(
+        'bundled skill project_setup skipped: SKILL.md is refused',
+      )
+      expect(loaded.warnings[0]).toContain('leads outside the workspace through a link')
+    } finally {
+      rmSync(area, { recursive: true, force: true })
     }
   })
 })
