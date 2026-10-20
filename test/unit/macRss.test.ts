@@ -227,156 +227,167 @@ describe('readMacProcess, literal text through the real shape', () => {
   })
 })
 
-describe('macRssSampler on real children through the real /bin/ps', () => {
-  it('reads its live child through the absolute /bin/ps with numeric columns and start time', async () => {
-    const { child } = await liveChild()
-    const pid = child.pid
-    if (pid === undefined) throw new Error('the child has no PID')
-    const { run, calls } = countingRun()
-    const read = macRssSampler(child, { run })
-    const bytes = await read(pid)
-    expect(Number.isSafeInteger(bytes)).toBe(true)
-    expect(bytes).toBeGreaterThan(MIB)
-    expect(calls).toEqual([
-      ['/bin/ps', ['-o', 'pid=,ppid=,pgid=,state=,time=,rss=,lstart=', '-p', String(pid)]],
-    ])
-  })
-
-  it.each([0, -1, 1.5, NaN, Number.MAX_SAFE_INTEGER + 1, 4243])(
-    'refuses the PID %s, which is not its child’s, without running ps',
-    async (pid) => {
+// The product samples the encoder's memory this way only on macOS
+// (src/host/backend/productionAudioEntry.ts sets readRssBytesFor only for the
+// darwin backend; Windows bounds the encoder with a job object instead), and
+// the sampler runs the real /bin/ps, which Windows does not have. The parser
+// suites above stay on every platform; Linux and macOS run these live.
+describe.skipIf(process.platform === 'win32')(
+  'macRssSampler on real children through the real /bin/ps',
+  () => {
+    it('reads its live child through the absolute /bin/ps with numeric columns and start time', async () => {
       const { child } = await liveChild()
-      if (child.pid === undefined) throw new Error('the child has no PID')
+      const pid = child.pid
+      if (pid === undefined) throw new Error('the child has no PID')
       const { run, calls } = countingRun()
-      await expect(macRssSampler(child, { run })(pid)).rejects.toMatchObject({
+      const read = macRssSampler(child, { run })
+      const bytes = await read(pid)
+      expect(Number.isSafeInteger(bytes)).toBe(true)
+      expect(bytes).toBeGreaterThan(MIB)
+      expect(calls).toEqual([
+        ['/bin/ps', ['-o', 'pid=,ppid=,pgid=,state=,time=,rss=,lstart=', '-p', String(pid)]],
+      ])
+    })
+
+    it.each([0, -1, 1.5, NaN, Number.MAX_SAFE_INTEGER + 1, 4243])(
+      'refuses the PID %s, which is not its child’s, without running ps',
+      async (pid) => {
+        const { child } = await liveChild()
+        if (child.pid === undefined) throw new Error('the child has no PID')
+        const { run, calls } = countingRun()
+        await expect(macRssSampler(child, { run })(pid)).rejects.toMatchObject({
+          code: 'EMEDIA_RSS_UNAVAILABLE',
+        })
+        expect(calls).toHaveLength(0)
+      },
+    )
+
+    it('refuses a live process that is not its child, and reads a real row of this process', async () => {
+      // The premise, read live: our parent's parent is never us.
+      const parent = await readMacProcess(process.ppid, realRun)
+      expect(parent?.row.pid).toBe(process.ppid)
+      expect(parent?.row.parent).not.toBe(process.pid)
+      const { child } = await liveChild()
+      const { run, calls } = countingRun()
+      await expect(macRssSampler(child, { run })(process.ppid)).rejects.toBeInstanceOf(
+        RssSampleRefused,
+      )
+      expect(calls).toHaveLength(0)
+    })
+
+    it('refuses a child that never started, without running ps or touching any other process', async () => {
+      const { child, closed, errors } = spawnTracked(MISSING_PROGRAM)
+      await closed
+      expect(child.pid).toBeUndefined()
+      expect(child.exitCode).toBe(-2)
+      expect(errors.map((error) => (error as NodeJS.ErrnoException).code)).toEqual(['ENOENT'])
+      const { run, calls } = countingRun()
+      // The sampler is asked for this process's own PID with a handle that never
+      // started: it refuses from the handle alone, before any ps run.
+      await expect(macRssSampler(child, { run })(process.pid)).rejects.toMatchObject({
         code: 'EMEDIA_RSS_UNAVAILABLE',
       })
       expect(calls).toHaveLength(0)
-    },
-  )
-
-  it('refuses a live process that is not its child, and reads a real row of this process', async () => {
-    // The premise, read live: our parent's parent is never us.
-    const parent = await readMacProcess(process.ppid, realRun)
-    expect(parent?.row.pid).toBe(process.ppid)
-    expect(parent?.row.parent).not.toBe(process.pid)
-    const { child } = await liveChild()
-    const { run, calls } = countingRun()
-    await expect(macRssSampler(child, { run })(process.ppid)).rejects.toBeInstanceOf(
-      RssSampleRefused,
-    )
-    expect(calls).toHaveLength(0)
-  })
-
-  it('refuses a child that never started, without running ps or touching any other process', async () => {
-    const { child, closed, errors } = spawnTracked(MISSING_PROGRAM)
-    await closed
-    expect(child.pid).toBeUndefined()
-    expect(child.exitCode).toBe(-2)
-    expect(errors.map((error) => (error as NodeJS.ErrnoException).code)).toEqual(['ENOENT'])
-    const { run, calls } = countingRun()
-    // The sampler is asked for this process's own PID with a handle that never
-    // started: it refuses from the handle alone, before any ps run.
-    await expect(macRssSampler(child, { run })(process.pid)).rejects.toMatchObject({
-      code: 'EMEDIA_RSS_UNAVAILABLE',
     })
-    expect(calls).toHaveLength(0)
-  })
 
-  it('refuses a child that had already exited, without running ps', async () => {
-    const { child, closed } = spawnTracked(process.execPath, ['-e', 'setInterval(() => {}, 1000)'])
-    if (child.pid === undefined) throw new Error('the child has no PID')
-    const pid = child.pid
-    child.kill('SIGKILL')
-    await closed
-    // A signalled child has no exit code: its signal does.
-    expect(child.signalCode).toBe('SIGKILL')
-    const { run, calls } = countingRun()
-    await expect(macRssSampler(child, { run })(pid)).rejects.toBeInstanceOf(RssSampleRefused)
-    expect(calls).toHaveLength(0)
-  })
+    it('refuses a child that had already exited, without running ps', async () => {
+      const { child, closed } = spawnTracked(process.execPath, [
+        '-e',
+        'setInterval(() => {}, 1000)',
+      ])
+      if (child.pid === undefined) throw new Error('the child has no PID')
+      const pid = child.pid
+      child.kill('SIGKILL')
+      await closed
+      // A signalled child has no exit code: its signal does.
+      expect(child.signalCode).toBe('SIGKILL')
+      const { run, calls } = countingRun()
+      await expect(macRssSampler(child, { run })(pid)).rejects.toBeInstanceOf(RssSampleRefused)
+      expect(calls).toHaveLength(0)
+    })
 
-  it('keeps a failure final for the child it watches', async () => {
-    const { time, child, pid, run, calls } = await liveSample()
-    // A live row under another parent: a real ps refusal, not a scripted one.
-    const read = macRssSampler(child, { run, parentPid: 1, now: time.now })
-    await expect(read(pid)).rejects.toBeInstanceOf(RssSampleRefused)
-    time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS + 1)
-    await expect(read(pid)).rejects.toBeInstanceOf(RssSampleRefused)
-    expect(calls).toHaveLength(1)
-  })
+    it('keeps a failure final for the child it watches', async () => {
+      const { time, child, pid, run, calls } = await liveSample()
+      // A live row under another parent: a real ps refusal, not a scripted one.
+      const read = macRssSampler(child, { run, parentPid: 1, now: time.now })
+      await expect(read(pid)).rejects.toBeInstanceOf(RssSampleRefused)
+      time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS + 1)
+      await expect(read(pid)).rejects.toBeInstanceOf(RssSampleRefused)
+      expect(calls).toHaveLength(1)
+    })
 
-  it('drops its reading when the child exits, even inside the refresh interval', async () => {
-    const { time, child, closed, pid, run, calls } = await liveSample()
-    const read = macRssSampler(child, { run, now: time.now })
-    await expect(read(pid)).resolves.toBeGreaterThan(MIB)
-    child.kill('SIGKILL')
-    await closed
-    // Well inside the refresh interval: no ps run, and still no stale answer.
-    await expect(read(pid)).rejects.toMatchObject({ code: 'EMEDIA_RSS_UNAVAILABLE' })
-    expect(calls).toHaveLength(1)
-  })
+    it('drops its reading when the child exits, even inside the refresh interval', async () => {
+      const { time, child, closed, pid, run, calls } = await liveSample()
+      const read = macRssSampler(child, { run, now: time.now })
+      await expect(read(pid)).resolves.toBeGreaterThan(MIB)
+      child.kill('SIGKILL')
+      await closed
+      // Well inside the refresh interval: no ps run, and still no stale answer.
+      await expect(read(pid)).rejects.toMatchObject({ code: 'EMEDIA_RSS_UNAVAILABLE' })
+      expect(calls).toHaveLength(1)
+    })
 
-  it('refuses a run that finished after the child exited', async () => {
-    const time = clock()
-    const { child, closed } = await liveChild()
-    const pid = child.pid
-    if (pid === undefined) throw new Error('the child has no PID')
-    const { run, calls, hold, release } = gatedRun()
-    const read = macRssSampler(child, { run, now: time.now })
-    await expect(read(pid)).resolves.toBeGreaterThan(MIB)
-    time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
-    hold()
-    const waiting = read(pid)
-    // The exit lands while the ps run is still held: it entered live, so this
-    // refusal can only come from the run-after-exit gate, not the entry check.
-    child.kill('SIGKILL')
-    await closed
-    release()
-    await expect(waiting).rejects.toBeInstanceOf(RssSampleRefused)
-    expect(calls).toHaveLength(2)
-  })
+    it('refuses a run that finished after the child exited', async () => {
+      const time = clock()
+      const { child, closed } = await liveChild()
+      const pid = child.pid
+      if (pid === undefined) throw new Error('the child has no PID')
+      const { run, calls, hold, release } = gatedRun()
+      const read = macRssSampler(child, { run, now: time.now })
+      await expect(read(pid)).resolves.toBeGreaterThan(MIB)
+      time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
+      hold()
+      const waiting = read(pid)
+      // The exit lands while the ps run is still held: it entered live, so this
+      // refusal can only come from the run-after-exit gate, not the entry check.
+      child.kill('SIGKILL')
+      await closed
+      release()
+      await expect(waiting).rejects.toBeInstanceOf(RssSampleRefused)
+      expect(calls).toHaveLength(2)
+    })
 
-  it('runs ps at most once per interval and lands the refresh only after ps answers', async () => {
-    const time = clock()
-    const { entry, pid, grow } = await growingChild()
-    const { run, calls, hold, release } = gatedRun()
-    const read = macRssSampler(entry.child, { run, now: time.now })
-    const first = await read(pid)
-    expect(first).toBeGreaterThan(MIB)
-    for (let step = 0; step < 4; step += 1) {
+    it('runs ps at most once per interval and lands the refresh only after ps answers', async () => {
+      const time = clock()
+      const { entry, pid, grow } = await growingChild()
+      const { run, calls, hold, release } = gatedRun()
+      const read = macRssSampler(entry.child, { run, now: time.now })
+      const first = await read(pid)
+      expect(first).toBeGreaterThan(MIB)
+      for (let step = 0; step < 4; step += 1) {
+        time.advance(MEDIA_RSS_SAMPLE_INTERVAL_MS / 5)
+        await expect(read(pid)).resolves.toBe(first)
+      }
+      expect(calls).toHaveLength(1)
+      // Past the interval: a fresh run starts, but the still-young reading
+      // answers at once, without waiting for ps.
       time.advance(MEDIA_RSS_SAMPLE_INTERVAL_MS / 5)
+      hold()
       await expect(read(pid)).resolves.toBe(first)
-    }
-    expect(calls).toHaveLength(1)
-    // Past the interval: a fresh run starts, but the still-young reading
-    // answers at once, without waiting for ps.
-    time.advance(MEDIA_RSS_SAMPLE_INTERVAL_MS / 5)
-    hold()
-    await expect(read(pid)).resolves.toBe(first)
-    expect(calls).toHaveLength(2)
-    // The refresh lands on the grown child only after the real ps answers.
-    await grow()
-    release()
-    let refreshed = first
-    for (let attempt = 0; refreshed === first && attempt < 50; attempt += 1) {
-      refreshed = await read(pid)
-      if (refreshed === first) await new Promise((resolve) => setTimeout(resolve, 20))
-    }
-    expect(refreshed).toBeGreaterThan(first)
-    expect(calls).toHaveLength(2)
-  })
+      expect(calls).toHaveLength(2)
+      // The refresh lands on the grown child only after the real ps answers.
+      await grow()
+      release()
+      let refreshed = first
+      for (let attempt = 0; refreshed === first && attempt < 50; attempt += 1) {
+        refreshed = await read(pid)
+        if (refreshed === first) await new Promise((resolve) => setTimeout(resolve, 20))
+      }
+      expect(refreshed).toBeGreaterThan(first)
+      expect(calls).toHaveLength(2)
+    })
 
-  it('waits for a fresh reading past the maximum age and refuses a late one', async () => {
-    const { time, child, pid, run, calls } = await liveSample()
-    const read = macRssSampler(child, { run, now: time.now })
-    await expect(read(pid)).resolves.toBeGreaterThan(MIB)
-    time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
-    const waiting = read(pid)
-    // The run is awaited, but its reading is already expired when it lands.
-    time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
-    await expect(waiting).rejects.toBeInstanceOf(RssSampleRefused)
-    // It went to ps and waited: the refusal is late, not instant.
-    expect(calls).toHaveLength(2)
-  })
-})
+    it('waits for a fresh reading past the maximum age and refuses a late one', async () => {
+      const { time, child, pid, run, calls } = await liveSample()
+      const read = macRssSampler(child, { run, now: time.now })
+      await expect(read(pid)).resolves.toBeGreaterThan(MIB)
+      time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
+      const waiting = read(pid)
+      // The run is awaited, but its reading is already expired when it lands.
+      time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
+      await expect(waiting).rejects.toBeInstanceOf(RssSampleRefused)
+      // It went to ps and waited: the refusal is late, not instant.
+      expect(calls).toHaveLength(2)
+    })
+  },
+)
