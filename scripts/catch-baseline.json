@@ -8,7 +8,7 @@
     },
     "core": {
       "SWALLOW": 73,
-      "GENERIC": 270,
+      "GENERIC": 269,
       "CLEANUP": 236
     },
     "host": {
@@ -1330,7 +1330,7 @@
     },
     {
       "file": "src/core/locks/processOwner.ts",
-      "identity": "5b4433c0d8142c40de3bec143e9fdd11e6813f7b2aef3eb797405065a30ac97c",
+      "identity": "7758618e6b8e3405341812791bd788d11ee0d92aabb4176f736e3f43374aec12",
       "class": "CLEANUP"
     },
     {
@@ -1831,11 +1831,6 @@
     {
       "file": "src/core/reporting/destinations/runner.ts",
       "identity": "9f3a8c354a72a5caaae0a9bbffdc6763753bb0e48df87f9ccc191c4985f99ad8",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/reporting/history.ts",
-      "identity": "3c9dc0354cef432744dc283fe5f4fca49a82cbcf8a3c4763e658dd3619fe009c",
       "class": "GENERIC"
     },
     {
