@@ -11,7 +11,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { SPDX_TEMPLATE_FILES } from '../../src/core/legal/data'
 import { loadLicenseTemplates } from '../../src/core/legal/licenseTemplates'
 import { readPinnedLegalData } from '../../src/core/legal/workspace'
-import { LEGAL_DATA_ARCHIVE_FILE, packLegalDataArchive } from '../../scripts/lib/legalArchive.mjs'
+import {
+  LEGAL_DATA_ARCHIVE_FILE,
+  LEGAL_DATA_ARCHIVE_VERSION,
+  packLegalDataArchive,
+} from '../../scripts/lib/legalArchive.mjs'
 
 const PINNED = path.resolve('src/core/legal/legal-data')
 const WORDS = ['equivalentwords.txt', 'slot-words.txt']
@@ -50,12 +54,21 @@ function damagedStage(): string {
   return copy
 }
 
-function archiveJson(stage: string): { version: number; files: Record<string, string> } {
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Object.values(value).every((member: unknown) => typeof member === 'string')
+  )
+}
+
+function archiveJson(stage: string): Record<string, string> {
   const packed = readFileSync(path.join(stage, LEGAL_DATA_ARCHIVE_FILE))
-  return JSON.parse(brotliDecompressSync(packed).toString('utf8')) as {
-    version: number
-    files: Record<string, string>
-  }
+  const parsed: unknown = JSON.parse(brotliDecompressSync(packed).toString('utf8'))
+  const files: unknown =
+    typeof parsed === 'object' && parsed !== null ? Reflect.get(parsed, 'files') : undefined
+  if (!isStringRecord(files)) throw new Error('Test archive is malformed')
+  return files
 }
 
 describe('packaged legal-data archive', () => {
@@ -107,11 +120,14 @@ describe('packaged legal-data archive', () => {
     try {
       const parsed = archiveJson(stage)
       const victim = 'templates/GPL-3.0-only.template.txt'
-      const original = parsed.files[victim] ?? ''
-      parsed.files[victim] = `X${original.slice(1)}`
-      const repacked = brotliCompressSync(JSON.stringify(parsed), {
-        params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 1 },
-      })
+      const original = parsed[victim] ?? ''
+      parsed[victim] = `X${original.slice(1)}`
+      const repacked = brotliCompressSync(
+        JSON.stringify({ version: LEGAL_DATA_ARCHIVE_VERSION, files: parsed }),
+        {
+          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 1 },
+        },
+      )
       writeFileSync(path.join(stage, LEGAL_DATA_ARCHIVE_FILE), repacked)
       const legalDir = path.join(stage, 'dist', 'legal-data')
       const damaged = readPinnedLegalData(victim, legalDir)
