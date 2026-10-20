@@ -520,16 +520,19 @@ async function readExactEvidence(pid: number): Promise<ExactEvidence | undefined
       }
       case 'darwin': {
         // Both tools ship in base macOS: no Xcode shim or developer tool.
-        const output =
+        // The boot and start probes are independent, so they run together:
+        // a first vault open pays one spawn latency, not two in sequence.
+        const [bootOutput, started] = await Promise.all([
           darwinBoot.value ??
-          (await run(
-            '/usr/sbin/sysctl',
-            ['-n', 'kern.bootsessionuuid'],
-            noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
-          ))
-        const boot = output.trim()
+            run(
+              '/usr/sbin/sysctl',
+              ['-n', 'kern.bootsessionuuid'],
+              noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
+            ),
+          darwinStartTime(pid),
+        ])
+        const boot = bootOutput.trim()
         if (boot) darwinBoot.value = boot
-        const started = await darwinStartTime(pid)
         if (boot && started !== undefined)
           return { birth: String(started), started, boot, namespace: 'native' }
 
