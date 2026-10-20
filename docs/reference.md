@@ -903,7 +903,7 @@ Inspect project, user, managed and spark-hooks.json hook sources for the selecte
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.hooks`, `museSpark.runSetupHooks`, `museSpark.runHook`, `museSpark.retryPluginHooks`. Settings: `museSpark.modelApiHooks`, `museSpark.hookHttpAllowedHosts`, `museSpark.modelApiShellKeepsDirectory`, `museSpark.hooksMaxStopContinuations`, `museSpark.hooksMaxRunningCommands`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#hooks)
+Commands: `museSpark.hooks`, `museSpark.runSetupHooks`, `museSpark.runHook`, `museSpark.retryPluginHooks`. Settings: `museSpark.modelApiHooks`, `museSpark.hookHttpAllowedHosts`, `museSpark.modelApiShellKeepsDirectory`, `museSpark.hooksMaxStopContinuations`, `museSpark.hooksMaxRunningCommands`, `museSpark.pluginHookTimeoutSeconds`, `museSpark.pluginChildMaxMemoryMiB`, `museSpark.pluginAnswerMaxBytes`, `museSpark.pluginMaxFailures`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#hooks)
 
 ### Git and Pull Requests
 
@@ -2492,6 +2492,62 @@ Type: `"number"`. Default: `0`. Scope: `machine`.
   "default": 0,
   "minimum": 0,
   "maximum": 64
+}
+```
+
+### museSpark.pluginHookTimeoutSeconds
+
+hooks: How long a plugin hook waits for its child, in seconds. No wait bound unless you set one: 0 (the default) waits for the child's answer or Stop, and the wait says how long it has waited.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
+
+### museSpark.pluginChildMaxMemoryMiB
+
+hooks: How much memory a plugin child may use, in MiB. No memory bound unless you set one: 0 (the default) is the runtime's own default.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
+
+### museSpark.pluginAnswerMaxBytes
+
+hooks: How large a plugin answer may be, in bytes. No answer bound unless you set one: 0 (the default) reads answers whole.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
+
+### museSpark.pluginMaxFailures
+
+hooks: How many Windows job-launcher failures set plugin hooks aside until Retry Plugin Hooks. No latch unless you set one: 0 (the default) keeps trying.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
 }
 ```
 

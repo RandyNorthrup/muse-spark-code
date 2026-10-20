@@ -702,6 +702,13 @@ export const SETTING_DEFAULTS = {
   hooksMaxStopContinuations: 0,
   hooksMaxRunningCommands: 0,
   subagentMaxConcurrent: 0,
+  // D121 (owner 2026-10-16): no bound of ours on plugin children — each 0
+  // is none; the person sets a wait, a memory ceiling, an answer size, or a
+  // failure latch in `museSpark.` settings, applied only when set.
+  pluginHookTimeoutSeconds: 0,
+  pluginChildMaxMemoryMiB: 0,
+  pluginAnswerMaxBytes: 0,
+  pluginMaxFailures: 0,
   // The Model API shell keeps its directory between calls (M91 lane S, PLAN.md
   // D70). On by default, the owner's ruling of 2026-10-04 that enhancements
   // ship on; a machine setting turns it off.

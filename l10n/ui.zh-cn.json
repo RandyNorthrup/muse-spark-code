@@ -3485,7 +3485,8 @@
     "sessionDeletion": "会话删除",
     "shellCommand": "shell 命令",
     "museServeStarting": "muse serve 启动",
-    "webFetch": "网页"
+    "webFetch": "网页",
+    "pluginHook": "插件钩子"
   },
   "userShellLabel": "你运行了",
   "userShellExitCode": "退出代码 {code}",
