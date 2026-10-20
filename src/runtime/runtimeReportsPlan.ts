@@ -1,10 +1,12 @@
 // D121: the person's own plan byte limit for reports, the
 // `reportsPlanMaxBytes` key of the agent data folder's settings.json (beside
 // `paidDailyBudgetUsd`), read per report. No workspace file and no
-// environment variable can set it. Absent, empty or unreadable: no limit.
+// environment variable can set it. Absent, malformed or misshapen: no limit;
+// any other read failure throws for the caller to see.
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { isStoreErrorCode } from '../host/backend/storeErrors'
 import { RUNTIME_SETTINGS_FILE } from '../shared/constants'
 
 const planSettingSchema = z.object({
@@ -18,8 +20,13 @@ export function runtimeReportsPlanMaxBytes(dataFolder: string): number {
     )
     const parsed = planSettingSchema.safeParse(raw)
     return parsed.success ? (parsed.data.reportsPlanMaxBytes ?? 0) : 0
-  } catch {
-    // No settings file (the default) or an unreadable one: no limit.
-    return 0
+  } catch (error: unknown) {
+    // NARROW: a missing settings file (the default), malformed text or a
+    // misshapen record reads as no limit; anything else is not this file's
+    // answer to give.
+    if (isStoreErrorCode(error, 'ENOENT')) return 0
+    if (error instanceof SyntaxError) return 0
+    if (error instanceof Error && error.name === '$ZodError') return 0
+    throw error
   }
 }
