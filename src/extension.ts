@@ -2255,6 +2255,9 @@ async function activateWindow(
     log: (message) => {
       log.warn(message)
     },
+    // The person's own plugin bounds (D121: each 0 is none of ours).
+    maxFailures: () => currentSettings().pluginMaxFailures,
+    maxMemoryMiB: () => currentSettings().pluginChildMaxMemoryMiB,
   })
   const shellEnvironmentOf = (): NodeJS.ProcessEnv =>
     withTerminalOverrides(
@@ -3076,7 +3079,8 @@ async function activateWindow(
     hookHttpAllowedHosts: () => currentSettings().hookHttpAllowedHosts,
     isHookNetworkAllowed: () =>
       isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
-    // Plugin children get the hook environment (M51) and their tree (M91b).
+    // Plugin children get the hook environment (M51), their tree (M91b),
+    // and the person's own plugin bounds (D121: each 0 is none of ours).
     pluginHooks: {
       env: () =>
         hookEnvironment(
@@ -3088,6 +3092,11 @@ async function activateWindow(
             : { workspaceRoot, realpath: realpathSync },
         ),
       containment: pluginJobs.containment,
+      bounds: () => ({
+        timeoutSeconds: currentSettings().pluginHookTimeoutSeconds,
+        maxMemoryMiB: currentSettings().pluginChildMaxMemoryMiB,
+        maxAnswerBytes: currentSettings().pluginAnswerMaxBytes,
+      }),
     },
     // Sessions survive the window (PLAN.md D14) in the workspace storage
     // directory; no folder open, no storage, no persistence. The store is

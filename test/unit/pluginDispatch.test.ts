@@ -29,7 +29,13 @@ import {
   runtimeArguments,
 } from '../../src/core/backends/modelapi/pluginFormats'
 import { HOOK_MAX_RUNNING_COMMANDS, MODEL_API_TOOLS } from '../../src/shared/constants'
-import { resolvePluginRuntime, runPluginHook } from '../../src/core/backends/modelapi/pluginHost'
+import {
+  pluginCallBounds,
+  PluginSession,
+  resolvePluginRuntime,
+  runPluginHook,
+  type PluginPersonBounds,
+} from '../../src/core/backends/modelapi/pluginHost'
 import { expectEnded, markedPid } from './helpers/processes'
 
 const ROOT = '/ws'
@@ -265,8 +271,7 @@ function writePlugin(source: string, name = 'plugin.mjs'): string {
 }
 
 /** The host side for real children: this node, standing in for bun too. */
-function host(): PluginHostDeps {
-  const warnings: string[] = []
+function host(warnings: string[] = [], bounds?: () => PluginPersonBounds): PluginHostDeps {
   const dir = mkdtempSync(path.join(tmpdir(), 'm91b-bin-'))
   const bun = path.join(dir, 'bun')
   // Portable fixture: its Bun stand-in is this Node run directly (D121: no
@@ -281,6 +286,7 @@ function host(): PluginHostDeps {
       warnings.push(message)
     },
     now: () => 0,
+    ...(bounds !== undefined && { bounds }),
   }
 }
 
@@ -666,6 +672,209 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
       expect(result.updatedInput).toEqual({ command: `allocated ${String(1300 * 1024 * 1024)}` })
     },
   )
+})
+
+/** One OpenCode guard that hangs: the wait under test must end it. */
+function slowOpenCode(): string {
+  return writePlugin(
+    `export const Slow = async () => ({ 'tool.execute.before': async () => { await new Promise((resolve) => setTimeout(resolve, 60000)) } })`,
+  )
+}
+
+describe.runIf(IS_REAL)('person-set plugin bounds (D121)', () => {
+  it('reads no bound from nothing set, and converts a set bound', () => {
+    expect(pluginCallBounds({})).toEqual({
+      timeoutMs: undefined,
+      maxMemoryBytes: undefined,
+      maxAnswerBytes: undefined,
+    })
+    expect(pluginCallBounds({ timeoutSeconds: 0, maxMemoryMiB: 0, maxAnswerBytes: 0 })).toEqual({
+      timeoutMs: undefined,
+      maxMemoryBytes: undefined,
+      maxAnswerBytes: undefined,
+    })
+    expect(
+      pluginCallBounds({ timeoutSeconds: 2, maxMemoryMiB: 256, maxAnswerBytes: 64 * 1024 }),
+    ).toEqual({
+      timeoutMs: 2000,
+      maxMemoryBytes: 256 * 1024 * 1024,
+      maxAnswerBytes: 64 * 1024,
+    })
+  })
+
+  it('a person-set hook wait ends a slow plugin and names the wait', async () => {
+    const started = Date.now()
+    const answer = await runPluginHook(
+      {
+        system: 'opencode',
+        pluginPath: slowOpenCode(),
+        hook: 'tool.execute.before',
+        payload: {},
+        failClosed: false,
+      },
+      {
+        env: host().env,
+        platform: 'linux',
+        workspaceRoot: ROOT,
+        realpath: realpathSync,
+        bounds: () => ({ timeoutSeconds: 1 }),
+      },
+    )
+    expect(answer.status).toBe('failed')
+    expect(answer.reason).toContain('timed out after')
+    expect(Date.now() - started).toBeLessThan(15_000)
+  })
+
+  it('an explicit per-hook timeout wins over the person-set wait', async () => {
+    const started = Date.now()
+    const answer = await runPluginHook(
+      {
+        system: 'opencode',
+        pluginPath: slowOpenCode(),
+        hook: 'tool.execute.before',
+        payload: {},
+        failClosed: false,
+        timeoutMs: 1000,
+      },
+      {
+        env: host().env,
+        platform: 'linux',
+        workspaceRoot: ROOT,
+        realpath: realpathSync,
+        bounds: () => ({ timeoutSeconds: 60 }),
+      },
+    )
+    expect(answer.status).toBe('failed')
+    expect(answer.reason).toContain('timed out after')
+    // The person's 60-second wait would outlast the test's own timeout.
+    expect(Date.now() - started).toBeLessThan(15_000)
+  })
+
+  it('a person-set answer size fails an over-long answer through dispatch', async () => {
+    const plugin = writePlugin(
+      `export const Big = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = 'x'.repeat(100 * 1024) } })`,
+    )
+    const result = await dispatch(
+      definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
+      'PreToolUse',
+      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+      adapterWith(host([], () => ({ maxAnswerBytes: 1024 }))),
+    )
+    expect(result.blockedReason).toContain('exceeded')
+  })
+
+  it('a waiting call says how long it has waited, and Stop names the wait', async () => {
+    const notices: string[] = []
+    const h = host()
+    const session = new PluginSession({
+      env: h.env,
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      warn: () => undefined,
+      notice: (message) => {
+        notices.push(message)
+      },
+      noticeMs: 20,
+    })
+    const stop = new AbortController()
+    const pending = session.run(
+      {
+        system: 'opencode',
+        pluginPath: slowOpenCode(),
+        hook: 'tool.execute.before',
+        payload: {},
+        failClosed: false,
+      },
+      stop.signal,
+    )
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(notices.length).toBeGreaterThanOrEqual(1)
+    for (const notice of notices) expect(notice).toContain('the plugin hook')
+    stop.abort()
+    const answer = await pending
+    session.dispose()
+    expect(answer.status).toBe('failed')
+    expect(answer.reason).toContain('the session is closed after')
+  })
+
+  it('a person-set probe wait names its wait instead of calling the runtime absent', async () => {
+    // Real probe throughout: PATH resolves a hanging `node`, and the real
+    // `--version` wait ends at the person's wait with the wait's own words.
+    const dir = mkdtempSync(path.join(tmpdir(), 'm91b-node-'))
+    writeFileSync(path.join(dir, 'node'), '#!/bin/sh\nsleep 30\n', { mode: 0o755 })
+    const resolution = await resolvePluginRuntime('amp', {
+      env: { PATH: `${dir}:/usr/bin:/bin` },
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      bounds: () => ({ timeoutSeconds: 1 }),
+    })
+    expect(resolution.ok).toBe(false)
+    if (resolution.ok) return
+    expect(resolution.reason).toContain('timed out after')
+  })
+
+  it('a set memory ceiling caps the node heap, and none leaves the default', async () => {
+    // Real resolution against this node: the heap flag rides along only
+    // when the person sets a ceiling.
+    const plain = await resolvePluginRuntime('amp', {
+      env: { PATH: path.dirname(process.execPath) },
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+    })
+    expect(plain.ok).toBe(true)
+    if (!plain.ok) return
+    expect(plain.args).toEqual(['--input-type=module', '-e'])
+    const capped = await resolvePluginRuntime('amp', {
+      env: { PATH: path.dirname(process.execPath) },
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      bounds: () => ({ maxMemoryMiB: 256 }),
+    })
+    expect(capped.ok).toBe(true)
+    if (!capped.ok) return
+    expect(capped.args).toEqual(['--max-old-space-size=256', '--input-type=module', '-e'])
+  })
+
+  it('a set ceiling on bun refuses where no spawner-set cap exists', async () => {
+    // Real PATH lookups throughout: darwin offers neither a job limit nor
+    // prlimit, so a set ceiling refuses with its reason instead of running
+    // unbounded past it.
+    const refused = await resolvePluginRuntime('opencode', {
+      env: host().env,
+      platform: 'darwin',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      bounds: () => ({ maxMemoryMiB: 512 }),
+    })
+    expect(refused).toEqual({
+      ok: false,
+      reason: 'opencode: the plugin memory ceiling cannot be bounded on darwin',
+    })
+  })
+})
+
+/** Where the rig offers prlimit, a set ceiling must wrap the runtime in it. */
+const HAS_PRLIMIT = ['/usr/bin/prlimit', '/bin/prlimit'].some((file) => existsSync(file))
+
+describe.runIf(IS_REAL && HAS_PRLIMIT)('person-set plugin ceiling on Linux bun (D121)', () => {
+  it('a set ceiling wraps the runtime in prlimit', async () => {
+    const wrapped = await resolvePluginRuntime('opencode', {
+      env: host().env,
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      bounds: () => ({ maxMemoryMiB: 512 }),
+    })
+    expect(wrapped.ok).toBe(true)
+    if (!wrapped.ok) return
+    expect(wrapped.command.endsWith('prlimit')).toBe(true)
+    expect(wrapped.args[0]).toBe(`--data=${String(512 * 1024 * 1024)}`)
+    expect(wrapped.args.at(-1)).toBe('-e')
+  })
 })
 
 /** The host side for the installed bun: its folder on the allowlisted PATH. */

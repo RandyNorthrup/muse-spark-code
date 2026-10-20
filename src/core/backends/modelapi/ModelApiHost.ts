@@ -907,7 +907,10 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   refused by their fail-closed rule.
   */
   readonly pluginHooks?:
-    (Pick<PluginHostDeps, 'containment'> & { readonly env: () => NodeJS.ProcessEnv }) | undefined
+    | (Pick<PluginHostDeps, 'containment' | 'bounds'> & {
+        readonly env: () => NodeJS.ProcessEnv
+      })
+    | undefined
   /** Tests can shorten the six-second Notification delay without waiting. */
   readonly hookNotificationDelayMs?: number | undefined
   /**
@@ -3744,6 +3747,12 @@ export class ModelApiSession implements ScheduledAgentSession {
               warn: (message: string) => {
                 this.deps.log.warn(`Model API hooks: ${message}`)
               },
+              // A wait with no deadline of its own says how long it has
+              // waited, as Model API requests do.
+              notice: (message: string) => {
+                this.deps.log.info(`Model API hooks: ${message}`)
+              },
+              ...(plugins.bounds !== undefined && { bounds: plugins.bounds }),
               // A plugin child is a process the running turn started (M86).
               onProcess: () => {
                 this.noteProcessRan()

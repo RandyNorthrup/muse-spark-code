@@ -5,14 +5,15 @@
 // everything the plugin starts is in that job from its first instruction.
 // Ending the launcher closes the job's only handle, which ends every process
 // in it (`jobProcessTree` in core). POSIX uses the child's own process
-// group. D121: no memory bound of ours — the job carries kill-on-close and
-// the OS's own limits, not a limit we set.
+// group. D121: no memory bound of ours — without a set ceiling the job
+// carries kill-on-close and the OS's own limits, not a limit we set.
 //
 // A hook never runs without that containment. A failed preparation is tried
 // again on every dispatch past a short pacing delay, with a notice in the
-// user's language; **Retry Plugin Hooks** (`reset`) clears the count.
+// user's language; the person's own failure latch sets plugin hooks aside
+// until **Retry Plugin Hooks** (`reset`), which clears the count.
 
-import { PLUGIN_JOB_RETRY_BACKOFF_MS, UI_TEXT } from '../../shared/constants'
+import { BYTES_PER_MIB, PLUGIN_JOB_RETRY_BACKOFF_MS, UI_TEXT } from '../../shared/constants'
 import type { PluginContainment } from '../../core/backends/modelapi/pluginHost'
 import { spawnMcpJob } from './mcpJobLaunch'
 
@@ -23,6 +24,17 @@ export interface PluginContainmentDeps {
   readonly newJobExecutable: () => (() => Promise<string | undefined>) | undefined
   readonly now: () => number
   readonly log: (message: string) => void
+  /**
+  Consecutive launcher failures that set plugin hooks aside until Retry
+  (D121: 0, the default, keeps trying past the pacing delay). Re-read per
+  dispatch, so a changed setting applies without rebinding.
+  */
+  readonly maxFailures?: (() => number) | undefined
+  /**
+  The Windows job's memory ceiling in MiB (D121: 0, the default, is the
+  OS's own limits). Re-read per containment, so a changed setting applies.
+  */
+  readonly maxMemoryMiB?: (() => number) | undefined
 }
 
 export interface PluginContainmentSource {
@@ -51,8 +63,13 @@ export function pluginContainment(deps: PluginContainmentDeps): PluginContainmen
     failedAt: number
   } = { prepare: undefined, failures: 0, failedAt: 0 }
   const executable = async (): Promise<string | undefined> => {
-    // D121: no failure latch of ours — past the pacing delay every
-    // dispatch prepares fresh and tries again; only Retry resets the count.
+    // The person's own failure latch, or none of ours: past the pacing
+    // delay every dispatch prepares fresh and tries again; at the set count
+    // plugin hooks stay off until Retry resets the count.
+    const maxFailures = deps.maxFailures?.() ?? 0
+    if (maxFailures > 0 && state.failures >= maxFailures) {
+      return undefined
+    }
     if (state.failures > 0) {
       if (deps.now() - state.failedAt < PLUGIN_JOB_RETRY_BACKOFF_MS) {
         return undefined
@@ -73,11 +90,17 @@ export function pluginContainment(deps: PluginContainmentDeps): PluginContainmen
     }
     state.failures += 1
     state.failedAt = deps.now()
-    deps.log(
-      state.failures === 1
-        ? 'Plugin hooks: the Windows job launcher could not be prepared; it is tried once more shortly'
-        : 'Plugin hooks: the Windows job launcher failed again; it is tried again shortly',
-    )
+    if (maxFailures > 0 && state.failures >= maxFailures) {
+      deps.log(
+        'Plugin hooks: the Windows job launcher failed again; they stay off until Retry Plugin Hooks',
+      )
+    } else if (state.failures === 1) {
+      deps.log(
+        'Plugin hooks: the Windows job launcher could not be prepared; it is tried once more shortly',
+      )
+    } else {
+      deps.log('Plugin hooks: the Windows job launcher failed again; it is tried again shortly')
+    }
     return undefined
   }
   return {
@@ -87,6 +110,9 @@ export function pluginContainment(deps: PluginContainmentDeps): PluginContainmen
         return { kind: 'unavailable', notice: UI_TEXT.pluginHooksNoJob }
       }
       const resourceAssembly = await deps.shellJobAssembly?.()
+      // The person's own memory ceiling, or the OS's own limits: a set
+      // ceiling caps the job the launcher starts through.
+      const maxMemoryMiB = deps.maxMemoryMiB?.() ?? 0
       return {
         kind: 'job',
         launch: (command, args, options) => {
@@ -94,7 +120,6 @@ export function pluginContainment(deps: PluginContainmentDeps): PluginContainmen
           if (!command.toLowerCase().endsWith(EXECUTABLE_SUFFIX)) {
             throw new Error('the plugin runtime is not an executable')
           }
-          // D121: no job memory limit of ours — the OS's own limits apply.
           return spawnMcpJob({
             executablePath,
             file: command,
@@ -103,6 +128,7 @@ export function pluginContainment(deps: PluginContainmentDeps): PluginContainmen
             cwd: options.cwd,
             env: options.env,
             log: deps.log,
+            ...(maxMemoryMiB > 0 && { jobMemoryLimit: maxMemoryMiB * BYTES_PER_MIB }),
             resource: options.resource,
             resourceAssembly,
           })

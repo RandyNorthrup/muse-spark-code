@@ -3687,7 +3687,8 @@
     "sessionDeletion": "odstranění relace",
     "shellCommand": "příkaz shellu",
     "museServeStarting": "spouštění muse serve",
-    "webFetch": "webová stránka"
+    "webFetch": "webová stránka",
+    "pluginHook": "hook pluginu"
   },
   "userShellLabel": "Spustili jste",
   "userShellExitCode": "Ukončovací kód {code}",

@@ -3551,7 +3551,8 @@
     "sessionDeletion": "das Löschen der Sitzung",
     "shellCommand": "der Shell-Befehl",
     "museServeStarting": "muse serve beim Start",
-    "webFetch": "die Webseite"
+    "webFetch": "die Webseite",
+    "pluginHook": "der Plugin-Hook"
   },
   "userShellLabel": "Von Ihnen ausgeführt",
   "userShellExitCode": "Exitcode {code}",
