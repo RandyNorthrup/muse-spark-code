@@ -211,7 +211,10 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
       !path.isAbsolute(deps.helperPath) ||
       !deps.fileExists(deps.helperPath)
     )
-      return unavailable('native/darwin/muse-dictate-screen.app')
+      // Names the architecture's own signed .app the package ships.
+      return unavailable(
+        `native/darwin/${deps.helperPath.split(/[\\/]/u).find((part) => part.endsWith('.app')) ?? path.basename(deps.helperPath)}`,
+      )
     const helper = await verifiedPath()
     if (!helper) return unavailable('helperIntegrity')
     const output = await readCheck(helper, ['--record-screen', '--probe'])

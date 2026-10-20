@@ -24,14 +24,14 @@ function held(): Promise<string> {
 describe.runIf(process.platform !== 'win32')('namedLock local failures', () => {
   it('reports a refused bind as unavailable with its OS code and cause', async () => {
     const base = await scratch('refused-')
-    // Past sockaddr_un: the real bind fails and the lock reports it. The
-    // folder itself is private on purpose: the lock refuses a
-    // group-or-other-readable folder before it binds, and a plain mkdir
-    // follows the process umask (0755 under the hosted runners' 022), so
-    // the mode is pinned and the bind is what fails everywhere.
-    const directory = path.join(base, 'x'.repeat(200))
-    await mkdir(directory, { recursive: true })
-    await chmod(directory, 0o700)
+    // A private folder this user cannot write: the lock's own folder rule
+    // passes it (no group or other bits), and the kernel refuses to create
+    // the socket there (EACCES), whatever Node's socket path handling. A
+    // socket path past sockaddr_un is no refusal everywhere: some Node
+    // versions bind it anyway.
+    const directory = path.join(base, 'locked')
+    await mkdir(directory)
+    await chmod(directory, 0o500)
     try {
       const failure = await captureFailure(() =>
         withNamedLock(held, NAMES, { directory, timeoutMs: 1000 }),
@@ -42,6 +42,7 @@ describe.runIf(process.platform !== 'win32')('namedLock local failures', () => {
       expect(typeof failure.reason).toBe('string')
       expect(failure.cause).toBeInstanceOf(Error)
     } finally {
+      await chmod(directory, 0o700)
       await rm(base, { recursive: true, force: true })
     }
   })
