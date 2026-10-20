@@ -837,6 +837,17 @@ It reaches the tree only through `ovsx` (`^1.16.0`, development packaging
 tool); shipped bundles, metafiles and notices contain none of it.
 `security:audit` exits 0 with the standing braces exception.
 
+CIFINAL0190 audit update (2026-10-20): pin the development-only `vite`
+(vitest's) to 8.3.4 for GHSA-587h-7wmj-h5pm (high: launch-editor's
+`fs.existsSync()` check can be bypassed on Windows) and the two moderate
+8.3.0–8.3.2 advisories. Published October 8, past `.npmrc`'s seven-day
+rule; vitest 5.0.3 accepts `^8.0.0`. Integrity matches the official
+tarball
+(sha512-IftLE8phJhdNRIGNEV4JCCvfNScoZQVfcXaN8TQropWGJtOHcu+iAB9pHcuGvmEb/kddw0LBe/jS8ztdC6xdiQ==).
+vite's own ranges move `postcss` to 8.5.30 and `nanoid` to 3.3.20 in the
+lock. Test tooling only; shipped bundles, metafiles and notices contain
+none of it. `security:audit` exits 0 with the standing braces exception.
+
 SDK142 update (2026-10-02): `@muse-code/sdk` 1.4.2, published September 30,
 matches CLI 1.4.2-R4684.1 and is a drop-in for the runtime code imported by
 the extension. It waits for `.npmrc`'s seven-day release-age rule until
