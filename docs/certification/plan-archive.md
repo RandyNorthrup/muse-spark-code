@@ -668,3 +668,119 @@ open work — the §9 M95-K residuals list (~44 KiB, incl. the 38 open
 records above), the open M95 (92 KiB), M96 (184 KiB), M96c (76 KiB) and
 M100–M117 milestone sections, M73's 3.1 KiB Status block, M118
 (7.1 KiB, open bindings), M122 (2.5 KiB). The lead decides.
+
+## PLANFIX2: open-record history moves with summaries, plan under the gate (2026-10-20)
+
+The lead's ruling for this lane: open work stays in `PLAN.md`, but the long
+history inside an open record (earlier rounds, finished sub-steps, proofs,
+commit lists) may move to the archive with `--summary`, leaving a short
+paragraph that keeps every open item of that record (what is still open, who
+owns it, the next step, in the record's own words where possible) plus
+`Full record: <link>` — allowed only when the plan reader's parsed facts stay
+identical (no `--allow-fact-change`; a refusal leaves the record whole).
+§9 stays whole: the reader parses its bullets as residuals facts, so any
+§9 move refuses without `--allow-fact-change`. §7 is parsed as no facts, so
+its bullets move freely; §6 milestone prose that is not a status row, field,
+lane table or checklist item moves freely too.
+
+`node scripts/plan-archive.mjs move --batch temp/summaries/moves.json`
+(dry-run first, identical report) at `5cf2e1004`: 14 blocks, 25,290 bytes
+gross, 3 entries.
+
+| Measure                                  | Before                | After               |
+| ---------------------------------------- | --------------------- | ------------------- |
+| `PLAN.md` bytes                          | 3,574,749             | 3,556,659           |
+| Share of the reader's bound              | 85.2% (OVER by 9,591) | 84.8% (8,499 under) |
+| Room to the brief's target (≤ 3,561,158) | 13,591 short          | 4,499 inside        |
+| Hashed blocks in `gates.md`              | 241                   | 252 (+11)           |
+| Hashed blocks in `milestones.md`         | 182                   | 185 (+3)            |
+
+- Entry 1 (gates, `## M95 K repair residuals (2026-10-05)`, 11 blocks,
+  5,910 bytes): the §7 K-bullet history (K22, K-contract, K-recovery,
+  K-release-base merge, K-hook verification, K-final-runtime,
+  M95MU-HOST-API-RECORD, M95-H, FIXM95O, RVM95SC-R-host-api-record,
+  RVM95SC-R-shell-env; old lines 35371–35461). The stub is the summary at
+  §7 lines 35203–35251, keeping every open item.
+- Entry 2 (milestones, `## M123 — Git and pull requests in every editor
+(D104)`, 2 blocks, 8,806 bytes): lane A landed plus reviews RVM123A and
+  RVM123A2 (old lines 17323–17432, 17434–17458). The stub is the summary at
+  M123 lines 17323–17348, keeping every open item.
+- Entry 3 (milestones, same heading, 1 block, 10,574 bytes): reviews
+  RVM123A3 and RVM123A4 with the logout-barrier state table (old lines
+  17460–17537). The stub is the summary at M123 lines 17350–17366, keeping
+  every open item.
+
+Kept in place verbatim: the §9 M95-K list (66 bullets, still whole), the §7
+generic gate bullets (M67…repository protection, 35255+), the §7 `Archived`
+pointers, M123's status rows, Goal/Depends on/Order, lane tables, checklists,
+Not-yet-shipped lists and acceptance rows.
+
+### Every open item and where it now stands (quoted)
+
+Entry 1's summary (§7, from line 35203):
+
+- K22: "full composed certification still belongs to the lead" (35205).
+- K-contract: "M must adopt strict `providers/edit` and scoped prefill
+  variants, with the follow-up to certify the final composed protocol/editor
+  flow" (35208–35209).
+- K-recovery: "same-host snapshot comparisons remain, cross-window
+  provider/key serialization awaits PROVSTORE-LOCKLIB after M123, and
+  shared-store crash atomicity remains follow-up" (35211–35212).
+- K-release-base merge: "the lead must reconcile the release base on
+  integration ... and full certification stays open" (35215).
+- K-hook verification: "it requires the closing commit's positive
+  lint/Gitleaks receipt" (35219).
+- K-final-runtime: "leaves live setup/OAuth/discovery, unsaved-draft scan
+  cancellation, four themes, pseudo-locale and 320px as integration gates"
+  (35220–35221).
+- M95MU-HOST-API-RECORD: "lane W and the lead must regenerate and review it
+  on the fully integrated tree where lane K also contributes APIs, and the
+  full quality gate remains required before integration is proposed"
+  (35226–35227).
+- M95-H: "lane W registers Chat, lane I supplies its caller's vision
+  capability and tools-retaining compaction body, then the lead runs full
+  integrated quality and live acceptance" (35229–35230).
+- FIXM95O O-INTEGRATION: "remains an integration acceptance limit since the
+  codec is currently imported only by its owned test" (35234); "the follow-up
+  that lane T/I inject a stable, session-unique response ID and wire the lazy
+  codec bundle while the lead proves the complete provider turn/reload/resume
+  flow and full quality" (35236–35237); O-SPLIT: "lane W enforcing the planned
+  separate codec bundle without exemptions or weakened guards" (35239);
+  O-HOST-API: "lane W regenerating and reviewing the record before milestone
+  certification" (35241); "both are observed gate failures, not green gates"
+  (35242).
+- RVM95SC-R-host-api-record: "leaves the host API gate red"; "aggregate
+  certification stays open"; "lane W with the lead must regenerate, inspect
+  and recheck the record" (35243–35246).
+- RVM95SC-R-shell-env: "an open gate, not newly accepted risk"; "lane I/X/W
+  must decide intended inheritance versus stripping and test the shell
+  boundary before broader provider security certification" (35247–35250).
+
+Entries 2–3's summaries (M123, from line 17323):
+
+- Lane A revocation docs: "the lead re-reads and dates it" (17337); "no live
+  sign-in is allowed without the lead" (17339).
+- Residual cross-process windows (A–A2): "closing the windows needs an atomic
+  store or a cross-process lock, and neither the keychain binding nor the M109
+  vault port offers one" (17346–17347).
+- A4 overlap: "not closable over this store ... a store with no notification
+  or lock cannot close it" (17359–17362); residual windows "each lose a pair
+  while none serves a pair issued before a Sign out" (17364–17365).
+
+### Proofs
+
+- Reassembly: the command rebuilt the old `PLAN.md` from the result,
+  SHA-256 `e4d15473…`, before writing.
+- Parsed facts: identical (dry-run and write runs); format drift after: 0.
+- `npx prettier --check PLAN.md docs/plan-archive/gates.md
+docs/plan-archive/milestones.md`: clean.
+- `npm run check:plan`: `plan-format-v1; 222 milestones; 0 drift`.
+- `npm run check:roadmap`: 222 entries, `ROADMAP.md` current (no regenerate
+  needed; no §10/heading/status change).
+- `node scripts/plan-archive.mjs status`: decisions 125, gates 252,
+  milestones 185 blocks, all intact.
+- Suites at the repository's own timeout (no `--testTimeout`): `planReader` +
+  `planCitation` + `autoCompact` (89 passed), `paidMoneyStructure` +
+  `sharingArtifacts` + `estimatorPlanSnapshot` (79 passed),
+  `estimatorPlanSnapshotRealPlan` + `estimatorPlanSnapshotSource` +
+  `estimatorSnapshotStrict` (73 passed), `planDocument` (19 passed).
