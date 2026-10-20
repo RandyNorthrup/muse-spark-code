@@ -262,7 +262,10 @@ jobs:
       - run: chmod +x native/darwin/muse-dictate native/linux/x64/muse-created native/linux/arm64/muse-created dist/native/darwin/muse-vault
       - run: chmod +x native/linux/x64/muse-vault-peer native/linux/arm64/muse-vault-peer
       - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
-      - run: npm run package
+      # One package per platform, no universal package (PLAN.md D209): the
+      # forks ship Linux builds, so this proves the Linux x64 target, whose
+      # size gate runs inside packaging.
+      - run: npm run package -- --target linux-x64
         env:
           # The packaged-README badge check lists public main (GitHub API).
           GITHUB_TOKEN: ${{ github.token }}

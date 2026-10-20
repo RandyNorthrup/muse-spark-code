@@ -112,12 +112,13 @@ export async function stageVsix(root, stage, target) {
       if (!files.includes(file)) throw new Error(`Webview output excluded from VSIX: ${file}`)
     }
   }
+  // requiredNativeFiles already enforces each target's own helpers (and both
+  // arches for the universal stage): a second arch loop here predates
+  // per-target staging and rejects every targeted stage, whose filter
+  // rightly drops the other platforms' files.
   for (const required of requiredNativeFiles(target))
     if (files.every((file) => file.replaceAll('\\', '/') !== required))
       throw new Error(`Required native helper excluded from VSIX: ${required}`)
-  for (const arch of ['x64', 'arm64'])
-    if (files.every((file) => file.replaceAll('\\', '/') !== `native/linux/${arch}/muse-created`))
-      throw new Error(`Required Linux created-path helper excluded from VSIX: ${arch}`)
   const normalized = new Set(files.map((file) => file.replaceAll('\\', '/')))
   // D140: the Linux dictation helper ships as release assets, never in the
   // VSIX. Any helper binary staged for packaging refuses the whole stage.
