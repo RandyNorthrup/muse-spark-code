@@ -7,7 +7,7 @@
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 73,
+      "SWALLOW": 72,
       "GENERIC": 270,
       "CLEANUP": 236
     },
@@ -1201,11 +1201,6 @@
     {
       "file": "src/core/legal/scan.ts",
       "identity": "534a7d588bf7f79182174aa1b0b583a70a206dede3e9b26574130ad677e48f6e",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/legal/workspace.ts",
-      "identity": "9b6aeed67546cfcef137126341472585839943c9cc1a0ff0e433c36999409a26",
       "class": "SWALLOW"
     },
     {

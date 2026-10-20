@@ -143,8 +143,15 @@ export function readPinnedLegalData(
     return existsSync(legalDataArchivePath(directory))
       ? readArchivedLegalData(relativePath, directory)
       : readLooseLegalData(relativePath, directory)
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // Fail closed on every reachable failure: malformed JSON (SyntaxError)
+    // and coded filesystem and brotli errors (including the oversize
+    // RangeError, which carries a code). Anything else is a programming
+    // error the guards above already exclude, and it keeps its kind past
+    // the read.
+    if (error instanceof SyntaxError) return undefined
+    if (isCodedError(error)) return undefined
+    throw error
   }
 }
 
