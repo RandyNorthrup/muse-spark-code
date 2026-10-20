@@ -1676,6 +1676,13 @@
           "scope": "machine",
           "description": "%config.reports.agentSources.description%"
         },
+        "museSpark.reports.planMaxBytes": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "%config.reports.planMaxBytes.description%",
+          "scope": "machine"
+        },
         "museSpark.mediaMaxUploadMiB": {
           "type": "integer",
           "default": 0,

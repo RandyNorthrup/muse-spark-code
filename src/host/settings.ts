@@ -77,6 +77,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly 'reports.network': 'whenSignedIn' | 'always' | 'off'
   readonly 'reports.keepHistory': boolean
   readonly 'reports.agentSources': readonly ('claudeCode' | 'codex')[]
+  /** Largest plan file reports read, in bytes; 0 reads the whole plan (D121). */
+  readonly 'reports.planMaxBytes': number
   /** Shell sandbox posture for `muse serve` (PLAN.md D12). */
   readonly shellSandbox: ShellSandboxMode
   /** Which backend hosts conversations (PLAN.md D1, M7). */
@@ -255,6 +257,7 @@ const settingSchemas = {
   'questions.deferAfterSeconds': z.int().check(z.gte(0), z.lte(QUESTION_DEFER_MAX_SECONDS)),
   'reports.network': z.enum(['whenSignedIn', 'always', 'off']),
   'reports.keepHistory': z.boolean(),
+  'reports.planMaxBytes': z.int().check(z.gte(0)),
   'reports.agentSources': z
     .array(z.enum(['claudeCode', 'codex']))
     .check(z.refine((values) => new Set(values).size === values.length)),
@@ -445,6 +448,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     'questions.deferAfterSeconds': readSetting(config, 'questions.deferAfterSeconds', log),
     'reports.network': readSetting(config, 'reports.network', log),
     'reports.keepHistory': readSetting(config, 'reports.keepHistory', log),
+    'reports.planMaxBytes': readSetting(config, 'reports.planMaxBytes', log),
     'reports.agentSources': readSetting(config, 'reports.agentSources', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
     backend: readSetting(config, 'backend', log),

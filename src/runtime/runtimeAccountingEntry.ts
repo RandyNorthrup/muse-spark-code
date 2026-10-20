@@ -59,6 +59,9 @@ const settingsSchema = z.strictObject({
   paidDailyBudgetUsd: z.optional(z.number().check(z.nonnegative())),
   // M105 lane V: the converter path shares this machine file (runtimeConverterPath.ts).
   mediaConverterPath: z.optional(z.string().check(z.maxLength(MEDIA_CONVERTER_PATH_MAX_CHARS))),
+  // D121: the person's own plan byte limit shares it too
+  // (runtimeReportsPlan.ts); 0 (the default) is no limit.
+  reportsPlanMaxBytes: z.optional(z.number().check(z.nonnegative())),
 })
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
 

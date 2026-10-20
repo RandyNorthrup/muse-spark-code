@@ -422,6 +422,7 @@ export function featureCatalog(): readonly Feature[] {
       [
         'reports.network',
         'reports.keepHistory',
+        'reports.planMaxBytes',
         'reports.agentSources',
         'usageHistory',
         'usageHistoryDays',

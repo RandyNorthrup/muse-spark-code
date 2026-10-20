@@ -1,5 +1,10 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import manifest from '../../package.json'
+import { readPlan } from '../../src/core/reporting/plan/reader'
+import { runtimeReportsPlanMaxBytes } from '../../src/runtime/runtimeReportsPlan'
 import type { Logger } from '../../src/host/logger'
 import { readSettings, type SettingsSource } from '../../src/host/settings'
 import {
@@ -291,5 +296,41 @@ describe('no default limits: media upload and screen recording', () => {
         systemAudio: false,
       }).success,
     ).toBe(false)
+  })
+})
+
+describe('no default limits: report plan bytes', () => {
+  it('defaults to no plan bound of our own', () => {
+    expect(SETTING_DEFAULTS['reports.planMaxBytes']).toBe(0)
+    expect(manifestDefault('museSpark.reports.planMaxBytes')).toBe(0)
+  })
+
+  it('reads the whole plan with nothing set and refuses past a person-set bound', () => {
+    const warnings: string[] = []
+    const read = readSettings(settingSource({}), silentLog(warnings))
+    expect(read['reports.planMaxBytes']).toBe(0)
+    const big = `## 6. Milestones\n### M12 — Big\n**Status 2026-10-05: planned.**\n${'x'.repeat(1024)}\n`
+    expect(readPlan(big, {}, read['reports.planMaxBytes']).facts.drift).toEqual([])
+    const set = readSettings(settingSource({ 'reports.planMaxBytes': 64 }), silentLog(warnings))
+    expect(set['reports.planMaxBytes']).toBe(64)
+    expect(warnings).toHaveLength(0)
+    expect(readPlan(big, {}, set['reports.planMaxBytes']).facts.drift).toEqual([
+      { code: 'input-size', line: 1, detail: 'maxUtf8Bytes=64' },
+    ])
+  })
+
+  it('reads the runtime bound from the agent settings file, none when absent', async () => {
+    const folder = await mkdtemp(path.join(tmpdir(), 'nolimits-plan-'))
+    try {
+      expect(runtimeReportsPlanMaxBytes(folder)).toBe(0)
+      await writeFile(path.join(folder, 'settings.json'), '{"reportsPlanMaxBytes":4096}', 'utf8')
+      expect(runtimeReportsPlanMaxBytes(folder)).toBe(4096)
+      await writeFile(path.join(folder, 'settings.json'), '{"paidDailyBudgetUsd":5}', 'utf8')
+      expect(runtimeReportsPlanMaxBytes(folder)).toBe(0)
+      await writeFile(path.join(folder, 'settings.json'), '{broken', 'utf8')
+      expect(runtimeReportsPlanMaxBytes(folder)).toBe(0)
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
   })
 })

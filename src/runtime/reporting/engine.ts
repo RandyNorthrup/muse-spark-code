@@ -5,7 +5,6 @@ import {
   REPORT_EMPTY_HASH,
   REPORT_NEXT_STEP_LIMIT,
   REPORT_FORMAT_VERSION,
-  REPORT_PLAN_MAX_BYTES,
   REPORT_SOURCE_TIMEOUT_MS,
   type REPORT_FAIL_ON,
 } from '../../shared/constants'
@@ -59,6 +58,12 @@ export interface ReportingContext {
   readonly generatorVersion: string
   readonly log?: Logger
   readonly keepHistory: boolean
+  /**
+  D121: the person's own plan byte limit, 0 or absent meaning none. The
+  plan reads whole however large unless this is set; past it the parse
+  refuses with `input-size` drift naming this limit.
+  */
+  readonly planMaxBytes?: number
   readonly enabledAgents: LocalReportSourceDeps['enabledAgents']
   readonly session?: LocalReportSourceDeps['session']
   readonly questions?: LocalReportSourceDeps['questions']
@@ -186,10 +191,10 @@ export function createReportingServices(context: ReportingContext): ReportsServi
             : keybindingsSource(context.keybindings),
         plan: localSource('plan', async ({ signal: planSignal }) => {
           if (root === undefined) throw new LocalSourceError('unbound')
-          const text = await reportFileIo(root, process.platform, REPORT_PLAN_MAX_BYTES).read(
-            'PLAN.md',
-            planSignal,
-          )
+          // D121: no limit of ours — the read streams the whole file the way
+          // the rest of the product reads whole files. Only the person's own
+          // planMaxBytes, applied at the parse below, can refuse it.
+          const text = await reportFileIo(root, process.platform).read('PLAN.md', planSignal)
           planText = scrub(text)
           // The single parse happens below with lane evidence (branches,
           // pull requests, certification paths); this read only carries the
@@ -297,19 +302,23 @@ export function createReportingServices(context: ReportingContext): ReportsServi
           ? initialPlan
           : {
               ...initialPlan,
-              data: readPlan(planText, {
-                ...(git.data !== null && { branches: git.data.branches }),
-                ...(github.data !== null && {
-                  pullRequests: github.data.pullRequests.map((pull) => ({
-                    branch: pull.headRef,
-                    number: pull.number,
-                    state: pull.state,
-                  })),
-                }),
-                ...(certification.data !== null && {
-                  certificationPaths: certification.data.records.map((record) => record.path),
-                }),
-              }).facts,
+              data: readPlan(
+                planText,
+                {
+                  ...(git.data !== null && { branches: git.data.branches }),
+                  ...(github.data !== null && {
+                    pullRequests: github.data.pullRequests.map((pull) => ({
+                      branch: pull.headRef,
+                      number: pull.number,
+                      state: pull.state,
+                    })),
+                  }),
+                  ...(certification.data !== null && {
+                    certificationPaths: certification.data.records.map((record) => record.path),
+                  }),
+                },
+                context.planMaxBytes ?? 0,
+              ).facts,
             }
       signal.throwIfAborted()
       const snapshot: SourceSnapshot = {

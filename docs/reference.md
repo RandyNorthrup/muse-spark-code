@@ -61,7 +61,7 @@ Generate a deterministic report from named sources, without a model call.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.showReport`. Settings: `museSpark.reports.keepHistory`, `museSpark.reports.agentSources`, `museSpark.usageHistory`, `museSpark.usageHistoryDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#report)
+Commands: `museSpark.showReport`. Settings: `museSpark.reports.keepHistory`, `museSpark.reports.planMaxBytes`, `museSpark.reports.agentSources`, `museSpark.usageHistory`, `museSpark.usageHistoryDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#report)
 
 ### Prompt Library
 
@@ -3549,6 +3549,20 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
   },
   "uniqueItems": true,
   "default": []
+}
+```
+
+### museSpark.reports.planMaxBytes
+
+Largest plan file reports read, in bytes. No limit unless you set one: 0 (the default) reads the whole plan however large, and a plan past a set value is refused with input-size drift naming your limit. Only this machine's setting is used.
+
+Type: `"integer"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "default": 0,
+  "minimum": 0
 }
 ```
 
