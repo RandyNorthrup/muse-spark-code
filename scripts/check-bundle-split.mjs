@@ -107,6 +107,7 @@ import {
   PLUGIN_HOOKS_ONLY,
   MODEL_API_TOOLS_ONLY,
   MODEL_API_VERIFY_ONLY,
+  MODEL_API_IMAGE_ONLY,
   MODEL_API_BOUNDARY_SOURCES,
   EXEC_GUARD_BUNDLE,
   checkDeferredBundles,
@@ -161,7 +162,9 @@ const ACTIVATION_ALLOWED = new Map([
     'shared paid admission bound by panel and runtime managers (M101)',
   ],
   ['schemas.ts', 'shared boundary schemas used by activation and ACP'],
-  ['imageGeneration.ts', "the IDE server's image tools on Muse Code (M44)"],
+  // imageGeneration.ts loads with the image chunk on the backend's first
+  // image call (MODEL_API_IMAGE_ONLY); activation keeps its own copy for
+  // the `ide` image tools (M44), whose MODEL_TEXT keys it reads.
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
   ['goalRecord.ts', "a stored session's goal (D14, M45)"],
@@ -302,6 +305,7 @@ for (const name of onDisk) {
     Number(PLUGIN_HOOKS_ONLY.includes(name)) +
     Number(MODEL_API_TOOLS_ONLY.includes(name)) +
     Number(MODEL_API_VERIFY_ONLY.includes(name)) +
+    Number(MODEL_API_IMAGE_ONLY.includes(name)) +
     Number(TYPES_ONLY.has(name)) +
     Number(UNBUNDLED.has(name))
   if (lists !== 1) {
@@ -324,6 +328,7 @@ for (const name of [
   ...PLUGIN_HOOKS_ONLY,
   ...MODEL_API_TOOLS_ONLY,
   ...MODEL_API_VERIFY_ONLY,
+  ...MODEL_API_IMAGE_ONLY,
   ...TYPES_ONLY,
   ...UNBUNDLED,
 ]) {

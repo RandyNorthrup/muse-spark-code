@@ -127,6 +127,10 @@ export const MODEL_API_TOOLS_WEB = ['src/core/web/pageUrl.ts', 'src/core/web/fet
 // definitions need runChecksDefinition from verifyTools.ts.
 export const MODEL_API_VERIFY_ONLY = ['modelApiVerifyEntry.ts', 'verifyLedger.ts', 'verifyLoop.ts']
 export const MODEL_API_VERIFY_CORE = ['src/core/verify/diagnosticsReport.ts']
+// The image run-path (M34, M44): the call checks, the purchase and the
+// paid-use naming, loaded on the first image call. imageToolDefinitions.ts
+// stays with the backend: the tool list names the tools on every turn.
+export const MODEL_API_IMAGE_ONLY = ['modelApiImageEntry.ts', 'imageGeneration.ts']
 // INT0170: M107 W2's machine resource journal is shared through its own bundle;
 // the governor (recorder) and usage service (reader) load it instead of copies.
 const RESOURCE_JOURNAL_SOURCE = 'src/runtime/resources/history.ts'
@@ -1027,6 +1031,18 @@ export const ON_FIRST_USE = [
       'src/core/paid/paidAuthority.ts',
     ],
   },
+  // The image run-path (M34, M44, PLAN.md D6): the call checks, the
+  // purchase and the paid-use naming, loaded on the first image call. The
+  // backend entry keeps the tool list and requires this entry for the run
+  // itself; activation keeps its own copy for the `ide` image tools (M44),
+  // whose MODEL_TEXT keys it reads, so only the backend entry is its parent.
+  {
+    output: 'dist/modelApiImage.js',
+    metafile: 'dist/meta/modelApiImage.json',
+    use: 'the first image call',
+    parents: [BUNDLES.modelApi],
+    files: MODEL_API_IMAGE_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
 ]
 /** The same parent exclusions and destination requirements used by the CLI. */
 export function checkDeferredBundles(inputsOf) {
@@ -1344,6 +1360,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/runtimeMediaEntry.ts'), 'dist/runtimeMedia.js'],
   [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
   [path.resolve('src/core/backends/modelapi/modelApiVerifyEntry.ts'), 'dist/modelApiVerify.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiImageEntry.ts'), 'dist/modelApiImage.js'],
   [path.resolve('src/core/legal/legalFixEntry.ts'), 'dist/legalFix.js'],
   [path.resolve('src/host/commands/commandsEntry.ts'), 'dist/commands.js'],
   [path.resolve('src/host/auth/authEntry.ts'), 'dist/auth.js'],
@@ -1394,7 +1411,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

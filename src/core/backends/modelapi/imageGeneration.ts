@@ -33,7 +33,7 @@ import {
 import { fill } from '../../../shared/l10n/text'
 import type { PaidUseRequest } from '../../../shared/paid'
 import { pathModule } from '../../workspaceRoot'
-import { metaCapabilityRecord, type ModelCapabilityRecord } from '../../providers/capabilityRecord'
+import type { ModelCapabilityRecord } from '../../providers/capabilityRecord'
 import type { ProviderClient, ResponseAttemptGuard } from './client'
 import { IMAGE_ASPECTS } from './imageToolDefinitions'
 import type { ImagesResponse } from './schemas'
@@ -76,6 +76,17 @@ caller in words.
 export function editImageLimit(record: ModelCapabilityRecord | undefined): number | undefined {
   const policy = record?.modalities.image
   return policy?.state === 'yes' ? policy.value.maxEditSources : undefined
+}
+
+/**
+Meta's own record for the image model, read from the provider bundle on the
+D121 fallback path (an edit with no record): dist/providers.js carries it, so
+the image chunk and the backend entry carry no copy of it. A bundle that
+cannot load it fails the edit that needed it, never an uncapped edit.
+*/
+async function metaRecord(): Promise<ModelCapabilityRecord> {
+  const { metaCapabilityRecord } = await import('../../../host/backend/providersEntry')
+  return metaCapabilityRecord(MODEL_API_IMAGE_MODEL)
 }
 
 /** Why a path cannot take a generated image, before anything is asked or billed. */
@@ -216,7 +227,7 @@ export async function prepareImageCall(
     // source is read or the paid-use question is asked. Both callers serve
     // Meta's image model, so an absent record means Meta's own record;
     // without any record Meta's own refusal reaches the caller in words.
-    const maxEditSources = editImageLimit(record ?? metaCapabilityRecord(MODEL_API_IMAGE_MODEL))
+    const maxEditSources = editImageLimit(record ?? (await metaRecord()))
     if (maxEditSources !== undefined && args.images.length > maxEditSources) {
       return refused(fill(MODEL_TEXT.imageEditTooManySources, { max: String(maxEditSources) }))
     }

@@ -140,6 +140,7 @@
 !dist/runtimeMedia.js
 !dist/modelApiTools.js
 !dist/modelApiVerify.js
+!dist/modelApiImage.js
 
 !dist/reporting.js
 !dist/reportingPanel.js
