@@ -289,6 +289,9 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- Question deferral uses the seconds you set, any whole number, with no
+  floor of 10 and no ceiling of an hour: 0 (the default) never defers, and
+  a wait past one timer's reach still holds until its deadline.
 - On Windows the vault no longer refuses to write on a machine whose
   Windows PowerShell starts slowly (a fresh machine, heavy antivirus): the
   process identity a vault writer records is read by a small native reader
