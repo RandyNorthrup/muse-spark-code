@@ -454,3 +454,120 @@ a live window's copy…`. The lead runs those two where `/` is uid 0.
   OS keyring was never touched from a shell (the repo's own
   Windows-only gates are the evidence CI's Ubuntu legs have no usable
   Secret Service).
+
+---
+
+# Stand-ins 0190, lane GRVFIXB1: the Grok review's ToolIo answers
+
+Worktree `/home/randy/lanes/GRVFIXB1`, branch `fix/0190-grvfixb1`.
+Base `82bc057107` (the join's area C). All unit suites below ran with
+the repository's own timeout (`--maxWorkers=3`, one file per run; a
+two-file run on the busy rig timed out only the 12 MB fixture test at
+the repo's 5 s, green alone at 1225 ms), on Linux.
+
+## The finding
+
+A Grok review of the 0.19.0 join found hand-written `ToolIo` objects
+with `hasUnsavedChanges: () => false` in
+`test/unit/toolResultsRideWhole.test.ts:57` and
+`test/unit/noLimitsInput.test.ts:169-186` — an answer standing in for
+the editor API (a dirty buffer would never refuse). A sweep of the rest
+of `test/` found the same answer in three more unit files (plus one
+`unsavedFiles: () => []` in `test/integration/codeIntel.test.ts`).
+
+## The cause
+
+Nothing in a headless unit process holds an editor buffer, so the
+suites answered the editor's question by hand. The product already has
+the real answer for exactly that context: the standalone runtime's own
+`createToolIo` wiring in `src/runtime/backends.ts` (`unsavedFiles:
+() => []` — "the agent cannot see the editor's buffers (D62)"), whose
+`hasUnsavedChanges` compares through the product's `isSamePath`. The
+dirty-true half of the check exists only inside VS Code, so it moves
+to `test/integration`, which runs in a real VS Code in CI.
+
+## The fix
+
+- New shared helper `test/unit/helpers/headlessToolIo.ts`: the
+  standalone runtime's own `createToolIo` wiring (empty unsaved list,
+  the real `walkFiles` lister) for headless suites.
+- `toolResultsRideWhole.test.ts`: the hand-built `memoryTools()` is
+  gone; the memory port is built over the helper. Every behaviour
+  kept (6/6).
+- `noLimitsInput.test.ts`: the hand-built `ToolIo` (with its
+  `unusedIo` rejects) is gone; edit sources are eleven real PNG files
+  in a real temp workspace read through the helper, with reads counted
+  by a forwarding wrapper (observation, not a stand-in). Every
+  behaviour kept (16/16).
+- `modelapiMalformedInputs.test.ts`: the hand-built memory port is
+  the helper now (17/17).
+- `memoryIo.test.ts`: `fileTools` keeps its real disk reads and the
+  product's atomic writes and canonical paths, with the unsaved answer
+  through the helper; the dirty-true forwarding row is replaced by a
+  not-dirty row, and the true answer moves to integration (9/9).
+- `editReviewResolve.test.ts`: all three file/editor answers are the
+  product's own (`canonicalPath`, the helper's `readFile` and
+  `hasUnsavedChanges`); the unresolvable file is now a real symlink
+  loop in a temp workspace, which the product's own `canonicalPath`
+  refuses — the panel's fixed words and the kind-only log read as
+  before (1/1).
+- `test/integration/codeIntel.test.ts`: `unsavedFiles: () => []`
+  becomes the real VS Code dirty-document query, the product's own
+  wiring from `src/extension.ts`.
+- New `test/integration/unsavedRefusal.test.ts`: a real document is
+  dirtied in the editor; the product's own ToolIo (wired as
+  `src/extension.ts` wires it) reports it unsaved, and the memory
+  store refuses the append and the edit over it; saving clears both.
+
+No product file changes: `git status` shows only test files.
+
+## Breaks (each reverted; product tree identical afterwards)
+
+- `memoryStore.ts` `truncated: ... < ...` flipped to `>` →
+  `toolResultsRideWhole`: 1 failed (`... still says a later window
+follows`), 5 passed.
+- `imageGeneration.ts` `args.images.length > maxEditSources` flipped
+  to `<` → `noLimitsInput`: 2 failed (`refuses eleven sources ...`,
+  `prepares three sources whole ...`), 14 passed.
+- `memoryIo.ts` forwarding negated → `memoryIo`: 4 failed
+  (including `answers not-dirty from the real headless file tool`),
+  rest passed.
+- `editReview.ts` warn `could not resolve` changed to `could not
+open` → `editReviewResolve`: 1 failed with `expected 'Edit review
+could not open loop-a/mis…' to contain 'could not resolve'`.
+- `memoryTools.ts` reason `'arguments are not valid JSON'` changed to
+  `'arguments are not JSON'` → `modelapiMalformedInputs`: 1 failed
+  (`refuses before placing any note`), 16 passed.
+- Integration rows (`unsavedRefusal`, `codeIntel`) are proved by
+  hosted CI: `npm run build:dev` is red on this worktree before any
+  test bundle is emitted — `CHANGELOG.md` 0.19.0 notes decode to
+  332265 bytes over the What's New bound of 76800
+  (`scripts/lib/whatsNewContent.mjs`), on files this lane does not
+  touch. Prescribed breaks for CI: point the integration adapter's
+  `unsavedFiles` at `() => []` and watch the dirty-document row fail;
+  negate `createMemoryIo`'s forwarding and watch the not-dirty unit
+  row fail (shown above).
+
+## Suites and gates
+
+- `toolResultsRideWhole`: 6/6. `noLimitsInput`: 16/16. `memoryIo`:
+  9/9. `modelapiMalformedInputs`: 17/17. `editReviewResolve`: 1/1 —
+  each with the repository's own timeout, `--maxWorkers=3`.
+- `npx tsc -p test/integration/tsconfig.json --noEmit`: clean.
+  `npm run typecheck` (full): only pre-existing errors in untouched
+  files (none in this lane's files); the lane's one new error while
+  working (`ToolIo` imported from `toolIo.ts`, which does not export
+  it) was fixed to the `core/.../tools.ts` import.
+- `eslint` on all touched files: zero warnings. `prettier --check`:
+  clean.
+- `test/integration` run: NOT RUN on this rig — blocked by the
+  pre-existing `build:dev` What's New failure above (exact error
+  pasted); no gate weakened to work around it. Hosted CI runs it.
+
+## Sandbox / rig notes
+
+- No sub-agents, no background tasks. No credentials seen: no paid or
+  live model calls, no key or token printed, logged or passed anywhere.
+- Scratch lived in the worktree's gitignored `temp/` (one probe,
+  removed) and lane-temp folders cleaned by the suites' own
+  `afterAll` handlers. No `/tmp` writes.

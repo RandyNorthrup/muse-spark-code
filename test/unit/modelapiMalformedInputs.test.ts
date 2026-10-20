@@ -41,9 +41,8 @@ import {
   ResponsesDecodeError,
 } from '../../src/core/backends/modelapi/codecs/responses'
 import { MemoryStore } from '../../src/core/memory/memoryStore'
-import { canonicalPath } from '../../src/host/canonicalPath'
-import { writeFileAtomically } from '../../src/host/fsAtomic'
 import { createMemoryIo, systemPath } from '../../src/host/backend/memoryIo'
+import { headlessToolIo } from './helpers/headlessToolIo'
 import {
   CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
   MODEL_API_TOOLS,
@@ -310,16 +309,10 @@ describe('memory tool arguments that are not JSON', () => {
 
   it('refuses before placing any note', async () => {
     const store = new MemoryStore({
-      io: createMemoryIo(
-        {
-          readFile: () => Promise.resolve(undefined),
-          writeFile: (absolutePath: string, content: string) =>
-            writeFileAtomically(absolutePath, content, { sleep: () => Promise.resolve() }),
-          realPath: canonicalPath,
-          hasUnsavedChanges: () => false,
-        },
-        { warn: () => undefined },
-      ),
+      // The standalone runtime's own ToolIo (headless: no editor buffers,
+      // src/runtime/backends.ts) behind the memory port; the refusal
+      // happens before any note is placed, so the io answers nothing.
+      io: createMemoryIo(headlessToolIo(path.join(paths.root, 'ws')), { warn: () => undefined }),
       platform: process.platform,
       dataRoot: () => path.join(paths.root, 'data'),
       workspaceRoot: path.join(paths.root, 'ws'),

@@ -24,6 +24,7 @@ import { canonicalPath, isMissingPath } from '../../src/host/canonicalPath'
 import { writeFileAtomically } from '../../src/host/fsAtomic'
 import { createMemoryIo, listMemoryEntries, systemPath } from '../../src/host/backend/memoryIo'
 import { removeFolder } from './helpers/temporaryFolders'
+import { headlessToolIo } from './helpers/headlessToolIo'
 
 const paths = { root: '', workspace: '', data: '', outside: '', link: '' }
 
@@ -38,8 +39,17 @@ async function readIfPresent(absolutePath: string): Promise<string | undefined> 
   }
 }
 
-/** The file tools behind a memory I/O, unsaved-aware only when a test says so. */
-function fileTools(hasUnsavedChanges: (absolutePath: string) => boolean = () => false) {
+// The file tools behind a memory I/O: real disk reads with the product's
+// own atomic writes and canonical paths, and the unsaved answer through
+// the standalone runtime's own ToolIo (headless: no editor buffers, so
+// false through the product's isSamePath comparison, never a hand-written
+// `() => false`). A dirty buffer exists only inside VS Code, so the true
+// answer is proved in test/integration instead.
+function fileTools() {
+  // At module load paths.root is still empty; the root only scopes the
+  // file listing, which the memory port never calls, so any real folder
+  // answers the same until beforeAll sets the suite's own.
+  const toolIo = headlessToolIo(paths.root === '' ? tmpdir() : paths.root)
   return {
     readFile: readIfPresent,
     // As the tool io writes: bound to the canonical path it is given (M86 W).
@@ -52,7 +62,7 @@ function fileTools(hasUnsavedChanges: (absolutePath: string) => boolean = () => 
         }),
       }),
     realPath: canonicalPath,
-    hasUnsavedChanges,
+    hasUnsavedChanges: (absolutePath: string) => toolIo.hasUnsavedChanges(absolutePath),
   }
 }
 
@@ -159,15 +169,13 @@ describe('createMemoryIo unsaved changes', () => {
     expect(await readIfPresent(target)).toBeUndefined()
   })
 
-  it('answers from the file tool for a path', () => {
-    const open = path.join(paths.workspace, 'open.md')
-    expect(io.hasUnsavedChanges(open)).toBe(false)
-    const forwarding = createMemoryIo(
-      fileTools((absolutePath) => absolutePath === open),
-      { warn: () => undefined },
-    )
-    expect(forwarding.hasUnsavedChanges(open)).toBe(true)
-    expect(forwarding.hasUnsavedChanges(path.join(paths.workspace, 'other.md'))).toBe(false)
+  it('answers not-dirty from the real headless file tool for any path', () => {
+    // Headless there are no editor buffers (src/runtime/backends.ts), so
+    // the product's own comparison answers false for every path. A dirty
+    // buffer exists only inside VS Code: the true answer is proved over a
+    // real dirty document in test/integration/unsavedRefusal.test.ts.
+    expect(io.hasUnsavedChanges(path.join(paths.workspace, 'open.md'))).toBe(false)
+    expect(io.hasUnsavedChanges(path.join(paths.workspace, 'other.md'))).toBe(false)
   })
 })
 
