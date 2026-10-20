@@ -15223,6 +15223,8 @@ are re-checked in the same job, so a cancelled job never leaves only some
 targets published.
 
 VSIXFIT C (2026-10-20): the fallback stopped carrying every platform's helpers — the full universal measured 4,443,930 bytes and cannot meet the unchanged budget. It now carries the platform-neutral content plus the Linux helpers only (`native/linux/x64/*`, `native/linux/arm64/*`, `native/runner/*`), never the darwin or Windows pieces: VS Code never serves the fallback where a targeted package exists, so it only ever reaches Linux-family platforms, and that is exactly what those servers ran before. Measured on the linuxlt rig: the linux-x64 target passes the 3,788,800-byte gate with headroom and the fallback is estimated to pass with thin headroom (see `docs/certification/vsix-platform.md` §2); darwin stages pack helperless locally with the CI binaries estimated on top, and the complete win32 stages fail the gate by 12 KB, all confirmed by CI.
+
+VSIXWEB (2026-10-20): with no lever left inside "budget never raised, nothing cut", the two biggest loose crowds pack solid instead — `dist/webview/**` as one brotli-11 `dist/webview.json.br` (190 members, extracted and SHA-256-verified into global storage on first use) and the vendored skill as one brotli-11 beside its loose `LICENSE`+`VENDOR.json` — saving ~181 KB per target with no feature, locale, text or helper cut, bringing win32-x64 back inside the unchanged budget (see `docs/certification/vsix-platform.md` §2).
 Evidence: `docs/certification/vsix-platform.md`.
 
 ### D210 — One package per platform target (lane RUTRUTHL2, 2026-10-18; numbered D123 until the 0.19.0 join, when that number was found shared)
