@@ -44,6 +44,49 @@ const ENTRY = new RegExp(
 const LINUX_LEASE = /^([0-9a-f]{32}) ([0-9a-f-]{36}) (pid:\[\d+\]) (\d+) (\d+)$/u
 const LOCKS: Partial<Record<NodeJS.Platform, number>> = MEDIA_PRIVATE_LEASE_LOCK
 
+/** A Linux lease's named owner: the machine, boot and PID namespace it started in, and its PID and start tick. */
+export interface LinuxLeaseOwner {
+  readonly machine: string
+  readonly boot: string
+  readonly namespace: string
+  readonly pid: string
+  readonly start: string
+}
+
+/**
+Parses a Linux lease line; undefined when it names no owner (a sweeper
+keeps what no lease names, including a line with trailing garbage).
+*/
+export function parseLinuxLease(line: string): LinuxLeaseOwner | undefined {
+  const [, machine, boot, namespace, pid, start] = LINUX_LEASE.exec(line) ?? []
+  return machine === undefined ||
+    boot === undefined ||
+    namespace === undefined ||
+    pid === undefined ||
+    start === undefined
+    ? undefined
+    : { machine, boot, namespace, pid, start }
+}
+
+/**
+Whether a named lease owner is proven gone from this scope, given its
+PID's current start tick (undefined when no process has that PID). An
+earlier boot of this machine is over, so its owner is gone whatever its
+PIDs read now; another machine's or namespace's PIDs cannot be judged
+here, so they are kept; otherwise the PID must still carry the named
+start. Pure: feed it literal identities.
+*/
+export function isLinuxLeaseOwnerGone(
+  owner: LinuxLeaseOwner,
+  scope: readonly string[],
+  pidStart: string | undefined,
+): boolean {
+  return (
+    owner.machine === scope[0] &&
+    (owner.boot !== scope[1] || (owner.namespace === scope[2] && pidStart !== owner.start))
+  )
+}
+
 /** A process root's lease, held as long as the root is in use: its lock is the owner's liveness. */
 export interface LeasedRoot extends PrivateRoot {
   /** The open lease on Windows and macOS (closing it frees the lock); undefined on Linux. */
@@ -93,12 +136,16 @@ async function isLinuxOwnerGone(
   scope: readonly string[],
   linux: LinuxProcess,
 ): Promise<boolean> {
-  const [, machine, boot, namespace, pid, start] = LINUX_LEASE.exec(line) ?? []
-  return (
-    pid !== undefined &&
-    machine === scope[0] &&
-    (boot !== scope[1] || (namespace === scope[2] && (await linuxStart(pid, linux)) !== start))
-  )
+  const owner = parseLinuxLease(line)
+  if (owner === undefined) return false
+  // The process table is read only when this scope names the owner: an
+  // earlier boot needs no reading, and another machine or namespace
+  // cannot be judged here.
+  const pidStart =
+    owner.machine === scope[0] && owner.boot === scope[1] && owner.namespace === scope[2]
+      ? await linuxStart(owner.pid, linux)
+      : undefined
+  return isLinuxLeaseOwnerGone(owner, scope, pidStart)
 }
 
 /** This process's machine, boot and PID namespace, as its lease names them. */
