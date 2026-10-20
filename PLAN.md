@@ -15221,6 +15221,8 @@ VSX: every artifact is published before any visibility poll runs, all share
 one 30-minute poll deadline inside 60-minute jobs, and unfinished targets
 are re-checked in the same job, so a cancelled job never leaves only some
 targets published.
+
+VSIXFIT C (2026-10-20): the fallback stopped carrying every platform's helpers — the full universal measured 4,443,930 bytes and cannot meet the unchanged budget. It now carries the platform-neutral content plus the Linux helpers only (`native/linux/x64/*`, `native/linux/arm64/*`, `native/runner/*`), never the darwin or Windows pieces: VS Code never serves the fallback where a targeted package exists, so it only ever reaches Linux-family platforms, and that is exactly what those servers ran before. Measured on the linuxlt rig: the linux-x64 target and the fallback each pass the 3,788,800-byte gate with headroom (see `docs/certification/vsix-platform.md` §2); darwin and win32 stages are estimated from their helperless stages plus the 0.18.2 helper sizes, confirmed by CI.
 Evidence: `docs/certification/vsix-platform.md`.
 
 ### D210 — One package per platform target (lane RUTRUTHL2, 2026-10-18; numbered D123 until the 0.19.0 join, when that number was found shared)
