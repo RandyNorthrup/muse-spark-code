@@ -18,7 +18,6 @@ import {
   LINUX_RECORDERS,
   UI_TEXT,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
-  WINDOWS_PSMODULEPATH_VARIABLE,
   darwinDictationApp,
   darwinDictationHelperSegments,
 } from '../../shared/constants'
@@ -28,7 +27,7 @@ import {
   deleteEnvironmentVariable,
   resolveExecutable,
   setEnvironmentVariable,
-  windowsPowerShellModulePath,
+  windowsPowerShellEnvironment,
 } from '../execGuard'
 import type { HelperInvocation } from './dictation'
 
@@ -78,8 +77,8 @@ Windows PowerShell 5.1 running one bundled script, in Windows paths
 whatever the host (the unit tests run on all three). It gets exactly
 Windows PowerShell's own module directories: 5.1 loads (or fails to load)
 pwsh 7's modules when an extension host started from a PowerShell 7
-terminal hands it pwsh 7's `PSModulePath`, the trap
-`buildChildEnvironment` closes for `muse serve` (PLAN.md D1a).
+terminal hands it pwsh 7's `PSModulePath`, the trap the guarded layer's
+`windowsPowerShellEnvironment` closes for every 5.1 child (PLAN.md D1a).
 */
 function windowsScript(
   probe: HelperProbe,
@@ -89,9 +88,7 @@ function windowsScript(
   return {
     command: path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
     args: [...WINDOWS_SCRIPT_ARGS, path.win32.join(probe.helperDir, ...script)],
-    environment: {
-      [WINDOWS_PSMODULEPATH_VARIABLE]: windowsPowerShellModulePath(systemRoot, probe.programFiles),
-    },
+    environment: windowsPowerShellEnvironment({}, systemRoot, probe.programFiles),
   }
 }
 

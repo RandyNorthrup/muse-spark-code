@@ -5,7 +5,7 @@ import {
   windowsVaultGuardSource,
   type WindowsVaultExecutable,
 } from '../../../runtime/vault/slots/windowsVaultTransport'
-import { noWorkspaceChildEnvironment } from '../../../core/execGuard'
+import { noWorkspaceChildEnvironment, windowsPowerShell } from '../../../core/execGuard'
 import { runBootstrap } from '../../../core/bootstrapCommand'
 import { createHash, randomUUID } from 'node:crypto'
 import { realpathSync } from 'node:fs'
@@ -32,20 +32,15 @@ const build: JobBuild = {
 const runCompiler = (
   file: string,
   args: readonly string[],
-  _env: NodeJS.ProcessEnv,
+  env: NodeJS.ProcessEnv,
   publicSource?: string,
 ): Promise<string> =>
-  runBootstrap(
-    file,
-    args,
-    {},
-    {
-      cwd: path.dirname(file),
-      ...(publicSource !== undefined && {
-        input: Buffer.from(publicSource, 'utf8').toString('base64') + '\n',
-      }),
-    },
-  )
+  runBootstrap(file, args, env, {
+    cwd: path.dirname(file),
+    ...(publicSource !== undefined && {
+      input: Buffer.from(publicSource, 'utf8').toString('base64') + '\n',
+    }),
+  })
 const cache = new Map<string, WindowsVaultExecutable>()
 
 /** Only this process's completed build supplies a trusted digest, never a cache sidecar. */
@@ -65,15 +60,13 @@ export async function windowsVaultExecutable(deps: {
     const cacheKey = `${deps.storageDir}\0${deps.systemRoot}\0${name}`
     const cached = cache.get(cacheKey)
     if (cached !== undefined) return cached
-    const powershell = path.win32.join(
-      deps.systemRoot,
-      'System32/WindowsPowerShell/v1.0/powershell.exe',
-    )
+    // The system PowerShell with nothing inherited but its own module path.
+    const powershell = windowsPowerShell(deps.systemRoot, {})
     const compile = async () => {
       const prepare = async (parent: string) => {
         const directory = path.join(parent, `vault-helper-${randomUUID()}`)
         await runCompiler(
-          powershell,
+          powershell.file,
           [
             '-NoLogo',
             '-NoProfile',
@@ -81,7 +74,7 @@ export async function windowsVaultExecutable(deps: {
             '-EncodedCommand',
             Buffer.from(windowsVaultGuardScript(directory), 'utf16le').toString('base64'),
           ],
-          {},
+          powershell.env,
           guardSource,
         )
         return directory
@@ -116,7 +109,7 @@ export async function windowsVaultExecutable(deps: {
     const identity = await compile()
     const helper = {
       ...identity,
-      powershell,
+      powershell: powershell.file,
       guardSource,
       report: () => {
         deps.report?.()

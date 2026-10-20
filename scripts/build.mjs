@@ -1238,7 +1238,9 @@ const mediaOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const mediaHostOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  // The latest-recording preview starts Windows PowerShell through the
+  // guarded layer, which every Node bundle requires instead of carrying.
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedExecGuard],
   entryPoints: [MEDIA_HOST_ENTRY],
   outfile: MEDIA_HOST_OUTFILE,
   platform: 'node',

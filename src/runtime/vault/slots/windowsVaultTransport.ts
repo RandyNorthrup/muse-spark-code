@@ -1,5 +1,6 @@
 import { spawnResourceProcess } from '../../../core/resources/launcher'
 import { probeChildEnvironment } from '../../../core/executables'
+import { windowsPowerShellEnvironment } from '../../../core/execGuard'
 import path from 'node:path'
 import {
   UI_TEXT,
@@ -75,6 +76,7 @@ export async function spawnGuardedVaultHelper(
   helper: WindowsVaultExecutable,
 ): Promise<Awaited<ReturnType<typeof spawnResourceProcess>>> {
   // Do not inherit credentials, a shell, or a visible console window.
+  const systemRoot = path.win32.resolve(helper.powershell, '..', '..', '..', '..')
   try {
     return await spawnResourceProcess(
       'contained',
@@ -91,13 +93,13 @@ export async function spawnGuardedVaultHelper(
       {
         cwd: path.dirname(helper.powershell),
         // Absolute PowerShell with only SystemRoot, the root its trusted path
-        // was built from (`<SystemRoot>\System32\WindowsPowerShell\v1.0`):
-        // a governed launch passes the block exactly, and without SystemRoot
-        // managed PowerShell cannot load (8009001d). Absolute entries only,
-        // links followed.
-        env: probeChildEnvironment({
-          SystemRoot: path.win32.resolve(helper.powershell, '..', '..', '..', '..'),
-        }),
+        // was built from (`<SystemRoot>\System32\WindowsPowerShell\v1.0`),
+        // and its own module path: a governed launch passes the block
+        // exactly, and without SystemRoot managed PowerShell cannot load
+        // (8009001d). Absolute entries only, links followed.
+        env: probeChildEnvironment(
+          windowsPowerShellEnvironment({ SystemRoot: systemRoot }, systemRoot),
+        ),
         windowsHide: true,
       },
     )
