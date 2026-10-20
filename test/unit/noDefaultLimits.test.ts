@@ -25,6 +25,7 @@ import {
 import { checkMediaLimits } from '../../src/core/media/limits'
 import { mediaLimitsFromSettings } from '../../src/host/media/mediaProviders'
 import { screenRecordingOptionsSchema } from '../../src/shared/media'
+import { pluginCallBounds } from '../../src/core/backends/modelapi/pluginHost'
 
 const properties = manifest.contributes.configuration.properties as Record<
   string,
@@ -110,6 +111,60 @@ describe('no default limits: hook continuations and subagent concurrency', () =>
     expect(warnings).toHaveLength(2)
     expect(stopContinuationLimitFor(1000)).toBe(HOOK_MAX_STOP_CONTINUATIONS)
     expect(subagentConcurrencyFor(1000)).toBe(SUBAGENT_CONCURRENT_MAX)
+  })
+})
+
+describe('no default limits: plugin waits, memory, answers and failure latch', () => {
+  it('defaults to no bound of our own', () => {
+    expect(SETTING_DEFAULTS.pluginHookTimeoutSeconds).toBe(0)
+    expect(SETTING_DEFAULTS.pluginChildMaxMemoryMiB).toBe(0)
+    expect(SETTING_DEFAULTS.pluginAnswerMaxBytes).toBe(0)
+    expect(SETTING_DEFAULTS.pluginMaxFailures).toBe(0)
+    expect(manifestDefault('museSpark.pluginHookTimeoutSeconds')).toBe(0)
+    expect(manifestDefault('museSpark.pluginChildMaxMemoryMiB')).toBe(0)
+    expect(manifestDefault('museSpark.pluginAnswerMaxBytes')).toBe(0)
+    expect(manifestDefault('museSpark.pluginMaxFailures')).toBe(0)
+  })
+
+  it('reads nothing set as no bound, and a person-set value as their bound', () => {
+    const warnings: string[] = []
+    const read = readSettings(settingSource({}), silentLog(warnings))
+    expect(read.pluginHookTimeoutSeconds).toBe(0)
+    expect(read.pluginChildMaxMemoryMiB).toBe(0)
+    expect(read.pluginAnswerMaxBytes).toBe(0)
+    expect(read.pluginMaxFailures).toBe(0)
+    expect(
+      pluginCallBounds({
+        timeoutSeconds: read.pluginHookTimeoutSeconds,
+        maxMemoryMiB: read.pluginChildMaxMemoryMiB,
+        maxAnswerBytes: read.pluginAnswerMaxBytes,
+      }),
+    ).toEqual({ timeoutMs: undefined, maxMemoryBytes: undefined, maxAnswerBytes: undefined })
+    const set = readSettings(
+      settingSource({
+        pluginHookTimeoutSeconds: 30,
+        pluginChildMaxMemoryMiB: 512,
+        pluginAnswerMaxBytes: 64 * 1024,
+        pluginMaxFailures: 2,
+      }),
+      silentLog(warnings),
+    )
+    expect(set.pluginHookTimeoutSeconds).toBe(30)
+    expect(set.pluginChildMaxMemoryMiB).toBe(512)
+    expect(set.pluginAnswerMaxBytes).toBe(64 * 1024)
+    expect(set.pluginMaxFailures).toBe(2)
+    expect(
+      pluginCallBounds({
+        timeoutSeconds: set.pluginHookTimeoutSeconds,
+        maxMemoryMiB: set.pluginChildMaxMemoryMiB,
+        maxAnswerBytes: set.pluginAnswerMaxBytes,
+      }),
+    ).toEqual({
+      timeoutMs: 30_000,
+      maxMemoryBytes: 512 * 1024 * 1024,
+      maxAnswerBytes: 64 * 1024,
+    })
+    expect(warnings).toHaveLength(0)
   })
 })
 
