@@ -16,6 +16,7 @@ import { captureFrameRow } from './wireCapture'
 const captureSchema = z.object({
   provenance: z.object({
     cli: z.string(),
+    model: z.string(),
   }),
   frames: z.array(captureFrameRow),
 })
@@ -47,6 +48,9 @@ export function recordedResult(id: number): Record<string, unknown> {
 export const initializeResult = recordedResult(1)
 export const startResult = recordedResult(3)
 
+/** One recorded wire frame, as the SDK's read loop ingests it. */
+export type WireFrame = z.infer<typeof captureFrameRow>['frame']
+
 export type Answer = { result: unknown } | { error: unknown }
 
 /** The harness's loud refusal: the CLI refused, in the recorded envelope shape. */
@@ -60,19 +64,19 @@ export function refuseUnscripted(method: string): Answer {
   }
 }
 
-/** The SDK's transport fed with the script: answers come from the script, nothing else. */
-class ReplayWire {
+/**
+The SDK's transport fed with the recording: answers come from the script
+the test installs (recorded content, gated on the test's releases), while
+notifications are released verbatim by the test. Methods without a scripted
+answer are refused loudly instead of invented.
+*/
+export class ReplayWire {
   private readonly inbox: string[] = []
   private readonly waiters: ((value: string | null) => void)[] = []
   private ended = false
   private readonly sentMethods: string[] = []
-
-  public constructor(
-    private readonly answer: (
-      method: string,
-      params: Record<string, unknown>,
-    ) => Answer | Promise<Answer>,
-  ) {}
+  public answer: (method: string, params: Record<string, unknown>) => Answer | Promise<Answer> =
+    () => Promise.reject(new Error('the replay script is not installed'))
 
   private push(line: unknown): void {
     const text = `${JSON.stringify(line)}\n`
@@ -104,6 +108,10 @@ class ReplayWire {
         const method = sent['method']
         const params = isRecord(sent['params']) ? sent['params'] : {}
         this.sentMethods.push(method)
+        // Never hold the submission tail: invoking the script runs it
+        // without blocking later writes (an async script suspends at its
+        // gate; a sync one answers at once). A script that throws for an
+        // unscripted method becomes the same loud refusal, never a dead write.
         let pending: Answer | Promise<Answer>
         try {
           pending = this.answer(method, params)
@@ -116,7 +124,16 @@ class ReplayWire {
               this.push({ jsonrpc: '2.0', id, error: reply.error })
               return
             }
-            this.push({ jsonrpc: '2.0', id, result: reply.result })
+            const result = isRecord(reply.result) ? { ...reply.result } : reply.result
+            // Per-connection nonces: the live id and commandId echo. Every
+            // other byte stays the recorded one.
+            if (
+              isRecord(result) &&
+              result['commandId'] !== undefined &&
+              typeof params['commandId'] === 'string'
+            )
+              result['commandId'] = params['commandId']
+            this.push({ jsonrpc: '2.0', id, result })
           })
           .catch((error: unknown) => {
             this.push({
@@ -132,6 +149,11 @@ class ReplayWire {
         return Promise.resolve()
       },
     }
+  }
+
+  /** A recorded broadcast, verbatim, as the SDK's read loop will ingest it. */
+  public release(frame: WireFrame): void {
+    this.push(frame)
   }
 
   public sentCount(method: string): number {
@@ -167,7 +189,8 @@ export async function closeLiveHosts(): Promise<void> {
 export function startLiveHost(
   answer: (method: string, params: Record<string, unknown>) => Answer | Promise<Answer>,
 ): LiveHost {
-  const wire = new ReplayWire(answer)
+  const wire = new ReplayWire()
+  wire.answer = answer
   const connection = new Connection(wire.transport())
   const host = new MuseCodeHost(
     {
@@ -203,7 +226,7 @@ export async function startLiveSession(
   )
   const session = await live.host.startSession({
     workspaceRoot: '<capture-workspace>',
-    modelId: 'muse-wonder-1.0',
+    modelId: capture.provenance.model,
     approvalMode: 'onRequest',
   })
   return { ...live, session }

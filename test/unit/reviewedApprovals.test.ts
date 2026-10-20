@@ -24,6 +24,7 @@ import {
   startLiveHost,
   startLiveSession,
   startResult,
+  type Answer,
 } from './helpers/museReplay'
 
 afterEach(async () => {
@@ -69,112 +70,79 @@ function reviewRequest() {
   }
 }
 
+/**
+A review the CLI refuses, through the real reviewer, host and session: the
+card is left to the user with the failed words, and every log line names
+the failure's kind, never its message.
+*/
+async function leavesCardByKindOnly(
+  reviewingAnswer: (method: string, params: Record<string, unknown>) => Answer | Promise<Answer>,
+): Promise<void> {
+  await usingTempDir('reviewed-approvals-', async (root) => {
+    const { log, warnings, infos } = recordLog()
+    const { cards, showCard } = recordCards()
+    const conversation = await startLiveSession(() => {
+      throw new Error('unexpected method')
+    })
+    const reviewing = startLiveHost(reviewingAnswer)
+    const reviewer = new MuseCodeReviewer({
+      root,
+      log,
+      onSideSession: () => undefined,
+      describeFailure: failureForLog,
+      timeoutMs: 1000,
+    })
+    const approvals = reviewer.conversation({
+      showCard: (event, note) => {
+        showCard(event, note)
+      },
+      notice: () => undefined,
+      mayAllow: () => false,
+      log,
+      describeFailure: failureForLog,
+    })
+    try {
+      approvals.hold(approvalEvent(), {
+        session: conversation.session,
+        host: () => Promise.resolve(reviewing.host),
+        modelId: 'model',
+        request: reviewRequest(),
+      })
+      await settled(() => cards.length > 0)
+    } finally {
+      reviewer.dispose()
+    }
+    expect(cards).toHaveLength(1)
+    expect(cards[0]?.note).toBe(UI_TEXT.autoReviewerFailed)
+    expect(warnings.length).toBeGreaterThan(0)
+    for (const warning of warnings) {
+      expect(warning).toContain('harnessGap')
+      expect(warning).not.toContain('/secret/path')
+    }
+    for (const line of infos) {
+      expect(line).not.toContain('/secret/path')
+    }
+  })
+}
+
 describe('ReviewedApprovals', () => {
   it('leaves the card to the user when the review cannot run, by kind only', async () => {
-    await usingTempDir('reviewed-approvals-', async (root) => {
-      const { log, warnings, infos } = recordLog()
-      const { cards, showCard } = recordCards()
-      // The conversation's own session starts; the reviewer's side session
-      // never does: the CLI refuses through the real host.
-      const conversation = await startLiveSession(() => {
-        throw new Error('unexpected method')
-      })
-      const reviewing = startLiveHost((method) => {
-        if (method === 'session/start') return refuseUnscripted(method)
-        throw new Error(`unexpected ${method}`)
-      })
-      const reviewer = new MuseCodeReviewer({
-        root,
-        log,
-        onSideSession: () => undefined,
-        describeFailure: failureForLog,
-        timeoutMs: 1000,
-      })
-      const approvals = reviewer.conversation({
-        showCard: (event, note) => {
-          showCard(event, note)
-        },
-        notice: () => undefined,
-        mayAllow: () => false,
-        log,
-        describeFailure: failureForLog,
-      })
-      try {
-        approvals.hold(approvalEvent(), {
-          session: conversation.session,
-          host: () => Promise.resolve(reviewing.host),
-          modelId: 'model',
-          request: reviewRequest(),
-        })
-        await settled(() => cards.length > 0)
-      } finally {
-        reviewer.dispose()
-      }
-      expect(cards).toHaveLength(1)
-      expect(cards[0]?.note).toBe(UI_TEXT.autoReviewerFailed)
-      expect(warnings.length).toBeGreaterThan(0)
-      for (const warning of warnings) {
-        expect(warning).toContain('harnessGap')
-        expect(warning).not.toContain('/secret/path')
-      }
-      for (const line of infos) {
-        expect(line).not.toContain('/secret/path')
-      }
+    // The conversation's own session starts; the reviewer's side session
+    // never does: the CLI refuses through the real host.
+    await leavesCardByKindOnly((method) => {
+      if (method === 'session/start') return refuseUnscripted(method)
+      throw new Error(`unexpected ${method}`)
     })
   })
 
   it('leaves the card to the user when the review cannot be asked, by kind only', async () => {
-    await usingTempDir('reviewed-approvals-', async (root) => {
-      const { log, warnings, infos } = recordLog()
-      const { cards, showCard } = recordCards()
-      const conversation = await startLiveSession(() => {
-        throw new Error('unexpected method')
-      })
-      // The side session starts, but its turn is refused through the real host.
-      const reviewing = startLiveHost((method) => {
-        if (method === 'session/start') return { result: startResult }
-        if (method === 'turn/start') return refuseUnscripted(method)
-        if (method === 'turn/cancel') return { result: {} }
-        if (method === 'task/stopAll') return { result: {} }
-        throw new Error(`unexpected ${method}`)
-      })
-      const reviewer = new MuseCodeReviewer({
-        root,
-        log,
-        onSideSession: () => undefined,
-        describeFailure: failureForLog,
-        timeoutMs: 1000,
-      })
-      const approvals = reviewer.conversation({
-        showCard: (event, note) => {
-          showCard(event, note)
-        },
-        notice: () => undefined,
-        mayAllow: () => false,
-        log,
-        describeFailure: failureForLog,
-      })
-      try {
-        approvals.hold(approvalEvent(), {
-          session: conversation.session,
-          host: () => Promise.resolve(reviewing.host),
-          modelId: 'model',
-          request: reviewRequest(),
-        })
-        await settled(() => cards.length > 0)
-      } finally {
-        reviewer.dispose()
-      }
-      expect(cards).toHaveLength(1)
-      expect(cards[0]?.note).toBe(UI_TEXT.autoReviewerFailed)
-      expect(warnings.length).toBeGreaterThan(0)
-      for (const warning of warnings) {
-        expect(warning).toContain('harnessGap')
-        expect(warning).not.toContain('/secret/path')
-      }
-      for (const line of infos) {
-        expect(line).not.toContain('/secret/path')
-      }
+    // The side session starts, but its turn is refused through the real host.
+    await leavesCardByKindOnly((method) => {
+      if (method === 'session/start') return { result: startResult }
+      if (method === 'turn/start') return refuseUnscripted(method)
+      if (method === 'turn/cancel') return { result: {} }
+      if (method === 'task/stopAll') return { result: {} }
+      throw new Error(`unexpected ${method}`)
     })
   })
 
