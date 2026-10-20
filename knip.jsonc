@@ -77,6 +77,8 @@
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     "src/core/legal/entry.ts",
+    // The legal header-fix planner, built as dist/legalFix.js (D6), loaded by path.
+    "src/core/legal/legalFixEntry.ts",
     "src/host/prompts/promptEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",

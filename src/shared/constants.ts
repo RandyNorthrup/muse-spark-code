@@ -9191,7 +9191,6 @@ export const VAULT_ACTIONS_BUDGET_KIB = 25
 // The key-store migration's own chunk (D89.14 lane M), loaded on the first
 // unlock edge; 36.75 KiB measured in the harness build, plus headroom.
 export const VAULT_MIGRATION_BUDGET_KIB = 45
-export const VAULT_UI_TICK_MS = 1000
 export const VAULT_ID_BYTES = 16
 export const VAULT_TOTP_PERIOD_SECONDS = 30
 

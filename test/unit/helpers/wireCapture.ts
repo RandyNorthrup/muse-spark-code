@@ -23,5 +23,3 @@ export const captureFrameRow = z.object({
       .optional(),
   }),
 })
-
-export type CaptureFrameRow = z.infer<typeof captureFrameRow>
