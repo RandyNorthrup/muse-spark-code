@@ -547,3 +547,124 @@ Proofs:
   the branch: `planArchive` (7), `planReader` (49), `checkPlan` (28),
   `planCitation` (19), `m113cLaneClosure` (2), `teamPlanRecord` (2),
   `autoCompact` (26), `geminiCodec` (67), `paidMoneyStructure` (46).
+
+## PLANFIX0190: d13baec65 reverted, 46 M95-K records re-verdict, closed-history batch (2026-10-20)
+
+`d13baec65` moved 46 records from the M95-K residuals (§7/§9) to
+`milestones.md` with `--allow-fact-change` while M95 still builds; the
+records name open follow-ups, handoffs and residuals in their own words.
+Step 1 reverted that commit (`406932fef0`): `PLAN.md` and
+`docs/plan-archive/milestones.md` are byte-identical to `d13baec65^`
+(`git diff e4d3bd922d HEAD` empty for both files); the reverted
+certification note's claims are superseded by the verdicts below.
+`PLAN.md` back to 3,580,933 bytes (85.4%, 15,775 over the gate); all
+hashed blocks intact (`status`: 118 + 241 + 182, the reverted 46 gone).
+
+### The 46 verdicts (closed only when the record's own words say the work is done and name no follow-up, handoff, pending item, residual or "remains"; in doubt, open)
+
+Open (38, stay in PLAN.md):
+
+- K22 resolved: OPEN — "Full composed certification still belongs to the lead".
+- K-recovery: OPEN — "Shared-store crash atomicity remains follow-up"; serialization "awaits PROVSTORE-LOCKLIB after M123".
+- FIXM118INT: OPEN — "existing M118 editor/CI dependencies below remain unclaimed".
+- FIXM118C: OPEN — "Existing C/W/X wiring and editor certification handoffs remain as named".
+- FIXM118P: OPEN — "installed native-editor parity still waits on M104".
+- M107-W-DK4-review-block: OPEN — receipts "remain named qualifications, not clearance of production disk cleanup".
+- M116-U RVM116U2: OPEN — "Existing P/I/W integration handoffs below remain open".
+- M116-U RVM116U: OPEN — P/I bindings and W registration "remain the previously named integration handoffs".
+- M116-L0: OPEN — "Follow-up: P/I prove these invariants with real policy tests and restart tests before W certifies".
+- FIXM115S: OPEN — tests "do not certify U/D's durable target ledger or W's shipping editor bindings and full platform quality matrix"; "U/D/W bind the status to existing surfaces".
+- FIXM115U6: OPEN — "Follow-up is a dependency-complete guarded editor port"; "W/lead owns aggregate quality and unrun integrations".
+- FIXM115U5: OPEN — ports "retain all editor/runtime handoffs"; "W/lead owns aggregate quality".
+- FIXM115E-SharedStoreBinding: OPEN — "Follow-up: real multi-process and crash/reopen receipts before shipping".
+- FIXM115V: OPEN — "Follow-up: W merges HELPREF and registers the page"; "Aggregate quality/platform/live proof stays with W/lead".
+- ENVFENCE-HELPREF (inherited): OPEN — "Follow-up: add the setting to HELPREF's catalogue".
+- FIXM102J: OPEN — "combined editor wiring and full quality remain lead/W work".
+- M96 U2: OPEN — "Lanes T/A/W must fill the new internal UI fields and send clearTeamTree".
+- FIXVSIX2: OPEN — "The existing integrated-release quality/platform checks remain with the lead".
+- FIXM117C: OPEN — "W must expose the journal's skippedRecords diagnostics"; "remain lead-owned handoffs".
+- FIXM117S: OPEN — "M117-S-cross-rig-and-W-bindings remains an integration handoff".
+- FIXM117R: OPEN — existing S/C, fleet/catalog, U disclosure and W shipping/product-doc bindings "remain explicit".
+- FIXM117L0: OPEN — missing estimates and existing bindings "remain the named integration handoffs"; "lead owns aggregate quality and cross-rig certification".
+- FIXM117U: OPEN — "the known W-owned host-API record gap is unchanged".
+- M113-P: OPEN — quality, wiring and manifest keys "remain the lead/W handoff".
+- M113-K: OPEN — manifest and host-api-record "remain W's gate handoffs; W wires the manifest and regenerates the inventory before full quality".
+- M113-R: OPEN — scrub limit and W's shipping/product-doc/integration-gate handoffs "remain".
+- M113-V: OPEN — "W must bind that slot"; W/X handoffs "stay open".
+- M113-X: OPEN — S/K/H bindings, native/companion/TUI/desktop receipts and W integration "remain named handoffs".
+- M113-H: OPEN — W-owned bindings and fleet gates "remain integration handoffs".
+- M113-N4: OPEN — captures/wiring/lazy-bundle and W's public handoffs "remain".
+- M113-N2: OPEN — N-captures/storage/wiring/lazy-bundle and W documentation/quality handoffs "remain".
+- M113-N: OPEN — handoffs "remain with their named owners"; "W retains unused manifest-key wiring and host API regeneration, public documentation and the lead's full integrated quality run".
+- M113-L0: OPEN — "Existing implementation handoffs remain with P/S/K/R/N/H/X/W".
+- FIXHELPREF4: OPEN — "Arbitrary prose truth still needs an owning source audit".
+- FIXHELPREF3: OPEN — boundary and "the lead's integrated quality gate remain outside this scoped rig certification".
+- FIXM109B2: OPEN — "B's existing unbound C/P/T/route, Windows, all-editor and W/full-quality handoffs remain open".
+- FIXM109B: OPEN — "B's existing C/P/T/route, Windows, all-editor, audit-contract and W/full-gate handoffs remain open".
+- FIXM106O22: OPEN — ownership handoffs "remain in force"; "Follow-up: W adopts the same record preflight".
+
+Closed by their own words (8), all in §9, none archived: §9 never moves
+(reader parses it as residuals facts, `/report` diffs it, lanes work in
+it; the script refuses without `--allow-fact-change`, which is for closed
+milestones only, and M95 is open):
+
+- FIXM115E-LegacyIdentityAmbiguity: CLOSED — repair complete ("Migration conservatively rejects both candidates, as its regression proves"); the S/W sentence is a conditional guard, no remaining work named.
+- FIXM102E: CLOSED — "both assigned P2 findings are repaired ... no assigned review finding is deferred".
+- FIXM117I: CLOSED — "Nothing deferred".
+- M113-R2: CLOSED — "The single P2 is fixed; no review finding is deferred".
+- M113-H2: CLOSED — "no review finding is deferred".
+- M113-L02: CLOSED — "fixed with no review residuals".
+- ENVFENCE-HELPREF (REL0142): CLOSED — findings "remain fixed"; no follow-up named in the record.
+- M91-W-knip-constants: CLOSED — "Resolved by fix/knip-constants ... drills exit 1"; no remaining-work language.
+
+Archived from the 46: none. Every archived pointer `d13baec65` added is
+gone with the revert.
+
+### Step-3 batch: 7 closed §2 design records to decisions.md (no --allow-fact-change; facts identical)
+
+`node scripts/plan-archive.mjs move --batch temp/planfix0190/moves-step3.json`
+at `406932fef`: 7 blocks, 6,974 bytes gross.
+
+- D63 (3479-3503, summary): M86 restore design; branches merged, m86.md certifies; no open branch touches it (full-history `-G` hits are merged history plus byte-identical `move-snap/*` restores); no test cites the body.
+- D5 bullets (936-960, pointer): 2026-09-21 pattern superseded by D108; rule paragraph ("Superseded ... What stays") and heading stay.
+- D2 (684-693, summary): Model API client; implemented; untouched since 2026-09-21; code cites the decision heading, which stays.
+- D8 (2444-2449, summary): attachments/host/header parsing; implemented.
+- D9 (2453-2460, summary): mention index; implemented.
+- D71 SDK list (7161-7176, pointer): ESP32/Linux SDK context for shipped M92; Decisions list (rules in force) stays.
+- D117 Cause (14803-14813, pointer): 2026-10-12 incident record; Rule in force and 2026-10-17 amendments stay.
+
+Excluded with reasons: every other un-archived §2 decision is live
+(D1/D3/D4/D6/D7/D30/D34/D44/D48/D60-D62/D65/D75/D77/D78/D100/D102/D104/
+D106/D107/D119/D121/D207/D208), open-lane (D74/D80-D99/D103), test-cited
+or keep-listed (D3/D6/D30/D1/D7/D73-pack-default/M101-P1/M113-closure/
+team phrases/M121 clauses/M91-M93-M100 lane tables), fresh (D209-D211),
+or names pending/open work itself (D10/D64/D118-amendments/D204).
+§6: every remaining closed section is already a stub; all movable-looking
+prose is glued to keep-listed status/Goal/table rows (M1-M6 Delivered
+paras, M118 Scope/Settings/Lanes, M122 Sections/Gate, M44b folded para)
+or names open items (M73 "Not built", M99 unchecked VSIX item, M92/M35
+owed receipts, M90/M46/M83/M84 already archived). Lane tables stay (the
+estimator fixture asserts every lane id). §7 holds only the QPIN stub and
+the open M95-K residuals. Never §3/§8/§9/§10, D3, D6.
+
+Proofs: reassembly identical (SHA-256 `15ab52a7…`), parsed facts
+identical, format drift 0, `prettier --check` clean, `check:plan` runs,
+`roadmap:generate` writes 222 entries with `check:roadmap` current and
+`ROADMAP.md` byte-identical, `check:reference` current (83 features,
+65 commands, 101 settings).
+Suites at the repo default timeout, all green: `planReader` +
+`planCitation` + `autoCompact` (89 passed), `paidMoneyStructure` +
+`sharingArtifacts` + `estimatorPlanSnapshot` (79 passed),
+`estimatorPlanSnapshotRealPlan` + `estimatorPlanSnapshotSource` +
+`estimatorSnapshotStrict` (73 passed).
+`status`: decisions 125 blocks, gates 241, milestones 182, all intact.
+
+### Step 4: closed history cannot give the room
+
+`PLAN.md` 3,580,933 → 3,574,749 bytes (85.2%; 6,184 saved). Still OVER
+the 85% gate (3,565,158) by 9,591 bytes; 13,591 bytes short of 4,000
+under it (≤ 3,561,158). Stopping here per the brief: the size sits in
+open work — the §9 M95-K residuals list (~44 KiB, incl. the 38 open
+records above), the open M95 (92 KiB), M96 (184 KiB), M96c (76 KiB) and
+M100–M117 milestone sections, M73's 3.1 KiB Status block, M118
+(7.1 KiB, open bindings), M122 (2.5 KiB). The lead decides.

@@ -681,16 +681,8 @@ Constraints and decisions:
 
 ### D2 — Thin, schema-validated HTTP client for the Model API instead of the `openai` npm SDK
 
-The `openai` package (7.20.0) pulls seven optional peers, requires Node ≥ 22
-and would ship an entire API surface of which the extension uses three
-endpoints. A ~300-line client over global `fetch` with `zod` schemas for
-every response boundary is smaller, keeps `no-unsafe-*` lint rules
-meaningful, and lets us model Meta's documented deviations (`tool_choice`
-only `"auto"`, `reasoning_effort` `none` → 400). Revisit if Meta ships a
-first-party SDK. **Amended at M7:** the stream is plain WHATWG server-sent
-events (`event:` / `data:` lines), so the planned `eventsource-parser`
-dependency was not added; `src/core/backends/modelapi/sse.ts` (80 lines) is
-tested on chunk splits inside frames and inside multi-byte characters.
+temp/planfix0190/d2-summary.txt Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D3 — Quality toolchain versions (verified against the npm registry 2026-09-21)
 
@@ -933,31 +925,7 @@ fake-transport unit pattern, the `vscode` mock in unit tests, and the
 coverage-threshold gate. What stays: unit tests over `src/**`, webview
 component tests, and the real-editor integration run.
 
-- **Unit (vitest, node env)**: everything in `src/core/**` (protocol types,
-  backends with fake transports, the host ⇄ webview protocol, settings
-  mapping, path guards). The `vscode` module is aliased to
-  `test/unit/mocks/vscode.ts`.
-- **Unit (vitest, jsdom env)**: webview components with Testing Library.
-- **Integration (@vscode/test-cli)**: activates the extension in a real VS Code
-  (xvfb on CI), asserts commands/views register and the webview posts its
-  ready message.
-- **Coverage thresholds are gates**: 90 % statements/lines/functions, 85 %
-  branches on `src/**` excluding `src/extension.ts` and `src/webview/main.tsx`
-  (entry points exercised by integration tests). A threshold flagging an
-  unreachable branch means the branch is dead — delete it, do not lower the bar.
-- **Every test must be able to fail**: each new assertion is checked once
-  against a deliberately broken implementation (recorded in the milestone
-  certification checklist).
-- **The real-life run (2026-10-12, the owner: "test the app in real life
-  thats the tests")**: the product's test is the packed product used for
-  real. `scripts/real-life/run.mjs` installs the candidate into a new empty
-  folder with a new empty home and drives it by the terminal agent and the
-  editor protocol, against real providers on their cheapest models, under a
-  request cap and a dollar cap. A scenario observes what a person observes
-  (an answer, a file on disk, an exit code, a sentence, a cost, a session
-  that loads again). Its record is the release's gate and the proof behind
-  a claim (`docs/testing/real-life.md`); nothing is tested against fake
-  code.
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D6 — Bundle budgets (Phase 6)
 
@@ -2441,23 +2409,13 @@ account can, without asking in any mode, Plan included. Full record:
 
 ### D8 — Attachments live in the host; images are validated by header parsing
 
-Pasted or dropped images cross postMessage once (base64) into an
-`AttachmentStore` owned by the conversation controller; the webview only
-shows chips. Width, height and media type come from the file's own header
-(`src/core/imageDimensions.ts`: PNG, GIF, JPEG SOF scan, WebP VP8/VP8L/VP8X),
-which is what the MSP `image` part needs and what refuses non-images with a
-reason. Limits: 10 MiB per image, 20 per message.
+temp/planfix0190/d8-summary.txt Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D9 — Mention index from `git ls-files`, VS Code file search as fallback
 
-`workspace.findFiles` honours `files.exclude` but not `.gitignore`, and the
-`findFiles2` API that does is still proposed. With `museSpark.respectGitIgnore`
-on, the index runs `git ls-files --cached --others --exclude-standard -z` in
-the workspace root (git's own ignore semantics), falls back to `findFiles`
-with a logged warning when git is missing or the folder is not a repository,
-with no path count of ours, cached for 15 s and invalidated by a
-create/delete file watcher. Ranking is a deterministic fuzzy scorer
-(`src/core/fuzzy.ts`), file-name matches winning over folder matches.
+temp/planfix0190/d9-summary.txt Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D13 — Workspace context (rules, skills, memory) follows Muse Code's own conventions and VS Code's workspace trust (2026-09-22)
 
@@ -3476,31 +3434,8 @@ and the constrained hosts (M66). Full record:
 
 ### D63 — Turn checkpoints restore the tools' own writes (2026-10-01)
 
-- **What happened.** PR #55 went through seven Codex review rounds. From
-  the third on, each round found new races in attributing whole-workspace
-  differences to the model rather than the user, another window or a
-  process. The owner's redesign rule applied from round three.
-- **Decision (owner, 2026-10-01).** 0.10.0 shipped with
-  `museSpark.turnCheckpoints` off by default and marked Preview. M86 turns
-  it on again with restoration rebuilt on the model's own file-tool
-  writes. [SPEC v3.1](docs/design/m86-restore-by-tool-writes.md) and the
-  [build contract](docs/design/m86-build-contract.md) govern the work.
-- **The new design (M86).** Every model file-tool write records its bytes
-  before and after in a durable owner-bound journal. A restore follows
-  an unbroken chain for each file, restoring only while its current bytes
-  equal the last recorded after; a file already at the earlier state is
-  unchanged. Captures and ignored-file scans are removed. Commands,
-  hooks and MCP tools are noted when they run; their changed files are
-  neither listed nor undone. The user's edits, other windows' writes and
-  personal memory are never undone. This narrows D51's restore promise.
-  Missing records refuse the whole range; per-file refusals name the
-  reason. Mixed-version fences, native process safety and the ABA and
-  final compare-to-rename limits remain explicit in the spec.
-- **Lead decision (2026-10-02), F07 closed by decision.** File copies and
-  unit payloads remain bounded by sequence, age and session. Shared-journal
-  identity metadata, never file contents, may persist until its owning
-  instance retires; only that instance compacts its journal, at retirement.
-  Removing extension storage clears it. SPEC section 9 records this exception.
+temp/planfix0190/d63-summary.txt Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D64 — Exposure-preserving import, replacing credential detection (2026-10-02)
 
@@ -7158,22 +7093,7 @@ secrets, an optional skill, the phone ping as a recipe), never become one (no
 Linux gadget service on a dev machine, no prosthesis for Cursor). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
-- **ESP32 SDK:** firmware on ESP-IDF 6.0.1 for about 17 boards. Build with
-  `idf.py build`; flash and watch with `idf.py -p <port> flash monitor`
-  (Ctrl-] ends the monitor), or `tools/board.sh BOARD …`. The per-user SDK
-  token is set in menuconfig as `CONFIG_GADGET_SDK_TOKEN`, which lands in
-  `sdkconfig` and is compiled into the firmware. Pairing goes over BLE with
-  the Muse phone app; after that the device reaches Muse's cloud over Wi-Fi.
-- **Linux SDK:** a Python service (`/opt/musegadget`) installed with
-  `install.sh --sdk-token mgst_…`. It gives the Muse assistant `system.run`,
-  `file.read`, `file.write` and `device.health` on that machine, with the
-  installing account's rights. `musegadget send-user-msg "…"` posts to the
-  user's Muse chat.
-- **Built for coding agents already:** each SDK folder ships an `AGENTS.md`
-  (setup, build, flash), and `skills/` holds 50+ community `SKILL.md` device
-  skills.
-- **The token** matches `^mgst_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$` (the
-  installer's own check).
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 **Decisions:**
 
@@ -14800,17 +14720,7 @@ after a write belongs to the transmission branch
 everything past the definite-refusal decision. Full record:
 `docs/certification/provider-refusals.md`.
 
-**Cause.** On 2026-10-12 an Anthropic account ran out of credit; Anthropic
-answered HTTP 400 with `invalid_request_error` "Your credit balance is too
-low …", and the product ended the turn with "Internal error: Models &
-Agents is not available in this build", requests 1, settled 0, uncertain
-2.262144. The raise site was `src/core/providers/configured.ts`
-`streamResponse`'s catch (`return fail()`, base `:106`, called at base
-`:800`), measured by stack on base. The fix replaces the catch's tail with
-the refusal sentence, keeps status/kind/code/request id/wait, and releases
-definite 4xx reservations. Nine answers, the raise-site table, the
-providers' documentation quotes for "not billed" (with what they do not say
-marked), and five red drills are in the certification record.
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D118 — Refusals read by shape, retried by code, stored without leaks (lanes PROVERR round 2 + PROVERRR2, 2026-10-13; numbered D109 until 2026-10-17, renumbered with D117)
 
