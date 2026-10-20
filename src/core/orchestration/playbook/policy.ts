@@ -44,10 +44,10 @@ import {
 import { UI_TEXT } from '../../../shared/l10n/text'
 import { actionIdentity, commandBlock } from './guard'
 import { retainRecords, validatedRecords, type PlaybookJournal } from './journal'
+import { renamedFiles } from './renamedFiles'
 import {
   hasOverlappingFiles,
   fileIdentities,
-  renamedFiles,
   hasSimilarContent,
   PLAYBOOK_BRIEF_NOTE,
   PLAYBOOK_IDENTITY_NOTE,

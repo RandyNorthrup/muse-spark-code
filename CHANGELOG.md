@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- The playbook and schedules report inputs are back within their 59 KiB
+  budget: the git rename evidence the orchestrator reads now lives in its own
+  module beside the playbook registry, so the report chunk no longer carries
+  the git-spawning machinery the report read never calls. No behaviour
+  changed on either side.
 - The panel's deferred English is back within its unchanged 25 KiB budget:
   the ChatGPT sign-in's English and the team runners' English load in their
   own lazily fetched chunks beside their deferred surfaces instead of riding
