@@ -443,6 +443,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'modelApiImage.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/core/backends/modelapi/ModelApiHost.ts',
+        symbol: 'ModelApiSession.imageFunctions',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
     file: 'modelApiMcp.js',
     side: 'both',
     requestedBy: [
@@ -642,6 +653,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'providers.js',
     side: 'both',
     requestedBy: [
+      {
+        importer: 'src/core/backends/modelapi/imageGeneration.ts',
+        symbol: 'metaRecord',
+        side: ['acp', 'vscode'],
+      },
       { importer: 'src/core/eval/driver.ts', symbol: 'bindEvalAdmission', side: ['acp', 'vscode'] },
       {
         importer: 'src/host/backend/modelApiEntry.ts',
@@ -1047,11 +1063,16 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  { file: 'test/integration/backgroundNotice.test.js', side: 'unreached', requestedBy: [] },
   { file: 'test/integration/codeIntel.test.js', side: 'unreached', requestedBy: [] },
   { file: 'test/integration/extension.test.js', side: 'unreached', requestedBy: [] },
   { file: 'test/integration/legal.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/orchestratorSlot.test.js', side: 'unreached', requestedBy: [] },
   { file: 'test/integration/pageWorker.test.js', side: 'unreached', requestedBy: [] },
   { file: 'test/integration/questions.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/scheduleBackground.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/sessionBudget.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/unsavedRefusal.test.js', side: 'unreached', requestedBy: [] },
   { file: 'test/integration/verifyEditor.test.js', side: 'unreached', requestedBy: [] },
   { file: 'test/integration/webFetch.test.js', side: 'unreached', requestedBy: [] },
   { file: 'uiText.js', side: 'both', requestedBy: [] },

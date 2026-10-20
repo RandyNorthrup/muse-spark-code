@@ -28,6 +28,9 @@ export { setUiText } from '../../shared/l10n/text'
 export { refuse } from '../../core/media/codecRefusal'
 export { createProviderRegistry } from '../../core/providers/providerRegistry'
 export { createModelsPanelSeam } from '../../core/providers/panelSeam'
+// The image chunk's D121 fallback (an edit with no record) reads Meta's own
+// record across the seam instead of carrying a copy of it.
+export { metaCapabilityRecord } from '../../core/providers/capabilityRecord'
 export { recordPlanUsage } from '../../core/providers/subscriptions/planUsage'
 export {
   connectOpenRouterAccount,

@@ -91,10 +91,7 @@ const BUDGETS = [
   { path: 'dist/connector.js', budgetKiB: 125 },
   // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
   // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
-  // JOIN0190: the features merge adds net authorized turn-path weight no
-  // diet can defer (vault provenance/taint, schedule session ownership;
-  // no new modules, nothing dead): 527.9 KiB measured, cap 530.
-  { path: 'dist/modelApi.js', budgetKiB: 530 },
+  { path: 'dist/modelApi.js', budgetKiB: 525 },
   // PR206: the Muse Code backend's own bundle (the host, its notification
   // mapping and the SDK), loaded on the first backend start: 97.6 KiB when
   // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
@@ -213,6 +210,11 @@ const BUDGETS = [
   // edits: 51,213 B measured (2026-10-18); D6: 51,213 × 1.15 = 58,894.95 B,
   // rounded up to the next 25 KiB multiple = 76,800 B (75 KiB).
   { path: 'dist/modelApiVerify.js', budgetKiB: 75 },
+  // The image run-path (M34, M44: the call checks, the purchase and the
+  // paid-use naming), loaded on the first image call: 18,708 B measured;
+  // D6: 18,708 × 1.15 = 21,514.2 B, rounded up to the next 25 KiB
+  // multiple = 25,600 B (25 KiB).
+  { path: 'dist/modelApiImage.js', budgetKiB: 25 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },
