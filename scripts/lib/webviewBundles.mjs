@@ -356,7 +356,7 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     // The capacity estimator's panel and submit composer (M117): 9.6 KiB
     // when split out (2026-10-06); the composer loads on the first
     // `/estimate` ahead of the panel; plus 15%, rounded up to 25 KiB.
-    // D119 (2026-10-17): the estimator's own worded refusal
+    // D207 (2026-10-17): the estimator's own worded refusal
     // (`isEstimateRefusal`/`estimateRefusalDetail` in `src/shared/estimate.ts`)
     // runs in the panel's and composer's catch handlers, so it stays in this
     // closure; the panel hands a foreign failure to the host log through the

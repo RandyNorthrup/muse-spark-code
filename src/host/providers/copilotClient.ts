@@ -503,7 +503,7 @@ class CopilotClient implements ProviderClient {
       if (signal.aborted) throw this.fail('cancelled')
       // A mid-flight gate lapse keeps the run's own guidance instead of the
       // adapter's failure text, like the registry's plan branches. Anything
-      // else keeps its kind on the failure (D119).
+      // else keeps its kind on the failure (D207).
       if (error instanceof CopilotFailureError || isStaleConfirmedError(error)) throw error
       throw this.fail(failureCode(error), { cause: error })
     } finally {

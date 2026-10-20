@@ -1,5 +1,5 @@
 /**
-The sharing commands' flag tables (PLAN.md D119): one source read by the
+The sharing commands' flag tables (PLAN.md D120): one source read by the
 owner parser (`src/runtime/sharing/args.ts`, which composes them per
 action) and by the help registry (`src/runtime/cliOptions.ts`, which
 renders the widest shape a screen can show: a repeated save `--tag`

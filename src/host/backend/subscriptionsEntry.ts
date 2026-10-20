@@ -19,7 +19,7 @@ export {
   chatGptFailureText,
 } from '../../core/providers/subscriptions/registry'
 // The Copilot adapter's failure, shared one copy with the host side exactly
-// like ChatGptSignInError above (PLAN.md D119): copilotClient.ts reads it
+// like ChatGptSignInError above (PLAN.md D207): copilotClient.ts reads it
 // through this entry so the deferred-cohort rewrite binds the subscriptions
 // bundle's copy, and the registry's `instanceof` holds across the bundle
 // boundary instead of each bundle carrying its own class.

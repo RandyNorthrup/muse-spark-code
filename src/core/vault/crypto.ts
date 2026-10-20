@@ -333,7 +333,7 @@ export function decodeVaultMaterial(bytes: Buffer): VaultItem['material'] {
     return material.data
   } catch (error: unknown) {
     // Only a malformed encoding reads invalid, with its cause; anything
-    // else keeps its kind (D119).
+    // else keeps its kind (D207).
     if (error instanceof VaultError || error instanceof SyntaxError)
       throw new VaultError('invalid', { cause: error })
     throw error

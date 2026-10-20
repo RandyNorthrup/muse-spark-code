@@ -23,13 +23,13 @@
 import { readFileSync } from 'node:fs'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { Connection, type DuplexTransport } from '@muse-code/sdk'
 import { isModeKeptError, isPermissionReviewerError } from '../../src/core/agent/agentBackend'
-import { MuseCodeHost, type MuseSession } from '../../src/core/backends/musecode/MuseCodeHost'
+import type { MuseCodeHost, MuseSession } from '../../src/core/backends/musecode/MuseCodeHost'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
-import { stderrLogger } from '../../src/runtime/stderrLog'
+
 import { captureFrameRow } from './helpers/wireCapture'
+import { closeLiveHosts, startLiveSession, type ReplayWire } from './helpers/museReplay'
 
 const captureSchema = z.object({
   provenance: z.object({
@@ -93,7 +93,6 @@ function modeChangedNotify(mode: string): WireFrame {
   return frame
 }
 
-const initializeResult = receivedResult(1)
 const modelListResult = receivedResult(2)
 const startResult = receivedResult(3)
 const ackManual = receivedResult(4)
@@ -104,148 +103,20 @@ const profileRefusal = receivedError(8)
 
 type Answer = { result: unknown } | { error: unknown }
 
-/**
-The SDK's transport fed with the recording: answers come from the script
-the test installs (recorded content, gated on the test's releases), while
-notifications are released verbatim by the test. Methods without a scripted
-answer are refused loudly instead of invented.
-*/
-class ReplayWire {
-  private readonly inbox: string[] = []
-  private readonly waiters: ((value: string | null) => void)[] = []
-  private ended = false
-  private readonly sentMethods: string[] = []
-  public answer: (method: string, params: Record<string, unknown>) => Answer | Promise<Answer> =
-    () => Promise.reject(new Error('the replay script is not installed'))
-
-  private push(line: unknown): void {
-    const text = `${JSON.stringify(line)}\n`
-    const waiter = this.waiters.shift()
-    if (waiter === undefined) this.inbox.push(text)
-    else waiter(text)
-  }
-
-  public transport(): DuplexTransport {
-    return {
-      incoming: {
-        [Symbol.asyncIterator]: () => ({
-          next: async (): Promise<IteratorResult<string>> => {
-            const head = this.inbox.shift()
-            if (head !== undefined) return { done: false, value: head }
-            if (this.ended) return { done: true, value: '' }
-            const value = await new Promise<string | null>((resolve) => {
-              this.waiters.push(resolve)
-            })
-            return value === null ? { done: true, value: '' } : { done: false, value }
-          },
-        }),
-      },
-      write: (chunk: string): Promise<void> => {
-        const sent: unknown = JSON.parse(chunk)
-        if (!isRecord(sent) || typeof sent['id'] !== 'number' || typeof sent['method'] !== 'string')
-          return Promise.resolve()
-        const id = sent['id']
-        const method = sent['method']
-        const params = isRecord(sent['params']) ? sent['params'] : {}
-        this.sentMethods.push(method)
-        // Never hold the submission tail: invoking the script runs it
-        // without blocking later writes (an async script suspends at its
-        // gate; a sync one answers at once). A script that throws for an
-        // unscripted method becomes the same loud refusal, never a dead write.
-        let pending: Answer | Promise<Answer>
-        try {
-          pending = this.answer(method, params)
-        } catch (error: unknown) {
-          pending = Promise.reject(error instanceof Error ? error : new Error(String(error)))
-        }
-        void Promise.resolve(pending)
-          .then((reply) => {
-            if ('error' in reply) {
-              this.push({ jsonrpc: '2.0', id, error: reply.error })
-              return
-            }
-            const result = isRecord(reply.result) ? { ...reply.result } : reply.result
-            // Per-connection nonces: the live id and commandId echo. Every
-            // other byte stays the recorded one.
-            if (
-              isRecord(result) &&
-              result['commandId'] !== undefined &&
-              typeof params['commandId'] === 'string'
-            )
-              result['commandId'] = params['commandId']
-            this.push({ jsonrpc: '2.0', id, result })
-          })
-          .catch((error: unknown) => {
-            this.push({
-              jsonrpc: '2.0',
-              id,
-              error: {
-                code: -1,
-                message: `no scripted answer for ${method} (replay harness): ${error instanceof Error ? error.message : String(error)}`,
-                data: { kind: 'harnessGap' },
-              },
-            })
-          })
-        return Promise.resolve()
-      },
-    }
-  }
-
-  /** A recorded broadcast, verbatim, as the SDK's read loop will ingest it. */
-  public release(frame: WireFrame): void {
-    this.push(frame)
-  }
-
-  public sentCount(method: string): number {
-    return this.sentMethods.filter((sent) => sent === method).length
-  }
-
-  public finish(): void {
-    this.ended = true
-    let waiter = this.waiters.shift()
-    while (waiter !== undefined) {
-      waiter(null)
-      waiter = this.waiters.shift()
-    }
-  }
-}
-
 interface LiveSession {
   readonly host: MuseCodeHost
   readonly session: MuseSession
   readonly wire: ReplayWire
 }
 
-const liveHosts: MuseCodeHost[] = []
 afterEach(async () => {
-  for (const host of liveHosts.splice(0)) await host.close()
+  await closeLiveHosts()
 })
 
 async function liveSession(
   answer: (method: string, params: Record<string, unknown>) => Answer | Promise<Answer>,
 ): Promise<LiveSession> {
-  const wire = new ReplayWire()
-  wire.answer = answer
-  const connection = new Connection(wire.transport())
-  const host = new MuseCodeHost(
-    {
-      connection,
-      initializeResult,
-      exited: Promise.withResolvers<{ code: number | null; signal: string | null }>().promise,
-      close: async () => {
-        wire.finish()
-        await connection.close()
-      },
-    },
-    stderrLogger(() => undefined, 'warn'),
-  )
-  liveHosts.push(host)
-  const session = await host.startSession({
-    workspaceRoot: '<capture-workspace>',
-    modelId: capture.provenance.model,
-    approvalMode: 'onRequest',
-  })
-  return { host, session, wire }
+  return await startLiveSession(answer)
 }
 
 /** The approval-mode request the session just sent, so the test can interleave the tear. */

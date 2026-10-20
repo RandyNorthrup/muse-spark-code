@@ -571,3 +571,153 @@ could not open loop-a/mis…' to contain 'could not resolve'`.
 - Scratch lived in the worktree's gitignored `temp/` (one probe,
   removed) and lane-temp folders cleaned by the suites' own
   `afterAll` handlers. No `/tmp` writes.
+
+# Stand-ins 0190, lane STANDINS4: the last two files (linuxlt rig)
+
+Linux rig `linuxlt`, branch `fix/0190-standins4`, base `142c60ff4f`
+(GRVFIXC on the release tree). The run notes name these two files; the
+other eight casts in the GRVFIXC sweep accounting stand (input data or
+explicit absence — untouched here). No paid or live model calls. No
+pushes, rebases, merges or tags. Trailer:
+`Co-Authored-By: Muse Spark (contributor) via Muse Code` (common.md,
+Muse engine).
+
+## test/unit/memoryCommands.test.ts — commit ba52006aa1
+
+Stand-in: the `store` slot held
+`{ availableScopes: () => Promise.reject(…) } as unknown as
+MemoryViewDeps` — a hand-built rejection beneath `showMemory`, for a
+store (`MemoryStore.availableScopes`) that never rejects: every root
+resolves to a `Located`, so a missing scope is warned and filtered, never
+thrown. Probed on this rig before rewriting (scratch suite, since
+removed): a removed scope root lists as `[]`; a removed workspace lists
+`[]`; only a real `EACCES` (chmod-000 subdir, non-portable) and the
+symlink-escape refusal escape `notes()`.
+
+Now: the product's own `MemoryStore` over
+`createMemoryIo(headlessToolIo(…))` (the runtime's own headless wiring),
+`dataRoot` through the product's own `memoryDataRoot` into the temp root,
+and the product's own `systemPath`, in a `usingTempDir` workspace. The
+injected VS Code surface (`pick`, boxes, modal, editor, trash, `edit`) is
+unbuildable headless: members a test's path never reaches throw loudly if
+ever reached; reached members only record (`showError`/`showInformation`)
+or answer real user input (dismissed pick). No casts anywhere in the file.
+
+- Vanished folder: workspace `rm -rf`'d after a real `notes()` listing
+  proves the note (`['deploy.md']`), then `showMemory` resolves, the pick
+  sees zero `note:` items, nothing is shown. Meaning kept as the real
+  behaviour: the old assertion (fixed words via `showError`) described a
+  rejection the real store never produces — `availableScopes` absorbs a
+  missing folder into no notes, so the view is empty, leaks no path, and
+  throws nothing. Divergence from the old assertion is the finding, not a
+  weakening: the old test proved behaviour the real code never had.
+- Unreadable scope: a forwarding `realPath` wrapper stages the view's own
+  mid-view race — the scope root's first canonicalization (scope listing)
+  still sees the folder; the second (note listing) runs after the folder
+  is really swapped for a `junction` link out of the workspace
+  (Windows-safe: junctions need no privilege, as `memoryIo.test.ts`
+  proves). Each phase canonicalizes the scope root exactly once by
+  `showMemoryView`'s own order, so the trigger is structural, never a call
+  count; no pre-listing runs through the racing store, which would consume
+  the first canonicalization. The real `memory path contains a symlink`
+  refusal reaches the caller as the cause of `UI_TEXT.memoryFailed`, shown
+  nowhere. A chmod-000 `EACCES` was rejected for this case: `readdir`
+  succeeds on read-only directories on Windows, so it would fail hosted
+  CI.
+- Helpers deleted: the old inline `deps()` with its rejecting store and
+  both hand-built errors are gone with the rewrite; no shared helper was
+  touched.
+
+Break proofs (each shown failing, then reverted; no product diff remains):
+
+- `listMemoryEntries` rethrows missing folders instead of reading them as
+  empty: both cases fail — the vanished case with `expected [] to have a
+length of 1 but got +0` (the pick is never reached), the swapped case
+  with `expected undefined to be an instance of Error` (the refusal takes
+  the fixed-words branch instead of the wrap branch).
+- `showMemory` drops `{ cause: error }` from the wrap: only the swapped
+  case fails, with `expected undefined to be an instance of Error` on the
+  cause assertion.
+
+Suites (repo timeout, `--maxWorkers=3`): `memoryCommands` 2/2 green after
+each revert.
+
+## test/unit/conversationGitBundle.test.ts — commit 4e55ece814
+
+Stand-in: two hand-thrown loader closures (`() => { throw … }`) and a
+hand-built `openPullRequestInConversation` counter cast
+`as unknown as GitWindowFeatures` ("no harness builds the whole window").
+
+Now: the exact factory chain the extension runs (`extension.ts:3618,5797`:
+`openPullRequestInConversation(gitFeatures, …)` with
+`gitFeatures = gitFeaturesLoader(conversationGit, …)`): the real
+`conversationGitLoader` over Node's own `requireFile` default, memoized by
+the real `gitFeaturesLoader`, against real `.cjs` bundle files written
+into `usingTempDir` folders. The window's own git primitives need VS Code,
+so no harness builds them headless: one shared harness keeps the review
+bundle's precedent (`{} as unknown as GitFeaturesDeps` with the inline
+reason — the refused load never reaches the slot, and the fixture bundles
+ignore the arguments they are called with).
+
+- Missing bundle: fixed `gitUnavailable` words shown; the real loader's
+  log line names the conversation Git bundle. (Real `MODULE_NOT_FOUND`
+  underneath; the command swallows it into the fixed words by design.)
+- Foreign failure: the fixture exports both factories (passes the shape
+  guard) and its `createGitFeatures` throws its module-scoped error. The
+  command rejects with the identical object (`toBe` against the export the
+  test re-reads through the product's own `requireFile`, narrowed with
+  `in`, no cast), shows nothing, logs nothing.
+- Pass-through: the fixture's `createGitFeatures` returns features whose
+  open appends to a real marker file beside the bundle. `features()` is
+  the identical object twice (real memoization), the command writes the
+  marker exactly once and shows nothing. Kept in unit rather than moved to
+  `test/integration`: the real window features need VS Code, but driving
+  them there would block on the pull-request number input box
+  (`pullRequestCheckout.ts:171`) with no user to answer; the delegation
+  line is the product code under test and the marker file is its real
+  observable effect.
+- Helpers deleted: both hand-thrown loaders and the features cast are gone
+  with the rewrite; no shared helper was touched.
+
+Break proofs (each shown failing in isolation, then reverted; no product
+diff remains):
+
+- The command's `try/catch` removed (bare `loaded = features()`): only
+  the missing-bundle case fails — the loader's refusal
+  (`VS Code's Git is not available here`, thrown from `lazyBundle.ts:119`)
+  escapes as a rejection instead of the fixed words.
+- `isBundleUnavailable` broadened to every `Error`: only the foreign case
+  fails — `expected undefined to be Error: the conversation bundle failed
+whi… // Object.is equality` (swallowed into fixed words, never
+  rethrown).
+- `await loaded.openPullRequestInConversation()` deleted: only the
+  pass-through fails — `ENOENT` opening the never-written marker file.
+
+Suites (repo timeout, `--maxWorkers=3`): `conversationGitBundle` 3/3 green
+after each revert; both rewritten suites together 5/5.
+
+## Suites and gates
+
+- `prettier --check` on all three touched files: clean.
+- `eslint --max-warnings=0` on both rewritten suites: clean.
+- `npm run typecheck:unit`: exit 0, no errors.
+- Suites above with the repository's own timeout (no `--testTimeout`).
+- Product code untouched: the worktree diff holds only the two test
+  rewrites and this record. The pre-commit hook's `eslint --fix` /
+  `prettier --write` made no logic change to either test commit (re-read
+  after each commit).
+- No shared helper changed, so no other suite imports a changed helper.
+
+## Sandbox / rig notes (STANDINS4)
+
+- Nothing in this lane needed the sandbox exception: no browser, socket,
+  or privileged call was used. No suite needs re-running outside the
+  sandbox.
+- Scratch lived in the worktree's gitignored `temp/` (one probe, removed)
+  and per-test temp dirs. No `/tmp` writes.
+- Windows CI is the remaining risk, by construction: the memory race uses
+  a `junction` symlink (no privilege needed, same as `memoryIo.test.ts`),
+  temp-dir cleanup uses the shared `removeFolder` retry helper, and no
+  assertion compares a path string except the race trigger, which
+  normalises `\` to `/` on both sides. If the Windows shard disagrees,
+  the failure text will say exactly where.
