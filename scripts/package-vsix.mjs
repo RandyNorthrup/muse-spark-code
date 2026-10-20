@@ -5,7 +5,11 @@ import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'no
 import path from 'node:path'
 import { packLegalDataArchive } from './lib/legalArchive.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
-import { parseSolidTextArchive, packSolidTextArchive } from './lib/solidTextArchive.mjs'
+import {
+  listTextMembers,
+  parseSolidTextArchive,
+  packSolidTextArchive,
+} from './lib/solidTextArchive.mjs'
 import { compactVsix } from './lib/compactVsix.mjs'
 import { removePackageStage } from './lib/packageStage.mjs'
 import {
@@ -179,13 +183,17 @@ export async function stageVsix(root, stage, target) {
   // The ACP agent's voice companion lives in the same build tree but was
   // never allowlisted into the VSIX (the agent's npm package ships it
   // loose): it is excluded from the archive instead of joining it.
-  packSolidTextArchive(
-    path.join(root, 'dist', 'webview'),
-    path.join(stage, 'dist', 'webview.json.br'),
-    {
-      exclude: new Set(['voiceCompanion.js', 'voiceCompanion.css']),
-    },
-  )
+  // The stage never holds sourcemaps or the agent-only companion (VSCE
+  // never allowlisted them), so the source-root pack excludes exactly
+  // those: the archive holds the servable set, byte for byte.
+  const webviewSource = path.join(root, 'dist', 'webview')
+  packSolidTextArchive(webviewSource, path.join(stage, 'dist', 'webview.json.br'), {
+    exclude: new Set([
+      'voiceCompanion.js',
+      'voiceCompanion.css',
+      ...listTextMembers(webviewSource).filter((file) => file.endsWith('.map')),
+    ]),
+  })
   const webviewMembers = new Set(
     Object.keys(
       parseSolidTextArchive(

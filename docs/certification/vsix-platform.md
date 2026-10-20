@@ -182,6 +182,59 @@ helpers, and its `TargetPlatform` in the manifest — and for the fallback:
 both Linux helpers present, no foreign pieces and no `TargetPlatform` at
 all.
 
+### Solid archives: webview + vendored skill (lane VSIXWEB, 2026-10-20, linuxlt rig)
+
+The neutral content had no lever left inside "budget never raised,
+nothing cut" — so the two biggest loose crowds pack solid instead, with
+no feature, locale, text or helper cut:
+
+- A. `dist/webview/**` ships as `dist/webview.json.br`: one brotli-11
+  JSON holding each of the 190 members' exact text and SHA-256 (459,501
+  bytes, stored). The loose files leave the package (0 loose
+  `dist/webview/` members in any target). Sourcemaps and the ACP-only
+  voice companion were never allowlisted and stay out of the archive.
+  Every panel resolves through one shared root: a packaged install
+  extracts once per archive digest into the extension's own global
+  storage (older digests removed), verifies every SHA-256 before the
+  first panel and on every reuse, and a missing, damaged or unwritable
+  extraction fails that panel with the fixed sentence instead of files.
+- B. `vendor/high-quality-projects-skill/**` ships as
+  `vendor/high-quality-projects-skill.json.br` (97,591 bytes, stored)
+  with `LICENSE` + `VENDOR.json` loose beside it (the legal evidence and
+  the attribution a person reads). The installer stages byte-identical
+  from the archive with the same hash checks; the skills listing reads
+  through the archive.
+
+Full production build (`npm run build` green with budgets), each target
+through the real pipeline (`node scripts/package-vsix.mjs --target <t>`:
+stage, vsce pack, archive, zopfli recompress, size check) with the
+pinned zopfli on PATH. Budget unchanged at 3,788,800 bytes. Both
+archives are byte-identical across targets (shared neutral content);
+`node scripts/check-webview-archive.mjs` passes on both (190 members,
+every panel file present, 0 loose).
+
+| Target    | Before (VSIXFIT) | After     | Saved   | Headroom | Method                                                             |
+| --------- | ---------------- | --------- | ------- | -------- | ------------------------------------------------------------------ |
+| linux-x64 | 3,764,200        | 3,583,127 | 181,073 | 205,673  | complete local package, real size check green                      |
+| win32-x64 | 3,800,822 (RED)  | 3,619,755 | 181,067 | 169,045  | complete local package, real size check green — back inside budget |
+
+Unit proof on real code (repo timeouts): the real producer packs real
+build output and the real vendored tree into real archives; every member
+round-trips byte-for-byte; a damaged member and a damaged archive each
+refuse; a second activation reuses and re-verifies; a stale digest is
+removed; the dev path returns `dist/webview`; the installer stages
+byte-identical and the packed listing is unchanged. A deliberately wrong
+member byte was shown red, then reverted. Integration in the real VS Code
+host runner (production build, real `dist/webview.json.br` packed beside
+it): an in-host probe resolves through the real resolver to verified
+global storage — never the loose tree — and Models & Agents, usage and
+What's New open their webview tabs (5 passing). The on-disk extraction
+`webview-fe1be95d…7c` holds exactly the archive's 190 members with 0
+SHA-256 mismatches, and a repeat run reuses and re-verifies the same
+folder. An oversized dev-tree archive is correctly refused (4.3 MB over
+the 4 MB bound). The M112 integration host carries the bundle's two
+context fields through the real resolver.
+
 ## 3. Every place that assumed one universal package
 
 - `scripts/package-vsix.mjs`: staged everything VSCE allowlisted and packed
