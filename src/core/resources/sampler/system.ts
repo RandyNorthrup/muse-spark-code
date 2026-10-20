@@ -1,6 +1,7 @@
 import type { ResourceDiskSampler } from '../disk'
 import { access, open, readdir } from 'node:fs/promises'
-import { probeChildEnvironment } from '../../executables'
+import { probeChildEnvironment, type GuardedChildEnv } from '../../executables'
+import { windowsPowerShell } from '../../execGuard'
 import { execFileGuarded } from '../../guardedChildProcess'
 import * as os from 'node:os'
 import path from 'node:path'
@@ -64,13 +65,9 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
     if (platform === 'win32') {
       if (systemRoot !== undefined && paths.isAbsolute(systemRoot))
         candidates.push(
-          paths.join(
-            systemRoot,
-            'System32',
-            name === 'powershell'
-              ? String.raw`WindowsPowerShell\v1.0\powershell.exe`
-              : 'nvidia-smi.exe',
-          ),
+          name === 'powershell'
+            ? windowsPowerShell(systemRoot, {}).file
+            : paths.join(systemRoot, 'System32', 'nvidia-smi.exe'),
         )
       if (name === 'nvidia-smi' && programFiles !== undefined && paths.isAbsolute(programFiles))
         candidates.push(paths.join(programFiles, 'NVIDIA Corporation', 'NVSMI', 'nvidia-smi.exe'))
@@ -88,14 +85,21 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
     return null
   }
 
-  function run(file: string, args: readonly string[]): Promise<string | null> {
-    if (!paths.isAbsolute(file)) return Promise.resolve(null)
+  /** The probe's empty environment; Windows PowerShell gets its own module path too. */
+  function probeEnvironment(file: string): GuardedChildEnv {
     const env: NodeJS.ProcessEnv = {}
     for (const name of RESOURCE_PROBE_EMPTY_ENV_KEYS) env[name] = ''
-    if (platform === 'win32' && systemRoot !== undefined && paths.isAbsolute(systemRoot)) {
-      env['SystemRoot'] = systemRoot
-      env['windir'] = systemRoot
-    }
+    if (platform !== 'win32' || systemRoot === undefined || !paths.isAbsolute(systemRoot))
+      return probeChildEnvironment(env)
+    env['SystemRoot'] = systemRoot
+    env['windir'] = systemRoot
+    const powershell = windowsPowerShell(systemRoot, env)
+    return file === powershell.file ? powershell.env : probeChildEnvironment(env)
+  }
+
+  function run(file: string, args: readonly string[]): Promise<string | null> {
+    if (!paths.isAbsolute(file)) return Promise.resolve(null)
+    const env = probeEnvironment(file)
     return new Promise((resolve) => {
       execFileGuarded(
         file,
@@ -105,7 +109,7 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
           windowsHide: true,
           shell: false,
           cwd: os.tmpdir(),
-          env: probeChildEnvironment(env),
+          env,
           timeout: checked.timeoutMs,
           maxBuffer: checked.maxOutputBytes,
         },

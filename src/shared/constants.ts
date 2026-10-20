@@ -5594,7 +5594,10 @@ export const MCP_STDERR_TAIL_CHARS = 500
 // its entry's own `env`: the allowlist Muse Code 1.3.0 starts its servers with
 // (its migrate skill: "only a small fixed allowlist of the user's environment
 // (HOME, PATH, USER, LANG, TERM and similar)"; the list itself read from the
-// binary), plus the Windows profile folders npm and Python look for.
+// binary), plus the Windows profile folders npm and Python look for, and
+// ProgramData, where Windows' own OpenSSH keeps its configuration: without it
+// ssh.exe and ssh-keygen.exe exit 255 without a word, so a server started
+// through `ssh` never ran (WINPSMOD).
 export const MCP_STDIO_ENV_ALLOWLIST: readonly string[] = [
   'HOME',
   'PATH',
@@ -5614,6 +5617,7 @@ export const MCP_STDIO_ENV_ALLOWLIST: readonly string[] = [
   'USERPROFILE',
   'APPDATA',
   'LOCALAPPDATA',
+  'ProgramData',
 ]
 /** A private nonce proves the extension still owns a new Windows MCP job. */
 export const MCP_JOB_NONCE_BYTES = 24
@@ -6084,7 +6088,7 @@ export const LINUX_RECORDERS: readonly {
 ]
 // M26 (PLAN.md D29): dictation in a remote window, and the environment the
 // Windows helper starts with.
-/** Windows PowerShell's module search path, reset for the Windows helper. */
+/** Windows PowerShell's module search path, reset for every Windows PowerShell 5.1 child. */
 export const WINDOWS_PSMODULEPATH_VARIABLE = 'PSModulePath'
 /**
 The macOS helper's flag naming the app that started it (VS Code's

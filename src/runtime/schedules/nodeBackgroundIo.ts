@@ -36,7 +36,7 @@ import {
 import type { BackgroundFilePort, BackgroundProcessResult } from './nativeBackground'
 import type { TrustedPathVerifier } from '../trustedPathPort'
 import { type GuardedChildEnv } from '../../core/executables'
-import { noWorkspaceChildEnvironment } from '../../core/execGuard'
+import { noWorkspaceChildEnvironment, windowsPowerShell } from '../../core/execGuard'
 import { nonnegativeUsdSchema } from '../../shared/usdSchema'
 import { type ChildProcess, type SpawnOptions } from 'node:child_process'
 import { realpathSync } from 'node:fs'
@@ -308,17 +308,26 @@ export async function verifyScheduleWake(
   return { scheduledPrompts: true, maxBudgetUsd: record.maxBudgetUsd }
 }
 
-function systemProgram(file: string, env: NodeJS.ProcessEnv): string {
-  if (file === 'launchctl') return '/bin/launchctl'
-  if (file === 'systemctl') return '/usr/bin/systemctl'
-  if (file === 'systemd-analyze') return '/usr/bin/systemd-analyze'
-  if (file !== 'powershell.exe' && file !== 'schtasks.exe') return file
+/**
+The fixed OS program a name stands for and its credential-free
+environment: Windows PowerShell is `%SystemRoot%`'s, with its own module
+path (`windowsPowerShell`).
+*/
+function systemProgram(
+  file: string,
+  env: NodeJS.ProcessEnv,
+): { readonly file: string; readonly env: NodeJS.ProcessEnv } {
+  const scrubbed = withoutCredentials(env)
+  if (file === 'launchctl') return { file: '/bin/launchctl', env: scrubbed }
+  if (file === 'systemctl') return { file: '/usr/bin/systemctl', env: scrubbed }
+  if (file === 'systemd-analyze') return { file: '/usr/bin/systemd-analyze', env: scrubbed }
+  if (file !== 'powershell.exe' && file !== 'schtasks.exe') return { file, env: scrubbed }
   const root = Object.entries(env).find(([name]) => name.toUpperCase() === 'SYSTEMROOT')?.[1]
   if (root === undefined || !path.win32.isAbsolute(root) || /[\p{Cc}]/u.test(root))
     throw new Error(UI_TEXT.scheduleV2.runtime.backgroundUnavailable)
   return file === 'powershell.exe'
-    ? path.win32.join(root, 'System32', 'WindowsPowerShell', 'v1.0', file)
-    : path.win32.join(root, 'System32', file)
+    ? windowsPowerShell(root, env)
+    : { file: path.win32.join(root, 'System32', file), env: scrubbed }
 }
 
 /** Only the fixed OS programs receive this credential-free environment. */
@@ -327,9 +336,10 @@ export function backgroundProcessRunner(
 ): (file: string, args: readonly string[]) => Promise<BackgroundProcessResult> {
   return async (file, args) => {
     try {
-      const result = await execResourceFile('contained', systemProgram(file, env), [...args], {
+      const program = systemProgram(file, env)
+      const result = await execResourceFile('contained', program.file, [...args], {
         encoding: 'utf8',
-        env: withoutCredentials(env),
+        env: program.env,
         windowsHide: true,
         timeout: SCHEDULE_POLL_INTERVAL_MS,
         maxBuffer: SCHEDULE_NATIVE_MAX_OUTPUT_BYTES,
