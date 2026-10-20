@@ -9,7 +9,6 @@ import * as z from 'zod/mini'
 import {
   ACP_DATA_FOLDER,
   MILLISECONDS_PER_SECOND,
-  PROCESS_START_QUERY_TIMEOUT_MS,
   PROCESS_START_TOLERANCE_MS,
   PROCESS_OWNER_FAILURE_CACHE_MS,
   WINDOWS_FILETIME_TICKS_PER_MS,
@@ -48,7 +47,8 @@ const WINDOWS_BIRTH_READER_NAME = /^MuseSparkBirth-(\d+)-[\da-f-]{36}\.exe$/u
 // birth, and its first start on a fresh hosted runner passed the query bound
 // (docs/certification/windows-process-birth.md); this asks the kernel
 // directly in about 55 ms. Exit 1: no running process has the id, or it
-// cannot be opened.
+// cannot be opened. \`--exact <pid>\` prints the creation FILETIME and the
+// boot identifier (FILETIME:guid), the evidence a vault writer lease keeps.
 const WINDOWS_BIRTH_READER_SOURCE = `using System;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -71,10 +71,17 @@ static class MuseSparkBirth
     [DllImport("kernel32.dll")]
     static extern bool CloseHandle(IntPtr handle);
 
+    [StructLayout(LayoutKind.Sequential)]
+    struct BootInfo { public Guid Id; public uint Firmware; public ulong Flags; }
+
+    [DllImport("ntdll.dll")]
+    static extern int NtQuerySystemInformation(int kind, out BootInfo value, int size, out int returned);
+
     static int Main(string[] args)
     {
         uint pid;
-        if (args.Length != 1 || !uint.TryParse(args[0], NumberStyles.None, CultureInfo.InvariantCulture, out pid)) return 2;
+        bool exact = args.Length == 2 && args[0] == "--exact";
+        if (!(exact || args.Length == 1) || !uint.TryParse(args[args.Length - 1], NumberStyles.None, CultureInfo.InvariantCulture, out pid)) return 2;
         IntPtr process = OpenProcess(QueryLimitedInformation | Synchronize, false, pid);
         if (process == IntPtr.Zero) return 1;
         try
@@ -85,6 +92,15 @@ static class MuseSparkBirth
             // exit code of 259 reads as STILL_ACTIVE).
             if (WaitForSingleObject(process, 0) != WaitTimeout) return 1;
             if (!GetProcessTimes(process, out creation, out exit, out kernel, out user)) return 1;
+            if (exact)
+            {
+                // SystemBootEnvironmentInformation: this boot's identifier.
+                BootInfo boot;
+                int returned;
+                if (NtQuerySystemInformation(90, out boot, Marshal.SizeOf(typeof(BootInfo)), out returned) != 0 || boot.Id == Guid.Empty) return 1;
+                Console.Out.Write(creation.ToString(CultureInfo.InvariantCulture) + ":" + boot.Id.ToString());
+                return 0;
+            }
             Console.Out.Write(DateTimeOffset.FromFileTime(creation).ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture));
             return 0;
         }
@@ -128,11 +144,9 @@ function run(file: string, args: readonly string[], env: GuardedChildEnv): Promi
     execFileGuarded(
       file,
       [...args],
-      {
-        timeout: PROCESS_START_QUERY_TIMEOUT_MS,
-        windowsHide: true,
-        env,
-      },
+      // No deadline of ours: the query ends when the system answers (a
+      // fresh machine's first start of a tool can take tens of seconds).
+      { windowsHide: true, env },
       (error, stdout) => {
         if (error === null) {
           resolve(stdout)
@@ -347,6 +361,18 @@ function forgetBirthReader(ready: Promise<BirthReader>): void {
 }
 
 async function windowsStartTime(pid: number): Promise<number | undefined> {
+  const output = await runWindowsBirthReader([String(pid)])
+  if (output === undefined) return undefined
+  const text = output.trim()
+  return DECIMAL.test(text) ? Number(text) : undefined
+}
+
+/**
+This process's own birth reader, run with `args`: built once, sealed, and
+only its sealed bytes ever run. Undefined when the environment names no
+absolute system folder.
+*/
+async function runWindowsBirthReader(args: readonly string[]): Promise<string | undefined> {
   // The system folder the environment names (never an assumed drive, and
   // never a relative one: the compiler under it would be looked up from
   // whatever folder this process happens to run in).
@@ -372,11 +398,10 @@ async function windowsStartTime(pid: number): Promise<number | undefined> {
     await removeQuietly(reader.file)
     throw new Error('The birth reader changed after it was built')
   }
-  let output: string
   try {
-    output = await run(
+    return await run(
       reader.file,
-      [String(pid)],
+      args,
       noWorkspaceChildEnvironment(process.platform, { SystemRoot: systemRoot }, realpathSync),
     )
   } catch (error: unknown) {
@@ -391,8 +416,6 @@ async function windowsStartTime(pid: number): Promise<number | undefined> {
     }
     throw error
   }
-  const text = output.trim()
-  return DECIMAL.test(text) ? Number(text) : undefined
 }
 
 /**
@@ -539,22 +562,11 @@ async function readExactEvidence(pid: number): Promise<ExactEvidence | undefined
         break
       }
       case 'win32': {
-        const root = process.env['SystemRoot'] ?? process.env['windir']
-        if (!root) return undefined
-        // One bounded launch reads both exact FILETIME and the current boot.
-        const output = await run(
-          path.win32.join(root, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
-          [
-            '-NoLogo',
-            '-NoProfile',
-            '-NonInteractive',
-            '-Command',
-            '$ErrorActionPreference = "Stop"; $birth = (Get-Process -Id ' +
-              String(pid) +
-              ').StartTime.ToFileTimeUtc(); Add-Type -TypeDefinition \'using System; using System.Runtime.InteropServices; public static class MuseLeaseBoot { [StructLayout(LayoutKind.Sequential)] public struct Info { public Guid Id; public uint Firmware; public ulong Flags; } [DllImport("ntdll.dll")] static extern int NtQuerySystemInformation(int kind, out Info value, int size, out int returned); public static string Read() { Info value; int returned; if (NtQuerySystemInformation(90, out value, Marshal.SizeOf(typeof(Info)), out returned) != 0 || value.Id == Guid.Empty) throw new InvalidOperationException(); return value.Id.ToString(); } }\'; Write-Output ($birth.ToString()+":"+[MuseLeaseBoot]::Read())',
-          ],
-          noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
-        )
+        // The sealed native reader prints the creation FILETIME and this
+        // boot's identifier in one run: no PowerShell start, whose first
+        // start on a fresh machine can exceed any deadline.
+        const output = await runWindowsBirthReader(['--exact', String(pid)])
+        if (output === undefined) return undefined
         const [birth, boot] = output.trim().split(':', 2)
         if (birth && boot && DECIMAL.test(birth) && /^[a-f0-9-]{36}$/iu.test(boot))
           return {

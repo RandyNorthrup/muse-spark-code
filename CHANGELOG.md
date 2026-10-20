@@ -289,6 +289,13 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- On Windows the vault no longer refuses to write on a machine whose
+  Windows PowerShell starts slowly (a fresh machine, heavy antivirus): the
+  process identity a vault writer records is read by a small native reader
+  instead, and nothing gives up after 10 seconds.
+- On Windows as an elevated administrator (Windows Server's defaults), work
+  the resource governor starts is no longer refused, and the private folder
+  for a screen-recording preview is locked to its owner alone.
 - On Windows the credential vault now starts. Its helpers build in the
   vault's own folder, the broker launches and serves its private pipe, and
   the editor's requests reach it. Before, faults in the Windows helper and

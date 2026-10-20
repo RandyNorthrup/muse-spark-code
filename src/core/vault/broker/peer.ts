@@ -136,7 +136,7 @@ export interface WindowsVaultPipePort {
     socket: Duplex,
   ): Promise<VaultProcessIdentity & { remote: boolean; ownerOnlyDacl: boolean }>
 }
-/** @unwired M109 Windows vault peer verifier (waits on lane C-M109-1c's pipe helper) */
+/** The Windows vault peer: the pipe helper's own client record, owner-only and local. */
 export class WindowsVaultPeerVerifier implements VaultPeerVerifier {
   constructor(
     private readonly port: WindowsVaultPipePort,

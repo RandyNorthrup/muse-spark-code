@@ -9,7 +9,7 @@ import path from 'node:path'
 import type { LatestRecordingPort } from '../../core/media/record/linux'
 import type { MediaSource } from '../../core/media/limits'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
-import { PROCESS_START_QUERY_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { powerShellQuoted } from '../../core/shellQuote'
 
@@ -211,13 +211,14 @@ function windowsSystemRoot(override?: string): string | undefined {
   return override ?? process.env['SystemRoot'] ?? process.env['windir']
 }
 
-/** A bounded system query: absolute path, no shell, hidden window. */
+/** A system query: absolute path, no shell, hidden window. */
 function runSystemCommand(executable: string, args: readonly string[]): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     execFile(
       executable,
       [...args],
-      { timeout: PROCESS_START_QUERY_TIMEOUT_MS, windowsHide: true },
+      // No deadline of ours: the system's answer ends the query.
+      { windowsHide: true },
       (error, stdout) => {
         if (error === null) resolve(stdout)
         else reject(error instanceof Error ? error : new Error('The command failed'))
