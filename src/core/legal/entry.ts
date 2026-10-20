@@ -8,7 +8,7 @@ import type {
 } from '../../shared/legalScanEntry'
 import type { LegalFinding } from '../../shared/legal'
 import type { LegalPreparedPatch } from '../../shared/legalScanEntry'
-import { loadFixPlanner } from './files'
+import { loadFixPlanner } from './fixLoader'
 import { readNpm } from './ecosystems/npm'
 import { readPython } from './ecosystems/python'
 import { buildRecordProblems, scanLegal } from './scan'

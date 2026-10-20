@@ -1,6 +1,7 @@
 import { fill, plural } from '../../shared/l10n/text'
 import { fingerprint } from '../verify/fingerprint'
-import { compareLegalText, loadFixPlanner } from './files'
+import { compareLegalText } from './files'
+import { loadFixPlanner } from './fixLoader'
 import { createYieldCheck } from './scanYield'
 // The deterministic scan (M97, PLAN.md D76): every reader over one
 // bounded snapshot, findings sorted before stable ids are assigned, and
