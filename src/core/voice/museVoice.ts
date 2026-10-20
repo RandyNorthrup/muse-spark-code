@@ -436,7 +436,7 @@ export interface MuseVoiceDeps {
   /** Durable D78 admission on either backend, before opening the socket. */
   /**
   D78's exact daily admission, or `undefined` when the person set no
-  daily limit: with no limit there is nothing to admit against (D121).
+  daily limit: with no limit there is nothing to admit against (D208).
   */
   readonly reserveDaily: (costUsd: UsdAmount) => Promise<VoiceDailyClaim | undefined>
   readonly log: CoreLogger
@@ -673,7 +673,7 @@ export class MuseVoiceDictation implements DictationHandle {
   /**
   A recording that reached Meta joins the conversation's running total as
   cost unknown: Muse Voice reports no billed duration, and a local
-  estimate is never counted as spent (D121). Its seconds are tallied
+  estimate is never counted as spent (D208). Its seconds are tallied
   apart. A recording that never started refunds instead.
   */
   private async settleBudget(state: VoiceBudgetState, stream: MuseVoiceStream): Promise<void> {
@@ -755,7 +755,7 @@ export class MuseVoiceDictation implements DictationHandle {
         return
       }
       // Its billed duration has no verified bound, so a person-set limit
-      // cannot be kept for it (D121).
+      // cannot be kept for it (D208).
       if (state.scope !== undefined && Usd.from(state.scope.capUsd()).compare(Usd.from(0)) > 0) {
         throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
       }

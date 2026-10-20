@@ -1,5 +1,5 @@
 // The Muse Code approval-mode failure paths, live (lane PR251FIX3B, PLAN.md
-// D123). Opt-in only, never in CI: each drill spawns the pinned Muse Code
+// D211). Opt-in only, never in CI: each drill spawns the pinned Muse Code
 // binary over stdio (`serve --provider echo`) and drives the REAL
 // `MuseCodeHost`/`MuseSession` against it. No turn runs on a model: the echo
 // provider answers control commands, and the two echo turns below only prove

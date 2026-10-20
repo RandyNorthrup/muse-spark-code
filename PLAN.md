@@ -1749,7 +1749,7 @@ deferred-aggregate and individual caps are unchanged.
 
 **FIXM106L1 (2026-10-06):** the complete argument-preview UI entry is independently bounded at 25 KiB: 648 bytes measured, plus 15%, rounded to 25 KiB. Only its new entry moves out of the deferred group; shared/static dependencies retain their existing startup and deferred caps.
 
-**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group; D119 re-baseline 2026-10-17: 26,410 bytes measured with the worded refusal in the closure, plus 15%, rounded up to 30 KiB; re-measured 26,418 on 2026-10-18 after the port `report` channel, same 30 KiB row) The R7 diagnostic vocabulary,
+**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group; D207 re-baseline 2026-10-17: 26,410 bytes measured with the worded refusal in the closure, plus 15%, rounded up to 30 KiB; re-measured 26,418 on 2026-10-18 after the port `report` channel, same 30 KiB row) The R7 diagnostic vocabulary,
 character/secret validation and normalization load as a shared lazy browser
 module within the existing 50-KiB deferred aggregate; the panel keeps the small
 localized renderer and typed view state. The split gate requires this module
@@ -14956,6 +14956,10 @@ true, no key is asked for as if none existed) and tell the person once per
 distinct damage through a notice, not only the log. Full record:
 `docs/certification/catch-money.md` (round 3).
 
+### D207 — Money and consent failures reach the person in words (lead, 2026-10-16; numbered D119 until the 0.19.0 join, when that number was found shared with D119 three-valued reads)
+
+The estimator's own refusal keeps its detail in words (`estimateFailureText`); anything else reads failed without its raw text. A foreign typed failure keeps its kind past each boundary with its cause, and only the current run reports. The worded-refusal matcher (`isEstimateRefusal` / `estimateRefusalDetail`) tells the estimator's own words apart from anything else. Proof: `test/unit/estimateRefusal.test.ts`, `test/unit/estimatorSurfaces.test.tsx`.
+
 ### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
 
 The owner, verbatim: "get the useless tests get it streamlined and
@@ -15247,7 +15251,7 @@ its answer and report a translated, typed request-limit stop in every host.
 Existing money caps, compaction accounting and queued-input promotion remain
 in force. Certification: [toolrounds](docs/certification/toolrounds.md).
 
-### D121 — No spending check without a limit the person set (spend-simple, owner 2026-10-17)
+### D208 — No spending check without a limit the person set (spend-simple, owner 2026-10-17; numbered D121 until the 0.19.0 join, when that number was found shared with D121 limits-only-on-models)
 
 The owner, verbatim: "why are there spending checks each call this seems
 like not the right way to do it make sure you research properly. whatever
@@ -15287,7 +15291,7 @@ admission bound and its benchmark.
   meter and account thresholds. Record, the $120.00 origin and every removal:
   `docs/certification/spend-simple.md`.
 
-### D123 — One .vsix per platform, each within the unchanged budget (lane VSIXPLATFORM, 2026-10-18)
+### D209 — One .vsix per platform, each within the unchanged budget (lane VSIXPLATFORM, 2026-10-18; numbered D123 until the 0.19.0 join, when that number was found shared)
 
 The universal .vsix carries every platform's native helpers and is near
 its 3,788,800-byte budget (D6) with 131 KB of open pull requests and
@@ -15319,7 +15323,7 @@ are re-checked in the same job, so a cancelled job never leaves only some
 targets published.
 Evidence: `docs/certification/vsix-platform.md`.
 
-### D123 — One package per platform target (lane RUTRUTHL2, 2026-10-18)
+### D210 — One package per platform target (lane RUTRUTHL2, 2026-10-18; numbered D123 until the 0.19.0 join, when that number was found shared)
 
 The universal `.vsix` and universal ACP tarball each demand every
 platform's native helpers, so neither packs on a single-OS checkout:
@@ -15336,7 +15340,7 @@ local proof (`muse-spark-code-linux-x64-0.19.0.vsix` and
 `muse-spark-code-acp-0.19.0-linux-x64.tgz` packed and inventoried on
 `linuxlt`).
 
-### D123 — Manual asks the person on Muse Code 1.4.7: the `:ask-me` profile (lane MANUALMODE, 2026-10-18)
+### D211 — Manual asks the person on Muse Code 1.4.7: the `:ask-me` profile (lane MANUALMODE, 2026-10-18; numbered D123 until the 0.19.0 join, when that number was found shared)
 
 Real use on Muse Code 1.4.7 showed Manual running commands with no approval
 reaching the editor: the session files record `"policy_decision":
@@ -15438,7 +15442,7 @@ notice and terms as React; no SDK receipt is written. Its metadata and first
 five licence lines are recorded in `docs/certification/m97.md`; the owner's
 redistribution decision remains separate from deterministic matching.
 
-**LEDGER cancellation billing (2026-10-12). Resolved 2026-10-17 by D121:**
+**LEDGER cancellation billing (2026-10-12). Resolved 2026-10-17 by D208:**
 the owner chose not to count an unresolved reservation at all; a response
 without its usage is cost unknown. The original question follows. The requested received-output cancellation bound is not provable: Anthropic explicitly bills client disconnects, and OpenAI counts non-visible generated tokens. Keep the full unresolved reservation as liability, never display it as spend; settle a provider-reported final usage even on an incomplete/cancelled response. A received-output estimate must not release unknown provider liability. Billing research and real-use steps: `docs/certification/spend-ledger.md`.
 
@@ -16685,7 +16689,7 @@ wrap-up second; caller-aware default of 200 third. Certification and dependent
 suites: [toolrounds](docs/certification/toolrounds.md). Next slice: release-train
 integration and cross-platform certification after these three pieces pass.
 **LEDGER (2026-10-12, Kubuntu and macmini; M80/M82/M95 repair). Superseded
-2026-10-17 by D121:** the versioned ledger, its atomic admission and its
+2026-10-17 by D208:** the versioned ledger, its atomic admission and its
 journal files are removed; spending is checked only against a limit the
 person set. The original scope follows. Replace directory-per-claim budgeting with one versioned spend ledger and atomic admission for session, editor daily and terminal daily scopes; retain every sent attempt at its full liability, recover only from process identity evidence, and certify real-process races, crashes, migration and packed-product refusals. Design and ruling R9 compatibility limits: `docs/certification/spend-ledger.md`. Shared daily input reserves the byte/context bound even when terminal admission uses a provider estimate. One flushed transaction inode supplies atomic snapshot and audit/history aliases; process owner notes are cached per scope. Portable ledger errors stay in each caller's language state. Runtime settlement uses typed HTTP observations, never retry-message text, and only refunds initial rejections before response frames. Removing inherited stand-in suites also removes their unused production-only exports (unbound account-home factory, account admission wrapper and schedule paid-scope factories); their live interfaces remain. Provider endpoint/path utilities move to a leaf module to break the measured configured-bundle command cycle. Keyless configured runs bind an empty in-memory secret store and skip Meta readiness lookup; a real ECONNREFUSED before connection releases the hold. No provider calls, cap changes, merges or pushes.
 
@@ -36610,7 +36614,7 @@ requires the lead to repair the production split before integration and
 aggregate quality. Detailed receipts: `docs/certification/m101-eval-arms.md`.
 
 **LEDGER local qualification deferral (2026-10-12). Superseded 2026-10-17 by
-D121:** the 100 ms admission bound, its benchmark and the ledger it measured
+D208:** the 100 ms admission bound, its benchmark and the ledger it measured
 are removed, so R3/R4 below no longer apply. The original record follows. The owner's latest
 no-stand-in/no-screenshot testing rule replaces full `quality` and fake provider
 proofs for this lane. Static gates and real core/packed commands are recorded in
@@ -36658,7 +36662,7 @@ split rule (measured size plus 15%, rounded), not an owner-set cap, and the
 row is re-baselined by that same rule, not by owner word. `npm run build` on
 `fix/catch-money-final` reported `OVER dist/webview estimator panel: 25.8 KiB
 (budget 25 KiB)`: the lazy closure measures 26,410 bytes, against 25,479 on
-`main-now`. The D119 worded-refusal matcher (`isEstimateRefusal` /
+`main-now`. The D207 worded-refusal matcher (`isEstimateRefusal` /
 `estimateRefusalDetail` plus the panel's and composer's catch sites) adds the
 ~931 bytes; the matcher must run synchronously in those catch handlers (lead
 decision 2026-10-16: money/consent failures reach the person in words), and
@@ -43304,12 +43308,12 @@ plan claims made to match main (M100 status, M62/M63 and M125 support limits,
 the no-stand-ins rule stated as a rule with the remaining stand-ins named,
 Retry-After honoured as given), its corrections standing on the entries they
 correct, including `[0.19.0]`'s Release infrastructure. PR #217
-(`fix/spend-simple`) merged: D121 (no spending check without a limit the
+(`fix/spend-simple`) merged: D208 (no spending check without a limit the
 person set; the atomic claim ledger gone), its CHANGELOG Added and Fixed
-entries and the D121 README settings rows under `[0.19.0]`; the README
-`shellSandbox` row keeps PR #233's wording, the two D121 spend rows keep PR
+entries and the D208 README settings rows under `[0.19.0]`; the README
+`shellSandbox` row keeps PR #233's wording, the two D208 spend rows keep PR
 #217's wording, and ROADMAP.md and the host-API record were regenerated. PR
-#161 (`fix/catch-money`) merged: D119 worded failures, the catch inventory
+#161 (`fix/catch-money`) merged: D207 worded failures, the catch inventory
 and ratchet tooling, deferred paid/auth bundles and the port-reported panel
 failures, its user-facing entries under `[0.19.0]` Pending (its catch-tooling
 entry stands under `[0.18.0]` Added, where the pull request records it); the
@@ -43331,7 +43335,7 @@ PR #238 (`fix/acp-error-truth`) merged: ACP failures say their real cause
 refusal, a loaded playbook's command failure is not unavailability), its
 CHANGELOG entries under `[0.19.0]` Fixed. PR #242 (`fix/panel-retry-truth`)
 merged: the panel's Agent-map retry pre-flight says gone/stale in its own
-words, its CHANGELOG entry under `[0.19.0]` Fixed. PR #246 (`build/vsix-per-platform`, D123: six platform packages from
+words, its CHANGELOG entry under `[0.19.0]` Fixed. PR #246 (`build/vsix-per-platform`, D209: six platform packages from
 filtered stages, each with its own helpers and TargetPlatform) and PR #216
 (`ms/msm109`: the credential vault end to end on Linux and macOS) merged
 next, in that order, each with its CHANGELOG entries under `[0.19.0]` and

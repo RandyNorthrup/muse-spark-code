@@ -1,7 +1,7 @@
 // Portable typed spend-store failures: no filesystem or process dependency.
 // A daily running total that cannot be read or saved, a damaged file, or
 // conflicting amounts refuse the next paid request whose limit needs it
-// (PLAN.md D121); with no limit set, no store is read at all.
+// (PLAN.md D208); with no limit set, no store is read at all.
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 

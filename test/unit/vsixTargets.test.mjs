@@ -10,7 +10,7 @@ import {
   vsixFallbackName,
 } from '../../scripts/lib/vsixTargets.mjs'
 
-// One .vsix per platform (PLAN.md D123): each target's package keeps only
+// One .vsix per platform (PLAN.md D209): each target's package keeps only
 // its own platform's native pieces. A wrong row here ships a person a
 // package missing the helper their platform runs, or an oversize package
 // carrying every other platform's.

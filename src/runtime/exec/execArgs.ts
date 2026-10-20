@@ -152,7 +152,7 @@ function budgetUnits(value: unknown): UsdAmount | undefined {
   const units =
     BigInt(whole) * BigInt(EXEC_USD_UNITS) + BigInt(fraction.padEnd(EXEC_USD_DECIMALS, '0'))
   const ZERO_UNITS = 0n
-  // D121: the person's budget has no ceiling of ours; only zero refuses.
+  // D208: the person's budget has no ceiling of ours; only zero refuses.
   return units > ZERO_UNITS ? Usd.fromUnits(units, EXEC_USD_DECIMALS).toAmount() : undefined
 }
 

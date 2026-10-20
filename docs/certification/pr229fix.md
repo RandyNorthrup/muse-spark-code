@@ -166,7 +166,7 @@ goldens are fixed in this lane.
   forbids); verified by typecheck, eslint and build.
 - T3 (`10a1951e63`): the ledger's `units()` holds micro-USD as BigInt with
   no ceiling — only negative refuses — matching the parser and `microUsd()`
-  in `runExec.ts`. Extended the existing D121 tests: `9007199255` USD
+  in `runExec.ts`. Extended the existing D208 tests: `9007199255` USD
   parses in `execArgs.test.ts` and admits with exact `capUsd`/`remainingUsd`
   in `runLedger.test.ts` (9,007,199,255,000,000 > 9,007,199,254,740,991, so
   the old ceiling refused it).

@@ -88,7 +88,7 @@ muse_disable_approval_judge`): process-wide for the whole serve host, so
    lead runs that drill in the real-life run (steps below). Up to that step,
    everything is proven against the real pinned binary above.
 
-## 2026-10-18 — the fix (PLAN.md D123)
+## 2026-10-18 — the fix (PLAN.md D211)
 
 Interactive Manual and Edit-automatically sessions start with
 `permissionProfile: ':ask-me'`; interactive Auto sessions with
@@ -183,7 +183,7 @@ Files: `src/shared/permissionModes.ts` (`mspStartPermissionProfile`),
 (`currentMode`), `src/core/backends/musecode/MuseCodeHost.ts`
 (`setPermissionProfile` split, `setApprovalMode` rollback, admission and
 restore reviewer), `test/unit/permissionModes.test.ts`, `CHANGELOG.md`,
-PLAN.md D123.
+PLAN.md D211.
 
 ## 2026-10-19 — three failure-path corrections (lane PR251FIX2)
 
@@ -308,7 +308,7 @@ quarantine gates on `sendTurn`/`steer`/`admitScheduled`),
 `src/shared/l10n/en.ts` + all 14 `l10n/ui.*.json`
 (`permissionReviewerNotInstalled`, `permissionReviewerMissing`),
 `test/unit/sessionOwner.test.ts`, `test/unit/sessionRecords.test.ts`,
-`CHANGELOG.md`, PLAN.md D123.
+`CHANGELOG.md`, PLAN.md D211.
 
 ## 2026-10-19 — Grok's second re-review corrections (lane PR251FIX3B)
 
@@ -452,7 +452,7 @@ three catch sites),
 `permissionModeKept`),
 `test/e2e/sessionModes.live.e2e.test.ts` (new),
 `test/unit/sessionOwner.test.ts`, `test/unit/permissionModes.test.ts`,
-`CHANGELOG.md`, PLAN.md D123.
+`CHANGELOG.md`, PLAN.md D211.
 
 ## 2026-10-20 — Grok's third re-review corrections (lane PR251FIX4)
 
@@ -533,7 +533,7 @@ quarantine, send/steer/admission repeat the cause),
 (`permissionReviewerTornReason`, `permissionReviewerRollbackTorn`,
 `permissionRestoreRefused`; `permissionReviewerTorn` removed),
 `test/unit/approvalModesFailurePaths.test.ts` (new),
-`CHANGELOG.md`, PLAN.md D123.
+`CHANGELOG.md`, PLAN.md D211.
 
 ## 2026-10-19 — Grok's fourth re-review corrections (lane PR251FIX5)
 
@@ -613,7 +613,7 @@ mode's sentence), `src/shared/l10n/en.ts` + all 14 `l10n/ui.*.json`
 (`permissionModeTornUnconfirmed`),
 `test/fixtures/m106/msp-1.4.7-approval-modes.json` (new capture),
 `test/unit/approvalModesFailurePaths.test.ts` (rewritten on saved wire),
-`CHANGELOG.md`, PLAN.md D123.
+`CHANGELOG.md`, PLAN.md D211.
 
 ## 2026-10-19 — Grok's fifth re-review correction (lane PR251FIX6)
 
@@ -668,4 +668,4 @@ note with the mode-naming sentence), `src/shared/l10n/en.ts` + all 14
 `l10n/ui.*.json` (`permissionModeChangedWhileQuarantined`),
 `test/unit/approvalModesFailurePaths.test.ts` (retargeted different-mode
 tail), `test/unit/sessionOwner.test.ts` (new owner case), `CHANGELOG.md`,
-PLAN.md D123.
+PLAN.md D211.

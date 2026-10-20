@@ -635,7 +635,7 @@ export class ModelApiBackendManager {
     budgetScope?: OwnedSessionBudgetScope,
   ): Promise<ModelApiHost> {
     // A limit is the parent conversation's, checked and charged through its
-    // scope (D121); a temporary host never gets an allowance of its own.
+    // scope (D208); a temporary host never gets an allowance of its own.
     if (
       budgetScope === undefined &&
       Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0

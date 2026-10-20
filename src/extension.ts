@@ -3164,7 +3164,7 @@ async function activateWindow(
         return await dailyPaid.reserve(body, feature, estimatedInputTokens, signal)
       }
       signal?.throwIfAborted()
-      // A person-set daily limit's claim; none when no limit is set (D121).
+      // A person-set daily limit's claim; none when no limit is set (D208).
       const claim = await dailyPaid.reserveExact(reservationUsd)
       if (claim === undefined) return
       try {

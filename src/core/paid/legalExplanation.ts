@@ -31,7 +31,7 @@ import { scrubLegalText } from '../legal/files'
 export interface LegalExplanationDeps {
   readonly gate: Pick<PaidFeatureGate, 'isOn'>
   readonly consent: Pick<PaidUseConsent, 'allows'>
-  /** A person-set daily limit's claim; `undefined` when none is set (D121). */
+  /** A person-set daily limit's claim; `undefined` when none is set (D208). */
   readonly reserve: NonNullable<ModelApiClientDeps['reservePaidRequest']>
   readonly keyDigest: () => Promise<string | undefined>
   readonly usage: Pick<PaidUsage, 'add' | 'addLegalExplanationUsage'>
@@ -158,7 +158,7 @@ export async function explainLegal(
             cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
           }
     if (tokens !== undefined) deps.usage.addLegalExplanationUsage(modelId, tokens)
-    // Sent without usage: its cost is unknown, never its estimate (D121).
+    // Sent without usage: its cost is unknown, never its estimate (D208).
     let costUsd: UsdAmount | undefined = Usd.from(0).toAmount()
     if (dispatch.isSent)
       costUsd = tokens === undefined ? undefined : estimateCostUsd(tokens, modelId)

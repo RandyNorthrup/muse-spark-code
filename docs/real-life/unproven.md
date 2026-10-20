@@ -3221,7 +3221,7 @@ proven by `test/unit/runtimeDailyBudget.test.ts` over the real settings file
 and data folder; the host half leaves the suite here until a real-use run
 proves it.
 
-### test/unit/scheduleLegacyDailyBudget.test.ts (withdrawn with the journal, D121)
+### test/unit/scheduleLegacyDailyBudget.test.ts (withdrawn with the journal, D208)
 
 The journal-backed migration suite was deleted with the reservation journal
 it measured; nothing in the merged tree replaces its migration claims. The

@@ -3,7 +3,7 @@
 import type { VoiceBatchSeamDeps } from '../../../src/core/voice/voiceBatchSeams'
 import { Usd, type UsdAmount } from '../../../src/shared/usd'
 
-/** An M82 conversation capped at $1, over its in-memory running total (D121). */
+/** An M82 conversation capped at $1, over its in-memory running total (D208). */
 export function cappedSession() {
   const spent = { amount: Usd.from(0).toAmount() }
   const charged: (UsdAmount | undefined)[] = []

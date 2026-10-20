@@ -46,7 +46,7 @@ function execute(command, args) {
 function sha256(file) {
   return createHash('sha256').update(readFileSync(file)).digest('hex')
 }
-// One package per platform (PLAN.md D123), no universal package: the
+// One package per platform (PLAN.md D209), no universal package: the
 // release carries every target's VSIX beside the agent tarball and the SBOMs.
 function assetNames(version) {
   return [

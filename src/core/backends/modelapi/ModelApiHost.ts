@@ -1323,7 +1323,7 @@ class PaidQuoteChangedError extends UserRefusalError {
 }
 
 /**
-The request in flight (M82, D121): what it was built under, and its
+The request in flight (M82, D208): what it was built under, and its
 estimate, which a person-set limit is compared with and which is never
 counted as spent. Nothing is held or written for it.
 */
@@ -2958,7 +2958,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   private promptDate: string
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
   /**
-  Dollars this conversation spent at list price (M82, D121): the running
+  Dollars this conversation spent at list price (M82, D208): the running
   total, kept in memory and saved with the session after each call. It
   holds what every call reported (a turn's, a failed one's, a
   compaction's, a child task's, a review's or a hook model's) and the
@@ -4556,7 +4556,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-  The body as a person-set session limit lets it be sent (M82, D121).
+  The body as a person-set session limit lets it be sent (M82, D208).
   With a limit, its input is counted high (bounded by the complete UTF-8
   request size) and `max_output_tokens` lowered so input plus output at
   list price fits what is left; `SessionBudgetExceededError` when even the
@@ -4712,7 +4712,7 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /**
   The person's limit, compared with a request's estimate immediately
-  before it is sent (D121): no read and no write, so a limit set or
+  before it is sent (D208): no read and no write, so a limit set or
   lowered while the request was prepared still stops it.
   */
   private assertEstimateFits(
@@ -4738,7 +4738,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-  One finished call, after the call (D121): its cost from the usage the
+  One finished call, after the call (D208): its cost from the usage the
   provider reported is added to the conversation's running total, which
   the next save writes with the session; `undefined` is a call that went
   out and reported no usage, recorded as cost unknown and adding nothing.
@@ -4789,7 +4789,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-  A request ended (M82, D121). One that reported usage was charged when it
+  A request ended (M82, D208). One that reported usage was charged when it
   did. One that went out and reported none, or that an earlier attempt
   may have run, is recorded as cost unknown with what is known (its model,
   outcome and duration in the usage record); its estimate is never
@@ -4847,7 +4847,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (open !== undefined && isRequestNotSent(error)) {
       open.isSent = false
     }
-    // D121: a request the provider refused before generating anything
+    // D208: a request the provider refused before generating anything
     // (`NON_BILLABLE_HTTP_REJECTIONS`, a superset of lane PROVERR's definite
     // set) books nothing; a local refusal that never sent counts the same.
     const isRefused =
@@ -5748,7 +5748,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
       }
       // The person's limit against this attempt's estimate, read live and
-      // compared synchronously, immediately before the HTTP try (D121).
+      // compared synchronously, immediately before the HTTP try (D208).
       if (directBudget !== undefined) {
         if (directBudget.scope?.isStillAllowed(keyDigest) === false) {
           throw new AbortedError()
@@ -5833,7 +5833,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
       },
       // Refused before any generation: it cost nothing, even when the
-      // provider's adapter rethrows the error without its status (D121).
+      // provider's adapter rethrows the error without its status (D208).
       onRefused: () => {
         if (open !== undefined && !open.hasStarted) open.isRefused = true
       },
@@ -6143,7 +6143,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (usage === null || usage === undefined) {
       return
     }
-    // An invalid count is no report: the request ends with its cost unknown (D121).
+    // An invalid count is no report: the request ends with its cost unknown (D208).
     if (!isCountedUsage(usage)) {
       this.deps.log.warn('Model API usage with invalid token counts was ignored')
       return
@@ -6178,7 +6178,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       cost: usage.provider_cost_usd,
     })
     const hasKnownPrice = cost !== undefined
-    // An unpriced model's cost is unknown: shown and charged as unknown, never guessed (D121).
+    // An unpriced model's cost is unknown: shown and charged as unknown, never guessed (D208).
     const costUsd = cost ?? Usd.from(0).toAmount()
     const nextUsage = {
       inputTokens: this.usage.inputTokens + billable.inputTokens,
@@ -6227,7 +6227,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.usageCostUsd = sumUsd(this.usageCostUsd, costUsd)
       this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
     }
-    // After the call, its reported cost joins the running total (D121).
+    // After the call, its reported cost joins the running total (D208).
     this.chargeBudget(cost, open?.estimateUsd)
     // An earlier HTTP attempt of this call that may have run: its cost is unknown.
     if (open?.hasAmbiguousAttempt === true) this.chargeBudget(undefined)
@@ -6508,7 +6508,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.chargeBudget(costUsd)
   }
 
-  /** Both item events and terminal-only calls count once, as they return (D121). */
+  /** Both item events and terminal-only calls count once, as they return (D208). */
   private chargeBoundedSearches(settlement: SearchSettlement): void {
     const count = settlement.returnedCalls
     if (this.sendingSearchBound === undefined || count <= this.chargedSearchCalls) return
@@ -7019,7 +7019,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const run = this.active?.scheduleRun
     if (run !== undefined) await this.checkScheduledReplay(run, this.body(resolved))
     const attempt = budget.retriesUsed + 1
-    // A request that cannot fit a person-set limit is never sent (M82, D121),
+    // A request that cannot fit a person-set limit is never sent (M82, D208),
     // nor shown to the hooks; the body sent is estimated afresh below, since
     // what it carries can change while the hooks run.
     await this.media?.prepare(
@@ -7757,7 +7757,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.responseAttemptGuard(body, resolved, budget),
       isCountedUsage,
       abortError: () => new AbortedError(),
-      // D121: a refused request books nothing; a local refusal that never
+      // D208: a refused request books nothing; a local refusal that never
       // sent counts the same (superset of lane PROVERR's definite set).
       isRefused: (error: unknown) =>
         isRequestNotSent(error) ||
@@ -7882,7 +7882,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             guard: (body, budget) => this.responseAttemptGuard(body, resolved, budget),
             isCountedUsage,
             abortError: () => new AbortedError(),
-            // D121: a refused request books nothing; a local refusal that never
+            // D208: a refused request books nothing; a local refusal that never
             // sent counts the same (superset of lane PROVERR's definite set).
             isRefused: (error) =>
               isRequestNotSent(error) ||
@@ -9023,7 +9023,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       // A scheduled fire spends through its own consented ledger, never the
       // session limit; otherwise the image's price is checked against a
-      // person-set limit before it is sent (D121).
+      // person-set limit before it is sent (D208).
       const price = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
       if (run === undefined) this.assertEstimateFits(selected.ref, price, false)
       const scope = this.deps.budgetScope
@@ -9097,7 +9097,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (egressRefusal !== undefined) {
           return egressRefusal
         }
-        // D121: a refused request books nothing; a local refusal that never
+        // D208: a refused request books nothing; a local refusal that never
         // sent counts the same (superset of lane PROVERR's definite set).
         isRefused =
           isRequestNotSent(error) ||
@@ -9105,7 +9105,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         throw error
       } finally {
         // Each returned image at its published price; a sent request with no
-        // answer has an unknown cost, never its price assumed (D121).
+        // answer has an unknown cost, never its price assumed (D208).
         const isUnknown =
           imageState.billedCount === 0 && !hasReturned && !isRefused && imageState.isSent
         const charged = Usd.from(price).times(imageState.billedCount).toAmount()
@@ -18208,7 +18208,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     return this.active?.turnId
   }
 
-  /** The conversation's limit and running total once it has sent a request (D121). */
+  /** The conversation's limit and running total once it has sent a request (D208). */
   public usageBudget(): UsageBudgetRead | undefined {
     if (this.isSubagent || this.conversationAccountId === undefined) return
     const capUsd = this.currentBudgetCap()
@@ -18268,7 +18268,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       (file) => !mapped.has(`${file.provider}:${file.sha256}`),
     )
     const fileRefs = [...this.restoredFileRefs, ...mediaRefs]
-    // The running total as the calls reported it; nothing held is ever counted (D121).
+    // The running total as the calls reported it; nothing held is ever counted (D208).
     const budgetSpentUsd = this.budgetSpentUsd
     const packedTokensAvoided = this.packing?.savings() ?? this.restoredPackedTokens
     const replayOutputIds = new Set(
@@ -18323,7 +18323,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       outputs: Object.fromEntries(this.outputs),
       usage: { ...this.usage },
       ...(isPositiveUsd(budgetSpentUsd) && { budgetSpentUsd }),
-      // New snapshots never count held money (D121): the total is settled
+      // New snapshots never count held money (D208): the total is settled
       // spend only, so a resume adopts it whole.
       spendSettledOnly: true,
       ...(this.unknownChargeCalls > 0 && { unknownChargeCalls: this.unknownChargeCalls }),
@@ -18432,7 +18432,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.lastActivityAt = stored.lastActivityAt
     this.turnCount = stored.turnIds.length
     this.usage = { ...stored.usage }
-    // A resume continues the running total its last save wrote (D121).
+    // A resume continues the running total its last save wrote (D208).
     // A file saved before the legacy migration may hold an open
     // reservation in its total; the store rebuilds settled-only totals
     // from the legacy journal before this runs, so the value lands whole.
@@ -19131,7 +19131,7 @@ export class ModelApiHost implements AgentHost {
   }
 
   /**
-  What a session spent while a call waits for its output (M82, D121): the
+  What a session spent while a call waits for its output (M82, D208): the
   last saved snapshot with this one's token totals and running total, so a
   reload or a crash cannot forget a reported cost. Nothing is written for a
   session never saved: there is nothing to reload.
@@ -19159,7 +19159,7 @@ export class ModelApiHost implements AgentHost {
           )
     // No same-values skip: the per-session queue coalesces rapid persists
     // into one trailing write, so the running total after a call reaches
-    // the store even when the snapshot matches the queued one (D121).
+    // the store even when the snapshot matches the queued one (D208).
     const { budgetSpentUsd: _unsaved, ...saved } = last
     return this.queueSave(
       {

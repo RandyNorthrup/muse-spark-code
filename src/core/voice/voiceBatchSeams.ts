@@ -8,7 +8,7 @@
 //   and, when the conversation has an M82 cap, the owner's running total.
 //   The batch cost is bounded (the file's duration is known before the
 //   POST), so under a cap it is estimate-checked against what is left
-//   (D121), never held; both are rechecked synchronously at the send, and
+//   (D208), never held; both are rechecked synchronously at the send, and
 //   settled from the receipt; an unknown bill is counted as cost unknown.
 // - usage: the window's loud tally (`notePaidUse('voice', seconds)`).
 import { SessionBudgetExceededError } from '../backends/modelapi/sessionBudget'
@@ -39,7 +39,7 @@ export interface VoiceBatchSeamDeps extends Pick<
   /** D78's exact daily reservation. Absent: nothing billed outside a request can be admitted. */
   readonly reservePaidExtra: ReservePaidExtra | undefined
   /**
-  M82: the owner conversation's limit and running total (D121), for the
+  M82: the owner conversation's limit and running total (D208), for the
   batch cost to be checked against and charged to. Absent: this turn has
   no conversation-cap path, so only the daily ledger admits.
   */
@@ -69,7 +69,7 @@ async function refund(claims: readonly (PaidExtraClaim | SessionAdmission)[]): P
 }
 
 /**
-The batch's bounded cost against what is left of the owner's cap (D121):
+The batch's bounded cost against what is left of the owner's cap (D208):
 a request whose cost would pass the cap is not sent, with the same
 sentence the request path says. Nothing is held.
 */

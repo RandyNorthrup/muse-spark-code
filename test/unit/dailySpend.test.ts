@@ -1,4 +1,4 @@
-// The daily running total (PLAN.md D121) over real files and real processes:
+// The daily running total (PLAN.md D208) over real files and real processes:
 // each process writes only its own file after a call, the day's total is the
 // sum of every file, and nothing is written before a call ends.
 import { fork } from 'node:child_process'
@@ -105,7 +105,7 @@ describe('daily running total', () => {
     })
   })
 
-  // The pre-D121 journal's records, transcribed field for field from the
+  // The pre-D208 journal's records, transcribed field for field from the
   // writer this replaces (`src/host/backend/sessionBudgetJournal.ts` at
   // `b6ba93884^`): a v1 seed with a number total, a settled v1 claim and an
   // open one whose reservation the old total counted as spent.
@@ -160,7 +160,7 @@ describe('daily running total', () => {
     seedStandardDay(directory, scope)
     // 2.5 settled before, 1.25 settled since, 0.5 still open: the first
     // request after upgrading sees 3.75, not zero — the open reservation is
-    // held, never spend (D121), so it stays out of the migrated total.
+    // held, never spend (D208), so it stays out of the migrated total.
     const spend = createDailySpend({ directory, sleep })
     expect(spend.read(scope)).toEqual({ spentUsd: '3.75', unknownChargeCalls: 0 })
     expect(await spend.add(scope, Usd.from('0.75').toAmount())).toEqual({

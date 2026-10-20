@@ -27,7 +27,7 @@ the session model pill read `muse-spark-1.3 High` throughout.
   (release section vs `### Added`): kept both. Typecheck 0,
   `sessionDelete` 3/3.
 - Step 2 `711f77c23b`: `cand/RUNEWPRS/2` (PR #251). CHANGELOG conflict
-  (both `### Fixed` additions) and PLAN.md D140 vs D123: kept both.
+  (both `### Fixed` additions) and PLAN.md D140 vs D211: kept both.
   Typecheck 0, `permissionModes` + `sessionDelete` 14/14.
 - Step 3 `8c91573c04`: `cand/RUNEWPRS/3` (PR #203, `dc30faaadc`) is already
   in history via merge `7374e26283`, undone by the 0.19.0 release hold
@@ -195,7 +195,7 @@ bash native/darwin/build.sh`, Apple's `/usr/bin/git` shim is broken on
   through its release-branch revert `659d179ff`, so a direct merge is
   "already up to date"; the re-apply restores its content for proof),
   `ccc09625e` (#249). Conflicts kept both intents (CHANGELOG sections,
-  PLAN D123 beside D140, `:ask-me` profile inside the M56 proxy-refresh
+  PLAN D211 beside D140, `:ask-me` profile inside the M56 proxy-refresh
   voice setup, `realpath` inside the refusal wrapper, host-api count 78).
 - Rig: MacBook (owner's laptop). Every run in a fresh folder,
   `temp/ws-acp/`, under this lane's sandboxed HOME: the owner's real

@@ -8,7 +8,7 @@ import {
   type UsdAmount,
 } from '../../shared/usd'
 // The editor's shared daily limit for interactive paid extras (D78; PLAN.md
-// D121): `museSpark.paidDailyBudgetUsd`, set by the person, none by default.
+// D208): `museSpark.paidDailyBudgetUsd`, set by the person, none by default.
 // With no limit nothing is read or written for a paid request. With one, a
 // request whose estimate would pass what is left of today asks to raise the
 // limit for today or stop paid extras until tomorrow; each request's reported

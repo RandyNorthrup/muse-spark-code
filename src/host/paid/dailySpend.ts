@@ -1,5 +1,5 @@
 // The running total behind a daily spending limit the person set (PLAN.md
-// D121). Each process keeps what its own calls spent in memory and writes it
+// D208). Each process keeps what its own calls spent in memory and writes it
 // to a file of its own after each call; the day's total is the sum of every
 // process's file. Nothing is written before a send, nothing is held for a
 // call in flight, and no process ever waits for another: there is no lock,
@@ -30,7 +30,7 @@ const totalSchema = z.strictObject({
   spentUsd: nonnegativeUsdSchema,
   unknownChargeCalls: z.number().check(z.int(), z.nonnegative()),
 })
-// The pre-D121 daily journal (removed by the spend-simple lane): settled
+// The pre-D208 daily journal (removed by the spend-simple lane): settled
 // charges lived in `budget-journal/<account>/<day>/seed.json` plus
 // `claims/<id>/claim.json`, under the one fixed daily account. A total
 // settled there on the upgrade day is still today's spend.
@@ -107,7 +107,7 @@ export function createDailySpend(deps: {
     }
   }
   /**
-  What the pre-D121 journal settled for this scope, or nothing when it
+  What the pre-D208 journal settled for this scope, or nothing when it
   never did. Read-only: the legacy files stay where they are, so the
   first request after upgrading still sees today's spend instead of
   another full allowance. A legacy record that does not read refuses,
@@ -184,7 +184,7 @@ export function createDailySpend(deps: {
         accountId: LEGACY_DAILY_ACCOUNT,
       })
       if (identityError !== undefined) damaged(file, identityError)
-      // D121: a reservation is never spend. An open claim's reservation is
+      // D208: a reservation is never spend. An open claim's reservation is
       // held, not spent, so only a settled charge enters the migrated total;
       // counting the reservation recreates phantom spend (for example from a
       // dead process's unsettled claim) and stops paid requests until

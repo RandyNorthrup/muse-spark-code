@@ -655,7 +655,7 @@ function modelApiManager(
     mediaConverterPath: () => runtimeConverterPath(agentDataFolder(deps)),
     // D78's exact reservation for Muse Voice's batch transcription (lane V
     // seam 4): the runtime's own daily ledger, estimate-checked and settled
-    // after (D121). With no daily limit there is nothing to enforce.
+    // after (D208). With no daily limit there is nothing to enforce.
     reservePaidExtra: async (costUsd, signal) => {
       const budget = await dailyBudget()
       return paidExtraAdmission(await budget.reserve(costUsd, signal), costUsd, signal)

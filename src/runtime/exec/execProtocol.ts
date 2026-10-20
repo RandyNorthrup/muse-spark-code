@@ -250,7 +250,7 @@ const RAW_TOOL_FIELDS = new Set<string>(EXEC_RAW_TOOL_FIELDS)
 const counter = z.number().check(z.gte(0), z.int(), z.lte(Number.MAX_SAFE_INTEGER))
 const amount = nonnegativeUsdSchema.check(z.refine((value) => microUsd(value) !== undefined))
 const capAmount = amount.check(
-  // D121: the person's budget has no ceiling of ours; only zero refuses.
+  // D208: the person's budget has no ceiling of ours; only zero refuses.
   z.refine((value) => Usd.from(value).compare(Usd.from(0)) > 0),
 )
 const nullableText = z.nullable(z.string())

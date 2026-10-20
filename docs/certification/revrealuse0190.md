@@ -76,7 +76,7 @@ THINKING_OFF_EFFORT]` (`src/runtime/cliHelp.ts`). Correct at the cause
 ### Branch 4 — RUTRUTHL2 (`380edcfb90`)
 
 - `a01315514` — `feat(packaging)`: one package per platform target (new PLAN
-  decision D123). `package`/`package:acp` take `--target <platform>-<arch>`;
+  decision D210). `package`/`package:acp` take `--target <platform>-<arch>`;
   targeted packages stage only their platform's natives and carry the target
   in the filename; the universal keeps everything and still refuses when a
   helper is missing. Correct at the cause (explicit artifacts instead of a
@@ -113,7 +113,7 @@ THINKING_OFF_EFFORT]` (`src/runtime/cliHelp.ts`). Correct at the cause
   Windows) and warns-and-skips absent foreign ones; CI still composes all
   and its content check still requires them. Test drives the real planner
   (4/4 incl. unknown-platform/architecture refusals) plus a red drill and a
-  real macOS pack — real. Contradicts branch 4's D123 on the no-flag path
+  real macOS pack — real. Contradicts branch 4's D210 on the no-flag path
   (warn-and-skip vs refuse): same defect, different contract (see D8).
 - `e8ae5191e`, `3642985a46` — records only, no code.
 
@@ -281,20 +281,20 @@ THINKING_OFF_EFFORT]` (`src/runtime/cliHelp.ts`). Correct at the cause
   `docs/real-life/release-0.19.0-newprs.md` with _different_ content (Linux
   vs macOS rounds) — the join must concatenate the two records, not let the
   later merge overwrite the earlier.
-- **D8. ACP packager without foreign helpers — branch 4 D123 (`a01315514`)
-  vs branch 7 (`c77e5bd7c`).** Same defect, contradictory contracts. D123
+- **D8. ACP packager without foreign helpers — branch 4 D210 (`a01315514`)
+  vs branch 7 (`c77e5bd7c`).** Same defect, contradictory contracts. D210
   adds an explicit `--target` flag with per-platform artifacts (target in
   the filename) and keeps the universal strict (refuses when a helper is
   missing). Branch 7 keys off the running machine and warns-and-skips absent
   foreign helpers in the default pack. Both rewrite the same
   `package-acp.mjs` gates; they do not compose (branch 7 removes exactly
-  the strictness D123 specifies for the no-flag path). **Keep D123:**
+  the strictness D210 specifies for the no-flag path). **Keep D210:**
   decision-recorded in PLAN, explicit artifacts, universal guarantee kept,
   proved with an inventoried Linux pack — and the macOS need branch 7
   proves is already met by `package-acp --target darwin-<arch>`. Drop
   branch 7's packager change and its `acpHelperPlan` test (it tests dropped
-  code). The join must re-prove the macOS pack via the D123 flag
-  (`--target darwin-arm64` on a GUI Mac), since D123 was proved on Linux
+  code). The join must re-prove the macOS pack via the D210 flag
+  (`--target darwin-arm64` on a GUI Mac), since D210 was proved on Linux
   only and branch 7's macOS proof covers the dropped path.
 - **D9 (semantic overlap, no textual conflict). Contributor-tier reachability
   — branch 9 (`07a29194c`) vs branch 14 (`8c403d2c2`).** Branch 9 attempts

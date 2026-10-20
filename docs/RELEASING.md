@@ -124,7 +124,7 @@ Branch names and the PR head SHA do not establish source identity: the package
 job records its actual checked-out `HEAD^{tree}` (the merge tree for PR/queue CI) in
 the `source-tree-<tree SHA>` artifact and `release-build.json`.
 
-The release downloads that run's six platform VSIX packages (PLAN.md D123),
+The release downloads that run's six platform VSIX packages (PLAN.md D209),
 ACP tarball, SBOMs and receipt
 with a pinned cross-run download action. It requires the recorded tree to equal
 the tag's `HEAD^{tree}`, checks every recorded asset SHA-256 hash, and checks
@@ -155,7 +155,7 @@ This lane admits those successful runs without changing `ci.yml`.
 CI's full tier produces one VSIX per VS Code target platform (win32-x64,
 win32-arm64, darwin-x64, darwin-arm64, linux-x64, linux-arm64), including the macOS helper
 compiled on macOS, and `muse-spark-code-acp-X.Y.Z.tgz`. No universal package
-ships (PLAN.md D123): each platform package carries only its own platform's native pieces
+ships (PLAN.md D209): each platform package carries only its own platform's native pieces
 within the unchanged size budget. The full tier runs in
 the merge queue, on manual runs, in the release workflow's own build, and on
 every PR until the merge queue is on; a fast PR run builds no packages
@@ -193,7 +193,7 @@ can ship only part of a package. Build-only tools and omitted dependency
 references are removed. See [npm's SBOM documentation](https://docs.npmjs.com/cli/commands/npm-sbom/).
 
 Every VSIX size gate is measured in compressed bytes; the unchanged per-package budget is in
-`PLAN.md` D6 (one package per platform: D123) and `scripts/check-vsix-size.mjs`. ACP package checks cover every
+`PLAN.md` D6 (one package per platform: D209) and `scripts/check-vsix-size.mjs`. ACP package checks cover every
 `l10n/ui.*.json` table. The ACP process compiles the shell job sources on
 Windows, but forwards MCP servers to Muse Code; it does not run the extension's
 `MuseSparkMcpLauncher.cs`.

@@ -127,7 +127,7 @@ every helper present and no `TargetPlatform` at all.
   per-target packages plus the fallback; every glob (`release/*.vsix`, `./*.vsix`,
   `SHA256SUMS`) already expands to all seven.
 - `docs/RELEASING.md`, `README.md`: said one universal VSIX. Now per-target.
-- `PLAN.md`: new decision D123 (fallback and shared poll added by PR246FIX).
+- `PLAN.md`: new decision D209 (fallback and shared poll added by PR246FIX).
   `CHANGELOG.md`: Packaging entry under `[Unreleased]` (moved out of
   `[0.19.0]`: the change is not in that tag).
 - Unchanged on purpose: the ACP npm package (runs on the person's machine,

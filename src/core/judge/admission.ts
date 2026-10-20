@@ -1,6 +1,6 @@
 import { isPaidStop } from '../refusal'
 import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
-// The judge's admission (M98, PLAN.md D77; D121): under a daily limit the
+// The judge's admission (M98, PLAN.md D77; D208): under a daily limit the
 // person set, every paid judge call's worst-case price must fit what is left
 // of today before dispatch; it is settled at its known cost, settles zero
 // when known not sent, and adds nothing when its outcome is uncertain (its
@@ -133,7 +133,7 @@ export type JudgeAdmissionBinding = JudgeBindingIdentity &
   )
 
 /**
-One call under a person-set daily limit (D78, D121). Nothing is held for
+One call under a person-set daily limit (D78, D208). Nothing is held for
 it: `check` compares the limit with today's spend plus its worst-case
 price before the send, and `settle` adds its verified cost after. A store
 failure throws: fail closed, never forgiven.
@@ -147,7 +147,7 @@ export interface JudgeLedgerClaim {
 }
 
 /**
-D78's daily limit as lane A requires it (D121): `undefined` from either
+D78's daily limit as lane A requires it (D208): `undefined` from either
 method when the person set no daily limit, so nothing is checked or
 recorded. A method throws JudgeLedgerError on an unreadable store or any
 other ledger fault, and admission refuses it; a paid stop passes through,
@@ -200,7 +200,7 @@ One admitted call. `settleKnown` settles the verified actual cost (cached
 tokens discounted, as reported); `refundNonSend` settles zero for a call
 known never sent. A timeout, a lost response or any other uncertain
 outcome is simply not settled: its cost is unknown and nothing is added
-to the day's spend, never its worst-case price (D121).
+to the day's spend, never its worst-case price (D208).
 */
 export interface JudgeAdmissionClaim {
   readonly claimId: string

@@ -6,7 +6,7 @@ async function neverVisible() {
 }
 
 // The release publishes every artifact first and only then polls for
-// visibility under one shared deadline (PLAN.md D123): a slow registry
+// visibility under one shared deadline (PLAN.md D209): a slow registry
 // delays the job once instead of once per artifact, and an unfinished
 // target is re-checked in the same job rather than left unpublished.
 describe('shared visibility poll', () => {

@@ -262,7 +262,7 @@ export interface MediaRequestAccounting {
   readonly modelId: string
   readonly maxOutputTokens: number
   readonly inputTokens: number
-  /** The whole request at list price: compared with a limit, never counted as spent (D121). */
+  /** The whole request at list price: compared with a limit, never counted as spent (D208). */
   readonly estimateUsd: UsdAmount
   check(): void
   started(): void
@@ -425,7 +425,7 @@ export function reserveMediaRequest(request: {
       await complete()
     },
     async finish() {
-      // Sent with no usage: its cost is unknown, never its estimate (D121).
+      // Sent with no usage: its cost is unknown, never its estimate (D208).
       settled ??= { costUsd: wasSent ? undefined : Usd.from(0).toAmount() }
       await complete()
     },

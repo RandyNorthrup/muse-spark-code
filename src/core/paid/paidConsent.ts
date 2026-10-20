@@ -208,7 +208,7 @@ export async function askSchedulePaidConsent(deps: {
   return deps.isOn() && deps.isCurrent() ? approved : undefined
 }
 
-/** The run's paid port: live identity/gates plus its noninteractive limit check (D121).
+/** The run's paid port: live identity/gates plus its noninteractive limit check (D208).
 Called from the host schedule paid binding's run step.
 @unwired M58 schedule paid scope
 */
@@ -260,7 +260,7 @@ export function createSchedulePaidScope(deps: {
     origin: deps.identity.origin,
     allows: canUse,
     cost: (): ScheduleFireRecord['cost'] => ({
-      // Fire records keep what the calls reported; nothing is held (D121), so
+      // Fire records keep what the calls reported; nothing is held (D208), so
       // a call still open or one that reported no usage makes the cost unknown.
       usd: settledUsd.toAmount(),
       certainty: hasUnknown || open.size > 0 ? 'unknown' : 'exact',

@@ -106,7 +106,7 @@ export async function verifyPublished(channel, artifact, manifest, deps = {}) {
     }
     return
   }
-  // One package per platform (PLAN.md D123): the registries serve each
+  // One package per platform (PLAN.md D209): the registries serve each
   // target under its own download, so a targeted artifact is verified
   // against its own target's bytes. The target travels in vsce's artifact
   // name; an untargeted artifact verifies the universal download as before.
@@ -315,7 +315,7 @@ if (
 ) {
   const [channel, ...artifacts] = process.argv.slice(2)
   try {
-    // One package per platform plus the universal fallback (PLAN.md D123):
+    // One package per platform plus the universal fallback (PLAN.md D209):
     // the release publishes every artifact first and only then polls for
     // visibility under one shared deadline, so a cancelled job never leaves
     // only some targets published. npm still takes its single tarball.

@@ -239,7 +239,7 @@ describe('package.json manifest', () => {
     const budget = properties['museSpark.modelApiSessionBudgetUsd']
     expect(budget?.scope).toBe('machine')
     expect(budget?.default).toBe(0)
-    // The description resolves through package.nls.json. D121 says what the
+    // The description resolves through package.nls.json. D208 says what the
     // limit does (a request whose estimate would pass what is left is not
     // sent) and what it cannot promise: 0 means nothing is checked, nothing
     // is held for a request in flight, a response without its usage counts

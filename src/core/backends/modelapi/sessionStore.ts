@@ -144,10 +144,10 @@ export interface StoredSession {
   /** Patch documents by output reference (`tool_patch-<itemId>`). */
   readonly outputs: Readonly<Record<string, string>>
   readonly usage: StoredUsage
-  /** The conversation's running total (M82, D121): what its calls reported, saved after each; absent when none. */
+  /** The conversation's running total (M82, D208): what its calls reported, saved after each; absent when none. */
   readonly budgetSpentUsd?: UsdAmount
   /**
-  The spend total counts settled spend only (D121): the file was written
+  The spend total counts settled spend only (D208): the file was written
   reservation-free, so a resume adopts its total whole. Absent on files
   saved before the legacy migration, whose totals may hold an open
   reservation the store rebuilds from settled claims on load.
@@ -363,7 +363,7 @@ const storedSessionFields = {
   // Optional, so a session saved before M82 still reads; never below zero,
   // which would give the cap room it does not have.
   budgetSpentUsd: z.optional(legacyUsdSchema),
-  // Optional, so a file saved before the D121 legacy migration still
+  // Optional, so a file saved before the D208 legacy migration still
   // reads; only new snapshots carry it.
   spendSettledOnly: z.optional(z.literal(true)),
   // Optional, so a file saved before unknown calls were counted still

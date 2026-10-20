@@ -1,6 +1,6 @@
 // The standalone runtime's daily budget entry: missing records fall back
 // to the default cap, while damaged or unreadable ones refuse as a typed
-// spend-ledger failure (PLAN.md D121) and keep the cause.
+// spend-ledger failure (PLAN.md D208) and keep the cause.
 import { mkdir, writeFile } from 'node:fs/promises'
 import { usingTempDir } from './helpers/temporaryFolders'
 import path from 'node:path'

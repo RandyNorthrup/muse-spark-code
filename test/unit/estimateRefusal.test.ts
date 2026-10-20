@@ -1,4 +1,4 @@
-// The estimator's own refusal guard (D119): only sentences the estimator
+// The estimator's own refusal guard (D207): only sentences the estimator
 // itself worded, with identifier details, count as refusals worth repeating.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'

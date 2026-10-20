@@ -42,7 +42,7 @@ export interface EstimatorPanelPort {
   /**
   The host log's copy of a failure the panel already said in words: the
   run and spin-up boundaries hand a foreign failure here with its kind
-  (D119). The host reports it through its webview-error channel, so the
+  (D207). The host reports it through its webview-error channel, so the
   kind never depends on the document's ambient unhandled-rejection hook.
   */
   report(error: unknown): void
@@ -195,7 +195,7 @@ export default function EstimatorPanel({
         // A cancelled run stays silent: a stillborn run reads failed. A
         // refusal said everything on the panel; only a foreign failure
         // keeps its kind past the panel through the port's report for the
-        // host log (D119).
+        // host log (D207).
         if (controller.signal.aborted) return
         if (error instanceof DOMException && error.name === 'AbortError') return
         next = boundary.failedEstimate(error)
@@ -222,7 +222,7 @@ export default function EstimatorPanel({
           failure = await port.provision.spinUp(section, setup)
       } catch (error: unknown) {
         // A thrown start keeps its kind past the panel through the port's
-        // report for the host log (D119); a resolved failure value is the
+        // report for the host log (D207); a resolved failure value is the
         // host's own verdict, already on its side.
         failure = error
         port.report(error)

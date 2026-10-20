@@ -408,7 +408,7 @@ Designed baselines with reasons (accepted, not forgotten):
   secrets failure takes vault.noAccess and never leaks; the vault tool
   failure is a security bulkhead; the format warns were scrubbed to fixed
   words), `ModelApiHost.ts` witness/provisional/steer/shell/policy/billing
-  (a billing failure refuses and books nothing, D121; a policy refusal
+  (a billing failure refuses and books nothing, D208; a policy refusal
   stands; refused shell entry tells the model nothing; the witness proceeds
   without proof), elicitation cancelled, compaction notice, turn
   terminal-state machine (abort, refusal and paid stops named).

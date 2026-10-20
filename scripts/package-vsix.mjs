@@ -95,7 +95,7 @@ export async function stageVsix(root, stage, target) {
   const listed = await listFiles({ cwd: root, dependencies: false })
   assertNoVsixFonts(listed)
   assertPackagedBundles(root, listed)
-  // One package per platform (PLAN.md D123): a targeted package stages
+  // One package per platform (PLAN.md D210): a targeted package stages
   // only its own platform's native pieces; the universal stage keeps all.
   const files =
     target === undefined ? listed : listed.filter((file) => isVsixTargetFile(target, file))

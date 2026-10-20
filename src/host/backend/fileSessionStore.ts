@@ -80,7 +80,7 @@ function fileRefsOf(session: StoredSession): readonly UploadedMediaRef[] {
 
 const FILE_EXTENSION = '.json'
 const ENOENT = 'ENOENT'
-// The pre-D121 session journal (removed by the spend-simple lane): settled
+// The pre-D208 session journal (removed by the spend-simple lane): settled
 // charges lived in `budget-journal/<account>/<sessionId>/seed.json` plus
 // `claims/<id>/claim.json` beside the session files, in this same
 // directory. A file saved while a request reservation was open holds that
@@ -207,7 +207,7 @@ const storedSessionOwnershipShape = z.object({
 
 export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore {
   const fileFor = (sessionId: string) => path.join(deps.directory, `${sessionId}${FILE_EXTENSION}`)
-  // Each window's own base for the running spend total (D121): what this
+  // Each window's own base for the running spend total (D208): what this
   // store instance last loaded or saved for the session. A save adds only
   // what its snapshot spent past that base onto the file's total, so two
   // windows saving from the same total keep both increments instead of the
@@ -247,10 +247,10 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
   }
 
   /**
-  A file saved before the D121 legacy migration may hold an open
+  A file saved before the D208 legacy migration may hold an open
   reservation in its total (the old snapshot added it); rebuild the
   settled-only total from the legacy journal's seed plus settled claims
-  (D121: a reservation is never spend). A claim the writer left open
+  (D208: a reservation is never spend). A claim the writer left open
   with a retained liability still counts that liability: fees its run
   incurred past the reservation, known before final token settlement.
   Runs once per file: new snapshots carry `spendSettledOnly`, so later
@@ -310,7 +310,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
           text = await readFile(path.join(claimsDir, name, LEGACY_CLAIM_FILE), 'utf8')
         } catch (error: unknown) {
           // An unsettled claim (a dead process's, for example) holds its
-          // reservation but never spent it, so it stays out (D121).
+          // reservation but never spent it, so it stays out (D208).
           if (isStoreErrorCode(error, ENOENT)) continue
           throw error
         }
@@ -324,7 +324,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
         if (identityError !== undefined)
           throw new Error(`legacy claim ${name} is not its journal entry: ${identityError}`)
         // An unsettled claim without retained liability holds its
-        // reservation but never spent it, so it stays out (D121).
+        // reservation but never spent it, so it stays out (D208).
         const claimSpend = legacyClaimSpendUsd(claim)
         if (claimSpend === undefined) continue
         spent = spent.add(Usd.from(claimSpend))
@@ -700,7 +700,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
             throw new SpendLedgerError('integrity', { scope: 'session', file: 'fileSessionStore' })
           }
           if (!isCurrent()) return
-          // The running total only grows (D121): a snapshot older than the
+          // The running total only grows (D208): a snapshot older than the
           // file, from another window, never lowers what a newer save wrote.
           // And both increments survive: past this window's own base, what
           // its snapshot spent is added onto the file's total instead of
@@ -708,7 +708,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
           const previousSpend = previous?.budgetSpentUsd
           const incomingSpend = session.budgetSpentUsd
           const base = spendBases.get(session.sessionId)
-          // A one-time D121 rebuild replaces its legacy file: the file's
+          // A one-time D208 rebuild replaces its legacy file: the file's
           // total was written while an open reservation counted as spend,
           // so merging the window's delta onto it would keep the phantom.
           // Later saves merge as before.

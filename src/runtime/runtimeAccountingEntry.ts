@@ -54,7 +54,7 @@ import { fill, formatDateTime, plural } from '../shared/l10n/text'
 import { formatUsd } from '../shared/l10n/exactUsd'
 
 const settingsSchema = z.strictObject({
-  // Zero is no limit (D121): a stored zero must parse, so the setting keeps
+  // Zero is no limit (D208): a stored zero must parse, so the setting keeps
   // the nonnegative bound instead of the raised-cap range.
   paidDailyBudgetUsd: z.optional(z.number().check(z.nonnegative())),
   // M105 lane V: the converter path shares this machine file (runtimeConverterPath.ts).
@@ -116,7 +116,7 @@ export function readRuntimeDailyBudget(deps: {
 }
 
 /**
-The agent's daily spending limit (PLAN.md D121): `paidDailyBudgetUsd` in
+The agent's daily spending limit (PLAN.md D208): `paidDailyBudgetUsd` in
 its settings file, set by the person; none by default. With no limit the
 request path reads only that file: no spend record is read and nothing is
 reserved, locked or written. With one, a request whose
@@ -172,7 +172,7 @@ export function createRuntimeDailyBudget(deps: {
   }
   /**
   One exact cost that would pass what is left of today, in the stop
-  sentence the request admission says (D121). The standalone runtime
+  sentence the request admission says (D208). The standalone runtime
   never raises a day, so there is no raise question, only the refusal.
   */
   const overDaily = (costUsd: UsdAmount, limitUsd: UsdAmount, spentUsd: UsdAmount) =>
@@ -229,7 +229,7 @@ export function createRuntimeDailyBudget(deps: {
     /**
     One schedule fire about to be sent: the schedule's own caps admit the
     estimate first, then the person's daily limit, as one claim. A fire
-    past either cap refuses with the cap sentence; nothing is held (D121).
+    past either cap refuses with the cap sentence; nothing is held (D208).
     */
     reserveSchedule: async (
       schedule: ScheduleV2,
@@ -547,7 +547,7 @@ export function withRuntimeAccounting(
             cost = Usd.from(cost).add(Usd.from(countCostUsd)).toAmount()
           // A ticket that never reached the wire, or that the provider refused
           // before generating anything, is withdrawn with its request count:
-          // it cost nothing (D121). A billed count keeps its settlement.
+          // it cost nothing (D208). A billed count keeps its settlement.
           if (ticket !== undefined && (!wasSent || (isRefused && countCostUsd === undefined))) {
             accounting?.ledger.releaseResponse(ticket)
             ticket = undefined
@@ -581,7 +581,7 @@ export function withRuntimeAccounting(
           const isUncertainEstimate =
             wasSent && cost === undefined && counted?.accuracy === 'estimate'
           // After the call: its reported cost, or cost unknown when it went out
-          // and reported no usage; never its estimate (D121).
+          // and reported no usage; never its estimate (D208).
           await owned?.settle(wasSent ? cost : Usd.from(0).toAmount())
           wasSent = false
           response = undefined
@@ -616,7 +616,7 @@ export function withRuntimeAccounting(
               guard?.observe?.(observation)
             },
             // A refusal before any generation costs nothing, even when the
-            // provider's adapter rethrows its error without the status (D121).
+            // provider's adapter rethrows its error without the status (D208).
             onRefused: (status: number) => {
               httpStatus = status
               guard?.onRefused?.(status)
@@ -911,7 +911,7 @@ export function budgetRefusalDetails(
   }
   return {
     remainingUsd,
-    // D121: budgets have no ceiling of ours, so the admitting cap is always
+    // D208: budgets have no ceiling of ours, so the admitting cap is always
     // settable; null stays in the shape for a cap no run could set.
     admitCapUsd: admitCap.toAmount(),
     maxOutputTokens,

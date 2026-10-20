@@ -4,7 +4,7 @@
 // Linux helper but an empty arm64 helper and no macOS artifacts; D6's
 // 25 x ceil(3,196.2 KiB x 1.15 / 25) = 3700 KiB. The hosted CI universal
 // VSIX on the release PR sets the final cap (lead decision, PLAN.md D6).
-// D123: one package per platform, each meeting this same unchanged budget.
+// D209: one package per platform, each meeting this same unchanged budget.
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -26,7 +26,7 @@ if (
   import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
 ) {
   try {
-    // One package per platform (PLAN.md D123): every target meets the
+    // One package per platform (PLAN.md D209): every target meets the
     // same unchanged budget, so every artifact is checked, not just one.
     const artifacts = process.argv.slice(2)
     if (artifacts.length === 0) throw new Error('At least one VSIX path required')
