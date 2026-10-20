@@ -133,6 +133,15 @@ public static class VaultPathGuard
     {
         // FILE_LIST_DIRECTORY makes directory handles participate in sharing checks; metadata-only opens do not.
         var handle = CreateFile(name, ReadControl | (directory ? 0x81u : 0x80000000u), directory ? 3u : 1u, IntPtr.Zero, OpenExisting, OpenReparse | BackupSemantics, IntPtr.Zero);
+        if (handle.IsInvalid)
+        {
+            int error = Marshal.GetLastWin32Error();
+            handle.Dispose();
+            // A missing file or folder (ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND)
+            // is absence, the TS side's `missing`; every other failure refuses.
+            if (error == 2 || error == 3) throw new FileNotFoundException();
+            throw new InvalidDataException();
+        }
         try
         {
             FileInformation information;

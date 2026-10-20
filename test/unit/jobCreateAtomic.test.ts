@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { compileJob, type JobBuild } from '../../src/host/backend/jobBuild'
+import { runProgram } from '../../src/host/processTree'
 import { expectEnded, isRunning, markedPid } from './helpers/processes'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -84,7 +85,9 @@ describe.runIf(process.platform === 'win32')('the job helper creates its child i
     state.folder = await mkdtemp(path.join(tmpdir(), 'muse-vb-job-create-'))
     const shared = await readFile(path.resolve('native/windows/MuseSparkMcpJob.cs'), 'utf8')
     state.harness = path.join(state.folder, `${BUILD.stem}${randomUUID()}${BUILD.extension}`)
-    await compileJob(BUILD, state.harness, `${HARNESS}\n${shared}`, systemRoot)
+    // The real program runner, as the job fixture compiles (helpers/jobLifecycle);
+    // bootstrap admission has its own suite.
+    await compileJob(BUILD, state.harness, `${HARNESS}\n${shared}`, systemRoot, runProgram)
   }, 120_000)
 
   afterEach(() => {

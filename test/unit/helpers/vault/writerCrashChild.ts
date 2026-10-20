@@ -5,6 +5,8 @@ import * as z from 'zod/mini'
 import { NodeVaultFiles, VaultStore, type VaultFilePort } from '../../../../src/core/vault/store'
 import { createRecoverySlot } from '../../../../src/core/vault/keyslots'
 import { startWindowsPipeFiles } from '../../../../src/runtime/vault/windowsPipeRelay'
+import { configureResources } from '../../../../src/core/resources/admission'
+import { runtimeWindowsJob } from '../../../../src/runtime/resources/jobs'
 import type { WindowsVaultExecutable } from '../../../../src/runtime/vault/slots/windowsVaultTransport'
 
 /**
@@ -26,6 +28,17 @@ async function fixtureFiles(
   }
   if (helperJson === undefined || helperJson === '')
     throw new Error('the Windows crash fixture needs its prebuilt pipe helper')
+  // The relay launches its helper through the real resource governor,
+  // configured here as the vault broker configures it
+  // (src/runtime/vault/vaultBrokerEntry.ts): Windows records each governed
+  // child through the job helpers, which the test prepared once beside the
+  // pipe helper. The parent spawns this child from the repository root, the
+  // root its helper sources were read from.
+  configureResources({
+    inspect: () => ({}),
+    onError: () => undefined,
+    windowsJob: runtimeWindowsJob(path.join(path.dirname(helperJson), 'jobs'), process.cwd()),
+  })
   const built = JSON.parse(await readFile(helperJson, 'utf8')) as Omit<
     WindowsVaultExecutable,
     'rebuild' | 'report'

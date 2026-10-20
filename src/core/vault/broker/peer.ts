@@ -4,6 +4,7 @@ import { type Duplex } from 'node:stream'
 import { probeChildEnvironment } from '../../executables'
 import * as z from 'zod/mini'
 import { VAULT_TRANSPORT_TIMEOUT_MS, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
+import { windowsVaultPipeClientSchema } from './windowsPipe'
 
 const nativePeerSchema = z.strictObject({
   v: z.literal(1),
@@ -17,7 +18,6 @@ const processSchema = z.strictObject({
   startedAt: z.number().check(z.int(), z.nonnegative()),
   executable: z.string().check(z.minLength(1), z.maxLength(VAULT_LIMITS.text)),
 })
-const pipeSchema = z.extend(processSchema, { remote: z.boolean(), ownerOnlyDacl: z.boolean() })
 export interface VaultProcessIdentity {
   processId: number
   userId: string
@@ -143,9 +143,15 @@ export class WindowsVaultPeerVerifier implements VaultPeerVerifier {
     private readonly ownerSid: string,
   ) {}
   async verify(socket: Duplex): Promise<VaultProcessIdentity> {
-    const identity = pipeSchema.parse(await this.port.inspect(socket))
-    if (identity.remote || !identity.ownerOnlyDacl || identity.userId !== this.ownerSid)
+    // The helper's own client record, versioned as the relay sends it.
+    const client = windowsVaultPipeClientSchema.parse(await this.port.inspect(socket))
+    if (client.remote || !client.ownerOnlyDacl || client.userId !== this.ownerSid)
       throw new Error(UI_TEXT.vault.noAccess)
-    return identity
+    return {
+      processId: client.processId,
+      userId: client.userId,
+      startedAt: client.startedAt,
+      executable: client.executable,
+    }
   }
 }

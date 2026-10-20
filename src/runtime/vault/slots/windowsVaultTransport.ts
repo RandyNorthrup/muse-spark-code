@@ -22,6 +22,21 @@ export interface WindowsVaultExecutable {
   readonly report: () => void
 }
 
+/**
+The guard region of a packaged helper source (MuseSparkVault.cs): what the
+guard script compiles to verify and launch the helper. The client that
+builds a helper and the broker that launches it both read it from the
+installed source, so the guard never travels in a command line.
+*/
+export function windowsVaultGuardSource(source: string): string {
+  const guardSource = source
+    .split('// BEGIN VAULT PATH GUARD', 2)[1]
+    ?.split('// END VAULT PATH GUARD', 1)[0]
+  if (guardSource === undefined || guardSource.trim() === '')
+    throw new Error(UI_TEXT.vault.noAccess)
+  return guardSource
+}
+
 /** Trusted inline script, executed only by the absolute system PowerShell. */
 export function windowsVaultGuardScript(file: string, digest?: string): string {
   const quoted = `'${file.replaceAll("'", "''")}'`
@@ -75,14 +90,19 @@ export async function spawnGuardedVaultHelper(
       ],
       {
         cwd: path.dirname(helper.powershell),
-        // Absolute PowerShell with an empty environment: absolute entries
-        // only, links followed.
-        env: probeChildEnvironment({}),
+        // Absolute PowerShell with only SystemRoot, the root its trusted path
+        // was built from (`<SystemRoot>\System32\WindowsPowerShell\v1.0`):
+        // a governed launch passes the block exactly, and without SystemRoot
+        // managed PowerShell cannot load (8009001d). Absolute entries only,
+        // links followed.
+        env: probeChildEnvironment({
+          SystemRoot: path.win32.resolve(helper.powershell, '..', '..', '..', '..'),
+        }),
         windowsHide: true,
       },
     )
-  } catch {
-    throw new Error(UI_TEXT.vault.noAccess)
+  } catch (error: unknown) {
+    throw new Error(UI_TEXT.vault.noAccess, { cause: error })
   }
 }
 

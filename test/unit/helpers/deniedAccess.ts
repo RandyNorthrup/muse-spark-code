@@ -42,3 +42,21 @@ export async function denyAccess(folder: string): Promise<() => Promise<void>> {
     await icacls([folder, '/remove:d', `*${sid}`])
   }
 }
+
+/**
+Refuse the current user new entries in `folder`, a read-only folder: POSIX
+sets mode 0555; Windows denies adding files and folders to it
+(icacls /deny *<SID>:(WD,AD)), which is what mode 0555 means there.
+Listing the folder and removing it stay allowed. Resolves to the undo.
+*/
+export async function denyWrites(folder: string): Promise<() => Promise<void>> {
+  if (process.platform !== 'win32') {
+    await chmod(folder, 0o555)
+    return () => chmod(folder, 0o755)
+  }
+  const sid = await windowsUserSid()
+  await icacls([folder, '/deny', `*${sid}:(WD,AD)`])
+  return async () => {
+    await icacls([folder, '/remove:d', `*${sid}`])
+  }
+}

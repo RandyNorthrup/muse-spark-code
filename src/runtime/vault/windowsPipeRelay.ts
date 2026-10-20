@@ -564,13 +564,9 @@ export class WindowsVaultPrivateFiles implements VaultPrivateFilesPort {
       fsyncSync(fd)
       closeSync(fd)
       if (authorize) authorize()
+      // The rename publishes the record. Windows cannot flush a directory
+      // handle (EPERM), as the vault store records (store.ts syncDirectory).
       renameSync(temporary, path)
-      const dir = openSync(pathModule.dirname(path), 'r')
-      try {
-        fsyncSync(dir)
-      } finally {
-        closeSync(dir)
-      }
     } catch (error: unknown) {
       try {
         closeSync(fd)
@@ -606,12 +602,8 @@ export class WindowsVaultPrivateFiles implements VaultPrivateFilesPort {
       } catch {
         /* The complete record is published; a leftover temporary is retired by rule. */
       }
-      const dir = openSync(pathModule.dirname(path), 'r')
-      try {
-        fsyncSync(dir)
-      } finally {
-        closeSync(dir)
-      }
+      // The link publishes the record. Windows cannot flush a directory
+      // handle (EPERM), as the vault store records (store.ts syncDirectory).
       return () => {
         if (sameFile(identity, lstatIdentitySync(path))) unlinkSync(path)
         return Promise.resolve()
@@ -765,6 +757,13 @@ async function spawnPipeRelay(
       relay.fail(new Error(UI_TEXT.vault.noAccess))
       reject(new Error(UI_TEXT.vault.noAccess))
     }, VAULT_APPROVAL_TTL_MS)
+    // A helper that ends before its ready byte (the guard refused it, or it
+    // could not start) refuses the start at once, never at the deadline.
+    child.once('close', () => {
+      if (isReady) return
+      clearTimeout(timer)
+      reject(new Error(UI_TEXT.vault.noAccess))
+    })
     signal?.addEventListener(
       'abort',
       () => {

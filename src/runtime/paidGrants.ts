@@ -29,6 +29,7 @@ import {
   type PaidFeature,
 } from '../shared/constants'
 import { workspaceKey } from './dataFolder'
+import { isAbsentBelowFolder } from '../core/fs/absentPath'
 
 export interface PaidGrantFileDeps {
   /** The legacy map's path; the authoritative records are beside it in `<file>.d`. */
@@ -72,7 +73,9 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       }
       return parsed.data
     } catch (error: unknown) {
-      if (isStoreErrorCode(error, ENOENT)) {
+      // A file where a record's folder belongs is damage on every platform
+      // (Windows reports it as ENOENT), never a missing record.
+      if (isStoreErrorCode(error, ENOENT) && isAbsentBelowFolder(file)) {
         return undefined
       }
       // read-state: cert TBL-09. Any other read failure warns with its kind
@@ -173,7 +176,11 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       // Fail-closed stays: asking again is the safe direction for money.
       // read-state: cert TBL-10. `[]` here is "cannot list, ask again" with
       // the kind warned and carried in the next question, never "no quotes".
-      if (error instanceof Error && isStoreErrorCode(error, ENOENT)) {
+      if (
+        error instanceof Error &&
+        isStoreErrorCode(error, ENOENT) &&
+        isAbsentBelowFolder(featureFolder('webSearch'))
+      ) {
         quoteListNoter.noteHealthy()
         // A missing folder is healthy: an older listing failure must not
         // survive as a notice claiming saved choices are unreadable (P3-3).

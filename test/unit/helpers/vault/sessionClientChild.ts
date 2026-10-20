@@ -18,7 +18,7 @@ const hostId = process.argv[4] ?? 'a'.repeat(32),
 const lifecycle: { dispose?: () => void } = {}
 void (async () => {
   lifecycle.dispose = await configureBrokerResources(
-    { dataDir, runDirectory: path.join(dataDir, `client-run-${hostId}`) },
+    { dataDir, runDirectory: path.join(dataDir, `client-run-${hostId}`), installRoot },
     () => import('../../../../src/core/resources/resourceGovernorEntry'),
   )
   const platform = await posixVaultClientPlatform({

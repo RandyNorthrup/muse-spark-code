@@ -8,7 +8,9 @@
 // Recorded Snipping Tool and Screenshot bytes stay pending capture on GUI
 // hosts (lane PR236W1).
 import { mkdtemp, mkdir, readdir, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
 import { tmpdir } from 'node:os'
+import { promisify } from 'node:util'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { findLatestRecording, isWithinRecordingRoot } from '../../src/core/media/record/linux'
@@ -27,6 +29,13 @@ import {
   resolveWindowsVideosDir,
 } from '../../src/host/media/recordingLatest'
 
+const runFile = promisify(execFile)
+/** The system folder the environment names, as the product reads it. */
+function windowsRoot(): string {
+  const root = process.env['SystemRoot'] ?? process.env['windir']
+  if (root === undefined) throw new Error('SystemRoot names the Windows system root')
+  return root
+}
 const owned: string[] = []
 async function temp(): Promise<string> {
   const dir = await mkdtemp(path.join(tmpdir(), 'm105-rec-'))
@@ -328,59 +337,30 @@ describe('PR236W1 Windows Videos known folder', () => {
   })
 
   it('stays on the homedir layout off Windows', async () => {
-    let calls = 0
-    const resolved = await resolveWindowsVideosDir(
-      {
-        systemRoot,
-        run: () => {
-          calls += 1
-          return Promise.resolve(String.raw`C:\Users\u\Videos`)
-        },
-      },
-      'linux',
-    )
-    expect(resolved).toBeUndefined()
-    expect(calls).toBe(0)
+    await expect(resolveWindowsVideosDir({ systemRoot }, 'linux')).resolves.toBeUndefined()
   })
 
-  it('resolves the redirected folder through system PowerShell', async () => {
-    const seen: { executable: string; args: readonly string[] }[] = []
-    const resolved = await resolveWindowsVideosDir(
-      {
-        systemRoot,
-        run: (executable, args) => {
-          seen.push({ executable, args })
-          return Promise.resolve(spoken(String.raw`D:\OneDrive\Videos`))
-        },
-      },
-      'win32',
-    )
-    expect(resolved).toBe(String.raw`D:\OneDrive\Videos`)
-    expect(seen).toHaveLength(1)
-    expect(seen[0]?.executable.split('/').join(WINDOWS_SEPARATOR)).toBe(
-      String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
-    )
-    expect(seen[0]?.args.join(' ')).toContain(`GetFolderPath('MyVideos')`)
-  })
+  // The system's own answer, read independently: the registry's resolved
+  // Videos folder, which a redirection (OneDrive, another drive) updates.
+  it.runIf(process.platform === 'win32')(
+    'resolves the Videos folder through system PowerShell',
+    async () => {
+      const { stdout } = await runFile(path.join(windowsRoot(), 'System32', 'reg.exe'), [
+        'query',
+        String.raw`HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders`,
+        '/v',
+        'My Video',
+      ])
+      const registry = /My Video\s+REG_SZ\s+(.+)/u.exec(stdout)?.[1]?.trim()
+      expect(registry).toEqual(expect.any(String))
+      await expect(resolveWindowsVideosDir()).resolves.toBe(registry)
+    },
+  )
 
   it('falls back when the system will not answer', async () => {
+    // A system root without PowerShell: the query fails for real.
     await expect(
-      resolveWindowsVideosDir(
-        {
-          systemRoot,
-          run: () => Promise.reject(new Error('denied')),
-        },
-        'win32',
-      ),
-    ).resolves.toBeUndefined()
-    await expect(
-      resolveWindowsVideosDir(
-        {
-          systemRoot,
-          run: () => Promise.resolve(''),
-        },
-        'win32',
-      ),
+      resolveWindowsVideosDir({ systemRoot: await temp() }, 'win32'),
     ).resolves.toBeUndefined()
   })
 })
@@ -392,55 +372,36 @@ describe('PR236W1 Windows private preview directory', () => {
     )
   })
 
-  it('locks down with icacls and verifies through the system', async () => {
-    const tempRoot = await temp()
-    const seen: { executable: string; args: readonly string[] }[] = []
-    const dir = await createWindowsPrivateDirectory(
-      tempRoot,
-      {
-        systemRoot: String.raw`C:\Windows`,
-        run: (executable, args) => {
-          seen.push({ executable, args })
-          return Promise.resolve(executable.endsWith('powershell.exe') ? 'True\r\n' : '')
-        },
-      },
-      'win32',
-    )
-    expect(dir.startsWith(tempRoot)).toBe(true)
-    const locked = await stat(dir)
-    expect(locked.isDirectory()).toBe(true)
-    const lockdown = seen.find((call) => call.executable.endsWith('icacls.exe'))
-    expect(lockdown?.args.slice(1)).toEqual(['/inheritance:r', '/grant:r', '*S-1-3-4:(OI)(CI)F'])
-    const verdict = seen.find((call) => call.executable.endsWith('powershell.exe'))
-    expect(verdict?.args.join(' ')).toContain('AreAccessRulesProtected')
-    await rm(dir, { force: true, recursive: true })
-  })
+  // The lockdown read back independently through icacls: one grant, to the
+  // object's owner (OWNER RIGHTS), nothing inherited.
+  it.runIf(process.platform === 'win32')(
+    'creates a real owner-only directory, locked down by icacls',
+    async () => {
+      const tempRoot = await temp()
+      const dir = await createWindowsPrivateDirectory(tempRoot)
+      try {
+        expect(dir.startsWith(tempRoot)).toBe(true)
+        const made = await stat(dir)
+        expect(made.isDirectory()).toBe(true)
+        const { stdout } = await runFile(path.join(windowsRoot(), 'System32', 'icacls.exe'), [dir])
+        const grants = stdout
+          .split(/\r?\n/u)
+          .map((line) => line.replace(dir, '').trim())
+          .filter((line) => line.includes(':('))
+        expect(grants).toEqual(['OWNER RIGHTS:(OI)(CI)(F)'])
+      } finally {
+        await rm(dir, { force: true, recursive: true })
+      }
+    },
+  )
 
-  it('throws and removes the directory when verification fails', async () => {
+  it('throws and removes the directory when the system cannot lock it down', async () => {
+    // A system root without icacls: the lockdown fails for real.
     const tempRoot = await temp()
     await expect(
-      createWindowsPrivateDirectory(
-        tempRoot,
-        {
-          systemRoot: String.raw`C:\Windows`,
-          run: (executable) =>
-            Promise.resolve(executable.endsWith('powershell.exe') ? 'False\r\n' : ''),
-        },
-        'win32',
-      ),
+      createWindowsPrivateDirectory(tempRoot, { systemRoot: await temp() }, 'win32'),
     ).rejects.toThrow()
     expect(await readdir(tempRoot)).toEqual([])
-  })
-
-  it('creates a real owner-only directory on Windows', async () => {
-    if (process.platform !== 'win32') return
-    const dir = await createWindowsPrivateDirectory(await temp())
-    try {
-      const owned = await stat(dir)
-      expect(owned.isDirectory()).toBe(true)
-    } finally {
-      await rm(dir, { force: true, recursive: true })
-    }
   })
 })
 

@@ -1,6 +1,8 @@
 import path from 'node:path'
+import { readFileSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import { configureResources } from '../../core/resources/admission'
+import { runtimeWindowsJob } from '../resources/jobs'
 import type * as ResourceGovernor from '../../core/resources/resourceGovernorEntry'
 import { uiLocale } from '../../shared/l10n/text'
 import { createRequire } from 'node:module'
@@ -29,6 +31,7 @@ import { type KeyringEntryFactory } from '../keyStore'
 import { LinuxVaultSlots } from './slots/linuxVaultSlots'
 import { MacVaultSlots } from './slots/macVaultSlots'
 import { WindowsVaultSlots } from './slots/windowsVaultSlots'
+import { windowsVaultGuardSource } from './slots/windowsVaultTransport'
 import { macVaultTransport } from './slots/macVaultTransport'
 import { macVaultSlotExecutable } from './posixNative'
 import { startVaultBrokerProcess, type VaultBrokerProcessOptions } from './brokerProcess'
@@ -49,7 +52,8 @@ import {
   MILLISECONDS_PER_MINUTE,
 } from '../../shared/constants'
 
-const windowsHelperSchema = z.strictObject({
+/** A host-built helper as the launch payload names it: never its guard source. */
+const windowsHelperPayloadSchema = z.strictObject({
   file: z.string().check(
     z.minLength(1),
     z.refine((value) => path.win32.isAbsolute(value)),
@@ -59,6 +63,8 @@ const windowsHelperSchema = z.strictObject({
     z.minLength(1),
     z.refine((value) => path.win32.isAbsolute(value)),
   ),
+})
+const windowsHelperSchema = z.extend(windowsHelperPayloadSchema, {
   guardSource: z.string().check(z.minLength(1)),
 })
 const contextSchema = z.strictObject({
@@ -84,6 +90,30 @@ const contextSchema = z.strictObject({
   pipeHelper: z.optional(windowsHelperSchema),
 })
 export type VaultBrokerContext = z.infer<typeof contextSchema>
+/**
+The launch payload: the context without the helpers' guard source. A
+Windows command line holds at most 32,767 characters and the guard region
+alone is larger, so the broker reads it from its own installed source.
+*/
+const launchSchema = z.extend(contextSchema, {
+  windowsHelper: z.optional(windowsHelperPayloadSchema),
+  pipeHelper: z.optional(windowsHelperPayloadSchema),
+})
+export type VaultBrokerLaunch = z.infer<typeof launchSchema>
+/** The broker context from its launch payload, each helper given the installed guard source. */
+export function brokerContextFromLaunch(launch: unknown, distDir: string): VaultBrokerContext {
+  const payload = launchSchema.parse(launch)
+  const { windowsHelper, pipeHelper, ...rest } = payload
+  if (windowsHelper === undefined && pipeHelper === undefined) return contextSchema.parse(rest)
+  const guardSource = windowsVaultGuardSource(
+    readFileSync(path.join(distDir, '..', 'native', 'windows', 'MuseSparkVault.cs'), 'utf8'),
+  )
+  return contextSchema.parse({
+    ...rest,
+    ...(windowsHelper !== undefined && { windowsHelper: { ...windowsHelper, guardSource } }),
+    ...(pipeHelper !== undefined && { pipeHelper: { ...pipeHelper, guardSource } }),
+  })
+}
 /** Trusted runtime supplies execution, identity and scrub bindings; no substitute or empty success. */
 export interface VaultBrokerBindings {
   readonly identity: VaultBrokerDeps['identity']
@@ -490,7 +520,7 @@ fixture bundle's static import); the validated export is the same typed
 build boundary either way.
 */
 export async function configureBrokerResources(
-  context: Pick<VaultBrokerContext, 'dataDir' | 'runDirectory'>,
+  context: Pick<VaultBrokerContext, 'dataDir' | 'runDirectory' | 'installRoot'>,
   loadGovernor: () => Promise<Pick<typeof ResourceGovernor, 'createResources'>>,
 ): Promise<() => void> {
   // Same-build governor factory; validate its export before use (PLAN §8).
@@ -517,6 +547,9 @@ export async function configureBrokerResources(
       signal?.throwIfAborted()
       return await resources.admit(request, undefined, signal)
     },
+    // Windows records each governed child through the job helpers, as the
+    // runtime does: without them the guarded pipe helper never launches.
+    windowsJob: runtimeWindowsJob(path.dirname(context.dataDir), context.installRoot),
   })
   return () => {
     disposeAdmission()
@@ -528,7 +561,7 @@ export async function configureBrokerResources(
 async function main(): Promise<void> {
   for (const name of Object.keys(process.env))
     if (isCredentialVariable(name)) Reflect.deleteProperty(process.env, name)
-  const context = contextSchema.parse(JSON.parse(process.argv[2] ?? 'null'))
+  const context = brokerContextFromLaunch(JSON.parse(process.argv[2] ?? 'null'), __dirname)
   if (path.resolve(context.installRoot, 'dist') !== path.resolve(__dirname))
     throw new Error(UI_TEXT.vault.noAccess)
   // Installed sibling module is a typed build boundary; validate its export before calling (PLAN §8).
