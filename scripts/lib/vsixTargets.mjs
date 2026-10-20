@@ -94,8 +94,13 @@ export function isVsixTargetFile(target, file) {
   if (!VSIX_TARGETS.includes(target)) throw new Error(`Unknown VSIX target: ${target}`)
   const platform = platformOf(target)
   if (normalized.startsWith('native/windows/')) return platform === 'win32'
-  if (normalized.startsWith('native/darwin/')) return platform === 'darwin'
-  if (normalized.startsWith('dist/native/darwin/')) return platform === 'darwin'
+  if (normalized.startsWith('native/darwin/') || normalized.startsWith('dist/native/darwin/')) {
+    if (platform !== 'darwin') return false
+    // One thin binary per Mac architecture (D209): a darwin target ships
+    // only its own architecture's slices (`-arm64` or `-x64`).
+    const arch = archOf(target)
+    return normalized.includes(`-${arch}.app/`) || normalized.endsWith(`-${arch}`)
+  }
   const isForeignLinux =
     normalized.startsWith('native/linux/') &&
     (platform !== 'linux' || !normalized.startsWith(`native/linux/${archOf(target)}/`))

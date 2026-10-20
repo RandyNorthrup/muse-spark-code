@@ -25,7 +25,11 @@ import { jobSourceReader } from '../../src/host/backend/jobSource'
 import { sealedMcpJobExecutable } from '../../src/host/backend/mcpJobExecutable'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
 import { createLogger } from '../../src/host/logger'
-import { EXTENSION_QUALIFIED_ID, SETTINGS_SECTION } from '../../src/shared/constants'
+import {
+  EXTENSION_QUALIFIED_ID,
+  SETTINGS_SECTION,
+  darwinDictationHelperSegments,
+} from '../../src/shared/constants'
 import {
   realBackgroundHarness,
   saveBackgroundConsent,
@@ -70,11 +74,11 @@ suite('schedule background entry in the real host', () => {
     // above. The CI jobs that run these tests build the helper first.
     if (process.platform === 'linux' || process.platform === 'darwin') {
       const helperDir = process.platform === 'linux' ? path.join('linux', process.arch) : 'darwin'
-      // One copy serves every role: the signed .app's executable on darwin.
+      // One thin signed .app per Mac architecture (D209): this Mac's own.
       const helperName =
         process.platform === 'linux'
           ? 'muse-created'
-          : path.join('muse-dictate-screen.app', 'Contents', 'MacOS', 'muse-dictate')
+          : path.join(...darwinDictationHelperSegments(process.arch).slice(1))
       const staged = path.join(__dirname, '..', 'native', helperDir, helperName)
       await mkdir(path.dirname(staged), { recursive: true })
       await copyFile(path.join(extensionPath, 'native', helperDir, helperName), staged)

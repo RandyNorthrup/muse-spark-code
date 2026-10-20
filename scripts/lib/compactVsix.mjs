@@ -12,7 +12,12 @@ const MAX_MEMBERS = 0xff_ff
 const MAX_CONTENT_BYTES = 32 * 1024 * 1024
 const CRC_POLYNOMIAL = 0xed_b8_83_20
 const CRC_MASK = 0xff_ff_ff_ff
-const MACOS_HELPER = 'extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate'
+// One thin signed .app per Mac architecture (D209): Windows stat cannot
+// retain the execute bit of either verified executable.
+const MACOS_HELPERS = new Set([
+  'extension/native/darwin/muse-dictate-screen-arm64.app/Contents/MacOS/muse-dictate',
+  'extension/native/darwin/muse-dictate-screen-x64.app/Contents/MacOS/muse-dictate',
+])
 const DEFLATE_OPTIONS = Array.from({ length: 9 }, (_, index) => index + 1).flatMap((memLevel) => [
   { level: 9, memLevel },
   { level: 9, memLevel, strategy: constants.Z_FILTERED },
@@ -69,11 +74,10 @@ export async function compactVsix(archive, files) {
     central.writeUInt32LE(0x02_01_4b_50, 0)
     central.writeUInt16LE(0x3_14, 4) // Unix metadata, ZIP 2.0.
     local.copy(central, 6, 4, 30)
-    // Windows stat cannot retain the execute bit of the verified macOS helper.
-    const mode =
-      file.path === MACOS_HELPER
-        ? 0o10_0755
-        : (file.mode ?? (file.localPath === undefined ? 0o10_0644 : statSync(file.localPath).mode))
+    // Windows stat cannot retain the execute bit of either verified macOS helper.
+    const mode = MACOS_HELPERS.has(file.path)
+      ? 0o10_0755
+      : (file.mode ?? (file.localPath === undefined ? 0o10_0644 : statSync(file.localPath).mode))
     central.writeUInt32LE((mode << 16) >>> 0, 38)
     central.writeUInt32LE(offset, 42)
     parts.push(local, name, compressed)
@@ -98,7 +102,7 @@ export async function compactVsix(archive, files) {
       throw new Error('Repacked VSIX differs from VSCE members')
     if (
       statSync(temporary).size >= statSync(archive).size &&
-      files.every((file) => file.path !== MACOS_HELPER)
+      files.every((file) => !MACOS_HELPERS.has(file.path))
     )
       return
     renameSync(temporary, archive)

@@ -2788,7 +2788,7 @@
   "dictationUnavailable": "Hlasové diktování není na této platformě k dispozici.",
   "dictationUnavailableLinux": "Diktování v Linuxu vyžaduje počítač x64 nebo arm64 se spuštěným PulseAudio nebo PipeWire.",
   "dictationUnavailableWindows": "Hlasové diktování vyžaduje Windows PowerShell, který nebyl nalezen (SystemRoot není nastaveno).",
-  "dictationUnavailableDarwin": "Hlasové diktování vyžaduje pomocnou aplikaci pro macOS (native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate), kterou toto sestavení neobsahuje.",
+  "dictationUnavailableDarwin": "Hlasové diktování vyžaduje pomocnou aplikaci pro macOS (native/darwin/{app}/Contents/MacOS/muse-dictate), kterou toto sestavení neobsahuje.",
   "dictationNotLoaded": "kód diktování se nepodařilo načíst; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "announceListening": "Poslouchám",
   "announceStoppedListening": "Poslech zastaven",

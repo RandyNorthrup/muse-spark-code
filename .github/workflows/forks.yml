@@ -170,7 +170,8 @@ jobs:
             os: macos-latest
             artifact: muse-dictate-darwin
             path: |
-              native/darwin/muse-dictate-screen.tgz
+              native/darwin/muse-dictate-screen-arm64.tgz
+              native/darwin/muse-dictate-screen-x64.tgz
           - platform: linux-x64
             os: ubuntu-24.04
             arch: x64
@@ -191,8 +192,12 @@ jobs:
       - if: matrix.platform == 'darwin'
         run: bash native/darwin/build.sh
       # Archive on macOS: artifact upload otherwise discards executable modes.
+      # One thin signed .app per architecture (D209).
       - if: matrix.platform == 'darwin'
-        run: tar -czf native/darwin/muse-dictate-screen.tgz -C native/darwin muse-dictate-screen.app
+        run: |
+          for arch in arm64 x64; do
+            tar -czf "native/darwin/muse-dictate-screen-${arch}.tgz" -C native/darwin "muse-dictate-screen-${arch}.app"
+          done
       - if: matrix.platform != 'darwin'
         run: |
           sudo apt-get update && sudo apt-get install -y libssl-dev
@@ -214,7 +219,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-vault-darwin
-          path: dist/native/darwin/muse-vault
+          path: |
+            dist/native/darwin/muse-vault-arm64
+            dist/native/darwin/muse-vault-x64
           if-no-files-found: error
 
   vsix:
@@ -258,9 +265,10 @@ jobs:
         with:
           name: muse-vault-darwin
           path: dist/native/darwin
-      - run: chmod +x native/darwin/muse-dictate native/linux/x64/muse-created native/linux/arm64/muse-created dist/native/darwin/muse-vault
+      - run: chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created dist/native/darwin/muse-vault-arm64 dist/native/darwin/muse-vault-x64
       - run: chmod +x native/linux/x64/muse-vault-peer native/linux/arm64/muse-vault-peer
-      - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
+      - run: tar -xzf native/darwin/muse-dictate-screen-arm64.tgz -C native/darwin
+      - run: tar -xzf native/darwin/muse-dictate-screen-x64.tgz -C native/darwin
       # The .vsix recompressor needs the pinned Zopfli (VSIXFIT B): without
       # it packaging fails rather than falling back to zlib level 9.
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0

@@ -2620,7 +2620,7 @@
   "dictationUnavailable": "此平台不支持语音听写。",
   "dictationUnavailableLinux": "Linux 听写需要运行 PulseAudio 或 PipeWire 的 x64 或 arm64 计算机。",
   "dictationUnavailableWindows": "语音听写需要 Windows PowerShell，但未找到它（未设置 SystemRoot）。",
-  "dictationUnavailableDarwin": "语音听写需要 macOS 帮助程序（native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate），但此版本未包含它。",
+  "dictationUnavailableDarwin": "语音听写需要 macOS 帮助程序（native/darwin/{app}/Contents/MacOS/muse-dictate），但此版本未包含它。",
   "dictationNotLoaded": "无法加载听写代码；请重新安装扩展并重新加载窗口。日志中有详细信息。",
   "announceListening": "正在聆听",
   "announceStoppedListening": "已停止聆听",

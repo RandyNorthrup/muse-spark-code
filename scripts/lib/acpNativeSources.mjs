@@ -23,9 +23,13 @@ export const JOB_SOURCES = [
   path.join('native', 'windows', 'MuseSparkMcpLauncher.cs'),
   path.join('native', 'windows', 'MuseSparkScreenRecord.cs'),
 ]
-// Darwin ships no loose native file: its one helper is the signed .app's
-// executable, which scripts/package-acp.mjs copies as a bundle beside these
-// files (the universal package and the darwin targets).
+// One thin vault peer per Mac architecture (D209): the signed .apps ride
+// beside these files, copied as bundles by scripts/package-acp.mjs (the
+// universal package and the darwin targets). Arch names mirror
+// src/shared/constants.ts (darwinVaultPeerFile).
+export const DARWIN_PEERS = ['arm64', 'x64'].map((arch) =>
+  path.join('native', 'darwin', `muse-vault-peer-${arch}`),
+)
 export const LINUX_HELPERS = ['x64', 'arm64'].flatMap((arch) =>
   ['muse-created', 'muse-vault-peer'].map((helper) => path.join('native', 'linux', arch, helper)),
 )
@@ -69,10 +73,14 @@ the helper to the remote side, as in the .vsix). No argument is the
 universal package, which keeps every platform's helpers.
 */
 export function acpNativeFiles(target) {
-  if (target === undefined) return [...JOB_SOURCES, ...LINUX_HELPERS, ...VOICE_WINDOWS_HELPERS]
+  if (target === undefined)
+    return [...JOB_SOURCES, ...DARWIN_PEERS, ...LINUX_HELPERS, ...VOICE_WINDOWS_HELPERS]
   if (!VSIX_TARGETS.includes(target)) throw new Error(`Unknown ACP target: ${target}`)
   const [platform, arch] = target.split('-', 2)
   const linuxFiles = LINUX_HELPERS.filter((helper) => helper.split(path.sep).includes(arch))
   if (platform === 'linux') return linuxFiles
-  return platform === 'darwin' ? [] : [...JOB_SOURCES, ...VOICE_WINDOWS_HELPERS]
+  const darwinFiles = DARWIN_PEERS.filter((helper) =>
+    helper.split(path.sep).at(-1).endsWith(`-${arch}`),
+  )
+  return platform === 'darwin' ? darwinFiles : [...JOB_SOURCES, ...VOICE_WINDOWS_HELPERS]
 }
