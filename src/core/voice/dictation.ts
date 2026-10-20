@@ -2,8 +2,8 @@
 //
 // Speech is recognised by the operating system's own engine through a small
 // helper process (native/windows/dictate.ps1 on Windows,
-// native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate on
-// macOS) that speaks one line protocol: commands in on stdin
+// native/darwin/muse-dictate-screen-<arch>.app/Contents/MacOS/muse-dictate
+// on macOS) that speaks one line protocol: commands in on stdin
 // ("start", "stop", "quit"), JSON objects out on stdout ("ready", "listening",
 // "text", "stopped", "error"). Nothing leaves the machine and nothing is
 // billed; the helper is the only place audio exists.

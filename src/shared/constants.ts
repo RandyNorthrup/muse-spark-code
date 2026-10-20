@@ -5997,7 +5997,6 @@ export const DICTATION_WINDOWS_SCRIPT_SEGMENTS = ['windows', 'dictate.ps1'] as c
 // arm64 slices, darwin-x64 only x86_64, each still signed and verified. The
 // bare binary ships no more, and the bundle's localized resources stand
 // behind the prompts.
-export const DARWIN_APP_ARCHES = ['arm64', 'x64'] as const
 /** The signed .app holding the executable for this Mac architecture. */
 export function darwinDictationApp(arch: string): string {
   if (arch === 'arm64') return 'muse-dictate-screen-arm64.app'

@@ -7,6 +7,7 @@ import os from 'node:os'
 import * as z from 'zod/mini'
 import { setTimeout as delay } from 'node:timers/promises'
 import { vaultBrokerLockSchema } from '../../../src/shared/vaultProtocol'
+import { DICTATION_HELPER_DIR, darwinDictationHelperSegments } from '../../../src/shared/constants'
 import { buildBrokerChildren } from '../helpers/vault/sessionBrokerBuild'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
 import { stopFixtureChild } from '../helpers/vault/fixtureChildren'
@@ -35,7 +36,7 @@ beforeAll(async () => {
   })
   if (process.platform === 'darwin')
     execFileSync(
-      path.join(fixture.root, 'native', 'darwin', 'muse-dictate'),
+      path.join(fixture.root, DICTATION_HELPER_DIR, ...darwinDictationHelperSegments(process.arch)),
       ['proc-identity', String(process.pid)],
       {
         stdio: 'ignore',
