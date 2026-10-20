@@ -3485,7 +3485,8 @@
     "sessionDeletion": "세션 삭제",
     "shellCommand": "셸 명령",
     "museServeStarting": "muse serve 시작",
-    "webFetch": "웹 페이지"
+    "webFetch": "웹 페이지",
+    "pluginHook": "플러그인 후크"
   },
   "userShellLabel": "직접 실행",
   "userShellExitCode": "종료 코드 {code}",

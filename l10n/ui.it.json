@@ -3621,7 +3621,8 @@
     "sessionDeletion": "l’eliminazione della sessione",
     "shellCommand": "il comando shell",
     "museServeStarting": "l’avvio di muse serve",
-    "webFetch": "la pagina web"
+    "webFetch": "la pagina web",
+    "pluginHook": "l’hook del plugin"
   },
   "userShellLabel": "Hai eseguito",
   "userShellExitCode": "Codice di uscita {code}",

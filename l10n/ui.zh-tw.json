@@ -3485,7 +3485,8 @@
     "sessionDeletion": "工作階段刪除",
     "shellCommand": "shell 指令",
     "museServeStarting": "muse serve 啟動",
-    "webFetch": "網頁"
+    "webFetch": "網頁",
+    "pluginHook": "外掛鉤子"
   },
   "userShellLabel": "您執行了",
   "userShellExitCode": "結束代碼 {code}",

@@ -3553,7 +3553,8 @@
     "sessionDeletion": "a munkamenet törlése",
     "shellCommand": "a shell-parancs",
     "museServeStarting": "a muse serve indítása",
-    "webFetch": "a weboldal"
+    "webFetch": "a weboldal",
+    "pluginHook": "a plugin hook"
   },
   "userShellLabel": "Ön futtatta",
   "userShellExitCode": "Kilépési kód: {code}",

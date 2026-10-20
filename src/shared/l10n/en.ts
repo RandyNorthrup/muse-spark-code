@@ -4327,6 +4327,7 @@ export const EN = {
     shellCommand: 'the shell command',
     museServeStarting: 'muse serve starting',
     webFetch: 'the web page',
+    pluginHook: 'the plugin hook',
   },
   userShellLabel: 'You Ran',
   userShellExitCode: 'Exit code {code}',

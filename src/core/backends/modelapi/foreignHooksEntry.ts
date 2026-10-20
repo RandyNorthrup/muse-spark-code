@@ -58,7 +58,7 @@ import {
   type HookEvent,
 } from './hooks'
 import type { PluginFormat } from './pluginFormats'
-import type { PluginContainment, PluginSession } from './pluginHost'
+import type { PluginContainment, PluginPersonBounds, PluginSession } from './pluginHost'
 import type * as PluginHooks from './pluginHooksEntry'
 
 /** What plugin children need from the host (M91b). */
@@ -76,6 +76,15 @@ export interface PluginHostDeps {
   /** A process the running turn started (M86's checkpoint mark). */
   readonly onProcess?: (() => void) | undefined
   readonly now: () => number
+  /**
+   * The person's plugin bounds, re-read per call so a changed setting
+   * applies without rebinding; without it none apply.
+   */
+  readonly bounds?: (() => PluginPersonBounds) | undefined
+  /** Still-waiting notices go here; without it the wait stays silent. */
+  readonly notice?: ((message: string) => void) | undefined
+  /** Tests only: the still-waiting cadence; production keeps the shared one. */
+  readonly noticeMs?: number | undefined
 }
 
 export { loadForeignHookDefinitions } from './hooks'
@@ -315,14 +324,18 @@ class ForeignHooks implements ForeignHookAdapter {
           workspaceRoot: this.deps.workspaceRoot,
           processTree: tree,
           warn: host.warn,
+          ...(host.bounds !== undefined && { bounds: host.bounds }),
+          ...(host.notice !== undefined && { notice: host.notice }),
+          ...(host.noticeMs !== undefined && { noticeMs: host.noticeMs }),
         })
         host.onProcess?.()
         const answer = await this.plugins.run(
           {
             ...request.call,
             pluginPath: plugin,
-            // D121: no default of ours — without an explicit per-hook
-            // timeout the call waits for the child's answer or Stop.
+            // D121: no default of ours — an explicit per-hook timeout wins;
+            // otherwise the person's own plugin wait bounds the call, or it
+            // waits for the child's answer or Stop.
             ...(hook.timeoutSeconds !== undefined && {
               timeoutMs: hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
             }),

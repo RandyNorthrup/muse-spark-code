@@ -3553,7 +3553,8 @@
     "sessionDeletion": "oturum silme",
     "shellCommand": "kabuk komutu",
     "museServeStarting": "muse serve başlatma",
-    "webFetch": "web sayfası"
+    "webFetch": "web sayfası",
+    "pluginHook": "eklenti kancası"
   },
   "userShellLabel": "Sizin çalıştırdığınız",
   "userShellExitCode": "Çıkış kodu {code}",

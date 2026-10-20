@@ -23,9 +23,10 @@ import { resourceEnvironment, type ResourceLease } from '../../resources/launch'
 // - a disposed session spawns nothing, rechecked after every await [8];
 // - the answer completes on its response line, then the tree is ended [11];
 // - waits: no deadline of ours — a call waits for the child's answer line,
-//   an explicit per-hook timeout, or Stop, and the runtime answers whole;
-//   an explicit timeout names the bound it waited, and a stopped probe
-//   names how long it waited, while a stopped call answers nothing [14].
+//   an explicit per-hook timeout, the person's own plugin wait, or Stop,
+//   and the runtime answers whole; every wait says how long it has waited
+//   while it lasts, and an explicit timeout or Stop names the wait it
+//   kept [14].
 import { Buffer } from 'node:buffer'
 import { admitResource, stopResourceTree } from '../../resources/admission'
 
@@ -34,8 +35,14 @@ import { withoutCredentials } from '../../credentialEnvironment'
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { MILLISECONDS_PER_SECOND, PLUGIN_NODE_MINIMUM } from '../../../shared/constants'
+import {
+  BYTES_PER_MIB,
+  MILLISECONDS_PER_SECOND,
+  PLUGIN_NODE_MINIMUM,
+  STILL_WAITING_NOTICE_MS,
+} from '../../../shared/constants'
 import { formatUnit } from '../../../shared/l10n/text'
+import { startStillWaiting, stillWaitingText } from '../../timeouts'
 import { resolveExecutable, workspaceChildEnvironment } from '../../executables'
 import { environmentValue } from '../../childEnvironment'
 import type { ForeignHookAnswer } from './hookFormats/contract'
@@ -118,6 +125,54 @@ export interface PluginRunDeps {
   readonly processTree?: PluginProcessTree | undefined
   /** Fixed-text notes (refused registrations); never plugin text. */
   readonly warn?: ((message: string) => void) | undefined
+  /**
+   * The person's plugin bounds, re-read per call so a changed setting
+   * applies without rebinding; absent means none of ours.
+   */
+  readonly bounds?: (() => PluginPersonBounds) | undefined
+  /** Still-waiting notices go here; without one the wait stays silent. */
+  readonly notice?: ((message: string) => void) | undefined
+  /** Tests only: the still-waiting cadence; production keeps the shared one. */
+  readonly noticeMs?: number | undefined
+}
+
+/**
+ * What the person sets on plugin children (D121: each 0 or absent is none
+ * of ours, applied only when set). The host reads these from `museSpark.`
+ * settings on every call.
+ */
+export interface PluginPersonBounds {
+  /** Seconds a plugin hook waits for its child; 0 waits for the answer or Stop. */
+  readonly timeoutSeconds?: number | undefined
+  /** The child's memory ceiling in MiB; 0 is the runtime's own default. */
+  readonly maxMemoryMiB?: number | undefined
+  /** The answer frame cap in bytes; 0 reads answers whole. */
+  readonly maxAnswerBytes?: number | undefined
+}
+
+/** A call's bounds in the units the host enforces; undefined is none of ours. */
+export interface PluginCallBounds {
+  readonly timeoutMs: number | undefined
+  readonly maxMemoryBytes: number | undefined
+  readonly maxAnswerBytes: number | undefined
+}
+
+/** The person's bounds in enforcement units; every unset value is none of ours. */
+export function pluginCallBounds(bounds: PluginPersonBounds): PluginCallBounds {
+  return {
+    timeoutMs:
+      bounds.timeoutSeconds !== undefined && bounds.timeoutSeconds > 0
+        ? bounds.timeoutSeconds * MILLISECONDS_PER_SECOND
+        : undefined,
+    maxMemoryBytes:
+      bounds.maxMemoryMiB !== undefined && bounds.maxMemoryMiB > 0
+        ? bounds.maxMemoryMiB * BYTES_PER_MIB
+        : undefined,
+    maxAnswerBytes:
+      bounds.maxAnswerBytes !== undefined && bounds.maxAnswerBytes > 0
+        ? bounds.maxAnswerBytes
+        : undefined,
+  }
 }
 
 /** What a session lends one call: its live children, whether it closed, and the turn's stop. */
@@ -140,13 +195,15 @@ async function defaultRunVersion(
   const tree = treeFor(deps, deps.platform ?? process.platform)
   if (tree === undefined) throw new Error('Plugin runtime probe has no process tree')
   // D121: no probe timeout of ours — the probe waits for the runtime's
-  // answer, its exit, or Stop, and Stop names how long it waited.
+  // answer, its exit, the person's own plugin wait, or Stop. The wait says
+  // how long it has waited while it lasts, and every end names its wait.
   const startedAt = Date.now()
   const waitedText = (): string =>
     formatUnit(
       Math.max(0, Math.round((Date.now() - startedAt) / MILLISECONDS_PER_SECOND)),
       'second',
     )
+  const bounds = pluginCallBounds(deps.bounds?.() ?? {})
   const resource = await admitResource('hook', signal)
   let child: PluginChildHandle
   try {
@@ -163,10 +220,13 @@ async function defaultRunVersion(
   }
   return await new Promise<string>((resolve, reject) => {
     const chunks: Buffer[] = []
+    let bytes = 0
     let isDone = false
     const finish = (error?: Error) => {
       if (isDone) return
       isDone = true
+      if (timer !== undefined) clearTimeout(timer)
+      stopNoticing()
       signal?.removeEventListener('abort', abort)
       endTree(tree, child)
       if (error === undefined) resolve(Buffer.concat(chunks).toString('utf8'))
@@ -175,6 +235,29 @@ async function defaultRunVersion(
     const abort = () => {
       finish(new Error(`Plugin runtime probe cancelled after ${waitedText()}`))
     }
+    // Only the person's own plugin wait ends the probe early; without one
+    // the runtime's answer, its exit, or Stop ends it. The bound names the
+    // wait it kept, as a wait with no bound names Stop's wait.
+    const probeTimeoutMs = bounds.timeoutMs
+    const timer =
+      probeTimeoutMs === undefined
+        ? undefined
+        : setTimeout(
+            () => {
+              finish(
+                new Error(
+                  `Plugin runtime probe timed out after ${formatUnit(Math.max(1, Math.round(probeTimeoutMs / MILLISECONDS_PER_SECOND)), 'second')}`,
+                ),
+              )
+            },
+            Math.max(probeTimeoutMs, 1),
+          )
+    // Do not let a straggler keep the host alive.
+    timer?.unref()
+    // The wait says how long it has waited, as Model API requests do.
+    const stopNoticing = startStillWaiting((elapsedMs) => {
+      deps.notice?.(stillWaitingText({ key: 'pluginHook' }, elapsedMs))
+    }, deps.noticeMs ?? STILL_WAITING_NOTICE_MS)
     signal?.addEventListener('abort', abort, { once: true })
     child.onError(() => {
       finish(new Error('Plugin runtime probe failed'))
@@ -188,6 +271,11 @@ async function defaultRunVersion(
     })
     child.onStdout((chunk) => {
       if (isDone) return
+      bytes += chunk.byteLength
+      if (bounds.maxAnswerBytes !== undefined && bytes > bounds.maxAnswerBytes) {
+        finish(new Error('Plugin runtime probe output exceeded its bound'))
+        return
+      }
       chunks.push(chunk)
     })
     if (signal?.aborted === true) abort()
@@ -256,6 +344,9 @@ export async function resolvePluginRuntime(
 ): Promise<RuntimeResolution> {
   const platform = deps.platform ?? process.platform
   const env = withoutCredentials(deps.env)
+  // The person's own plugin bounds, or none of ours: a set memory ceiling
+  // caps the child's heap, job and data segment below.
+  const bounds = pluginCallBounds(deps.bounds?.() ?? {})
   const runVersion =
     deps.runVersion ??
     ((command: string, env: NodeJS.ProcessEnv) => defaultRunVersion(command, env, deps, signal))
@@ -269,11 +360,14 @@ export async function resolvePluginRuntime(
     try {
       text = await runVersion(command, env)
     } catch (error: unknown) {
-      // Stop ends the probe with the wait's own words, not 'not installed'.
+      // Stop and the person's own wait end the probe with the wait's own
+      // words, not 'not installed'.
       return {
         ok: false,
         reason:
-          error instanceof Error && error.message.startsWith('Plugin runtime probe cancelled after')
+          error instanceof Error &&
+          (error.message.startsWith('Plugin runtime probe cancelled after') ||
+            error.message.startsWith('Plugin runtime probe timed out after'))
             ? error.message
             : 'amp: the system node runtime is not installed',
       }
@@ -286,11 +380,16 @@ export async function resolvePluginRuntime(
         ok: false,
         reason: `amp: system node ${version.join('.')} is too old (need >= ${PLUGIN_NODE_MINIMUM} for type stripping)`,
       }
-    // D121: no heap flag of ours — the runtime's own default applies.
+    // D121: no heap flag of ours — without a set ceiling the runtime's own
+    // default applies; a set ceiling caps node's heap at it.
+    const heapFlag =
+      bounds.maxMemoryBytes === undefined
+        ? []
+        : [`--max-old-space-size=${String(Math.floor(bounds.maxMemoryBytes / BYTES_PER_MIB))}`]
     return {
       ok: true,
       command,
-      args: ['--input-type=module', '-e'],
+      args: [...heapFlag, '--input-type=module', '-e'],
     }
   }
   if (command === undefined) {
@@ -299,19 +398,65 @@ export async function resolvePluginRuntime(
   try {
     await runVersion(command, env)
   } catch (error: unknown) {
-    // Stop ends the probe with the wait's own words, not 'absent'.
+    // Stop and the person's own wait end the probe with the wait's own
+    // words, not 'absent'.
     return {
       ok: false,
       reason:
-        error instanceof Error && error.message.startsWith('Plugin runtime probe cancelled after')
+        error instanceof Error &&
+        (error.message.startsWith('Plugin runtime probe cancelled after') ||
+          error.message.startsWith('Plugin runtime probe timed out after'))
           ? error.message
           : 'opencode: the installed bun runtime is absent',
     }
   }
-  // D121: no memory bound of ours on any platform — bun runs directly, and
-  // a plugin child that outgrows the machine is ended with its tree on an
-  // explicit timeout, by Stop, or by the OS, not refused up front.
-  return { ok: true, command, args: ['-e'] }
+  // D121: no memory bound of ours on any platform — without a set ceiling
+  // bun runs directly, and a plugin child that outgrows the machine is
+  // ended with its tree on an explicit timeout, by Stop, or by the OS, not
+  // refused up front.
+  return boundedBun(command, env, platform, deps, bounds.maxMemoryBytes)
+}
+
+/**
+ * Bun has no heap flag, so a person's memory ceiling is bounded outside it
+ * where the OS offers a spawner-set cap: on Windows by the job's memory
+ * limit (the host's tree caps the launcher it starts through), on Linux by
+ * util-linux's `prlimit --data`. macOS offers neither, and OpenCode itself
+ * runs bun plugins with no memory bound there — so on macOS a set ceiling
+ * refuses with its reason instead of running unbounded past it.
+ */
+function boundedBun(
+  bun: string,
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform,
+  deps: PluginRunDeps,
+  maxMemoryBytes: number | undefined,
+): RuntimeResolution {
+  if (maxMemoryBytes === undefined) {
+    return { ok: true, command: bun, args: ['-e'] }
+  }
+  if (platform === 'win32') {
+    // The host starts this through its job launcher, which carries the same ceiling.
+    return { ok: true, command: bun, args: ['-e'] }
+  }
+  if (platform === 'darwin') {
+    return { ok: false, reason: 'opencode: the plugin memory ceiling cannot be bounded on darwin' }
+  }
+  if (platform !== 'linux') {
+    return { ok: false, reason: `opencode: bun's memory cannot be bounded on ${platform}` }
+  }
+  const prlimit = probeRuntime('prlimit', deps, env, platform)
+  if (prlimit === undefined) {
+    return {
+      ok: false,
+      reason: 'opencode: the plugin memory ceiling needs prlimit, which is absent',
+    }
+  }
+  return {
+    ok: true,
+    command: prlimit,
+    args: [`--data=${String(maxMemoryBytes)}`, '--', bun, '-e'],
+  }
 }
 
 /** Wraps a Node child: the request goes in once, and stderr is drained unread. */
@@ -670,29 +815,51 @@ async function runInScope(
     return closed()
   }
   // D121: no deadline of ours — the call waits for the child's answer
-  // line, an explicit per-hook timeout (which names the bound it waited),
-  // or Stop, and the answer arrives whole, whatever its size.
+  // line, an explicit per-hook timeout, the person's own plugin wait, or
+  // Stop; without a bound the answer arrives whole, whatever its size.
+  // Every wait says how long it has waited while it lasts, and every end
+  // names the wait it kept.
   return await new Promise<ForeignHookAnswer>((resolve) => {
     scope?.owned.add(child)
+    const startedAt = Date.now()
+    const waitedText = (): string =>
+      formatUnit(
+        Math.max(0, Math.round((Date.now() - startedAt) / MILLISECONDS_PER_SECOND)),
+        'second',
+      )
     const onAbort = (): void => {
-      finish(transportFailure(call, 'the plugin call was cancelled'))
+      finish(transportFailure(call, `the plugin call was cancelled after ${waitedText()}`))
     }
+    // A call its session ended while it waited: the session is gone, and
+    // the answer names the wait Stop kept.
+    const closedAfterWait = (): ForeignHookAnswer => ({
+      status: 'failed',
+      reason: `${call.system}: the session is closed after ${waitedText()}`,
+    })
     let isDone = false
     const chunks: Buffer[] = []
-    const timeoutMs = call.timeoutMs
+    let bytes = 0
+    // An explicit per-hook timeout wins; otherwise the person's own plugin
+    // wait bounds the call. The bound names the wait it kept, as a wait
+    // with no bound names Stop's wait.
+    const bounds = pluginCallBounds(deps.bounds?.() ?? {})
+    const timeoutMs = call.timeoutMs ?? bounds.timeoutMs
     const finish = (answer: ForeignHookAnswer): void => {
       if (isDone) return
       isDone = true
       scope?.owned.delete(child)
       scope?.signal?.removeEventListener('abort', onAbort)
       if (timer !== undefined) clearTimeout(timer)
+      stopNoticing()
       endTree(tree, child)
-      // A call its session ended answers nothing: the session is gone.
-      resolve(scope?.isClosed() === true ? closed() : settled(call, sanitizePluginAnswer(answer)))
+      // A call its session ended answers nothing stale: the session is
+      // gone, and the answer names the wait Stop kept.
+      resolve(
+        scope?.isClosed() === true
+          ? closedAfterWait()
+          : settled(call, sanitizePluginAnswer(answer)),
+      )
     }
-    // Only an explicit per-hook timeout ends the wait; without one the
-    // child answers, crashes, exits, or Stop ends it. The timeout names
-    // the bound it waited, as a wait with no deadline names Stop's wait.
     const timer =
       timeoutMs === undefined
         ? undefined
@@ -709,6 +876,10 @@ async function runInScope(
           )
     // Do not let a straggler keep the host alive.
     timer?.unref()
+    // The wait says how long it has waited, as Model API requests do.
+    const stopNoticing = startStillWaiting((elapsedMs) => {
+      deps.notice?.(stillWaitingText({ key: 'pluginHook' }, elapsedMs))
+    }, deps.noticeMs ?? STILL_WAITING_NOTICE_MS)
     scope?.signal?.addEventListener('abort', onAbort, { once: true })
     child.onError(() => {
       finish(transportFailure(call, 'the plugin child crashed'))
@@ -717,6 +888,11 @@ async function runInScope(
       if (isDone) return
       const end = chunk.indexOf(NEWLINE)
       const part = end === -1 ? chunk : chunk.subarray(0, end)
+      bytes += part.byteLength
+      if (bounds.maxAnswerBytes !== undefined && bytes > bounds.maxAnswerBytes) {
+        finish(transportFailure(call, 'the plugin answer exceeded its frame'))
+        return
+      }
       chunks.push(part)
       if (end !== -1) finish(readFrame(call, Buffer.concat(chunks).toString('utf8'), deps))
     })

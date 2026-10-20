@@ -3485,7 +3485,8 @@
     "sessionDeletion": "セッションの削除",
     "shellCommand": "シェルコマンド",
     "museServeStarting": "muse serveの起動",
-    "webFetch": "ウェブページ"
+    "webFetch": "ウェブページ",
+    "pluginHook": "プラグインフック"
   },
   "userShellLabel": "実行したコマンド",
   "userShellExitCode": "終了コード {code}",

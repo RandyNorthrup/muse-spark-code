@@ -171,6 +171,14 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly hooksMaxRunningCommands: number
   /** Concurrent subagents (M127, D121: 0 is no limit of ours). */
   readonly subagentMaxConcurrent: number
+  /** Seconds a plugin hook waits for its child (D121: 0 waits for the answer or Stop). */
+  readonly pluginHookTimeoutSeconds: number
+  /** A plugin child's memory ceiling in MiB (D121: 0 is the runtime's own default). */
+  readonly pluginChildMaxMemoryMiB: number
+  /** A plugin answer's frame cap in bytes (D121: 0 reads answers whole). */
+  readonly pluginAnswerMaxBytes: number
+  /** Windows job-launcher failures that set plugin hooks aside (D121: 0 keeps trying). */
+  readonly pluginMaxFailures: number
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
   /** The hosts beyond loopback the browser check may open and reach (M81, PLAN.md D49). */
@@ -320,6 +328,10 @@ const settingSchemas = {
     .check(z.int(), z.gte(0), z.lte(HOOK_MAX_STOP_CONTINUATIONS)),
   hooksMaxRunningCommands: z.number().check(z.int(), z.gte(HOOK_RUNNING_COMMANDS_MIN)),
   subagentMaxConcurrent: z.number().check(z.int(), z.gte(0), z.lte(SUBAGENT_CONCURRENT_MAX)),
+  pluginHookTimeoutSeconds: z.number().check(z.int(), z.gte(0)),
+  pluginChildMaxMemoryMiB: z.number().check(z.int(), z.gte(0)),
+  pluginAnswerMaxBytes: z.number().check(z.int(), z.gte(0)),
+  pluginMaxFailures: z.number().check(z.int(), z.gte(0)),
   turnCheckpoints: z.boolean(),
   // Each entry a plain host name or IP address (no port, path or wildcard):
   // one that is not refuses the whole list, so a typo warns rather than
@@ -487,6 +499,10 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     hooksMaxStopContinuations: readSetting(config, 'hooksMaxStopContinuations', log),
     hooksMaxRunningCommands: readSetting(config, 'hooksMaxRunningCommands', log),
     subagentMaxConcurrent: readSetting(config, 'subagentMaxConcurrent', log),
+    pluginHookTimeoutSeconds: readSetting(config, 'pluginHookTimeoutSeconds', log),
+    pluginChildMaxMemoryMiB: readSetting(config, 'pluginChildMaxMemoryMiB', log),
+    pluginAnswerMaxBytes: readSetting(config, 'pluginAnswerMaxBytes', log),
+    pluginMaxFailures: readSetting(config, 'pluginMaxFailures', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
     browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),
     browserCheckRuntime: readSetting(config, 'browserCheckRuntime', log),

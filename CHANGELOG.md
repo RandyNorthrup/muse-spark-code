@@ -18,6 +18,11 @@ happened, not what was planned; superseded entries are kept.
   memory bound, answer-size bound or failure latch — a call waits for the
   child's answer, an explicit per-hook timeout (which names the bound it
   waited) or Stop, and a stopped probe names how long it waited.
+- Plugin bounds the person sets: `museSpark.pluginHookTimeoutSeconds`,
+  `museSpark.pluginChildMaxMemoryMiB`, `museSpark.pluginAnswerMaxBytes` and
+  `museSpark.pluginMaxFailures`, each `0` (the default) for none of ours and
+  applied only when set. Every plugin wait says how long it has waited while
+  it waits, and Stop names the wait it kept.
 - Web fetch waits with no deadline of ours: a page reads whole however slow
   it answers, and the wait names how long it has waited; Stop ends it.
 - Hook model calls send no output cap of ours: the capability record's
