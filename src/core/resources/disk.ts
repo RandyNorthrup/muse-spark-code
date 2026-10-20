@@ -1,8 +1,6 @@
 import { statfs } from 'node:fs/promises'
 import path from 'node:path'
 import {
-  RESOURCE_DISK_CRITICAL_FRACTION,
-  RESOURCE_DISK_CRITICAL_GIB,
   RESOURCE_DISK_ETA_MS,
   RESOURCE_DISK_FAST_SAMPLE_MS,
   RESOURCE_DISK_HYSTERESIS_GIB,
@@ -39,7 +37,6 @@ export function resourceDiskFloorBytes(settings: ResourceSettings): number | nul
 export function diskPressure(volumes: readonly ResourceDiskVolume[], settings: ResourceSettings) {
   let high: boolean | null = false
   let isPaused = false
-  let isCritical = false
   let hasRecovered = true
   for (const volume of volumes) {
     if (volume.freeBytes === null || volume.totalBytes === null) {
@@ -47,14 +44,7 @@ export function diskPressure(volumes: readonly ResourceDiskVolume[], settings: R
       hasRecovered = false
       continue
     }
-    // A critically full volume refuses writes whatever the person set; only
-    // the floor-driven hold needs their limit behind it.
-    isCritical ||=
-      volume.freeBytes <=
-      Math.max(
-        RESOURCE_DISK_CRITICAL_GIB * RESOURCE_GIB_BYTES,
-        volume.totalBytes * RESOURCE_DISK_CRITICAL_FRACTION,
-      )
+    // D121: no threshold of ours — only the person's floor holds a volume.
     const floor = resourceDiskFloorBytes(settings)
     // No person-set floor: this volume reports its readings but never trips,
     // pauses or clears a level.
@@ -69,7 +59,7 @@ export function diskPressure(volumes: readonly ResourceDiskVolume[], settings: R
       volume.freeBytes > floor + RESOURCE_DISK_HYSTERESIS_GIB * RESOURCE_GIB_BYTES &&
       (volume.etaMs === null || volume.etaMs > RESOURCE_DISK_ETA_MS)
   }
-  return { high, isPaused, isCritical, hasRecovered }
+  return { high, isPaused, hasRecovered }
 }
 
 /** Peer data is validated by deviceResourceSchema before this admission check.
@@ -222,10 +212,13 @@ export class ResourceDiskSampler {
           totalBytes: Number(stats.bsize * stats.blocks),
           etaMs: null,
         })
-        if (diskPressure([volume], this.settings()).isCritical)
+        // D121: writes are refused only at the person's floor (its pause
+        // level), never at a threshold of ours; with no floor set every
+        // write is admitted and the volume is only measured.
+        if (diskPressure([volume], this.settings()).isPaused)
           throw Object.assign(
             new Error(fill(UI_TEXT.resourceDiskWriteRefused, { volume: candidate })),
-            { code: 'resourceDiskCritical', volume: candidate },
+            { code: 'resourceDiskFloor', volume: candidate },
           )
         return
       } catch (error: unknown) {

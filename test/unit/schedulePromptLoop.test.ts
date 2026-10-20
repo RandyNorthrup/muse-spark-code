@@ -18,6 +18,7 @@ function defaultDraft() {
     log: { trace: record, info: record, warn: record, error: record },
     isEnabled: () => true,
     defaultDelivery: () => 'whenIdle',
+    pauseAfterFailures: () => 0,
   })
   return bridge.defaultDraft(nowMs, undefined, 'modelApi')
 }

@@ -891,12 +891,22 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   }
   // Share's --from/--to are message markers (the ShareRequest range), not the
   // usage dates the bare names describe: the date format must not follow them.
-  const factsFor = (route, name) =>
-    route === 'share' && (name === 'from' || name === 'to')
-      ? Object.fromEntries(
-          Object.entries(optionFacts[name] ?? {}).filter(([facet]) => facet !== 'format'),
-        )
-      : optionFacts[name]
+  // D121: scan-secrets --timeout has no default and no maximum of ours —
+  // absent runs until the scan finishes; a set value is whole seconds the
+  // platform timer can hold, so the range ends where setTimeout overflows.
+  const factsFor = (route, name) => {
+    if (route === 'share' && (name === 'from' || name === 'to'))
+      return Object.fromEntries(
+        Object.entries(optionFacts[name] ?? {}).filter(([facet]) => facet !== 'format'),
+      )
+    if (route === 'scan-secrets' && name === 'timeout')
+      return {
+        minimum: 1,
+        maximum: Math.floor(source.TIMER_MAX_DELAY_MS / source.MILLISECONDS_PER_SECOND),
+        unit: 'seconds',
+      }
+    return optionFacts[name]
+  }
   for (const option of parserOptions(runtimeSource, source)) {
     if (source.CLI_OPTION_TEXT[option.name] === undefined)
       errors.push(`CLI option lacks contract: --${option.name}`)
@@ -1033,7 +1043,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     },
     {
       route: 'scan-secrets',
-      name: 'scan-secrets <file> [--key-stdin]',
+      name: 'scan-secrets <file> [--key-stdin] [--timeout <seconds>]',
       description: source.EN.referenceKeyStdin,
       text: { ui: 'referenceKeyStdin' },
     },
@@ -1083,7 +1093,17 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       exec(['--timeout', value]).options?.timeoutMs !==
       Number(value) * source.MILLISECONDS_PER_SECOND
     )
-      errors.push('CLI timeout mismatch: a set deadline has no maximum')
+      errors.push('CLI timeout limit mismatch')
+  // D121: scan-secrets runs with no deadline of ours; only a set --timeout
+  // in whole seconds names one, and what it cannot hold is refused.
+  const scan = (options) => source.parseCommandLine(['scan-secrets', 'patch.diff', ...options])
+  if (scan([]).timeoutMs !== undefined)
+    errors.push('CLI timeout limit mismatch: scan-secrets unset must leave no deadline')
+  if (scan(['--timeout', '30']).timeoutMs !== 30 * source.MILLISECONDS_PER_SECOND)
+    errors.push('CLI timeout limit mismatch: scan-secrets --timeout seconds')
+  for (const refused of ['0', '-1', 'abc', '1.5'])
+    if (scan(['--timeout', refused]).command !== 'invalid')
+      errors.push('CLI timeout limit mismatch: scan-secrets refuses what it cannot hold')
   for (const flag of ['--trust-workspace', '--allow-dangerously-skip-permissions', '--web-search'])
     if (exec([flag]).command !== 'invalid') errors.push(`CLI refusal mismatch: ${flag}`)
   // referenceCliOptions['questions-defer-after'] states the parser's own normalization.

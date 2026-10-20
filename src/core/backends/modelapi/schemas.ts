@@ -800,6 +800,11 @@ export interface CreateResponseBody {
   readonly stream: true
   readonly store: false
   readonly include: readonly IncludeField[]
+  /**
+  The output cap, absent on a hook call whose capability record names no
+  maximum (hookModelEntry.hookModelOutputCap): nothing of ours is sent,
+  and the provider's own default applies. Every other writer sends one.
+  */
   readonly max_output_tokens: number
   /** U8: bounds hosted tool calls, not the harness's function calls. */
   readonly max_tool_calls?: number

@@ -164,6 +164,7 @@
   "config.schedules.description": "Muse Code sohbetinde /loop işlevini denetler. Zamanlanmış istemlerin teslimi sertifikasyon gerektirir.",
   "config.schedules.defaultDelivery.description": "Yeni zamanlama taslaklarına yazılan teslim biçimini seçer; zamanlanmış çalıştırmayı etkinleştirmez.",
   "config.schedules.agentCreation.description": "Uyumluluk için saklanır; bu tercih bu derlemede etkili değildir.",
+  "config.schedulePauseAfterFailures.description": "Bir zamanlamayı duraklatan art arda başarısızlık sayısı. Ayarlanmadıkça duraklatma olmaz: 0 (varsayılan), başarısızlıklarda zamanlamayı asla duraklatmaz ve her başarısızlık çalıştırma geçmişine kaydedilir.",
   "command.tabLanguages.title": "Tab dilleri",
   "command.openPullRequestInConversation.title": "Bir Çekme İsteğini Konuşmada Aç…",
   "config.judge.engine.description": "`auto` (kendi sohbet modeliniz; 1. aşamada `same`) ve `same`, hiçbir kuralın karara bağlamadığı riskli bir Auto işlemine yalnızca dikkat ekleyebilir: hazır bir uyarı izni soruya dönüştürür ya da onay kartına not ekler. `off` değerlendirici çalıştırmaz. Model API arka ucunda her değerlendirme anahtarınıza faturalandırılır ve önce bir kez onay ister; Muse Code’da aboneliğinizden çalışır.",

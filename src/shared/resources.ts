@@ -2,7 +2,6 @@
 import * as z from 'zod/mini'
 import {
   RESOURCE_CPU_MIN_PERCENT,
-  RESOURCE_DISK_MIN_FREE_GIB,
   RESOURCE_EXEC_EVENT_VERSION,
   RESOURCE_GIB_BYTES,
   RESOURCE_ID_MAX_LENGTH,
@@ -66,11 +65,10 @@ export const resourceSettingsSchema = /* @__PURE__ */ (() =>
     memoryMinFreeGiB: z._default(z.nullable(memoryFloor), null),
     gpuMaxPercent: z._default(optionalLimit, null),
     diskBusyMaxPercent: z._default(optionalLimit, null),
-    // null means no floor; an explicit value is a machine-only GiB floor.
-    diskMinFreeGiB: z._default(
-      z.nullable(z.number().check(z.gte(RESOURCE_DISK_MIN_FREE_GIB))),
-      null,
-    ),
+    // null means no floor; an explicit value is a machine-only GiB floor
+    // of at least 2, the same set-value validation the CPU and memory
+    // thresholds keep for the person's own value.
+    diskMinFreeGiB: z._default(z.nullable(z.number().check(z.gte(2))), null),
     relocate: z._default(z.enum(['paired', 'ask', 'off']), 'paired'),
   }))()
 export type ResourceSettings = z.infer<typeof resourceSettingsSchema>

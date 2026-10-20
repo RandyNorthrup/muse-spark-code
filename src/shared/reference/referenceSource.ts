@@ -363,6 +363,7 @@ export {
   CONTEXT_PRESSURE_MEDIUM,
   CONTEXT_PRESSURE_HIGH,
   MILLISECONDS_PER_SECOND,
+  TIMER_MAX_DELAY_MS,
 } from '../constants'
 
 export {

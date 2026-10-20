@@ -164,6 +164,7 @@
   "config.schedules.description": "A /loop működését vezérli a Muse Code csevegésben. Az ütemezett kérések kézbesítése tanúsítást igényel.",
   "config.schedules.defaultDelivery.description": "Az új ütemezési vázlatokba írt kézbesítési módot választja ki; nem engedélyezi az ütemezett végrehajtást.",
   "config.schedules.agentCreation.description": "Kompatibilitási célból tárolva; ez a beállítás ebben a verzióban nincs hatással a működésre.",
+  "config.schedulePauseAfterFailures.description": "Hány egymást követő hiba függeszti fel az ütemezést. Beállított érték nélkül nincs felfüggesztés: 0 (az alapértelmezett érték) hiba esetén soha nem függeszti fel az ütemezést, és minden hiba bekerül a futási előzményekbe.",
   "command.tabLanguages.title": "Tab nyelvek",
   "command.openPullRequestInConversation.title": "Lekéréses kérelem megnyitása beszélgetésben…",
   "config.judge.engine.description": "Az `auto` (saját csevegőmodellje; az 1. fázisban `same`) és a `same` ahhoz a kockázatos Auto művelethez, amelyről egyetlen szabály sem dönt, csak óvatosságot adhat hozzá: az elkészült figyelmeztetés az engedélyt kérdéssé alakítja, vagy megjegyzést fűz a jóváhagyási kártyához. Az `off` nem futtat értékelőt. A Model API háttérrendszeren minden értékelés a kulcsára terhelődik, és előbb egyszer engedélyt kér; a Muse Code rendszerben az előfizetésére fut.",

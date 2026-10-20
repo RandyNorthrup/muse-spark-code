@@ -8,6 +8,22 @@ happened, not what was planned; superseded entries are kept.
 ## [Unreleased]
 
 ### Added
+- `scan-secrets` runs with no deadline of ours: the scan continues until it
+  finishes or a signal stops it, and a caller that wants a deadline (such as
+  CI) sets one per run with `--timeout <seconds>`.
+- Schedules never pause themselves on failures: `museSpark.schedulePauseAfterFailures`
+  (`0`, the default) keeps firing with every failure in the run history, and a
+  set count pauses the schedule after that many consecutive failures.
+- Plugin children run with no bound of ours: no per-call deadline, heap flag,
+  memory bound, answer-size bound or failure latch — a call waits for the
+  child's answer, an explicit per-hook timeout (which names the bound it
+  waited) or Stop, and a stopped probe names how long it waited.
+- Web fetch waits with no deadline of ours: a page reads whole however slow
+  it answers, and the wait names how long it has waited; Stop ends it.
+- Hook model calls send no output cap of ours: the capability record's
+  published maximum rides along, or nothing is sent when the record names
+  none — the person's budget fit still caps, and the daily tally settles
+  the true cost after.
 - The schedules bundle defers its editor-delivery binding: `dist/schedules.js`
   is 179,540 B against its 250 KiB budget, and the binding (workspace
   targets, run dispatch, grant checks) loads as the new

@@ -4156,6 +4156,7 @@ async function activateWindow(
     isEnabled: () => currentSettings().schedules,
     isDeliveryReady: () => SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady,
     defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
+    pauseAfterFailures: () => currentSettings().schedulePauseAfterFailures,
     ...(scheduleDelivery !== undefined && { delivery: scheduleDelivery }),
     ...(scheduleMigration !== undefined && { migration: scheduleMigration }),
   })

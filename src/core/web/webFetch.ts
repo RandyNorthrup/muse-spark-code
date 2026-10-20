@@ -15,13 +15,12 @@
 //   WEB_FETCH_ATTEMPT_DELAY_MS, the first to connect wins. Through a proxy,
 //   the proxy is asked for that address too (src/host/web/pinnedRequest.ts);
 // - follows a redirect on the same host, checked, resolved and pinned
-//   again, until the page answers or the fetch's deadline (or Stop) ends
-//   the wait; a redirect to another host is handed back to the model,
-//   which asks again (each host is approved on its own);
-// - reads the whole body of an allowed content type within
-//   WEB_FETCH_TIMEOUT_MS (a caller may still name its own smaller ingress
-//   cap with `rawTextLimit`), then turns HTML into Markdown and leaves
-//   text as it is.
+//   again, until the page answers or Stop ends the wait; a redirect to
+//   another host is handed back to the model, which asks again (each host
+//   is approved on its own);
+// - reads the whole body of an allowed content type (a caller may still
+//   name its own smaller ingress cap with `rawTextLimit`), then turns HTML
+//   into Markdown and leaves text as it is.
 //
 // What the model receives marks the page as untrusted data between markers
 // the page cannot know; text the server chose (a redirect's URL, the title)
@@ -49,11 +48,11 @@ import {
   WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_NOT_TLS_CODE,
   WEB_FETCH_TEXT_TYPES,
-  WEB_FETCH_TIMEOUT_MS,
   WEB_FETCH_TOKEN_MAX_CHARS,
   WEB_FETCH_XHTML_TYPE,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { startStillWaiting, stillWaitingText } from '../timeouts'
 import { isCodedError } from '../workspaceRoot'
 import { describeNetworkFailure, networkFailureCodes } from '../networkFailure'
 import {
@@ -119,10 +118,15 @@ export interface WebFetchDeps {
   readonly convertHtml: HtmlConverter
   /** Fresh random hexadecimal for the markers around the page's content. */
   readonly newMarker: () => string
-  /** The whole fetch's deadline; WEB_FETCH_TIMEOUT_MS unless a test shortens it. */
+  /**
+  D121: names how long a fetch has waited, as Model API requests do;
+  absent stays silent. The host wires its log.
+  */
+  readonly notice?: ((text: string) => void) | undefined
+  /** A test's short wait between notices; the production cadence otherwise. */
+  readonly noticeMs?: number | undefined
   /** M118 raw portable files keep exact text and use their smaller ingress cap. */
   readonly rawTextLimit?: number
-  readonly timeoutMs?: number
 }
 
 /** A page that was read. */
@@ -729,8 +733,9 @@ async function contentOf(
     signal,
   )
   if (!converted.ok) {
-    // The page arrived; the fetch's deadline passed while it was converted.
-    // (A stopped turn is rethrown by fetchWebPage, whatever is refused here.)
+    // The page arrived; its HTML conversion ran out of the converter's own
+    // time. (A stopped turn is rethrown by fetchWebPage, whatever is refused
+    // here.)
     return signal.aborted
       ? refuse('conversionTimeout')
       : refuse(CONVERSION_FAILURES[converted.kind], {
@@ -813,13 +818,10 @@ async function readPage(
   }
 }
 
-/** Why the request failed: a refusal, the deadline, or the network. */
-function failureOf(error: unknown, deadline: AbortSignal): WebFetchFailure {
+/** Why the request failed: a refusal or the network (no deadline of ours). */
+function failureOf(error: unknown): WebFetchFailure {
   if (error instanceof FetchRefused) {
     return error.failure
-  }
-  if (deadline.aborted) {
-    return webFetchFailure('timeout')
   }
 
   return error instanceof ConnectFailed
@@ -866,7 +868,7 @@ function movedResult(location: string, marker: string): WebFetchResult {
   return { kind: 'moved', location, text, visibleText: fill(UI_TEXT.webFetchMoved, { location }) }
 }
 
-/** Every hop of one fetch, within the deadline; same-host loops end there. */
+/** Every hop of one fetch, until the page answers or Stop ends it; same-host loops end there. */
 async function fetchHops(
   first: CheckedPageUrl,
   deps: WebFetchDeps,
@@ -891,9 +893,9 @@ async function fetchHops(
       if (!HTTP_REDIRECT_STATUSES.has(response.status)) {
         return await readPage(response, { requested: first.url, final: current.url }, deps, signal)
       }
-      // No count of its own: a loop of same-host redirects ends at the
-      // fetch's deadline (or Stop); another host is handed back, never
-      // followed, so no loop can hide behind a new name.
+      // No count of its own: a loop of same-host redirects ends at Stop;
+      // another host is handed back, never followed, so no loop can hide
+      // behind a new name.
       const hop = nextHop(response, headersOf(response), current)
       if ('moved' in hop) {
         return movedResult(hop.moved, deps.newMarker())
@@ -925,14 +927,24 @@ export async function fetchWebPage(
   if (!first.ok) {
     return { kind: 'failed', failure: first.failure }
   }
-  const deadline = AbortSignal.timeout(deps.timeoutMs ?? WEB_FETCH_TIMEOUT_MS)
-  const signal = AbortSignal.any([turn, deadline])
+  // D121: no deadline of ours — the page answers, or Stop ends the wait.
+  // The wait names how long it has waited through the caller's notice, as
+  // Model API requests do.
+  const tell = deps.notice
+  const stopNoticing =
+    tell === undefined
+      ? undefined
+      : startStillWaiting((elapsedMs) => {
+          tell(stillWaitingText({ key: 'webFetch' }, elapsedMs))
+        }, deps.noticeMs)
   try {
-    return await fetchHops(first, deps, signal, isStillAllowed)
+    return await fetchHops(first, deps, turn, isStillAllowed)
   } catch (error: unknown) {
     if (turn.aborted) {
       throw error
     }
-    return { kind: 'failed', failure: failureOf(error, deadline) }
+    return { kind: 'failed', failure: failureOf(error) }
+  } finally {
+    stopNoticing?.()
   }
 }

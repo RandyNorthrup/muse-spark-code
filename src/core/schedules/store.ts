@@ -5,7 +5,6 @@ import {
   MILLISECONDS_PER_SECOND,
   SCHEDULE_MAX_PER_WORKSPACE,
   SCHEDULE_ID_MAX_CHARS,
-  SCHEDULE_PAUSE_AFTER_FAILURES,
   SCHEDULE_OUTBOX_MAX_PENDING,
   SCHEDULE_AUDIT_MAX_PER_SCHEDULE,
   SCHEDULE_AUDIT_MAX_AGE_MS,
@@ -60,18 +59,21 @@ const pendingSchema = z.strictObject({
   sequence: z.optional(z.int().check(z.gte(0))),
   ack: z.optional(scheduleFireRecordSchema),
 })
+// The trailing-outcome window the pause count reads. Its width is the
+// person's count at write time, so the stored shape carries no upper bound
+// of ours: the write path slices heads and clamps the baseline to the live
+// count, and older summaries (written under the removed default of 3) are
+// normalized on the next record instead of refused.
 const outcomeSummarySchema = z.strictObject({
-  baselineFailures: z.int().check(z.gte(0), z.lte(SCHEDULE_PAUSE_AFTER_FAILURES)),
-  heads: z
-    .array(
-      z.strictObject({
-        runHash: z.string().check(z.regex(/^[\da-f]{64}$/)),
-        sequence: z.int().check(z.gte(0)),
-        occurrenceMs: scheduleFireRecordSchema.shape.occurrenceMs,
-        outcome: scheduleFireRecordSchema.shape.outcome,
-      }),
-    )
-    .check(z.maxLength(SCHEDULE_PAUSE_AFTER_FAILURES)),
+  baselineFailures: z.int().check(z.gte(0)),
+  heads: z.array(
+    z.strictObject({
+      runHash: z.string().check(z.regex(/^[\da-f]{64}$/)),
+      sequence: z.int().check(z.gte(0)),
+      occurrenceMs: scheduleFireRecordSchema.shape.occurrenceMs,
+      outcome: scheduleFireRecordSchema.shape.outcome,
+    }),
+  ),
 })
 const indexSchema = z.strictObject({
   schedules: z.record(identifier, scheduleV2Schema),
@@ -187,10 +189,26 @@ function fenceFolder(runId: string): string {
 
 const authorityKey = (workspace: string, id: string) => JSON.stringify([workspace, id])
 
+export interface ScheduleStoreOptions {
+  /**
+  D121: the person's pause-after-failures count, read live on every
+  record so a changed setting applies without rebinding. 0 (or anything
+  that is not a positive integer) never pauses: every failure is still
+  recorded, but the schedule keeps firing until the person stops it.
+  */
+  readonly pauseAfterFailures?: number | (() => number) | undefined
+}
+
 export function createScheduleStore(
   fs: ScheduleFsPort,
+  options?: ScheduleStoreOptions,
 ): ScheduleStoreV2 & ScheduleRunJournalPort & ScheduleMigrationJournalPort {
   const authorityGenerations = new Map<string, number>()
+  const pauseLimit = (): number => {
+    const setting = options?.pauseAfterFailures
+    const raw = typeof setting === 'function' ? setting() : (setting ?? 0)
+    return Number.isSafeInteger(raw) && raw > 0 ? raw : 0
+  }
 
   const retireAuthority = (workspace: string, id: string) => {
     const key = authorityKey(workspace, id)
@@ -645,10 +663,16 @@ export function createScheduleStore(
         await immutable(`${folder}.settled`, hash, 'scheduleSettlementConflict')
         const retained = await fires(fire.workspaceKey)
         const job = value.schedules[fire.scheduleId]
+        // D121: the pause window is the person's live count; 0 keeps no
+        // window and never pauses. Older summaries are normalized here, so
+        // a count the person lowers (or clears) takes effect on the next
+        // record instead of pausing on a stale window.
+        const limit = pauseLimit()
         const summary = value.outcomes[fire.scheduleId] ?? {
-          baselineFailures: Math.min(job?.consecutiveFailures ?? 0, SCHEDULE_PAUSE_AFTER_FAILURES),
+          baselineFailures: Math.min(job?.consecutiveFailures ?? 0, limit),
           heads: [],
         }
+        summary.baselineFailures = Math.min(summary.baselineFailures, limit)
         const runHash = scheduleStorageHash(fire.runId)
         summary.heads = [
           ...summary.heads.filter((head) => head.runHash !== runHash),
@@ -660,17 +684,14 @@ export function createScheduleStore(
               b.occurrenceMs - a.occurrenceMs ||
               compareId(b.runHash, a.runHash),
           )
-          .slice(0, SCHEDULE_PAUSE_AFTER_FAILURES)
+          .slice(0, limit)
         if (job !== undefined) value.outcomes[job.id] = summary
         const firstNonFailure = summary.heads.findIndex((head) => head.outcome !== 'failed')
-        const consecutiveFailures =
-          firstNonFailure === -1
-            ? Math.min(
-                SCHEDULE_PAUSE_AFTER_FAILURES,
-                summary.heads.length + summary.baselineFailures,
-              )
-            : firstNonFailure
-        const isMustPause = consecutiveFailures >= SCHEDULE_PAUSE_AFTER_FAILURES
+        let consecutiveFailures = firstNonFailure
+        if (limit === 0) consecutiveFailures = 0
+        else if (firstNonFailure === -1)
+          consecutiveFailures = Math.min(limit, summary.heads.length + summary.baselineFailures)
+        const isMustPause = limit > 0 && consecutiveFailures >= limit
         if (job !== undefined && isMustPause && !job.paused)
           retireAuthority(job.workspaceKey, job.id)
         if (

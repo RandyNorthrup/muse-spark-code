@@ -61,7 +61,8 @@ export const EN = {
   resourceGpu: 'GPU Use',
   resourceDisk: 'Disk Busy',
   resourceDiskFree: 'Free Disk Space',
-  resourceDiskWriteRefused: 'Cannot write to {volume}: critically low free disk space.',
+  resourceDiskWriteRefused:
+    'Cannot write to {volume}: free space is below the disk floor set in settings.',
   resourceDiskMinFreeGiBDescription:
     'Free disk space floor in GiB. Unset means no floor; a set floor is at least 2 GiB.',
   resourceHistory: 'Resource History',
@@ -2670,7 +2671,6 @@ export const EN = {
   webFetchContentTypeUnnamed: 'The page is not HTML or text.',
   webFetchEncoding: 'The page’s compression ({encoding}) could not be read.',
   webFetchEncodingUnnamed: 'The page’s compression could not be read.',
-  webFetchTimeout: 'The page did not arrive within {duration}.',
   webFetchConversionTimeout:
     'The page arrived, but its HTML could not be converted in the time allowed (at most {duration}), so none of it was read.',
   webFetchConversionMemory:
@@ -4326,6 +4326,7 @@ export const EN = {
     sessionDeletion: 'session deletion',
     shellCommand: 'the shell command',
     museServeStarting: 'muse serve starting',
+    webFetch: 'the web page',
   },
   userShellLabel: 'You Ran',
   userShellExitCode: 'Exit code {code}',
@@ -4980,7 +4981,7 @@ export const EN = {
   execProviderNotReady:
     'Provider runs need the provider transport lane; request validation passed for {provider}.',
   execUsage: 'exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -',
-  execScanUsage: 'scan-secrets <file> [--key-stdin]',
+  execScanUsage: 'scan-secrets <file> [--key-stdin] [--timeout <seconds>]',
   scanSecretsExits: 'Exits 0 when clean, 10 when a secret is found, 2 for misuse.',
   execExits:
     'Exits 0 completed, 1 internal, 2 usage, 3 sign-in or backend unavailable, 4 failed, 5 budget or request limit, 6 timeout, 7 denied, 8 incomplete, 9 accounting unverified, 10 output schema mismatch, 130 on SIGINT, 143 on SIGTERM.',

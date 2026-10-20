@@ -1293,7 +1293,7 @@ Attach files by selecting or dropping them, and paste images into the composer. 
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.scheduleDefaultDelivery`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
+Commands: —. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.scheduleDefaultDelivery`, `museSpark.schedulePauseAfterFailures`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
 
 ### Runtime schedules
 
@@ -2398,6 +2398,20 @@ Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
 - `"queue"`:
 - `"whenIdle"`:
 - `"newConversation"`:
+
+### museSpark.schedulePauseAfterFailures
+
+scheduleDeliveryCertified=true: How many consecutive failures pause a schedule. No pause unless you set one: 0 (the default) never pauses a schedule on failures, and every failure is still recorded in its run history.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
 
 ### museSpark.modelApiSubagents
 
@@ -3929,6 +3943,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --memory-max <value>`: resourceThreshold: --memory-max &lt;percent&gt;: Throttle when used memory stays above this percentage for two samples. `{"type":"string","repeatable":false,"purpose":"memory-max"}`
 - `exec: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false,"purpose":"help"}`
 - `scan-secrets: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false}`
+- `scan-secrets: --timeout <value>`: Set the run deadline in seconds (any positive integer); without it the run has no deadline of its own. `{"type":"string","repeatable":false,"minimum":1,"maximum":2147483,"unit":"seconds"}`
 - `scan-secrets: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `report: --out <value>`: --out &lt;file&gt; Write the report to a file instead of stdout `{"type":"string","repeatable":false}`
 - `report: --description <value>`: --description &lt;text&gt; What was happening, in your own words `{"type":"string","repeatable":false}`
@@ -3963,7 +3978,7 @@ These are defaults; editor customizations take precedence.
 - `prompts: --var <value>`: --var &lt;name=value&gt;: Set a prompt variable; repeat for more. `{"type":"string","repeatable":true}`
 - `prompts: --confirm`: --confirm: Confirm without asking. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec <prompt> | exec - | exec --prompt-file <file>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.
-- `scan-secrets <file> [--key-stdin]`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
+- `scan-secrets <file> [--key-stdin] [--timeout <seconds>]`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
 - `playbook <status|record|settings ...>`: Show or change the orchestrator playbook journal for this workspace (starts no backend).
 - `mcp [--connection ID] | mcp <grant|revoke|kill|resume|status ...>`: Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.
 
