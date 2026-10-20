@@ -280,6 +280,7 @@
   "estimateDisclosureMissing": "La información de calibración de los valores numéricos está incompleta.",
   "estimateRuntimeUnavailable": "Las estimaciones no están disponibles en este host. No hay ninguna instantánea del plan conectada.",
   "estimateUnavailable": "No se pudo cargar el estimador, por lo que ninguna estimación puede ejecutarse; reinstale la extensión y recargue la ventana. El registro tiene los detalles.",
+  "webviewBundleUnavailable": "No se pudo cargar el panel, por lo que no puede mostrarse; reinstale la extensión y recargue la ventana. El registro tiene los detalles.",
   "estimateStaleBase": "Base desactualizada ({lanes}): haga rebase antes de empezar.",
   "estimateWaveStarted": "Iniciado: {lanes}.",
   "referenceAgentControls": "Controles del agente; Interrumpir; Detener; Reanudar; Cerrar el agente; Volver a abrir el agente; Marcar resultado como leído; Enviar mensaje; Tarea de seguimiento",

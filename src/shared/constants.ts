@@ -1386,6 +1386,21 @@ export const WORKSPACE_STATE_KEYS = {
 
 // Webview bundle layout produced by scripts/build.mjs.
 export const WEBVIEW_DIST_SEGMENTS = ['dist', 'webview'] as const
+// The webview's solid archive (VSIXWEB A): `dist/webview.json.br` holds
+// every file under `dist/webview/` as exact UTF-8 text with its SHA-256,
+// packed by scripts/package-vsix.mjs; the loose files stay out of the
+// package. The host extracts it once per archive digest into the
+// extension's own global storage and verifies every member before use.
+export const WEBVIEW_ARCHIVE_FILE = 'webview.json.br'
+export const WEBVIEW_ARCHIVE_VERSION = 1
+// The decoded archive is about 1.9 MB today; the compressed file about
+// 0.5 MB, so one bound covers both reads, and each decoded member keeps
+// its own bound (main.js is the largest at about 120 KB).
+export const WEBVIEW_ARCHIVE_MAX_BYTES = 4_000_000
+export const WEBVIEW_ARCHIVE_MEMBER_MAX_BYTES = 1_000_000
+// The extracted copy's folder under global storage, named by the
+// archive's own digest; older digests are removed on extract.
+export const WEBVIEW_ARCHIVE_DIR_PREFIX = 'webview-'
 export const WEBVIEW_SCRIPT_FILE = 'main.js'
 export const WEBVIEW_STYLE_FILE = 'main.css'
 export const WEBVIEW_ROOT_ELEMENT_ID = 'root'
@@ -3328,6 +3343,20 @@ export const BUNDLED_SKILLS_PACKAGE_NAME = 'high-quality-projects-skill'
 export const BUNDLED_SKILLS_VENDOR_SEGMENTS = ['vendor', BUNDLED_SKILLS_PACKAGE_NAME] as const
 export const BUNDLED_SKILLS_DIR = 'skills'
 export const BUNDLED_SKILLS_VENDOR_FILE = 'VENDOR.json'
+export const BUNDLED_SKILLS_LICENSE_FILE = 'LICENSE'
+// The vendored skill package's solid archive (VSIXWEB B):
+// `vendor/high-quality-projects-skill.json.br` holds every vendored file
+// except LICENSE and VENDOR.json (both stay loose: the legal evidence and
+// the attribution a person reads) as exact UTF-8 text with its SHA-256.
+// The installer stages from the archive when it is present, and the skill
+// loader reads through it the same way.
+export const BUNDLED_SKILLS_ARCHIVE_FILE = 'high-quality-projects-skill.json.br'
+export const BUNDLED_SKILLS_ARCHIVE_VERSION = 1
+// The decoded archive is about 380 KB today; the compressed file about
+// 100 KB, so one bound covers both reads, and each decoded member keeps
+// its own bound.
+export const BUNDLED_SKILLS_ARCHIVE_MAX_BYTES = 1_000_000
+export const BUNDLED_SKILLS_ARCHIVE_MEMBER_MAX_BYTES = 1_000_000
 export const BUNDLED_SKILLS_SOURCES_DIR = 'skill-sources'
 // The file that makes a copy the extension's own: only a folder holding it
 // is ever replaced or removed, and only links into it are ever deleted.

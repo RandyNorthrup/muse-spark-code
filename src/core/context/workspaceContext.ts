@@ -32,6 +32,7 @@ import {
   resolveAgent,
 } from './customAgents'
 import { type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
+import { withBundledSkillsArchive } from './bundledSkillsArchive'
 import {
   type BundledSkillsSource,
   bundledSkillsRoot,
@@ -324,7 +325,16 @@ export class WorkspaceContext {
       async () => {
         const recorded = await this.recorder.run(recordOperation, {
           kind: 'skills',
-          deps: { io: this.deps.io, platform: this.deps.platform },
+          deps: {
+            // The vendored package reads through its solid archive when the
+            // install is packaged (VSIXWEB B), the loose tree otherwise.
+            io: withBundledSkillsArchive(
+              this.deps.io,
+              this.deps.bundledSkills?.packageRoot,
+              this.deps.platform,
+            ),
+            platform: this.deps.platform,
+          },
           roots: this.skillRoots(),
         })
         for (const skill of recorded.value.skills)

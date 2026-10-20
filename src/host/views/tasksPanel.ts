@@ -5,15 +5,20 @@ import {
   TASKS_MOVE_TO_WINDOW_COMMAND,
   TASKS_PANEL_VIEW_TYPE,
   UI_TEXT,
-  WEBVIEW_DIST_SEGMENTS,
   WEBVIEW_SCRIPT_FILE,
   WEBVIEW_STYLE_FILE,
 } from '../../shared/constants'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { fill } from '../../shared/l10n/text'
 import { type TasksHostMessage, tasksWebviewMessageSchema } from '../../shared/tasksProtocol'
 import { buildWebviewHtml, createNonce } from '../html'
 import { logRejection } from '../logger'
 import type { TasksTabPort, TasksTabView } from './tasksTabPort'
+import {
+  resolveWebviewBundleDir,
+  webviewBundleErrorHtml,
+  WebviewBundleError,
+} from './webviewBundleRoot'
 import type { WebviewHostContext } from './webviewSetup'
 
 export class TasksPanel implements TasksTabPort, vscode.Disposable {
@@ -25,7 +30,10 @@ export class TasksPanel implements TasksTabPort, vscode.Disposable {
   private isOwnerGone = false
 
   public constructor(
-    private readonly context: Pick<WebviewHostContext, 'extensionUri' | 'l10n' | 'log'>,
+    private readonly context: Pick<
+      WebviewHostContext,
+      'extensionUri' | 'globalStoragePath' | 'l10n' | 'log'
+    >,
     private readonly revealConversation: () => void,
     private readonly onReleased: (tab: TasksPanel) => void,
   ) {}
@@ -49,50 +57,8 @@ export class TasksPanel implements TasksTabPort, vscode.Disposable {
     void this.panel.webview.postMessage(message)
   }
 
-  /** The chat closed: an open tab keeps its ended view until it closes too. */
-  public release(): void {
-    this.isOwnerGone = true
-    if (this.panel === undefined) {
-      this.releaseNow()
-    }
-  }
-
-  public open(view: TasksTabView): void {
-    this.view = view
-    this.isEnded = false
-    if (this.panel !== undefined) {
-      this.panel.title = fill(UI_TEXT.tasksTabTitle, { conversation: view.conversation })
-      this.panel.reveal(undefined, false)
-      this.send()
-      return
-    }
-    const bundleRoot = vscode.Uri.joinPath(this.context.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
-    const panel = vscode.window.createWebviewPanel(
-      TASKS_PANEL_VIEW_TYPE,
-      fill(UI_TEXT.tasksTabTitle, { conversation: view.conversation }),
-      vscode.ViewColumn.Beside,
-      {},
-    )
-    this.panel = panel
-    this.isReady = false
-    this.canMoveToWindow = false
-    panel.webview.options = {
-      enableScripts: true,
-      enableCommandUris: false,
-      localResourceRoots: [bundleRoot],
-    }
-    panel.webview.html = buildWebviewHtml({
-      scriptUri: panel.webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_SCRIPT_FILE))
-        .toString(),
-      styleUri: panel.webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_STYLE_FILE))
-        .toString(),
-      cspSource: panel.webview.cspSource,
-      nonce: createNonce(),
-      l10n: this.context.l10n,
-      surface: 'tasks',
-    })
+  /** The message handling every tasks tab shares, bundle or failure document alike. */
+  private finishOpen(panel: vscode.WebviewPanel): void {
     const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
       const parsed = tasksWebviewMessageSchema.safeParse(raw)
       if (!parsed.success) {
@@ -139,6 +105,75 @@ export class TasksPanel implements TasksTabPort, vscode.Disposable {
       },
       logRejection(this.context.log, 'tasks window commands'),
     )
+  }
+
+  /** The chat closed: an open tab keeps its ended view until it closes too. */
+  public release(): void {
+    this.isOwnerGone = true
+    if (this.panel === undefined) {
+      this.releaseNow()
+    }
+  }
+
+  public open(view: TasksTabView): void {
+    this.view = view
+    this.isEnded = false
+    if (this.panel !== undefined) {
+      this.panel.title = fill(UI_TEXT.tasksTabTitle, { conversation: view.conversation })
+      this.panel.reveal(undefined, false)
+      this.send()
+      return
+    }
+    const panel = vscode.window.createWebviewPanel(
+      TASKS_PANEL_VIEW_TYPE,
+      fill(UI_TEXT.tasksTabTitle, { conversation: view.conversation }),
+      vscode.ViewColumn.Beside,
+      {},
+    )
+    this.panel = panel
+    this.isReady = false
+    this.canMoveToWindow = false
+    let bundleRoot: vscode.Uri
+    try {
+      bundleRoot = vscode.Uri.file(
+        resolveWebviewBundleDir({
+          extensionPath: this.context.extensionUri.fsPath,
+          globalStoragePath: this.context.globalStoragePath,
+        }),
+      )
+    } catch (error: unknown) {
+      if (!(error instanceof WebviewBundleError)) throw error
+      this.context.log.error(`Tasks webview bundle failed: ${failureForLog(error)}`)
+      panel.webview.options = {
+        enableScripts: true,
+        enableCommandUris: false,
+        localResourceRoots: [],
+      }
+      panel.webview.html = webviewBundleErrorHtml(
+        UI_TEXT.webviewBundleUnavailable,
+        this.context.l10n.locale,
+      )
+      this.finishOpen(panel)
+      return
+    }
+    panel.webview.options = {
+      enableScripts: true,
+      enableCommandUris: false,
+      localResourceRoots: [bundleRoot],
+    }
+    panel.webview.html = buildWebviewHtml({
+      scriptUri: panel.webview
+        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_SCRIPT_FILE))
+        .toString(),
+      styleUri: panel.webview
+        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_STYLE_FILE))
+        .toString(),
+      cspSource: panel.webview.cspSource,
+      nonce: createNonce(),
+      l10n: this.context.l10n,
+      surface: 'tasks',
+    })
+    this.finishOpen(panel)
   }
 
   public update(view: TasksTabView): void {

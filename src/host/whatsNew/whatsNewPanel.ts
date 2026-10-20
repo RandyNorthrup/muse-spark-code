@@ -18,19 +18,25 @@ import { releasesToShow } from '../../core/whatsNew/whatsNewVersions'
 import {
   UI_TEXT,
   VSCODE_COMMANDS,
-  WEBVIEW_DIST_SEGMENTS,
   WHATS_NEW_SCRIPT_FILE,
   WHATS_NEW_STYLE_FILE,
   WHATS_NEW_VIEW_TYPE,
 } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { parseWhatsNewMessage, type WhatsNewMessage } from '../../shared/whatsNewMessages'
+import {
+  resolveWebviewBundleDir,
+  webviewBundleErrorHtml,
+  WebviewBundleError,
+} from '../views/webviewBundleRoot'
 import { createNonce } from '../html'
 import type { Logger } from '../logger'
 import { renderWhatsNewPage } from './whatsNewHtml'
 
 export interface WhatsNewPagesDeps {
   readonly extensionUri: vscode.Uri
+  /** The machine's storage for the verified webview copy (VSIXWEB A). */
+  readonly globalStoragePath: string
   /** dist/whatsNew.json beside the bundle. */
   readonly contentPath: string
   /** The running extension's version. */
@@ -69,7 +75,22 @@ export function createWhatsNewPagesFor(deps: WhatsNewPagesDeps): WhatsNewPages {
   }
   const releases = (from: string | undefined) =>
     releasesToShow(contentNow().releases, from, deps.current)
-  const bundleRoot = vscode.Uri.joinPath(deps.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
+  // The verified webview copy (VSIXWEB A): a packaged install extracts it
+  // once per archive digest into global storage, the source tree serves its
+  // loose files. A missing, damaged or unwritable extraction shows the
+  // fixed sentence, never unverified files.
+  let bundleRoot: vscode.Uri | undefined
+  try {
+    bundleRoot = vscode.Uri.file(
+      resolveWebviewBundleDir({
+        extensionPath: deps.extensionUri.fsPath,
+        globalStoragePath: deps.globalStoragePath,
+      }),
+    )
+  } catch (error: unknown) {
+    if (!(error instanceof WebviewBundleError)) throw error
+    deps.log.error(`What’s New webview bundle failed: ${failureForLog(error)}`)
+  }
   let shown: Shown | undefined
 
   const act = async (target: Shown, message: WhatsNewMessage): Promise<void> => {
@@ -112,6 +133,10 @@ export function createWhatsNewPagesFor(deps: WhatsNewPagesDeps): WhatsNewPages {
 
   const render = (target: Shown, from: string | undefined): void => {
     const { webview } = target.panel
+    if (bundleRoot === undefined) {
+      webview.html = webviewBundleErrorHtml(UI_TEXT.webviewBundleUnavailable, uiLocale())
+      return
+    }
     const page = renderWhatsNewPage({
       releases: releases(from),
       from,
@@ -138,7 +163,11 @@ export function createWhatsNewPagesFor(deps: WhatsNewPagesDeps): WhatsNewPages {
       WHATS_NEW_VIEW_TYPE,
       UI_TEXT.whatsNewTitle,
       { viewColumn: vscode.ViewColumn.Active, preserveFocus: isBackground },
-      { enableScripts: true, enableFindWidget: true, localResourceRoots: [bundleRoot] },
+      {
+        enableScripts: true,
+        enableFindWidget: true,
+        localResourceRoots: bundleRoot === undefined ? [] : [bundleRoot],
+      },
     )
     const target: Shown = { panel, tries: [], links: [] }
     const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {

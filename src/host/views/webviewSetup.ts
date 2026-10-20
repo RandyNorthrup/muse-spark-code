@@ -5,12 +5,7 @@ import { estimateFailureText } from '../../shared/estimateDiagnostic'
 
 import * as vscode from 'vscode'
 import { failureForLog } from '../../core/backends/musecode/logText'
-import {
-  UI_TEXT,
-  WEBVIEW_DIST_SEGMENTS,
-  WEBVIEW_SCRIPT_FILE,
-  WEBVIEW_STYLE_FILE,
-} from '../../shared/constants'
+import { UI_TEXT, WEBVIEW_SCRIPT_FILE, WEBVIEW_STYLE_FILE } from '../../shared/constants'
 import {
   type HostToWebviewMessage,
   parseWebviewToHostMessage,
@@ -23,10 +18,17 @@ import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from './chatSurface'
 import { mintFocusRequest, shouldDeliverFocusInput } from './focusGate'
+import {
+  resolveWebviewBundleDir,
+  webviewBundleErrorHtml,
+  WebviewBundleError,
+} from './webviewBundleRoot'
 import { webviewErrorLog } from './webviewErrors'
 
 export interface WebviewHostContext {
   readonly extensionUri: vscode.Uri
+  /** The machine's storage for the verified webview copy (VSIXWEB A). */
+  readonly globalStoragePath: string
   /** The display language's table, installed at activation, for every webview's HTML (D33). */
   readonly l10n: UiTable
   readonly log: Logger
@@ -81,6 +83,39 @@ function buildInitMessage(context: WebviewHostContext, isSideChat: boolean): Hos
 }
 
 /**
+A surface with no verified bundle behind it (VSIXWEB A): the panel shows
+the fixed sentence, messages drop, and revealing still brings the failure
+into view. Reload and dispose stay quiet; a fresh surface (a reopened
+panel) retries the bundle.
+*/
+function inertSurface(options: SurfaceOptions): ChatSurface {
+  return {
+    id: options.id,
+    isSideChat: options.isSideChat === true,
+    documentId: '',
+    post() {
+      // No verified bundle behind the surface: outbound messages drop.
+    },
+    reveal: () => {
+      options.reveal()
+    },
+    markUnread() {
+      // Nothing unread or titled without a document.
+    },
+    setTitle() {
+      // Nothing unread or titled without a document.
+    },
+    reload() {
+      // A reopened panel retries the bundle; the dead document never rebuilds.
+    },
+    takeRestoredSessionId: () => options.restoredSessionId,
+    dispose() {
+      // Nothing subscribed, so nothing to stop.
+    },
+  }
+}
+
+/**
 Configures `webview` and starts handling its messages. Disposing the
 returned surface stops the message handling; callers tie it to the owning
 view's or panel's `onDidDispose`.
@@ -90,7 +125,25 @@ export function configureWebview(
   context: WebviewHostContext,
   options: SurfaceOptions,
 ): ChatSurface {
-  const bundleRoot = vscode.Uri.joinPath(context.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
+  // The verified webview copy (VSIXWEB A): a packaged install extracts it
+  // once per archive digest into global storage, the source tree serves its
+  // loose files. A missing, damaged or unwritable extraction shows the
+  // fixed sentence and drops messages, never unverified files.
+  let bundleRoot: vscode.Uri
+  try {
+    bundleRoot = vscode.Uri.file(
+      resolveWebviewBundleDir({
+        extensionPath: context.extensionUri.fsPath,
+        globalStoragePath: context.globalStoragePath,
+      }),
+    )
+  } catch (error: unknown) {
+    if (!(error instanceof WebviewBundleError)) throw error
+    context.log.error(`Chat webview bundle failed: ${failureForLog(error)}`)
+    webview.options = { enableScripts: true, localResourceRoots: [] }
+    webview.html = webviewBundleErrorHtml(UI_TEXT.webviewBundleUnavailable, context.l10n.locale)
+    return inertSurface(options)
+  }
   webview.options = { enableScripts: true, localResourceRoots: [bundleRoot] }
   // M107: each build names its document; the id it returns is the only current one.
   const buildDocument = (): string => {

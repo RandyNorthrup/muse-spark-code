@@ -279,6 +279,7 @@
   "estimateDisclosureMissing": "Die Kalibrierungsangaben für Zahlenwerte sind unvollständig.",
   "estimateRuntimeUnavailable": "Schätzungen sind in diesem Host nicht verfügbar. Kein Planschnappschuss ist angebunden.",
   "estimateUnavailable": "Der Schätzer konnte nicht geladen werden, daher kann keine Schätzung starten; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
+  "webviewBundleUnavailable": "Das Panel konnte nicht geladen werden und wird daher nicht angezeigt; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
   "estimateStaleBase": "Veraltete Basis ({lanes}): vor dem Start rebasen.",
   "estimateWaveStarted": "Gestartet: {lanes}.",
   "referenceAgentControls": "Agentensteuerung; Unterbrechen; Anhalten; Fortsetzen; Agent schließen; Agent erneut öffnen; Ergebnis als gelesen markieren; Nachricht senden; Folgeaufgabe",
