@@ -429,7 +429,7 @@ export const EN = {
       '--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)',
     verbose: '--verbose                        Log every detail on stderr',
     'questions-defer-after':
-      '--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600)',
+      '--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers)',
     help: 'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
     version: 'Print the installed agent version.',
     cwd: 'Use this directory as the workspace.',
@@ -4579,7 +4579,7 @@ export const EN = {
     '  --trust-workspace                Load the folder’s rules, skills and memory',
     '  --muse-binary <path>             The Muse Code CLI to run',
     '  --shell-sandbox auto|muse|off    Muse Code’s shell sandbox',
-    '  --questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600)',
+    '  --questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers)',
     '  --allow-dangerously-skip-permissions  Offer the Bypass permissions mode',
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',

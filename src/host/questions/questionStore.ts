@@ -3,7 +3,6 @@ import { questionDeferSeconds } from '../../shared/questionDeadline'
 import {
   QUESTION_DEFER_DEFAULT_SECONDS,
   QUESTION_DEFER_SETTING,
-  QUESTION_DEFER_MAX_SECONDS,
   SETTINGS_SECTION,
 } from '../../shared/constants'
 import type { QuestionClock } from '../../shared/questions'
@@ -15,11 +14,8 @@ export function questionsDeferAfterSeconds(): number {
     .inspect<unknown>(QUESTION_DEFER_SETTING)
   const value = setting?.globalValue
   return (
-    questionDeferSeconds(
-      typeof value === 'number'
-        ? Math.min(QUESTION_DEFER_MAX_SECONDS, Math.max(0, value))
-        : QUESTION_DEFER_DEFAULT_SECONDS,
-    ) ?? QUESTION_DEFER_DEFAULT_SECONDS
+    questionDeferSeconds(typeof value === 'number' ? value : QUESTION_DEFER_DEFAULT_SECONDS) ??
+    QUESTION_DEFER_DEFAULT_SECONDS
   )
 }
 

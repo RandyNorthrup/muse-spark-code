@@ -186,7 +186,7 @@
   "config.resourceRelocate.enumDescriptions.off": "Kaynak duraklatmalarında eksik rota bildirimini gizler; işler bu makinede kalır.",
   "command.nextOpenQuestion.title": "Sonraki açık soru",
   "command.previousOpenQuestion.title": "Önceki açık soru",
-  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Ayarlanmadıkça sınır yok: 0 (varsayılan) hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır.",
+  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Ayarlanmadıkça sınır yok: 0 (varsayılan) hiçbir zaman demektir; diğer tüm tam saniye değerleri ayarlandığı gibi kullanılır. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır.",
   "command.startWithOwnModel.title": "Kendi modelinizle başlayın",
   "command.modelsAndAgents.title": "Modeller ve Ajanlar",
   "command.addModelProvider.title": "Model sağlayıcı ekle…",

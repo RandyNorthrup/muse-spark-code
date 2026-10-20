@@ -3,9 +3,8 @@ import {
   MILLISECONDS_PER_SECOND,
   OPEN_QUESTIONS_MAX,
   QUESTION_DEFER_DEFAULT_SECONDS,
-  QUESTION_DEFER_MAX_SECONDS,
-  QUESTION_DEFER_MIN_SECONDS,
   QUESTION_DELIVERY_MODEL_TEXT,
+  TIMER_MAX_DELAY_MS,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -45,9 +44,10 @@ export interface QuestionRequest {
 }
 
 export function questionDeferSeconds(value: number): number {
-  if (value === 0) return 0
-  const bounded = Math.min(QUESTION_DEFER_MAX_SECONDS, Math.max(QUESTION_DEFER_MIN_SECONDS, value))
-  return Number.isSafeInteger(value) ? bounded : QUESTION_DEFER_DEFAULT_SECONDS
+  // D121: no threshold of ours. Any whole number of seconds at or above
+  // zero is taken as set (0 never defers); anything else falls back to the
+  // default, never to a silently replaced value.
+  return Number.isSafeInteger(value) && value >= 0 ? value : QUESTION_DEFER_DEFAULT_SECONDS
 }
 
 /** One holding process per session. Persistence and marks precede external effects. */
@@ -161,18 +161,33 @@ export class QuestionRegistry {
   }
 
   private armTimer(entry: OpenQuestion): void {
-    if (
-      !this.deps.hasExternalTimer &&
-      entry.state === 'waiting' &&
-      entry.deadlineAt !== undefined
-    ) {
-      this.timers.set(
-        entry.userInputId,
-        this.deps.setTimer(Math.max(0, entry.deadlineAt - this.deps.now()), () => {
-          void this.defer(entry.userInputId).catch(this.deps.failed)
-        }),
-      )
+    if (this.deps.hasExternalTimer || entry.state !== 'waiting' || entry.deadlineAt === undefined)
+      return
+    // A delay past one timer's reach (2^31-1 ms, about 24.8 days) fires
+    // at once on a single setTimeout, so the wait runs as timer-sized
+    // pieces, re-armed while the deadline is still ahead.
+    const deadlineAt = entry.deadlineAt
+    const userInputId = entry.userInputId
+    let isCancelled = false
+    let cancelPiece: (() => void) | undefined
+    const arm = (): void => {
+      if (isCancelled) return
+      const delay = Math.max(0, deadlineAt - this.deps.now())
+      if (delay <= TIMER_MAX_DELAY_MS) {
+        cancelPiece = this.deps.setTimer(delay, () => {
+          void this.defer(userInputId).catch(this.deps.failed)
+        })
+      } else {
+        cancelPiece = this.deps.setTimer(TIMER_MAX_DELAY_MS, () => {
+          arm()
+        })
+      }
     }
+    arm()
+    this.timers.set(userInputId, () => {
+      isCancelled = true
+      cancelPiece?.()
+    })
   }
 
   private expireOldest(): void {
