@@ -1,15 +1,10 @@
 // M107 lane 0: portable contracts, with private process identity kept out of egress.
 import * as z from 'zod/mini'
 import {
-  RESOURCE_CPU_MIN_PERCENT,
   RESOURCE_EXEC_EVENT_VERSION,
   RESOURCE_GIB_BYTES,
   RESOURCE_ID_MAX_LENGTH,
   RESOURCE_MEMORY_FLOOR_MAX_FRACTION,
-  RESOURCE_MEMORY_MAX_FREE_GIB,
-  RESOURCE_MEMORY_MAX_PERCENT,
-  RESOURCE_MEMORY_MIN_FREE_GIB,
-  RESOURCE_MEMORY_MIN_PERCENT,
   RESOURCE_OPTIONAL_MIN_PERCENT,
 } from './constants'
 
@@ -41,14 +36,12 @@ const percent = /* @__PURE__ */ z.number().check(z.gte(0), z.lte(100))
 const reading = /* @__PURE__ */ z.nullable(percent)
 const counter = /* @__PURE__ */ z.number().check(z.gte(0), z.int())
 const id = /* @__PURE__ */ z.string().check(z.minLength(1), z.maxLength(RESOURCE_ID_MAX_LENGTH))
-const cpuLimit = percent.check(z.gte(RESOURCE_CPU_MIN_PERCENT))
-const memoryLimit = percent.check(
-  z.gte(RESOURCE_MEMORY_MIN_PERCENT),
-  z.lte(RESOURCE_MEMORY_MAX_PERCENT),
-)
-const memoryFloor = /* @__PURE__ */ z
-  .number()
-  .check(z.gte(RESOURCE_MEMORY_MIN_FREE_GIB), z.lte(RESOURCE_MEMORY_MAX_FREE_GIB))
+// NOLIMITSSET (PLAN.md D121): the person's CPU, memory and memory-floor
+// values keep only the quantity's own nature — a percentage's 0–100, a GiB
+// floor's zero. The removed 30/40/98 and 0.5/64 bounds were ours.
+const cpuLimit = percent
+const memoryLimit = percent
+const memoryFloor = /* @__PURE__ */ z.number().check(z.gte(0))
 const optionalLimit = /* @__PURE__ */ z.nullable(
   percent.check(z.gte(RESOURCE_OPTIONAL_MIN_PERCENT)),
 )
@@ -66,9 +59,9 @@ export const resourceSettingsSchema = /* @__PURE__ */ (() =>
     gpuMaxPercent: z._default(optionalLimit, null),
     diskBusyMaxPercent: z._default(optionalLimit, null),
     // null means no floor; an explicit value is a machine-only GiB floor
-    // of at least 2, the same set-value validation the CPU and memory
-    // thresholds keep for the person's own value.
-    diskMinFreeGiB: z._default(z.nullable(z.number().check(z.gte(2))), null),
+    // of zero or more (NOLIMITSSET: the removed 2 GiB floor was ours — a GiB
+    // floor's own zero is the quantity itself).
+    diskMinFreeGiB: z._default(z.nullable(z.number().check(z.gte(0))), null),
     relocate: z._default(z.enum(['paired', 'ask', 'off']), 'paired'),
   }))()
 export type ResourceSettings = z.infer<typeof resourceSettingsSchema>

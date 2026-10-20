@@ -255,5 +255,6 @@
   "sortAscending": "Řadit vzestupně",
   "sortDescending": "Řadit sestupně",
   "retentionNote": "Podrobnosti o voláních se uchovávají {detailDays} dnů, denní souhrny {historyDays} dnů.",
+  "retentionNoteKept": "Podrobnosti o voláních se uchovávají {detailDays} dnů, denní souhrny se uchovávají, dokud nenastavíte počet dní nebo je nevymažete.",
   "privacyNote": "Historie zůstává na tomto počítači. Neobsahuje výzvy, odpovědi, argumenty nástrojů, cesty ani klíče."
 }

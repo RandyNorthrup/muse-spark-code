@@ -4,10 +4,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   MEDIA_FILE_EXPIRY_DEFAULT_S,
-  MEDIA_FILE_EXPIRY_MIN_S,
-  MEDIA_FILE_EXPIRY_MAX_S,
-  MEDIA_UPLOAD_EXPIRY_MIN_DAYS,
-  MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
+  MEDIA_UPLOAD_EXPIRY_DAY_MIN,
   MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS,
   MEDIA_NAME_MAX_CHARS,
   SECONDS_PER_DAY,
@@ -39,23 +36,17 @@ const deletionSchema = z.object({ id: fileId, object: z.literal('file'), deleted
 export type ProviderFile = z.infer<typeof fileSchema>
 
 /**
-`museSpark.mediaUploadExpiryDays` as Files `expires_after` seconds,
-clamped to the setting's 1–30 days and the wire's bounds; anything else
-keeps the 7-day default.
+`museSpark.mediaUploadExpiryDays` as Files `expires_after` seconds, honoured
+as set (NOLIMITSSET, PLAN.md D121: the removed 1–30 day range and the wire
+seconds range were ours — no capability record carries either, so the
+provider decides what it keeps and its receipt verifies it). Anything that is
+not a whole day of at least 1 keeps the 7-day default.
 */
 export function uploadExpirySeconds(days: unknown): number {
   const fallback = MEDIA_FILE_EXPIRY_DEFAULT_S
-  if (typeof days !== 'number' || !Number.isSafeInteger(days)) return fallback
-  const clampedDays = Math.min(
-    Math.max(days, MEDIA_UPLOAD_EXPIRY_MIN_DAYS),
-    MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
-  )
-  return clampedDays === MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS
-    ? fallback
-    : Math.min(
-        Math.max(clampedDays * SECONDS_PER_DAY, MEDIA_FILE_EXPIRY_MIN_S),
-        MEDIA_FILE_EXPIRY_MAX_S,
-      )
+  if (typeof days !== 'number' || !Number.isSafeInteger(days) || days < MEDIA_UPLOAD_EXPIRY_DAY_MIN)
+    return fallback
+  return days === MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS ? fallback : days * SECONDS_PER_DAY
 }
 
 /**
@@ -116,11 +107,10 @@ export class FilesApi {
         ? this.deps.expirySeconds()
         : this.deps.expirySeconds
     const expiry = configured ?? MEDIA_FILE_EXPIRY_DEFAULT_S
-    if (
-      !Number.isSafeInteger(expiry) ||
-      expiry < MEDIA_FILE_EXPIRY_MIN_S ||
-      expiry > MEDIA_FILE_EXPIRY_MAX_S
-    ) {
+    // NOLIMITSSET (PLAN.md D121): wire shape only — a safe positive integer
+    // of seconds. No range of ours: the person's days arrive as set and the
+    // provider refuses what it cannot keep.
+    if (!Number.isSafeInteger(expiry) || expiry <= 0) {
       throw new Error('Invalid upload expiry')
     }
     // D121: no upload bound of ours — an absent cap admits any size and the

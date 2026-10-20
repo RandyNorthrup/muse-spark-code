@@ -1,11 +1,7 @@
 import { Usd } from '../../shared/usd'
 // M102 / D82: the host supplies journal, live sources and user actions. No
 // editor API, filesystem path from a page, model call or fetch belongs here.
-import {
-  USAGE_DETAIL_DAYS,
-  USAGE_HISTORY_DAYS_DEFAULT,
-  USAGE_JOURNAL_VERSION,
-} from '../../shared/constants'
+import { USAGE_DETAIL_DAYS, USAGE_JOURNAL_VERSION } from '../../shared/constants'
 import { USAGE_TEXT, type UsageTable } from '../../shared/l10n/usageTable'
 import type { ResourceHistory } from '../../shared/resourceHistory'
 import { usageDeleteDetail } from '../../shared/usageDeleteText'
@@ -63,7 +59,10 @@ export interface UsageServiceDeps {
   readonly table: UsageTable
   readonly capabilities?: UsagePageState['capabilities']
   readonly journal: UsageJournalPort
-  readonly history: () => { readonly enabled: boolean; readonly historyDays?: number }
+  readonly history: () => {
+    readonly enabled: boolean
+    readonly historyDays?: number | null
+  }
   readonly setHistory: (isEnabled: boolean) => Promise<void>
   readonly readBudgets: UsageBudgetReadPort['readToday']
   /** Host provides subscription/account snapshots; never requests a model. */
@@ -220,7 +219,8 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
         enabled: settings.enabled,
         host: deps.host,
         detailDays: USAGE_DETAIL_DAYS,
-        historyDays: settings.historyDays ?? USAGE_HISTORY_DAYS_DEFAULT,
+        // NOLIMITSSET (PLAN.md D121): null keeps every day — no day count of ours.
+        historyDays: settings.historyDays ?? null,
         recordCount: journal.recordCount,
         newerVersionRecords: journal.newerVersionRecords,
         tornLines: journal.tornLines,

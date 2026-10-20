@@ -74,7 +74,8 @@ export const RESOURCE_JOURNAL_REMOVE_MARGIN_DAYS = 2
 // A record stamped further ahead than this (a wrong clock) is out of range.
 export const RESOURCE_JOURNAL_FUTURE_SKEW_MS = 5 * RESOURCE_HISTORY_MINUTE_MS
 // D87.11 under D82's rollups: completed UTC days become one daily row in
-// `rollups/<YYYY-MM>.json`, kept for the usage-history days (at most 1825).
+// `rollups/<YYYY-MM>.json`, kept for the usage-history days (NOLIMITSSET:
+// every day with nothing set, the person's day count once set).
 // A day is rolled up once it ended this long ago, so its last minute is in.
 export const RESOURCE_JOURNAL_ROLLUP_DELAY_MS = 60 * RESOURCE_HISTORY_MINUTE_MS
 // Retention and rollup run at most this often per process.
@@ -93,11 +94,10 @@ export const RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS = 50
 export const RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS = 200
 // A closing window or agent waits at most this long for its open minute's write.
 export const RESOURCE_HISTORY_FLUSH_TIMEOUT_MS = 2000
-export const RESOURCE_CPU_MIN_PERCENT = 30
-export const RESOURCE_MEMORY_MIN_PERCENT = 40
-export const RESOURCE_MEMORY_MAX_PERCENT = 98
-export const RESOURCE_MEMORY_MIN_FREE_GIB = 0.5
-export const RESOURCE_MEMORY_MAX_FREE_GIB = 64
+// NOLIMITSSET (PLAN.md D121): the person's CPU, memory and memory-floor
+// values keep only the quantity's own nature (a percentage's 0–100, a GiB
+// floor's zero), validated where the settings are read. The removed 30/40/98
+// and 0.5/64 bounds were ours, never a provider's.
 export const RESOURCE_OPTIONAL_MIN_PERCENT = 1
 export const RESOURCE_ID_MAX_LENGTH = 256
 // U–C1: the window status message's JSON text; its strict schema runs in the deferred chip.
@@ -697,11 +697,12 @@ export const SETTING_DEFAULTS = {
   // D78: inert without a hooks file; Restricted Mode loads and runs none.
   modelApiTeamWorkers: true,
   modelApiHooks: true,
-  // M127: Muse Code's own hook and subagent defaults as settings. D121:
-  // no limit unless the person sets one, so Stop continuations and
-  // concurrent subagents are 0 (unlimited) by default; a set value stays
-  // within Muse Code's own ranges (1–8 and 1–64). Running hook commands
-  // stay 0 (unlimited, as Muse Code starts all matching handlers at once).
+  // M127: the hook and subagent counts as settings. D121: no limit unless
+  // the person sets one, so Stop continuations and concurrent subagents are
+  // 0 (unlimited) by default and a set whole count governs as set
+  // (NOLIMITSSET: the removed 1–8 and 1–64 ranges were ours). Running hook
+  // commands stay 0 (unlimited, as Muse Code starts all matching handlers
+  // at once).
   hooksMaxStopContinuations: 0,
   hooksMaxRunningCommands: 0,
   subagentMaxConcurrent: 0,
@@ -755,7 +756,9 @@ export const SETTING_DEFAULTS = {
   modelApiStrictTools: true,
   modelApiParallelReads: true,
   // D121: no search bound of ours — 0 sends no max of ours and the provider
-  // decides how many hosted searches run; a set value stays within 1–20.
+  // decides how many hosted searches run; a set whole count sends as set
+  // (NOLIMITSSET: the removed 1–20 range was ours, no capability record
+  // carries one).
   webSearchMaxPerRequest: 0,
   // Lane RETRYLIMITS (owner's binding rule): the person's retry limit, unset
   // by default (null). Set, it caps every provider's retries; unset, each
@@ -793,7 +796,9 @@ export const SETTING_DEFAULTS = {
   // set by the person; 0 is none, the default. No limit is hard-coded.
   paidDailyBudgetUsd: 0,
   usageHistory: true,
-  usageHistoryDays: 365,
+  // NOLIMITSSET (PLAN.md D121): null keeps history until the person sets a
+  // number of days or clears it — no retention limit of ours as a default.
+  usageHistoryDays: null as number | null,
   linuxDictationModel: true,
   dictationEngine: 'system' as 'system' | 'museVoice',
   // A session budget cap in US dollars for each Model API conversation
@@ -1021,10 +1026,10 @@ export const HOOK_TOOL_OUTPUT_PREVIEW_CHARS = 1024
 export const HOOK_TOOL_NESTING_MAX = 4
 export const HOOK_TOOL_ENTRIES_MAX = 16
 export const MODEL_API_HOOK_PROVIDER = 'meta'
-// The set-value ceiling for stop-hook continuations (Muse Code's own bound
-// 8, M127): `museSpark.hooksMaxStopContinuations` sets one within 1–8 and
-// defaults to 0 (unlimited, D121).
-export const HOOK_MAX_STOP_CONTINUATIONS = 8
+// NOLIMITSSET (PLAN.md D121): no ceiling of ours on Stop-hook
+// continuations — `museSpark.hooksMaxStopContinuations` defaults to 0
+// (unlimited) and a set whole count governs as set. The removed 8 was ours,
+// never a provider's documented limit.
 export const HOOK_CONTROL_CODE_LIMIT = 32
 export const HOOK_NEWLINE_CODE = 10
 export const HOOK_DELETE_CODE = 127
@@ -1038,33 +1043,25 @@ export const HOOK_TOTAL_MAX_HANDLERS = 64
 // `museSpark.hooksMaxRunningCommands` defaults to 0 (unlimited, as Muse
 // Code starts all matching handlers at once).
 export const HOOK_MAX_RUNNING_COMMANDS = 4
-// The settings that replace the fixed numbers above with Muse Code's own
-// defaults (M127): stop continuations default 0 (unlimited), running
+// The settings that replace the fixed numbers above with the person's own
+// values (M127, D121): stop continuations default 0 (unlimited), running
 // commands default 0 (unlimited: Muse Code starts all matching handlers at
-// once), subagents default 0 (unlimited) within Muse Code's 1–64
-// execution-capacity range for a set value (D121).
-export const HOOK_STOP_CONTINUATIONS_MIN = 1
+// once), subagents default 0 (unlimited). NOLIMITSSET: the removed 1–8 and
+// 1–64 set-value ranges were ours, never a provider's documented limit.
 export const HOOK_RUNNING_COMMANDS_MIN = 0
-export const SUBAGENT_CONCURRENT_MIN = 1
-export const SUBAGENT_CONCURRENT_MAX = 64
 /**
-A set Stop-continuation bound as an effective row limit (M127, D121): 0
-is no limit of ours, anything else stays within Muse Code's own 1–8.
+A set Stop-continuation count as an effective row limit (M127, D121): 0
+is no limit of ours, a set whole count governs as set.
 */
 export function stopContinuationLimitFor(value: number): number {
-  return value === 0
-    ? Infinity
-    : Math.min(Math.max(value, HOOK_STOP_CONTINUATIONS_MIN), HOOK_MAX_STOP_CONTINUATIONS)
+  return value === 0 ? Infinity : value
 }
 /**
-A set subagent-concurrency bound as an effective worker cap (M127,
-D121): 0 is no limit of ours, anything else stays within Muse Code's own
-1–64 execution-capacity range.
+A set subagent-concurrency count as an effective worker cap (M127,
+D121): 0 is no limit of ours, a set whole count governs as set.
 */
 export function subagentConcurrencyFor(value: number): number {
-  return value === 0
-    ? Infinity
-    : Math.min(Math.max(value, SUBAGENT_CONCURRENT_MIN), SUBAGENT_CONCURRENT_MAX)
+  return value === 0 ? Infinity : value
 }
 export const HOOK_ON_FAILURE_MAX_DEPTH = 3
 export const HOOK_MANAGED_ENV_MAX_NAMES = 64
@@ -1620,8 +1617,10 @@ export const MEDIA_CONVERTER_SHIM_PATTERNS = [
   /[\\/]scoop[\\/]shims[\\/]/iu,
   /^\/snap\//u,
 ] as const
-export const MEDIA_FILE_EXPIRY_MIN_S = 3600
-export const MEDIA_FILE_EXPIRY_MAX_S = 2_592_000
+// NOLIMITSSET (PLAN.md D121): the Files wire takes the person's days as
+// seconds, honoured as set — the provider refuses what it cannot keep, and
+// the upload receipt still verifies what it honoured. The removed
+// 3600–2,592,000 s wire range was ours (no documented provider range).
 export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800
 export const MEDIA_MAX_UPLOAD_DEFAULT_MIB = 200
 export const MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES = MEDIA_MAX_UPLOAD_DEFAULT_MIB * 1024 * 1024
@@ -1680,9 +1679,14 @@ export const MEDIA_UPLOAD_EXPIRY_SETTING = 'museSpark.mediaUploadExpiryDays'
 export const MEDIA_MAX_UPLOAD_SETTING = 'museSpark.mediaMaxUploadMiB'
 export const MEDIA_AUDIO_ACTION_SETTING = 'museSpark.mediaAudioAction'
 export const SCREEN_RECORDING_MAX_SECONDS_SETTING = 'museSpark.screenRecordingMaxSeconds'
-/** Days a provider keeps an uploaded file (M105): the manifest allows 1–30. */
-export const MEDIA_UPLOAD_EXPIRY_MIN_DAYS = 1
-export const MEDIA_UPLOAD_EXPIRY_MAX_DAYS = 30
+/**
+Days a provider keeps an uploaded file (M105, NOLIMITSSET): the person's
+whole days, honoured as set — 7 by default. The removed 1–30 range was ours:
+no capability record carries an upload-expiry range (verified against
+src/core/media/metaMediaCapabilities.ts), so no local range is enforced and
+the provider decides what it keeps.
+*/
+export const MEDIA_UPLOAD_EXPIRY_DAY_MIN = 1
 export const MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS = 7
 /**
 What the attach flow offers for audio (M105): the manifest exposes only
@@ -2645,20 +2649,19 @@ export const TOOL_ARGUMENT_PREVIEW_INTERVAL_MS = 100
 // repairs until the answer validates or the person stops it, saying so every
 // round. No provider documents a repair count, so the product sets none.
 // D121: no search bound of ours — 0 (the default) sends no max and the
-// provider decides; a set value stays within 1–20.
+// provider decides; a set whole count sends as set (NOLIMITSSET: the removed
+// 1–20 range was ours — no capability record carries a per-request maximum,
+// verified against src/core/providers/capabilityRecord.ts and
+// src/core/backends/modelapi/modelCapabilities.ts).
 export const WEB_SEARCH_MAX_PER_REQUEST = 0
 export const WEB_SEARCH_MIN_PER_REQUEST = 1
-export const WEB_SEARCH_MAX_PER_REQUEST_LIMIT = 20
 /**
-A set hosted-search bound as the request's max (D121): 0 sends no max of
-ours and the provider decides how many hosted searches run; anything else
-stays within the 1–20 set range, and out-of-range offers nothing.
+A set hosted-search count as the request's max (D121): 0 sends no max of
+ours and the provider decides how many hosted searches run; a set whole
+count of at least 1 sends as set, and anything else offers nothing.
 */
 export function webSearchMaxCallsFor(value: number): number | undefined {
-  return value !== 0 &&
-    Number.isSafeInteger(value) &&
-    value >= WEB_SEARCH_MIN_PER_REQUEST &&
-    value <= WEB_SEARCH_MAX_PER_REQUEST_LIMIT
+  return value !== 0 && Number.isSafeInteger(value) && value >= WEB_SEARCH_MIN_PER_REQUEST
     ? value
     : undefined
 }
@@ -5140,9 +5143,9 @@ export const MODEL_API_SUBAGENT_TOOLS = {
 // D121: a conversation spawns subagents without a count of ours (no
 // per-conversation ceiling and no default concurrency cap); paid consent
 // still asks per spawn and Stop still ends them.
-// `museSpark.subagentMaxConcurrent` sets one within 1–64 (Muse Code's own
-// execution-capacity range, M127). The 8-at-once queue is C6, owned by the
-// integration branch.
+// `museSpark.subagentMaxConcurrent` sets a whole count, honoured as set
+// (NOLIMITSSET: the removed 1–64 range was ours, M127). The 8-at-once queue
+// is C6, owned by the integration branch.
 export const SUBAGENT_CAPACITY = 0
 // A `recap/request` settles exactly once on `recap/completed` with a
 // host-enforced 45 s timeout (ADR 45447): waiting past it keeps the late
@@ -5265,9 +5268,13 @@ export const USAGE_DAYS_FOLDER = 'days'
 export const USAGE_ROLLUPS_FOLDER = 'rollups'
 export const USAGE_ROLLUP_LOCK = 'rollup.lock'
 export const USAGE_DETAIL_DAYS = 30
-export const USAGE_HISTORY_DAYS_DEFAULT = 365
-export const USAGE_HISTORY_DAYS_MIN = 30
-export const USAGE_HISTORY_DAYS_MAX = 1825
+// NOLIMITSSET (PLAN.md D121): no retention limit of ours as a default —
+// with nothing set, usage history is kept until the person sets a number of
+// days or clears it. A set number of days is any whole number of at least 1
+// (the quantity's own floor), used as set. The removed 365-day default with
+// its 30–1825 range was ours. Per-call detail keeps its own 30-day window
+// above (USAGE_DETAIL_DAYS, unchanged).
+export const USAGE_HISTORY_DAY_MIN = 1
 export const USAGE_RECORD_MAX_BYTES = 4096
 // Usage-folder removal (RVM107W2G): a quarantined `.removing-*` entry older than
 // this is swept by any list, sweep or remove; younger ones may be in flight in
@@ -6568,9 +6575,9 @@ export const ASCII_DELETE_CODE = 0x7f
 export const COMMAND_RULE_DECISIONS = ['forbid', 'ask', 'allow'] as const
 export type CommandRuleDecision = (typeof COMMAND_RULE_DECISIONS)[number]
 export const COMMAND_RULE_SHELLS = ['bash', 'powershell'] as const
-// Bounds on what the settings may hold, so compiling and self-testing the
-// rules stays cheap on every change.
-export const COMMAND_RULES_MAX = 500
+// Plain input-shape bounds on one rule (NOLIMITSSET: kept — a rule's words,
+// examples and justification are shape, not a limit on the person's list).
+// The removed 500-rule ceiling was ours: every rule the person sets is read.
 export const COMMAND_RULE_MAX_WORDS = 32
 export const COMMAND_RULE_WORD_MAX_CHARS = 256
 export const COMMAND_RULE_MAX_EXAMPLES = 20

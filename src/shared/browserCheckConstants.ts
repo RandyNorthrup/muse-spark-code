@@ -154,8 +154,9 @@ export const BROWSER_CHECK_ENTRY_MAX_CHARS = 500
 export const BROWSER_CHECK_MESSAGE_MAX_BYTES = 80 * MIB
 // Random bytes (as hex) in the markers around what the page produced.
 export const BROWSER_CHECK_MARKER_BYTES = 8
-// The hosts `museSpark.browserCheckExtraHosts` may name: how many, how long.
-export const BROWSER_CHECK_EXTRA_HOSTS_MAX = 32
+// The hosts `museSpark.browserCheckExtraHosts` may name (NOLIMITSSET: no
+// host-count ceiling of ours — every host the person names is kept; the
+// removed 32 was ours). How long one entry may be stays input shape.
 export const BROWSER_CHECK_HOST_MAX_CHARS = 253
 // The targets one check watches at once (the page, its frames and workers,
 // and those they start); one past the bound ends the check unwatchable.

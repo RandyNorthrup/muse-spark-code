@@ -229,5 +229,6 @@
   "sortAscending": "Artan sıralama",
   "sortDescending": "Azalan sıralama",
   "retentionNote": "Çağrı ayrıntıları {detailDays} gün, günlük özetler {historyDays} gün saklanır.",
+  "retentionNoteKept": "Çağrı ayrıntıları {detailDays} gün saklanır, günlük özetler bir gün sayısı ayarlayana veya temizleyene kadar saklanır.",
   "privacyNote": "Geçmiş bu makinede kalır. İstemler, yanıtlar, araç bağımsız değişkenleri, yollar veya anahtarlar içermez."
 }

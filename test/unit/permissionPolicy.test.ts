@@ -261,12 +261,12 @@ describe('describePolicyProblem: each problem in the user’s words (M78)', () =
   })
 
   it('says every kind of rule problem', () => {
+    // NOLIMITSSET: 'tooMany' is gone with the removed 500-rule ceiling.
     for (const kind of [
       'invalid',
       'invalidKept',
       'exampleFailedKept',
       'allowsEvaluator',
-      'tooMany',
     ] as const) {
       const text = describePolicyProblem({
         kind: 'rule',

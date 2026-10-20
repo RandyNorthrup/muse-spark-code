@@ -216,5 +216,6 @@
   "sortAscending": "昇順で並べ替え",
   "sortDescending": "降順で並べ替え",
   "retentionNote": "呼び出しごとの詳細は{detailDays}日間、日次サマリーは{historyDays}日間保持されます。",
+  "retentionNoteKept": "呼び出しごとの詳細は{detailDays}日間保持され、日次サマリーは日数を設定するかクリアするまで保持されます。",
   "privacyNote": "履歴はこのマシン上に留まります。プロンプト、応答、ツール引数、パス、キーは含まれません。"
 }
