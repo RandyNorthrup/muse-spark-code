@@ -697,6 +697,12 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   ancestor of the installed package itself is no longer mistaken for a link
   inside the skill tree, while a link inside the tree that leads outside it
   is still refused with its warning.
+- The governor's bookkeeping folder no longer grows with every command: each
+  save retires its staged manifest and the displaced copy once the live
+  manifest is proven, and a load sweeps the names earlier runs left behind.
+  A name is removed only once it proves to be this registry's own retained
+  file, by content and identity and never by age; a name exchanged for
+  anything else is left alone and reported.
 
 ### Security
 
