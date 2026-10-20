@@ -18,17 +18,16 @@ import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from './chatSurface'
 import { mintFocusRequest, shouldDeliverFocusInput } from './focusGate'
-import {
-  resolveWebviewBundleDir,
-  webviewBundleErrorHtml,
-  WebviewBundleError,
-} from './webviewBundleRoot'
+import { webviewBundleErrorHtml, type WebviewBundleResolution } from './webviewBundle'
+import { resolveWebviewBundleDir, WebviewBundleError } from './webviewBundleRoot'
 import { webviewErrorLog } from './webviewErrors'
 
 export interface WebviewHostContext {
   readonly extensionUri: vscode.Uri
   /** The machine's storage for the verified webview copy (VSIXWEB A). */
   readonly globalStoragePath: string
+  /** The verified webview copy (VSIXWEB A), resolved in the activation bundle. */
+  readonly resolveWebviewBundle: () => WebviewBundleResolution
   /** The display language's table, installed at activation, for every webview's HTML (D33). */
   readonly l10n: UiTable
   readonly log: Logger

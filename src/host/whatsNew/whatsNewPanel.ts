@@ -24,19 +24,15 @@ import {
 } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { parseWhatsNewMessage, type WhatsNewMessage } from '../../shared/whatsNewMessages'
-import {
-  resolveWebviewBundleDir,
-  webviewBundleErrorHtml,
-  WebviewBundleError,
-} from '../views/webviewBundleRoot'
+import type { WebviewBundleResolution } from '../views/webviewBundle'
 import { createNonce } from '../html'
 import type { Logger } from '../logger'
 import { renderWhatsNewPage } from './whatsNewHtml'
 
 export interface WhatsNewPagesDeps {
   readonly extensionUri: vscode.Uri
-  /** The machine's storage for the verified webview copy (VSIXWEB A). */
-  readonly globalStoragePath: string
+  /** The verified webview copy (VSIXWEB A), resolved in the activation bundle. */
+  readonly resolveWebviewBundle: () => WebviewBundleResolution
   /** dist/whatsNew.json beside the bundle. */
   readonly contentPath: string
   /** The running extension's version. */
@@ -75,22 +71,16 @@ export function createWhatsNewPagesFor(deps: WhatsNewPagesDeps): WhatsNewPages {
   }
   const releases = (from: string | undefined) =>
     releasesToShow(contentNow().releases, from, deps.current)
-  // The verified webview copy (VSIXWEB A): a packaged install extracts it
-  // once per archive digest into global storage, the source tree serves its
-  // loose files. A missing, damaged or unwritable extraction shows the
-  // fixed sentence, never unverified files.
-  let bundleRoot: vscode.Uri | undefined
-  try {
-    bundleRoot = vscode.Uri.file(
-      resolveWebviewBundleDir({
-        extensionPath: deps.extensionUri.fsPath,
-        globalStoragePath: deps.globalStoragePath,
-      }),
-    )
-  } catch (error: unknown) {
-    if (!(error instanceof WebviewBundleError)) throw error
-    deps.log.error(`What’s New webview bundle failed: ${failureForLog(error)}`)
+  // The verified webview copy (VSIXWEB A), resolved in the activation
+  // bundle: a missing, damaged or unwritable extraction shows the fixed
+  // sentence, never unverified files.
+  const resolved = deps.resolveWebviewBundle()
+  if (!resolved.ok) {
+    deps.log.error(`What’s New webview bundle failed: ${resolved.detail}`)
   }
+  // The verified folder, or undefined with the failure document ready in
+  // `resolved` for `render`.
+  const bundleRoot = resolved.ok ? vscode.Uri.file(resolved.dir) : undefined
   let shown: Shown | undefined
 
   const act = async (target: Shown, message: WhatsNewMessage): Promise<void> => {
@@ -133,8 +123,8 @@ export function createWhatsNewPagesFor(deps: WhatsNewPagesDeps): WhatsNewPages {
 
   const render = (target: Shown, from: string | undefined): void => {
     const { webview } = target.panel
-    if (bundleRoot === undefined) {
-      webview.html = webviewBundleErrorHtml(UI_TEXT.webviewBundleUnavailable, uiLocale())
+    if (!resolved.ok) {
+      webview.html = resolved.html
       return
     }
     const page = renderWhatsNewPage({
@@ -146,10 +136,10 @@ export function createWhatsNewPagesFor(deps: WhatsNewPagesDeps): WhatsNewPages {
       cspSource: webview.cspSource,
       nonce: createNonce(),
       scriptUri: webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WHATS_NEW_SCRIPT_FILE))
+        .asWebviewUri(vscode.Uri.joinPath(vscode.Uri.file(resolved.dir), WHATS_NEW_SCRIPT_FILE))
         .toString(),
       styleUri: webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WHATS_NEW_STYLE_FILE))
+        .asWebviewUri(vscode.Uri.joinPath(vscode.Uri.file(resolved.dir), WHATS_NEW_STYLE_FILE))
         .toString(),
       locale: uiLocale(),
     })

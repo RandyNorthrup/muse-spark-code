@@ -164,3 +164,25 @@ export function solidMemberBytes(entry, relative) {
     throw new Error(`Solid archive member failed verification: ${relative}`)
   return bytes
 }
+
+/**
+Every `required` member (posix paths relative to the archived root) is
+present in the decoded archive; the chunked webview tree additionally
+keeps at least one member under `chunks/` when `requireChunks` is set.
+Throws naming the first gap; returns the member count.
+*/
+export function assertArchiveMembers(
+  packed,
+  required,
+  maxOutputBytes,
+  expectedVersion,
+  hasChunks = false,
+) {
+  const files = parseSolidTextArchive(packed, maxOutputBytes, expectedVersion)
+  for (const name of required) {
+    if (!Object.hasOwn(files, name)) throw new Error(`Solid archive is missing member: ${name}`)
+  }
+  if (hasChunks && Object.keys(files).every((name) => !name.startsWith('chunks/')))
+    throw new Error('Solid archive holds no chunks')
+  return Object.keys(files).length
+}
