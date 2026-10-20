@@ -38,8 +38,10 @@ describe('managedConfiguration', () => {
   })
 
   it('reads a nonzero status as its exit code', async () => {
-    const exitOne = process.platform === 'win32' ? process.execPath : '/bin/false'
-    const exitArgs = process.platform === 'win32' ? ['-e', 'process.exit(1)'] : []
+    // The test runner's own Node exits 1 everywhere: /bin/false is absent
+    // on hosted macOS runners (ENOENT reads as unreadable, not exit 1).
+    const exitOne = process.execPath
+    const exitArgs = ['-e', 'process.exit(1)'] as const
     await expect(managedConfiguration(runExit(exitOne, exitArgs))).resolves.toEqual({
       ok: false,
       reason: 'exit code 1',
