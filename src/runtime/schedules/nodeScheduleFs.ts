@@ -1,6 +1,7 @@
 // Shared by editor hosts and the runtime; no vscode or credential dependency.
 import { randomUUID } from 'node:crypto'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import type { Stats } from 'node:fs'
 import {
   mkdir,
   open,
@@ -459,15 +460,32 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       throw scheduleQueueFailure('scheduleStoragePathRefused')
     return file
   }
+  // Windows answers ENOENT where POSIX answers ENOTDIR for a path that runs
+  // through a file, so a missing parent proves the entry absent only when
+  // the nearest existing ancestor is a real folder; a file or link there is
+  // refused on every platform.
   const checkParents = async (file: string) => {
-    let parent = path.dirname(file)
-    while (parent.length >= root.length) {
-      const info = await scheduleFsOperation('disk.parentStat', () => lstat(parent))
+    let absent: Error | undefined
+    for (
+      let parent = path.dirname(file);
+      parent.length >= root.length;
+      parent = path.dirname(parent)
+    ) {
+      let info: Stats
+      try {
+        info = await scheduleFsOperation('disk.parentStat', () => lstat(parent))
+      } catch (error: unknown) {
+        if (parent === root || !(error instanceof Error) || !isErrorCode(error, 'ENOENT'))
+          throw error
+        absent ??= error
+        continue
+      }
       if (!info.isDirectory() || info.isSymbolicLink())
         throw scheduleQueueFailure('scheduleStorageLinkRefused')
-      if (parent === root) break
-      parent = path.dirname(parent)
+      if (absent !== undefined) throw absent
+      if (parent === root) return
     }
+    if (absent !== undefined) throw absent
   }
   const prepare = async (file: string) => {
     const parent = path.dirname(file)

@@ -5,34 +5,23 @@
 import { statSync } from 'node:fs'
 import path from 'node:path'
 
-const isMissing = (error: unknown): boolean =>
-  error instanceof Error && 'code' in error && error.code === 'ENOENT'
-
-/**
-Whether the nearest existing ancestor of a missing path is a folder. Windows
-answers ENOENT for a path that runs through a file (POSIX answers ENOTDIR),
-so a missing entry proves absence only when the first ancestor that exists
-is a folder.
-*/
-function isMissingUnderFolder(absolutePath: string): boolean {
-  for (let folder = path.dirname(absolutePath); ; folder = path.dirname(folder)) {
-    try {
-      return statSync(folder).isDirectory()
-    } catch (error: unknown) {
-      if (!isMissing(error) || path.dirname(folder) === folder) return false
-    }
-  }
-}
-
 /**
 Whether an ignore file exists at an absolute path: missing reads absent,
 anything else that cannot be proven absent reads present, so a broken
-check denies (never widens) what Tab reads.
+check denies (never widens) what Tab reads. Windows answers ENOENT where
+POSIX answers ENOTDIR for a path that runs through a file, so a missing
+entry proves absence only when the nearest existing ancestor is a folder.
 */
 export function hasIgnoreFile(absolutePath: string): boolean {
   try {
-    return statSync(absolutePath).isFile()
+    const found = statSync(absolutePath, { throwIfNoEntry: false })
+    if (found !== undefined) return found.isFile()
+    for (let folder = path.dirname(absolutePath); ; folder = path.dirname(folder)) {
+      const ancestor = statSync(folder, { throwIfNoEntry: false })
+      if (ancestor !== undefined) return !ancestor.isDirectory()
+      if (path.dirname(folder) === folder) return true
+    }
   } catch (error: unknown) {
-    return !(isMissing(error) && isMissingUnderFolder(absolutePath))
+    return !(error instanceof Error && 'code' in error && error.code === 'ENOENT')
   }
 }

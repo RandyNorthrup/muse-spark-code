@@ -537,12 +537,17 @@ PYHASH
 
 <!-- CM1134AR6 port SHA-256: 0a8062bc336a7f918b2fe7e4237ef473c75fa9aea5a6af55d47c7701b6e113ff -->
 <!-- CM1134AR7 port SHA-256: 5fae331fdc1d00fd1c779c6e5c166ac2485a002815f3402c16f4b592259bea42 -->
-<!-- CM1134AR8 port SHA-256: 7486edbf8abdd1120a0f1d0c578865b86d6a4e1c1f0d5b78090ca1853904e30f -->
+<!-- CM1134AR8 port SHA-256: e62d53460305ec626fd92e52145f855921c26cf90fa8f44e33f53ac619ecc338 -->
 
 `nodeScheduleFs.ts` markers: AR6 `0a8062bc…`, AR7 `5fae331f…`, AR8
-`7486edbf8abdd1120a0f1d0c578865b86d6a4e1c1f0d5b78090ca1853904e30f`
+`e62d53460305ec626fd92e52145f855921c26cf90fa8f44e33f53ac619ecc338`
 (re-marked 2026-10-19: the unicorn 77 comment reflow changed only `/**`
-asterisk prefixes, no code).
+asterisk prefixes, no code; re-marked 2026-10-20 from `7486edbf…`: the
+parent walk keeps walking past a missing parent, so on Windows, which
+answers ENOENT where POSIX answers ENOTDIR, a file where a folder belongs
+is refused as scheduleStorageLinkRefused instead of read as absent;
+proved by playbookSchedulesInputs 'reads scheduleStorageLinkRefused as
+failed' on Windows).
 The lifecycle suite compares the AR8 marker against the actual source; a
 stale certification fails. (Correction 2026-10-12: this line named only the
 AR6 marker while the suite already compared the AR7 one. Correction
