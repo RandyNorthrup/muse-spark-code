@@ -7,22 +7,7 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-- The ACP estimate read no longer crashes when an estimate call fails: the
-  shared schema chunk carries the schema error class beside the conversion,
-  so the failure is rethrown as the estimate's own diagnostic. The guarded
-  probe environment the vault transports build moved beside the executable
-  resolver, so the vault chunks no longer carry the resource tree reader.
-- The playbook and schedules report inputs are back within their 59 KiB
-  budget: the git rename evidence the orchestrator reads now lives in its own
-  module beside the playbook registry, so the report chunk no longer carries
-  the git-spawning machinery the report read never calls. No behaviour
-  changed on either side.
-- The panel's deferred English is back within its unchanged 25 KiB budget:
-  the ChatGPT sign-in's English and the team runners' English load in their
-  own lazily fetched chunks beside their deferred surfaces instead of riding
-  the shared surface-English closure. No sentence changed in any language.
-
-## [0.19.0] - 2026-10-17
+## [0.19.0] - 2026-10-18
 
 ### Highlights
 
@@ -632,6 +617,20 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   the OS-store one. Where the OS keyring binding is not installed the
   vault keeps working from its owner-only file record, sealing a hardware
   slot where the machine can.
+- The ACP estimate read no longer crashes when an estimate call fails: the
+  shared schema chunk carries the schema error class beside the conversion,
+  so the failure is rethrown as the estimate's own diagnostic. The guarded
+  probe environment the vault transports build moved beside the executable
+  resolver, so the vault chunks no longer carry the resource tree reader.
+- The playbook and schedules report inputs are back within their 59 KiB
+  budget: the git rename evidence the orchestrator reads now lives in its own
+  module beside the playbook registry, so the report chunk no longer carries
+  the git-spawning machinery the report read never calls. No behaviour
+  changed on either side.
+- The panel's deferred English is back within its unchanged 25 KiB budget:
+  the ChatGPT sign-in's English and the team runners' English load in their
+  own lazily fetched chunks beside their deferred surfaces instead of riding
+  the shared surface-English closure. No sentence changed in any language.
 
 ### Security
 
