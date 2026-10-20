@@ -80,10 +80,17 @@ export function createTeamJournal(options: {
     })()
     return result
   }
-  const assertPath = async (target: string) => {
-    if ((await canonicalPath(target)) !== path.resolve(target)) {
+  // The record still resolves to the journal's own file: both sides are
+  // canonical, so a stable link above the storage (macOS /tmp, a symlinked
+  // home) passes, while a record or folder swapped for a link to foreign
+  // ground fails and stays unreadable evidence, never followed.
+  const assertPath = async (target: string): Promise<string> => {
+    const canonicalTarget = await canonicalPath(target)
+    const canonicalParent = await canonicalPath(path.dirname(target))
+    if (canonicalTarget !== path.join(canonicalParent, path.basename(target))) {
       throw new Error('TEAM_JOURNAL_PATH_CHANGED')
     }
+    return canonicalTarget
   }
   const flush = async (target: string) => {
     // FlushFileBuffers on Windows requires write access. POSIX permits the
@@ -108,7 +115,7 @@ export function createTeamJournal(options: {
       await serialize(async () => {
         options.authority.assertCanWrite(options.owner)
         const target = targetFor(name)
-        await assertPath(target)
+        const canonicalTarget = await assertPath(target)
         const content = JSON.stringify({
           version: 1,
           owner: options.owner,
@@ -117,9 +124,13 @@ export function createTeamJournal(options: {
         if (Buffer.byteLength(content) > options.maxRecordBytes) {
           throw new Error('TEAM_JOURNAL_RECORD_TOO_LARGE')
         }
-        await writeFileAtomically(target, content, {
+        // The write itself goes through the canonical spelling: the atomic
+        // writer's temporary-file checks compare a path with its own
+        // canonical form, which only agrees above a stable link when the
+        // input is already canonical. Same file on disk either way.
+        await writeFileAtomically(canonicalTarget, content, {
           sleep: delay,
-          expectedCanonicalPath: target,
+          expectedCanonicalPath: canonicalTarget,
           assertCanWrite: () => {
             options.authority.assertCanWrite(options.owner)
           },

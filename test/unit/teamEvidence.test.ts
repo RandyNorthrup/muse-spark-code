@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { describe, expect, it } from 'vitest'
@@ -94,6 +94,44 @@ describe('team journal unreadable evidence', () => {
       await journal.write('later', { text: 'kept' }, valueSchema)
       const read = await journal.read('later', valueSchema)
       expect(read).toEqual({ kind: 'record', value: { text: 'kept' } })
+    })
+  })
+
+  it('journals through a linked storage root instead of reporting it moved', async () => {
+    await usingTempDir('pr161-team-link-', async (base) => {
+      const real = path.join(base, 'real')
+      mkdirSync(real, { recursive: true })
+      const linked = path.join(base, 'linked')
+      symlinkSync(real, linked, 'junction')
+      const { journal } = makeJournal(linked)
+      const valueSchema = z.object({ text: z.string() })
+      await journal.write('note', { text: 'kept' }, valueSchema)
+      expect(await journal.read('note', valueSchema)).toEqual({
+        kind: 'record',
+        value: { text: 'kept' },
+      })
+      await expect(journal.names()).resolves.toEqual(['note'])
+    })
+  })
+
+  it('reads a record swapped for a link as broken without following it', async () => {
+    await usingTempDir('pr161-team-link-', async (storage) => {
+      const { journal, owner } = makeJournal(storage)
+      const valueSchema = z.object({ text: z.string() })
+      await journal.write('note', { text: 'kept' }, valueSchema)
+      const directory = path.join(storage, 'team', 'journal', owner.instanceId)
+      const foreign = path.join(storage, 'foreign.json')
+      writeFileSync(
+        foreign,
+        JSON.stringify({ version: 1, owner, value: { text: 'foreign' } }),
+        'utf8',
+      )
+      symlinkSync(foreign, path.join(directory, 'linked.json'), 'junction')
+      const read = await journal.read('linked', valueSchema)
+      expect(read.kind).toBe('broken')
+      expect(readFileSync(foreign, 'utf8')).toBe(
+        JSON.stringify({ version: 1, owner, value: { text: 'foreign' } }),
+      )
     })
   })
 })
