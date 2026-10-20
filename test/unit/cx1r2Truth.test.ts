@@ -139,9 +139,10 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
     expect(
       help.cli.some((command) => ['vault', 'vaultHelp', 'estimate'].includes(command.route)),
     ).toBe(false)
-    expect(help.cli.some((command) => /--vault|--no-auto-compaction/.test(command.name))).toBe(
-      false,
-    )
+    // `--vault` stays unpublished while M109 is in progress; the compaction
+    // opt-out is live and published (M101 evaluated compaction on), so it is
+    // not a dormant flag.
+    expect(help.cli.some((command) => command.name.includes('--vault'))).toBe(false)
     expect(readme).not.toMatch(
       /teams of workers|Team workers default on|When a team is active|unreleased scheduler and runner adapters ship|Schedule budgets, consent and rental|P50\/P90 dates|One encrypted vault per user/,
     )
@@ -219,14 +220,17 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
 
   it('ships encoded current notes without archived dormant claims or action buttons', () => {
     const shown = currentWhatsNewText(releases)
+    // No P50/P90 alternative: the shipped `/report estimate` kind reports
+    // P50 and P90 in the current notes; the dormant capacity claim is
+    // `Capacity estimates (preview)` below.
     expect(shown).not.toMatch(
-      /no production tool declares preview fields|rows stream.*while arguments arrive|P50.*P90|ship the orchestrator-playbook skill with nine rules/i,
+      /no production tool declares preview fields|rows stream.*while arguments arrive|ship the orchestrator-playbook skill with nine rules/i,
     )
     expect(shown).not.toContain('Capacity estimates (preview)')
     expect(shown).not.toContain('modelApiAutoCompaction')
-    // What's New ships the two newest releases in full. Since 0.17.2 those are
-    // 0.17.2 and 0.17.1, so no corrected release ships there any more; whenever
-    // one is encoded, its dated correction comes with it.
+    // What's New ships the two newest releases in full, so no corrected
+    // release ships there any more; whenever one is encoded, its dated
+    // correction comes with it.
     for (const version of ['0.15.0', '0.16.0', '0.17.0']) {
       const corrected = releases.filter((entry) => entry.version === version)
       expect(corrected).toHaveLength(1)

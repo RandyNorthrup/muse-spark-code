@@ -45,7 +45,9 @@ export async function usingTempDir<T>(
   prefix: string,
   work: (folder: string) => T | Promise<T>,
 ): Promise<T> {
-  const folder = await mkdtemp(path.join(tmpdir(), prefix))
+  // Resolved, like temporaryDir: a symlinked ancestor (macOS's /var) would
+  // otherwise hand a path the symlink-guarded stores must refuse.
+  const folder = await realpath(await mkdtemp(path.join(tmpdir(), prefix)))
   try {
     return await work(folder)
   } finally {

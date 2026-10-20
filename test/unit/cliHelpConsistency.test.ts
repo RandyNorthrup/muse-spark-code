@@ -1,16 +1,19 @@
 // AUDITCLI (0.19.0): every terminal misuse exits 2 with words that name the
-// flag or argument, and every flag the parser takes is on the help
-// reference. Real parser and real help renderer only: no stand-ins, and no
+// flag or argument, and every flag the parser takes is on the terminal
+// help. Dormant flags stay out of the published reference (cx1r2Truth).
+// Real parser and real help renderer only: no stand-ins, and no
 // build: the unit shards run `vitest` without `dist/`, so the built binary
 // itself is proven in test/hosts/exec.sh (hosts.yml `agent` job, after the
 // production package is built and installed).
 import { describe, expect, it } from 'vitest'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { parseDeveloperCommand } from '../../src/runtime/developer/developerCommand'
+import { helpTopicNamed, renderTopicHelp } from '../../src/runtime/cliHelp'
 import { EN } from '../../src/shared/l10n/en'
 import { UI_TEXT } from '../../src/shared/constants'
-import { createReference } from '../../src/shared/reference/referenceEntry'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
+
+const COMMAND = 'muse-spark-code-acp'
 
 // Each row refused before the fix: serve-family misuses exited 1, and the
 // refusal named the positionals or a bare usage line instead of the flag.
@@ -75,11 +78,36 @@ describe('terminal misuse names its flag and exits 2', () => {
   })
 })
 
-describe('every accepted flag is on the help reference', () => {
+describe('every accepted flag is documented where it is published', () => {
   it('lists the gated exec and serve flags the parser takes', () => {
-    const text = createReference(EN, 'en').all({})
-    for (const row of ['exec: --vault', 'exec: --account-pool', 'serve: --scheduled-prompts'])
-      expect(text).toContain(row)
+    // Dormant flags stay out of the published reference (cx1r2Truth) and
+    // the uncertified schedule flag out of the terminal help (isDormantOption);
+    // each one still parses, and the live gated exec flags name themselves
+    // in their own topic help. Flipping the delivery certification restores
+    // every surface at once.
+    const serve = helpTopicNamed('serve')
+    const exec = helpTopicNamed('exec')
+    if (serve === undefined || exec === undefined) throw new Error('serve/exec topics are missing')
+    const serveText = renderTopicHelp(EN, COMMAND, serve)
+    const execText = renderTopicHelp(EN, COMMAND, exec)
+    expect(parseCommandLine(['--scheduled-prompts']).command).toBe('serve')
+    expect(serveText).not.toContain('--scheduled-prompts')
+    expect(parseCommandLine(['exec', '--vault', 'hi']).command).toBe('exec')
+    expect(execText).toContain('--vault')
+    // Pooling is a Model API-only shape, refused on the default backend;
+    // a Model API run names its budget.
+    expect(
+      parseCommandLine([
+        'exec',
+        '--backend',
+        'modelApi',
+        '--max-budget-usd',
+        '1',
+        '--account-pool',
+        'hi',
+      ]).command,
+    ).toBe('exec')
+    expect(execText).toContain('--account-pool')
   })
 
   it('keeps the compaction opt-out in the generated model', () => {

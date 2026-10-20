@@ -183,6 +183,7 @@ describe('terminal ChatGPT command boundary', () => {
     expect(parseCommandLine(argv)).toEqual({
       command: 'invalid',
       reason: UI_TEXT.acpChatGpt.usage,
+      exitCode: 2,
     })
   })
 
