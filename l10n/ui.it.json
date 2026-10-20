@@ -2732,7 +2732,7 @@
   "dictationUnavailable": "La dettatura vocale non è disponibile su questa piattaforma.",
   "dictationUnavailableLinux": "La dettatura Linux richiede un computer x64 o arm64 con PulseAudio o PipeWire in esecuzione.",
   "dictationUnavailableWindows": "La dettatura vocale richiede Windows PowerShell, che non è stato trovato (SystemRoot non è impostato).",
-  "dictationUnavailableDarwin": "La dettatura vocale richiede l’helper macOS (native/darwin/muse-dictate), che questa build non include.",
+  "dictationUnavailableDarwin": "La dettatura vocale richiede l’helper macOS (native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate), che questa build non include.",
   "dictationNotLoaded": "non è stato possibile caricare il codice della dettatura; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",
   "announceListening": "In ascolto",
   "announceStoppedListening": "Ascolto interrotto",

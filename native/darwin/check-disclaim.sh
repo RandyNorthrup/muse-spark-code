@@ -11,7 +11,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-HELPER="$PWD/muse-dictate"
+# One copy serves every role: the signed .app's executable is the helper.
+HELPER="$PWD/muse-dictate-screen.app/Contents/MacOS/muse-dictate"
 SCREEN_HELPER="$PWD/muse-dictate-screen.app/Contents/MacOS/muse-dictate"
 ERR="$(mktemp -t muse-dictate-check)"
 trap 'rm -f "$ERR"' EXIT

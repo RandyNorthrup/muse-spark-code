@@ -2676,7 +2676,7 @@
   "dictationUnavailable": "A hangalapú diktálás ezen a platformon nem érhető el.",
   "dictationUnavailableLinux": "A Linux-diktáláshoz PulseAudio-t vagy PulseAudio-t támogató PipeWire-t futtató x64 vagy arm64 számítógép kell.",
   "dictationUnavailableWindows": "A hangalapú diktáláshoz Windows PowerShell szükséges, amely nem található (a SystemRoot nincs beállítva).",
-  "dictationUnavailableDarwin": "A hangalapú diktáláshoz a macOS-segédprogram (native/darwin/muse-dictate) szükséges, amelyet ez a build nem tartalmaz.",
+  "dictationUnavailableDarwin": "A hangalapú diktáláshoz a macOS-segédprogram (native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate) szükséges, amelyet ez a build nem tartalmaz.",
   "dictationNotLoaded": "a diktálás kódját nem sikerült betölteni; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
   "announceListening": "Figyelés",
   "announceStoppedListening": "A figyelés leállt",

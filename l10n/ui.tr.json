@@ -2676,7 +2676,7 @@
   "dictationUnavailable": "Sesle dikte bu platformda kullanılamıyor.",
   "dictationUnavailableLinux": "Linux diktesi, PulseAudio veya PulseAudio destekli PipeWire çalıştıran x64 veya arm64 bilgisayar gerektirir.",
   "dictationUnavailableWindows": "Sesle dikte Windows PowerShell gerektirir, ancak bulunamadı (SystemRoot ayarlanmamış).",
-  "dictationUnavailableDarwin": "Sesle dikte macOS yardımcısını (native/darwin/muse-dictate) gerektirir, ancak bu derleme onu içermiyor.",
+  "dictationUnavailableDarwin": "Sesle dikte macOS yardımcısını (native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate) gerektirir, ancak bu derleme onu içermiyor.",
   "dictationNotLoaded": "dikte kodu yüklenemedi; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "announceListening": "Dinleniyor",
   "announceStoppedListening": "Dinleme durduruldu",

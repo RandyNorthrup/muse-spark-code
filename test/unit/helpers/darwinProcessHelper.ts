@@ -49,7 +49,11 @@ export async function darwinProcessHelper(): Promise<{
       env: { PATH: `${path.dirname(process.execPath)}:/usr/bin:/bin`, LC_ALL: 'C' },
       timeout: 120_000,
     })
-    return { helperPath: path.join(native, 'muse-dictate'), remove: () => removeFolder(folder) }
+    // One copy serves every role: the signed .app's executable.
+    return {
+      helperPath: path.join(native, 'muse-dictate-screen.app', 'Contents', 'MacOS', 'muse-dictate'),
+      remove: () => removeFolder(folder),
+    }
   } catch (error: unknown) {
     await removeFolder(folder)
     throw error

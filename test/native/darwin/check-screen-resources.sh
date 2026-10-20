@@ -6,12 +6,11 @@ APP="$ROOT/native/darwin/muse-dictate-screen.app"
 BUILD_DIR="$(mktemp -d "$ROOT/temp/m105-r1-resources.XXXXXX")"
 trap 'rm -rf "$BUILD_DIR"' EXIT
 codesign --verify --strict "$APP"
-BARE_SIGNATURE="$(codesign -d --verbose=4 "$ROOT/native/darwin/muse-dictate" 2>&1)"
-if ! [[ "$BARE_SIGNATURE" == *'Sealed Resources=none'* ]] || [ -e "$ROOT/native/darwin/_CodeSignature" ]; then
-  echo 'FAIL: legacy bare helper remains independently signed without flat-bundle resources' >&2; exit 1
+# One copy serves every role: no bare binary ships beside the signed .app.
+if [ -e "$ROOT/native/darwin/muse-dictate" ]; then
+  echo 'FAIL: bare helper ships beside the signed .app' >&2; exit 1
 fi
-codesign --verify --strict "$ROOT/native/darwin/muse-dictate"
-echo 'PASS: legacy bare helper remains independently signed without flat-bundle resources'
+echo 'PASS: no bare helper ships beside the signed .app'
 INTEL_HASH="$(codesign -d --arch x86_64 --verbose=4 "$APP" 2>&1 | sed -n 's/^CDHash=//p')"
 ARM_HASH="$(codesign -d --arch arm64 --verbose=4 "$APP" 2>&1 | sed -n 's/^CDHash=//p')"
 test -n "$INTEL_HASH"

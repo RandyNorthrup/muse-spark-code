@@ -9,19 +9,28 @@ import { buildLinuxHelper } from '../../../../scripts/build-linux-helper.mjs'
 /**
 Stage the product's own created-directories helper beside the bundled
 governor, where resourceGovernorEntry resolves it on macOS
-(installRoot/native/darwin/muse-dictate). The binary is the one
-native/darwin/build.sh produces for the native job; a source checkout
-cannot build it, so its absence fails here naming the build instead of
-deep in a governed launch.
+(installRoot/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate).
+The executable is the one native/darwin/build.sh produces for the native
+job; a source checkout cannot build it, so its absence fails here naming
+the build instead of deep in a governed launch.
 */
 async function stageDarwinCreatedHelper(root: string): Promise<void> {
-  const staged = path.join(root, 'native', 'darwin', 'muse-dictate')
+  const helper = path.join(
+    'native',
+    'darwin',
+    'muse-dictate-screen.app',
+    'Contents',
+    'MacOS',
+    'muse-dictate',
+  )
+  const staged = path.join(root, helper)
   try {
-    await copyFile(path.resolve('native/darwin/muse-dictate'), staged)
+    await mkdir(path.dirname(staged), { recursive: true })
+    await copyFile(path.resolve(helper), staged)
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     throw new Error(
-      'the broker fixture needs native/darwin/muse-dictate: run bash native/darwin/build.sh first',
+      'the broker fixture needs the .app executable: run bash native/darwin/build.sh first',
       { cause: error },
     )
   }

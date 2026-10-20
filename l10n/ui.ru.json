@@ -2788,7 +2788,7 @@
   "dictationUnavailable": "Голосовой ввод недоступен на этой платформе.",
   "dictationUnavailableLinux": "Диктованию в Linux нужен компьютер x64 или arm64 с запущенными PulseAudio либо PipeWire.",
   "dictationUnavailableWindows": "Для голосового ввода нужен Windows PowerShell, который не найден (переменная SystemRoot не задана).",
-  "dictationUnavailableDarwin": "Для голосового ввода нужен вспомогательный модуль macOS (native/darwin/muse-dictate), которого нет в этой сборке.",
+  "dictationUnavailableDarwin": "Для голосового ввода нужен вспомогательный модуль macOS (native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate), которого нет в этой сборке.",
   "dictationNotLoaded": "не удалось загрузить код голосового ввода; переустановите расширение и перезагрузите окно. Подробности — в журнале.",
   "announceListening": "Прослушивание",
   "announceStoppedListening": "Прослушивание остановлено",

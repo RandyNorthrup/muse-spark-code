@@ -65,7 +65,14 @@ describe('locateDictationHelper', () => {
   })
 
   it('runs the compiled helper on macOS, naming the app macOS asks, when the build shipped it', () => {
-    const command = path.join(helperDir, 'darwin', 'muse-dictate')
+    const command = path.join(
+      helperDir,
+      'darwin',
+      'muse-dictate-screen.app',
+      'Contents',
+      'MacOS',
+      'muse-dictate',
+    )
     const location = locateDictationHelper({
       ...local,
       platform: 'darwin',
@@ -87,7 +94,9 @@ describe('locateDictationHelper', () => {
       helperDir,
       fileExists: () => false,
     })
-    expect(missing.isAvailable ? '' : missing.reason).toContain('native/darwin/muse-dictate')
+    expect(missing.isAvailable ? '' : missing.reason).toContain(
+      'native/darwin/muse-dictate-screen.app',
+    )
   })
 
   it('locates the downloaded Linux helper beside the model before any download', () => {
@@ -288,7 +297,14 @@ describe('locateCaptureHelper (M35)', () => {
       isAvailable: true,
       kind: 'helper',
       invocation: {
-        command: path.join(helperDir, 'darwin', 'muse-dictate'),
+        command: path.join(
+          helperDir,
+          'darwin',
+          'muse-dictate-screen.app',
+          'Contents',
+          'MacOS',
+          'muse-dictate',
+        ),
         args: ['--capture', '--app-name', 'Visual Studio Code'],
       },
     })

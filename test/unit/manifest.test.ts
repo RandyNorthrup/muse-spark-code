@@ -452,9 +452,11 @@ describe('packaging (M26)', () => {
         'THIRD_PARTY_NOTICES.txt',
         'native/windows/dictate.ps1',
         'native/windows/capture.ps1',
-        'native/darwin/muse-dictate',
+        // The signed .app ships as one glob; the bare binary ships no more.
+        'native/darwin/muse-dictate-screen.app/**',
       ]),
     )
+    expect(shipped).not.toContain('native/darwin/muse-dictate')
     // The notices name every bundled runtime dependency (the build's check
     // keeps the whole list current; this pins the obvious ones).
     // @napi-rs/keyring is a dependency but not a bundled one: the build
@@ -532,7 +534,10 @@ describe('packaging (M26)', () => {
     expect(build).toContain('MANIFEST=../../package.json')
     expect(build).toContain('VERSION="$(plutil -extract version raw -o - "$MANIFEST")"')
     expect(build).toContain('plutil -replace "$VERSION_KEY" -string "$VERSION" "$PLIST"')
-    expect(build).toContain('launchctl plist __TEXT,__info_plist "$OUTPUT"')
+    expect(build).toContain('launchctl plist __TEXT,__info_plist "$EXECUTABLE"')
+    // One copy serves every role: the version check runs against the .app's
+    // executable, and no bare binary is produced.
+    expect(build).toContain('EXECUTABLE="$SCREEN_BUNDLE/Contents/MacOS/$SCREEN_EXECUTABLE"')
   })
 
   it('keeps exact-tree reuse behind tag checks and preserves full-build fallback (RELFAST)', () => {

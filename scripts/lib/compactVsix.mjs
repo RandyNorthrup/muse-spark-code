@@ -12,7 +12,7 @@ const MAX_MEMBERS = 0xff_ff
 const MAX_CONTENT_BYTES = 32 * 1024 * 1024
 const CRC_POLYNOMIAL = 0xed_b8_83_20
 const CRC_MASK = 0xff_ff_ff_ff
-const MACOS_HELPER = 'extension/native/darwin/muse-dictate'
+const MACOS_HELPER = 'extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate'
 const DEFLATE_OPTIONS = Array.from({ length: 9 }, (_, index) => index + 1).flatMap((memLevel) => [
   { level: 9, memLevel },
   { level: 9, memLevel, strategy: constants.Z_FILTERED },

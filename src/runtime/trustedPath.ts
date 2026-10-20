@@ -25,7 +25,15 @@ async function isUserPrivateGroup(gid: bigint, packageRoot: string): Promise<boo
   try {
     if (process.platform === 'darwin') {
       const output = await runProgram(
-        path.join(packageRoot, 'native', 'darwin', 'muse-dictate'),
+        path.join(
+          packageRoot,
+          'native',
+          'darwin',
+          'muse-dictate-screen.app',
+          'Contents',
+          'MacOS',
+          'muse-dictate',
+        ),
         ['private-group', String(gid)],
         env,
       )
