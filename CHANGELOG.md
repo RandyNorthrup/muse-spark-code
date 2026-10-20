@@ -227,7 +227,7 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   or deny before it ends as expired. The integration has landed on Linux
   and macOS: the Models & Agents panel mounts its vault section, the Vault
   command opens it, Lock ends every use, and SSH keys can be generated or
-  imported when adding an item. Windows still waits on the pipe helper.
+  imported when adding an item. On Windows the pipe and slot helpers build at first use.
 - Schedules settle durably: the candidate scheduler writes a dispatch fence
   and owns every terminal record across VS Code, ACP and the terminal;
   ambiguous dispatch becomes uncertain without replay; failed cost reads
