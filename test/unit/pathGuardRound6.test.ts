@@ -9,6 +9,8 @@ import path from 'node:path'
 import { chmodSync, existsSync, realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { execResourceFile } from '../../src/core/resources/commands'
+import { configureResources } from '../../src/core/resources/admission'
+import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import { ghReportTransport } from '../../src/core/reporting/sources/github'
 import { PlaybookOutcomes } from '../../src/core/orchestration/playbook/outcomes'
 import { GITHUB_API_BASE_URL } from '../../src/shared/constants'
@@ -55,6 +57,34 @@ describe('round-6 planted programs (real filesystem)', () => {
       ).rejects.toThrow('Governed command unavailable')
     },
   )
+
+  it('the running runtime launches even when the working folder holds it', async () => {
+    // Windows real use, 0.19.0: VS Code's extension host works in its own
+    // install folder, which holds Code.exe, so the vault broker launch of
+    // process.execPath read as a workspace planting and was refused. The
+    // governor is configured as the extension host configures it.
+    const dispose = configureResources({
+      inspect: () => ({}),
+      onError: () => undefined,
+      windowsJob: runtimeWindowsJob(path.join(root, 'jobs'), process.cwd()),
+    })
+    try {
+      const result = await execResourceFile(
+        'probe',
+        process.execPath,
+        ['-e', 'process.stdout.write("runtime ran")'],
+        {
+          env: process.env,
+          cwd: path.dirname(process.execPath),
+          workspaceRoot: path.dirname(process.execPath),
+          timeout: 60_000,
+        },
+      )
+      expect(result.stdout).toBe('runtime ran')
+    } finally {
+      dispose()
+    }
+  })
 
   it.runIf(PLATFORM !== 'win32')(
     'the report gh resolves outside the workspace and threads it to the exec',

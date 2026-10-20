@@ -26,6 +26,11 @@ function resolveCommand(
   env: NodeJS.ProcessEnv,
   workspace: GovernedWorkspace,
 ): string {
+  // The running runtime itself (the editor's Node, the agent's node) is no
+  // lookup a workspace can plant: this process already runs it. VS Code's
+  // extension host on Windows works in its own install folder, so Code.exe
+  // sat "inside the workspace" and every vault broker launch was refused.
+  if (command === process.execPath) return command
   const scope = { workspaceRoot: workspace.workspaceRoot, realpath: realpathSync }
   if (path.isAbsolute(command)) {
     // An absolute configured path inside the workspace is refused like a
