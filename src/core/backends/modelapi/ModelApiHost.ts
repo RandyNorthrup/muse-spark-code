@@ -412,7 +412,8 @@ import {
   type ExtensionHookEvent,
   type FileChangedThrottle,
 } from './extensionHooks'
-import { type ImagePlan, imageUseRequest, prepareImageCall, runImageCall } from './imageGeneration'
+import type { ImagePlan } from './imageGeneration'
+import type * as ModelApiImage from './modelApiImageEntry'
 import { cacheMissTokens, promptCacheKey } from './promptCache'
 
 import { readImageInfo } from '../../imageDimensions'
@@ -3897,6 +3898,18 @@ export class ModelApiSession implements ScheduledAgentSession {
   private async verifyFunctions(): Promise<typeof ModelApiVerify> {
     await this.ensureVerify()
     return await import('./modelApiVerifyEntry.js')
+  }
+
+  /**
+  The image run-path, loaded with the session side
+  (dist/modelApiImage.js, D6) on the first image call: the call checks, the
+  purchase and the paid-use naming. Each caller binds the namespace locally
+  so the bundle-split gate can follow every member read to the chunk's
+  exports (the toolAssist shape). A bundle that cannot load fails the caller
+  that needed it, never an unchecked image and never a default value.
+  */
+  private async imageFunctions(): Promise<typeof ModelApiImage> {
+    return await import('./modelApiImageEntry.js')
   }
 
   /**
@@ -8961,7 +8974,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     ) {
       return { ok: false, reason: MODEL_TEXT.imageGenerationOff }
     }
-    return await prepareImageCall(kind, argumentsOf(call), {
+    const image = await this.imageFunctions()
+    return await image.prepareImageCall(kind, argumentsOf(call), {
       workspaceRoot: this.deps.workspaceRoot,
       platform: this.deps.platform,
       io: this.scheduledIo(this.deps.io),
@@ -9042,7 +9056,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       let hasReturned = false
       let egressRefusal: ToolOutcome | undefined
       try {
-        const outcome = await runImageCall(plan, {
+        const image = await this.imageFunctions()
+        const outcome = await image.runImageCall(plan, {
           client: this.client,
           io: this.scheduledIo(this.toolWrites()?.io ?? this.deps.io),
           signal,
@@ -13075,7 +13090,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       childGrant = consent.grant
     } else if (verdict === 'ask') {
-      const paid = approvedImagePlan === undefined ? undefined : imageUseRequest(approvedImagePlan)
+      let paid: PaidUseRequest | undefined
+      if (approvedImagePlan !== undefined) {
+        const image = await this.imageFunctions()
+        paid = image.imageUseRequest(approvedImagePlan)
+      }
       const approval = await this.askApproval(
         itemId,
         call,

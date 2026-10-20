@@ -669,6 +669,18 @@ const modelApiVerifyOptions = {
   outfile: MODEL_API_VERIFY_OUTFILE,
 }
 
+// The image run-path (M34, M44: the call checks, the purchase and the
+// paid-use naming), loaded on the first image call.
+const MODEL_API_IMAGE_ENTRY = 'src/core/backends/modelapi/modelApiImageEntry.ts'
+const MODEL_API_IMAGE_OUTFILE = 'dist/modelApiImage.js'
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiImageOptions = {
+  ...modelApiOptions,
+  entryPoints: [MODEL_API_IMAGE_ENTRY],
+  outfile: MODEL_API_IMAGE_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
@@ -1731,6 +1743,7 @@ if (isWatch) {
     esbuild.context(hookRuntimeOptions),
     esbuild.context(modelApiToolsOptions),
     esbuild.context(modelApiVerifyOptions),
+    esbuild.context(modelApiImageOptions),
     esbuild.context({
       ...modelApiOptions,
       entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
@@ -1900,6 +1913,7 @@ if (isWatch) {
     pluginHooks: recorded('pluginHooks', pluginHooksOptions),
     modelApiTools: recorded('modelApiTools', modelApiToolsOptions),
     modelApiVerify: recorded('modelApiVerify', modelApiVerifyOptions),
+    modelApiImage: recorded('modelApiImage', modelApiImageOptions),
     planMarkdown: recorded('planMarkdown', planMarkdownOptions),
     checkpointStore: recorded('checkpointStore', checkpointStoreOptions),
     media: recorded('media', mediaOptions),
