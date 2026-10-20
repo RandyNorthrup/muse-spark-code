@@ -4598,7 +4598,7 @@ export const EN = {
     '  --no-facts           Leave the support facts out',
     '  --no-events          Leave the recent events out',
   ].join('\n'),
-  // The terminal agent's own help (PLAN.md D119): one topic per command,
+  // The terminal agent's own help (PLAN.md D120): one topic per command,
   // generated from the parser's option table, so help cannot drift from
   // what the parser accepts. {command}: the executable's name; {cmd} and
   // {topic}: the command as typed. Option names and values stay as typed.

@@ -1188,7 +1188,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   for (const name of runtimeNames) {
     if (name !== 'invalid' && !names.has(name)) errors.push(`CLI command lacks entry: ${name}`)
   }
-  // The terminal help table (D119) is the parser's own inventory: every
+  // The terminal help table (D120) is the parser's own inventory: every
   // topic's routes come from the option registry, and the README's terminal
   // section names the route plus every topic it documents.
   const helpTopics = source.CLI_HELP_TOPICS.map((topic) => topic.name)

@@ -69,7 +69,7 @@ export class VaultMigration {
       return await this.deps.owner.run(work)
     } catch (error: unknown) {
       // A typed fault keeps its kind; anything else reads storage with its
-      // cause (D119).
+      // cause (D207).
       if (error instanceof VaultMigrationFault) throw error
       throw new VaultMigrationFault('storage', { cause: error })
     }
