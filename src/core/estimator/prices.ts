@@ -131,7 +131,7 @@ export async function lookupEstimatePrices(
     } catch (error: unknown) {
       // A missing cache entry is a cold cache: the reason stays
       // 'unavailable' while the refresh below retries over the network. Any
-      // other store failure keeps its kind for the caller (D119).
+      // other store failure keeps its kind for the caller (D207).
       if (!isStoreErrorCode(error, 'ENOENT')) throw error
       wasCacheUnavailable = true
     }

@@ -1,4 +1,4 @@
-// The ACP estimate boundary (D119): the estimator's own refusal stays its
+// The ACP estimate boundary (D207): the estimator's own refusal stays its
 // sentence for the agent, anything else keeps its kind past the boundary,
 // and cancellation stays cancellation.
 import { describe, expect, it } from 'vitest'

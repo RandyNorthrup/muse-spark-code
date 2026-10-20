@@ -116,7 +116,7 @@ export interface ReportOptions {
   readonly includeEvents: boolean
 }
 
-/** `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]` (D119). */
+/** `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]` (D120). */
 export interface ProvidersModelsOptions {
   /** The provider entry id whose model list changes. */
   readonly entry: string
@@ -322,7 +322,7 @@ function refused(reason: string): Extract<RuntimeCommand, { command: 'invalid' }
 }
 
 /**
-A strict-parser throw as a usage refusal (D119): a wrong option names the
+A strict-parser throw as a usage refusal (D120): a wrong option names the
 option, the topic's accepted options, and the nearest valid option when
 the name is close. Anything else keeps the parser's reason, still exit 2.
 */
@@ -337,7 +337,7 @@ function invalidStrictOption(
   return refused(error instanceof Error ? error.message : String(error))
 }
 
-/** An option-parser failure on one topic as its usage refusal (D119): a wrong
+/** An option-parser failure on one topic as its usage refusal (D120): a wrong
 option names the option and the nearest valid one; anything else keeps the
 parser's reason, still exit 2. */
 function usageRefusal(
@@ -620,7 +620,7 @@ export function parseCommandLine<T>(
     if (error instanceof Error && /unknown option/i.test(error.message)) {
       // The strict grammar is the serve family: a bare wrong option belongs
       // to serve, a named one to its command. The raw parser message is
-      // never the answer: it repeats the typed name (D119 secret rule).
+      // never the answer: it repeats the typed name (D120 secret rule).
       const named = argv.find((argument) => helpTopicNamed(argument) !== undefined) ?? 'serve'
       const topic = helpTopicNamed(named)
       if (topic !== undefined) {
@@ -842,7 +842,7 @@ interface ProvidersModelsFlags {
   readonly force?: string
 }
 
-/** `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]` (D119). */
+/** `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]` (D120). */
 function parseProvidersModels(argv: readonly string[]): RuntimeCommand {
   try {
     const strict = parseArgs({

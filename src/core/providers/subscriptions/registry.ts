@@ -625,7 +625,7 @@ export function createSubscriptionClient(
         if (ref.providerId === 'copilot') {
           const adapter = deps.copilot?.().get(ref.modelId)
           // Same unreachable grant as above: name VS Code, never a key. Typed
-          // so the catch below yields the grant's own words (D119), never the
+          // so the catch below yields the grant's own words (D207), never the
           // ChatGPT failure text, before the throw keeps its kind.
           if (adapter === undefined) throw new CopilotFailureError(UI_TEXT.planUi.copilotHostGrant)
           const account = await deps.accountId()
@@ -837,7 +837,7 @@ export function createSubscriptionClient(
         }
         // Anything else keeps its kind past this boundary, like the sibling
         // clients' streams: the fixed retry sentence must never stand in
-        // for a failure it does not describe (PLAN.md D119).
+        // for a failure it does not describe (PLAN.md D207).
         throw error
       } finally {
         notices.stop()
