@@ -57,6 +57,18 @@ it('keeps account, developer and help values out of startup and loads them exact
   )
   expect(playbookChunk).toBeDefined()
   expect(playbookChunk?.[0]).not.toBe(chunk[0])
+  // JOIN0190: the ChatGPT sign-in's and the team runners' English ride
+  // their own deferred chunks, out of the shared surface closure.
+  const chatGptChunk = Object.entries(built.meta.outputs).find(([, output]) =>
+    Object.hasOwn(output.inputs, 'browser-chatgpt-english:browser-chatgpt-english'),
+  )
+  expect(chatGptChunk).toBeDefined()
+  expect(chatGptChunk?.[0]).not.toBe(chunk[0])
+  const runnersChunk = Object.entries(built.meta.outputs).find(([, output]) =>
+    Object.hasOwn(output.inputs, 'browser-runners-english:browser-runners-english'),
+  )
+  expect(runnersChunk).toBeDefined()
+  expect(runnersChunk?.[0]).not.toBe(chunk[0])
   const main = Object.entries(built.meta.outputs).find(([file]) => file.endsWith('probe.mjs'))
   const seen = new Set()
   const reachesLoader = (file) => {
