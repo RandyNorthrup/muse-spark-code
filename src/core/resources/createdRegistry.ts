@@ -105,12 +105,16 @@ export class CreatedRegistry {
     } catch (error: unknown) {
       if (!isMissing(error)) throw error
     }
-    // Names an earlier run retained are retired here, by the same proof.
-    await registry.sweepRetained()
+    // Names an earlier run retained are retired by the same proof, in the
+    // background through the registry's own queue, so a folder holding
+    // thousands of them never holds back the first governed launch.
+    await registry.queueLeftovers()
     return registry
   }
 
   private readonly entries = new Map<string, CreatedPath>()
+  /** The background retirement of names earlier runs left; clean() reports its failure. */
+  private leftovers: Promise<readonly PromiseSettledResult<void>[]> = Promise.resolve([])
   /** Entry ids and retained manifest names that failed proof and were left alone. */
   private readonly refused = new Set<string>()
   private readonly finished = new Set<string>()
@@ -356,15 +360,35 @@ export class CreatedRegistry {
     }
   }
 
-  /** Retire every retained stage and displaced manifest in the registry folder. */
-  private async sweepRetained(): Promise<void> {
+  /** Retire one batch of retained names in the verified registry folder. */
+  private async retireBatch(names: readonly string[]): Promise<void> {
+    const { parent } = await this.verifiedParent()
+    await Promise.all(names.map((name) => this.retireRetained(parent, name)))
+  }
+
+  /**
+  Start retiring every retained name an earlier run left, in the
+  background. Each batch joins the registry's queue only after the one
+  before it finished, so a save or cleanup asked for meanwhile goes first
+  and a stage is never looked at while its save is publishing it. A failure
+  is kept for clean(), which reports it with its cause.
+  */
+  private async queueLeftovers(): Promise<void> {
     const { parent } = await this.verifiedParent()
     const listed = await readdir(parent)
     const names = listed.filter((name) => this.isRetainedName(name))
+    this.leftovers = this.retireLeftovers(names)
+  }
+
+  private async retireLeftovers(
+    names: readonly string[],
+  ): Promise<readonly PromiseSettledResult<void>[]> {
+    const settled: PromiseSettledResult<void>[] = []
     for (let i = 0; i < names.length; i += RESOURCE_RETIRED_SWEEP_WIDTH) {
       const batch = names.slice(i, i + RESOURCE_RETIRED_SWEEP_WIDTH)
-      await Promise.all(batch.map((name) => this.retireRetained(parent, name)))
+      settled.push(...(await Promise.allSettled([this.serial(() => this.retireBatch(batch))])))
     }
+    return settled
   }
 
   private async save(): Promise<void> {
@@ -401,9 +425,11 @@ export class CreatedRegistry {
       await handle.close()
     }
     // The publish keeps the stage and the displaced manifest under guessable
-    // names; retire them now that the live manifest is proven, by content and
-    // identity. A failed proof leaves the name alone and reports it.
-    await this.sweepRetained()
+    // names; retire this save's own now that the live manifest is proven, by
+    // content and identity. A failed proof leaves the name alone and reports
+    // it. Names earlier runs left are the background queue's (open()).
+    const stageName = path.basename(stage)
+    await this.retireBatch([stageName, `${stageName}.previous`, `${stageName}.publish`])
   }
 
   private async nativeFiles(args: readonly string[]): Promise<string> {
@@ -754,8 +780,18 @@ export class CreatedRegistry {
     })
   }
 
-  clean(): Promise<CreatedCleanup> {
-    return this.serial(async () => {
+  async clean(): Promise<CreatedCleanup> {
+    // The background retirement of earlier runs' names finishes first (it
+    // needs the queue, so it is awaited outside it); a failed batch is
+    // reported once, with its cause.
+    const settled = await this.leftovers
+    this.leftovers = Promise.resolve([])
+    const failure = settled.find((step) => step.status === 'rejected')
+    if (failure !== undefined)
+      throw new Error('Retained creation registry names could not be retired', {
+        cause: failure.reason,
+      })
+    return await this.serial(async () => {
       let removed = 0
       let freedBytes: number | null = 0
       for (const entry of this.entries.values()) {
