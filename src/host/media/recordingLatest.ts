@@ -9,8 +9,13 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import type { LatestRecordingPort } from '../../core/media/record/linux'
 import type { MediaSource } from '../../core/media/limits'
-import type { ScreenRecordingPreview } from '../../core/media/record/driver'
-import { UI_TEXT } from '../../shared/constants'
+import { windowsRecordingPlaces, type ScreenRecordingPreview } from '../../core/media/record/driver'
+import {
+  UI_TEXT,
+  VIDEOS_FOLDER_NAME,
+  WINDOWS_CAPTURES_FOLDER,
+  WINDOWS_SCREEN_RECORDINGS_FOLDER,
+} from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { powerShellQuoted } from '../../core/shellQuote'
 import { windowsPowerShell } from '../../core/execGuard'
@@ -45,9 +50,15 @@ export interface LatestRecordingHost {
   /**
   Redirect-aware Videos folder (Windows known folder). Absent means
   `homeDir/Videos`; the caller resolves it on win32 with
-  `resolveWindowsVideosDir`.
+  `resolveWindowsRecordingFolders`.
   */
   readonly videosDir?: string
+  /**
+  Redirect-aware Captures folder (Windows known folder, Xbox Game Bar's
+  save location; moving Captures moves it). Absent means its default place,
+  `Captures` under the Videos folder.
+  */
+  readonly capturesDir?: string
   /**
   Fresh owner-only directory for one preview copy. Required on Windows:
   `chmod` cannot set its ACL (mirrors `convert.ts`). Absent means
@@ -80,13 +91,14 @@ recording temp root, sniffed with M1 before return. Failures carry fixed
 words only; the caller's reasons name no path.
 */
 function createLatestPort(
-  roots: readonly string[],
+  locations: Pick<LatestRecordingPort, 'roots' | 'places'>,
   host: Pick<LatestRecordingHost, 'tempRoot' | 'createPrivateDirectory'>,
   isRecordingFileName?: (fileName: string) => boolean,
 ): LatestRecordingPort {
   const tempRoot = host.tempRoot
   return {
-    roots,
+    roots: locations.roots,
+    places: locations.places,
     ...(isRecordingFileName !== undefined && { isRecordingFileName }),
     list: async (root) => {
       const entries = await readdir(root, { withFileTypes: true })
@@ -159,20 +171,37 @@ function createLatestPort(
 export function createLinuxLatestPort(host: LatestRecordingHost): LatestRecordingPort {
   const home = host.homeDir ?? homedir()
   return createLatestPort(
-    [path.join(home, 'Videos', 'Screencasts'), path.join(home, 'Videos')],
+    {
+      roots: [
+        path.join(home, VIDEOS_FOLDER_NAME, 'Screencasts'),
+        path.join(home, VIDEOS_FOLDER_NAME),
+      ],
+      places: [path.posix.join(VIDEOS_FOLDER_NAME, 'Screencasts'), VIDEOS_FOLDER_NAME],
+    },
     host,
   )
 }
 
 /**
-The Snipping Tool location: `Screen Recordings` under the Videos known
-folder. `host.videosDir` carries the redirected folder (OneDrive, Group
-Policy, the Location setting) resolved with `resolveWindowsVideosDir`;
-absent means the profile's Videos folder.
+Windows' own recorders' locations, newest file across both wins: Snipping
+Tool's `Screen Recordings` under the Videos known folder, and Xbox Game
+Bar's Captures known folder (`Videos\Captures` by default). `host.videosDir`
+and `host.capturesDir` carry the redirected folders (OneDrive, Group
+Policy, the Location setting) resolved with `resolveWindowsRecordingFolders`;
+absent means the profile's Videos folder and its Captures.
 */
 export function createWindowsLatestPort(host: LatestRecordingHost): LatestRecordingPort {
-  const videos = host.videosDir ?? path.join(host.homeDir ?? homedir(), 'Videos')
-  return createLatestPort([path.join(videos, 'Screen Recordings')], host)
+  const videos = host.videosDir ?? path.join(host.homeDir ?? homedir(), VIDEOS_FOLDER_NAME)
+  return createLatestPort(
+    {
+      roots: [
+        path.join(videos, WINDOWS_SCREEN_RECORDINGS_FOLDER),
+        host.capturesDir ?? path.join(videos, WINDOWS_CAPTURES_FOLDER),
+      ],
+      places: windowsRecordingPlaces(),
+    },
+    host,
+  )
 }
 
 /**
@@ -187,30 +216,57 @@ export function isScreenshotRecordingName(fileName: string): boolean {
 /** The Screenshot app's default save location, gated to its own names. */
 export function createMacosLatestPort(host: LatestRecordingHost): LatestRecordingPort {
   const home = host.homeDir ?? homedir()
-  return createLatestPort([path.join(home, 'Desktop')], host, isScreenshotRecordingName)
+  return createLatestPort(
+    { roots: [path.join(home, 'Desktop')], places: ['Desktop'] },
+    host,
+    isScreenshotRecordingName,
+  )
 }
 
 /**
-The Videos known folder (FOLDERID_Videos, the same folder the native
-helper's `--latest` reads) through the operating system, so OneDrive,
-Group Policy and Location-setting redirects resolve: .NET's
-`GetFolderPath('MyVideos')` calls `SHGetKnownFolderPath` underneath.
-Absolute system PowerShell, no shell, bounded; anything the system will
-not say (other platforms included) is undefined and the caller keeps its
-homedir fallback. Never throws.
+The Videos and Captures known folders (FOLDERID_Videos and Xbox Game
+Bar's Captures, the same folders the native helper's `--latest` reads)
+through the operating system, so OneDrive, Group Policy and
+Location-setting redirects resolve: .NET's `GetFolderPath('MyVideos')`
+calls `SHGetKnownFolderPath` underneath, and the shell's `shell:Captures`
+namespace resolves the Captures known folder by its canonical name.
+Absolute system PowerShell, no shell; anything the system will not say
+(other platforms included) is left out and the caller keeps its homedir
+layout.
 */
 export interface WindowsVideosDeps {
   readonly systemRoot?: string
 }
 
-export function parseWindowsVideosDir(output: string): string | undefined {
-  const dir = output.trim()
+export type WindowsRecordingFolders = Pick<LatestRecordingHost, 'videosDir' | 'capturesDir'>
+
+function absoluteFolder(line: string | undefined): string | undefined {
+  const dir = line?.trim() ?? ''
   return dir !== '' && path.win32.isAbsolute(dir) ? dir : undefined
+}
+
+/** The query's two answer lines: the Videos folder, then Captures (empty when the shell has none). */
+export function parseWindowsRecordingFolders(output: string): WindowsRecordingFolders {
+  const [videos, captures] = output.split(/\r?\n/u, 2)
+  const videosDir = absoluteFolder(videos)
+  const capturesDir = absoluteFolder(captures)
+  return {
+    ...(videosDir !== undefined && { videosDir }),
+    ...(capturesDir !== undefined && { capturesDir }),
+  }
 }
 
 /** The system folder the environment names (never an assumed drive). */
 function windowsSystemRoot(override?: string): string | undefined {
   return override ?? process.env['SystemRoot'] ?? process.env['windir']
+}
+
+/** A system query that did not answer: its tool is missing, or it failed. */
+class SystemCommandFailure extends Error {
+  public constructor(cause: unknown) {
+    super('The system command failed', { cause })
+    this.name = 'SystemCommandFailure'
+  }
 }
 
 /**
@@ -230,32 +286,40 @@ function runSystemCommand(
       { windowsHide: true, env: powershell.env },
       (error, stdout) => {
         if (error === null) resolve(stdout)
-        else reject(error instanceof Error ? error : new Error('The command failed'))
+        else reject(new SystemCommandFailure(error))
       },
     )
   })
 }
 
-export async function resolveWindowsVideosDir(
+export async function resolveWindowsRecordingFolders(
   deps: WindowsVideosDeps = {},
   platform: NodeJS.Platform = process.platform,
-): Promise<string | undefined> {
-  if (platform !== 'win32') return undefined
+): Promise<WindowsRecordingFolders> {
+  if (platform !== 'win32') return {}
   try {
     const systemRoot = windowsSystemRoot(deps.systemRoot)
-    if (systemRoot === undefined) return undefined
+    if (systemRoot === undefined) return {}
     const powershell = windowsPowerShell(systemRoot)
-    return parseWindowsVideosDir(
+    return parseWindowsRecordingFolders(
       await runSystemCommand(powershell, [
         '-NoLogo',
         '-NoProfile',
         '-NonInteractive',
         '-Command',
-        `[Environment]::GetFolderPath('MyVideos')`,
+        [
+          `[Environment]::GetFolderPath('MyVideos')`,
+          `$captures = (New-Object -ComObject Shell.Application).NameSpace('shell:${WINDOWS_CAPTURES_FOLDER}')`,
+          // Always a second line: empty when the shell has no Captures folder.
+          "if ($null -eq $captures) { '' } else { $captures.Self.Path }",
+        ].join('; '),
       ]),
     )
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // The system would not answer (no PowerShell, a failed query): the
+    // homedir layout stands. Anything else is a fault and surfaces.
+    if (error instanceof SystemCommandFailure) return {}
+    throw error
   }
 }
 

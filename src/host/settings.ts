@@ -37,8 +37,6 @@ import {
   type SandboxNetworkMode,
   SCHEDULE_AGENT_CREATIONS,
   SCHEDULE_DELIVERIES,
-  SCREEN_RECORDING_MAX_SECONDS,
-  SCREEN_RECORDING_MIN_SECONDS,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
@@ -366,12 +364,9 @@ const settingSchemas = {
   mediaUploadExpiryDays: z
     .int()
     .check(z.gte(MEDIA_UPLOAD_EXPIRY_MIN_DAYS), z.lte(MEDIA_UPLOAD_EXPIRY_MAX_DAYS)),
-  // D121: 0 records until stopped (the default); a set value stays 10–600.
-  screenRecordingMaxSeconds: z.int().check(
-    z.gte(0),
-    z.lte(SCREEN_RECORDING_MAX_SECONDS),
-    z.refine((value) => value === 0 || value >= SCREEN_RECORDING_MIN_SECONDS),
-  ),
+  // D121: 0 records until stopped (the default); any other whole number of
+  // seconds is used as set, with no floor or ceiling of ours.
+  screenRecordingMaxSeconds: z.int().check(z.gte(0)),
   mediaAudioAction: z.enum(MEDIA_AUDIO_ACTION_OPTIONS),
   mediaConverterPath: z.string().check(z.maxLength(MEDIA_CONVERTER_PATH_MAX_CHARS)),
   accountSwap: z.boolean(),

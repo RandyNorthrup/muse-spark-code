@@ -3596,7 +3596,7 @@ Type: `"integer"`. Default: `7`. Scope: `machine`.
 
 ### museSpark.screenRecordingMaxSeconds
 
-Longest screen recording the extension captures, in seconds. No limit unless you set one: 0 (the default) records until stopped, and a set value stays within 10–600. The recorder stops at a set limit and keeps what it captured. Only this machine’s setting is used.
+Longest screen recording the extension captures, in seconds. No limit unless you set one: 0 (the default) records until stopped, and any other whole number of seconds is used as set. The recorder stops at a set limit and keeps what it captured. Only this machine’s setting is used.
 
 Type: `"integer"`. Default: `0`. Scope: `machine`.
 
@@ -3604,8 +3604,7 @@ Type: `"integer"`. Default: `0`. Scope: `machine`.
 {
   "type": "integer",
   "default": 0,
-  "minimum": 0,
-  "maximum": 600
+  "minimum": 0
 }
 ```
 

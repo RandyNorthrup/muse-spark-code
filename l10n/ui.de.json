@@ -962,7 +962,7 @@
     "recordingRemote": "Dieses Fenster läuft auf einem entfernten Host ohne lokalen Bildschirm. Verwende die Begleitseite oder wähle eine Aufnahmedatei.",
     "recordingBrowserUnsupported": "{browser} kann kein mp4 aufnehmen. Wähle eine mp4-Aufnahmedatei.",
     "recordingUserOnly": "Nur ein interaktiver Benutzer kann eine Bildschirmaufnahme starten.",
-    "recordingNoRecent": "Keine aktuelle Bildschirmaufnahme gefunden.",
+    "recordingNotFound": "In {folders} wurde keine Bildschirmaufnahme gefunden.",
     "recorderUnavailable": "Auf diesem Host ist kein Recorder für Bildschirmaufnahmen verfügbar.",
     "attachHeadless": "Für headless Ausführungen abgelehnt: Übergeben Sie die Datei stattdessen mit --attach.",
     "uploadStorageUnknown": "Video- und Audio-Uploads sind in dieser Version nicht verfügbar: Die Produktionsanbindungen für Upload und Transkription fehlen noch.",

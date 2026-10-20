@@ -1188,7 +1188,7 @@ export const EN = {
       'This window runs on a remote host with no local screen. Use the companion page or choose a recording file.',
     recordingBrowserUnsupported: '{browser} cannot record mp4. Choose an mp4 recording file.',
     recordingUserOnly: 'Only an interactive user can start a screen recording.',
-    recordingNoRecent: 'No recent screen recording was found.',
+    recordingNotFound: 'No screen recording was found in {folders}.',
     recorderUnavailable: 'No screen recorder is available on this host.',
     attachHeadless: 'Refused for headless runs: pass the file with --attach instead.',
     // D85.6 records the not-billed decision, so this names what is still

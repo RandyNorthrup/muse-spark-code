@@ -15,11 +15,12 @@ import { windowsTrustedPathVerifier } from '../../src/runtime/windowsTrustedPath
 import {
   MEDIA_FILE_ID_MIN_BYTES,
   MEDIA_MAX_UPLOAD_MIB,
-  SCREEN_RECORDING_MIN_SECONDS,
-  SCREEN_RECORDING_MAX_SECONDS,
-  SCREEN_RECORDING_RECENT_MAX_AGE_MS,
   PROCESS_TABLE_TIMEOUT_MS,
 } from '../../src/shared/constants'
+import {
+  createWindowsLatestPort,
+  resolveWindowsRecordingFolders,
+} from '../../src/host/media/recordingLatest'
 import { noWorkspaceChildEnvironment } from '../../src/core/execGuard'
 import { runProgram } from '../../src/host/processTree'
 import { createHash } from 'node:crypto'
@@ -42,8 +43,10 @@ const check = async (...args: string[]) => {
   return result.trim()
 }
 const destination = () => path.join(paths.root, `muse-spark-screen-${crypto.randomUUID()}`)
-const latest = async (source: string, target: string) =>
-  await check('latest', source, target, String(100), String(SCREEN_RECORDING_RECENT_MAX_AGE_MS))
+/** The production CopyLatest over these folders ('|' joins them; no Windows path holds one). */
+const latest = async (source: string | readonly string[], target: string) =>
+  await check('latest', typeof source === 'string' ? source : source.join('|'), target, String(100))
+const HOUR_MS = 60 * 60 * 1000
 // The real Windows trust check: the inbox compiler and the built helper must
 // each pass the owner, ACL and link checks in their real folders before the
 // helper is built or run. Its PowerShell probes run as real processes through
@@ -164,15 +167,33 @@ describe.skipIf(process.platform !== 'win32')(
     })
     afterAll(() => removeFolder(paths.root))
 
-    it('keeps native bounds identical to the shared contract', async () => {
-      expect(await check('constants')).toBe(
-        [
-          SCREEN_RECORDING_MIN_SECONDS,
-          SCREEN_RECORDING_MAX_SECONDS,
-          MEDIA_MAX_UPLOAD_MIB * MEDIA_FILE_ID_MIN_BYTES,
-          SCREEN_RECORDING_RECENT_MAX_AGE_MS,
-        ].join(','),
+    it('keeps the native byte bound identical to the shared contract', async () => {
+      expect(await check('constants')).toBe(String(MEDIA_MAX_UPLOAD_MIB * MEDIA_FILE_ID_MIN_BYTES))
+    })
+
+    // D121: the person's recording length reaches the helper's --record as
+    // set, through its own argument parsing; no floor or ceiling of ours.
+    it.each(['5', '3600', '0'])(
+      'takes a set recording length of %s seconds as set',
+      async (seconds) => {
+        expect(await check('record', destination(), String(process.pid), seconds)).toBe(seconds)
+      },
+    )
+
+    it('refuses a negative recording length', async () => {
+      expect(await check('record', destination(), String(process.pid), '-1')).toBe(
+        'error:ArgumentException',
       )
+    })
+
+    // The helper's own known-folder resolution (read only) names the same two
+    // folders the editor's discovery scans: Snipping Tool's and Xbox Game Bar's.
+    it('searches the same Screen Recordings and Captures folders as the editor', async () => {
+      const folders = await resolveWindowsRecordingFolders()
+      expect(folders.videosDir).toEqual(expect.any(String))
+      const port = createWindowsLatestPort({ tempRoot: paths.root, ...folders })
+      const searched = await check('folders')
+      expect(searched.split('|')).toEqual(port.roots)
     })
 
     it('never runs a built helper from a folder other users may write to', async () => {
@@ -204,14 +225,7 @@ describe.skipIf(process.platform !== 'win32')(
           const output = await new Promise<string>((resolve, reject) => {
             const child = execFileGuarded(
               paths.executable,
-              [
-                'controlledLatest',
-                source,
-                target,
-                String(before.length),
-                String(ownerPid),
-                String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
-              ],
+              ['controlledLatest', source, target, String(before.length), String(ownerPid)],
               {
                 env,
                 windowsHide: true,
@@ -245,16 +259,9 @@ describe.skipIf(process.platform !== 'win32')(
       const source = await folder()
       await clip(source, 'clip.mp4')
       const target = destination()
-      expect(
-        await check(
-          'mainLatest',
-          source,
-          target,
-          '100',
-          '2147483647',
-          String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
-        ),
-      ).toBe('{"type":"error","code":"cancelled"}\r\nexit:1')
+      expect(await check('mainLatest', source, target, '100', '2147483647')).toBe(
+        '{"type":"error","code":"cancelled"}\r\nexit:1',
+      )
       expect(await readdir(paths.root)).not.toContain(path.basename(target))
     })
 
@@ -262,15 +269,7 @@ describe.skipIf(process.platform !== 'win32')(
       const source = await folder()
       const file = await clip(source, 'clip.mp4')
       const target = destination()
-      expect(
-        await check(
-          'lateCopyCancel',
-          source,
-          target,
-          '100',
-          String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
-        ),
-      ).toBe('finish:False\r\nok')
+      expect(await check('lateCopyCancel', source, target, '100')).toBe('finish:False\r\nok')
       expect(await readdir(paths.root)).not.toContain(path.basename(target))
       expect(await readFile(file)).toEqual(Buffer.alloc(1, 1))
     })
@@ -367,7 +366,7 @@ describe.skipIf(process.platform !== 'win32')(
       expect(await check(mode)).toBe('error:RecordingLimitException')
     })
 
-    it('copies the newest recent mp4, case-insensitively, byte-exact into a private preview', async () => {
+    it('copies the newest mp4, case-insensitively, byte-exact into a private preview', async () => {
       const source = await folder()
       await clip(source, 'older.mp4', 1000)
       const newest = await clip(source, 'newest.MP4', 0, 100)
@@ -390,15 +389,50 @@ describe.skipIf(process.platform !== 'win32')(
       expect(await check('private', target)).toBe('error:Win32Exception')
     })
 
-    it.each([
-      { label: 'stale', age: SCREEN_RECORDING_RECENT_MAX_AGE_MS + 1000 },
-      { label: 'future-dated', age: -SCREEN_RECORDING_RECENT_MAX_AGE_MS },
-    ])('refuses $label recordings before copying', async ({ age }) => {
+    // D121: no age cutoff. A recording made two hours ago is still the latest.
+    it('takes a two-hour-old recording as the latest', async () => {
       const source = await folder()
-      await clip(source, 'clip.mp4', age)
+      const old = await clip(source, 'clip.mp4', 2 * HOUR_MS, 7)
+      const target = destination()
+      expect(await latest(source, target)).toBe('ok')
+      expect(await readFile(path.join(target, 'recording.mp4'))).toEqual(await readFile(old))
+    })
+
+    it('refuses a future-dated recording before copying', async () => {
+      const source = await folder()
+      await clip(source, 'clip.mp4', -HOUR_MS)
       const target = destination()
       expect(await latest(source, target)).toBe('error:FileNotFoundException')
       expect(await readdir(paths.root)).not.toContain(path.basename(target))
+    })
+
+    // Snipping Tool's Screen Recordings and Xbox Game Bar's Captures: the
+    // newest mp4 across both wins; Game Bar's screenshots (.png) never do.
+    it('picks the newest mp4 across Screen Recordings and Captures, never a newer screenshot', async () => {
+      const screenRecordings = await folder()
+      const captures = await folder()
+      await clip(screenRecordings, 'Screen Recording.mp4', 3 * HOUR_MS, 3)
+      const gameClip = await clip(captures, 'Game Clip.mp4', 2 * HOUR_MS, 5)
+      await clip(captures, 'Screenshot.png', 0, 9)
+      const target = destination()
+      expect(await latest([screenRecordings, captures], target)).toBe('ok')
+      expect(await readFile(path.join(target, 'recording.mp4'))).toEqual(await readFile(gameClip))
+      const snip = await clip(screenRecordings, 'Newer Recording.mp4', HOUR_MS, 4)
+      const second = destination()
+      expect(await latest([screenRecordings, captures], second)).toBe('ok')
+      expect(await readFile(path.join(second, 'recording.mp4'))).toEqual(await readFile(snip))
+    })
+
+    it('a missing folder, or a junction in place of one, hides nothing in the others', async () => {
+      const captures = await folder()
+      const gameClip = await clip(captures, 'Game Clip.mp4', HOUR_MS, 6)
+      const linked = path.join(paths.root, `screen-junction-${crypto.randomUUID()}`)
+      await symlink(await folder(), linked, 'junction')
+      const target = destination()
+      expect(
+        await latest([path.join(paths.root, 'no-such-folder'), linked, captures], target),
+      ).toBe('ok')
+      expect(await readFile(path.join(target, 'recording.mp4'))).toEqual(await readFile(gameClip))
     })
 
     it('refuses the latest oversize file instead of silently importing an older recording', async () => {

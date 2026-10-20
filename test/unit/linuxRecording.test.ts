@@ -13,7 +13,10 @@ import {
   linuxRecordingDriver,
   type LinuxRecordingPort,
 } from '../../src/core/media/record/linux'
-import { SCREEN_RECORDING_RECENT_MAX_AGE_MS } from '../../src/shared/constants'
+
+const HOUR_MS = 60 * 60 * 1000
+/** The person's name for a test root, as the not-found sentence shows it. */
+const PLACE = 'Screencasts'
 
 function driverPort(overrides: Partial<LinuxRecordingPort>): LinuxRecordingPort {
   return {
@@ -96,34 +99,59 @@ async function freshMp4(
 }
 
 describe('findLatestRecording', () => {
-  it('reports no recent recording when the directory is missing', async () => {
+  it('names the folder it searched when the directory is missing', async () => {
     const outcome = await findLatestRecording({
       roots: [path.join(tmpdir(), 'muse-linux-record-missing')],
+      places: [PLACE],
       list: async (listed: string) => {
         const names = await readdir(listed)
         return names.map((name) => ({ path: path.join(listed, name), modifiedAt: Date.now() }))
       },
       copyForPreview: () => Promise.reject(new Error('unreachable without candidates')),
     })
+    expect(outcome).toEqual({
+      ok: false,
+      reason: `No screen recording was found in ${PLACE}.`,
+    })
+  })
+
+  // D121: no age cutoff of ours; the preview shows what is attached.
+  it('takes a recording made two hours ago', async () => {
+    const { root, file } = await freshMp4('muse-linux-record-old-')
+    const old = Date.now() - 2 * HOUR_MS
+    await utimes(file, old / 1000, old / 1000)
+    const copied: string[] = []
+    const outcome = await findLatestRecording({
+      roots: [root],
+      places: [PLACE],
+      list: listRecordingFiles,
+      copyForPreview: (source) => {
+        copied.push(source)
+        return Promise.reject(new Error('the copy is not under test'))
+      },
+    })
+    expect(copied).toEqual([file])
     expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
   })
 
-  it('ignores a recording older than the recent window', async () => {
-    const { root, file } = await freshMp4('muse-linux-record-stale-')
-    const stale = Date.now() - SCREEN_RECORDING_RECENT_MAX_AGE_MS - 60_000
-    await utimes(file, stale / 1000, stale / 1000)
+  it('refuses a recording dated in the future', async () => {
+    const { root, file } = await freshMp4('muse-linux-record-future-')
+    const future = Date.now() + HOUR_MS
+    await utimes(file, future / 1000, future / 1000)
     const outcome = await findLatestRecording({
       roots: [root],
+      places: [PLACE],
       list: listRecordingFiles,
       copyForPreview: () => Promise.reject(new Error('unreachable without candidates')),
     })
-    expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
+    expect(outcome).toEqual({ ok: false, reason: `No screen recording was found in ${PLACE}.` })
   })
 
   it('reports unavailable when the preview copy fails', async () => {
     const { root } = await freshMp4('muse-linux-record-copy-')
     const outcome = await findLatestRecording({
       roots: [root],
+      places: [PLACE],
       list: listRecordingFiles,
       copyForPreview: () => Promise.reject(new Error('copy failed')),
     })
@@ -134,6 +162,7 @@ describe('findLatestRecording', () => {
     const { root, file, sizeBytes } = await freshMp4('muse-linux-record-fresh-')
     const outcome = await findLatestRecording({
       roots: [root],
+      places: [PLACE],
       list: listRecordingFiles,
       copyForPreview: () =>
         Promise.resolve({

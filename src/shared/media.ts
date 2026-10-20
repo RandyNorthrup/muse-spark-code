@@ -9,8 +9,6 @@ import {
   MEDIA_NAME_MAX_CHARS,
   MEDIA_PATH_TOKEN_MAX_CHARS,
   MEDIA_SHA256_PATTERN,
-  SCREEN_RECORDING_MAX_SECONDS,
-  SCREEN_RECORDING_MIN_SECONDS,
 } from './constants'
 
 const count = z.int().check(z.gte(0))
@@ -190,13 +188,12 @@ export const uploadedFilesReportSchema = /* @__PURE__ */ (() =>
   }))()
 export type UploadedFilesReport = z.infer<typeof uploadedFilesReportSchema>
 
-/** No implicit audio selection; 0 records until stopped, otherwise 10–600. */
+/**
+No implicit audio selection. D121: 0 records until stopped; any other whole
+number of seconds the person sets is used as set, with no floor or ceiling.
+*/
 export const screenRecordingOptionsSchema = z.strictObject({
-  maxSeconds: z.int().check(
-    z.gte(0),
-    z.lte(SCREEN_RECORDING_MAX_SECONDS),
-    z.refine((value) => value === 0 || value >= SCREEN_RECORDING_MIN_SECONDS),
-  ),
+  maxSeconds: count,
   microphone: z.boolean(),
   systemAudio: z.boolean(),
 })

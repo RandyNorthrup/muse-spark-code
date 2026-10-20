@@ -12,7 +12,7 @@
       "CLEANUP": 236
     },
     "host": {
-      "SWALLOW": 20,
+      "SWALLOW": 19,
       "GENERIC": 113,
       "CLEANUP": 90
     },
@@ -1450,7 +1450,7 @@
     },
     {
       "file": "src/core/media/record/linux.ts",
-      "identity": "452c18c89aa43601917bb7e2f326145579ffcb95896192b1b538823be666da7d",
+      "identity": "d68e351e6e2ab52123f30be546499b709be00fad2297219248fbf5a44d6e995a",
       "class": "CLEANUP"
     },
     {
@@ -1535,7 +1535,7 @@
     },
     {
       "file": "src/core/media/record/windows.ts",
-      "identity": "62139d988e482739a2b40700f3d14b2560baabb2607306bd8642aa0abf34e404",
+      "identity": "6ad6e078ce25b11c601dcbd75d7287ec206e6cbc526c89c614db2c3d899a2213",
       "class": "GENERIC"
     },
     {
@@ -3497,11 +3497,6 @@
       "file": "src/host/media/recordingLatest.ts",
       "identity": "8f069039997de517d2a1e09b44ecf86b4dbfcddb73f3e411335cde98bf2b553b",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/media/recordingLatest.ts",
-      "identity": "1317b42ac023af999ef322a948f27fe5b7b28aae93b31608ff715059214ebfed",
-      "class": "SWALLOW"
     },
     {
       "file": "src/host/media/recordingLatest.ts",

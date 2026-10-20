@@ -967,7 +967,7 @@
     "recordingRemote": "Esta ventana se ejecuta en un host remoto sin pantalla local. Usa la página complementaria o elige un archivo de grabación.",
     "recordingBrowserUnsupported": "{browser} no puede grabar mp4. Elige un archivo de grabación mp4.",
     "recordingUserOnly": "Solo un usuario interactivo puede iniciar una grabación de pantalla.",
-    "recordingNoRecent": "No se ha encontrado ninguna grabación de pantalla reciente.",
+    "recordingNotFound": "No se ha encontrado ninguna grabación de pantalla en {folders}.",
     "recorderUnavailable": "No hay ningún grabador de pantalla disponible en este host.",
     "attachHeadless": "Rechazado para ejecuciones headless: pase el archivo con --attach en su lugar.",
     "uploadStorageUnknown": "Las subidas de vídeo y audio no están disponibles en esta versión: aún faltan los enlaces de subida y transcripción de producción.",
