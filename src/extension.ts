@@ -667,10 +667,18 @@ flight recorder clears this activation's marker: only a window that never
 got here leaves one behind (M93, D72).
 */
 export async function deactivate(): Promise<void> {
-  await lifecycle.shutdown?.()
-  lifecycle.shutdown = undefined
-  await lifecycle.reports?.shutdown()
-  lifecycle.reports = undefined
+  // The editor asked for this stop: the crash marker goes first. The
+  // editor ends the extension host on its own clock, and a shutdown it
+  // cuts short, or one that fails, is no crash to offer at the next start
+  // (it was offered at every start on Windows).
+  await lifecycle.reports?.markOrderlyStop()
+  try {
+    await lifecycle.shutdown?.()
+  } finally {
+    lifecycle.shutdown = undefined
+    await lifecycle.reports?.shutdown()
+    lifecycle.reports = undefined
+  }
 }
 
 /** `files.exclude` as Tab reads it: the switches and the `when` conditions (M94). */

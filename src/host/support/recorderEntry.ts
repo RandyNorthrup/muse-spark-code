@@ -4,6 +4,7 @@
 // journal, its policy and the frame mapping stay out of the bundle VS Code
 // loads at activation. It needs no localized text.
 
+import { processStartTime } from '../../core/locks/processOwner'
 import { reportEventsOf } from '../../core/support/journalEvents'
 import { reportCodeOf } from '../../shared/stackFrames'
 import type { ReportJournalSource } from '../conversation/reportProblemHandler'
@@ -24,20 +25,35 @@ export interface WindowJournalOptions {
   readonly pid: number
   readonly log: Logger
   readonly isAlive: (pid: number) => boolean
+  /** Overrides the birth check (tests on a clock of their own). */
+  readonly isReusedAfter?: (pid: number, at: number) => Promise<boolean>
   /** The installed extension's folder: frames are kept only inside it. */
   readonly extensionRoot: string
   readonly now: () => number
   readonly fs?: ReportJournalFs
 }
 
+/**
+Windows and macOS report a process's birth in epoch milliseconds, the
+marker's own clock: a live id born after the marker was written belongs
+to another process. Linux counts boot ticks and hands ids out in order,
+so it keeps the plain liveness answer.
+*/
+async function isReusedAfter(pid: number, at: number): Promise<boolean> {
+  if (process.platform !== 'win32' && process.platform !== 'darwin') return false
+  const born = await processStartTime(pid)
+  return born !== undefined && born > at
+}
+
 /** The window's journal behind the facts-only records the activation bundle queues. */
 export function createWindowJournal(options: WindowJournalOptions): WindowJournal {
-  const journal = new ReportJournal({ ...options })
+  const journal = new ReportJournal({ isReusedAfter, ...options })
   return {
     startup: async () => {
       const { offerReport } = await journal.startup()
       return offerReport
     },
+    clearMarker: () => journal.clearMarker(),
     shutdown: () => journal.shutdown(),
     record: (input: PendingRecord) =>
       journal.record(
