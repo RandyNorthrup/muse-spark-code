@@ -45,6 +45,8 @@ in the product, and the suite re-run green.
 
 | 19 | Relayed connections stayed half-open when the client went away (the readable side ended, the writable side never did), so the broker counted them forever and never reached its 30 s idle shutdown: a Windows broker stayed running after every editor closed. | The relayed connection ends both sides like a net socket (`allowHalfOpen: false`). | windowsPipeRelay "server socket closes" timed out at 15 s (break-once: half-open restored) | closes; a traced broker run idles out 30 s after its last client |
 | 20 | The guard held a file it checked with read-only sharing, so a check that met the owner's own link, rename or delete of the same record (the broker publishing `broker.lock`) read as a refusal: the client then reported "The broker cannot start" now and then. | Files are held against writers only (read and delete sharing); the hold ends with the check. | windowsPipeHelperStart "checks a file another process holds open for deletion" `No access` (break-once: read-only sharing restored) | checked |
+| 21 | WINPSMOD (2026-10-20): VS Code or the agent started from a PowerShell 7 terminal hands every child pwsh 7's `PSModulePath`; a Windows PowerShell 5.1 child the product started without resetting it (the preview folder's lockdown, the converter's trust check, the schedule runner, the clipboard share, the resource helpers, the vault helper, the terminals that run the CLI) could not load Microsoft.PowerShell.Security: `Set-Acl`/`Get-Acl` CouldNotAutoloadMatchingModule, "Unprotected preview directory". Found when hosted CI moved the Windows unit step to pwsh. | One rule, `windowsPowerShellEnvironment` in `src/core/execGuard.ts` (the existing `buildChildEnvironment`/`shellEnvironment`/`windowsPowerShell` reset, now shared): `PSModulePath`, every spelling, is set to Windows PowerShell's own folders, from which 5.1 builds its default (measured: the same value as dropping the variable). Every 5.1 start applies it; `windowsPowerShellModules` gates new ones. pwsh 7 children are untouched. | recordingLatest from pwsh "Unprotected preview directory" | locked down from pwsh and Git Bash, also with pwsh 7's real module path set explicitly |
+| 22 | Windows' own OpenSSH exits 255 without a word when its environment has no `ProgramData`; the MCP stdio allowlist (also the terminal agent's `muse serve` allowlist) and the hook environment dropped it, so an MCP server started through `ssh`, and `ssh` in a hook, never ran. | `ProgramData` kept in both lists. The test's own key generator (`vault/sshImport`) passes it too. | windowsOpenSshEnvironment `expected 255 to be +0` ×3; sshImport from pwsh `Command failed: ssh-keygen` | `ssh -G` exit 0 |
 
 ## Tests that were wrong about the product, corrected
 
@@ -60,11 +62,15 @@ in the product, and the suite re-run green.
 
 ## Break-once drills
 
-| Change broken                                                  | Suite                   | Result                                      |
-| -------------------------------------------------------------- | ----------------------- | ------------------------------------------- |
-| Close handler removed (defect 4)                               | windowsPipeHelperStart  | "refuses at once" timed out at 15 s, exit 1 |
-| `SystemRoot` removed (defect 3)                                | windowsPipeHelperStart  | "starts" `No access`, exit 1                |
-| `isAbsentBelowFolder` answers `true` for any existing ancestor | absentPath + paidGrants | 2 failed, exit 1                            |
+| Change broken                                                                      | Suite                                      | Result                                                                                                                                     |
+| ---------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Close handler removed (defect 4)                                                   | windowsPipeHelperStart                     | "refuses at once" timed out at 15 s, exit 1                                                                                                |
+| `SystemRoot` removed (defect 3)                                                    | windowsPipeHelperStart                     | "starts" `No access`, exit 1                                                                                                               |
+| `isAbsentBelowFolder` answers `true` for any existing ancestor                     | absentPath + paidGrants                    | 2 failed, exit 1                                                                                                                           |
+| `windowsPowerShellEnvironment` made a no-op (row 21)                               | recordingLatest + windowsPowerShellModules | pwsh: 3 failed ("Unprotected preview directory" ×2, `Get-Acl` CouldNotAutoloadMatchingModule); Git Bash: the 2 pwsh 7 cases failed, exit 1 |
+| converterTrust spells the path itself; `windowsPowerShell` skips the rule (row 21) | windowsPowerShellModules gate              | `src/runtime/converterTrust.ts: line 24, 24, 33` and `[ 'windowsPowerShell' ]`, exit 1                                                     |
+| `ProgramData` removed from the MCP allowlist and hook names (row 22)               | windowsOpenSshEnvironment (pwsh)           | 3 failed, `expected 255 to be +0`, exit 1                                                                                                  |
+| sshImport's generator without `ProgramData` (row 22)                               | vault/sshImport (pwsh)                     | `Command failed: ssh-keygen -q -t ed25519 …`, exit 1                                                                                       |
 
 Every other row above went red to green as its fix landed, in the order
 listed; the red line is the observed failure.
@@ -75,3 +81,14 @@ listed; the red line is the observed failure.
 clean; `npm run check:catches` 0 (baseline regenerated: runtime GENERIC 204 →
 203, sites 1254 → 1253, nothing rose); duplication 0 clones; cycles 0;
 deadcode 0.
+
+WINPSMOD (rows 21-22, `fix/0190-winpsmod`): `npm run typecheck` 0; eslint
+(zero warnings, touched files) 0; prettier clean; `node scripts/check-l10n.mjs`
+0; `npm run check:catches` 0 (baseline regenerated: the two edited
+recordingLatest sites changed identity, every count unchanged); duplication 0
+clones; cycles 0; deadcode 0; the 58 suites that load a touched module, from
+pwsh and from Git Bash, all passed (platform-gated cases skipped). `npm run
+build`: every size budget ok; its split step fails only on
+`node_modules/…` inputs, which this worktree's linked `node_modules` names
+`../mx-final/node_modules/…`; `mediaHost.js` now requires `execGuard.js`
+instead of carrying it.

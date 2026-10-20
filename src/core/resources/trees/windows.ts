@@ -1,11 +1,7 @@
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { powerShellQuoted } from '../../shellQuote'
-import {
-  SHELL_JOB_TYPE_NAME,
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
-} from '../../../shared/constants'
+import { SHELL_JOB_TYPE_NAME, WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../../shared/constants'
 import {
   resourceProcessIdentitySchema,
   resourceTreeUsageSchema,
@@ -14,7 +10,7 @@ import {
   type ResourceTreeReader,
   type ResourceTreeUsage,
 } from '../../../shared/resources'
-import { probeChildEnvironment } from '../../executables'
+import { windowsPowerShell } from '../../execGuard'
 import { runTreeProgram, type ResourceTreeRun } from './run'
 import {
   resourceActionResultSchema,
@@ -34,6 +30,27 @@ export interface WindowsTreeDeps {
   readonly run?: ResourceTreeRun
 }
 
+/**
+One call into the compiled job helper, shared by the tree reader and the
+actuator: `%SystemRoot%`'s Windows PowerShell with only SystemRoot and its
+own module path (`windowsPowerShell`) loads the assembly and prints JSON.
+*/
+export async function callWindowsJobHelper(
+  deps: WindowsTreeDeps,
+  run: ResourceTreeRun,
+  body: string,
+): Promise<unknown> {
+  const script = `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(deps.assemblyPath)}); ${body} } catch { exit 1 }`
+  const powershell = windowsPowerShell(deps.systemRoot, { SystemRoot: deps.systemRoot })
+  const text = await run(
+    powershell.file,
+    [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
+    powershell.env,
+  )
+  const value: unknown = JSON.parse(text)
+  return value
+}
+
 export class WindowsResourceTreeReader implements ResourceTreeReader {
   private readonly known = new Map<string, { members: readonly ResourceProcessIdentity[] }>()
   constructor(private readonly deps: WindowsTreeDeps) {
@@ -42,14 +59,7 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
   }
 
   private async call(body: string): Promise<unknown> {
-    const script = `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(this.deps.assemblyPath)}); ${body} } catch { exit 1 }`
-    const text = await (this.deps.run ?? runTreeProgram)(
-      path.win32.join(this.deps.systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
-      [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
-      probeChildEnvironment({ SystemRoot: this.deps.systemRoot }),
-    )
-    const value: unknown = JSON.parse(text)
-    return value
+    return await callWindowsJobHelper(this.deps, this.deps.run ?? runTreeProgram, body)
   }
 
   private epoch(id: string): { members: readonly ResourceProcessIdentity[] } {

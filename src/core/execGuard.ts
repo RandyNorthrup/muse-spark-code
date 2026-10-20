@@ -13,6 +13,7 @@ import {
   HOOK_FORBIDDEN_ENV_NAMES,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_PSMODULEPATH_SEGMENTS,
+  WINDOWS_PSMODULEPATH_VARIABLE,
   type EnvironmentVariable,
 } from '../shared/constants'
 import type {
@@ -93,6 +94,38 @@ export function windowsPowerShellModulePath(
   ].join(';')
 }
 
+const PROGRAM_FILES = 'ProgramFiles'
+
+/**
+The one rule for every Windows PowerShell 5.1 (`powershell.exe`) child: a
+copy of `env` whose `PSModulePath`, every spelling of it, is Windows
+PowerShell's own module directories, from which 5.1 builds its default
+(it adds the person's own folder itself). VS Code or the agent started from
+a PowerShell 7 terminal inherits pwsh 7's module path, which lists pwsh 7's
+copies of the core modules first; 5.1 then fails to autoload some of them and
+every cmdlet they hold fails (verified on Windows 11: `Get-Acl` and `Set-Acl`
+of Microsoft.PowerShell.Security end in CouldNotAutoloadMatchingModule;
+`Get-FileHash` was not recognised for `muse serve`'s launcher). PowerShell 7
+repairs the variable only when it starts powershell.exe itself; a Node
+process in between passes it on unchanged. A PowerShell 7 (`pwsh`) child
+keeps its environment as it is. `programFiles` defaults to the
+environment's own `ProgramFiles`.
+*/
+export function windowsPowerShellEnvironment<T extends NodeJS.ProcessEnv>(
+  env: T,
+  systemRoot: string,
+  programFiles: string | undefined = environmentValue(env, 'win32', PROGRAM_FILES),
+): T {
+  const child = { ...env }
+  setEnvironmentVariable(
+    child,
+    'win32',
+    WINDOWS_PSMODULEPATH_VARIABLE,
+    windowsPowerShellModulePath(systemRoot, programFiles),
+  )
+  return child
+}
+
 /**
 The PATH entries worth probing: an empty or relative entry means the
 current directory, which for `muse serve` is the workspace (PLAN.md D24).
@@ -166,15 +199,10 @@ does not close that lookup. Only the branded producers below can make the
 returned environment, so a raw one never reaches the serve spawn.
 */
 export function buildChildEnvironment(input: ChildEnvironmentInput): GuardedChildEnv {
-  const env: NodeJS.ProcessEnv = { ...input.baseEnv }
-  if (input.platform === 'win32' && input.systemRoot !== undefined) {
-    setEnvironmentVariable(
-      env,
-      input.platform,
-      'PSModulePath',
-      windowsPowerShellModulePath(input.systemRoot, input.programFiles),
-    )
-  }
+  const env: NodeJS.ProcessEnv =
+    input.platform === 'win32' && input.systemRoot !== undefined
+      ? windowsPowerShellEnvironment(input.baseEnv, input.systemRoot, input.programFiles)
+      : { ...input.baseEnv }
   for (const variable of input.extraVariables) {
     setEnvironmentVariable(env, input.platform, variable.name, variable.value)
   }
@@ -647,10 +675,6 @@ export function resolveExecutable(name: string, probe: ExecutableProbe): string 
   return resolveAllExecutables(name, probe).at(0)
 }
 
-const PS_MODULE_PATH = 'PSModulePath'
-
-const PROGRAM_FILES = 'ProgramFiles'
-
 const HOOK_ENV_NAMES = [
   'HOME',
   'PATH',
@@ -665,7 +689,15 @@ const HOOK_ENV_NAMES = [
   'TERM',
 ] as const
 
-const WINDOWS_HOOK_ENV_NAMES = ['COMSPEC', 'PATHEXT', 'SystemRoot', 'WINDIR'] as const
+// ProgramData: Windows' own OpenSSH reads its configuration there, and without
+// it a hook's `ssh` or git over ssh exits 255 without a word.
+const WINDOWS_HOOK_ENV_NAMES = [
+  'COMSPEC',
+  'PATHEXT',
+  'SystemRoot',
+  'WINDIR',
+  'ProgramData',
+] as const
 
 // The variables VS Code's terminal strips from the extension host's
 // environment before a shell sees it (`sanitizeProcessEnvironment`,
@@ -689,21 +721,23 @@ export function shellEnvironment(
   vault: VaultFenceOptions = {},
   scope: ExecutableScope,
 ): GuardedChildEnv {
-  const clean: NodeJS.ProcessEnv = {}
+  const kept: NodeJS.ProcessEnv = {}
   const entries = Object.entries(withoutCredentials(env, passNames, platform))
   for (const [key, value] of entries) {
     if (HOST_ONLY_VARIABLES.every((pattern) => !pattern.test(key))) {
-      clean[key] = value
+      kept[key] = value
     }
   }
-  if (platform === 'win32' && systemRoot !== undefined) {
-    setEnvironmentVariable(
-      clean,
-      platform,
-      PS_MODULE_PATH,
-      windowsPowerShellModulePath(systemRoot, environmentValue(env, platform, PROGRAM_FILES)),
-    )
-  }
+  // The shell tool's interpreter on Windows is Windows PowerShell 5.1, so the
+  // person's own `Get-Acl` and the like load 5.1's modules.
+  const clean =
+    platform === 'win32' && systemRoot !== undefined
+      ? windowsPowerShellEnvironment(
+          kept,
+          systemRoot,
+          environmentValue(env, platform, PROGRAM_FILES),
+        )
+      : kept
   const fenced = isFenced ? vaultFenceEnvironment(clean, { ...vault, passNames, platform }) : clean
   // Shell commands run with the workspace as their working directory: the
   // guarded child PATH plus `NoDefaultCurrentDirectoryInExePath` on
@@ -966,9 +1000,10 @@ export function spawnLine(
 }
 
 /**
-Windows PowerShell with its own modules (`Get-CimInstance`, `Add-Type`),
-whatever shell VS Code came from: every spelling of `PSModulePath` is
-replaced, since Windows hands a child the first one it sorts.
+`%SystemRoot%`'s Windows PowerShell 5.1 with its own modules
+(`Get-CimInstance`, `Add-Type`, `Get-Acl`), whatever shell VS Code came
+from: the file and its credential-free environment under the one rule above
+(`windowsPowerShellEnvironment`).
 */
 export function windowsPowerShell(
   systemRoot: string,
@@ -977,13 +1012,7 @@ export function windowsPowerShell(
   readonly file: string
   readonly env: GuardedChildEnv
 } {
-  const env = withoutCredentials(base)
-  setEnvironmentVariable(
-    env,
-    'win32',
-    PS_MODULE_PATH,
-    windowsPowerShellModulePath(systemRoot, base['ProgramFiles']),
-  )
+  const env = windowsPowerShellEnvironment(withoutCredentials(base), systemRoot)
   // System PowerShell runs no workspace program: absolute entries only, links followed.
   return {
     file: path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),

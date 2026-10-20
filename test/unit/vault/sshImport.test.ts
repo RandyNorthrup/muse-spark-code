@@ -31,9 +31,13 @@ beforeAll(async () => {
           file,
         ],
         {
+          // Windows OpenSSH's ssh-keygen (C:\Windows\System32\OpenSSH, the one
+          // PATH finds first under PowerShell) exits 255 without a word when
+          // its environment has no ProgramData, where it keeps its own config.
           env: {
             PATH: process.env['PATH'],
             ...(process.env['SystemRoot'] && { SystemRoot: process.env['SystemRoot'] }),
+            ...(process.env['ProgramData'] && { ProgramData: process.env['ProgramData'] }),
           },
         },
       )

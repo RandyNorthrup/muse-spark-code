@@ -29,6 +29,7 @@ import {
 } from '../../shared/constants'
 import { redactSecrets } from '../../shared/redact'
 import { withoutCredentials } from '../credentialVariables'
+import { environmentValue, windowsPowerShell } from '../../core/execGuard'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 
@@ -53,13 +54,14 @@ async function localProgram(
   signal: AbortSignal,
   workspaceRoot: string,
   text?: string,
+  env: NodeJS.ProcessEnv = withoutCredentials(process.env),
 ): Promise<void> {
   // Fixed platform clipboard/browser binaries and switches; a confined file is one
   // argument, scrubbed text is stdin, no shell or credential environment (M118).
   // Bare adapter names never resolve inside the shared workspace.
   try {
     await handoffResourceFile(file, args, {
-      env: withoutCredentials(process.env),
+      env,
       signal,
       workspaceRoot,
       ...(text !== undefined && { input: text }),
@@ -116,16 +118,31 @@ function commandsFor(ports: RuntimeSharingPorts): SharingCommands {
       }
       if (preview.request.destination === 'copy') {
         admit()
-        let program = 'xclip'
-        let args = ['-selection', 'clipboard']
-        if (process.platform === 'darwin') {
-          program = 'pbcopy'
-          args = []
-        } else if (process.platform === 'win32') {
-          program = 'powershell.exe'
-          args = ['-NoProfile', '-Command', 'Set-Clipboard -Value ([Console]::In.ReadToEnd())']
+        if (process.platform === 'win32') {
+          // `%SystemRoot%`'s Windows PowerShell, never PATH's, with its own
+          // module path (the guarded layer's rule for every 5.1 child).
+          const systemRoot = environmentValue(process.env, process.platform, 'SystemRoot')
+          if (systemRoot === undefined || !path.win32.isAbsolute(systemRoot))
+            throw new Error(UI_TEXT.shareCancelled)
+          const powershell = windowsPowerShell(systemRoot)
+          await localProgram(
+            powershell.file,
+            ['-NoProfile', '-Command', 'Set-Clipboard -Value ([Console]::In.ReadToEnd())'],
+            signal,
+            root,
+            preview.content,
+            powershell.env,
+          )
+          return
         }
-        await localProgram(program, args, signal, root, preview.content)
+        const isMac = process.platform === 'darwin'
+        await localProgram(
+          isMac ? 'pbcopy' : 'xclip',
+          isMac ? [] : ['-selection', 'clipboard'],
+          signal,
+          root,
+          preview.content,
+        )
         return
       }
       const destinationFile =

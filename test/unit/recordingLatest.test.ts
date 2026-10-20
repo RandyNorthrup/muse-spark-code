@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { findLatestRecording, isWithinRecordingRoot } from '../../src/core/media/record/linux'
 import { UI_TEXT } from '../../src/shared/constants'
 import { ebmlFixture, videoFixture, wavFixture } from './helpers/media/fixtures'
+import { withPowerShell7ModulePath } from './helpers/powerShell7'
 import { createMediaSourceOpen } from '../../src/host/media/mediaProviders'
 import {
   createLatestRecordingPort,
@@ -365,6 +366,24 @@ describe('PR236W1 Windows Videos known folder', () => {
   })
 })
 
+// The lockdown read back independently through icacls: one grant, to the
+// object's owner (OWNER RIGHTS), nothing inherited.
+async function expectOwnerOnly(tempRoot: string, dir: string): Promise<void> {
+  try {
+    expect(dir.startsWith(tempRoot)).toBe(true)
+    const made = await stat(dir)
+    expect(made.isDirectory()).toBe(true)
+    const { stdout } = await runFile(path.join(windowsRoot(), 'System32', 'icacls.exe'), [dir])
+    const grants = stdout
+      .split(/\r?\n/u)
+      .map((line) => line.replace(dir, '').trim())
+      .filter((line) => line.includes(':('))
+    expect(grants).toEqual(['OWNER RIGHTS:(OI)(CI)(F)'])
+  } finally {
+    await rm(dir, { force: true, recursive: true })
+  }
+}
+
 describe('PR236W1 Windows private preview directory', () => {
   it('refuses off Windows instead of claiming a DACL', async () => {
     await expect(createWindowsPrivateDirectory(await temp(), {}, 'darwin')).rejects.toThrow(
@@ -372,26 +391,24 @@ describe('PR236W1 Windows private preview directory', () => {
     )
   })
 
-  // The lockdown read back independently through icacls: one grant, to the
-  // object's owner (OWNER RIGHTS), nothing inherited.
   it.runIf(process.platform === 'win32')(
     'creates a real owner-only directory, locked down by icacls',
     async () => {
       const tempRoot = await temp()
-      const dir = await createWindowsPrivateDirectory(tempRoot)
-      try {
-        expect(dir.startsWith(tempRoot)).toBe(true)
-        const made = await stat(dir)
-        expect(made.isDirectory()).toBe(true)
-        const { stdout } = await runFile(path.join(windowsRoot(), 'System32', 'icacls.exe'), [dir])
-        const grants = stdout
-          .split(/\r?\n/u)
-          .map((line) => line.replace(dir, '').trim())
-          .filter((line) => line.includes(':('))
-        expect(grants).toEqual(['OWNER RIGHTS:(OI)(CI)(F)'])
-      } finally {
-        await rm(dir, { force: true, recursive: true })
-      }
+      await expectOwnerOnly(tempRoot, await createWindowsPrivateDirectory(tempRoot))
+    },
+  )
+
+  // WINPSMOD: VS Code started from a PowerShell 7 terminal hands every child
+  // pwsh 7's module path, and Windows PowerShell 5.1 could not load Set-Acl
+  // and Get-Acl from it ("Unprotected preview directory"). This process takes
+  // the real pwsh 7 value, as such a window has it.
+  it.runIf(process.platform === 'win32')(
+    'locks the directory down when VS Code came from a PowerShell 7 terminal',
+    async () => {
+      const tempRoot = await temp()
+      const dir = await withPowerShell7ModulePath(() => createWindowsPrivateDirectory(tempRoot))
+      await expectOwnerOnly(tempRoot, dir)
     },
   )
 
