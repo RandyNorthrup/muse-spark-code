@@ -28,6 +28,29 @@ function tempDir(): string {
   return realpathSync(mkdtempSync(path.join(tmpdir(), 'legal-build-')))
 }
 
+/** Bundle `entry` with one plugin through the recording build; the metafile's input keys. */
+async function bundledInputs(
+  entry: string,
+  plugin: esbuild.Plugin,
+  record: ReturnType<typeof newBuildRecord>,
+): Promise<string[]> {
+  const result = await esbuild.build(
+    withCompiledRecording(
+      {
+        entryPoints: [entry],
+        bundle: true,
+        write: false,
+        metafile: true,
+        format: 'esm',
+        logLevel: 'silent',
+        plugins: [plugin],
+      },
+      record,
+    ),
+  )
+  return Object.keys(result.metafile.inputs)
+}
+
 describe('build-captured input hashes', () => {
   it('records the bytes esbuild compiled, not the file after the build', async () => {
     const entry = path.join(tempDir(), 'value.ts')
@@ -96,21 +119,7 @@ describe('build-captured input hashes', () => {
       },
     }
     const record = newBuildRecord()
-    const result = await esbuild.build(
-      withCompiledRecording(
-        {
-          entryPoints: [entry],
-          bundle: true,
-          write: false,
-          metafile: true,
-          format: 'esm',
-          logLevel: 'silent',
-          plugins: [plugin],
-        },
-        record,
-      ),
-    )
-    const keys = Object.keys(result.metafile.inputs)
+    const keys = await bundledInputs(entry, plugin, record)
     expect(keys).toContain('virtual-english:table')
     const { inputs, generated } = compiledRecordFor(keys, record)
     expect(generated['virtual-english:table']).toBe(sha('globalThis.EN = 1'))
@@ -139,21 +148,7 @@ describe('build-captured input hashes', () => {
       },
     }
     const record = newBuildRecord()
-    const result = await esbuild.build(
-      withCompiledRecording(
-        {
-          entryPoints: [entry],
-          bundle: true,
-          write: false,
-          metafile: true,
-          format: 'esm',
-          logLevel: 'silent',
-          plugins: [plugin],
-        },
-        record,
-      ),
-    )
-    const keys = Object.keys(result.metafile.inputs)
+    const keys = await bundledInputs(entry, plugin, record)
     expect(keys).toContain(`resource-validation:${windowsPath}`)
     expect(compiledRecordFor(keys, record).generated).toEqual({
       'resource-validation:C:/work/node_modules/zod/v4/core/util.js': sha('globalThis.Z = 1'),

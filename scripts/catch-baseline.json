@@ -23,7 +23,7 @@
     },
     "runtime": {
       "SWALLOW": 34,
-      "GENERIC": 204,
+      "GENERIC": 203,
       "CLEANUP": 125
     },
     "shared": {
@@ -3520,12 +3520,12 @@
     },
     {
       "file": "src/host/media/recordingLatest.ts",
-      "identity": "6c4ad86eabe30539faaa5671f1eb805a5bfa6732922832f394e243f7a6d703ce",
+      "identity": "370dd5c57be62bd79256f81237486d3d4808ea41c8ad8dd0917228500d0cac81",
       "class": "SWALLOW"
     },
     {
       "file": "src/host/media/recordingLatest.ts",
-      "identity": "951712e34cf993a224a9deed29f0ee03d9d22e0359168d10a59d8dadbdfe568d",
+      "identity": "8b1e431193f2297272061dd4ad55ff313d9fea251c873ec5ea588f34c8a12a24",
       "class": "GENERIC"
     },
     {
@@ -4130,7 +4130,7 @@
     },
     {
       "file": "src/host/vault/slots/windowsVaultBuild.ts",
-      "identity": "bca8a6bdce1ab98c7ae23a9ec6570ef41de362d086a9c7b5be9eebb8d59e38d7",
+      "identity": "d9c01a0c9d5d153058ca2bb0f06f7e58589221442f3b2c13cfb9b169d4c500fc",
       "class": "GENERIC"
     },
     {
@@ -5715,11 +5715,6 @@
     },
     {
       "file": "src/runtime/vault/slots/windowsVaultTransport.ts",
-      "identity": "a1ad064cfdf3e3cc24acda72d46fd94a61eeb0e9ed79cc22b7dd4f6d6d01ffcb",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/vault/slots/windowsVaultTransport.ts",
       "identity": "d03ea4e42bc0b9173e9368bb09a49705c1512393c056172bef36ee51e4acbdc4",
       "class": "GENERIC"
     },
@@ -5960,7 +5955,7 @@
     },
     {
       "file": "src/runtime/vault/windowsPipeRelay.ts",
-      "identity": "e2ec8dcacff9ef42cf666da4d676db637880404b711494adb531f1082ccc3594",
+      "identity": "7129636f53ec07c3e858b86ca71511189ae4aeccccccc06bca322611bb121522",
       "class": "GENERIC"
     },
     {
@@ -5980,7 +5975,7 @@
     },
     {
       "file": "src/runtime/vault/windowsPipeRelay.ts",
-      "identity": "e431201106cfc0c5ae6fa38a4652e8512a6a59bb0bab289e59fe7558ebc9e25d",
+      "identity": "9a88483194a2a5e4a2d43c7ed8079fe5771a2cd7820bd60a19fedbb49ae32d89",
       "class": "GENERIC"
     },
     {

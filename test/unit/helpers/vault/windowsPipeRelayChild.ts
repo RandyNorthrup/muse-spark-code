@@ -11,6 +11,8 @@ import {
   startWindowsPipeServe,
 } from '../../../../src/runtime/vault/windowsPipeRelay'
 import { windowsPipeExecutable } from '../../../../src/host/vault/slots/windowsVaultBuild'
+import { configureResources } from '../../../../src/core/resources/admission'
+import { runtimeWindowsJob } from '../../../../src/runtime/resources/jobs'
 import { VaultError } from '../../../../src/core/vault/crypto'
 
 // The real MuseSparkVaultPipe helper, built and served here: the parent
@@ -29,6 +31,19 @@ void (async () => {
       pipe: z.string(),
     })
     .parse(JSON.parse(process.argv[2] ?? 'null'))
+  // The helper build and its launch go through the real resource governor,
+  // configured here as the vault broker configures it
+  // (src/runtime/vault/vaultBrokerEntry.ts): Windows records each governed
+  // child through the job helpers. The parent spawns this child from the
+  // repository root, the root its helper sources are read from.
+  configureResources({
+    inspect: () => ({}),
+    onError: () => undefined,
+    windowsJob: runtimeWindowsJob(
+      path.join(path.dirname(context.storageDir), 'jobs'),
+      process.cwd(),
+    ),
+  })
   const helper = await windowsPipeExecutable({
     storageDir: context.storageDir,
     systemRoot: context.systemRoot,
