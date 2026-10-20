@@ -289,6 +289,10 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- In an editor connected over ACP that cannot show notices, a Muse Code
+  notice after the answer (such as "The turn finished its visible work")
+  now starts its own paragraph instead of running on from the answer's
+  last word.
 - On Windows the vault no longer refuses to write on a machine whose
   Windows PowerShell starts slowly (a fresh machine, heavy antivirus): the
   process identity a vault writer records is read by a small native reader

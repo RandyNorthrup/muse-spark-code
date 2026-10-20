@@ -270,6 +270,8 @@ export class UpdateTranslator {
   private tokens = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 }
   private cost: UsageCost | undefined
   private hasUnpricedUsage = false
+  /** The last agent text sent ended mid-line, so the next notice opens its own paragraph. */
+  private isAgentLineOpen = false
 
   public constructor(
     private readonly cwd: string,
@@ -395,7 +397,7 @@ export class UpdateTranslator {
     return updates
   }
 
-  public updates(event: AgentEvent): SessionUpdate[] {
+  private translated(event: AgentEvent): SessionUpdate[] {
     switch (event.type) {
       case 'tokenUsage': {
         const priced: readonly string[] = Object.values(MODEL_API_PRICED_MODELS).flat()
@@ -486,7 +488,11 @@ export class UpdateTranslator {
             },
           ]
         }
-        return [agentText(`${event.text}${PART_SEPARATOR}`)]
+        // A client renders agent chunks as one text: after the model's
+        // words the notice opens its own paragraph instead of running on
+        // ("Canberra.The turn finished…").
+        const opening = this.isAgentLineOpen ? PART_SEPARATOR : ''
+        return [agentText(`${opening}${event.text}${PART_SEPARATOR}`)]
       }
       case 'messageAdmitted': {
         // Nothing to send (M87): an ACP prompt is never queued behind
@@ -497,6 +503,20 @@ export class UpdateTranslator {
         return []
       }
     }
+  }
+
+  public updates(event: AgentEvent): SessionUpdate[] {
+    const updates = this.translated(event)
+    for (const update of updates) {
+      if (
+        update.sessionUpdate === 'agent_message_chunk' &&
+        update.content.type === 'text' &&
+        update.content.text !== ''
+      ) {
+        this.isAgentLineOpen = !update.content.text.endsWith('\n')
+      }
+    }
+    return updates
   }
 
   /** A whole item: the text not yet sent, or a tool call announced or brought up to date. */

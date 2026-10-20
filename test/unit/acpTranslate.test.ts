@@ -275,6 +275,27 @@ describe('UpdateTranslator', () => {
     expect(translator.updates({ type: 'backendNotice', level: 'warning', text: 'Slow' })).toEqual([
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Slow\n\n' } },
     ])
+    // Real use, Windows 0.19.0: after the model's words the fallback notice
+    // opens its own paragraph instead of running on ("Canberra.The turn
+    // finished…"), and a notice after a notice adds no extra blank lines.
+    const answer = new UpdateTranslator(CWD, false)
+    answer.updates({
+      type: 'itemStarted',
+      item: { itemId: 'a1', kind: 'agentMessage', status: 'inProgress' },
+    })
+    const said = [
+      answer.updates({ type: 'textDelta', itemId: 'a1', field: 'text', delta: 'Canberra.' }),
+      answer.updates({ type: 'backendNotice', level: 'info', text: 'Finished' }),
+      answer.updates({ type: 'backendNotice', level: 'info', text: 'Again' }),
+    ]
+      .flat()
+      .map((update) =>
+        update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+          ? update.content.text
+          : '',
+      )
+      .join('')
+    expect(said).toBe('Canberra.\n\nFinished\n\nAgain\n\n')
     // F82: where the client can show notices, a backend notice is its own
     // update with the app's severity — never the model's words.
     const notices = new UpdateTranslator(CWD, false, undefined, 'museCode', true)
