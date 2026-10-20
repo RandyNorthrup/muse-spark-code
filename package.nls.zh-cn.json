@@ -186,7 +186,7 @@
   "config.resourceRelocate.enumDescriptions.off": "隐藏因资源压力暂停时的缺少路由提示；工作保留在本机。",
   "command.nextOpenQuestion.title": "下一个待回答的问题",
   "command.previousOpenQuestion.title": "上一个待回答的问题",
-  "config.questions.deferAfterSeconds.description": "在多少秒后暂缓未回答的问题，让 Muse 继续工作。除非自行设置，否则不限：默认为 0，表示从不；1–9 按 10 处理；最大值为 3,600。问题会保持待回答状态，可稍后回答。仅使用此计算机的设置。",
+  "config.questions.deferAfterSeconds.description": "在多少秒后暂缓未回答的问题，让 Muse 继续工作。除非自行设置，否则不限：默认为 0，表示从不；其他整数秒数按设置值使用。问题会保持待回答状态，可稍后回答。仅使用此计算机的设置。",
   "command.startWithOwnModel.title": "使用自己的模型开始",
   "command.modelsAndAgents.title": "模型与智能体",
   "command.addModelProvider.title": "添加模型提供方…",
