@@ -4,11 +4,14 @@
 // runner, the production authorization shape), the real consent store on
 // the real disk filesystem, and the real coordinator. Callers own the
 // folder and its cleanup; everything inside it is built here, once.
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   ScheduleBackgroundCoordinator,
   type BackgroundConsentStore,
 } from '../../../../src/runtime/schedules/background'
+import { posixTrustedPathVerifier } from '../../../../src/runtime/trustedPath'
+import type { TrustedPathVerifier } from '../../../../src/runtime/trustedPathPort'
 import { NativeScheduleBackground } from '../../../../src/runtime/schedules/nativeBackground'
 import {
   backgroundProcessRunner,
@@ -46,22 +49,47 @@ export interface RealBackgroundHarness {
   readonly entry: RecordingBackgroundEntry
 }
 
+// A real launcher file the product's real POSIX verifier accepts, staged
+// with real files the test owns: a user-owned 0700 directory holding a
+// user-owned executable file. Registering with it passes the launcher
+// trust check on every platform, so the refusal below comes from the
+// unbound-governor runner alone — the same refusal on every machine.
+export function stageTrustedBackgroundLauncher(folder: string): {
+  readonly executable: string
+  readonly verifier: TrustedPathVerifier
+} {
+  const directory = path.join(folder, 'launcher')
+  mkdirSync(directory, { recursive: true, mode: 0o700 })
+  chmodSync(directory, 0o700)
+  const executable = path.join(directory, 'launcher')
+  writeFileSync(executable, '#!/bin/sh\nexit 0\n')
+  chmodSync(executable, 0o700)
+  return { executable, verifier: posixTrustedPathVerifier() }
+}
+
+export interface RealBackgroundHarnessLauncher {
+  readonly executable: string
+  readonly verifier: TrustedPathVerifier
+}
+
 export function realBackgroundHarness(
   folder: string,
   nextWake: number | undefined,
+  launcher?: RealBackgroundHarnessLauncher,
 ): RealBackgroundHarness {
+  const executable = launcher?.executable ?? process.execPath
   const entry = new RecordingBackgroundEntry(
     new NativeScheduleBackground({
       platform: process.platform,
       homeDir: path.join(folder, 'home'),
       dataDir: path.join(folder, 'data'),
-      executable: process.execPath,
-      agentFile: process.execPath,
+      executable,
+      agentFile: executable,
       uid: process.getuid === undefined ? 0 : process.getuid(),
       now: () => Date.now(),
       isWakeProcess: false,
       authorization: () => Promise.resolve({ scheduledPrompts: false }),
-      files: nodeBackgroundFiles(),
+      files: nodeBackgroundFiles(launcher?.verifier),
       run: backgroundProcessRunner(process.env),
     }),
   )
