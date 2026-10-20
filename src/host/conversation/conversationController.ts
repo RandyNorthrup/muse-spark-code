@@ -8488,6 +8488,8 @@ export class ConversationController {
       try {
         this.legalFixPreviews = create()
       } catch {
+        // A preview factory that throws leaves previews unavailable: the
+        // surface renders without them.
         return undefined
       }
     }

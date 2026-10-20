@@ -85,6 +85,7 @@ export async function hardwareSlotIfAvailable<Slot>(
     const facts = await readFacts()
     return facts.hardwareAvailable ? open() : null
   } catch {
+    // Unreadable slot facts open no slot: no slot.
     return null
   }
 }
