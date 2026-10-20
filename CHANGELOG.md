@@ -328,6 +328,12 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   longer end one of them with a ledger failure when nothing is wrong with
   the ledger. Both lock answers are now waited on the same way, within the
   same one-second bound.
+- On macOS the credential vault starts and stops faster. Shutting the broker
+  down advanced its lock generation twice, paying the slow native helper
+  each time, and a client waiting for the broker to listen re-proved the
+  broker's identity after every refused connection instead of only when the
+  broker might be gone. The generation now advances once, and the extra
+  proof runs only when the broker may be gone.
 - Limits of ours are gone from runs and budgets: best-of-N attempts and
   requests per attempt are your own per-run choice; headless `exec` sets no
   `--max-requests` or `--max-budget-usd` ceiling of its own; the GitHub

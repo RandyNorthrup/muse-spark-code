@@ -66,8 +66,19 @@ export async function posixVaultClientPlatform(
           return location
         } catch (error: unknown) {
           // Only proven death permits launch. Missing token/socket during live startup waits.
+          // A refused dial needs no second identity probe: the lock record,
+          // the owner's identity and the socket path all verified this
+          // iteration before the dial, so the owner is alive and the recheck
+          // below could only repeat that answer. Any other failure still
+          // rechecks, so a dead or replaced owner launches its successor.
+          const isRefused =
+            error !== null &&
+            typeof error === 'object' &&
+            'code' in error &&
+            error.code === 'ECONNREFUSED'
           if (
-            await isBrokerLockGone(
+            !isRefused &&
+            (await isBrokerLockGone(
               new UnixVaultPrivateFiles(),
               this.directory,
               userSession,
@@ -75,7 +86,7 @@ export async function posixVaultClientPlatform(
                 const live = await vaultProcessIdentity(helper, processId)
                 return live?.startedAt
               },
-            )
+            ))
           )
             return null
           const isStarting =
