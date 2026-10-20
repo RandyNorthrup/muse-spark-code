@@ -5,8 +5,12 @@ import { describe, expect, it } from 'vitest'
 import { usingTempDir } from './helpers/temporaryFolders'
 import { silentCoreLog } from './helpers/memoryLogs'
 import { safeParseLine, TeamLedger } from '../../src/host/team/teamLedger'
-import { createTeamJournal } from '../../src/host/team/teamJournal'
-import { createWindowAuthority, createWindowIdentity } from '../../src/host/team/windowIdentity'
+import { createTeamJournal, type TeamJournal } from '../../src/host/team/teamJournal'
+import {
+  createWindowAuthority,
+  createWindowIdentity,
+  type WindowIdentity,
+} from '../../src/host/team/windowIdentity'
 const localDayKey = (nowMs: number): string => {
   const date = new Date(nowMs)
   const pad = (value: number): string => String(value).padStart(2, '0')
@@ -54,13 +58,33 @@ const makeJournal = (storage: string) => {
   return { journal, owner }
 }
 
+const valueSchema = z.object({ text: z.string() })
+
+/** A journal holding one kept note, with its owner and record folder. */
+async function withKeptNote(
+  prefix: string,
+  work: (note: {
+    storage: string
+    journal: TeamJournal
+    owner: WindowIdentity
+    directory: string
+  }) => Promise<void>,
+): Promise<void> {
+  await usingTempDir(prefix, async (storage) => {
+    const { journal, owner } = makeJournal(storage)
+    await journal.write('note', { text: 'kept' }, valueSchema)
+    await work({
+      storage,
+      journal,
+      owner,
+      directory: path.join(storage, 'team', 'journal', owner.instanceId),
+    })
+  })
+}
+
 describe('team journal unreadable evidence', () => {
   it('keeps a torn record as broken evidence instead of throwing', async () => {
-    await usingTempDir('pr161-team-', async (storage) => {
-      const { journal, owner } = makeJournal(storage)
-      const valueSchema = z.object({ text: z.string() })
-      await journal.write('note', { text: 'kept' }, valueSchema)
-      const directory = path.join(storage, 'team', 'journal', owner.instanceId)
+    await withKeptNote('pr161-team-', async ({ journal, directory }) => {
       const [file] = readdirSync(directory)
       if (file === undefined) throw new Error('the journal wrote no record file')
       writeFileSync(path.join(directory, file), '{torn', 'utf8')
@@ -87,7 +111,6 @@ describe('team journal unreadable evidence', () => {
   it('still journals after a torn record is preserved', async () => {
     await usingTempDir('pr161-team-', async (storage) => {
       const { journal, owner } = makeJournal(storage)
-      const valueSchema = z.object({ text: z.string() })
       const directory = path.join(storage, 'team', 'journal', owner.instanceId)
       mkdirSync(directory, { recursive: true })
       writeFileSync(path.join(directory, 'note.json'), '{torn', 'utf8')
@@ -104,7 +127,6 @@ describe('team journal unreadable evidence', () => {
       const linked = path.join(base, 'linked')
       symlinkSync(real, linked, 'junction')
       const { journal } = makeJournal(linked)
-      const valueSchema = z.object({ text: z.string() })
       await journal.write('note', { text: 'kept' }, valueSchema)
       expect(await journal.read('note', valueSchema)).toEqual({
         kind: 'record',
@@ -115,11 +137,7 @@ describe('team journal unreadable evidence', () => {
   })
 
   it('reads a record swapped for a link as broken without following it', async () => {
-    await usingTempDir('pr161-team-link-', async (storage) => {
-      const { journal, owner } = makeJournal(storage)
-      const valueSchema = z.object({ text: z.string() })
-      await journal.write('note', { text: 'kept' }, valueSchema)
-      const directory = path.join(storage, 'team', 'journal', owner.instanceId)
+    await withKeptNote('pr161-team-link-', async ({ storage, journal, owner, directory }) => {
       const foreign = path.join(storage, 'foreign.json')
       writeFileSync(
         foreign,
