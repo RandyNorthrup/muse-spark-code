@@ -116,6 +116,22 @@ beforeAll(async () => {
   cpSync(path.join(folder, 'dist'), path.join(inventory, 'dist'), { recursive: true })
   const listed = await listFiles({ cwd: inventory, dependencies: false })
   const vsix = new Set(listed.map((file) => normalized(file)))
+  // The webview ships as one solid archive (VSIXWEB A): the inventory lists
+  // dist/webview.json.br instead of the loose members, but the VS Code side
+  // loads them through the verified extraction, so the archive's members
+  // count as shipped. The same exclusion scripts/package-vsix.mjs packs
+  // with: the ACP agent's voice companion never joined the VSIX.
+  const webviewDir = path.join(inventory, 'dist', 'webview')
+  const walkArchived = (directory, prefix) => {
+    const entries = readdirSync(directory, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.isDirectory())
+        walkArchived(path.join(directory, entry.name), `${prefix}${entry.name}/`)
+      else if (entry.name !== 'voiceCompanion.js' && entry.name !== 'voiceCompanion.css')
+        vsix.add(`dist/webview/${prefix}${entry.name}`)
+    }
+  }
+  walkArchived(webviewDir, '')
   // The agent carries the bundle list plus the usage page's asset closure,
   // exactly what scripts/package-acp.mjs stages.
   const acp = new Set(

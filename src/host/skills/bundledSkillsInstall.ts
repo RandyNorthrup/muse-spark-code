@@ -23,7 +23,12 @@ import path from 'node:path'
 import { redactSecrets } from '../../core/redact'
 import * as z from 'zod/mini'
 import {
+  BUNDLED_SKILLS_ARCHIVE_FILE,
+  BUNDLED_SKILLS_ARCHIVE_MAX_BYTES,
+  BUNDLED_SKILLS_ARCHIVE_MEMBER_MAX_BYTES,
+  BUNDLED_SKILLS_ARCHIVE_VERSION,
   BUNDLED_SKILLS_DIR,
+  BUNDLED_SKILLS_LICENSE_FILE,
   BUNDLED_SKILLS_MARKER_FILE,
   BUNDLED_SKILLS_PACKAGE_NAME,
   BUNDLED_SKILLS_RETIRED_WORD,
@@ -34,6 +39,7 @@ import {
   SKILL_FILE_NAME,
   SKILL_ID_PATTERN,
 } from '../../shared/constants'
+import { parseSolidTextArchive, solidMemberBytes } from '../../core/archives/solidTextArchive'
 
 export interface BundledSkillsPaths {
   /** The vendored package inside the installed extension. */
@@ -109,6 +115,7 @@ export type BundledSkillsStatus =
 
 interface VendoredPackage {
   readonly tag: string
+  readonly files: readonly string[]
   readonly skillIds: readonly string[]
   readonly firstPartyRoot: string
   readonly firstPartyIds: readonly string[]
@@ -201,8 +208,9 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
   if (!parsed.success) {
     throw new Error(`${file} is not a vendor record: ${z.prettifyError(parsed.error)}`)
   }
-  const skillIds = parsed.data.files.flatMap(({ path: relative }) => {
-    const parts = relative.replaceAll('\\', '/').split(VENDOR_PATH_SEPARATOR)
+  const listed = parsed.data.files.map(({ path: relative }) => relative.replaceAll('\\', '/'))
+  const skillIds = listed.flatMap((relative) => {
+    const parts = relative.split(VENDOR_PATH_SEPARATOR)
     const [dir, id, file] = parts
     return id !== undefined &&
       dir === BUNDLED_SKILLS_DIR &&
@@ -234,6 +242,7 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
       firstPartyIds.length === 0
         ? parsed.data.tag
         : `${parsed.data.tag}+first-party.${hash.digest('hex')}`,
+    files: listed,
     skillIds: [
       ...new Set([...skillIds, ...firstPartyIds.toSorted((a, b) => a.localeCompare(b, 'en'))]),
     ],
@@ -362,6 +371,83 @@ async function copyTree(from: string, to: string): Promise<void> {
   }
 }
 
+/**
+The solid archive beside the vendored package (VSIXWEB B): the packaged
+install carries it instead of the loose members, with LICENSE and
+VENDOR.json loose beside it.
+*/
+function vendorArchive(vendorRoot: string): string {
+  return path.join(path.dirname(vendorRoot), BUNDLED_SKILLS_ARCHIVE_FILE)
+}
+
+/**
+Stage the vendored tree: from the solid archive when the install runs
+packaged — every member's bytes SHA-256 checked against the archive's
+record and every VENDOR.json-listed path required staged, byte-identical
+to the loose tree — or from the loose tree itself (the source tree, dev
+builds). A missing, damaged or unreadable archive throws, and the caller
+fails the install exactly as a damaged tree does today.
+*/
+async function stageVendorTree(
+  vendorRoot: string,
+  vendor: VendoredPackage,
+  staging: string,
+): Promise<void> {
+  let packed: Buffer | undefined
+  try {
+    packed = await fs.readFile(vendorArchive(vendorRoot))
+  } catch (error: unknown) {
+    // No archive beside the package: the loose tree serves (an absent
+    // member reads absent); anything else keeps its kind past the stage.
+    if (!isCode(error)) throw error
+  }
+  if (packed === undefined) {
+    await copyTree(vendorRoot, staging)
+    return
+  }
+  const archived = parseSolidTextArchive(
+    packed,
+    BUNDLED_SKILLS_ARCHIVE_MAX_BYTES,
+    BUNDLED_SKILLS_ARCHIVE_VERSION,
+  )
+  await fs.mkdir(staging, { recursive: true })
+  for (const [relative, entry] of Object.entries(archived)) {
+    const bytes = solidMemberBytes(entry, relative)
+    if (bytes.byteLength > BUNDLED_SKILLS_ARCHIVE_MEMBER_MAX_BYTES)
+      throw new Error(`Bundled skill member is over its bound: ${relative}`)
+    const target = path.join(staging, ...relative.split('/'))
+    await fs.mkdir(path.dirname(target), { recursive: true })
+    await fs.writeFile(target, bytes, { flag: 'wx' })
+  }
+  // The loose evidence and attribution a person reads travel beside the
+  // archive; anything the archive holds stays out of the package loose.
+  for (const name of [BUNDLED_SKILLS_LICENSE_FILE, BUNDLED_SKILLS_VENDOR_FILE]) {
+    if (Object.hasOwn(archived, name)) continue
+    await fs.copyFile(
+      path.join(vendorRoot, name),
+      path.join(staging, name),
+      fsConstants.COPYFILE_EXCL,
+    )
+  }
+  // A listed path the archive and the loose evidence both lack is a
+  // truncated package, refused like a damaged tree.
+  for (const relative of vendor.files) {
+    const isStaged = await isStagedFile(staging, relative)
+    if (!isStaged) throw new Error(`Bundled skill member is not staged: ${relative}`)
+  }
+}
+
+/** Whether `staging` holds `relative` as a real file; anything else reads absent. */
+async function isStagedFile(staging: string, relative: string): Promise<boolean> {
+  try {
+    const held = await fs.lstat(path.join(staging, ...relative.split('/')))
+    return held.isFile()
+  } catch (error: unknown) {
+    if (!isCode(error)) throw error
+    return false
+  }
+}
+
 /** The links in Muse Code's skills folder that lead into the copy's `skills/`, by name. */
 async function linksInto(
   skillsRoot: string,
@@ -473,7 +559,7 @@ export async function installBundledSkills(
     )
     at = staging
     try {
-      await copyTree(deps.vendorRoot, staging)
+      await stageVendorTree(deps.vendorRoot, vendor, staging)
       for (const id of vendor.firstPartyIds) {
         const target = path.join(staging, BUNDLED_SKILLS_DIR, id)
         // First-party precedence matches the Model API's bundled roots.

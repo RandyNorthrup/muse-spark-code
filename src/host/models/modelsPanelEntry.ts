@@ -9,6 +9,7 @@ import * as vscode from 'vscode'
 import { GLOBAL_STATE_KEYS, SETTINGS_SECTION, UI_TEXT } from '../../shared/constants'
 import { providerSetupSchema } from '../../shared/providerSetup'
 import type { ChatSurface } from '../views/chatSurface'
+import type { WebviewBundleResolution } from '../views/webviewBundle'
 import { fill, setUiText } from '../../shared/l10n/text'
 import type { SecretStore } from '../auth/credentialStore'
 import type { MigrationShell } from '../vault/migrationShell'
@@ -52,6 +53,8 @@ export interface ModelsPanelHostDeps {
   readonly secrets: SecretStore
   readonly credentials?: CredentialStore
   readonly extensionUri: vscode.Uri
+  /** The verified webview copy (VSIXWEB A), resolved in the activation bundle. */
+  readonly resolveWebviewBundle: () => WebviewBundleResolution
   readonly l10n: UiTable
   readonly log: Logger
   readonly globalState: ModelsPanelMemento
@@ -417,6 +420,7 @@ export function createModelsPanelFeatures(
     if (panel === undefined) {
       const created = createModelsPanel({
         extensionUri: host.extensionUri,
+        resolveWebviewBundle: host.resolveWebviewBundle,
         l10n: host.l10n,
         log: host.log,
         vault: vaultBindingFactory(host, seam),

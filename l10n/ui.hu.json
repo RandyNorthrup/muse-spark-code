@@ -279,6 +279,7 @@
   "estimateDisclosureMissing": "A számszerű értékek kalibrációs adatai hiányosak.",
   "estimateRuntimeUnavailable": "A becslések nem érhetők el ezen a gazdagépen. Nincs bekötött tervpillanatkép.",
   "estimateUnavailable": "A becslő nem tölthető be, ezért nem futtatható becslés; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
+  "webviewBundleUnavailable": "A panel nem tölthető be, ezért nem jeleníthető meg; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
   "estimateStaleBase": "Elavult alap ({lanes}): kezdés előtt végezzen rebase-t.",
   "estimateWaveStarted": "Elindítva: {lanes}.",
   "referenceAgentControls": "Ügynökvezérlők; Megszakítás; Leállítás; Folytatás; Ügynök bezárása; Ügynök újbóli megnyitása; Eredmény megjelölése olvasottként; Üzenet küldése; Követő feladat",

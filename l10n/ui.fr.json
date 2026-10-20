@@ -280,6 +280,7 @@
   "estimateDisclosureMissing": "Les informations d’étalonnage des valeurs numériques sont incomplètes.",
   "estimateRuntimeUnavailable": "Les estimations sont indisponibles dans cet hôte. Aucun instantané de plan n’est connecté.",
   "estimateUnavailable": "L’estimateur n’a pas pu être chargé, donc aucune estimation ne peut s’exécuter ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",
+  "webviewBundleUnavailable": "Le panneau n’a pas pu être chargé et ne peut pas s’afficher ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",
   "estimateStaleBase": "Base obsolète ({lanes}) : rebasez avant de commencer.",
   "estimateWaveStarted": "Démarré : {lanes}.",
   "referenceAgentControls": "Contrôles de l’agent; Interrompre; Arrêter; Reprendre; Fermer l’agent; Rouvrir l’agent; Marquer le résultat comme lu; Envoyer un message; Tâche de suivi",

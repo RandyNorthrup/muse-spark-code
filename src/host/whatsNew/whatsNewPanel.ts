@@ -18,19 +18,21 @@ import { releasesToShow } from '../../core/whatsNew/whatsNewVersions'
 import {
   UI_TEXT,
   VSCODE_COMMANDS,
-  WEBVIEW_DIST_SEGMENTS,
   WHATS_NEW_SCRIPT_FILE,
   WHATS_NEW_STYLE_FILE,
   WHATS_NEW_VIEW_TYPE,
 } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { parseWhatsNewMessage, type WhatsNewMessage } from '../../shared/whatsNewMessages'
+import type { WebviewBundleResolution } from '../views/webviewBundle'
 import { createNonce } from '../html'
 import type { Logger } from '../logger'
 import { renderWhatsNewPage } from './whatsNewHtml'
 
 export interface WhatsNewPagesDeps {
   readonly extensionUri: vscode.Uri
+  /** The verified webview copy (VSIXWEB A), resolved in the activation bundle. */
+  readonly resolveWebviewBundle: () => WebviewBundleResolution
   /** dist/whatsNew.json beside the bundle. */
   readonly contentPath: string
   /** The running extension's version. */
@@ -69,7 +71,16 @@ export function createWhatsNewPagesFor(deps: WhatsNewPagesDeps): WhatsNewPages {
   }
   const releases = (from: string | undefined) =>
     releasesToShow(contentNow().releases, from, deps.current)
-  const bundleRoot = vscode.Uri.joinPath(deps.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
+  // The verified webview copy (VSIXWEB A), resolved in the activation
+  // bundle: a missing, damaged or unwritable extraction shows the fixed
+  // sentence, never unverified files.
+  const resolved = deps.resolveWebviewBundle()
+  if (!resolved.ok) {
+    deps.log.error(`What’s New webview bundle failed: ${resolved.detail}`)
+  }
+  // The verified folder, or undefined with the failure document ready in
+  // `resolved` for `render`.
+  const bundleRoot = resolved.ok ? vscode.Uri.file(resolved.dir) : undefined
   let shown: Shown | undefined
 
   const act = async (target: Shown, message: WhatsNewMessage): Promise<void> => {
@@ -112,6 +123,10 @@ export function createWhatsNewPagesFor(deps: WhatsNewPagesDeps): WhatsNewPages {
 
   const render = (target: Shown, from: string | undefined): void => {
     const { webview } = target.panel
+    if (!resolved.ok) {
+      webview.html = resolved.html
+      return
+    }
     const page = renderWhatsNewPage({
       releases: releases(from),
       from,
@@ -121,10 +136,10 @@ export function createWhatsNewPagesFor(deps: WhatsNewPagesDeps): WhatsNewPages {
       cspSource: webview.cspSource,
       nonce: createNonce(),
       scriptUri: webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WHATS_NEW_SCRIPT_FILE))
+        .asWebviewUri(vscode.Uri.joinPath(vscode.Uri.file(resolved.dir), WHATS_NEW_SCRIPT_FILE))
         .toString(),
       styleUri: webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WHATS_NEW_STYLE_FILE))
+        .asWebviewUri(vscode.Uri.joinPath(vscode.Uri.file(resolved.dir), WHATS_NEW_STYLE_FILE))
         .toString(),
       locale: uiLocale(),
     })
@@ -138,7 +153,11 @@ export function createWhatsNewPagesFor(deps: WhatsNewPagesDeps): WhatsNewPages {
       WHATS_NEW_VIEW_TYPE,
       UI_TEXT.whatsNewTitle,
       { viewColumn: vscode.ViewColumn.Active, preserveFocus: isBackground },
-      { enableScripts: true, enableFindWidget: true, localResourceRoots: [bundleRoot] },
+      {
+        enableScripts: true,
+        enableFindWidget: true,
+        localResourceRoots: bundleRoot === undefined ? [] : [bundleRoot],
+      },
     )
     const target: Shown = { panel, tries: [], links: [] }
     const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
