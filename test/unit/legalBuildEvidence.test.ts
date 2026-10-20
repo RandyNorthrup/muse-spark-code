@@ -120,6 +120,46 @@ describe('build-captured input hashes', () => {
     expect(generated[replacedKey]).toBe(sha(generatedContents))
   })
 
+  it('records a plugin namespace path with Windows separators under the key it is read back by', async () => {
+    const dir = tempDir()
+    const entry = path.join(dir, 'entry.ts')
+    writeFileSync(entry, "import 'virtual-windows'\n")
+    const windowsPath = String.raw`C:\work\node_modules\zod\v4\core\util.js`
+    const plugin: esbuild.Plugin = {
+      name: 'test-windows-namespace',
+      setup(build) {
+        build.onResolve({ filter: /^virtual-windows$/ }, () => ({
+          path: windowsPath,
+          namespace: 'resource-validation',
+        }))
+        build.onLoad({ filter: /.*/, namespace: 'resource-validation' }, () => ({
+          contents: 'globalThis.Z = 1',
+          loader: 'js',
+        }))
+      },
+    }
+    const record = newBuildRecord()
+    const result = await esbuild.build(
+      withCompiledRecording(
+        {
+          entryPoints: [entry],
+          bundle: true,
+          write: false,
+          metafile: true,
+          format: 'esm',
+          logLevel: 'silent',
+          plugins: [plugin],
+        },
+        record,
+      ),
+    )
+    const keys = Object.keys(result.metafile.inputs)
+    expect(keys).toContain(`resource-validation:${windowsPath}`)
+    expect(compiledRecordFor(keys, record).generated).toEqual({
+      'resource-validation:C:/work/node_modules/zod/v4/core/util.js': sha('globalThis.Z = 1'),
+    })
+  })
+
   it('hashes binary inputs as exact bytes and disabled modules as empty', async () => {
     const dir = tempDir()
     const entry = path.join(dir, 'entry.ts')
