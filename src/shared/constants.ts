@@ -5070,8 +5070,6 @@ export const RUNTIME_QUESTIONS_BUNDLE_FILE = 'runtimeQuestions.js'
 // it on first use, so the engine bundle carries none of the policy.
 export const PLAYBOOK_BUNDLE_FILE = 'acpPlaybook.js'
 export const RUNTIME_ACCOUNTS_BUNDLE_FILE = 'runtimeAccounts.js'
-export const QUESTION_DEFER_MIN_SECONDS = 10
-export const QUESTION_DEFER_MAX_SECONDS = 3600
 export const QUESTION_DEFER_SETTING = 'questions.deferAfterSeconds'
 export const QUESTION_REMINDERS_MAX = 2
 export const OPEN_QUESTIONS_MAX = 20

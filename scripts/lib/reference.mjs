@@ -1110,16 +1110,17 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   const deferAfter = (value) =>
     source.parseCommandLine(['--questions-defer-after', String(value)]).options
       ?.questionsDeferAfterSeconds
+  // D121: no floor or ceiling of ours — any whole number of seconds is used
+  // as set, and what is not a count is refused with exit 2.
   if (
     source.parseCommandLine([]).options?.questionsDeferAfterSeconds !==
       source.QUESTION_DEFER_DEFAULT_SECONDS ||
     deferAfter(0) !== 0 ||
-    deferAfter(1) !== source.QUESTION_DEFER_MIN_SECONDS ||
-    deferAfter(source.QUESTION_DEFER_MAX_SECONDS) !== source.QUESTION_DEFER_MAX_SECONDS ||
-    source.parseCommandLine([
-      '--questions-defer-after',
-      String(source.QUESTION_DEFER_MAX_SECONDS + 1),
-    ]).command !== 'invalid'
+    deferAfter(1) !== 1 ||
+    deferAfter(3601) !== 3601 ||
+    deferAfter(100_000) !== 100_000 ||
+    source.parseCommandLine(['--questions-defer-after', 'abc']).command !== 'invalid' ||
+    source.parseCommandLine(['--questions-defer-after', '-5']).command !== 'invalid'
   )
     errors.push('CLI question deadline mismatch')
   for (const value of source.EXEC_MODES)
