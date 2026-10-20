@@ -295,6 +295,10 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- Usage history keeps recording after a write was cut off mid-way (a power
+  loss or a killed process): a usage lock file left holding only empty
+  bytes is taken over once it is stale, instead of stopping every later
+  record for good.
 - "Muse Spark Code stopped unexpectedly last time — report it?" no longer
   appears after an ordinary close. The window's crash marker is cleared as
   soon as VS Code asks the extension to stop, instead of after a shutdown
