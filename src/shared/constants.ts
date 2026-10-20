@@ -904,6 +904,12 @@ export const MACHINE_SCOPED_SETTINGS = [
   'hooksMaxStopContinuations',
   'hooksMaxRunningCommands',
   'subagentMaxConcurrent',
+  // D121: a plugin child's wait, memory, answer size and failure latch are
+  // the user's choice too, never a repository's.
+  'pluginHookTimeoutSeconds',
+  'pluginChildMaxMemoryMiB',
+  'pluginAnswerMaxBytes',
+  'pluginMaxFailures',
   'modelApiCommandRules',
   'modelApiPermissionProfiles',
   'modelApiPermissionProfile',
@@ -963,6 +969,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   'schedules',
   'scheduleDefaultDelivery',
   'scheduleAgentCreation',
+  // D121: pausing a schedule on failures chooses what runs too (the
+  // manifest already ships it machine-scoped; the list omitted it).
+  'schedulePauseAfterFailures',
   // M105 (PLAN.md D85): upload bytes, provider retention, recording length
   // and the audio action are billed on the key, so a repository sets none.
   'mediaMaxUploadMiB',

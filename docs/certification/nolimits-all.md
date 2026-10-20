@@ -615,3 +615,107 @@ safety, not a time limit). None is touched by any commit of this lane.
   pluginContainment, pluginImportFiles, noDefaultLimits,
   elicitationHookSeam, capabilityRecord, invariants. All green; counts in
   the lane's final message.
+
+---
+
+# Lane GRVFIXB2 — person-set plugin bounds (Grok review of the 0.19.0 join)
+
+Branch `fix/0190-grvfixb2`, base `109d8df8d9` (NOLIMITSFINAL2).
+Finding: in `src/core/backends/modelapi/pluginHost.ts` (and
+`pluginContainment.ts`, `hooks.ts`) the plugin child's bounds (heap,
+memory, the 30 s and 15 s waits, the 64 KiB answer, probe, import, the
+Windows job memory, the failure latch) were removed with no `museSpark.`
+setting, and an unbounded wait never said how long it had waited (no
+`startStillWaiting`; Stop answered `cancelled`).
+
+## The fix (commits `c12e3e36d5`, `a96e516cef`)
+
+Four settings, each defaulting to 0 = none of ours, applied only when
+set (manifest, all 15 `package.nls.*.json`, settings schema, defaults,
+feature catalog, generated reference, README prose + settings table,
+changelog):
+
+- `museSpark.pluginHookTimeoutSeconds` — how long a plugin hook waits
+  for its child. An explicit per-hook timeout wins; otherwise the set
+  wait bounds the probe and the answer wait alike.
+- `museSpark.pluginChildMaxMemoryMiB` — the child's memory ceiling: a
+  set ceiling caps node's heap flag on every platform, wraps Linux bun
+  in `prlimit --data` (refuses with its reason when `prlimit` is
+  absent), rides the Windows job launcher's `jobMemoryLimit`, and
+  refuses on macOS bun with its reason instead of running unbounded
+  past a ceiling the person set.
+- `museSpark.pluginAnswerMaxBytes` — the answer frame cap; a set cap
+  fails an over-long answer (and probe flood) with the restored
+  `exceeded its frame` / `output exceeded its bound` reasons.
+- `museSpark.pluginMaxFailures` — consecutive Windows job-launcher
+  failures that set plugin hooks aside until Retry Plugin Hooks; 0
+  keeps trying past the pacing delay, as before.
+
+Every plugin wait (probe and call) uses the product's existing
+still-waiting notice (`startStillWaiting` + `stillWaitingText` with the
+new `pluginHook` subject, English plus all fourteen locales, as Model
+API requests do). Stop names the wait it kept: the abort answers
+`the plugin call was cancelled after {duration}`, a session-ended wait
+answers `the session is closed after {duration}`, and a probe stopped
+or timed out keeps its own `cancelled/timed out after {duration}`
+words instead of being called absent/not-installed. `HOOK_MODEL_TIMEOUT_MS`
+and `HOOK_SESSION_END_TIMEOUT_MS` untouched (the join removes both).
+The four settings join `MACHINE_SCOPED_SETTINGS` (a repository must not
+set them, PLAN.md D15), plus the `schedulePauseAfterFailures` entry the
+schedules lane omitted: its D15 manifest test failed on the untouched
+base (`109d8df8d9`, measured in a clean worktree: same single failure)
+and goes green with the one-line addition.
+
+README: the fetch section in this tree already states the true no-limit
+rule (whole page however large until it answers or Stop; same-host
+redirects as many times as it takes — verified against `fetchHops`,
+whose loop carries no count; `LINK_FOLLOW_MAX_HOPS` belongs to
+`canonicalPath`, not fetch), so no fetch sentence needed changing; the
+plugin section now documents the four settings and the notices.
+
+## Break-once drill (in place: break, watch fail, revert, rerun)
+
+- `pluginCallBounds` returning none: 7 bounds tests fail
+  (converter, hook wait, answer cap, probe wait, heap flag, darwin
+  refusal, prlimit wrap), 33 pass — the explicit-timeout and
+  notice/Stop tests pass throughout, as kept behavior should.
+- Call-wait notices disabled: only `a waiting call says how long it
+has waited, and Stop names the wait` fails.
+- Latch forced to 0: only `sets plugin hooks aside at the set count
+until Retry` fails. Success never clearing: only `a success clears
+the count` fails. Reset as a no-op: both reset tests fail (the new
+  `Retry clears the count before the latch engages` and the
+  pre-existing `Retry clears the count`, which proves the old behavior
+  still fires).
+- `pluginHook` subject removed from English: the subject test fails
+  (`TypeError`, no prose to read).
+- `SETTING_DEFAULTS.pluginMaxFailures = 2`: both new `noDefaultLimits`
+  plugin tests fail.
+- No stand-ins: every test drives the real function the production
+  path calls — real plugin children under this node, real PATH
+  lookups, the real containment with a controllable clock, the real
+  settings schema.
+
+## Proof (this tree, repository's own timeout, no `--testTimeout`)
+
+- `pluginDispatch` 40 passed, 5 skipped (darwin/bun-only, this rig is
+  Linux without bun); `pluginContainment` 7/7; `stillWaiting` 5/5;
+  `noDefaultLimits` 17/17; `manifest` 40/40; `foreignHooks` 22/22.
+- `npm run typecheck`: 27 errors, file-for-file the 27 on the
+  untouched base (estimate*, modelApiPacing, teamConstants,
+  vendorMediaCodecs, runtimePullRequestProcessBirth and helpers);
+  none in a file this lane touched.
+- eslint `--max-warnings=0` on every touched file: clean. Prettier on
+  every touched file: clean. `npm run check:l10n`: 0 problems.
+  `npm run check:reference`: current.
+
+## Owed (cannot run on this Linux rig)
+
+- The Windows job `jobMemoryLimit` path: unit-injectable only through
+  a live launcher spawn, and this rig is Linux. Covered by the shared
+  conversion (`pluginCallBounds`, tested), the restored parameter, and
+  the latch tests; the lead owns a Windows run through the packed
+  product before a set ceiling is claimed there.
+- `test/integration` (VS Code) and `npm run build` were not run in
+  this lane; the real-use path (packed product plugin run) is the
+  lead's at integration.
