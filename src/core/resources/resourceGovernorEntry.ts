@@ -106,6 +106,49 @@ export async function flushResourceHistory(): Promise<void> {
   }
 }
 
+/**
+The created-path registry's native file commands on this platform: the
+Linux `muse-created` helper, the macOS helper's `--created-directory`, or
+Windows PowerShell loading the job assembly's `MuseSparkCreated`. One
+wiring for the product (its native root is `dist/../native`) and for the
+tests that run the registry on each platform.
+*/
+export function createdPathCommands(
+  nativeRoot: string,
+  windowsJob: (() => Promise<ResourceWindowsJob | undefined>) | undefined,
+  platform: NodeJS.Platform = process.platform,
+): (args: readonly string[]) => Promise<string> {
+  if (platform === 'linux')
+    return (args) =>
+      runTreeProgram(
+        path.join(nativeRoot, 'linux', process.arch, 'muse-created'),
+        args,
+        probeChildEnvironment({ LC_ALL: 'C' }),
+      )
+  if (platform === 'darwin')
+    return (args) =>
+      runTreeProgram(
+        path.join(nativeRoot, ...darwinDictationHelperSegments(process.arch)),
+        ['--created-directory', ...args],
+        probeChildEnvironment({ LC_ALL: 'C' }),
+      )
+  return async (args) => {
+    const systemRoot = process.env['SystemRoot']
+    const job = await windowsJob?.()
+    if (systemRoot === undefined || job === undefined || platform !== 'win32')
+      throw new Error('Native creation directory helper is required')
+    const powershell = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
+    return await runTreeProgram(
+      powershell.file,
+      [
+        ...WINDOWS_POWERSHELL_COMMAND_ARGS,
+        `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(job.assemblyPath)}); [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')})) } catch { exit 1 }`,
+      ],
+      powershell.env,
+    )
+  }
+}
+
 /** Loaded by the first governed launch; a CommonJS module is shared by all bundles. */
 export function resourceGovernorHost(options: ResourceHostSettings): ResourceLaunchHost {
   if (options.localization !== undefined)
@@ -121,31 +164,12 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
       }
     },
   }
+  const nativeCommands = createdPathCommands(
+    path.join(__dirname, '..', 'native'),
+    options.windowsJob,
+  )
   const directories =
-    options.createdDirectories ??
-    (process.platform === 'linux'
-      ? undefined
-      : async (args: readonly string[]) => {
-          if (process.platform === 'darwin')
-            return await runTreeProgram(
-              path.join(__dirname, '..', 'native', ...darwinDictationHelperSegments(process.arch)),
-              ['--created-directory', ...args],
-              probeChildEnvironment({ LC_ALL: 'C' }),
-            )
-          const systemRoot = process.env['SystemRoot']
-          const job = await options.windowsJob?.()
-          if (systemRoot === undefined || job === undefined || process.platform !== 'win32')
-            throw new Error('Native creation directory helper is required')
-          const powershell = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
-          return await runTreeProgram(
-            powershell.file,
-            [
-              ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-              `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(job.assemblyPath)}); [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')})) } catch { exit 1 }`,
-            ],
-            powershell.env,
-          )
-        })
+    options.createdDirectories ?? (process.platform === 'linux' ? undefined : nativeCommands)
   let registryPending: Promise<CreatedRegistry> | undefined
   const registry = (): Promise<CreatedRegistry> => {
     registryPending ??=
@@ -156,14 +180,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
             () => clock.now(),
             {
               directories,
-              files:
-                directories ??
-                ((args) =>
-                  runTreeProgram(
-                    path.join(__dirname, '..', 'native', 'linux', process.arch, 'muse-created'),
-                    args,
-                    probeChildEnvironment({ LC_ALL: 'C' }),
-                  )),
+              files: directories ?? nativeCommands,
               exited: (owner) => Promise.resolve(state.host?.hasRetired(owner) ?? false),
               archivedAndClean: () =>
                 Promise.reject(new Error('Archive/clean proof is not installed')),

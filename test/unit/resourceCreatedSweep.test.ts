@@ -1,32 +1,40 @@
 // The created-path registry must retire every retained stage and displaced
 // manifest: save() kept `${file}.${uuid}` and the published-aside copy
 // forever (31,920 files in six days of Windows real use). Real files in a
-// real private folder through the real Linux helper, built once below.
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
+// real private folder through the product's own native file commands on
+// every platform (createdPathCommands): the Linux helper built below, the
+// Windows job assembly built below, the macOS helper native/darwin/build.sh
+// builds (hosted CI builds it before the unit step).
 import { mkdtempSync, mkdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { CreatedRegistry, type CreatedPathProof } from '../../src/core/resources/createdRegistry'
+import { createdPathCommands } from '../../src/core/resources/resourceGovernorEntry'
+import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
+import { configureResources } from '../../src/core/resources/admission'
 import { buildLinuxHelper } from '../../scripts/build-linux-helper.mjs'
 
-const isLinux = process.platform === 'linux'
-const fixture = { root: '', helper: '' }
-
-const execFileAsync = promisify(execFile)
+const fixture: {
+  root: string
+  commands?: (args: readonly string[]) => Promise<string>
+  dispose?: () => void
+} = {
+  root: '',
+}
 
 async function files(args: readonly string[]): Promise<string> {
-  const { stdout } = await execFileAsync(fixture.helper, [...args], {
-    env: { PATH: '/usr/bin:/bin', LC_ALL: 'C' },
-  })
-  return stdout
+  if (fixture.commands === undefined) throw new Error('the native file commands were not prepared')
+  return await fixture.commands(args)
 }
 
 const proof: CreatedPathProof = {
   files,
-  directories: undefined,
+  // As the product wires it: Linux's helper answers files only; macOS and
+  // Windows answer directories through the same commands.
+  directories: process.platform === 'linux' ? undefined : files,
   // This fixture retires no owners and archives nothing: false and the
   // production uninstalled answer are the true answers here.
   exited: () => Promise.resolve(false),
@@ -53,23 +61,41 @@ async function plant(dir: string, name: string, text: string): Promise<void> {
   await writeFile(path.join(dir, name), text, { mode: 0o600 })
 }
 
-beforeAll(() => {
-  if (!isLinux) return
+beforeAll(async () => {
   mkdirSync('temp', { recursive: true })
   fixture.root = mkdtempSync(path.resolve('temp', 'fix-created-sweep-'))
-  // The product's own helper build (scripts/build.mjs), so the fixture runs
-  // the confined native protocol the product ships, never a copy of its flags.
-  buildLinuxHelper(fixture.root)
-  fixture.helper = path.join(fixture.root, 'muse-created')
+  // The product's own helper builds, so the fixture runs the confined native
+  // protocol the product ships, never a copy of its flags.
+  if (process.platform === 'linux') {
+    buildLinuxHelper(path.join(fixture.root, 'linux', process.arch))
+    fixture.commands = createdPathCommands(fixture.root, undefined)
+  } else if (process.platform === 'win32') {
+    // The job helpers build where the Windows pipe helper suite builds them:
+    // the temporary root, which the run's TEMP keeps private.
+    const windowsJob = runtimeWindowsJob(
+      mkdtempSync(path.join(tmpdir(), 'created-sweep-jobs-')),
+      path.resolve('.'),
+    )
+    // The build is admitted through the governor, configured as the host does.
+    fixture.dispose = configureResources({
+      inspect: () => ({}),
+      onError: () => undefined,
+      windowsJob,
+    })
+    if ((await windowsJob()) === undefined) throw new Error('the Windows job helpers did not build')
+    fixture.commands = createdPathCommands(path.resolve('native'), windowsJob)
+  } else {
+    fixture.commands = createdPathCommands(path.resolve('native'), undefined)
+  }
 })
 
 afterAll(() => {
+  fixture.dispose?.()
   fixture.root = ''
 })
 
 describe('created registry sweep', () => {
   it('saves leave only the live manifest and live entries', async () => {
-    if (!isLinux) return
     const dir = mkdtempSync(path.join(fixture.root, 'saves-'))
     const registry = await openRegistry(dir)
     for (let i = 0; i < 6; i++) await registry.createTemp(`owner-${String(i)}`)
@@ -81,7 +107,6 @@ describe('created registry sweep', () => {
   })
 
   it('one load retires names left by an earlier run', async () => {
-    if (!isLinux) return
     const dir = mkdtempSync(path.join(fixture.root, 'load-'))
     const first = await openRegistry(dir)
     await first.createTemp('owner-a')
@@ -93,14 +118,15 @@ describe('created registry sweep', () => {
     await plant(dir, `.muse-retired-${randomUUID()}`, manifest)
     const before = await folderNames(dir)
     expect(before.length).toBeGreaterThan(2)
-    await openRegistry(dir)
+    // The load queues the retirement; clean() runs after it and reports it.
+    const second = await openRegistry(dir)
+    await second.clean()
     expect(await folderNames(dir)).toEqual(['registry.json', 'trees'])
     const reopened = await readFile(path.join(dir, 'registry.json'), 'utf8')
     expect(JSON.parse(reopened)).toHaveLength(2)
   })
 
   it('a retained name exchanged for a foreign file is never removed', async () => {
-    if (!isLinux) return
     const dir = mkdtempSync(path.join(fixture.root, 'foreign-'))
     const planted = [
       `registry.json.${randomUUID()}`,
@@ -110,12 +136,14 @@ describe('created registry sweep', () => {
     for (const name of planted) await plant(dir, name, 'personal manifest')
     const registry = await openRegistry(dir)
     await registry.createTemp('owner-c')
+    const cleanup = await registry.clean()
     for (const name of planted)
       expect(await readFile(path.join(dir, name), 'utf8')).toBe('personal manifest')
+    // Left alone and reported, never removed.
+    for (const name of planted.slice(0, 2)) expect(cleanup.refused).toContain(path.join(dir, name))
   })
 
   it('one load cleans a folder seeded with 5,000 leftover names', async () => {
-    if (!isLinux) return
     const dir = mkdtempSync(path.join(fixture.root, 'seed-'))
     const registry = await openRegistry(dir)
     await registry.createTemp('owner-seed')
@@ -130,8 +158,12 @@ describe('created registry sweep', () => {
       const batch = seeds.slice(i, i + 32)
       await Promise.all(batch.map((name) => plant(dir, name, manifest)))
     }
-    await openRegistry(dir)
+    // The load returns while the retirement is queued: a save goes through
+    // the same queue in between instead of waiting for all 5,000.
+    const second = await openRegistry(dir)
+    await second.createTemp('owner-during')
+    await second.clean()
     expect(await folderNames(dir)).toEqual(['registry.json', 'trees'])
-    expect(JSON.parse(await readFile(path.join(dir, 'registry.json'), 'utf8'))).toHaveLength(1)
+    expect(JSON.parse(await readFile(path.join(dir, 'registry.json'), 'utf8'))).toHaveLength(2)
   })
 })
