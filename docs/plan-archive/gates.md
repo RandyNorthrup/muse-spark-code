@@ -5217,3 +5217,141 @@ The zero-clone threshold and all analyzed files stay unchanged. Aggregate
 quality is not claimed green; the rig brief delegates it to the lead.
 
 <!-- plan-archive:end id="gates-3087b10dd-37194" -->
+
+## M95 K repair residuals (2026-10-05)
+
+<!-- plan-archive:begin id="gates-5cf2e1004-35371" lines="35371-35375" at="5cf2e1004" bytes="334" sha256="0f8668e57c6d2f3dcd836343774ce831c9add5ab6680f924a2ec8e4b71d923f6" -->
+
+- **K22 resolved:** final comparable activation is 608,089 bytes against
+  605,188 at `ad916bbc`: growth 2,901, under 3,072. Two size-specific
+  attempts had not closed the gap; fixing misplaced K15 recovery callbacks
+  subsequently closed it. All total bundle caps also pass. Full composed
+  certification still belongs to the lead.
+
+<!-- plan-archive:end id="gates-5cf2e1004-35371" -->
+
+<!-- plan-archive:begin id="gates-5cf2e1004-35377" lines="35377-35380" at="5cf2e1004" bytes="305" sha256="72fd1c92a33699a44b3018169c6e00bd6e7188d819a01f75c88233ed5a1c0184" -->
+
+- **K-contract:** lane M supplies the shared Models schema; lane U supplies
+  chat `setupComplete`. K tests use M's exact temporary source dependency,
+  which is not committed. M must adopt strict `providers/edit` and scoped
+  prefill variants. Follow-up: certify the final composed protocol/editor flow.
+
+<!-- plan-archive:end id="gates-5cf2e1004-35377" -->
+
+<!-- plan-archive:begin id="gates-5cf2e1004-35382" lines="35382-35387" at="5cf2e1004" bytes="473" sha256="5edb06db0ffcf644c176ff2ad17d5d0733c3cbc2ffe2a94b5b0cc8fd43e4226f" -->
+
+- **K-recovery (superseded by PROVWIZ9, 2026-10-09):** provider Save validates
+  before writing and retains completed provider/key/default/limit/model steps
+  after a later failure, reporting every partial outcome. No rollback remains.
+  The origin guard prevents an old key serving a newly saved origin. Same-host
+  snapshot comparisons remain; cross-window provider/key serialization awaits
+  PROVSTORE-LOCKLIB after M123. Shared-store crash atomicity remains follow-up.
+
+<!-- plan-archive:end id="gates-5cf2e1004-35382" -->
+
+<!-- plan-archive:begin id="gates-5cf2e1004-35389" lines="35389-35393" at="5cf2e1004" bytes="348" sha256="99bca1bf7218687706f2d2490d76548478e15b0b2d649155e36be8bb8552375d" -->
+
+- **K-release-base merge:** local `origin/main` at `a95f24cf` conflicts in
+  release/build files, every manifest translation, extension and constants.
+  Merge was aborted; lead must reconcile the release base on integration.
+  This preserves the lane and both sides' behavior rather than choosing a
+  side wholesale. Full certification stays open.
+
+<!-- plan-archive:end id="gates-5cf2e1004-35389" -->
+
+<!-- plan-archive:begin id="gates-5cf2e1004-35395" lines="35395-35398" at="5cf2e1004" bytes="288" sha256="8c62f4f688ade7a094a5fc5db165bbfd69dc673d49a71fe9e9a8c05052705ae2" -->
+
+- **K-hook verification:** ignored Husky wrapper was missing; an early
+  commit proceeded despite lint errors. `npm run prepare` regenerated the
+  local `sh -e` wrapper with the same configured hook path. No bypass was
+  used. Require the closing commit's positive lint/Gitleaks receipt.
+
+<!-- plan-archive:end id="gates-5cf2e1004-35395" -->
+
+<!-- plan-archive:begin id="gates-5cf2e1004-35400" lines="35400-35403" at="5cf2e1004" bytes="282" sha256="69ff6cc6b25fc67e95fa87ba4106d97ac4e86480f1a621e90915438ff08a7ee0" -->
+
+- **K-final-runtime:** live setup/OAuth/discovery, unsaved-draft scan
+  cancellation, four themes, pseudo-locale and 320px remain integration gates.
+  Focused host tests do not certify those surfaces. Final evidence and merge
+  status are recorded in `docs/certification/m95-k.md`.
+
+<!-- plan-archive:end id="gates-5cf2e1004-35400" -->
+
+<!-- plan-archive:begin id="gates-5cf2e1004-35405" lines="35405-35413" at="5cf2e1004" bytes="628" sha256="ff8a21eea06297dc5f11dd16602b171c4813ce60b62bd29a6f5c56a50d2bc7f7" -->
+
+- **M95MU-HOST-API-RECORD (2026-10-05, integration prerequisite).** The
+  composed M/U tree's host API record still describes 30 commands rather
+  than the 33 from lane 0 and names only the chat stylesheet. Its gate
+  reports those two documentation differences; the 271 API names and 59
+  theme variables are unchanged. This lane adds no VS Code API. Safe while
+  unmerged: this is generated documentation, not a runtime policy change.
+  Lane W / the lead must regenerate and review it on the fully integrated
+  tree, where lane K also contributes APIs. The full quality gate remains
+  required before integration is proposed.
+
+<!-- plan-archive:end id="gates-5cf2e1004-35405" -->
+
+<!-- plan-archive:begin id="gates-5cf2e1004-35415" lines="35415-35422" at="5cf2e1004" bytes="592" sha256="27af66fb09f9e2fb074ee4c87652f286968d26ff9b4e7ccf99a27c162a81a27e" -->
+
+- **M95-H bundle registration (FIXM95H, 2026-10-05).** All seven RVM95RH
+  codec/test findings are fixed; none is deferred. The independent Chat
+  lane still lacks its entry in `scripts/check-bundle-split.mjs`, owned by
+  lane W. Safe for this unintegrated branch because the codec is not yet
+  imported by a shipped entrypoint, and the unchanged split gate refuses
+  the build. Follow-up: lane W registers Chat, lane I supplies its caller's
+  vision capability and tools-retaining compaction body, then the lead runs
+  full integrated quality/live acceptance. No product-support claim here.
+
+<!-- plan-archive:end id="gates-5cf2e1004-35415" -->
+
+<!-- plan-archive:begin id="gates-5cf2e1004-35424" lines="35424-35443" at="5cf2e1004" bytes="1501" sha256="7372e2a8ae25d033710f42f76bb6c04cf58d245729fef87b07785bb8f9a1c6a7" -->
+
+- **M95 Ollama review repair (FIXM95O, 2026-10-05).** Rebuild the native
+  codec against nine counted local Ollama 0.35.1 receipts before changing
+  its parser: native tool index/id matching, caller-supplied session-unique
+  response identities, model-bound reasoning, bounded frames/arguments/items/
+  total streams, terminal-line closure, five byte goldens and translated
+  codec errors. No dependency, model pull, cloud call or paid call. Proof and
+  any remaining acceptance limits live in `docs/certification/m95-o.md`.
+  **O-INTEGRATION** remains an integration acceptance limit: the codec is
+  currently imported only by its owned test, so these changes cannot affect
+  existing Meta turns. Follow-up: lane T/I must inject a stable, session-unique
+  response ID, wire the lazy codec bundle, and the lead must prove the complete
+  provider turn/reload/resume flow and full quality on the final joined tree.
+  No Ollama review finding is intentionally deferred.
+  **O-SPLIT**: the existing split gate rejects the dormant codec as on neither
+  membership list. Safe for current Meta turns because it is not imported;
+  follow-up: lane W must enforce the planned separate codec bundle, without
+  exemptions or weakened guards. **O-HOST-API**: the inherited M95 manifest
+  has 34 commands while the generated host record has 31. Safe only as an
+  unmerged scaffold; follow-up: lane W regenerates/reviews the record before
+  milestone certification. Both are observed gate failures, not green gates.
+
+<!-- plan-archive:end id="gates-5cf2e1004-35424" -->
+
+<!-- plan-archive:begin id="gates-5cf2e1004-35445" lines="35445-35451" at="5cf2e1004" bytes="520" sha256="b870e23db11c3aa26b10e23334a957b587a988932500ef9abb17e2ee201cea49" -->
+
+- **Open documentation residual RVM95SC-R-host-api-record (2026-10-05).**
+  The required merges leave five generated Node-import counts stale. The
+  source/API membership is unchanged by the owned fixes, and actual counts
+  are retained in the failed gate receipt, so this does not weaken a runtime
+  boundary. The host API gate remains red and aggregate certification stays
+  open. Lane W/lead must regenerate, inspect and recheck the record; its path
+  is outside FIXM95SC's file scope. Exact count deltas are in §7.
+
+<!-- plan-archive:end id="gates-5cf2e1004-35445" -->
+
+<!-- plan-archive:begin id="gates-5cf2e1004-35453" lines="35453-35461" at="5cf2e1004" bytes="639" sha256="05d70188d32d363b5911f8ded6c1773dbbcd39d72f67e2a94cbae353eb8f21ff" -->
+
+- **Open integration item RVM95SC-R-shell-env (2026-10-05).** The extension's
+  inherited shell environment still forwards the user's `HF_TOKEN`,
+  `ANTHROPIC_AUTH_TOKEN` and `AWS_BEARER_TOKEN_BEDROCK`; hooks and ACP strip
+  them. This predates M95-S's changes and is outside FIXM95SC's authorized
+  redactor/test files. Stored keys are not injected by this lane, but that
+  fact does not certify shell isolation. Lane I/X/W must decide intended
+  inheritance versus stripping and test the shell boundary before broader
+  provider security certification. This is an open gate, not newly accepted
+  risk; see `docs/certification/m95-s.md`.
+
+<!-- plan-archive:end id="gates-5cf2e1004-35453" -->
