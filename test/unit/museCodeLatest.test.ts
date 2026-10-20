@@ -31,8 +31,8 @@ import {
   parseHookConfig,
 } from '../../src/core/backends/modelapi/hooks'
 import { subagentSpawnDescription } from '../../src/core/backends/modelapi/subagentTools'
-import type { Logger } from '../../src/host/logger'
 import { readSettings, type SettingsSource } from '../../src/host/settings'
+import { warningLogger } from './helpers/collectingLogger'
 import {
   HOOK_MAX_RUNNING_COMMANDS,
   HOOK_MAX_STOP_CONTINUATIONS,
@@ -752,14 +752,7 @@ describe('hook and subagent setting defaults', () => {
     // effect, so no workspace raises billed Stop-hook spending past what
     // Muse Code itself spends.
     const warnings: string[] = []
-    const log: Logger = {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: (message: string) => {
-        warnings.push(message)
-      },
-      error: () => undefined,
-    }
+    const log = warningLogger(warnings)
     expect(
       readSettings(settingSource({ hooksMaxStopContinuations: 1000 }), log)
         .hooksMaxStopContinuations,

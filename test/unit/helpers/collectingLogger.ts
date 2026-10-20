@@ -7,3 +7,15 @@ export function collectingLogger(messages: string[]): Logger {
   }
   return { info: push, warn: push, error: push, trace: push }
 }
+
+/** A log that keeps only warnings, so a test can say what was warned. */
+export function warningLogger(warnings: string[]): Logger {
+  return {
+    trace: () => undefined,
+    info: () => undefined,
+    warn: (message: string): void => {
+      warnings.push(message)
+    },
+    error: () => undefined,
+  }
+}

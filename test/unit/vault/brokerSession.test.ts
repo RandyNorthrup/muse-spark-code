@@ -1,44 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { fork, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { realpathSync } from 'node:fs'
 import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import * as z from 'zod/mini'
 import { setTimeout as delay } from 'node:timers/promises'
 import { vaultBrokerLockSchema } from '../../../src/shared/vaultProtocol'
-import {
-  VAULT_SOCKET_DIR_HASH_CHARS,
-  VAULT_SOCKET_DIR_PREFIX,
-  VAULT_SOCKET_FILE,
-  VAULT_SOCKET_PATH_LIMIT_BYTES,
-} from '../../../src/shared/constants'
 import { buildBrokerChildren } from '../helpers/vault/sessionBrokerBuild'
+import { stopFixtureChild } from '../helpers/vault/fixtureChildren'
+import { hasBrokerSocketFit } from '../helpers/vault/socketFit'
 
 const fixture = { root: '' }
 const children = new Set<ChildProcess>()
 const brokers = new Set<number>()
-// The socket base must stay within the bind limit: the leaf the broker adds
-// is fixed size, so a temporary root longer than the limit minus that leaf
-// cannot fit the socket on this OS. Rigs whose temporary root cannot fit it
-// would hang to the test timeout waiting for a readiness the refused broker
-// never sends, so the suite skips at collection with this reason instead.
-let runtimeBase = process.env['XDG_RUNTIME_DIR'] ?? os.tmpdir()
-try {
-  runtimeBase = realpathSync(runtimeBase)
-} catch {
-  /* The length check below skips when the base is unusable. */
-}
-const socketLength =
-  Buffer.byteLength(runtimeBase, 'utf8') +
-  1 +
-  VAULT_SOCKET_DIR_PREFIX.length +
-  VAULT_SOCKET_DIR_HASH_CHARS +
-  1 +
-  VAULT_SOCKET_FILE.length
-const hasSocketFit =
-  socketLength <= VAULT_SOCKET_PATH_LIMIT_BYTES[process.platform === 'darwin' ? 'darwin' : 'other']
+const hasSocketFit = hasBrokerSocketFit()
 beforeAll(async () => {
   if (!hasSocketFit || process.platform === 'win32') return
   fixture.root = await mkdtemp(path.join(os.tmpdir(), 'vs-'))
@@ -202,11 +178,7 @@ describe.skipIf(!hasSocketFit || process.platform === 'win32')('session-owned PO
     child.stderr.destroy()
     const ready = await once(child, 'message')
     expect(ready[0]).toEqual({ ready: true })
-    const exited = once(child, 'exit')
-    child.kill('SIGTERM')
-    const [code] = await exited
-    children.delete(child)
-    expect(code).toBe(0)
+    await stopFixtureChild(children, child)
     const directories = await readdir(path.join(dataDir, 'run'))
     const broker = directories.find((name) => name.startsWith('broker-'))
     if (!broker) throw new Error('missing generated broker directory')

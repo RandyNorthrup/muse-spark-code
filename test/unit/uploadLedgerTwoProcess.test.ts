@@ -158,16 +158,21 @@ async function pinCycleThenDelete(ledger: UploadLedger, deletes: string[]) {
   expect(deletes).toEqual([fileId])
 }
 
+/** Our own pin cycle, then the delete refused while another holder's reference stands. */
+async function pinCycleThenRefused(ledger: UploadLedger, deletes: string[]) {
+  await ledger.pinFiles([fileId], 'parent-owner')
+  await ledger.unpinFiles([fileId], 'parent-owner')
+  await expect(ledger.deleteFile(fileId, () => Promise.resolve(true))).rejects.toThrow(
+    'in use by a running request',
+  )
+  expect(deletes).toEqual([])
+}
+
 describe('upload ledger across two real processes', () => {
   it('holds a second process pin across this process unpin, then lets go', async () => {
     const { deletes, ledger, stop, done, stderr } = await seededChild('1', 'hold')
     // Our own pin cycle must not release the other process's reference.
-    await ledger.pinFiles([fileId], 'parent-owner')
-    await ledger.unpinFiles([fileId], 'parent-owner')
-    await expect(ledger.deleteFile(fileId, () => Promise.resolve(true))).rejects.toThrow(
-      'in use by a running request',
-    )
-    expect(deletes).toEqual([])
+    await pinCycleThenRefused(ledger, deletes)
     writeFileSync(stop, 'stop')
     await waitFor(done, stderr)
     await pinCycleThenDelete(ledger, deletes)
@@ -207,12 +212,7 @@ describe('upload ledger across two real processes', () => {
       // No process table: the live holder's birth cannot be read, so doubt
       // keeps the pin and the delete is refused. Once the holder exits, its
       // id is provably gone without any birth read, and the delete proceeds.
-      await ledger.pinFiles([fileId], 'parent-owner')
-      await ledger.unpinFiles([fileId], 'parent-owner')
-      await expect(ledger.deleteFile(fileId, () => Promise.resolve(true))).rejects.toThrow(
-        'in use by a running request',
-      )
-      expect(deletes).toEqual([])
+      await pinCycleThenRefused(ledger, deletes)
       writeFileSync(stop, 'stop')
       await waitFor(done, stderr)
       await pinCycleThenDelete(ledger, deletes)
