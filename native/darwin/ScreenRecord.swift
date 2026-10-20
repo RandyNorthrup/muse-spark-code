@@ -8,8 +8,6 @@ import ScreenCaptureKit
 import VideoToolbox
 
 struct ScreenRecordOptions {
-    static let minimumSeconds = 10
-    static let maximumSeconds = 600
     static let maximumBytes = 200 * 1024 * 1024
     let output: URL
     let seconds: Int
@@ -27,8 +25,9 @@ struct ScreenRecordOptions {
         }
         guard let file = values["--output"], file.hasPrefix("/"),
             let seconds = Int(values["--max-seconds"] ?? ""),
-            // D121: 0 records until stopped (no stop of ours); otherwise 10-600.
-            (seconds == 0 || (Self.minimumSeconds...Self.maximumSeconds).contains(seconds)),
+            // D121: 0 records until stopped (no stop of ours); any other whole
+            // number of seconds the person set is used as set.
+            seconds >= 0,
             let bytes = Int(values["--max-bytes"] ?? ""), bytes > 0, bytes <= Self.maximumBytes,
             let microphone = Self.boolean(values["--microphone"]),
             let systemAudio = Self.boolean(values["--system-audio"])

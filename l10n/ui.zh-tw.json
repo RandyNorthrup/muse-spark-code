@@ -957,7 +957,7 @@
     "recordingRemote": "此視窗在沒有本機螢幕的遠端主機上執行。請使用配套頁面或選擇錄製檔案。",
     "recordingBrowserUnsupported": "{browser} 無法錄製 mp4。請選擇 mp4 錄製檔案。",
     "recordingUserOnly": "只有互動式使用者可以開始螢幕錄製。",
-    "recordingNoRecent": "找不到最近的螢幕錄製。",
+    "recordingNotFound": "在 {folders} 中找不到螢幕錄製。",
     "recorderUnavailable": "此主機上沒有可用的螢幕錄製工具。",
     "attachHeadless": "無頭執行已拒絕：請改用 --attach 傳遞檔案。",
     "uploadStorageUnknown": "此版本暫不支援影片與音訊上傳：正式環境的上傳與轉錄綁定尚未就緒。",

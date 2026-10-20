@@ -957,7 +957,7 @@
     "recordingRemote": "このウィンドウはローカル画面のないリモートホストで動作しています。コンパニオンページを使うか、録画ファイルを選んでください。",
     "recordingBrowserUnsupported": "{browser} は mp4 を録画できません。mp4 の録画ファイルを選んでください。",
     "recordingUserOnly": "対話操作中のユーザーだけが画面録画を開始できます。",
-    "recordingNoRecent": "最近の画面録画が見つかりません。",
+    "recordingNotFound": "{folders} に画面録画が見つかりません。",
     "recorderUnavailable": "このホストでは画面録画ツールを利用できません。",
     "attachHeadless": "ヘッドレス実行では拒否されました: 代わりに --attach でファイルを渡してください。",
     "uploadStorageUnknown": "動画と音声のアップロードはこのバージョンでは利用できません。本番用のアップロードと文字起こしのバインディングがまだありません。",

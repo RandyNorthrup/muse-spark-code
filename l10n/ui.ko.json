@@ -957,7 +957,7 @@
     "recordingRemote": "이 창은 로컬 화면이 없는 원격 호스트에서 실행됩니다. 동반 페이지를 사용하거나 녹화 파일을 선택하세요.",
     "recordingBrowserUnsupported": "{browser}은(는) mp4를 녹화할 수 없습니다. mp4 녹화 파일을 선택하세요.",
     "recordingUserOnly": "대화형 사용자만 화면 녹화를 시작할 수 있습니다.",
-    "recordingNoRecent": "최근 화면 녹화를 찾지 못했습니다.",
+    "recordingNotFound": "{folders}에서 화면 녹화를 찾지 못했습니다.",
     "recorderUnavailable": "이 호스트에서는 화면 녹화기를 사용할 수 없습니다.",
     "attachHeadless": "헤드리스 실행에서는 거부됩니다: 대신 --attach로 파일을 전달하세요.",
     "uploadStorageUnknown": "동영상 및 오디오 업로드는 이 버전에서 사용할 수 없습니다. 프로덕션 업로드 및 전사 바인딩이 아직 없습니다.",

@@ -4,11 +4,7 @@ import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
-import {
-  SCREEN_RECORDING_MAX_SECONDS,
-  SCREEN_RECORDING_MIN_SECONDS,
-  UI_TEXT,
-} from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import { fill, formatUnit, setUiText } from '../../shared/l10n/text'
 import { screenRecordingOptionsSchema } from '../../shared/media'
 import { createNonce } from '../html'
@@ -126,8 +122,8 @@ export async function runScreenRecordingCommand(
     // no stale preview (its copy is already disposed).
     const settled = await resolveLatestRecording(deps)
     if (settled.status === 'ready') openRecordingPreview(settled.preview, deps)
-    else if (settled.status === 'absent')
-      await vscode.window.showInformationMessage(UI_TEXT.media.recordingNoRecent)
+    // The discovery's own words: where it looked, or why the copy failed.
+    else if (settled.status === 'absent') await vscode.window.showInformationMessage(settled.reason)
     return
   }
   const driver = deps.driver
@@ -153,17 +149,10 @@ export async function runScreenRecordingCommand(
     { canPickMany: true, title: UI_TEXT.media.recordingStart },
   )
   if (selected === undefined) return
-  // A setting outside the schema range clamps instead of failing the
-  // command with a raw schema error (M105 E1 review). 0 records until
-  // stopped (D121: no stop of ours) and passes through unclamped.
+  // D121: the person's length reaches the recorder as set (settings already
+  // read it as a whole number of seconds); 0 records until stopped.
   const options = screenRecordingOptionsSchema.parse({
-    maxSeconds:
-      deps.maxSeconds === 0
-        ? 0
-        : Math.min(
-            SCREEN_RECORDING_MAX_SECONDS,
-            Math.max(SCREEN_RECORDING_MIN_SECONDS, deps.maxSeconds),
-          ),
+    maxSeconds: deps.maxSeconds,
     microphone: selected.some((item) => item.audio === 'microphone'),
     systemAudio: selected.some((item) => item.audio === 'systemAudio'),
   })

@@ -962,7 +962,7 @@
     "recordingRemote": "Bu pencere yerel ekranı olmayan uzak bir ana makinede çalışıyor. Yardımcı sayfayı kullanın veya bir kayıt dosyası seçin.",
     "recordingBrowserUnsupported": "{browser} mp4 kaydedemiyor. Bir mp4 kayıt dosyası seçin.",
     "recordingUserOnly": "Yalnızca etkileşimli bir kullanıcı ekran kaydı başlatabilir.",
-    "recordingNoRecent": "Yakın zamanda alınmış ekran kaydı bulunamadı.",
+    "recordingNotFound": "{folders} içinde ekran kaydı bulunamadı.",
     "recorderUnavailable": "Bu hostta kullanılabilir ekran kaydedici yok.",
     "attachHeadless": "Headless çalıştırmalar için reddedildi: dosyayı --attach ile geçin.",
     "uploadStorageUnknown": "Video ve ses yüklemeleri bu sürümde kullanılamaz: üretim yükleme ve transkripsiyon bağları henüz eksik.",

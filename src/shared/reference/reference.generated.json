@@ -4443,13 +4443,13 @@
     {
       "id": "museSpark.screenRecordingMaxSeconds",
       "name": "museSpark.screenRecordingMaxSeconds",
-      "description": "Longest screen recording the extension captures, in seconds. No limit unless you set one: 0 (the default) records until stopped, and a set value stays within 10–600. The recorder stops at a set limit and keeps what it captured. Only this machine’s setting is used.",
+      "description": "Longest screen recording the extension captures, in seconds. No limit unless you set one: 0 (the default) records until stopped, and any other whole number of seconds is used as set. The recorder stops at a set limit and keeps what it captured. Only this machine’s setting is used.",
       "descriptionKey": "config.screenRecordingMaxSeconds.description",
       "type": "integer",
       "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "integer", "default": 0, "minimum": 0, "maximum": 600 }
+      "schema": { "type": "integer", "default": 0, "minimum": 0 }
     },
     {
       "id": "museSpark.mediaAudioAction",

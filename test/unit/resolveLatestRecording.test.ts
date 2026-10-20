@@ -7,12 +7,18 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { findLatestRecording } from '../../src/core/media/record/linux'
-import type { ScreenRecordingPreview } from '../../src/core/media/record/driver'
+import type {
+  ScreenRecordingPreview,
+  ScreenRecordingResult,
+} from '../../src/core/media/record/driver'
 import {
   resolveLatestRecording,
   type RecordingCommandDeps,
 } from '../../src/host/media/screenRecordBundle'
-import { createLinuxLatestPort } from '../../src/host/media/recordingLatest'
+import {
+  createLinuxLatestPort,
+  createWindowsLatestPort,
+} from '../../src/host/media/recordingLatest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { videoFixture } from './helpers/media/fixtures'
 
@@ -41,7 +47,7 @@ async function freshPreview(): Promise<ScreenRecordingPreview> {
 }
 
 function depsFor(
-  preview: ScreenRecordingPreview | undefined,
+  found: ScreenRecordingPreview | ScreenRecordingResult,
   liveness: RecordingCommandDeps['isLive'],
   warnings: string[],
 ): RecordingCommandDeps {
@@ -58,7 +64,7 @@ function depsFor(
     attach: () => Promise.resolve(false),
     isRemote: false,
     maxSeconds: 60,
-    latest: () => Promise.resolve(preview),
+    latest: () => Promise.resolve('ok' in found ? found : { ok: true, preview: found }),
     ...(liveness !== undefined && { isLive: liveness }),
   }
 }
@@ -113,8 +119,16 @@ describe('PR236W1 latest-recording liveness', () => {
     expect(warnings).toEqual(['Recording preview cleanup failed'])
   })
 
-  it('reports absence when discovery found nothing', async () => {
-    const settled = await resolveLatestRecording(depsFor(undefined, () => false, []))
-    expect(settled).toMatchObject({ status: 'absent' })
+  // The refusal is discovery's own: it names the folders it searched.
+  it('reports absence with the folders discovery searched', async () => {
+    const tempRoot = await temp()
+    const found = await findLatestRecording(
+      createWindowsLatestPort({ homeDir: await temp(), tempRoot }),
+    )
+    const settled = await resolveLatestRecording(depsFor(found, () => true, []))
+    expect(settled).toEqual({
+      status: 'absent',
+      reason: String.raw`No screen recording was found in Videos\Screen Recordings or Videos\Captures.`,
+    })
   })
 })

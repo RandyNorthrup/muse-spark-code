@@ -27,7 +27,6 @@ import {
   MEDIA_UPLOAD_EXPIRY_SETTING,
   SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
   SCREEN_RECORDING_MAX_SECONDS_SETTING,
-  SCREEN_RECORDING_RECENT_MAX_AGE_MS,
 } from '../../src/shared/constants'
 import type { ScreenRecordingDriver } from '../../src/core/media/record/driver'
 
@@ -196,17 +195,21 @@ describe('M105 attachment bridge', () => {
 })
 
 describe('M105 recorder contract', () => {
-  it('requires explicit sound choices and bounds recording duration', () => {
+  it('requires explicit sound choices and takes the recording length as set', () => {
     const options = {
       maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
       microphone: false,
       systemAudio: false,
     }
     expect(screenRecordingOptionsSchema.parse(options)).toEqual(options)
-    // D121: 0 records until stopped (the default); a set value stays 10–600.
-    for (const maxSeconds of [0, 10, 600])
-      expect(screenRecordingOptionsSchema.safeParse({ ...options, maxSeconds }).success).toBe(true)
-    for (const maxSeconds of [9, 601, 10.5, Infinity])
+    // D121: 0 records until stopped (the default); any other whole number of
+    // seconds is used as set, with no floor or ceiling of ours.
+    for (const maxSeconds of [0, 1, 5, 9, 600, 601, 3600, 86_400])
+      expect(screenRecordingOptionsSchema.parse({ ...options, maxSeconds })).toEqual({
+        ...options,
+        maxSeconds,
+      })
+    for (const maxSeconds of [-1, 10.5, Infinity, NaN])
       expect(screenRecordingOptionsSchema.safeParse({ ...options, maxSeconds }).success).toBe(false)
     expect(screenRecordingOptionsSchema.safeParse({ maxSeconds: 120 }).success).toBe(false)
     expect(
@@ -244,7 +247,6 @@ describe('M105 recorder contract', () => {
     expect(MEDIA_FILE_EXPIRY_MIN_S).toBe(3600)
     expect(MEDIA_FILE_EXPIRY_MAX_S).toBe(30 * 24 * 60 * 60)
     expect(MEDIA_MAX_UPLOAD_DEFAULT_MIB).toBe(200)
-    expect(SCREEN_RECORDING_RECENT_MAX_AGE_MS).toBe(600_000)
     expect([
       MEDIA_UPLOAD_EXPIRY_SETTING,
       MEDIA_MAX_UPLOAD_SETTING,

@@ -7,13 +7,13 @@ import {
   MEDIA_FILE_ID_MIN_BYTES,
   MILLISECONDS_PER_SECOND,
   PROCESS_TABLE_TIMEOUT_MS,
-  SCREEN_RECORDING_RECENT_MAX_AGE_MS,
   SCREEN_RECORDING_REMOVE_ATTEMPTS,
   SCREEN_RECORDING_REMOVE_RETRY_MS,
 } from '../../../shared/constants'
 import { UI_TEXT, fill } from '../../../shared/l10n/text'
 import { mediaInfoSchema, screenRecordingOptionsSchema } from '../../../shared/media'
 import type { MediaInfo } from '../../../shared/media'
+import { recordingNotFound, windowsRecordingPlaces } from './driver'
 import type {
   ScreenRecordingDriver,
   ScreenRecordingOptions,
@@ -26,7 +26,7 @@ const helperFrame = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('complete') }),
   z.strictObject({
     type: z.literal('error'),
-    code: z.enum(['permission', 'accessDenied', 'unavailable', 'cancelled', 'noRecent', 'limit']),
+    code: z.enum(['permission', 'accessDenied', 'unavailable', 'cancelled', 'notFound', 'limit']),
   }),
 ])
 
@@ -64,8 +64,9 @@ export interface WindowsRecorderDeps {
 }
 
 export interface WindowsScreenRecorder extends ScreenRecordingDriver {
-  /** Copies the newest recent Snipping Tool mp4 into a private preview.
-  Its original is never deleted, modified, or uploaded by this driver. */
+  /** Copies the newest mp4 that Snipping Tool or Xbox Game Bar saved, of
+  any age, into a private preview. Its original is never deleted,
+  modified, or uploaded by this driver. */
   readonly attachLatest: () => Promise<ScreenRecordingResult>
 }
 
@@ -177,13 +178,15 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
       const unsubscribeShutdown = unsubscribe
       const outputDirectory = directory
       const output = path.win32.join(outputDirectory, 'recording.mp4')
+      // D121: `--latest` takes no age of ours, and `--record` gets the
+      // person's length as set (0 records until stopped).
       const args = [
         options === undefined ? '--latest' : '--record',
         outputDirectory,
         String(deps.maxBytes),
         String(process.pid),
         ...(options === undefined
-          ? [String(SCREEN_RECORDING_RECENT_MAX_AGE_MS)]
+          ? []
           : [
               String(options.maxSeconds),
               String(options.microphone),
@@ -254,8 +257,8 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
               reason = UI_TEXT.media.recordingPermissionDenied
               break
             }
-            case 'noRecent': {
-              reason = UI_TEXT.media.recordingNoRecent
+            case 'notFound': {
+              reason = recordingNotFound(windowsRecordingPlaces())
               break
             }
             default: {
