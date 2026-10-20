@@ -3,7 +3,7 @@
 // it, with a spill the model can page through. Display text (rows, the
 // panel) may still clip — it hides nothing from the model.
 import { mkdtempSync, realpathSync } from 'node:fs'
-import { mkdir, readFile } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -11,11 +11,10 @@ import { browserReportText } from '../../src/core/browser/browserTool'
 import type { BrowserCheckReport } from '../../src/core/browser/browserRun'
 import { mcpCallOutcome } from '../../src/core/backends/modelapi/mcp/functions'
 import { shellOutcome } from '../../src/core/backends/modelapi/tools'
-import { canonicalPath } from '../../src/host/canonicalPath'
-import { writeFileAtomically } from '../../src/host/fsAtomic'
 import { createMemoryIo, systemPath } from '../../src/host/backend/memoryIo'
 import { MemoryStore } from '../../src/core/memory/memoryStore'
 import { removeFolder } from './helpers/temporaryFolders'
+import { headlessToolIo } from './helpers/headlessToolIo'
 
 const paths = { root: '' }
 
@@ -42,26 +41,13 @@ function loudReport(): BrowserCheckReport {
   }
 }
 
-function memoryTools() {
-  return {
-    readFile: async (absolutePath: string) => {
-      try {
-        return await readFile(absolutePath, 'utf8')
-      } catch {
-        return undefined
-      }
-    },
-    writeFile: (absolutePath: string, content: string) =>
-      writeFileAtomically(absolutePath, content, { sleep: () => Promise.resolve() }),
-    realPath: canonicalPath,
-    hasUnsavedChanges: () => false,
-  }
-}
-
 async function noteStore(workspace: string, dataRoot: string) {
   await mkdir(path.join(workspace, '.agents', 'memory', 'notes'), { recursive: true })
   const store = new MemoryStore({
-    io: createMemoryIo(memoryTools(), { warn: () => undefined }),
+    // The standalone runtime's own ToolIo (headless: no editor buffers,
+    // src/runtime/backends.ts), so hasUnsavedChanges answers through the
+    // product's isSamePath comparison instead of a hand-written false.
+    io: createMemoryIo(headlessToolIo(workspace), { warn: () => undefined }),
     platform: process.platform,
     dataRoot: () => dataRoot,
     workspaceRoot: workspace,
