@@ -315,7 +315,7 @@ if (
 ) {
   const [channel, ...artifacts] = process.argv.slice(2)
   try {
-    // One package per platform plus the universal fallback (PLAN.md D209):
+    // One package per platform, no universal package (PLAN.md D209):
     // the release publishes every artifact first and only then polls for
     // visibility under one shared deadline, so a cancelled job never leaves
     // only some targets published. npm still takes its single tarball.
