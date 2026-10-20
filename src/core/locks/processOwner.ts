@@ -1,7 +1,6 @@
 // Timed callers retain their legacy host/birth comparison. Vaults require
 // installation, boot and PID-namespace evidence before comparing a PID.
 // Hostnames are display labels, never vault death evidence.
-import { execFile } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, readlink, rm, writeFile } from 'node:fs/promises'
 import { homedir, hostname } from 'node:os'
@@ -20,6 +19,10 @@ import {
 } from '../../shared/constants'
 import { loadDeveloperMachineId } from '../developer/machineId'
 import { agentDataFolder } from '../../runtime/dataFolder'
+import { type GuardedChildEnv } from '../executables'
+import { noWorkspaceChildEnvironment } from '../execGuard'
+import { realpathSync } from 'node:fs'
+import { execFileGuarded } from '../guardedChildProcess'
 
 const NO_SUCH_PROCESS = 'ESRCH'
 const NO_SUCH_FILE = 'ENOENT'
@@ -97,9 +100,9 @@ export const processOwnerSchema = z.object({
   host: z.string(),
   pid: z.number(),
   /**
-   * The process's birth: clock ticks since boot on Linux (with `bootId`),
-   * epoch milliseconds on Windows and macOS.
-   */
+  The process's birth: clock ticks since boot on Linux (with `bootId`),
+  epoch milliseconds on Windows and macOS.
+  */
   processStart: z.number(),
   /** Linux: the boot the process ran in. */
   bootId: z.optional(z.string()),
@@ -120,15 +123,15 @@ function errorCode(error: unknown): string | undefined {
     : undefined
 }
 
-function run(file: string, args: readonly string[], env?: NodeJS.ProcessEnv): Promise<string> {
+function run(file: string, args: readonly string[], env: GuardedChildEnv): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(
+    execFileGuarded(
       file,
       [...args],
       {
         timeout: PROCESS_START_QUERY_TIMEOUT_MS,
         windowsHide: true,
-        ...(env !== undefined && { env }),
+        env,
       },
       (error, stdout) => {
         if (error === null) {
@@ -154,11 +157,16 @@ async function linuxStartTicks(pid: number): Promise<number | undefined> {
 
 async function darwinStartTime(pid: number): Promise<number | undefined> {
   // `lstart` in the C locale and UTC: "Thu Oct  9 08:05:19 2026".
-  const output = await run('/bin/ps', ['-o', 'lstart=', '-p', String(pid)], {
-    ...process.env,
-    LC_ALL: 'C',
-    TZ: 'UTC0',
-  })
+  // Fixed `/bin/ps`: absolute entries only, links followed.
+  const output = await run(
+    '/bin/ps',
+    ['-o', 'lstart=', '-p', String(pid)],
+    noWorkspaceChildEnvironment(
+      process.platform,
+      { ...process.env, LC_ALL: 'C', TZ: 'UTC0' },
+      realpathSync,
+    ),
+  )
   const started = Date.parse(`${output.trim()} GMT`)
   return Number.isFinite(started) ? started : undefined
 }
@@ -199,13 +207,13 @@ interface BirthReader {
 }
 
 /**
- * Removes the readers of processes that have ended (named by their process
- * id), and those named with this process's own id: this process builds
- * after this sweep, so each of those is an earlier process's whose id
- * Windows gave to this one, or one this process refused. One whose id
- * another live process holds stays (a reused id's until that process ends
- * too), and so does one Windows will not delete because it is running.
- */
+Removes the readers of processes that have ended (named by their process
+id), and those named with this process's own id: this process builds
+after this sweep, so each of those is an earlier process's whose id
+Windows gave to this one, or one this process refused. One whose id
+another live process holds stays (a reused id's until that process ends
+too), and so does one Windows will not delete because it is running.
+*/
 async function removeEndedBirthReaders(folder: string): Promise<void> {
   let names: string[]
   try {
@@ -226,18 +234,20 @@ async function removeEndedBirthReaders(folder: string): Promise<void> {
 }
 
 /**
- * Whether this host runs above a medium-integrity process of the same
- * person (elevated or System): only then could a lower-integrity writer
- * reach what this process builds and gain its token by swapping it.
- * `whoami` is native (no PowerShell cold start) and its answer is the
- * level's SID, which never localises. False when the probe itself fails:
- * that probe cannot fail on a machine whose compiler runs.
- */
+Whether this host runs above a medium-integrity process of the same
+person (elevated or System): only then could a lower-integrity writer
+reach what this process builds and gain its token by swapping it.
+`whoami` is native (no PowerShell cold start) and its answer is the
+level's SID, which never localises. False when the probe itself fails:
+that probe cannot fail on a machine whose compiler runs.
+*/
 async function isHighIntegrityHost(systemRoot: string): Promise<boolean> {
   try {
-    const groups = await run(path.win32.join(systemRoot, 'System32', 'whoami.exe'), ['/groups'], {
-      SystemRoot: systemRoot,
-    })
+    const groups = await run(
+      path.win32.join(systemRoot, 'System32', 'whoami.exe'),
+      ['/groups'],
+      noWorkspaceChildEnvironment(process.platform, { SystemRoot: systemRoot }, realpathSync),
+    )
     return groups.includes(HIGH_INTEGRITY_SID) || groups.includes(SYSTEM_INTEGRITY_SID)
   } catch (error: unknown) {
     // An inconclusive probe answers negatively; anything else is unexpected.
@@ -247,37 +257,35 @@ async function isHighIntegrityHost(systemRoot: string): Promise<boolean> {
 }
 
 /**
- * Walls `file` above a lower-integrity writer: a High mandatory label, so
- * a medium-integrity process of the same person can no longer write,
- * replace or delete it (reading and running it stay allowed, so a later
- * run at any level still runs and sweeps it). `icacls` is native and its
- * exit, not its localised words, is the answer. There is no handle to
- * hold from the check to the start: `execFile` opens the path again, so
- * the file itself is made non-writable by the attacker for its whole life
- * instead.
- */
+Walls `file` above a lower-integrity writer: a High mandatory label, so
+a medium-integrity process of the same person can no longer write,
+replace or delete it (reading and running it stay allowed, so a later
+run at any level still runs and sweeps it). `icacls` is native and its
+exit, not its localised words, is the answer. There is no handle to
+hold from the check to the start: `execFile` opens the path again, so
+the file itself is made non-writable by the attacker for its whole life
+instead.
+*/
 async function wallAboveLowerIntegrity(file: string, systemRoot: string): Promise<void> {
   await run(
     path.win32.join(systemRoot, 'System32', 'icacls.exe'),
     [file, '/setintegritylevel', 'H'],
-    {
-      SystemRoot: systemRoot,
-    },
+    noWorkspaceChildEnvironment(process.platform, { SystemRoot: systemRoot }, realpathSync),
   )
 }
 
 /**
- * This process's birth reader: built by Windows' own C# compiler in the
- * user's data folder under a name of its own (this process's id and a
- * random part), and sealed: the digest of the bytes the compiler wrote is
- * kept in memory, and only those bytes are ever run. No file this process
- * did not build is run, whatever its name. When this host is elevated or
- * System, what it writes (its source before the compile, its executable
- * after the seal) is walled above a lower-integrity writer; a wall that
- * cannot be set refuses the build, so an elevated host never builds or
- * launches an unwalled helper. Any other host builds as before: with no
- * higher token, a same-level writer gains nothing by swapping it.
- */
+This process's birth reader: built by Windows' own C# compiler in the
+user's data folder under a name of its own (this process's id and a
+random part), and sealed: the digest of the bytes the compiler wrote is
+kept in memory, and only those bytes are ever run. No file this process
+did not build is run, whatever its name. When this host is elevated or
+System, what it writes (its source before the compile, its executable
+after the seal) is walled above a lower-integrity writer; a wall that
+cannot be set refuses the build, so an elevated host never builds or
+launches an unwalled helper. Any other host builds as before: with no
+higher token, a same-level writer gains nothing by swapping it.
+*/
 async function buildWindowsBirthReader(systemRoot: string): Promise<BirthReader> {
   // Only an absolute folder is built in: a relative one would put the reader
   // under whatever folder this process happens to run in.
@@ -303,7 +311,7 @@ async function buildWindowsBirthReader(systemRoot: string): Promise<BirthReader>
     await run(
       path.win32.join(systemRoot, WINDOWS_FRAMEWORK_RELATIVE_PATH, 'csc.exe'),
       ['/nologo', '/noconfig', '/target:exe', `/out:${file}`, `${stem}.cs`],
-      { SystemRoot: systemRoot },
+      noWorkspaceChildEnvironment(process.platform, { SystemRoot: systemRoot }, realpathSync),
     )
   } catch (error: unknown) {
     await removeQuietly(file)
@@ -366,7 +374,11 @@ async function windowsStartTime(pid: number): Promise<number | undefined> {
   }
   let output: string
   try {
-    output = await run(reader.file, [String(pid)], { SystemRoot: systemRoot })
+    output = await run(
+      reader.file,
+      [String(pid)],
+      noWorkspaceChildEnvironment(process.platform, { SystemRoot: systemRoot }, realpathSync),
+    )
   } catch (error: unknown) {
     // A reader that is gone or damaged is built again on the next read; one
     // the machine's policy refuses to start stays, since building the same
@@ -384,11 +396,11 @@ async function windowsStartTime(pid: number): Promise<number | undefined> {
 }
 
 /**
- * Process `pid`'s birth as the system recorded it: clock ticks since boot
- * on Linux, epoch milliseconds on Windows and macOS; undefined when it
- * cannot say (no such process, no permission, an unsupported system).
- * Never throws.
- */
+Process `pid`'s birth as the system recorded it: clock ticks since boot
+on Linux, epoch milliseconds on Windows and macOS; undefined when it
+cannot say (no such process, no permission, an unsupported system).
+Never throws.
+*/
 export async function processStartTime(
   pid: number,
   platform: NodeJS.Platform = process.platform,
@@ -509,7 +521,12 @@ async function readExactEvidence(pid: number): Promise<ExactEvidence | undefined
       case 'darwin': {
         // Both tools ship in base macOS: no Xcode shim or developer tool.
         const output =
-          darwinBoot.value ?? (await run('/usr/sbin/sysctl', ['-n', 'kern.bootsessionuuid']))
+          darwinBoot.value ??
+          (await run(
+            '/usr/sbin/sysctl',
+            ['-n', 'kern.bootsessionuuid'],
+            noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
+          ))
         const boot = output.trim()
         if (boot) darwinBoot.value = boot
         const started = await darwinStartTime(pid)
@@ -533,6 +550,7 @@ async function readExactEvidence(pid: number): Promise<ExactEvidence | undefined
               String(pid) +
               ').StartTime.ToFileTimeUtc(); Add-Type -TypeDefinition \'using System; using System.Runtime.InteropServices; public static class MuseLeaseBoot { [StructLayout(LayoutKind.Sequential)] public struct Info { public Guid Id; public uint Firmware; public ulong Flags; } [DllImport("ntdll.dll")] static extern int NtQuerySystemInformation(int kind, out Info value, int size, out int returned); public static string Read() { Info value; int returned; if (NtQuerySystemInformation(90, out value, Marshal.SizeOf(typeof(Info)), out returned) != 0 || value.Id == Guid.Empty) throw new InvalidOperationException(); return value.Id.ToString(); } }\'; Write-Output ($birth.ToString()+":"+[MuseLeaseBoot]::Read())',
           ],
+          noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
         )
         const [birth, boot] = output.trim().split(':', 2)
         if (birth && boot && DECIMAL.test(birth) && /^[a-f0-9-]{36}$/iu.test(boot))
@@ -614,12 +632,12 @@ export async function exactCurrentProcessOwner(
 }
 
 /**
- * Whether `owner` is provably gone: on this host, no process has its id;
- * or it was born in another boot (Linux); or the process that has its id
- * now was born at another time (the system gave the id to someone else).
- * Another host's process, or a live id whose birth cannot be read or
- * compared, is never provably gone.
- */
+Whether `owner` is provably gone: on this host, no process has its id;
+or it was born in another boot (Linux); or the process that has its id
+now was born at another time (the system gave the id to someone else).
+Another host's process, or a live id whose birth cannot be read or
+compared, is never provably gone.
+*/
 export async function isProcessOwnerGone(
   owner: ProcessOwner,
   probe?: Partial<ProcessOwnerProbe>,

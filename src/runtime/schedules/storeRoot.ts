@@ -11,10 +11,10 @@ import { lstat, mkdir, readdir, rename, rmdir } from 'node:fs/promises'
 import path from 'node:path'
 
 /**
- * The catch-gate-visible form of the expected file-system condition: `is`-named
- * so the inventory reads it as the one handled case, with exactly the same
- * answer as reading the code member on every input.
- */
+The catch-gate-visible form of the expected file-system condition: `is`-named
+so the inventory reads it as the one handled case, with exactly the same
+answer as reading the code member on every input.
+*/
 function isFileErrorCode(error: unknown, code: string): boolean {
   return error instanceof Error && 'code' in error && error.code === code
 }

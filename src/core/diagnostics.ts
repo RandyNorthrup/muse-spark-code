@@ -33,9 +33,9 @@ export const DIAGNOSTIC_SEVERITIES: readonly DiagnosticSeverity[] = [
 
 export interface DiagnosticEntry {
   /**
-   * Relative to the root with forward slashes (`rootRelativePath`);
-   * undefined for a resource outside it, which is never reported.
-   */
+  Relative to the root with forward slashes (`rootRelativePath`);
+  undefined for a resource outside it, which is never reported.
+  */
   readonly path: string | undefined
   readonly severity: DiagnosticSeverity
   /** 1-based. */
@@ -87,11 +87,11 @@ type PathRequest =
   | { readonly ok: false; readonly reason: string }
 
 /**
- * The workspace-relative path a request names: a `file:` URI (as VS Code
- * writes one, `file:///c%3A/…`), an absolute path, or a path relative to the
- * root. A malformed URI (bad percent-encoding throws in the decoder) or a
- * path that names no file in the workspace comes back with the reason.
- */
+The workspace-relative path a request names: a `file:` URI (as VS Code
+writes one, `file:///c%3A/…`), an absolute path, or a path relative to the
+root. A malformed URI (bad percent-encoding throws in the decoder) or a
+path that names no file in the workspace comes back with the reason.
+*/
 function requestedPath(given: string, deps: DiagnosticsToolDeps): PathRequest {
   let fsPath: string
   try {
@@ -116,9 +116,9 @@ function formatEntry(entry: WorkspaceDiagnostic): string {
 }
 
 /**
- * The tool's text for `entries`, worst first, capped at `max` with a count
- * (the verify loop sends fewer than the tool, M68).
- */
+The tool's text for `entries`, worst first, capped at `max` with a count
+(the verify loop sends fewer than the tool, M68).
+*/
 export function formatDiagnostics(
   entries: readonly WorkspaceDiagnostic[],
   max: number = DIAGNOSTICS_MAX_ENTRIES,
@@ -147,11 +147,11 @@ export interface DiagnosticsToolDeps {
   /** An absolute path relative to the root, undefined outside it (`rootRelativePath`). */
   readonly relativeInRoot: (absolutePath: string) => string | undefined
   /**
-   * Shows a file the request names, waits for its language server and reads
-   * its diagnostics while it shows (M68): the servers report only on files
-   * an editor shows, and may clear them when its tab closes. Undefined when
-   * none were read; absent, the tool reads what VS Code holds now.
-   */
+  Shows a file the request names, waits for its language server and reads
+  its diagnostics while it shows (M68): the servers report only on files
+  an editor shows, and may clear them when its tab closes. Undefined when
+  none were read; absent, the tool reads what VS Code holds now.
+  */
   readonly settleFile?: (
     absolutePath: string,
     signal: AbortSignal | undefined,

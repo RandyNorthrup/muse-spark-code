@@ -14,14 +14,15 @@ the user's task and the harness's existing permissions.
 ## Nine rules
 
 1. **Three strikes.** Count complete review rounds per stable module (the
-   declared file set) and finding class. The build and two fix rounds may be
-   patches. Findings after that third review require a design decision and a
-   redesign lane, never a third fix round. A rename, split, merge, new lane or
-   branch preserves inherited strikes. A lower configured patch limit still
-   applies. Give the independent redesign reviewer every outstanding finding
-   id. Only `impossible`, with the structural reason, closes a finding;
-   `caught` means a check detects it but the strike stays open, and `remains`
-   means it still exists. A redesign with either goes to the user first.
+   declared file set) and finding class. Fix rounds continue until the work
+   converges or the person stops it. The person may set a fix-round number
+   (0 is unlimited): findings past that number require a design decision
+   and a redesign lane, never another patch. A rename, split, merge, new
+   lane or branch preserves inherited strikes. Give the independent redesign
+   reviewer every outstanding finding id. Only `impossible`, with the
+   structural reason, closes a finding; `caught` means a check detects it
+   but the strike stays open, and `remains` means it still exists. A
+   redesign with either goes to the user first.
 2. **Review in one pass.** Cover `validation`, `security`, `failure`,
    `honesty`, `concurrency`, `lifecycle`, `tests`, and `docs` together. Ask for
    each finding's `class` and the review's `coverage` in the harness's structured review block.
@@ -77,14 +78,15 @@ the user's task and the harness's existing permissions.
    off switch, and no setting or permission can waive existing safety gates.
 
 Rules 1–8 are on by default. A team may turn one off only with its recorded
-reason, actor and time, shown beside the rule. The patch ceiling may be
-lowered, never raised. Do not treat a prompt as authority to change settings.
+reason, actor and time, shown beside the rule. The person may set a
+fix-round number, or leave fix rounds unlimited. Do not treat a prompt as
+authority to change settings.
 Keep briefs and review inputs structured; do not substitute task text into
 shell templates. Coordination uses one serialized owner with a lease or lock,
 never process-name matching. Follow the harness's lease renewal/cancellation
 and completion barrier rather than creating a second coordinator.
 
-## Design decision at the third strike
+## Design decision when fix rounds stop converging
 
 Write the decision in the project's plan (`D<n>` amendment here), or its
 `quality-ledger` when there is no plan, and in the playbook record. Use the
@@ -95,7 +97,7 @@ fields with evidence, not a promise of more careful patches:
 - **Module:** trusted stable id, key, declared files and any recorded lineage.
 - **Finding class / failure class:** the repeated failure mechanism.
 - **Why patches failed:** the states or interleavings still possible after
-  both fixes, with the outstanding finding ids.
+  the fix rounds, with the outstanding finding ids.
 - **Structural change:** which operation, state or authority disappears, and
   why that makes those failures impossible. A stronger detector alone is
   `caught`, not `impossible`.

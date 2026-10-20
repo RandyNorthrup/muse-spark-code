@@ -51,17 +51,17 @@ export interface ReplayMediaDeps {
   /** M101 C1 chooses complete recent turns; this lane preserves their canonical media. */
   readonly compactionTail: (entries: readonly StoredReplayItem[]) => readonly string[]
   /** E1/E2 resolve host-issued tokens or approved legacy attachments, never guessed paths.
-   * Images and PDFs carried inline need no resolver: their identity is read
-   * from the bytes on the wire. Absent until lane V binds attach tokens. */
+  Images and PDFs carried inline need no resolver: their identity is read
+  from the bytes on the wire. Absent until lane V binds attach tokens. */
   readonly attachment?: (part: TurnPart) => StoredMediaPart | undefined
   /** Whether this session spends under a cap now (M82 session cap, a D95.3
-   * scheduled run). Only then does an unknown rate refuse. Absent means
-   * capped, the fail-safe reading. */
+  scheduled run). Only then does an unknown rate refuse. Absent means
+  capped, the fail-safe reading. */
   readonly isCapped?: () => boolean
   /** Whether the session is disposed: then nothing is read or uploaded (RVMEDIAV3 2). */
   readonly isClosed?: () => boolean
   /** Each open repeats confinement and approval checks. No source path is stored.
-   * `token` is the attach token the record resolved through, when it did. */
+  `token` is the attach token the record resolved through, when it did. */
   readonly source: (
     media: StoredMediaPart,
     signal: AbortSignal,
@@ -100,10 +100,10 @@ const INLINE_IMAGE_NAME = 'image'
 const INLINE_PDF_NAME = 'document.pdf'
 
 /**
- * An inline visual's calibrated identity, read from the bytes on the wire:
- * kind, media type, size, dimensions or page count, and digest. Undefined
- * for anything that is not a decodable inline image or PDF.
- */
+An inline visual's calibrated identity, read from the bytes on the wire:
+kind, media type, size, dimensions or page count, and digest. Undefined
+for anything that is not a decodable inline image or PDF.
+*/
 function inlineVisualIdentity(part: InputContentPart): StoredMediaPart | undefined {
   let url: string
   let name: string
@@ -202,13 +202,13 @@ export class ReplayMedia {
   private readonly bracketPins = new Map<string, Set<string>>()
   private bracketOpen = false
   /**
-   * COUNTED REFERENCES WITH AN OWNER (round 4, P2-2): this bracket's pins
-   * carry one owner, so another request's end never releases what this
-   * request still carries. The count lives in the ledger, not here.
-   */
+  COUNTED REFERENCES WITH AN OWNER (round 4, P2-2): this bracket's pins
+  carry one owner, so another request's end never releases what this
+  request still carries. The count lives in the ledger, not here.
+  */
   private bracketOwner: string | undefined
   /** Inline records: each part's identity read once from its wire bytes
-   * (null: not a decodable visual). Never consulted for upload or replay. */
+  (null: not a decodable visual). Never consulted for upload or replay. */
   private readonly inlineVisuals = new WeakMap<InputContentPart, StoredMediaPart | null>()
 
   public constructor(
@@ -227,11 +227,11 @@ export class ReplayMedia {
   }
 
   /**
-   * The inline record for a user-message image or PDF the selected model's
-   * captured record prices. A model with no captured record for the kind
-   * keeps the established inline path (D85.1: unknown support never becomes
-   * a rate, and the request builder's own limits still apply).
-   */
+  The inline record for a user-message image or PDF the selected model's
+  captured record prices. A model with no captured record for the kind
+  keeps the established inline path (D85.1: unknown support never becomes
+  a rate, and the request builder's own limits still apply).
+  */
   private inlineVisual(
     part: InputContentPart,
     model: () => MediaModelCapabilities,
@@ -256,11 +256,11 @@ export class ReplayMedia {
   }
 
   /**
-   * The one pricing function every input goes through: the estimator's
-   * seeded upper bound; a named refusal when the session is capped and the
-   * rate or duration is unknown; undefined when uncapped and unknown, which
-   * keeps the established byte count.
-   */
+  The one pricing function every input goes through: the estimator's
+  seeded upper bound; a named refusal when the session is capped and the
+  rate or duration is unknown; undefined when uncapped and unknown, which
+  keeps the established byte count.
+  */
   private price(
     media: MediaCostItem,
     model: MediaModelCapabilities,
@@ -275,7 +275,7 @@ export class ReplayMedia {
   }
 
   /** Every media item a request body carries: upload records and inline visuals,
-   * including the images an MCP tool returned inside its function output. */
+  including the images an MCP tool returned inside its function output. */
   private requestMedia(body: CreateResponseBody): MediaCostItem[] {
     const model = this.lazyModel(body.model)
     // Inline bytes are counted by the provider as sent; the bound reserves,
@@ -402,11 +402,11 @@ export class ReplayMedia {
   }
 
   /**
-   * Admission for an inline image or PDF (attached, or read by a tool before
-   * it tells the model the file follows): the same pricing every request
-   * repeats, so a capped session refuses an unmeasurable visual with the
-   * honest reason before anything queues. Nothing is recorded for upload.
-   */
+  Admission for an inline image or PDF (attached, or read by a tool before
+  it tells the model the file follows): the same pricing every request
+  repeats, so a capped session refuses an unmeasurable visual with the
+  honest reason before anything queues. Nothing is recorded for upload.
+  */
   public admitInline(inline: InputContentPart, modelId: string): void {
     const model = this.lazyModel(modelId)
     const media = this.inlineVisual(inline, model)
@@ -441,7 +441,7 @@ export class ReplayMedia {
       const names = new Set(
         content.flatMap((part) => {
           const media = this.parts.get(part)
-          return media === undefined ? [] : [media.name]
+          return media === undefined ? [] : media.name
         }),
       )
       throw new Error(
@@ -455,11 +455,11 @@ export class ReplayMedia {
   }
 
   /**
-   * Open the request bracket (RULE 1): every file this request carries is
-   * pinned durably, so a stale window's save cannot delete one while the
-   * turn's requests are in flight. Later rounds only top the bracket up;
-   * the turn's end drains it.
-   */
+  Open the request bracket (RULE 1): every file this request carries is
+  pinned durably, so a stale window's save cannot delete one while the
+  turn's requests are in flight. Later rounds only top the bracket up;
+  the turn's end drains it.
+  */
   public async beginRequest(input: readonly InputItem[]): Promise<void> {
     this.replacements.clear()
     this.bracketOpen = true
@@ -491,11 +491,11 @@ export class ReplayMedia {
   }
 
   /**
-   * Close the request bracket, however the turn settled: every pin this
-   * turn took is released. Safe with no bracket open. An unpin that fails
-   * is kept for the next end and never throws: this close runs in the
-   * turn's finally and must not replace the turn's real error (P2-1).
-   */
+  Close the request bracket, however the turn settled: every pin this
+  turn took is released. Safe with no bracket open. An unpin that fails
+  is kept for the next end and never throws: this close runs in the
+  turn's finally and must not replace the turn's real error (P2-1).
+  */
   public async endRequest(): Promise<void> {
     this.bracketOpen = false
     const owner = this.bracketOwner
@@ -516,18 +516,18 @@ export class ReplayMedia {
   }
 
   /**
-   * Admit an already-uploaded file (read_file's mediaFile) as managed replay
-   * media: the same metadata text and budget note content() registers, minus
-   * the token resolution. prepare() authorizes, rechecks the source and
-   * reuses the file id through the shared ledger before project() encodes
-   * the file reference. Throws the gate reason when the model cannot take it.
-   */
+  Admit an already-uploaded file (read_file's mediaFile) as managed replay
+  media: the same metadata text and budget note content() registers, minus
+  the token resolution. prepare() authorizes, rechecks the source and
+  reuses the file id through the shared ledger before project() encodes
+  the file reference. Throws the gate reason when the model cannot take it.
+  */
   /**
-   * Reserve a tool-read file on the session upload ledger (M105 E2 review):
-   * the gate and the C/A authorization run before any upload, and the
-   * ledger dedups by digest. The returned reference is what adopt() later
-   * replays as a file-id without re-uploading.
-   */
+  Reserve a tool-read file on the session upload ledger (M105 E2 review):
+  the gate and the C/A authorization run before any upload, and the
+  ledger dedups by digest. The returned reference is what adopt() later
+  replays as a file-id without re-uploading.
+  */
   // The ledger takes any captured media kind: the runtime schema admits
   // images and documents too, and the modality gate decides per model.
   public async upload(
@@ -814,7 +814,7 @@ export class ReplayMedia {
   public transcriptMetadata(parts: readonly TurnPart[]): readonly string[] {
     return parts.flatMap((part) => {
       const media = this.deps.attachment?.(part)
-      return media === undefined ? [] : [metadataPart(storedMediaPartSchema.parse(media)).text]
+      return media === undefined ? [] : metadataPart(storedMediaPartSchema.parse(media)).text
     })
   }
 
@@ -823,7 +823,7 @@ export class ReplayMedia {
       if (entry.item.type !== 'message') return entry
       const media = entry.item.content.flatMap((part, index) => {
         const stored = this.parts.get(part)
-        return stored === undefined ? [] : [{ index, media: { ...stored } }]
+        return stored === undefined ? [] : { index, media: { ...stored } }
       })
       if (media.length === 0) return entry
       return {
@@ -890,7 +890,7 @@ export class ReplayMedia {
     const before = this.managed(input).flatMap((part) => {
       const media = this.parts.get(part)
       const file = media === undefined ? undefined : this.fileFor(media, this.model(modelId))
-      return file === undefined ? [] : [file.fileId]
+      return file === undefined ? [] : file.fileId
     })
     if (before.length === 0 || !this.deps.codec.isMissingFile(error, before)) return false
     await this.prepare(input, modelId, signal)

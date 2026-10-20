@@ -132,12 +132,12 @@ import { innermostFolders, type WriteLanes } from './writeRecorder'
 export type StoragePathProblem = 'spelling' | 'storage' | 'uncertain'
 
 /**
- * Why a restore or a Redo did nothing: no unit to restore from (any more); a
- * turn is running here, or in another window on the folder; the Redo's batch
- * is gone or not this conversation's; checkpoints are not available here; or
- * the engine refused the whole range (its edits not all recorded, a turn an
- * earlier version recorded, a 0.10.0 window live).
- */
+Why a restore or a Redo did nothing: no unit to restore from (any more); a
+turn is running here, or in another window on the folder; the Redo's batch
+is gone or not this conversation's; checkpoints are not available here; or
+the engine refused the whole range (its edits not all recorded, a turn an
+earlier version recorded, a 0.10.0 window live).
+*/
 export type RestoreFailure =
   | 'noCheckpoint'
   | 'turnRunning'
@@ -176,10 +176,10 @@ export interface RestoreRequest {
   readonly sessionId: string
   readonly turnId: string
   /**
-   * The transcript's turn ids of the conversation from `turnId` on, the turns
-   * of every child session they started included (spec 3.2): each must have
-   * a record.
-   */
+  The transcript's turn ids of the conversation from `turnId` on, the turns
+  of every child session they started included (spec 3.2): each must have
+  a record.
+  */
   readonly transcriptTurnIds: readonly string[]
   /** Files open with unsaved changes, absolute, asked again before each file changes. */
   readonly unsavedPaths: () => readonly string[]
@@ -216,10 +216,10 @@ export interface CheckpointStoreDeps {
   /** This window's instance (`createTurnRecording`): the owner of every unit and write it records. */
   readonly instance: string
   /**
-   * This window's journal and write lanes, the turns' recorder's own: the
-   * store's restores and Redos journal their writes in it, take their places
-   * in the one order and hold each path's lock as the tools' writes do.
-   */
+  This window's journal and write lanes, the turns' recorder's own: the
+  store's restores and Redos journal their writes in it, take their places
+  in the one order and hold each path's lock as the tools' writes do.
+  */
   readonly journal: WriteJournal
   readonly lanes: WriteLanes
   /** How often the window's presence is written again; CHECKPOINT_HEARTBEAT_MS unless a test shortens it. */
@@ -227,9 +227,9 @@ export interface CheckpointStoreDeps {
   /** The longest path git takes: the platform's own unless a test lowers it to reach the limits. */
   readonly gitPathMax?: number
   /**
-   * The folder that holds every window's checkpoint storage (the extension's
-   * `checkpoints` folder): no tool writes below it. This store's own folder by default.
-   */
+  The folder that holds every window's checkpoint storage (the extension's
+  `checkpoints` folder): no tool writes below it. This store's own folder by default.
+  */
   readonly storageRoot?: string
   readonly log: Logger
 }
@@ -284,10 +284,10 @@ interface LegacyTurn {
 }
 
 /**
- * One operation's view, read afresh: every unit (archived ones left out),
- * this place's M72 turns, everything listed (for cleanup), the archives, and
- * each live window's running turns.
- */
+One operation's view, read afresh: every unit (archived ones left out),
+this place's M72 turns, everything listed (for cleanup), the archives, and
+each live window's running turns.
+*/
 interface Setup extends Opened {
   readonly units: readonly ListedUnit[]
   readonly legacy: readonly LegacyTurn[]
@@ -351,10 +351,10 @@ function foldedCase(relative: string): string {
 }
 
 /**
- * A path lookup's unavailable vocabulary: the spelling is retained when
- * the path cannot be resolved, not only when it is missing. Anything
- * else is not this lookup's to keep.
- */
+A path lookup's unavailable vocabulary: the spelling is retained when
+the path cannot be resolved, not only when it is missing. Anything
+else is not this lookup's to keep.
+*/
 const PATH_LOOKUP_CODES: ReadonlySet<string> = new Set([
   'ENOENT',
   'ENOTDIR',
@@ -403,9 +403,7 @@ function factsOf(owner: Owner, journal: ReadJournal | undefined): UnitFacts {
   )
   const ids = new Set(intents.map((write) => write.id))
   const settledAs = (kind: 'done' | 'aborted') =>
-    new Set(
-      entries.flatMap((entry) => (entry.kind === kind && ids.has(entry.id) ? [entry.id] : [])),
-    )
+    new Set(entries.flatMap((entry) => (entry.kind === kind && ids.has(entry.id) ? entry.id : [])))
   const isSealed = entries.some((entry) => entry.kind === 'seal' && isSameOwner(entry.owner, owner))
   // A torn last line that parses as an intent is that intent, unsettled; one
   // that does not parse could have been any unsealed unit's.
@@ -425,13 +423,13 @@ function factsOf(owner: Owner, journal: ReadJournal | undefined): UnitFacts {
 }
 
 /**
- * The record with the journal's facts folded in, by write id: a write keeps
- * an ending a fold already gave it (`done`, `aborted`), and is `unsettled`
- * until the journal settles it. Folding again changes nothing. A folded unit
- * is `complete` unless its journal says writes may exist that no intent
- * describes (spec 6.3, as amended): an unsettled write is the engine's to
- * judge at restore time (rule 6.4).
- */
+The record with the journal's facts folded in, by write id: a write keeps
+an ending a fold already gave it (`done`, `aborted`), and is `unsettled`
+until the journal settles it. Folding again changes nothing. A folded unit
+is `complete` unless its journal says writes may exist that no intent
+describes (spec 6.3, as amended): an unsettled write is the engine's to
+judge at restore time (rule 6.4).
+*/
 function foldUnit(
   record: StoredUnit,
   facts: UnitFacts,
@@ -506,7 +504,7 @@ function refusalFor(result: Exclude<StepResult, 'done'>): PathRefusal {
 /** The oids a write's copies need: its before for a restore, its after for a Redo. */
 function neededOids(write: WriteRecord): readonly string[] {
   return [write.before, write.after].flatMap((state) =>
-    state.present && state.oid !== undefined ? [state.oid] : [],
+    state.present && state.oid !== undefined ? state.oid : [],
   )
 }
 
@@ -569,7 +567,7 @@ export class CheckpointStore {
       ...new Set([
         ...this.runningTurns,
         ...units.flatMap(({ owner }) =>
-          owner.unitKind === 'turn' ? [turnKey(owner.sessionId, owner.unitId)] : [],
+          owner.unitKind === 'turn' ? turnKey(owner.sessionId, owner.unitId) : [],
         ),
       ]),
     ]
@@ -646,11 +644,11 @@ export class CheckpointStore {
   }
 
   /**
-   * The shadow repository, set up the first time. A running mark opens it
-   * outside the queue, so the first read can be setting it up at that very
-   * moment: every caller shares the one setup under way. A setup that failed
-   * is not kept: the next caller tries again.
-   */
+  The shadow repository, set up the first time. A running mark opens it
+  outside the queue, so the first read can be setting it up at that very
+  moment: every caller shares the one setup under way. A setup that failed
+  is not kept: the next caller tries again.
+  */
   private async open(): Promise<{ readonly opened: Opened }> {
     this.opening ??= this.setUpOnce()
     return { opened: await this.opening }
@@ -688,12 +686,12 @@ export class CheckpointStore {
   }
 
   /**
-   * The shadow repository for a turn's start, or undefined where none can ever
-   * exist: a path git cannot use, or storage and workspace holding one another.
-   * Every window of that folder meets the same refusal, so no restore can be
-   * running elsewhere and the turn goes ahead with no record; any other
-   * failure still stops it.
-   */
+  The shadow repository for a turn's start, or undefined where none can ever
+  exist: a path git cannot use, or storage and workspace holding one another.
+  Every window of that folder meets the same refusal, so no restore can be
+  running elsewhere and the turn goes ahead with no record; any other
+  failure still stops it.
+  */
   private async openIfUsable(): Promise<Opened | undefined> {
     try {
       const { opened } = await this.open()
@@ -713,10 +711,10 @@ export class CheckpointStore {
   }
 
   /**
-   * One operation's setup, read afresh (never an earlier copy, which another
-   * window may have outdated). The first time, what no one needs any more
-   * goes.
-   */
+  One operation's setup, read afresh (never an earlier copy, which another
+  window may have outdated). The first time, what no one needs any more
+  goes.
+  */
   private async ready(): Promise<Setup> {
     const { opened } = await this.open()
     await this.lease.recoverAbandoned(opened)
@@ -804,9 +802,9 @@ export class CheckpointStore {
   }
 
   /**
-   * What gone M72 windows left: their staging folders and index files, and
-   * files of earlier builds.
-   */
+  What gone M72 windows left: their staging folders and index files, and
+  files of earlier builds.
+  */
   private async dropGoneFiles(): Promise<void> {
     const stagingRoot = path.join(this.deps.storageDir, STAGING_DIR)
     const staged = await this.namesIn(stagingRoot)
@@ -830,12 +828,12 @@ export class CheckpointStore {
   }
 
   /**
-   * The journal folders of gone windows whose units no record holds any
-   * more (retention or an archive took them; their copies were brought into
-   * the records' trees when they were folded). Right after those records
-   * go: a journal naming a unit with no record refuses its conversation's
-   * restores (rule 3.2).
-   */
+  The journal folders of gone windows whose units no record holds any
+  more (retention or an archive took them; their copies were brought into
+  the records' trees when they were folded). Right after those records
+  go: a journal naming a unit with no record refuses its conversation's
+  restores (rule 3.2).
+  */
   private async dropGoneJournals(shadow: ShadowGit): Promise<void> {
     const journalsRoot = path.join(this.deps.storageDir, CHECKPOINT_WRITES_DIR)
     const journalFolders = await this.namesIn(journalsRoot)
@@ -874,9 +872,9 @@ export class CheckpointStore {
   }
 
   /**
-   * Archive files past their time go, once the records they archived are
-   * gone (until then they keep hiding them).
-   */
+  Archive files past their time go, once the records they archived are
+  gone (until then they keep hiding them).
+  */
   private async dropOldArchives(setup: Setup, deleted: ReadonlySet<string>): Promise<void> {
     const now = this.deps.now()
     for (const entry of setup.archives) {
@@ -914,10 +912,10 @@ export class CheckpointStore {
   }
 
   /**
-   * The refs the bounds drop: archived units, units and M72 turns past the
-   * retention bounds, M72 records of another place or unreadable, and every
-   * M72 restore record (which this version cannot redo).
-   */
+  The refs the bounds drop: archived units, units and M72 turns past the
+  retention bounds, M72 records of another place or unreadable, and every
+  M72 restore record (which this version cannot redo).
+  */
   private droppedRefs(setup: Setup): readonly HeldRef[] {
     const units = setup.listedUnits
       .filter((unit) => unit.record !== undefined && unit.record.isRetired !== true)
@@ -1012,14 +1010,14 @@ export class CheckpointStore {
   }
 
   /**
-   * Drops what no one needs any more: archived units, units and M72 records
-   * the retention bounds exclude (each only if unchanged since it was read),
-   * the refs and files an M72 window that is gone kept, the journal folders
-   * of gone windows no record needs, and archive files past their time.
-   * Unreferenced copies are then pruned when due (or now), sparing objects
-   * younger than the grace period. While a restore runs, or a 0.10.0 window
-   * is live, nothing goes.
-   */
+  Drops what no one needs any more: archived units, units and M72 records
+  the retention bounds exclude (each only if unchanged since it was read),
+  the refs and files an M72 window that is gone kept, the journal folders
+  of gone windows no record needs, and archive files past their time.
+  Unreferenced copies are then pruned when due (or now), sparing objects
+  younger than the grace period. While a restore runs, or a 0.10.0 window
+  is live, nothing goes.
+  */
   private async tidy(setup: Setup, isPruneForced: boolean): Promise<void> {
     await this.withCleanup(setup, async () => {
       const deleted = new Set(await this.retireRefs(setup))
@@ -1073,10 +1071,10 @@ export class CheckpointStore {
   }
 
   /**
-   * Retention after a unit ended or a restore ran: the records the bounds
-   * drop (each only if unchanged), pruned when due. Nothing goes while a
-   * restore runs or a 0.10.0 window is live.
-   */
+  Retention after a unit ended or a restore ran: the records the bounds
+  drop (each only if unchanged), pruned when due. Nothing goes while a
+  restore runs or a 0.10.0 window is live.
+  */
   private async retain(): Promise<void> {
     const setup = await this.ready()
     await this.withCleanup(setup, async () => {
@@ -1121,10 +1119,10 @@ export class CheckpointStore {
   }
 
   /**
-   * Why no restore or Redo may run now: a 0.10.0 window is live, a window
-   * that proves no fence, a turn running here, or a turn (or a message about
-   * to start one) another live window publishes.
-   */
+  Why no restore or Redo may run now: a 0.10.0 window is live, a window
+  that proves no fence, a turn running here, or a turn (or a message about
+  to start one) another live window publishes.
+  */
   private turnBlocking(setup: Setup): RestoreFailure | undefined {
     if (this.isLegacyLive(setup)) {
       return 'legacyWindowOpen'
@@ -1143,10 +1141,10 @@ export class CheckpointStore {
   }
 
   /**
-   * The copies the folded writes need, brought into the shadow repository
-   * from their windows' journals where it lacks them. A write whose copy is
-   * in neither is no longer kept.
-   */
+  The copies the folded writes need, brought into the shadow repository
+  from their windows' journals where it lacks them. A write whose copy is
+  in neither is no longer kept.
+  */
   private async keptCopies(
     shadow: ShadowGit,
     writes: readonly FoldedWrite[],
@@ -1201,13 +1199,13 @@ export class CheckpointStore {
   }
 
   /**
-   * Folds a journal's facts into a unit's record by compare-and-swap, read
-   * again whenever another window changed it meanwhile: whether it wrote the
-   * record, found it already folded, or found it gone (archived, or dropped
-   * by retention), when there is nothing to fold into and none is made.
-   * Recording what already happened outlives a closing window: its git runs
-   * to the end.
-   */
+  Folds a journal's facts into a unit's record by compare-and-swap, read
+  again whenever another window changed it meanwhile: whether it wrote the
+  record, found it already folded, or found it gone (archived, or dropped
+  by retention), when there is nothing to fold into and none is made.
+  Recording what already happened outlives a closing window: its git runs
+  to the end.
+  */
   private async foldInto(
     shadow: ShadowGit,
     ref: string,
@@ -1236,10 +1234,10 @@ export class CheckpointStore {
   }
 
   /**
-   * A unit's end: its writes folded into its record, then the journal sealed
-   * for it, then its running mark withdrawn. A failure keeps it pending (and
-   * its mark published), to be tried again before the next operation.
-   */
+  A unit's end: its writes folded into its record, then the journal sealed
+  for it, then its running mark withdrawn. A failure keeps it pending (and
+  its mark published), to be tried again before the next operation.
+  */
   private async sealUnit(shadow: ShadowGit, pending: PendingEnd): Promise<void> {
     const { owner, ref } = pending.unit
     const key = ownerKey(owner)
@@ -1259,12 +1257,12 @@ export class CheckpointStore {
   }
 
   /**
-   * Folds what windows that are gone left into their units' records (spec
-   * 6.4): each unit of theirs never folded (cut short, journal lines or none)
-   * or unsealed in their journal, idempotent by write id. A unit cut short
-   * may have run commands nobody can name now: it counts as having run them.
-   * Another window's journal is only read.
-   */
+  Folds what windows that are gone left into their units' records (spec
+  6.4): each unit of theirs never folded (cut short, journal lines or none)
+  or unsealed in their journal, idempotent by write id. A unit cut short
+  may have run commands nobody can name now: it counts as having run them.
+  Another window's journal is only read.
+  */
   private async recover(setup: Setup, journals: Journals): Promise<boolean> {
     let isChanged = false
     for (const unit of setup.listedUnits) {
@@ -1300,10 +1298,10 @@ export class CheckpointStore {
   }
 
   /**
-   * Takes the conversation's next unit number and makes the unit's record
-   * there (one ref, created only if absent): another window that took the
-   * number first makes this one take the next. M72 turns count.
-   */
+  Takes the conversation's next unit number and makes the unit's record
+  there (one ref, created only if absent): another window that took the
+  number first makes this one take the next. M72 turns count.
+  */
   private async startUnitNow(
     setup: Setup,
     owner: Owner,
@@ -1407,13 +1405,13 @@ export class CheckpointStore {
   }
 
   /**
-   * Whether a journal names a unit of the conversation that has no record
-   * (spec 3.2): its writes are nowhere a restore can see, and where it falls
-   * cannot be told. A record is made before its unit's first write, and
-   * retirement keeps its owner/sequence identity after dropping its payload.
-   * Only unexplained missing owners refuse a later range; archived owners
-   * with durable retirement proof do not poison new turns.
-   */
+  Whether a journal names a unit of the conversation that has no record
+  (spec 3.2): its writes are nowhere a restore can see, and where it falls
+  cannot be told. A record is made before its unit's first write, and
+  retirement keeps its owner/sequence identity after dropping its payload.
+  Only unexplained missing owners refuse a later range; archived owners
+  with durable retirement proof do not poison new turns.
+  */
   private hasUnrecordedOwner(
     journals: Journals,
     sessionId: string,
@@ -1437,10 +1435,10 @@ export class CheckpointStore {
   }
 
   /**
-   * Decides a restore or a Redo with the engine and writes what it decided
-   * as a batch of its own: each write journaled before it is made, and the
-   * batch sealed at the end, so a later restore or Redo sees it.
-   */
+  Decides a restore or a Redo with the engine and writes what it decided
+  as a batch of its own: each write journaled before it is made, and the
+  batch sealed at the end, so a later restore or Redo sees it.
+  */
   private async restoreRange(
     setup: Setup,
     journals: Journals,
@@ -1609,13 +1607,13 @@ export class CheckpointStore {
   }
 
   /**
-   * Writes the decided paths as one batch of the conversation: its unit is
-   * numbered and recorded first, each write journaled before it is made and
-   * settled after (`aborted` only when nothing changed, as a refused
-   * conditional write proves; a failure stays unsettled), and the batch is
-   * folded and sealed at the end, whatever happened. Deletions go first, so a
-   * case-only rename or a file swapped for a folder clears the way.
-   */
+  Writes the decided paths as one batch of the conversation: its unit is
+  numbered and recorded first, each write journaled before it is made and
+  settled after (`aborted` only when nothing changed, as a refused
+  conditional write proves; a failure stays unsettled), and the batch is
+  folded and sealed at the end, whatever happened. Deletions go first, so a
+  case-only rename or a file swapped for a folder clears the way.
+  */
   private async runBatch(
     setup: Setup,
     sessionId: string,
@@ -1648,7 +1646,7 @@ export class CheckpointStore {
       const blobs = await this.blobsOf(
         setup.shadow,
         ordered.flatMap((step) =>
-          step.target.present && step.target.oid !== undefined ? [step.target.oid] : [],
+          step.target.present && step.target.oid !== undefined ? step.target.oid : [],
         ),
       )
       for (const step of ordered) {
@@ -1685,10 +1683,10 @@ export class CheckpointStore {
   }
 
   /**
-   * One write of a batch: journaled, made through the kept writer, settled,
-   * alone on its path with the tools' writes (the window's lanes), so its
-   * place in the window's order is the order the path's writes landed in.
-   */
+  One write of a batch: journaled, made through the kept writer, settled,
+  alone on its path with the tools' writes (the window's lanes), so its
+  place in the window's order is the order the path's writes landed in.
+  */
   private async runStep(
     owner: Owner,
     step: PathDecision & { readonly kind: 'restore' },
@@ -1772,10 +1770,10 @@ export class CheckpointStore {
   }
 
   /**
-   * A single CAS ref admits one restore/Redo across independent windows. A
-   * crashed owner's reservation is removed only from the value that was read.
-   * Its record keeps the M72 restore shape, so a 0.10.0 window reads its owner.
-   */
+  A single CAS ref admits one restore/Redo across independent windows. A
+  crashed owner's reservation is removed only from the value that was read.
+  Its record keeps the M72 restore shape, so a 0.10.0 window reads its owner.
+  */
   private async withRestore(
     setup: Setup,
     isAllowed: () => boolean,
@@ -1844,11 +1842,11 @@ export class CheckpointStore {
   }
 
   /**
-   * Before a workspace-capable native process starts, even with checkpoints off.
-   * Presence precedes the reservation check. Trusted startup recovers abandoned leases;
-   * Restricted Mode only checks reservation files, without invoking Git. A packed
-   * ref file is conservatively refused too; this implementation never packs refs.
-   */
+  Before a workspace-capable native process starts, even with checkpoints off.
+  Presence precedes the reservation check. Trusted startup recovers abandoned leases;
+  Restricted Mode only checks reservation files, without invoking Git. A packed
+  ref file is conservatively refused too; this implementation never packs refs.
+  */
   public async markNativeBackend(canRunGit = false): Promise<void> {
     if (this.stopping.signal.aborted) {
       throw new Error(UI_TEXT.sendMarkFailed)
@@ -1885,12 +1883,12 @@ export class CheckpointStore {
   }
 
   /**
-   * A turn (or a message about to start one, under its own key) begins or
-   * stops running in this window. It is published at once in the window's
-   * presence file, with no lock, so another window refuses a restore
-   * meanwhile; this resolves once the file says so. A failed write is tried
-   * again soon.
-   */
+  A turn (or a message about to start one, under its own key) begins or
+  stops running in this window. It is published at once in the window's
+  presence file, with no lock, so another window refuses a restore
+  meanwhile; this resolves once the file says so. A failed write is tried
+  again soon.
+  */
   public async markTurn(key: string, isRunning: boolean, canRunGit = true): Promise<void> {
     if (key === CHECKPOINT_NATIVE_WINDOW || key === CHECKPOINT_FENCED_WINDOW) {
       throw new Error(UI_TEXT.checkpointsNativeUnsafe)
@@ -1929,9 +1927,9 @@ export class CheckpointStore {
   }
 
   /**
-   * A unit starts (spec 2, 5.1): its number taken and its record made, before
-   * any write of it. The owner's instance must be this window's.
-   */
+  A unit starts (spec 2, 5.1): its number taken and its record made, before
+  any write of it. The owner's instance must be this window's.
+  */
   public startUnit(owner: Owner): Promise<{ readonly sequence: number }> {
     return this.serial(async () => {
       if (owner.instance !== this.ownInstance) {
@@ -1942,11 +1940,11 @@ export class CheckpointStore {
   }
 
   /**
-   * A unit ended (its owner io drained first): its writes folded into its
-   * record, the journal sealed, then its running mark withdrawn. A unit this
-   * window did not start has nothing to end. A failure is the caller's, and
-   * the end is tried again before the next operation, its mark kept until then.
-   */
+  A unit ended (its owner io drained first): its writes folded into its
+  record, the journal sealed, then its running mark withdrawn. A unit this
+  window did not start has nothing to end. A failure is the caller's, and
+  the end is tried again before the next operation, its mark kept until then.
+  */
   public endUnit(owner: Owner, end: { readonly ranProcesses: boolean }): Promise<void> {
     const unit = this.openUnits.get(ownerKey(owner))
     if (unit === undefined) {
@@ -1970,7 +1968,7 @@ export class CheckpointStore {
       const setup = await this.ready()
       return setup.units.flatMap((unit) =>
         unit.record?.owner.sessionId === sessionId && unit.record.owner.unitKind === 'turn'
-          ? [unit.record.owner.unitId]
+          ? unit.record.owner.unitId
           : [],
       )
     })
@@ -1990,9 +1988,9 @@ export class CheckpointStore {
   }
 
   /**
-   * Why tools may not write a path: a refused Windows spelling, proven
-   * storage, or a native identity that cannot prove it is outside storage.
-   */
+  Why tools may not write a path: a refused Windows spelling, proven
+  storage, or a native identity that cannot prove it is outside storage.
+  */
   public storagePathProblem(absolutePath: string): StoragePathProblem | undefined {
     // Workspace confinement owns UNC admission; a share alone is not storage.
     if (windowsPathProblem(absolutePath, process.platform, absolutePath) !== undefined) {
@@ -2030,11 +2028,11 @@ export class CheckpointStore {
   }
 
   /**
-   * Puts back what a restore (or a Redo) replaced, path by path where each
-   * still holds what it left and no later unit wrote it; the Redo is a batch
-   * of its own, which can be redone in turn. It must come from the batch's
-   * own conversation.
-   */
+  Puts back what a restore (or a Redo) replaced, path by path where each
+  still holds what it left and no later unit wrote it; the Redo is a batch
+  of its own, which can be redone in turn. It must come from the batch's
+  own conversation.
+  */
   public redo(request: RedoRequest): Promise<RestoreOutcome> {
     return this.restoreAdmitted(request, async (setup, isAllowed) => {
       const found = await this.recovered(setup)
@@ -2060,7 +2058,7 @@ export class CheckpointStore {
           unit.record?.owner.sessionId === request.sourceSessionId &&
           unit.sequence < batch.sequence &&
           unit.record.owner.unitKind === 'turn'
-            ? [unit.record.owner.unitId]
+            ? unit.record.owner.unitId
             : [],
         ),
       ])
@@ -2081,12 +2079,12 @@ export class CheckpointStore {
   }
 
   /**
-   * The conversation was archived: the archive is written to its own file
-   * before anything else (no lock, no git), so every window honours it from
-   * now on, whatever happens next; then this window deletes the
-   * conversation's records and prunes their copies (those younger than the
-   * grace period at the next cleanup).
-   */
+  The conversation was archived: the archive is written to its own file
+  before anything else (no lock, no git), so every window honours it from
+  now on, whatever happens next; then this window deletes the
+  conversation's records and prunes their copies (those younger than the
+  grace period at the next cleanup).
+  */
   public async forgetSession(sessionId: string): Promise<void> {
     await writeArchive(this.deps.storageDir, this.deps.newId(), {
       sessionId,
@@ -2098,11 +2096,11 @@ export class CheckpointStore {
   }
 
   /**
-   * The conversation was unarchived: its archive files go, so its new
-   * records are kept again whatever the clock did meanwhile (an archive
-   * hides what was made at or before its time). Plain files, no lock and no
-   * git, as the archive itself.
-   */
+  The conversation was unarchived: its archive files go, so its new
+  records are kept again whatever the clock did meanwhile (an archive
+  hides what was made at or before its time). Plain files, no lock and no
+  git, as the archive itself.
+  */
   public async unforgetSession(sessionId: string): Promise<void> {
     const archives = await readArchives(this.deps.storageDir)
     for (const entry of archives) {
@@ -2113,10 +2111,10 @@ export class CheckpointStore {
   }
 
   /**
-   * The conversation was archived while no git may run (Restricted Mode):
-   * the archive is written to its own file (no git); the records and copies
-   * go the next time a window that may run git cleans up.
-   */
+  The conversation was archived while no git may run (Restricted Mode):
+  the archive is written to its own file (no git); the records and copies
+  go the next time a window that may run git cleans up.
+  */
   public async queueForget(sessionId: string): Promise<void> {
     await writeArchive(this.deps.storageDir, this.deps.newId(), {
       sessionId,
@@ -2125,11 +2123,11 @@ export class CheckpointStore {
   }
 
   /**
-   * The window opened (or the workspace was trusted): when checkpoints were
-   * ever taken here, the journals of windows that are gone are folded into
-   * their records, what no one needs any more goes and the retention bounds
-   * apply, whether or not checkpoints are on now.
-   */
+  The window opened (or the workspace was trusted): when checkpoints were
+  ever taken here, the journals of windows that are gone are folded into
+  their records, what no one needs any more goes and the retention bounds
+  apply, whether or not checkpoints are on now.
+  */
   public async maintain(): Promise<void> {
     if ((await lstatOrUndefined(path.join(this.deps.storageDir, SHADOW_HEAD))) === undefined) {
       return
@@ -2141,11 +2139,11 @@ export class CheckpointStore {
   }
 
   /**
-   * The window is closing: every git still running is ended, nothing new
-   * starts (a restore under way stops before its next file), and the
-   * window's presence goes (unless it must stay; windowPresence.ts). Its
-   * journal stays for another window to fold what it did not seal.
-   */
+  The window is closing: every git still running is ended, nothing new
+  starts (a restore under way stops before its next file), and the
+  window's presence goes (unless it must stay; windowPresence.ts). Its
+  journal stays for another window to fold what it did not seal.
+  */
   public dispose(): void {
     this.stopping.abort()
     void this.queue.then(async () => {

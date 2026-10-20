@@ -46,12 +46,12 @@ interface Acceptor {
 }
 
 /**
- * A bare TCP acceptor on 127.0.0.1: it records each connection's peer
- * address and raw bytes, then answers each request as told once its
- * headers arrive. Silence closes without writing anything — no HTTP
- * status, no headers, no body — so the client's request always fails
- * and the recorded bytes are the proof of where it dialled.
- */
+A bare TCP acceptor on 127.0.0.1: it records each connection's peer
+address and raw bytes, then answers each request as told once its
+headers arrive. Silence closes without writing anything — no HTTP
+status, no headers, no body — so the client's request always fails
+and the recorded bytes are the proof of where it dialled.
+*/
 async function listenAcceptor(answer: (socket: Socket) => void): Promise<Acceptor> {
   let connections = 0
   const peerAddresses: (string | undefined)[] = []

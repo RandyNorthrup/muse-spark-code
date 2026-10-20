@@ -14,9 +14,6 @@
 // or junction on the way, or a name the volume reads as another, refuses
 // the checkout, and the half-written worktree is removed.
 
-import { type Buffer } from 'node:buffer'
-import { realpathSync } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { isCommitSha } from '../../core/git/github'
 import { BlobAnswers, heldDestination } from '../../core/git/heldCheckoutCore'
@@ -34,11 +31,15 @@ import {
   HELD_FILE_MODE,
   UI_TEXT,
 } from '../../shared/constants'
+import type { Logger } from '../logger'
+import { type GitProcess } from '../git'
+import { quietGitEnvironment } from '../../core/execGuard'
+import { type Buffer } from 'node:buffer'
+import { realpathSync } from 'node:fs'
+import { mkdir } from 'node:fs/promises'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { canonicalPath } from '../canonicalPath'
 import { createFileExclusively } from '../fsAtomic'
-import { type GitProcess, quietGitEnvironment } from '../git'
-import type { Logger } from '../logger'
 import { GitUnavailableError } from './gitExtension'
 import { UNTRUSTED_CHECKOUT_OPTIONS } from './untrustedGit'
 
@@ -60,10 +61,10 @@ export interface HeldCheckoutDeps {
 }
 
 /**
- * Adds `commit` at `folder`, held, from the repository at `cwd`; `check`
- * (trust and the repository's owner) speaks before every git and every
- * write. Rejects with the reason in words.
- */
+Adds `commit` at `folder`, held, from the repository at `cwd`; `check`
+(trust and the repository's owner) speaks before every git and every
+write. Rejects with the reason in words.
+*/
 export type HeldCheckout = (
   folder: string,
   commit: string,
@@ -192,7 +193,11 @@ export function createHeldCheckout(deps: HeldCheckoutDeps): HeldCheckout {
     const records: string[] = []
     await deps.gitProcess(['ls-tree', '-r', '-z', '--full-tree', '--long', commit], {
       cwd,
-      env: quietGitEnvironment(deps.env),
+      env: quietGitEnvironment(deps.env, {
+        workspaceRoot: cwd,
+        platform: deps.platform,
+        realpath: realpathSync,
+      }),
       timeoutMs: GIT_WORKTREE_TIMEOUT_MS,
       onStdout: (chunk) => {
         records.push(...listing.take(chunk))

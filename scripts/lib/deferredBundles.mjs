@@ -662,6 +662,13 @@ export const ON_FIRST_USE = [
     files: ['src/core/questions/deferralEntry.ts'],
   },
   {
+    output: 'dist/approvalModes.js',
+    metafile: 'dist/meta/approvalModes.json',
+    use: 'the first approval-mode change, schedule admission or restore',
+    parents: [BUNDLES.activation, BUNDLES.acp],
+    files: ['src/core/backends/musecode/approvalModesEntry.ts'],
+  },
+  {
     output: 'dist/runtimeQuestions.js',
     metafile: 'dist/meta-acp/runtimeQuestions.json',
     use: 'the first interactive ACP session with durable questions',
@@ -1308,6 +1315,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/core/media/inspectEntry.ts'), 'dist/media.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
+  [path.resolve('src/core/backends/musecode/approvalModesEntry.ts'), 'dist/approvalModes.js'],
   [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
   [path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'), 'dist/modelApiCodeIntel.js'],
@@ -1386,7 +1394,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|legalFixEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
@@ -1527,6 +1535,31 @@ export const MODEL_API_BOUNDARY_SOURCES = [
   'src/shared/legal.ts',
   'src/core/backends/modelapi/legalScanTool.ts',
 ]
+
+// The guarded process-start layer (PLAN.md D24), once per process: every
+// Node bundle that starts a program or builds a child environment reads it
+// from dist/execGuard.js; the split check fails a bundle that loads it and
+// still carries it.
+export const EXEC_GUARD_SOURCE = 'src/core/execGuard.ts'
+export const EXEC_GUARD_BUNDLE = {
+  output: 'dist/execGuard.js',
+  metafile: 'dist/meta/execGuard.json',
+}
+/** @type {import('esbuild').Plugin} */
+export const sharedExecGuard = {
+  name: 'shared-exec-guard',
+  setup(build) {
+    build.onResolve({ filter: /\/execGuard(?:\.[jt]s)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      if (
+        source !== path.resolve(EXEC_GUARD_SOURCE) ||
+        path.resolve(build.initialOptions.outfile ?? '') === path.resolve(EXEC_GUARD_BUNDLE.output)
+      )
+        return
+      return { path: './execGuard.js', external: true }
+    })
+  },
+}
 
 // Share captured Model API validators, native path identity and team admission across Node
 // consumers; browser validators retain their original inline implementation.

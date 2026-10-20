@@ -19,10 +19,10 @@ export interface ResourceEntryOptions {
   sleep: (ms: number) => Promise<void>
   onError: (error: unknown) => void
   /**
-   * A damaged usage-history choice, once per distinct damage with what the
-   * person is told. Absent, the sentence falls back to `onError` (the ACP
-   * agent's existing resource-error channel) instead of the generic line.
-   */
+  A damaged usage-history choice, once per distinct damage with what the
+  person is told. Absent, the sentence falls back to `onError` (the ACP
+  agent's existing resource-error channel) instead of the generic line.
+  */
   onDamagedChoice?: (text: string) => void
   machine?: ResourceMachineStore
   running?: ResourceRunningWork
@@ -30,10 +30,10 @@ export interface ResourceEntryOptions {
   overrides?: Partial<ResourceSettings>
   hasRelocationTarget?: () => boolean
   /**
-   * Long-lived hosts (the ACP agent) record their governor's samples into the
-   * machine journal with this usage-history consent. One-shot commands and
-   * headless runs leave it unset and only read.
-   */
+  Long-lived hosts (the ACP agent) record their governor's samples into the
+  machine journal with this usage-history consent. One-shot commands and
+  headless runs leave it unset and only read.
+  */
   isRecordingHistory?: () => boolean
 }
 

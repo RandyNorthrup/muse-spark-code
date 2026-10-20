@@ -10,10 +10,10 @@ export { TeamTree } from './TeamTree'
 export { TeamCard, TeamWorkerLabel } from './TeamCards'
 
 /**
- * The Usage Team section (M96 lane U2, PLAN.md D75): tasks, tokens and cost
- * today and in this window, per role and per entry, with key, subscription
- * and local apart, and estimated figures marked.
- */
+The Usage Team section (M96 lane U2, PLAN.md D75): tasks, tokens and cost
+today and in this window, per role and per entry, with key, subscription
+and local apart, and estimated figures marked.
+*/
 function teamFiguresText(figures: TeamUsageFigures): string {
   return `${formatNumber(figures.tasks)} ${UI_TEXT.teamUsageTasks} · ${formatTokenWindow(figures.inputTokens + figures.outputTokens)} · ${formatUsd(figures.costUsd)}`
 }

@@ -5,6 +5,7 @@ import { open } from 'node:fs/promises'
 import { type Socket } from 'node:net'
 import * as z from 'zod/mini'
 import { execResourceFile, spawnResourceProcess } from '../../core/resources/launcher'
+import { probeChildEnvironment } from '../../core/resources/trees/run'
 import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import {
   type VaultProcessIdentity,
@@ -106,7 +107,9 @@ export async function holdVaultStartupLock(
       'contained',
       helper,
       [shouldWait ? 'lock-wait' : 'lock'],
-      { env: {} },
+      // The lock helper with an empty environment: absolute entries only,
+      // links followed.
+      { env: probeChildEnvironment({}) },
       [handle.fd],
     )
     child.stderr.resume()

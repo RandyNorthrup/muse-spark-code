@@ -62,7 +62,7 @@ describe('team journal unreadable evidence', () => {
       await journal.write('note', { text: 'kept' }, valueSchema)
       const directory = path.join(storage, 'team', 'journal', owner.instanceId)
       const [file] = readdirSync(directory)
-      writeFileSync(path.join(directory, file), '{torn', 'utf8')
+      writeFileSync(path.join(directory, file!), '{torn', 'utf8')
       const read = await journal.read('note', valueSchema)
       expect(read.kind).toBe('broken')
     })

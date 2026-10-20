@@ -80,7 +80,7 @@ export async function packRuntimeArchive(root, stage, files, tables, compression
         const text = statement.getText(tree)
         if (/^0\s*&&\s*\(module\.exports\s*=\s*\{/.test(text)) return [text]
         const name = /^exports\.([\w$]+)\s*=/.exec(text)?.[1]
-        return name === undefined ? [] : [`0&&(exports.${name}=0);`]
+        return name === undefined ? [] : `0&&(exports.${name}=0);`
       })
       .join('\n')
     codeArchive.bundles[path.basename(file)] = source

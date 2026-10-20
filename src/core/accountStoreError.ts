@@ -26,10 +26,10 @@ export class AccountStoreError extends Error {
 }
 
 /**
- * The providers file could not be read: the providers-file refusal every
- * surface checks for, carrying the sentence a person reads, so no surface
- * reports it as the credential store or a generic failure (PR #180).
- */
+The providers file could not be read: the providers-file refusal every
+surface checks for, carrying the sentence a person reads, so no surface
+reports it as the credential store or a generic failure (PR #180).
+*/
 export function providersFileUnreadable(reason: 'unparseable' | 'invalid'): AccountStoreError {
   return new AccountStoreError(
     'invalidProvidersFile',

@@ -16,7 +16,7 @@ import {
   type WindowsVaultIdentity,
   type WindowsVaultTransport,
 } from './windowsVaultProtocol'
-import { slotContextSchema, type SlotContext } from './slotIdentity'
+import { slotContextSchema, type SlotContext } from './slotEntries'
 import { wrapSlotKey } from './slotWrap'
 
 /** Shared by VS Code, native editors and ACP; B/W inject the trusted helper. */

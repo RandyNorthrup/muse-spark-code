@@ -2,7 +2,6 @@ import {
   TEAM_DIVERGE_REPEATS,
   TEAM_DIVERGE_SIZE_FACTOR,
   TEAM_HANDOFF_TOOL_CALLS,
-  TEAM_MAX_REASSIGNMENTS,
   TEAM_MODEL_TEXT,
   TEAM_SCHED_TEXT_MAX_CHARS,
   TEAM_STALL_MS,
@@ -112,7 +111,7 @@ export interface StallDependencies {
   switchRow(ref: Ref, entry: HandoffEntry, reason: 'stall'): void
   block(
     ref: Ref,
-    reason: 'uncertain' | 'thirdStall' | 'ask' | 'stop' | 'diverging' | 'exhausted' | 'consent',
+    reason: 'uncertain' | 'ask' | 'stop' | 'diverging' | 'exhausted' | 'consent',
   ): void
 }
 
@@ -150,11 +149,11 @@ export class StallRecovery {
         this.deps.block(ref, 'diverging')
         return 'blocked'
       }
-      let blocked: 'thirdStall' | 'ask' | 'stop' | undefined
-      if (task.reassignments >= TEAM_MAX_REASSIGNMENTS) blocked = 'thirdStall'
-      else if (input.policy !== 'reassign') blocked = input.policy
-      if (blocked) {
-        this.deps.block(ref, blocked)
+      // Reassignments continue until the work converges or the person stops
+      // it: no count of ours blocks the stall recovery (D121). The task's
+      // reassignment count stays on the record so the panel shows the round.
+      if (input.policy !== 'reassign') {
+        this.deps.block(ref, input.policy)
         return 'blocked'
       }
       const entry = handoffEntry(this.deps.entries(task.roleId), previous, reason)

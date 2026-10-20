@@ -26,22 +26,22 @@ type AccountsState = Extract<AccountsReply, { type: 'accounts/state' }>
 export interface AccountsSessionPort extends AccountUsagePort {
   read(sessionId: string): Promise<AccountsState>
   /** Check canCommit immediately before the owner's synchronous selection
-   * transaction. Never adopt after a session release or a newer operation. */
+  transaction. Never adopt after a session release or a newer operation. */
   use(sessionId: string, account: string, canCommit: () => boolean): Promise<AccountsState>
   /** Publish a fresh state from the live account store on metadata changes,
-   * as well as notices from the same owner's committed adoption transaction. */
+  as well as notices from the same owner's committed adoption transaction. */
   subscribe(sessionId: string, listener: (event: AccountEvent | AccountsState) => void): () => void
 }
 
 /** U's panel dispatcher, also used by the authenticated companion bridge.
- * M104 owns origin/permission/envelope checks; this is the inner payload port.
- * @unwired M104 companion bridge for accounts */
+M104 owns origin/permission/envelope checks; this is the inner payload port.
+@unwired M104 companion bridge for accounts */
 export interface AccountsPanelPort {
   dispatch(request: AccountsRequest): Promise<AccountsReply>
   subscribe(listener: (reply: AccountsReply) => void): () => void
 }
 /** The companion's validated panel skin over the inner payload port.
- * @unwired M104 companion bridge for accounts */
+@unwired M104 companion bridge for accounts */
 export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPort {
   return {
     async dispatch(request) {
@@ -81,7 +81,7 @@ function parseState(value: unknown): AccountsState {
 }
 
 /** Account effects serialize; generation changes invalidate late reads,
- * notices and selection results without touching another session's state. */
+notices and selection results without touching another session's state. */
 export class AcpAccounts {
   private state: AccountsState | undefined
   private readonly earlyNotices: (AccountEvent | AccountsState)[] = []

@@ -149,11 +149,11 @@ function scrubVersion(version: string): string | undefined {
 }
 
 /**
- * A frame path the journal may hold: relative, with no empty, dot or
- * dot-dot segments, no backslashes, no drive root and no URI scheme. A path
- * the redactor changes (a secret-shaped value) never lands: the frame is
- * dropped, not repaired.
- */
+A frame path the journal may hold: relative, with no empty, dot or
+dot-dot segments, no backslashes, no drive root and no URI scheme. A path
+the redactor changes (a secret-shaped value) never lands: the frame is
+dropped, not repaired.
+*/
 function scrubFramePath(path: string): string | undefined {
   const scrubbed = redactSecrets(path)
   if (scrubbed !== path || !REPORT_PACKAGE_FRAME_PATHS.has(path)) return undefined
@@ -240,12 +240,12 @@ export function buildFlightRecord(input: FlightEventInput, at: number): BuiltFli
 }
 
 /**
- * Scrub and validate a webview post: it must first pass lane 0's
- * `reportWebviewErrorSchema` (the webview's own failure kinds only, strict,
- * no free-text fields), and its frames are re-verified as package-relative
- * here, since transport bounds alone cannot see an absolute path.
- * @unwired M93 report dialog flight record
- */
+Scrub and validate a webview post: it must first pass lane 0's
+`reportWebviewErrorSchema` (the webview's own failure kinds only, strict,
+no free-text fields), and its frames are re-verified as package-relative
+here, since transport bounds alone cannot see an absolute path.
+@unwired M93 report dialog flight record
+*/
 export function buildWebviewFlightRecord(
   input: unknown,
   versions: { readonly ext: string; readonly host: string },
@@ -271,10 +271,10 @@ export function serializeFlightRecord(record: FlightRecord): string {
 }
 
 /**
- * A stored record must still look like one the recorder wrote: the fixed
- * code and version vocabularies and verified frame paths. Anything else was
- * tampered with after writing and is skipped, never trusted or exported.
- */
+A stored record must still look like one the recorder wrote: the fixed
+code and version vocabularies and verified frame paths. Anything else was
+tampered with after writing and is skipped, never trusted or exported.
+*/
 function isStoredRecord(record: FlightRecord): boolean {
   return (
     scrubCode(record.code) === record.code &&
@@ -285,11 +285,11 @@ function isStoredRecord(record: FlightRecord): boolean {
 }
 
 /**
- * Parse journal text back: every line must parse, match the strict schema and
- * fit the entry cap. Anything else is skipped and counted, never trusted. A
- * file that ends mid-line lost its tail to a crash or reload mid-write: the
- * torn tail is discarded and flagged, while valid earlier records survive.
- */
+Parse journal text back: every line must parse, match the strict schema and
+fit the entry cap. Anything else is skipped and counted, never trusted. A
+file that ends mid-line lost its tail to a crash or reload mid-write: the
+torn tail is discarded and flagged, while valid earlier records survive.
+*/
 export function parseJournalText(text: string): ParsedJournal {
   const entries: FlightRecord[] = []
   let skipped = 0
@@ -327,10 +327,10 @@ export function parseJournalText(text: string): ParsedJournal {
 }
 
 /**
- * Prune to the caps, oldest first: drop entries older than the retention age
- * (an entry exactly at the boundary is kept), then the oldest entries while
- * the journal stays past the byte cap. The input is never mutated.
- */
+Prune to the caps, oldest first: drop entries older than the retention age
+(an entry exactly at the boundary is kept), then the oldest entries while
+the journal stays past the byte cap. The input is never mutated.
+*/
 export function pruneFlightEntries(
   entries: readonly FlightRecord[],
   now: number,
@@ -397,10 +397,10 @@ export function buildMarkerText(instance: string, pid: number, at: number): stri
 }
 
 /**
- * Read one marker file: the name must match, the JSON must parse, the strict
- * schema must pass, and the instance inside must equal the instance in the
- * name. Anything else is not a marker and must not produce a crash offer.
- */
+Read one marker file: the name must match, the JSON must parse, the strict
+schema must pass, and the instance inside must equal the instance in the
+name. Anything else is not a marker and must not produce a crash offer.
+*/
 export function parseMarkerText(name: string, text: string): FlightMarker | undefined {
   const owned = parseMarkerName(name)
   if (owned === undefined) return undefined
@@ -418,10 +418,10 @@ export function parseMarkerText(name: string, text: string): FlightMarker | unde
 }
 
 /**
- * A marker is a crash hint only when it belongs to another instance whose
- * process is gone. A live window's marker — including this window's own —
- * is never a crash, so a second live window is never reported as one.
- */
+A marker is a crash hint only when it belongs to another instance whose
+process is gone. A live window's marker — including this window's own —
+is never a crash, so a second live window is never reported as one.
+*/
 export function isStaleMarker(
   marker: FlightMarker,
   ownInstance: string,

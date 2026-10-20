@@ -84,20 +84,20 @@ function endpoint(repository: GitHubRepository): string {
 }
 
 /**
- * Reads the `name` off a tag-shaped value without guessing: only a string
- * `name` counts, so a corrupt element beside it can be tied to the releases
- * and runs that named it instead of blaming those records.
- */
+Reads the `name` off a tag-shaped value without guessing: only a string
+`name` counts, so a corrupt element beside it can be tied to the releases
+and runs that named it instead of blaming those records.
+*/
 function tagNameOf(item: unknown): string | null {
   const parsed = z.looseObject({ name: z.string() }).safeParse(item)
   return parsed.success ? parsed.data.name : null
 }
 
 /**
- * Validate each page and record independently. A failed page ends this
- * endpoint, preserving its accepted rows and every other endpoint's request
- * allowance. Body, decode and adapter failures all name the failed page.
- */
+Validate each page and record independently. A failed page ends this
+endpoint, preserving its accepted rows and every other endpoint's request
+allowance. Body, decode and adapter failures all name the failed page.
+*/
 async function readElements<T>(
   query: ReportNetworkQuery,
   pageSize: number,
@@ -159,11 +159,11 @@ function selectArrayBodies(body: unknown): unknown[] | null {
 }
 
 /**
- * The captured workflow/release reader: release tags to commits, final
- * releases with their asset names, and release-workflow runs as
- * `release-tag` CI facts. Anything outside the captured shapes is skipped
- * with its own reason; nothing is normalized from a guess.
- */
+The captured workflow/release reader: release tags to commits, final
+releases with their asset names, and release-workflow runs as
+`release-tag` CI facts. Anything outside the captured shapes is skipped
+with its own reason; nothing is normalized from a guess.
+*/
 export function githubWorkflowReleasesPort(): ReportGitHubAdditionalPort {
   return {
     async read(_context, query, repository) {

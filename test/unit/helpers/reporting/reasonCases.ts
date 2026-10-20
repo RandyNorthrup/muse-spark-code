@@ -21,9 +21,9 @@ export interface ReasonWant {
 }
 
 /**
- * A source-read context with the fixture workspace scope, identical in every
- * source suite file (accounts, security) instead of a clone in each.
- */
+A source-read context with the fixture workspace scope, identical in every
+source suite file (accounts, security) instead of a clone in each.
+*/
 export function sourceContextFor(kind: SourceReadContext['options']['kind']): SourceReadContext {
   return {
     reportText: EN,
@@ -53,8 +53,8 @@ export const reasonContext = (kind: 'accounts' | 'security') => ({
 })
 
 /** One reason record, asserted the same way in every suite: the status and
- * each true reason. Only fixed sentences travel in a reason, so no record
- * text may appear in one. */
+each true reason. Only fixed sentences travel in a reason, so no record
+text may appear in one. */
 export function assertReasonRecord(
   result: { record: { status: string; reason: unknown } },
   want: Pick<ReasonWant, 'status' | 'reasons'>,
@@ -67,7 +67,7 @@ export function assertReasonRecord(
 }
 
 /** One reason case, asserted the same way in every suite: the record above
- * plus the surviving rows. */
+plus the surviving rows. */
 export async function assertReasonResult(
   temps: ReasonTempDirs,
   prefix: string,

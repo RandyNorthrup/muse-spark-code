@@ -206,13 +206,18 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
   const CALL_ID = RECORDED.call.call_id
   const BIG = RECORDED.output
 
-  function send(pack: ObservationPack, output: string): InputItem[] {
+  function recordedPair(): [InputItem, InputItem] {
     const call: InputItem = { ...RECORDED.call }
     const result: InputItem = {
       type: 'function_call_output',
       call_id: CALL_ID,
-      output: restoredToolText(output),
+      output: restoredToolText(BIG),
     }
+    return [call, result]
+  }
+
+  function send(pack: ObservationPack): InputItem[] {
+    const [call, result] = recordedPair()
     const projected = pack.project([call, result])
     pack.noteSent(projected)
     return projected
@@ -226,7 +231,7 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
     // Checked narrowing, not a cast: a non-string output fails the test here.
     if (result === undefined) throw new Error(`missing function_call_output for ${CALL_ID}`)
     if (typeof result.output !== 'string')
-      throw new Error(`function_call_output for ${CALL_ID} is not a string`)
+      throw new TypeError(`function_call_output for ${CALL_ID} is not a string`)
     return result.output
   }
 
@@ -243,13 +248,13 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
     expect(BIG.length).toBeGreaterThan(OBS_PACK_THRESHOLD_CHARS)
     const pack = new ObservationPack()
     for (let sendIndex = 0; sendIndex < OBS_PACK_WHOLE_SENDS; sendIndex += 1) {
-      expect(outputOf(send(pack, BIG))).toBe(BIG)
+      expect(outputOf(send(pack))).toBe(BIG)
     }
-    const packed = outputOf(send(pack, BIG))
+    const packed = outputOf(send(pack))
     expect(packed).not.toBe(BIG)
     expect(packed.length).toBeLessThan(BIG.length)
     expect(packed).toContain(CALL_ID)
-    expect(outputOf(send(pack, BIG))).not.toBe(BIG)
+    expect(outputOf(send(pack))).not.toBe(BIG)
     expect(pack.packedCallIds()).toContain(CALL_ID)
     // The ledger counts exactly what the two packed sends left out.
     expect(pack.savings()).toBe(
@@ -259,17 +264,12 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
 
   it('does not count a retried send of the same request twice', () => {
     const pack = new ObservationPack()
-    const call: InputItem = { ...RECORDED.call }
-    const result: InputItem = {
-      type: 'function_call_output',
-      call_id: CALL_ID,
-      output: restoredToolText(BIG),
-    }
+    const [call, result] = recordedPair()
     const projected = pack.project([call, result])
     pack.noteSent(projected)
     pack.noteSent(projected)
     // One real send so far: the output still rides whole.
-    expect(outputOf(send(pack, BIG))).toBe(BIG)
+    expect(outputOf(send(pack))).toBe(BIG)
   })
 
   it('keeps the swap sticky across a resume and forgets it after a reset', () => {
@@ -293,7 +293,7 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
   it('pages the archived original back through recall_output', () => {
     const pack = new ObservationPack()
     for (let sendIndex = 0; sendIndex <= OBS_PACK_WHOLE_SENDS; sendIndex += 1) {
-      send(pack, BIG)
+      send(pack)
     }
     const first = pack.recall(JSON.stringify({ id: CALL_ID, offset: 0 }))
     expect(first.output).toContain(BIG.slice(0, 100))
@@ -762,8 +762,8 @@ const fixtureItemSchema = z.object({
 })
 
 /** One recorded tool call and its output from a golden fixture: the first
- * function_call (parsed under the product's own item schema) and the
- * string output of its function_call_output, narrowed by a typeof guard. */
+function_call (parsed under the product's own item schema) and the
+string output of its function_call_output, narrowed by a typeof guard. */
 function recordedCallAndOutput(
   relativePath: string,
   requestIndex: number,
@@ -786,7 +786,7 @@ function recordedCallAndOutput(
     )
   const output = outputItem?.success === true ? outputItem.data.output : undefined
   if (typeof output !== 'string')
-    throw new Error(
+    throw new TypeError(
       `no recorded string tool output in ${relativePath} request ${String(requestIndex)}`,
     )
   return { call, output }
@@ -796,7 +796,7 @@ interface GoldenPrefix {
   readonly options: ToolDefinitionOptions
   readonly facts: (base: InstructionFacts) => InstructionFacts
   /** The host appends the hosted-search tool when paid web search is
-   * offered (`ModelApiHost`: `isWebSearchOffered`). */
+  offered (`ModelApiHost`: `isWebSearchOffered`). */
   readonly hostedSearch?: boolean
 }
 
@@ -918,8 +918,8 @@ function prefixTools(prefix: GoldenPrefix): readonly ToolDefinition[] {
 }
 
 /** Rebuilds a recorded turn's body with the real builders and returns the
- * complete serialized body: the byte comparison then covers every field,
- * not selected ones. */
+complete serialized body: the byte comparison then covers every field,
+not selected ones. */
 function rebuildGoldenTurn(file: string, tools: readonly ToolDefinition[]): string {
   const body = goldenBodySchema.parse(JSON.parse(goldenRequests(file)[0]!) as unknown)
   const instructions = instructionsFor(baseFacts())

@@ -242,10 +242,10 @@ export function buildChatShare(
 }
 
 /**
- * JSON remains M118 share v1, separate from M84's resumable session JSON.
- * A share renders at any byte size (D121: the removed 16 MiB ceiling was
- * invented); the item count above still bounds it.
- */
+JSON remains M118 share v1, separate from M84's resumable session JSON.
+A share renders at any byte size (D121: the removed 16 MiB ceiling was
+invented); the item count above still bounds it.
+*/
 export function renderChatShare(
   doc: ChatShareDocument,
   format: ChatShareRequest['format'],

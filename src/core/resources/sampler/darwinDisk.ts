@@ -10,14 +10,14 @@ function blockBusyMs(readNs: number | undefined, writeNs: number | undefined): n
 }
 
 /**
- * Busiest storage driver, not a sum of disks: IOKit reports each
- * IOBlockStorageDriver's cumulative busy time (`Total Time (Read)` plus
- * `Total Time (Write)`, nanoseconds), differenced over wall time like the
- * Linux whole-device delta. Only driver blocks count; anything else carrying
- * those keys is ignored, and a missing key fails closed. Each driver is
- * identified by its registry entry id plus object name: the name alone is
- * not unique, since every instance defaults to `IOBlockStorageDriver`.
- */
+Busiest storage driver, not a sum of disks: IOKit reports each
+IOBlockStorageDriver's cumulative busy time (`Total Time (Read)` plus
+`Total Time (Write)`, nanoseconds), differenced over wall time like the
+Linux whole-device delta. Only driver blocks count; anything else carrying
+those keys is ignored, and a missing key fails closed. Each driver is
+identified by its registry entry id plus object name: the name alone is
+not unique, since every instance defaults to `IOBlockStorageDriver`.
+*/
 export class DarwinDiskDelta {
   private previous: DiskDeltaBaseline | undefined
 

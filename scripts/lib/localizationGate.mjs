@@ -123,10 +123,10 @@ function trackContainer(open, char) {
 }
 
 /**
- * The keys an object in valid JSON text names twice, at any depth. JSON.parse
- * keeps the last one without a word, so a stale string could win unseen (M91:
- * a merge left two `config.modelApiHooks.description` lines in three tables).
- */
+The keys an object in valid JSON text names twice, at any depth. JSON.parse
+keeps the last one without a word, so a stale string could win unseen (M91:
+a merge left two `config.modelApiHooks.description` lines in three tables).
+*/
 function duplicateKeys(text) {
   const found = []
   // One entry per open container: the keys seen for an object, null for an array.
@@ -156,14 +156,10 @@ function duplicateKeys(text) {
 }
 
 /** The parsed JSON file, or undefined with the reason added to `problems`. */
-function readJson(file, problems, root, maxOutputLength) {
+function readJson(file, problems, root) {
   let value
   try {
-    const target = path.join(root, file)
-    const text =
-      maxOutputLength === undefined
-        ? readFileSync(target, 'utf8')
-        : brotliDecompressSync(readFileSync(`${target}.br`), { maxOutputLength }).toString('utf8')
+    const text = readFileSync(path.join(root, file), 'utf8')
     value = JSON.parse(text)
     for (const key of duplicateKeys(text))
       problems.push(`${file}: "${key}" is named twice in one object; JSON keeps only the last`)
@@ -177,16 +173,16 @@ function readJson(file, problems, root, maxOutputLength) {
 const PLURAL_CATEGORIES = ['zero', 'one', 'two', 'few', 'many', 'other']
 
 /**
- * The dotted keys `untranslated.json` may name: each plain string, and each
- * plural entry both whole (`agentsCount`) and by form (`agentsCount.one`),
- * since one form can read as the English does ("1 agent" in Czech and
- * Polish) while the others do not.
- */
+The dotted keys `untranslated.json` may name: each plain string, and each
+plural entry both whole (`agentsCount`) and by form (`agentsCount.one`),
+since one form can read as the English does ("1 agent" in Czech and
+Polish) while the others do not.
+*/
 function stringKeys(table, isPluralForms, prefix = '') {
   return Object.entries(table).flatMap(([name, value]) => {
     const key = `${prefix}${name}`
     if (typeof value === 'string') {
-      return [key]
+      return key
     }
     if (isPluralForms(value)) {
       return [key, ...PLURAL_CATEGORIES.map((category) => `${key}.${category}`)]
@@ -196,10 +192,10 @@ function stringKeys(table, isPluralForms, prefix = '') {
 }
 
 /**
- * l10n/untranslated.json: per section (`ui`, `manifest`), the keys whose
- * value may stay English, for every language (`*`) or for one.
- * Returns `(section, locale) => Set`.
- */
+l10n/untranslated.json: per section (`ui`, `manifest`), the keys whose
+value may stay English, for every language (`*`) or for one.
+Returns `(section, locale) => Set`.
+*/
 function readUntranslated(file, known, locales, problems, repoRoot) {
   const lists = readJson(file, problems, repoRoot) ?? {}
   if (!isRecord(lists)) {

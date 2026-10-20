@@ -20,10 +20,10 @@ import {
   ACP_AGENT_NAME,
   ACP_SESSIONS_SUBFOLDER,
   ACP_PAID_GRANTS_FILE,
-  MAX_TEXT_ATTACHMENT_BYTES,
   USAGE_COMPANION_IDLE_MS,
   USAGE_COMPANION_MAX_WINDOWS,
   USAGE_STALE_MS,
+  VOICE_TEXT_MAX_BYTES,
   WEBVIEW_L10N_ELEMENT_ID,
 } from '../../shared/constants'
 import {
@@ -152,7 +152,7 @@ export async function openVoiceCompanion(
     signal: context.signal,
     limits: {
       maxBodyBytes: COMPANION_VOICE_BODY_BYTES,
-      maxEventBytes: MAX_TEXT_ATTACHMENT_BYTES,
+      maxEventBytes: VOICE_TEXT_MAX_BYTES,
       requestTimeoutMs: COMPANION_VOICE_REQUEST_MS,
       idleTimeoutMs: USAGE_COMPANION_IDLE_MS,
       launchCodeTtlMs: USAGE_STALE_MS,

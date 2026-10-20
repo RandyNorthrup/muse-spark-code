@@ -2,6 +2,7 @@ import { estimateFailureText, type EstimateViewState } from '../../shared/estima
 import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import {
   estimateRequestSchema,
+  isEstimateRefusal,
   parseEstimateGoal,
   type CatalogPrice,
   type EstimateRequest,
@@ -19,9 +20,9 @@ import { useFormatUsd } from '../money'
 import './estimator.css'
 
 /**
- * A machine's hourly price (STARTUP017): the port's fake in tests, otherwise
- * the lazy money chunk's exact display. Nothing renders until one is known.
- */
+A machine's hourly price (STARTUP017): the port's fake in tests, otherwise
+the lazy money chunk's exact display. Nothing renders until one is known.
+*/
 function MachinePrice({
   port,
   price,
@@ -39,11 +40,11 @@ export interface EstimatorPanelPort {
   /** Validated refreshed sections from U's view session, bound to M115 by W. */
   subscribe(listener: (state: EstimateViewState) => void): () => void
   /**
-   * The host log's copy of a failure the panel already said in words: the
-   * run and spin-up boundaries hand a foreign failure here with its kind
-   * (D119). The host reports it through its webview-error channel, so the
-   * kind never depends on the document's ambient unhandled-rejection hook.
-   */
+  The host log's copy of a failure the panel already said in words: the
+  run and spin-up boundaries hand a foreign failure here with its kind
+  (D119). The host reports it through its webview-error channel, so the
+  kind never depends on the document's ambient unhandled-rejection hook.
+  */
   report(error: unknown): void
   startExisting?(
     section: EstimateSection,
@@ -187,7 +188,22 @@ export default function EstimatorPanel({
       try {
         next = await boundary.collectEstimateView(
           parsed.data,
-          () => port.estimate(parsed.data, controller.signal),
+          async () => {
+            try {
+              return await port.estimate(parsed.data, controller.signal)
+            } catch (error: unknown) {
+              // A foreign failure keeps its kind past the panel for the host
+              // log; the estimator's own refusal said everything on the
+              // panel. A cancelled run stays silent.
+              if (
+                !controller.signal.aborted &&
+                !(error instanceof DOMException && error.name === 'AbortError') &&
+                !isEstimateRefusal(error)
+              )
+                port.report(error)
+              throw error
+            }
+          },
           controller.signal,
         )
       } catch (error: unknown) {
@@ -198,7 +214,9 @@ export default function EstimatorPanel({
         if (controller.signal.aborted) return
         if (error instanceof DOMException && error.name === 'AbortError') return
         next = boundary.failedEstimate(error)
-        port.report(error)
+        // A foreign failure keeps its kind past the panel for the host log;
+        // the estimator's own refusal said everything on the panel.
+        if (!isEstimateRefusal(error)) port.report(error)
       }
     } catch {
       next = { status: 'failed', diagnostic: { estimateDiagnostic: 'source-unavailable' } }

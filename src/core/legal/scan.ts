@@ -88,12 +88,12 @@ export interface LegalScanOptions {
 }
 
 /**
- * Whether an incomplete entry is a total-absence note (M97 C-M97-1): one
- * per ecosystem reader, each pushed only when that ecosystem leaves no
- * manifests, locks or installed metadata behind. Read from the installed
- * table at call time, never captured at module load, so every language
- * filters the same entries.
- */
+Whether an incomplete entry is a total-absence note (M97 C-M97-1): one
+per ecosystem reader, each pushed only when that ecosystem leaves no
+manifests, locks or installed metadata behind. Read from the installed
+table at call time, never captured at module load, so every language
+filters the same entries.
+*/
 function isAbsentEcosystemNote(entry: string): boolean {
   return [
     UI_TEXT.legalScanner.m149,
@@ -216,12 +216,12 @@ function snapshotNotices(
 }
 
 /**
- * Bundle metafiles the production build writes (`dist/meta/`, M26): every
- * source file that went into each shipped bundle. Beside each, the build
- * records the SHA-256 of the exact bytes it compiled and wrote
- * (`dist/meta-hashes/`, record version 2, M97 CM971-R3); a metafile
- * without that record contributes its inputs but never freshness.
- */
+Bundle metafiles the production build writes (`dist/meta/`, M26): every
+source file that went into each shipped bundle. Beside each, the build
+records the SHA-256 of the exact bytes it compiled and wrote
+(`dist/meta-hashes/`, record version 2, M97 CM971-R3); a metafile
+without that record contributes its inputs but never freshness.
+*/
 const LEGAL_META_DIR = 'dist/meta/'
 const LEGAL_META_HASHES_DIR = 'dist/meta-hashes/'
 const LEGAL_META_HASHES_VERSION = 2
@@ -246,11 +246,11 @@ function readJson(snapshot: LegalFileSnapshot, file: string): unknown {
 }
 
 /**
- * What a metafile key names (M97 CM971-R3): a workspace file, a module a
- * build plugin generated (`namespace:name`), or a real file outside the
- * workspace (an absolute path or a parent escape), which the scan cannot
- * read and so reports by name instead of treating it as a constant.
- */
+What a metafile key names (M97 CM971-R3): a workspace file, a module a
+build plugin generated (`namespace:name`), or a real file outside the
+workspace (an absolute path or a parent escape), which the scan cannot
+read and so reports by name instead of treating it as a constant.
+*/
 function evidencePathKind(entry: string): 'workspace' | 'generated' | 'outside' {
   const normalized = normalizeEvidencePath(entry)
   if (
@@ -270,11 +270,11 @@ function workspaceEntries(list: readonly string[]): string[] {
 }
 
 /**
- * The inputs that ship (CM971-R3): those an output carries bytes of
- * (esbuild's `outputs[…].inputs[…].bytesInOutput`); an input the bundler
- * read but shook out entirely does not ship. A record whose outputs do
- * not itemize their inputs counts every listed input.
- */
+The inputs that ship (CM971-R3): those an output carries bytes of
+(esbuild's `outputs[…].inputs[…].bytesInOutput`); an input the bundler
+read but shook out entirely does not ship. A record whose outputs do
+not itemize their inputs counts every listed input.
+*/
 function contributingInputs(outputs: unknown, listed: readonly string[]): string[] {
   const records = Object.values(keyedRecordSchema.safeParse(outputs).data ?? {})
   const itemized = records.map(
@@ -336,11 +336,11 @@ const LICENSE_POINTER = /^SEE LICENSE IN\s+(\S.*)$/iu
 const LICENSE_FILE_FIELD = /^License-File:\s*(\S.*?)\s*$/gimu
 
 /**
- * Licence files a dependency's metadata names (M97 CM971-R3): the text a
- * reader identified the licence from, an npm-style `SEE LICENSE IN`
- * target, and a Python distribution's `License-File:` entries, each
- * resolved beside its manifest and kept only when present and confined.
- */
+Licence files a dependency's metadata names (M97 CM971-R3): the text a
+reader identified the licence from, an npm-style `SEE LICENSE IN`
+target, and a Python distribution's `License-File:` entries, each
+resolved beside its manifest and kept only when present and confined.
+*/
 function namedLicenseFiles(snapshot: LegalFileSnapshot, dep: LegalDependency): string[] {
   const dir = dep.evidenceFile.slice(0, dep.evidenceFile.lastIndexOf('/') + 1)
   const named: string[] = []
@@ -361,10 +361,10 @@ function namedLicenseFiles(snapshot: LegalFileSnapshot, dep: LegalDependency): s
 }
 
 /**
- * Every build-evidence problem of a workspace's bundle records, unbounded
- * (M97 CM971-R3): what the release build checks of its own records, so no
- * reason can hide past the report's incomplete-check bound.
- */
+Every build-evidence problem of a workspace's bundle records, unbounded
+(M97 CM971-R3): what the release build checks of its own records, so no
+reason can hide past the report's incomplete-check bound.
+*/
 export function buildRecordProblems(snapshot: LegalFileSnapshot): readonly string[] {
   const { bundles } = deriveBundleEvidence(snapshot)
   return bundleFreshnessProblems(snapshot, new Set(snapshot.files), bundles)
@@ -400,11 +400,11 @@ function deriveDistribution(snapshot: LegalFileSnapshot): DistributionEvidence {
 }
 
 /**
- * Run the read-only scan over the snapshot. Reads stay inside the capped,
- * sorted file list; paths outside the workspace throw instead of reading.
- * The result always validates against the lane 0 schema: a validation
- * failure is an internal bug and throws.
- */
+Run the read-only scan over the snapshot. Reads stay inside the capped,
+sorted file list; paths outside the workspace throw instead of reading.
+The result always validates against the lane 0 schema: a validation
+failure is an internal bug and throws.
+*/
 export async function scanLegal(
   snapshot: LegalFileSnapshot,
   options: LegalScanOptions,
@@ -523,7 +523,7 @@ export async function scanLegal(
   const packageRoots = new Set(
     listedMaterial.flatMap((file) => {
       const root = /^(.*node_modules\/(?:@[^/]+\/)?[^/]+\/)/u.exec(file)?.[1]
-      return root === undefined ? [] : [root]
+      return root ?? []
     }),
   )
   const packageFacts = sorted.filter((file) =>
@@ -880,12 +880,10 @@ export async function scanLegal(
     evidenceFiles: [...cache].flatMap(([path, text]) =>
       text === undefined
         ? []
-        : [
-            {
-              path,
-              hash: snapshot.readFileHash?.(path) ?? fingerprint(text),
-            },
-          ],
+        : {
+            path,
+            hash: snapshot.readFileHash?.(path) ?? fingerprint(text),
+          },
     ),
   }
   const scrubbed: unknown = JSON.parse(
@@ -901,15 +899,15 @@ export async function scanLegal(
 }
 
 /**
- * Findings about dependencies that do not ship (lead ruling 2026-10-10):
- * informational advice, plus one advice line naming those whose licence
- * texts differ from their templates or are unrecognized.
- */
+Findings about dependencies that do not ship (lead ruling 2026-10-10):
+informational advice, plus one advice line naming those whose licence
+texts differ from their templates or are unrecognized.
+*/
 /**
- * The distributed workspace (CM971-R3): root files, the shipped files and
- * the admitted files of each shipped package; the whole snapshot when
- * distribution is unknown.
- */
+The distributed workspace (CM971-R3): root files, the shipped files and
+the admitted files of each shipped package; the whole snapshot when
+distribution is unknown.
+*/
 function distributedView(
   snapshot: LegalFileSnapshot,
   evidence: DistributionEvidence,

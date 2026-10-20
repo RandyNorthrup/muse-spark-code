@@ -41,19 +41,19 @@ import {
 /** The guarded files, resolved and read through the host's own checks. */
 export interface LegalFixFileAccess {
   /**
-   * The workspace-confined absolute path for a finding's relative file;
-   * undefined when it escapes the workspace (denied traversal).
-   */
+  The workspace-confined absolute path for a finding's relative file;
+  undefined when it escapes the workspace (denied traversal).
+  */
   resolveRelativePath(relativePath: string): Promise<string | undefined>
   /** Up to `maxBytes` of the file; undefined when it cannot be read. */
   readBytes(absolutePath: string, maxBytes: number): Promise<Uint8Array | undefined>
 }
 
 /**
- * Lane B's seam: applies the authorized findings through the normal edit
- * tools and the current permission mode's approvals. Partial failures are
- * returned per path, never thrown away.
- */
+Lane B's seam: applies the authorized findings through the normal edit
+tools and the current permission mode's approvals. Partial failures are
+returned per path, never thrown away.
+*/
 export interface LegalFixApplier {
   /** Read-only preparation; apply must use these exact diffs and check isCurrent before every write. */
   prepare?(
@@ -156,12 +156,12 @@ export class LegalFixPreviews {
   }
 
   /**
-   * Preview fixes for exactly the selected findings: split them into the
-   * eligible ones and the excluded-with-reason ones, hash the guarded
-   * files, and store the snapshot the confirm rechecks. Only an empty
-   * selection refuses the preview itself; mode, trust and staleness are
-   * rechecked at confirm, when a write is actually at stake.
-   */
+  Preview fixes for exactly the selected findings: split them into the
+  eligible ones and the excluded-with-reason ones, hash the guarded
+  files, and store the snapshot the confirm rechecks. Only an empty
+  selection refuses the preview itself; mode, trust and staleness are
+  rechecked at confirm, when a write is actually at stake.
+  */
   async preview(
     message: RequestLegalFixMessage,
     state: LegalFixHostState,
@@ -272,10 +272,10 @@ export class LegalFixPreviews {
   }
 
   /**
-   * Confirm exactly the preview the user saw: recheck mode, trust,
-   * workspace, evidence and file hashes, then hand the authorized paths to
-   * the applier. Any mismatch refuses before any write.
-   */
+  Confirm exactly the preview the user saw: recheck mode, trust,
+  workspace, evidence and file hashes, then hand the authorized paths to
+  the applier. Any mismatch refuses before any write.
+  */
   async confirm(
     message: ConfirmLegalFixMessage,
     state: LegalFixHostState,

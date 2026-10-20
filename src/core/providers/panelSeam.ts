@@ -27,10 +27,10 @@ const UNRESOLVED_ADDRESS_CODES: ReadonlySet<string> = new Set([
 ])
 
 /**
- * The one expected lookup failure: the resolver answered that the name
- * does not resolve. Anything else (a host resolver's own bug) keeps its
- * kind for the caller instead of reading as an unresolvable address.
- */
+The one expected lookup failure: the resolver answered that the name
+does not resolve. Anything else (a host resolver's own bug) keeps its
+kind for the caller instead of reading as an unresolvable address.
+*/
 function isUnresolvedAddress(error: unknown): boolean {
   return (
     typeof error === 'object' &&

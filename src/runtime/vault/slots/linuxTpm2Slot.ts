@@ -15,8 +15,9 @@ import {
   type VaultSlotRecord,
 } from '../../../shared/vault'
 import { spawnResourceProcess } from '../../../core/resources/launcher'
-import { slotContextSchema, type SlotContext } from './slotIdentity'
+import { probeChildEnvironment } from '../../../core/resources/trees/run'
 import { wrapSlotKey } from './slotWrap'
+import { slotContextSchema, type SlotContext } from './slotEntries'
 
 // A TPM2 sealed object through `systemd-creds --user` (systemd 256 or later),
 // only where the user can open /dev/tpmrm0 (D89.2, research §2.3). The 32-byte
@@ -47,7 +48,9 @@ async function defaultRun(
   }
   let launched: Awaited<ReturnType<typeof spawnResourceProcess>>
   try {
-    launched = await spawnResourceProcess('contained', tool, args, { env: {} })
+    launched = await spawnResourceProcess('contained', tool, args, {
+      env: probeChildEnvironment({}),
+    })
   } catch {
     owned.fill(0)
     throw new VaultStoreUnavailableError()
@@ -114,12 +117,12 @@ async function defaultRun(
 }
 
 /**
- * Where the machine seals: systemd-creds 256+ binds TPM2 with `-T`. The
- * governed spawn carries no PATH (credential-free on purpose), so the tool
- * is named by absolute path: `/usr/bin` on usr-merged systems, `/bin`
- * where it is not. The first executable candidate wins and is memoised;
- * where neither exists the slot is unavailable, never a PATH search.
- */
+Where the machine seals: systemd-creds 256+ binds TPM2 with `-T`. The
+governed spawn carries no PATH (credential-free on purpose), so the tool
+is named by absolute path: `/usr/bin` on usr-merged systems, `/bin`
+where it is not. The first executable candidate wins and is memoised;
+where neither exists the slot is unavailable, never a PATH search.
+*/
 const SYSTEMD_CREDS_CANDIDATES = ['/usr/bin/systemd-creds', '/bin/systemd-creds'] as const
 
 const resolvedSystemdCreds: { current?: string | null } = {}

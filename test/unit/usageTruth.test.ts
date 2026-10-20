@@ -105,7 +105,7 @@ function tokenUsageFrame(
 
 function tokenUsageEvent(sessionId: string, frame: ReturnType<typeof tokenUsageFrame>): AgentEvent {
   const mapped = mapNotification(frame)
-  if (typeof mapped === 'string') throw new Error(`unmapped test frame: ${mapped}`)
+  if (typeof mapped === 'string') throw new TypeError(`unmapped test frame: ${mapped}`)
   if (!('event' in mapped)) throw new Error(`unmapped test frame: ${mapped.sessionId}`)
   expect(mapped.sessionId).toBe(sessionId)
   return mapped.event

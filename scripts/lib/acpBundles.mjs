@@ -8,13 +8,13 @@ import { readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 /**
- * The usage page's transitive browser assets (usage.js, usage.css and the
- * chunks they import), which the agent serves from its own dist/webview when
- * a usage page opens on that backend (src/runtime/usage/usageAcp.ts). Shared
- * with scripts/package-acp.mjs so the staged package and the lazy-registry
- * gate carry the same closure. Run from the repository root after the
- * production build (it reads the usage browser metafile).
- */
+The usage page's transitive browser assets (usage.js, usage.css and the
+chunks they import), which the agent serves from its own dist/webview when
+a usage page opens on that backend (src/runtime/usage/usageAcp.ts). Shared
+with scripts/package-acp.mjs so the staged package and the lazy-registry
+gate carry the same closure. Run from the repository root after the
+production build (it reads the usage browser metafile).
+*/
 export function acpUsageAssets(packageRoot = process.cwd()) {
   const root = path.resolve(packageRoot, 'dist', 'webview')
   const meta = JSON.parse(
@@ -63,8 +63,10 @@ export const ACP_BUNDLES = [
   'vaultRuntime.js',
   'planSnapshot.js',
   'questionNotes.js',
+  'approvalModes.js',
   'mcpPool.js',
   'exec.js',
+  'execGuard.js',
   'modelApiCodeIntel.js',
   'structuredSchema.js',
   'fontsInstall.js',

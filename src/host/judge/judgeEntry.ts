@@ -32,11 +32,11 @@ import type { JudgeWindowDeps, JudgeWindowPort } from './judgeBundle'
 import type { Logger } from '../logger'
 
 /**
- * Whether the standing allow-rules admit a Muse Code judgment. A settings
- * text the reader cannot hand over (a refused file, not a missing one:
- * missing reads as undefined before this) fails closed: approval is
- * unchanged, and the log names only the failure's kind, never its text.
- */
+Whether the standing allow-rules admit a Muse Code judgment. A settings
+text the reader cannot hand over (a refused file, not a missing one:
+missing reads as undefined before this) fails closed: approval is
+unchanged, and the log names only the failure's kind, never its text.
+*/
 export function isStandingAllowed(
   readSettingsText: () => string | undefined,
   log: Logger,

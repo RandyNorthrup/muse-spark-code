@@ -57,10 +57,10 @@ interface TemplateVariable {
   readonly name: string
   readonly originalKey: string
   /**
-   * The variable's `match` source with each wildcard captured and every
-   * other group silent (see `VARIABLE_WILDCARDS`): the match test and the
-   * capture read are the same expression, so one literal serves both.
-   */
+  The variable's `match` source with each wildcard captured and every
+  other group silent (see `VARIABLE_WILDCARDS`): the match test and the
+  capture read are the same expression, so one literal serves both.
+  */
   readonly wildcards: RegExp
   readonly role: VariableRole
   readonly requiresMarker: boolean
@@ -90,10 +90,10 @@ interface LicenseTemplate {
   readonly requiredTotal: number
   readonly titleVocabulary: ReadonlySet<string>
   /**
-   * Per optional part, the copyright variables inside it: an optional
-   * appendix (`How to apply …`) may be given from its notice on, as the
-   * applied notice, since its instructions are not terms.
-   */
+  Per optional part, the copyright variables inside it: an optional
+  appendix (`How to apply …`) may be given from its notice on, as the
+  applied notice, since its instructions are not terms.
+  */
   readonly noticeEntries: ReadonlyMap<number, readonly number[]>
 }
 
@@ -155,12 +155,12 @@ const NAME_CONNECTORS: ReadonlySet<string> = new Set(
 )
 
 /**
- * Restriction vocabulary (M97 CM971-R3, lead ruling): words that limit
- * use, audience, purpose or price. They are never part of a holder's or
- * party's name, in any case, so a notice that carries one (`Example
- * Nonprofit Projects Only`) keeps human review. The list only ever forces
- * review; it never makes a text match.
- */
+Restriction vocabulary (M97 CM971-R3, lead ruling): words that limit
+use, audience, purpose or price. They are never part of a holder's or
+party's name, in any case, so a notice that carries one (`Example
+Nonprofit Projects Only`) keeps human review. The list only ever forces
+review; it never makes a text match.
+*/
 function restrictionWords(text: string): ReadonlySet<string> {
   return new Set(
     text
@@ -168,7 +168,7 @@ function restrictionWords(text: string): ReadonlySet<string> {
       .split(/\s+/u)
       .flatMap((entry) => {
         const [stem = '', ...suffixes] = entry.split('|')
-        return suffixes.length === 0 ? [stem] : suffixes.map((suffix) => stem + suffix)
+        return suffixes.length === 0 ? stem : suffixes.map((suffix) => stem + suffix)
       })
       .map((word) => word.replaceAll('ı', 'i').replaceAll('ß', 'ss')),
   )
@@ -208,10 +208,10 @@ function isRestrictionWord(text: string, restricted: ReadonlySet<string>): boole
 }
 
 /**
- * Punctuation as the guidelines compare it. Quote marks of every style
- * and Markdown emphasis (`*AS IS*`, `_AS IS_`) carry no terms, so they
- * drop out on both sides; the other marks stay.
- */
+Punctuation as the guidelines compare it. Quote marks of every style
+and Markdown emphasis (`*AS IS*`, `_AS IS_`) carry no terms, so they
+drop out on both sides; the other marks stay.
+*/
 function normalizePunctuation(token: string): readonly string[] {
   if (token === '©') return ['(', 'c', ')']
   if (token === '&') return ['and']
@@ -260,10 +260,10 @@ function applyEquivalences(tokens: readonly Token[], equivalences: Equivalences)
 }
 
 /**
- * Tokenize the way the guidelines compare text, the template's fixed text
- * and the input alike: comment markers at line starts, comment-box edges
- * at line ends and separator lines (`-----`, `*****`) carry no terms.
- */
+Tokenize the way the guidelines compare text, the template's fixed text
+and the input alike: comment markers at line starts, comment-box edges
+at line ends and separator lines (`-----`, `*****`) carry no terms.
+*/
 function tokenize(text: string, equivalences: Equivalences): readonly Token[] {
   const tokens: Token[] = []
   let offset = 0
@@ -283,11 +283,11 @@ function tokenize(text: string, equivalences: Equivalences): readonly Token[] {
 }
 
 /**
- * A line without a comment-box edge (trailing asterisks, or a closing
- * block-comment marker) at its end. Written
- * as a scan, not a regular expression, so a long whitespace run costs
- * linear time.
- */
+A line without a comment-box edge (trailing asterisks, or a closing
+block-comment marker) at its end. Written
+as a scan, not a regular expression, so a long whitespace run costs
+linear time.
+*/
 const BLOCK_COMMENT_END = '*/'
 
 function withoutBoxEdge(line: string): string {
@@ -337,10 +337,10 @@ function parseEquivalences(text: string, restricted: ReadonlySet<string>): Equiv
 }
 
 /**
- * The pattern source with each quantified `.` wildcard captured and every
- * other group made non-capturing. A lone `.` matches one character and
- * stays as written.
- */
+The pattern source with each quantified `.` wildcard captured and every
+other group made non-capturing. A lone `.` matches one character and
+stays as written.
+*/
 function wildcardSource(source: string): { readonly source: string; readonly count: number } {
   let out = ''
   let count = 0
@@ -382,15 +382,15 @@ function vocabularyOf(text: string): ReadonlySet<string> {
 }
 
 /**
- * Every `match="…"` source the pinned SPDX templates use, each compiled
- * once as a literal with its wildcards captured (the `wildcardSource`
- * shape). The set is closed: the template bytes are pinned by SHA-256 in
- * `data/provenance.json`, so a source outside this table fails closed in
- * `parseVariable`, and a data update extends this table beside its
- * provenance record. No pattern is ever built from data at run time
- * (semgrep detect-non-literal-regexp): `parseVariable` only compares the
- * transformed source string against each literal's `source`.
- */
+Every `match="…"` source the pinned SPDX templates use, each compiled
+once as a literal with its wildcards captured (the `wildcardSource`
+shape). The set is closed: the template bytes are pinned by SHA-256 in
+`data/provenance.json`, so a source outside this table fails closed in
+`parseVariable`, and a data update extends this table beside its
+provenance record. No pattern is ever built from data at run time
+(semgrep detect-non-literal-regexp): `parseVariable` only compares the
+transformed source string against each literal's `source`.
+*/
 const VARIABLE_WILDCARD_PATTERNS: readonly RegExp[] = [
   /^(?:(?:)|(?: of the theme))$/iu,
   /^(?:(?:SOFTWARE)|(?:THEME))$/iu,
@@ -425,10 +425,10 @@ const VARIABLE_WILDCARD_PATTERNS: readonly RegExp[] = [
 ]
 
 /**
- * Every wildcard literal above, found by its `source`. A regex literal
- * must escape `/` as `\/` while the template `match` sources spell it
- * bare, so the key drops that escape before comparing.
- */
+Every wildcard literal above, found by its `source`. A regex literal
+must escape `/` as `\/` while the template `match` sources spell it
+bare, so the key drops that escape before comparing.
+*/
 const VARIABLE_WILDCARDS: ReadonlyMap<string, RegExp> = new Map<string, RegExp>(
   VARIABLE_WILDCARD_PATTERNS.map((compiled): [string, RegExp] => [
     compiled.source.replaceAll(String.raw`\/`, '/'),
@@ -555,12 +555,12 @@ function firstSetsOf(program: readonly Instruction[]): ReadonlySet<string>[] {
 }
 
 /**
- * The words a title line may hold (SPDX guideline: a license's name or
- * title is ignored when it is only the title): the template's leading
- * optional part, its id's parts, and "the license version". A first line
- * made only of these (`The MIT License (MIT)`, `BSD 3-Clause License`)
- * carries no terms.
- */
+The words a title line may hold (SPDX guideline: a license's name or
+title is ignored when it is only the title): the template's leading
+optional part, its id's parts, and "the license version". A first line
+made only of these (`The MIT License (MIT)`, `BSD 3-Clause License`)
+carries no terms.
+*/
 function titleVocabularyOf(
   nodes: readonly ParsedNode[],
   id: string,
@@ -635,10 +635,10 @@ function noticeEntriesOf(program: readonly Instruction[]): Map<number, number[]>
 }
 
 /**
- * Load and verify the pinned templates under `directory`: each file's
- * SHA-256 must equal its provenance record, or it is left out and named
- * in `problems`, so it can never match (fail closed).
- */
+Load and verify the pinned templates under `directory`: each file's
+SHA-256 must equal its provenance record, or it is left out and named
+in `problems`, so it can never match (fail closed).
+*/
 export function loadLicenseTemplates(
   directory: string,
   files: readonly SpdxTemplateFile[] = SPDX_TEMPLATE_FILES,
@@ -684,10 +684,10 @@ export function loadLicenseTemplates(
 const loaded = new Map<string, LicenseTemplateSet>()
 
 /**
- * The verified template set the scanner matches against, loaded once
- * from `legal-data/` beside this module: the source tree and `dist/`
- * (where the build copies it next to `legalScan.js`) share that layout.
- */
+The verified template set the scanner matches against, loaded once
+from `legal-data/` beside this module: the source tree and `dist/`
+(where the build copies it next to `legalScan.js`) share that layout.
+*/
 export function licenseTemplateSet(): LicenseTemplateSet {
   const set =
     loaded.get(PINNED_LEGAL_DATA_DIRECTORY) ?? loadLicenseTemplates(PINNED_LEGAL_DATA_DIRECTORY)
@@ -720,13 +720,13 @@ function isNameWord(word: string, lower: string, vocabulary: ReadonlySet<string>
 }
 
 /**
- * Whether text reads only as a name: capitalised words,
- * numbers, contacts and a closed set of particles, with
- * at most eight tokens and periods only after a company abbreviation.
- * A terminator, lowercase prose, a sentence after an abbreviation,
- * restriction vocabulary in any case, or text in a script without letter
- * case never passes.
- */
+Whether text reads only as a name: capitalised words,
+numbers, contacts and a closed set of particles, with
+at most eight tokens and periods only after a company abbreviation.
+A terminator, lowercase prose, a sentence after an abbreviation,
+restriction vocabulary in any case, or text in a script without letter
+case never passes.
+*/
 function isNameShaped(
   text: string,
   vocabulary: ReadonlySet<string>,
@@ -786,11 +786,11 @@ const WORK_LEAD_IN_WORDS: ReadonlySet<string> = new Set(
 )
 
 /**
- * A notice line from its first copyright marker, when what precedes the
- * marker only names the work (`Portions Copyright …`, `pngjs original
- * work Copyright …`): closed lead-in words plus at most one name word,
- * never restriction vocabulary or a terminator. Otherwise the line as is.
- */
+A notice line from its first copyright marker, when what precedes the
+marker only names the work (`Portions Copyright …`, `pngjs original
+work Copyright …`): closed lead-in words plus at most one name word,
+never restriction vocabulary or a terminator. Otherwise the line as is.
+*/
 function withoutWorkLeadIn(line: string, restricted: ReadonlySet<string>): string {
   const at = line.search(/\b(?:copyright\b|copr\.)|\(c\)|©/iu)
   if (at <= 0) return line
@@ -807,10 +807,10 @@ function withoutWorkLeadIn(line: string, restricted: ReadonlySet<string>): strin
 }
 
 /**
- * Whether text is only copyright notices: each line opens with a marker
- * (or is `All rights reserved`); a variable whose original carries no
- * marker also accepts one unmarked notice line.
- */
+Whether text is only copyright notices: each line opens with a marker
+(or is `All rights reserved`); a variable whose original carries no
+marker also accepts one unmarked notice line.
+*/
 // Closed notice-only forms captured from react, smol-toml, highlight.js
 // and parse5 (CM971R5). Strip only the literal collectives/contact shape;
 // the remaining holder still passes every strict name/restriction guard.
@@ -884,11 +884,11 @@ function hasRoleShape(variable: TemplateVariable, raw: string, value: string): b
 }
 
 /**
- * A variable's verdict on candidate text: `accept`, `pattern` (outside
- * the SPDX pattern: not a candidate at all) or `shape` (inside the
- * pattern but not the shape of what the variable stands for, so the text
- * is a difference to report).
- */
+A variable's verdict on candidate text: `accept`, `pattern` (outside
+the SPDX pattern: not a candidate at all) or `shape` (inside the
+pattern but not the shape of what the variable stands for, so the text
+is a difference to report).
+*/
 function judgeVariable(
   variable: TemplateVariable,
   raw: string,
@@ -921,17 +921,12 @@ interface AlignInput {
 }
 
 /**
- * Whether the template matches the input from token `from` to the end: a
- * backtracking walk over the compiled program, memoizing dead
- * (instruction, position) states, trying each variable's candidate ends
- * only where the template's next token can follow.
- */
-function isAligned(
-  template: LicenseTemplate,
-  input: AlignInput,
-  from: number,
-  failure: Failure,
-): boolean {
+Whether the template matches the input from the start to the end: a
+backtracking walk over the compiled program, memoizing dead
+(instruction, position) states, trying each variable's candidate ends
+only where the template's next token can follow.
+*/
+function isAligned(template: LicenseTemplate, input: AlignInput, failure: Failure): boolean {
   const { program, firstSets } = template
   const { tokens, text, equivalences } = input
   const dead = new Set<number>()
@@ -988,7 +983,7 @@ function isAligned(
       return isMatched
     }
   }
-  return isRunMatched(0, from)
+  return isRunMatched(0, 0)
 }
 
 function lineEnd(text: string, from: number): number {
@@ -1028,11 +1023,11 @@ function differenceOf(
 }
 
 /**
- * The tokens without title lines: among the first few lines, a line made
- * only of the template's title words (`The MIT License (MIT)`, or `MIT
- * License` written after the copyright line) carries no terms. Undefined
- * when there is no such line.
- */
+The tokens without title lines: among the first few lines, a line made
+only of the template's title words (`The MIT License (MIT)`, or `MIT
+License` written after the copyright line) carries no terms. Undefined
+when there is no such line.
+*/
 function withoutTitleLines(
   template: LicenseTemplate,
   tokens: readonly Token[],
@@ -1053,11 +1048,11 @@ function withoutTitleLines(
 }
 
 /**
- * Read a text against the pinned templates: exact when some template
- * aligns with all of its fixed text and every variable holds only what
- * its role allows; otherwise the closest template, when close enough,
- * with the first differing span. `undefined` when no template is close.
- */
+Read a text against the pinned templates: exact when some template
+aligns with all of its fixed text and every variable holds only what
+its role allows; otherwise the closest template, when close enough,
+with the first differing span. `undefined` when no template is close.
+*/
 export function readLicenseText(
   text: string,
   set: LicenseTemplateSet = licenseTemplateSet(),
@@ -1108,14 +1103,14 @@ export function readLicenseText(
       withoutEdgeNotices(untitled, text, set.equivalences.restrictionWords),
     ])
     for (const variant of variants) {
-      if (isAligned(template, { ...input, tokens: variant }, 0, newFailure()))
+      if (isAligned(template, { ...input, tokens: variant }, newFailure()))
         return { key: template.key, exact: true, similarity }
     }
   }
   const closest = ranked[0]
   if (closest === undefined || closest.similarity < LEGAL_TEMPLATE_SIMILARITY_MIN) return undefined
   const failure = newFailure()
-  isAligned(closest.template, input, 0, failure)
+  isAligned(closest.template, input, failure)
   return {
     key: closest.template.key,
     exact: false,
@@ -1125,10 +1120,10 @@ export function readLicenseText(
 }
 
 /**
- * The tokens without copyright-notice lines at the start or end (up to
- * three each): a notice outside the template's own slot carries no terms
- * when it passes the same notice check a copyright variable applies.
- */
+The tokens without copyright-notice lines at the start or end (up to
+three each): a notice outside the template's own slot carries no terms
+when it passes the same notice check a copyright variable applies.
+*/
 function withoutEdgeNotices(
   tokens: readonly Token[],
   text: string,

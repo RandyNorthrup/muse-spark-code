@@ -1,5 +1,3 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -22,6 +20,9 @@ import {
   runEvalVerifier,
   type EvalVerdict,
 } from '../../../src/core/eval/workspace'
+import { noWorkspaceChildEnvironment } from '../../../src/core/execGuard'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { removeFolder } from '../helpers/temporaryFolders'
 import { EVAL_CANONICAL_FIXES, EVAL_OTHER_FIXES, fixesFor, withFixes } from './evalFixes'
 
@@ -43,6 +44,11 @@ const WINDOWS_REQUIRED_VARIABLES = [
   'USERPROFILE',
   'WINDIR',
 ]
+// The guard's own safety variable, set by `noWorkspaceChildEnvironment` (not
+// inherited from the run): the verifier executes model-written files (`load`
+// in the prelude), so a bare name it starts must never resolve from its
+// working directory on Windows either.
+const WINDOWS_PRODUCT_VARIABLES = ['NODEFAULTCURRENTDIRECTORYINEXEPATH']
 // Made when the suite starts, so a run that skips every test leaves no folder.
 const temporary = { parent: '' }
 
@@ -205,7 +211,10 @@ describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, 
     try {
       // CoreFoundation generates this even with env:{} and no parent value.
       const posixAllowed = process.platform === 'darwin' ? ['__CF_USER_TEXT_ENCODING'] : []
-      const allowed = process.platform === 'win32' ? WINDOWS_REQUIRED_VARIABLES : posixAllowed
+      const allowed =
+        process.platform === 'win32'
+          ? [...WINDOWS_REQUIRED_VARIABLES, ...WINDOWS_PRODUCT_VARIABLES]
+          : posixAllowed
       const verdict = await verdictOf(
         probeTask(
           [
@@ -227,6 +236,15 @@ describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, 
         }
       }
     }
+  })
+
+  it('gives the Windows verifier only the guard variable besides what libuv adds', () => {
+    // The platform is a parameter, so this proves the Windows allowlist on
+    // every host: an empty run environment becomes exactly the guard's own
+    // safety variable, never a variable of the run.
+    expect(noWorkspaceChildEnvironment('win32', {}, (filePath) => filePath)).toEqual({
+      NoDefaultCurrentDirectoryInExePath: '1',
+    })
   })
 
   it('keeps the assertion, not the stack or the temporary path', async () => {

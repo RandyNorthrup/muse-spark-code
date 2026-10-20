@@ -74,22 +74,22 @@ export interface CliHelpTopic {
   /** Two real, runnable examples, with the executable's name filled in. */
   readonly examples: readonly ((command: string) => string)[]
   /**
-   * The command's exit sentence, with its codes. The codes come from the
-   * command's own exit table (EXEC_EXIT, REPORT_EXIT_CODES, LEGAL_EXIT, or
-   * the CLI-wide CLI_EXIT), never typed by hand; the guard test fails when
-   * the sentence names a code the table does not hold, or misses one.
-   */
+  The command's exit sentence, with its codes. The codes come from the
+  command's own exit table (EXEC_EXIT, REPORT_EXIT_CODES, LEGAL_EXIT, or
+  the CLI-wide CLI_EXIT), never typed by hand; the guard test fails when
+  the sentence names a code the table does not hold, or misses one.
+  */
   readonly exits: (table: UiText) => string
   readonly exitCodes: readonly number[]
 }
 
 /**
- * Bounds and defaults from shared constants; the parser owns the values. A
- * lookup function rather than a keyed record: the keys would be the option
- * names, and `max-budget-usd` as a declared key holding a number is exactly
- * what the M121 exact-money guard refuses (a CLI display bound is none of
- * its sanctioned kinds). The values stay the shared constants.
- */
+Bounds and defaults from shared constants; the parser owns the values. A
+lookup function rather than a keyed record: the keys would be the option
+names, and `max-budget-usd` as a declared key holding a number is exactly
+what the M121 exact-money guard refuses (a CLI display bound is none of
+its sanctioned kinds). The values stay the shared constants.
+*/
 function factFor(name: string): CliOptionFact | undefined {
   switch (name) {
     case 'backend': {
@@ -204,9 +204,9 @@ const GENERIC_EXITS = {
 } as const
 
 /**
- * share/prompts exit on their handler's own codes: the CLI-wide row plus
- * EXEC_EXIT.denied for a cancelled or refused share (sharing/commands.ts).
- */
+share/prompts exit on their handler's own codes: the CLI-wide row plus
+EXEC_EXIT.denied for a cancelled or refused share (sharing/commands.ts).
+*/
 const SHARING_EXITS = {
   exits: (table: UiText) => table.sharingExits,
   exitCodes: [CLI_EXIT.ok, EXEC_EXIT.denied, CLI_EXIT.usage, CLI_EXIT.failure],
@@ -560,10 +560,10 @@ export function topicOptionNames(topic: CliHelpTopic): string[] {
 }
 
 /**
- * Accepted by the parser but not offered yet: automatic compaction until its
- * evaluation passes, and the dormant schedule-v2 admission flag. Help and
- * refusals never name them, as the compact usage never has.
- */
+Accepted by the parser but not offered yet: automatic compaction until its
+evaluation passes, and the dormant schedule-v2 admission flag. Help and
+refusals never name them, as the compact usage never has.
+*/
 function isDormantOption(name: string): boolean {
   return (
     name === 'scheduled-prompts' ||
@@ -577,10 +577,10 @@ export function topicShownOptionNames(topic: CliHelpTopic): string[] {
 }
 
 /**
- * Option descriptions come from the installed language's table. A route's
- * `text` map picks a route-specific description (share's message range, not
- * the generic from/to); otherwise the option name is the key.
- */
+Option descriptions come from the installed language's table. A route's
+`text` map picks a route-specific description (share's message range, not
+the generic from/to); otherwise the option name is the key.
+*/
 function optionMeaning(table: UiText, route: CliHelpRoute | undefined, name: string): string {
   const meanings: Readonly<Record<string, string>> = table.referenceCliOptions
   if (route !== undefined) {
@@ -698,10 +698,10 @@ export function renderTopHelp(table: UiText, command: string): string {
 }
 
 /**
- * Words that mark an unknown option as a possible credential route: such a
- * name is never repeated in the refusal, so a mistyped secret flag cannot
- * reach the terminal output, logs or reports.
- */
+Words that mark an unknown option as a possible credential route: such a
+name is never repeated in the refusal, so a mistyped secret flag cannot
+reach the terminal output, logs or reports.
+*/
 const SECRET_OPTION_WORDS: readonly string[] = [
   'secret',
   'token',
@@ -725,11 +725,11 @@ export function isSecretLookingOption(name: string): boolean {
 }
 
 /**
- * A wrong option or value: one sentence naming the option and the accepted
- * values, the nearest valid option when the name is close, and the command's
- * own help. Nothing is run; the caller exits 2. A secret-looking name is
- * refused without repeating it.
- */
+A wrong option or value: one sentence naming the option and the accepted
+values, the nearest valid option when the name is close, and the command's
+own help. Nothing is run; the caller exits 2. A secret-looking name is
+refused without repeating it.
+*/
 export function unknownOptionReason(
   table: UiText,
   command: string,
@@ -755,11 +755,11 @@ export function unknownOptionReason(
 }
 
 /**
- * Parsed but not shown in the topic's help: refused outright on that route
- * or accepted and ignored there (the reference contract's `refused` and
- * `acceptedUnused`). The guard test requires every registry option to be
- * either in its topic or in this map, so a parsed option cannot hide.
- */
+Parsed but not shown in the topic's help: refused outright on that route
+or accepted and ignored there (the reference contract's `refused` and
+`acceptedUnused`). The guard test requires every registry option to be
+either in its topic or in this map, so a parsed option cannot hide.
+*/
 /** `auth status` and `auth clear` refuse and ignore the same flags. */
 const AUTH_STATUS_CLEAR_NON_TOPIC: readonly string[] = [
   'usage-history',

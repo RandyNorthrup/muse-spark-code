@@ -57,9 +57,9 @@ function certaintyLabel(certainty: ScheduleFireRecord['cost']['certainty']): Rep
 }
 
 /** The honest lifecycle word for a schedule row. `nowMs` is the report's own
- * request stamp (`options.asOf`), never the clock, so the pure collector
- * stays deterministic. Paused wins over ended: a paused schedule that also
- * reached its end is still switched off, not due. */
+request stamp (`options.asOf`), never the clock, so the pure collector
+stays deterministic. Paused wins over ended: a paused schedule that also
+reached its end is still switched off, not due. */
 function scheduleStatus(
   schedule: ScheduleV2,
   nowMs: number,

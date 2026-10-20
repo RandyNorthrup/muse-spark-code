@@ -138,10 +138,10 @@ function classifyIpv6(address: string): EndpointAddressClass {
 }
 
 /**
- * What an IP address is for the endpoint policy. Anything that is not an
- * address at all is unusable. Metadata is checked before its block
- * (169.254.169.254 is link-local, fd00:ec2::254 is unique-local).
- */
+What an IP address is for the endpoint policy. Anything that is not an
+address at all is unusable. Metadata is checked before its block
+(169.254.169.254 is link-local, fd00:ec2::254 is unique-local).
+*/
 export function classifyAddress(address: string): EndpointAddressClass {
   if (isIPv4(address)) {
     return classifyIpv4(address)
@@ -176,10 +176,10 @@ const HTTPS_SCHEME = 'https:'
 const DEFAULT_PORTS: Readonly<Record<string, number>> = { 'http:': 80, 'https:': 443 }
 
 /**
- * The origin (`scheme://host[:port]`) a credential binds to: the scheme and
- * host lowercased, a default port dropped. Undefined for an invalid URL or
- * one with user information, a query or a fragment.
- */
+The origin (`scheme://host[:port]`) a credential binds to: the scheme and
+host lowercased, a default port dropped. Undefined for an invalid URL or
+one with user information, a query or a fragment.
+*/
 export function originOf(urlText: string): string | undefined {
   let url: URL
   try {
@@ -202,12 +202,12 @@ function refusal(reason: EndpointRefusalReason): EndpointVerdict {
 }
 
 /**
- * Check an endpoint URL against the resolved answers for its name (an
- * IP-literal host is its own single answer). HTTPS only, except to
- * loopback; no userinfo, query or fragment; link-local, metadata and
- * unusable answers refused; a public name resolving to anything but public
- * refused; an all-private HTTPS address asks once (`confirm-private`).
- */
+Check an endpoint URL against the resolved answers for its name (an
+IP-literal host is its own single answer). HTTPS only, except to
+loopback; no userinfo, query or fragment; link-local, metadata and
+unusable answers refused; a public name resolving to anything but public
+refused; an all-private HTTPS address asks once (`confirm-private`).
+*/
 export function checkEndpointUrl(urlText: string, answers: readonly string[]): EndpointVerdict {
   let url: URL
   try {
@@ -273,12 +273,12 @@ export function checkEndpointUrl(urlText: string, answers: readonly string[]): E
 }
 
 /**
- * Re-check a saved endpoint's answers before a request (the transport does
- * this every time): `ok` only while every answer is still diallable and in
- * the saved network. A private network saved after its one question stays
- * usable; anything that moved (rebinding, a new link-local or metadata
- * answer) refuses.
- */
+Re-check a saved endpoint's answers before a request (the transport does
+this every time): `ok` only while every answer is still diallable and in
+the saved network. A private network saved after its one question stays
+usable; anything that moved (rebinding, a new link-local or metadata
+answer) refuses.
+*/
 export function verifyRequestAnswers(
   saved: EndpointNetwork,
   answers: readonly string[],

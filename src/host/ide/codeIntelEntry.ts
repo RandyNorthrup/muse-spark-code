@@ -14,10 +14,10 @@ import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 
 /**
- * One `ide` tool's answer. A refusal rejects with its reason, so the server
- * answers with an error result the model reads. `renameSymbol` writes
- * nothing: it returns the edits as a diff.
- */
+One `ide` tool's answer. A refusal rejects with its reason, so the server
+answers with an error result the model reads. `renameSymbol` writes
+nothing: it returns the edits as a diff.
+*/
 export async function callCodeIntel(
   tool: CodeIntelTool,
   args: Readonly<Record<string, unknown>>,

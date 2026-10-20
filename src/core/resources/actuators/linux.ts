@@ -30,8 +30,8 @@ const prioritySchema = z.strictObject({
 type LinuxPriority = z.infer<typeof prioritySchema>
 
 /** M96 K's native boundary must check group/cgroup AND exact start identity before each syscall.
- * It must use absolute renice/ionice paths, credential-free environments, no elevation,
- * and return null on failed readback. */
+It must use absolute renice/ionice paths, credential-free environments, no elevation,
+and return null on failed readback. */
 export interface LinuxProcessPriorityPort {
   read(ticket: ResourceTicket, identity: ResourceProcessIdentity): Promise<LinuxPriority | null>
   nice(

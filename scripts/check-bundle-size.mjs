@@ -19,8 +19,8 @@ const WHATS_NEW_CONTENT_BUDGET_KIB = 40
 const QUESTION_UI_BUDGET_KIB = 25
 
 /**
- * @type {ReadonlyArray<{ path: string; budgetKiB: number }>}
- */
+@type {ReadonlyArray<{ path: string; budgetKiB: number }>}
+*/
 const BUDGETS = [
   // M113 W: new entries, each measured +15%, rounded to 25 KiB.
   // MSM113 (estimate kind wired end to end): 220.4 KiB measured +15% =
@@ -49,6 +49,9 @@ const BUDGETS = [
   // Keep M112's original cap; M105's inherited temporary increase is removed.
   { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
   { path: 'dist/questionNotes.js', budgetKiB: 25 },
+  // PR251FIX3B: the Muse Code approval-mode effect and reviewer-profile sync,
+  // off activation; measured 22.88 KiB when split out, +15% rounded up to 27 KiB (PLAN.md D6).
+  { path: 'dist/approvalModes.js', budgetKiB: 27 },
   { path: 'dist/extension.js', budgetKiB: 600 },
   // M107: 89.5 / 1.8 KiB measured; +15%, rounded up to 25 KiB.
   { path: 'dist/resourceGovernor.js', budgetKiB: 125 },
@@ -267,6 +270,10 @@ const BUDGETS = [
   // vscode.git is missing, split out of dist/conversationGit.js at 87.8 KiB
   // measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/nativeGit.js', budgetKiB: 125 },
+  // The guarded process-start layer (PLAN.md D24) beside activation, required
+  // by every Node bundle that starts a program or builds a child
+  // environment: 16.0 KiB measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/execGuard.js', budgetKiB: 25 },
   // M89: the bundled skills installer for Muse Code (the copy, the links and
   // zod's parser for the vendor record and the mark), loaded on first use:
   // 22.6 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.

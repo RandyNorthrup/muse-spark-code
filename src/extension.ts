@@ -4,17 +4,12 @@ import {
   paidExtraAdmission,
   passthroughSpendClaim,
 } from './core/paid/spendClaim'
-import {
-  createSchedulesBridge,
-  registerScheduleCommands,
-  scheduleWindowWorkspace,
-} from './host/schedules/schedulesBridge'
+import { scheduleWindowWorkspace } from './host/schedules/schedulesBridge'
 import type { ScheduleEditorDeliveryPorts } from './host/schedules/deliveryBinding'
 import type { BackendSession } from './host/schedules/backgroundTarget'
 import type { StartSessionOptions } from './core/agent/agentBackend'
 import type { ScheduleV2 } from './shared/scheduleV2'
 import { isChildTurn } from './shared/agentEvents'
-import { notify } from './core/events/notify'
 import { unlessAborted } from './core/timeouts'
 import {
   PAID_APPROVAL_ORDER_DIRECTORY,
@@ -138,61 +133,146 @@ import {
   isUsageWriterBundle,
   type UsageRecording,
 } from './core/usage/recording'
-import { agentDataFolder, workspaceKey } from './runtime/dataFolder'
-import { requireFile } from './host/lazyBundle'
-import { isJudgeEngineOn } from './core/judge/engine'
-import { promptBundleLoader } from './host/prompts/promptBundle'
-import type { createPromptHost } from './host/prompts/promptEntry'
-import { judgeWindowPort } from './host/judge/judgeBundle'
 import { isCodedError } from './core/workspaceRoot'
+import type { createPromptHost } from './host/prompts/promptEntry'
 
-import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
-import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
-import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
-import { reportingCheckJournal } from './host/reporting/reportCheckBundle'
-import { reportPanelLoader } from './host/reporting/reportPanelBundle'
 import type { ReportPanel } from './host/reporting/reportPanel'
 
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { homedir, hostname, userInfo } from 'node:os'
-import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
 import type { UsagePanel } from './host/usage/usagePanel'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { AgentHost, BackendKind } from './core/agent/agentBackend'
-import { environmentValue } from './core/childEnvironment'
-import { terminalEnvironment } from './core/backends/musecode/launch'
-import { confineWorkspacePath, resolveWorkspacePath } from './core/workspacePath'
-import { isProtectedPath } from './core/protectedPaths'
+
 import type { EditedFile } from './core/verify/diagnosticsReport'
-import { readBackendChoice } from './core/backendSelection'
-import { personalAgentsRoot } from './core/context/customAgents'
 import {
   bundledSkillSourcesRoot,
   bundledSkillsPackageRoot,
   firstPartySkillsRoot,
   personalSkillsRoot,
 } from './core/context/skills'
-import { memoryDataRoot } from './core/memory/memoryLocation'
-import { isSamePath } from './core/paths'
-import { terminalArgument } from './core/shellQuote'
 import type * as ReportBundle from './host/support/reportEntry'
-import { isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
-import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry, diagnosticsTool } from './core/diagnostics'
 import type { EditorContext } from './core/editorContext'
 import type { MentionSource } from './core/mention'
-import { MentionIndex } from './core/mentionIndex'
 import {
   type FolderLookup,
   hostSideUri,
   resolveAgainstRoot,
   rootRelativePath,
 } from './core/workspaceRoot'
+import type { QuestionStore } from './shared/questions'
+import {
+  museSettingsPath,
+  readDelegationMode,
+  readWorkflowTriggerMode,
+} from './host/backend/museSettings'
+import type { CreateRulesFileDeps } from './host/commands/createRulesFile'
+import type {
+  ConversationController,
+  ConversationReports,
+  FileAccess,
+  PickedFile,
+  SessionMemory,
+} from './host/conversation/conversationController'
+import type { ReportDataSource } from './host/conversation/reportProblemHandler'
+
+import {
+  TAB_BUNDLE_FILE,
+  TAB_CONSENT_STATE_KEY,
+  TAB_LEDGER_DIR,
+  TAB_SNOOZE_STATE_KEY,
+  type TabFilesExclude,
+  createTabActivation,
+  createTabConsent,
+  tabPriceFingerprint,
+  tabTextChangeEvent,
+  deferredRefresh,
+} from './host/tab/tabBundle'
+import {
+  bundledSkillsLoader,
+  createBundledSkillsOffer,
+  type BundledSkillsCommandDeps,
+} from './host/skills/bundledSkills'
+import {
+  conversationGitFactory,
+  conversationGitLoader,
+  gitFeaturesLoader,
+  openPullRequestInConversation,
+} from './host/git/conversationGitBundle'
+import type { ExtensionHookRunner } from './host/extensionHooksEntry'
+import {
+  configureResources,
+  loadResourceWindow,
+  onResourceWindow,
+} from './core/resources/admission'
+import {
+  createCheckpointPort,
+  finishCheckpointTurn,
+  prepareCheckpointTurn,
+  withCheckpointStorageGuard,
+  withCheckpointEdit,
+  withCheckpointEditAt,
+} from './host/checkpoints/checkpointHost'
+import type * as RecorderBundle from './host/support/recorderEntry'
+import {
+  changedSettingNames,
+  extensionReportFacts,
+  manifestSettingNames,
+  reportScrubContext,
+} from './host/support/reportFacts'
+import type { ChatSurface } from './host/views/chatSurface'
+import type { WebviewHostContext } from './host/views/webviewSetup'
+import {
+  modelsPanelLoader,
+  providerCredentials,
+  recoverProviderRemovals,
+} from './host/models/modelsPanelBundle'
+import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
+import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
+
+import type { AccountFacts } from './shared/usage'
+import { terminalEnvironment } from './core/backends/musecode/launch'
+import { environmentValue } from './core/execGuard'
+import {
+  createToolIo,
+  runResourceCommand as runProcess,
+  readPickedFile,
+  toolImagePreviewIo,
+  terminalPlatform,
+  withTerminalOverrides,
+} from './host/backend/toolIo'
+import { hookEnvironment } from './core/execGuard'
+import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
+import { NO_WORKSPACE } from './core/executables'
+import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
+import { notify } from './core/events/notify'
+import { agentDataFolder, workspaceKey } from './runtime/dataFolder'
+import { requireFile } from './host/lazyBundle'
+import { isJudgeEngineOn } from './core/judge/engine'
+import { promptBundleLoader } from './host/prompts/promptBundle'
+import { judgeWindowPort } from './host/judge/judgeBundle'
+import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
+import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
+import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
+import { reportingCheckJournal } from './host/reporting/reportCheckBundle'
+import { reportPanelLoader } from './host/reporting/reportPanelBundle'
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { homedir, hostname, userInfo } from 'node:os'
+import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
+import { confineWorkspacePath, resolveWorkspacePath } from './core/workspacePath'
+import { isProtectedPath } from './core/protectedPaths'
+import { readBackendChoice } from './core/backendSelection'
+import { personalAgentsRoot } from './core/context/customAgents'
+import { memoryDataRoot } from './core/memory/memoryLocation'
+import { isSamePath } from './core/paths'
+import { terminalArgument } from './core/shellQuote'
+import { isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
+import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry, diagnosticsTool } from './core/diagnostics'
+import { MentionIndex } from './core/mentionIndex'
 import { keychainItemPresence } from './core/backends/musecode/credentialFile'
 import { AccountHosts, connectAccountSession } from './host/auth/accountHost'
 import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
@@ -210,51 +290,27 @@ import { SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
 import { fileSessionBundleApi, lazyFileSessionStore } from './host/backend/fileSessionStoreBundle'
-import type { QuestionStore } from './shared/questions'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
 import { mcpJobExecutable, sealedMcpJobExecutable } from './host/backend/mcpJobExecutable'
 import { createCheckpointedMemory } from './host/backend/checkpointedMemory'
 import { systemPath } from './host/backend/memoryIo'
-import {
-  museSettingsPath,
-  readDelegationMode,
-  readWorkflowTriggerMode,
-} from './host/backend/museSettings'
 import { type ShellJobDeps, shellJobAssembly } from './host/backend/shellJob'
-import {
-  createToolIo,
-  runResourceCommand as runProcess,
-  readPickedFile,
-  toolImagePreviewIo,
-  hookEnvironment,
-  terminalPlatform,
-  withTerminalOverrides,
-} from './host/backend/toolIo'
 import { pluginContainment } from './host/backend/pluginContainment'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { createRevertIo } from './host/editor/revertIo'
 import { createVerifyEditor } from './host/editor/verifyEditor'
 import { verifyGuidance } from './core/verify/checkCommands'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
-import type { CreateRulesFileDeps } from './host/commands/createRulesFile'
 import { loadRulesFileBundle } from './host/commands/rulesFileBundle'
 import { insertMentionReference } from './host/commands/insertMention'
 import { openMuseTerminal, type TerminalLaunchOptions } from './host/commands/openInTerminal'
 import { toggleInputFocus } from './host/commands/focusInput'
 import { toggleFocusView } from './host/commands/toggleFocusView'
-import type {
-  ConversationController,
-  ConversationReports,
-  FileAccess,
-  PickedFile,
-  SessionMemory,
-} from './host/conversation/conversationController'
 import { conversationLoader } from './host/conversation/conversationBundle'
 import { restartConversationBackends } from './host/conversation/conversationBackends'
 import { BackgroundNotifier } from './host/conversation/turnNotifications'
 import { vscodeBackgroundNoticeDeps } from './host/conversation/vscodeBackgroundNotices'
-import type { ReportDataSource } from './host/conversation/reportProblemHandler'
 import { canonicalPath } from './host/canonicalPath'
 import { loadToolImage } from './core/toolImages'
 import { modelApiClientLoader } from './host/backend/modelApiBundle'
@@ -278,35 +334,12 @@ import { legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBun
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
-import {
-  TAB_BUNDLE_FILE,
-  TAB_CONSENT_STATE_KEY,
-  TAB_LEDGER_DIR,
-  TAB_SNOOZE_STATE_KEY,
-  type TabFilesExclude,
-  createTabActivation,
-  createTabConsent,
-  tabPriceFingerprint,
-  tabTextChangeEvent,
-  deferredRefresh,
-} from './host/tab/tabBundle'
 import { createCliFeatures } from './host/cliFeatures'
 import { hasIgnoreFile } from './host/tab/tabIgnoreFile'
-import {
-  bundledSkillsLoader,
-  createBundledSkillsOffer,
-  type BundledSkillsCommandDeps,
-} from './host/skills/bundledSkills'
 import { hasClaimedVersion, createWhatsNew } from './host/whatsNew/whatsNew'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
-import {
-  conversationGitFactory,
-  conversationGitLoader,
-  gitFeaturesLoader,
-  openPullRequestInConversation,
-} from './host/git/conversationGitBundle'
 import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { lazyEstimator } from './host/estimator/estimatorBundle'
@@ -318,35 +351,13 @@ import { createMemoryFeatures } from './host/memoryFeatures'
 import { createPlanFiles, createPlanIo } from './host/planFeatures'
 import { planMarkdownLoader } from './host/planMarkdownBundle'
 import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensionHooksBundle'
-import type { ExtensionHookRunner } from './host/extensionHooksEntry'
 import { showPickOne } from './host/quickPick'
-import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
-import {
-  configureResources,
-  loadResourceWindow,
-  onResourceWindow,
-} from './core/resources/admission'
 import { createResourceWindow } from './host/resources/resourceWindow'
-import {
-  createCheckpointPort,
-  finishCheckpointTurn,
-  prepareCheckpointTurn,
-  withCheckpointStorageGuard,
-  withCheckpointEdit,
-  withCheckpointEditAt,
-} from './host/checkpoints/checkpointHost'
 import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
 import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
 import { isProcessAlive } from './host/checkpoints/windowPresence'
 import { ReportRecorder } from './host/support/reportRecorder'
-import type * as RecorderBundle from './host/support/recorderEntry'
 import { vscodeReportEditorIo } from './host/support/reportEditorIo'
-import {
-  changedSettingNames,
-  extensionReportFacts,
-  manifestSettingNames,
-  reportScrubContext,
-} from './host/support/reportFacts'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
 import { failureForLog } from './core/backends/musecode/logText'
 import {
@@ -365,8 +376,6 @@ import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvi
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
 import { TasksPanel } from './host/views/tasksPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
-import type { ChatSurface } from './host/views/chatSurface'
-import type { WebviewHostContext } from './host/views/webviewSetup'
 import { loadUiTable, readUiTableFile } from './host/l10n'
 import type { InsightsReader } from './runtime/usage/traceLogs'
 import type { DictationSetup } from './core/voice/dictation'
@@ -381,14 +390,7 @@ import { registerVaultCommands, vaultBundleLoader } from './host/vault/vaultPane
 import { createMigrationShell, type MigrationShell } from './host/vault/migrationShell'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
-import {
-  modelsPanelLoader,
-  providerCredentials,
-  recoverProviderRemovals,
-} from './host/models/modelsPanelBundle'
 import { modelsSubscriptionsLoader } from './host/models/modelsSubscriptionsBundle'
-import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
-import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 import { paidBundleLoader } from './host/paid/paidBundle'
 import type { PaidFeatures } from './host/paid/paidHost'
 import type { askPaidUse as askPaidUseFn } from './host/paid/paidEntry'
@@ -397,9 +399,7 @@ import { authBundleLoader } from './host/auth/authBundle'
 import type { AuthPort, AuthService } from './host/auth/authService'
 
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
-
 import { BACKEND_KINDS, type HostAction } from './shared/protocol'
-import type { AccountFacts } from './shared/usage'
 
 // `context.extension.packageJSON` is typed `any` by VS Code; validate the one
 // field we read instead of trusting it.
@@ -527,12 +527,12 @@ function modifiedAt(fsPath: string): number | undefined {
 }
 
 /**
- * Runs the CLI where the user can see and interact with it. The terminal's
- * shell is pinned so the call syntax is known (PLAN.md D25): Windows
- * PowerShell on Windows (the CLI's own shim shell), `/bin/sh` elsewhere (a
- * default shell of pwsh or nushell would not run `"path" login` as a
- * command). `env` is added to the terminal's own environment.
- */
+Runs the CLI where the user can see and interact with it. The terminal's
+shell is pinned so the call syntax is known (PLAN.md D25): Windows
+PowerShell on Windows (the CLI's own shim shell), `/bin/sh` elsewhere (a
+default shell of pwsh or nushell would not run `"path" login` as a
+command). `env` is added to the terminal's own environment.
+*/
 function runInTerminal(
   cliPath: string,
   args: readonly string[],
@@ -610,10 +610,10 @@ const runGit = processGitRunner()
 const automaticBestOfNGit = processGitRunner({ isAutomatic: true })
 
 /**
- * A tested Windows job helper, compiled once from the shared C# (`jobSource.ts`):
- * the shell tool's job assembly (M27) or the direct MCP stdio launcher (M50).
- * Undefined off Windows.
- */
+A tested Windows job helper, compiled once from the shared C# (`jobSource.ts`):
+the shell tool's job assembly (M27) or the direct MCP stdio launcher (M50).
+Undefined off Windows.
+*/
 function windowsJobHelper<T>(
   build: (deps: ShellJobDeps) => () => Promise<T | undefined>,
   storageDir: string,
@@ -647,21 +647,21 @@ function pathSpellings(fsPath: string): readonly string[] {
 }
 
 /**
- * Set by `activate`: stops the hosts, their turns and their processes; and
- * the window's flight recorder (M93), whose marker a normal exit clears.
- */
+Set by `activate`: stops the hosts, their turns and their processes; and
+the window's flight recorder (M93), whose marker a normal exit clears.
+*/
 const lifecycle: {
   shutdown: (() => Promise<void>) | undefined
   reports: ReportRecorder | undefined
 } = { shutdown: undefined, reports: undefined }
 
 /**
- * VS Code awaits this before the extension host exits (PLAN.md D25): running
- * turns are cancelled and `muse serve` is closed rather than left to the
- * process teardown, while the log channel is still open to say so. Last, the
- * flight recorder clears this activation's marker: only a window that never
- * got here leaves one behind (M93, D72).
- */
+VS Code awaits this before the extension host exits (PLAN.md D25): running
+turns are cancelled and `muse serve` is closed rather than left to the
+process teardown, while the log channel is still open to say so. Last, the
+flight recorder clears this activation's marker: only a window that never
+got here leaves one behind (M93, D72).
+*/
 export async function deactivate(): Promise<void> {
   await lifecycle.shutdown?.()
   lifecycle.shutdown = undefined
@@ -692,10 +692,10 @@ function tabFilesExcludeTable(value: unknown): TabFilesExclude {
 }
 
 /**
- * A command whose failure is logged, with its stack, and said once (M39). A
- * rejected command would otherwise reach only VS Code's Extension Host log.
- * Arguments pass through for the commands that take them (Tab's accept).
- */
+A command whose failure is logged, with its stack, and said once (M39). A
+rejected command would otherwise reach only VS Code's Extension Host log.
+Arguments pass through for the commands that take them (Tab's accept).
+*/
 function registerLoggedCommand(
   log: Logger,
   id: string,
@@ -730,10 +730,10 @@ function isUsageInsightsBundle(value: unknown): value is {
 const EXIT_SIGNAL = /\bSIG[A-Z]{2,6}\b/
 
 /**
- * How Muse Code's process ended, as one word of the recorder's vocabulary
- * (M93, D72): the signal named in the exit's description, or `exited`.
- * The description itself (which can name a path) is never recorded.
- */
+How Muse Code's process ended, as one word of the recorder's vocabulary
+(M93, D72): the signal named in the exit's description, or `exited`.
+The description itself (which can name a path) is never recorded.
+*/
 function exitCodeWord(description: string): string {
   const signal = EXIT_SIGNAL.exec(description)?.[0]
   return signal !== undefined && REPORT_ERROR_CODES.has(signal) ? signal : REPORT_EXIT_CODE
@@ -996,10 +996,10 @@ async function activateWindow(
     )
   }
   /**
-   * Whether the project's own configuration may load (rules, skills, hooks,
-   * MCP servers, and the backends' workspace shell): VS Code trusts the
-   * folder, and the window is not held (M71).
-   */
+  Whether the project's own configuration may load (rules, skills, hooks,
+  MCP servers, and the backends' workspace shell): VS Code trusts the
+  folder, and the window is not held (M71).
+  */
   const isProjectTrusted = () =>
     !nativeStarts.signal.aborted &&
     windowHold.allowsProjectConfiguration(vscode.workspace.isTrusted)
@@ -1416,6 +1416,8 @@ async function activateWindow(
           platform: process.platform,
           systemRoot: process.env['SystemRoot'],
           helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
+          workspaceRoot: workspaceRoot ?? process.cwd(),
+          realpath: realpathSync,
         },
         {
           apiKey: () => credentials.getApiKey(),
@@ -1814,11 +1816,11 @@ async function activateWindow(
   const workflowTriggerMode = () =>
     readWorkflowTriggerMode({ ...museConfig(), readTextFile: readTextFileSync })
   /**
-   * Stops both hosts (PLAN.md D25), or Muse Code alone for fault recovery.
-   * The affected conversations hear it first: a
-   * running turn is cancelled, and unless they end (sign-out, shutdown) the
-   * next message resumes the same session on the new host.
-   */
+  Stops both hosts (PLAN.md D25), or Muse Code alone for fault recovery.
+  The affected conversations hear it first: a
+  running turn is cancelled, and unless they end (sign-out, shutdown) the
+  next message resumes the same session on the new host.
+  */
   const restartBackend = async (
     reason: string,
     isConversationEnding = false,
@@ -1834,11 +1836,11 @@ async function activateWindow(
     )
   }
   /**
-   * Muse Code alone, afresh (CLI recovery): a notice's Restart (a fault's,
-   * the watchdog's) and "Muse Spark: Restart Muse Code". A running turn is
-   * stopped; the new host starts at once, and each conversation resumes
-   * with its next message.
-   */
+  Muse Code alone, afresh (CLI recovery): a notice's Restart (a fault's,
+  the watchdog's) and "Muse Spark: Restart Muse Code". A running turn is
+  stopped; the new host starts at once, and each conversation resumes
+  with its next message.
+  */
   const restartMuseCode = async (reason: string): Promise<void> => {
     await restartBackend(reason, false, true)
     for (const controller of controllers.values()) {
@@ -1846,10 +1848,10 @@ async function activateWindow(
     }
   }
   /**
-   * The CLI in a terminal (`muse logout`, `muse mcp login`, Open in
-   * Terminal), with `museSpark.environmentVariables` as `muse serve` gets
-   * them, so it reads the same config home (the review of PR #49).
-   */
+  The CLI in a terminal (`muse logout`, `muse mcp login`, Open in
+  Terminal), with `museSpark.environmentVariables` as `muse serve` gets
+  them, so it reads the same config home (the review of PR #49).
+  */
   const runCliInTerminal = async (
     cliPath: string,
     args: readonly string[],
@@ -2144,6 +2146,14 @@ async function activateWindow(
         for (const controller of controllers.values()) {
           controller.refreshDictation()
           controller.scheduleWorkspaceChanged()
+        }
+        if (message.status === 'signedIn') {
+          // A panel that opened cold (first open during the auth check, a
+          // later sign-in) never warmed: its host starts now, as when the
+          // panel opens, and the pill leaves "Starting Muse Code…".
+          for (const controller of controllers.values()) {
+            controller.warmUpAfterSignIn()
+          }
         }
         // The walkthrough's sign-in step completes on this context key.
         void vscode.commands.executeCommand(
@@ -3073,7 +3083,9 @@ async function activateWindow(
           shellEnvironmentOf(),
           process.platform,
           [],
-          workspaceRoot === undefined ? undefined : { workspaceRoot, realpath: realpathSync },
+          workspaceRoot === undefined
+            ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+            : { workspaceRoot, realpath: realpathSync },
         ),
       containment: pluginJobs.containment,
     },
@@ -3886,14 +3898,14 @@ async function activateWindow(
     { agent?: BackendSession | undefined; readonly dispose: () => void }
   >()
   /**
-   * The deferred conversation schedule surfaces (dist/scheduleSurfaces.js,
-   * D6): the delivery target readout, the scheduled-question settlement and
-   * the schedules panel commands. Warmed when the schedule wiring builds so
-   * the first delivery finds them; every caller past liveSchedule awaits the
-   * load, while liveSchedule reads the cache synchronously and falls back to
-   * the unattended path only inside the load window, so a first fire still
-   * runs. A bundle that cannot load refuses the run that needed it.
-   */
+  The deferred conversation schedule surfaces (dist/scheduleSurfaces.js,
+  D6): the delivery target readout, the scheduled-question settlement and
+  the schedules panel commands. Warmed when the schedule wiring builds so
+  the first delivery finds them; every caller past liveSchedule awaits the
+  load, while liveSchedule reads the cache synchronously and falls back to
+  the unattended path only inside the load window, so a first fire still
+  runs. A bundle that cannot load refuses the run that needed it.
+  */
   let loadedScheduleSurfaces: typeof ScheduleSurfaces | undefined
   const loadScheduleSurfaces = async (): Promise<typeof ScheduleSurfaces> => {
     if (loadedScheduleSurfaces !== undefined) return loadedScheduleSurfaces
@@ -4960,13 +4972,13 @@ async function activateWindow(
   // nowhere to go, and every broker use refuses while the broker is
   // unavailable instead of opening an empty vault.
   const vaultDir = vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath
-  // A switched-off vault (README's legacy switch) refuses before anything
-  // loads, on every use: its section stays hidden and its commands refuse
-  // closed, without mounting, binding or launching.
+  // A switched-off vault (README's legacy switch) refuses on every use: the
+  // bundle's factories resolve the switch themselves, so its section stays
+  // hidden and its commands refuse closed, without mounting, binding or
+  // launching.
   const vault = vaultBundleLoader({
     bundlePath: path.join(vaultDir, VAULT_BUNDLE_FILE),
     log,
-    on: () => currentSettings()['vault.enabled'],
   })
   let modelsFeatures: ModelsPanelFeatures | undefined
   const ensureModelsFeatures = (): ModelsPanelFeatures => {

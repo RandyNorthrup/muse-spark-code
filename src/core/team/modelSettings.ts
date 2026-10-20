@@ -32,10 +32,10 @@ export type TeamModelSetting =
 export { TEAM_MODEL_SETTINGS } from '../../shared/constants'
 
 /**
- * What M95 knows about one model, reduced to what the settings need: the
- * effort tiers its provider serves, which optional settings it accepts,
- * and whether Meta advises leaving sampling unset.
- */
+What M95 knows about one model, reduced to what the settings need: the
+effort tiers its provider serves, which optional settings it accepts,
+and whether Meta advises leaving sampling unset.
+*/
 export interface TeamModelSettingsSource {
   readonly modelRef: string
   /** The provider's own effort levels, in order (Meta: minimal to xhigh). */
@@ -66,11 +66,11 @@ export interface ResolvedEntrySettings {
 }
 
 /**
- * Exactly the settings the model supports (D75). Meta advises leaving
- * temperature and top-p unset (M94 research A11) and refuses verbosity
- * (M94 research A2), so sampling and verbosity stay hidden for Muse Spark
- * models even where the wire would take them.
- */
+Exactly the settings the model supports (D75). Meta advises leaving
+temperature and top-p unset (M94 research A11) and refuses verbosity
+(M94 research A2), so sampling and verbosity stay hidden for Muse Spark
+models even where the wire would take them.
+*/
 export function supportedSettings(source: TeamModelSettingsSource): readonly TeamModelSetting[] {
   const settings: TeamModelSetting[] = []
   if (source.effortTiers.length > 0) {
@@ -149,11 +149,11 @@ export function roleBaseEffort(role: string): TeamEffortBase {
 }
 
 /**
- * Known effort names used to map a base missing from the supplied tiers.
- * Intensity steps walk the provider's own ordered tiers. M95 supplies
- * only supported tiers: Meta never gets `none`, and `max` only on Standard
- * 1.3 (D75).
- */
+Known effort names used to map a base missing from the supplied tiers.
+Intensity steps walk the provider's own ordered tiers. M95 supplies
+only supported tiers: Meta never gets `none`, and `max` only on Standard
+1.3 (D75).
+*/
 export { TEAM_EFFORT_LADDER } from '../../shared/constants'
 
 export function shiftEffort(base: string, steps: number, tiers: readonly string[]): string {
@@ -187,9 +187,9 @@ function nearestTier(wanted: string, tiers: readonly string[]): string {
 }
 
 /**
- * Default inherits the composer's picker settings, live, shifted by the
- * intensity level's step and clamped to the model's tiers (D75).
- */
+Default inherits the composer's picker settings, live, shifted by the
+intensity level's step and clamped to the model's tiers (D75).
+*/
 export function defaultEntryEffort(
   pickerEffort: string,
   effortSteps: number,

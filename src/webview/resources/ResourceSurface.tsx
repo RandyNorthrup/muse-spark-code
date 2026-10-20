@@ -27,10 +27,10 @@ const noSubscription = () => {
 }
 
 /**
- * Shared by the panel and companion. No status yet, or a governor switched off,
- * renders nothing; a refused or invalid status shows the chip as unavailable,
- * with no readings, rather than an old reading or nothing.
- */
+Shared by the panel and companion. No status yet, or a governor switched off,
+renders nothing; a refused or invalid status shows the chip as unavailable,
+with no readings, rather than an old reading or nothing.
+*/
 export function ResourceSurface({ port, isInert = false }: ResourceSurfaceProps) {
   const subscribe = useCallback((changed: () => void) => port.subscribe(changed), [port])
   const read = useCallback(() => port.getSnapshot(), [port])
@@ -233,16 +233,22 @@ function ResourceReadings({ status }: { readonly status: ResourceStatus }) {
   const settings = status.settings
   const percent = (value: number | null | undefined) =>
     value == null ? UI_TEXT.resourceUnknown : formatPercent(value)
-  const rows = [
+  const floor =
+    sample?.memoryTotalBytes == null
+      ? null
+      : resourceMemoryFloorBytes(settings, sample.memoryTotalBytes)
+  // A null threshold renders the bare reading: measured, with no limit set.
+  const rows: { label: string; reading: string; threshold: string | null }[] = [
     {
       label: UI_TEXT.resourceCpu,
       reading: percent(sample?.cpuPercent),
-      threshold: formatPercent(settings.cpuMaxPercent),
+      threshold: settings.cpuMaxPercent === null ? null : formatPercent(settings.cpuMaxPercent),
     },
     {
       label: UI_TEXT.resourceMemory,
       reading: percent(sample?.memoryUsedPercent),
-      threshold: formatPercent(settings.memoryMaxPercent),
+      threshold:
+        settings.memoryMaxPercent === null ? null : formatPercent(settings.memoryMaxPercent),
     },
     {
       label: UI_TEXT.resourceAvailableMemory,
@@ -250,10 +256,7 @@ function ResourceReadings({ status }: { readonly status: ResourceStatus }) {
         sample?.memoryAvailableBytes == null
           ? UI_TEXT.resourceUnknown
           : formatBytes(sample.memoryAvailableBytes),
-      threshold:
-        sample?.memoryTotalBytes == null
-          ? UI_TEXT.resourceUnknown
-          : formatBytes(resourceMemoryFloorBytes(settings, sample.memoryTotalBytes)),
+      threshold: floor === null ? null : formatBytes(floor),
     },
   ]
   if (settings.gpuMaxPercent !== null)
@@ -278,7 +281,7 @@ function ResourceReadings({ status }: { readonly status: ResourceStatus }) {
               row.reading === UI_TEXT.resourceUnknown ? UI_TEXT.resourceUnavailable : undefined
             }
           >
-            {row.reading} / {row.threshold}
+            {row.threshold === null ? row.reading : `${row.reading} / ${row.threshold}`}
           </dd>
         </div>
       ))}

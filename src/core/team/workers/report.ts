@@ -28,9 +28,9 @@ const reportSchema = z
 export type WorkerReport = z.infer<typeof reportSchema>
 
 /**
- * What a worker handed back: its parsed report, or `unstructured` with the
- * clipped summary when its last message holds no valid block.
- */
+What a worker handed back: its parsed report, or `unstructured` with the
+clipped summary when its last message holds no valid block.
+*/
 export type WorkerReportOutcome =
   | { readonly ok: true; readonly report: WorkerReport }
   | {
@@ -74,9 +74,9 @@ export function clipReportSummary(text: string): string {
 const FENCE_OPEN = '```'
 
 /**
- * The last fenced block with the tag, or undefined. The worker ends its last
- * message with the block, so an earlier block is a draft, not the report.
- */
+The last fenced block with the tag, or undefined. The worker ends its last
+message with the block, so an earlier block is a draft, not the report.
+*/
 export function lastFencedBlock(text: string, tag: string): string | undefined {
   const lines = text.split('\n')
   let current: string[] | undefined
@@ -112,10 +112,10 @@ export function parseReportJson(json: string): WorkerReport | undefined {
 }
 
 /**
- * Parses the worker's last message. A block that is not JSON of the report's
- * shape is malformed, not a narrower report: the outcome is `unstructured`
- * with the message clipped.
- */
+Parses the worker's last message. A block that is not JSON of the report's
+shape is malformed, not a narrower report: the outcome is `unstructured`
+with the message clipped.
+*/
 export function extractTeamReport(text: string): WorkerReportOutcome {
   const block = lastFencedBlock(text, WORKER_REPORT_FENCE)
   const report = block === undefined ? undefined : parseReportJson(block)
@@ -125,10 +125,10 @@ export function extractTeamReport(text: string): WorkerReportOutcome {
 }
 
 /**
- * A `code-review` task's findings in M70's `muse-review` shape (acceptance
- * 18): the last `muse-review` block's findings, or undefined when the
- * message holds no valid one.
- */
+A `code-review` task's findings in M70's `muse-review` shape (acceptance
+18): the last `muse-review` block's findings, or undefined when the
+message holds no valid one.
+*/
 export function extractReviewFindings(text: string): readonly ReviewFinding[] | undefined {
   const block = lastFencedBlock(text, WORKER_REVIEW_FENCE)
   return block === undefined ? undefined : parseReviewFindings(block)

@@ -128,9 +128,9 @@ function headOf(generation: number, parsed: ParsedGeneration | undefined): Recor
 }
 
 /**
- * The head, synchronously, for a gate with no await before it acts.
- * Undefined when it cannot be read whole (the caller refuses).
- */
+The head, synchronously, for a gate with no await before it acts.
+Undefined when it cannot be read whole (the caller refuses).
+*/
 export function readRecordHeadSync(fs: RecordStoreFs, folder: string): RecordHead | undefined {
   try {
     const generation = latestOf(fs.readdirSync(folder))
@@ -148,9 +148,9 @@ export function readRecordHeadSync(fs: RecordStoreFs, folder: string): RecordHea
 }
 
 /**
- * The head, read without a lock: reads never write. An unreadable head
- * reads as no records (the hold is by location anyway), and is warned.
- */
+The head, read without a lock: reads never write. An unreadable head
+reads as no records (the hold is by location anyway), and is warned.
+*/
 export async function readRecordHead(
   fs: RecordStoreFs,
   folder: string,
@@ -209,23 +209,23 @@ async function isInEffect(
 }
 
 /**
- * What a write came to: `written` when it took the next number and is in
- * effect; `lost` when it published nothing (another writer took the
- * number, `canPublish` said the lock is no longer this writer's, or its
- * stage was swept): read again and apply again; `unverified` when it took
- * the number but its place in history can no longer be proven (its
- * successor was swept meanwhile, it took a number the sweep had freed, or
- * the proof could not be read): the caller reconciles against the head
- * before applying again.
- */
+What a write came to: `written` when it took the next number and is in
+effect; `lost` when it published nothing (another writer took the
+number, `canPublish` said the lock is no longer this writer's, or its
+stage was swept): read again and apply again; `unverified` when it took
+the number but its place in history can no longer be proven (its
+successor was swept meanwhile, it took a number the sweep had freed, or
+the proof could not be read): the caller reconciles against the head
+before applying again.
+*/
 export type GenerationWrite = 'written' | 'lost' | 'unverified'
 
 /**
- * Writes `records` as the generation after `head`, under the lease whose
- * fence is `fence`: refused (`lost`) while the head was written under an
- * equal or later fence, or when `isLeaseCurrent` (a synchronous check, made
- * just before the link) says the lease is no longer current.
- */
+Writes `records` as the generation after `head`, under the lease whose
+fence is `fence`: refused (`lost`) while the head was written under an
+equal or later fence, or when `isLeaseCurrent` (a synchronous check, made
+just before the link) says the lease is no longer current.
+*/
 export async function writeNextGeneration(
   fs: RecordStoreFs,
   folder: string,
@@ -275,11 +275,11 @@ export async function writeNextGeneration(
 }
 
 /**
- * Removes generations older than the kept ones and a crash's leftovers
- * (stages, retired locks) older than the sweep age. Best effort, after a
- * write has landed: it never throws (a failure is retried by the next
- * write), so a landed write is never reported as failed.
- */
+Removes generations older than the kept ones and a crash's leftovers
+(stages, retired locks) older than the sweep age. Best effort, after a
+write has landed: it never throws (a failure is retried by the next
+write), so a landed write is never reported as failed.
+*/
 export async function sweepGenerations(
   fs: RecordStoreFs,
   folder: string,

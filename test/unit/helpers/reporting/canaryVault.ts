@@ -1,10 +1,10 @@
 import type { SecurityVaultSnapshot } from '../../../../src/runtime/reporting/reportInputs'
 
 /**
- * A vault view whose every value field names a canary. The security reader
- * must project all of them away; the canary suite asserts none reaches any
- * report output.
- */
+A vault view whose every value field names a canary. The security reader
+must project all of them away; the canary suite asserts none reaches any
+report output.
+*/
 export const CANARY_ID = 'c0ffee'.padEnd(32, '0')
 export const CANARY_DIGEST = 'deadbeef'.padEnd(64, 'f')
 export const CANARIES = [

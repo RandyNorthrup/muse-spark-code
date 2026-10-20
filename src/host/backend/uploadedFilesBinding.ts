@@ -150,10 +150,10 @@ function pickDescription(file: UploadedFilesReport['files'][number]): string {
 }
 
 /**
- * Delete Uploaded Files: lists the ledger's files and deletes the chosen
- * ones through the provider. An empty or missing ledger says so and deletes
- * nothing; a failed delete names its reason and the row stays.
- */
+Delete Uploaded Files: lists the ledger's files and deletes the chosen
+ones through the provider. An empty or missing ledger says so and deletes
+nothing; a failed delete names its reason and the row stays.
+*/
 export async function runDeleteUploadedFilesCommand(
   deps: DeleteUploadedFilesCommandDeps,
 ): Promise<void> {

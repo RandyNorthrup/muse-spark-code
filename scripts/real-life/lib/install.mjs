@@ -11,12 +11,12 @@ import { isPassedOn } from './home.mjs'
 export const sha256Of = (file) => createHash('sha256').update(readFileSync(file)).digest('hex')
 
 /**
- * The environment the installer runs in: the caller's own without anything
- * that can hold a credential. With the default `--keys env` source the keys
- * stay in `process.env`, and the child `npm install` must never receive
- * them; it needs no key (the tarball is a local file).
- * @param {NodeJS.ProcessEnv} [from]
- */
+The environment the installer runs in: the caller's own without anything
+that can hold a credential. With the default `--keys env` source the keys
+stay in `process.env`, and the child `npm install` must never receive
+them; it needs no key (the tarball is a local file).
+@param {NodeJS.ProcessEnv} [from]
+*/
 export function installerEnvironment(from = process.env) {
   const env = {}
   for (const [name, value] of Object.entries(from)) {
@@ -28,10 +28,10 @@ export function installerEnvironment(from = process.env) {
 const NPM_CLI = 'npm-cli.js'
 
 /**
- * npm's own command script: the one that started this run (`npm run
- * real-life`), or the one that ships beside this Node.
- * @returns {string | undefined}
- */
+npm's own command script: the one that started this run (`npm run
+real-life`), or the one that ships beside this Node.
+@returns {string | undefined}
+*/
 function npmScript() {
   const started = process.env.npm_execpath ?? ''
   const beside = path.dirname(process.execPath)
@@ -55,10 +55,10 @@ function npm(args, cwd) {
 }
 
 /**
- * @param {string} tarball the packed agent (`npm pack`'s output)
- * @param {string} folder a new, empty folder
- * @returns {{ ok: true, name: string, version: string, agent: string } | { ok: false, reason: string }}
- */
+@param {string} tarball the packed agent (`npm pack`'s output)
+@param {string} folder a new, empty folder
+@returns {{ ok: true, name: string, version: string, agent: string } | { ok: false, reason: string }}
+*/
 export function installArtefact(tarball, folder) {
   const run = npm(
     ['install', '--no-audit', '--no-fund', '--prefix', folder, path.resolve(tarball)],

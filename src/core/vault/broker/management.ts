@@ -127,26 +127,26 @@ function importRefusal(error: unknown): unknown {
   if (!(error instanceof VaultMigrationFault)) return error
   switch (error.code) {
     case 'conflict': {
-      return new VaultManagementError('conflict')
+      return new VaultManagementError('conflict', { cause: error })
     }
     case 'window': {
-      return new VaultManagementError('locked')
+      return new VaultManagementError('locked', { cause: error })
     }
     case 'storage': {
-      return new VaultManagementError('io')
+      return new VaultManagementError('io', { cause: error })
     }
     case 'orphaned': {
-      return new VaultManagementError('sourceGone')
+      return new VaultManagementError('sourceGone', { cause: error })
     }
     case 'unreadable': {
-      return new VaultManagementError('sourceUnreadable')
+      return new VaultManagementError('sourceUnreadable', { cause: error })
     }
     case 'unavailable': {
-      return new VaultManagementError('sourceUnavailable')
+      return new VaultManagementError('sourceUnavailable', { cause: error })
     }
     case 'invalid':
     case 'verification': {
-      return new VaultManagementError('invalid')
+      return new VaultManagementError('invalid', { cause: error })
     }
   }
 }
@@ -157,16 +157,16 @@ interface PendingSetup {
   readonly recovery: VaultSlotRecord
   readonly expiresAt: number
   /**
-   * The OS-store wrap a failed confirmation left behind. A retry reuses this
-   * exact wrap (one slot per setup) instead of creating another native
-   * credential; it is cleared whenever its credential is removed.
-   */
+  The OS-store wrap a failed confirmation left behind. A retry reuses this
+  exact wrap (one slot per setup) instead of creating another native
+  credential; it is cleared whenever its credential is removed.
+  */
   wrappedOsStore?: { slotId: string; record: VaultSlotRecord } | undefined
   /**
-   * The hardware wrap a failed confirmation left behind, beside the OS one
-   * (D89 protection:auto wraps both). A retry reuses it instead of sealing
-   * again; it is cleared whenever its slot is removed.
-   */
+  The hardware wrap a failed confirmation left behind, beside the OS one
+  (D89 protection:auto wraps both). A retry reuses it instead of sealing
+  again; it is cleared whenever its slot is removed.
+  */
   wrappedHardware?: { slotId: string; record: VaultSlotRecord } | undefined
 }
 const newId = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
@@ -174,16 +174,17 @@ const newId = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
 function storeRefusal(error: unknown): VaultManagementError | VaultWriterError {
   if (error instanceof VaultWriterError) return error
   if (error instanceof VaultError && error.code === 'filesystemUnsupported')
-    return new VaultManagementError('filesystemUnsupported')
+    return new VaultManagementError('filesystemUnsupported', { cause: error })
   return new VaultManagementError(
     error instanceof VaultStoreUnavailableError ? 'storeUnavailable' : 'io',
+    { cause: error },
   )
 }
 /**
- * Whether any vault document exists here. The serialized check first; when
- * a stuck writer refuses it, reads still go through, so existence is read
- * directly instead of failing the whole snapshot (RVAPP-LEASE2 P1-2).
- */
+Whether any vault document exists here. The serialized check first; when
+a stuck writer refuses it, reads still go through, so existence is read
+directly instead of failing the whole snapshot (RVAPP-LEASE2 P1-2).
+*/
 async function hasVaultFiles(files: VaultFilePort): Promise<boolean> {
   try {
     return await VaultStore.exists(files)
@@ -253,10 +254,10 @@ export class VaultManagement implements VaultManagementPort {
     this.pending = null
   }
   /**
-   * Whether a committed setup intent names this attempt's wrap, so a retry
-   * completes it instead of wrapping again. Reads owned bytes and erases
-   * them, like every other file read here.
-   */
+  Whether a committed setup intent names this attempt's wrap, so a retry
+  completes it instead of wrapping again. Reads owned bytes and erases
+  them, like every other file read here.
+  */
   private async hasSetupIntent(): Promise<boolean> {
     const intent = await this.deps.files.read('pending.v1')
     try {
@@ -268,8 +269,12 @@ export class VaultManagement implements VaultManagementPort {
   private store(): VaultStore {
     try {
       return this.deps.repository.current()
-    } catch {
-      throw new VaultManagementError('locked')
+    } catch (error: unknown) {
+      // The repository names its own absence; management reports locked with
+      // that failure as its cause.
+      if (error instanceof VaultError && error.code === 'locked')
+        throw new VaultManagementError('locked', { cause: error })
+      throw error
     }
   }
   /** One setup step at a time; a second window's setup waits for the first. */
@@ -305,8 +310,11 @@ export class VaultManagement implements VaultManagementPort {
     let key: Buffer
     try {
       key = unlockRecoverySlot(slot, code)
-    } catch {
-      throw new VaultManagementError('invalid')
+    } catch (error: unknown) {
+      // A failed recovery unwrap reads invalid with the unwrap failure as
+      // its cause.
+      if (error instanceof VaultManagementError) throw error
+      throw new VaultManagementError('invalid', { cause: error })
     }
     this.deps.unlock.offerRecovery(slot.id, key)
     try {
@@ -330,11 +338,11 @@ export class VaultManagement implements VaultManagementPort {
     }
   }
   /**
-   * Whether the anchored vault cannot be opened. A recovery token alone is
-   * not loss: without an anchor nothing can prove the files openable, but
-   * an anchored vault that still opens is stuck, never lost; without a
-   * token an unanchored vault is never called lost (RVAPP-LEASE2 P1-2).
-   */
+  Whether the anchored vault cannot be opened. A recovery token alone is
+  not loss: without an anchor nothing can prove the files openable, but
+  an anchored vault that still opens is stuck, never lost; without a
+  token an unanchored vault is never called lost (RVAPP-LEASE2 P1-2).
+  */
   private async isUnopenable(): Promise<boolean> {
     const recovery = await this.deps.files.writerRecovery?.()
     const anchored = await this.anchoredId()
@@ -364,11 +372,11 @@ export class VaultManagement implements VaultManagementPort {
     return importer
   }
   /**
-   * The finish sweep at every unlocked snapshot: kept or orphaned receipts
-   * whose source or secret still exists are listed with their two real
-   * actions (RVAPP-CM1091D5 P2-2). A sweep a Lock overtook lists nothing
-   * this time; the receipts stay for the next snapshot.
-   */
+  The finish sweep at every unlocked snapshot: kept or orphaned receipts
+  whose source or secret still exists are listed with their two real
+  actions (RVAPP-CM1091D5 P2-2). A sweep a Lock overtook lists nothing
+  this time; the receipts stay for the next snapshot.
+  */
   private async sweepReceipts(): Promise<VaultBrokerSnapshot['pendingReceipts']> {
     try {
       const swept = await this.fileImporter().pending()
@@ -377,8 +385,12 @@ export class VaultManagement implements VaultManagementPort {
         path: entry.path,
         items: [...entry.items],
       }))
-    } catch {
-      return []
+    } catch (error: unknown) {
+      // A sweep a Lock overtook lists nothing this time; the receipts stay
+      // for the next snapshot. Any other failure rejects so its caller
+      // reports it.
+      if (error instanceof VaultMigrationFault && error.code === 'window') return []
+      throw error
     }
   }
   noteApproval(request: VaultApprovalRequest): void {
@@ -538,7 +550,7 @@ export class VaultManagement implements VaultManagementPort {
             )
           } catch (error: unknown) {
             return Promise.reject(
-              error instanceof Error ? error : new VaultMigrationFault('invalid'),
+              error instanceof Error ? error : new VaultMigrationFault('invalid', { cause: error }),
             )
           }
         },
@@ -612,10 +624,10 @@ export class VaultManagement implements VaultManagementPort {
     })
   }
   /**
-   * Step 2: the exact word for this challenge, the same lost vault, then the
-   * audit line, the files (displaced document retained) and the anchor.
-   * Rollback protection restarts with the next setup's new anchor.
-   */
+  Step 2: the exact word for this challenge, the same lost vault, then the
+  audit line, the files (displaced document retained) and the anchor.
+  Rollback protection restarts with the next setup's new anchor.
+  */
   async resetConfirm(resetId: string, word: string): Promise<void> {
     await this.serialize(async (generation) => {
       const pending = this.pendingReset
@@ -664,7 +676,7 @@ export class VaultManagement implements VaultManagementPort {
         // A filesystem that cannot publish keeps its cause (RVAPP-LEASE2 P2-5).
         if (error instanceof VaultError && error.code === 'filesystemUnsupported') throw error
         // Not lost any more (a vault reappeared) or the files refused: nothing reset.
-        throw new VaultManagementError('invalid')
+        throw new VaultManagementError('invalid', { cause: error })
       }
       this.assertSameLock(generation)
     })
@@ -863,9 +875,9 @@ export class VaultManagement implements VaultManagementPort {
       this.assertSameLock(generation)
       try {
         await this.deps.broker.unlock(null)
-      } catch {
+      } catch (error: unknown) {
         // The vault exists; the snapshot shows it locked with the slot's reason.
-        throw new VaultManagementError('locked')
+        throw new VaultManagementError('locked', { cause: error })
       }
     } finally {
       // Until first unlock settles, snapshots must not compete with its writer.

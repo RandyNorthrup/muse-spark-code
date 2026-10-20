@@ -1,24 +1,26 @@
 // Team pipelines: saved flows the orchestrator or the user starts (M96,
 // PLAN.md D75 "Pipelines"). A pipeline is a template of dependent tasks run
 // on the scheduler's board; this module holds the built-ins, the file
-// loading, the round counting with its `redesign` bound, and the hand-off to
-// the orchestrator's `merge`. It never merges: the terminal `handoff`
-// decision carries the reviewed branch for the orchestrator, and there is no
-// merge step kind, no merge transition and no merge dependency anywhere in
-// this module. Pure over injected file access; no `vscode` import.
+// loading, the round counting, and the hand-off to the orchestrator's
+// `merge`. Rounds run until the change passes or the person stops the work:
+// no bound of ours cuts them short (D121). Each `repeat` decision names its
+// round and the findings that sent the change back, so the orchestrator, the
+// panel and the terminal can show why another round runs. This module never
+// merges: the terminal `handoff` decision carries the reviewed branch for
+// the orchestrator, and there is no merge step kind, no merge transition and
+// no merge dependency anywhere in this module. Pure over injected file
+// access; no `vscode` import.
 //
 // Seams to parallel lanes (explicit interfaces, never fakes): the step
 // results below are recorded by lane T's tools and lane W's workers; the
 // ledger rows lane A's ledger writes are read by `teamHistory.ts`; the role
-// ids come from lane R's built-in roles. The `maxRounds` and severity
-// defaults live here until lane 0 hoists them to `TEAM_*` constants.
+// ids come from lane R's built-in roles. The severity default lives here
+// until lane 0 hoists it to a `TEAM_*` constant.
 
 import * as z from 'zod/mini'
 import { REVIEW_SEVERITIES, type ReviewSeverity } from '../../shared/constants'
 import { knownSeverity } from '../../shared/reviewFindings'
 
-/** Rounds are bounded by the owner's own rule: the third failed round stops at `redesign`. */
-export const PIPELINE_MAX_ROUNDS = 3
 /** Review findings at or above this severity send the change back (D75). */
 export const PIPELINE_DEFAULT_SEVERITY: ReviewSeverity = 'high'
 
@@ -34,14 +36,13 @@ const stepSchema = z.object({
 const definitionSchema = z.object({
   id: z.string(),
   steps: z.array(stepSchema),
-  maxRounds: z.int().check(z.gte(1), z.lte(PIPELINE_MAX_ROUNDS)),
   reviewSeverity: z.enum(['critical', 'high', 'medium', 'low', 'info']),
 })
 
 /** One step of a pipeline: a role's task of one kind. */
 export type PipelineStep = z.infer<typeof stepSchema>
 
-/** A pipeline template: ordered steps, a round bound and a review threshold. */
+/** A pipeline template: ordered steps and a review threshold. Rounds are unbounded. */
 export type PipelineDefinition = z.infer<typeof definitionSchema>
 
 /** A review finding as the pipeline reads it: only the severity decides a loop-back. */
@@ -83,7 +84,7 @@ export interface PipelineRun {
   readonly branch: string | undefined
   readonly reports: readonly PipelineStepReport[]
   readonly roundFindings: readonly (readonly PipelineFinding[])[]
-  readonly status: 'running' | 'redesign' | 'handoff'
+  readonly status: 'running' | 'handoff'
 }
 
 export interface PipelineStepReport {
@@ -93,17 +94,19 @@ export interface PipelineStepReport {
   readonly report: string
 }
 
-/** What recording a step result decides: the next step, a loop-back, `redesign` or the merge hand-off. */
+/**
+What recording a step result decides: the next step, another round, or the
+merge hand-off. A `repeat` names its round and the findings that sent the
+change back; the run's `roundFindings` keep every round, so the
+orchestrator, the panel and the terminal can show which findings keep
+coming back while the rounds continue.
+*/
 export type PipelineDecision =
   | { readonly status: 'next'; readonly step: PipelineStep }
   | {
       readonly status: 'repeat'
       readonly step: PipelineStep
       readonly round: number
-      readonly findings: readonly PipelineFinding[]
-    }
-  | {
-      readonly status: 'redesign'
       readonly findings: readonly PipelineFinding[]
       readonly recurring: readonly PipelineFinding[]
     }
@@ -123,7 +126,6 @@ export type PipelineRefusalReason =
   | 'danglingReview'
   | 'unknownPipeline'
   | 'duplicateId'
-  | 'widensRounds'
   | 'widensSteps'
 
 export interface PipelineRefusal {
@@ -141,7 +143,7 @@ export interface PipelineFileSystem {
 /** Recording a result on a run that already ended. */
 export class PipelineTerminalError extends Error {
   public override readonly name = 'PipelineTerminalError'
-  public constructor(public readonly status: 'redesign' | 'handoff') {
+  public constructor(public readonly status: 'handoff') {
     super(`pipeline already ${status}`)
   }
 }
@@ -184,10 +186,10 @@ export class PipelineBranchError extends Error {
 const SEVERITY_ORDER: readonly ReviewSeverity[] = [...REVIEW_SEVERITIES].toReversed()
 
 /**
- * Whether a finding sends the change back: at or above the threshold. A
- * severity the model made up (no known word) counts as failing: sending a
- * change of unknown severity back for rework is safer than merging it.
- */
+Whether a finding sends the change back: at or above the threshold. A
+severity the model made up (no known word) counts as failing: sending a
+change of unknown severity back for rework is safer than merging it.
+*/
 export function isFailingSeverity(
   severity: string | undefined,
   threshold: ReviewSeverity,
@@ -205,7 +207,6 @@ export function changePipeline(): PipelineDefinition {
       { id: 'review', role: 'code-review', kind: 'review' },
       { id: 'verify', role: 'qa', kind: 'check' },
     ],
-    maxRounds: PIPELINE_MAX_ROUNDS,
     reviewSeverity: PIPELINE_DEFAULT_SEVERITY,
   }
 }
@@ -218,7 +219,6 @@ export function specPipeline(): PipelineDefinition {
       { id: 'research', role: 'research', kind: 'work' },
       { id: 'design', role: 'design', kind: 'work' },
     ],
-    maxRounds: PIPELINE_MAX_ROUNDS,
     reviewSeverity: PIPELINE_DEFAULT_SEVERITY,
   }
 }
@@ -229,10 +229,10 @@ export function builtInPipelines(): readonly PipelineDefinition[] {
 }
 
 /**
- * Validate a parsed definition's shape beyond the schema: at least one step,
- * at least one work step, and every review or check step after a work step
- * (a loop-back needs a writer to send the change back to).
- */
+Validate a parsed definition's shape beyond the schema: at least one step,
+at least one work step, and every review or check step after a work step
+(a loop-back needs a writer to send the change back to).
+*/
 export function validatePipeline(def: PipelineDefinition): PipelineRefusalReason | undefined {
   if (def.steps.length === 0) {
     return 'invalid'
@@ -296,7 +296,7 @@ function failing(
   return findings.filter((finding) => isFailingSeverity(finding.severity, threshold))
 }
 
-/** Findings of the final failed round also seen in an earlier round, matched by title. */
+/** Findings of the latest failed round already seen in an earlier round, matched by title. */
 function recurringFindings(
   rounds: readonly (readonly PipelineFinding[])[],
 ): readonly PipelineFinding[] {
@@ -325,17 +325,17 @@ const EXPECTED_RESULT_KIND: Record<PipelineStepKind, PipelineStepResult['kind']>
 }
 
 /**
- * Record a finished step and move the run. The result's kind must belong to
- * the current step (`work-done` for work, `reviewed` for review, `checked`
- * for check); anything else throws, so a bare `work-done` can never stand
- * in for the review's findings or the check's pass/fail. A failing review
- * (findings at or above the threshold) or a failed check loops back to the
- * first work step on the same branch with the findings; the round past
- * `maxRounds` stops at `redesign`, naming the findings that came back. The
- * last step's success hands the reviewed branch to the orchestrator's
- * `merge`: this module never merges by itself. Returns the updated run and
- * the decision.
- */
+Record a finished step and move the run. The result's kind must belong to
+the current step (`work-done` for work, `reviewed` for review, `checked`
+for check); anything else throws, so a bare `work-done` can never stand
+in for the review's findings or the check's pass/fail. A failing review
+(findings at or above the threshold) or a failed check loops back to the
+first work step on the same branch with the findings, naming the round,
+the findings, and the ones that came back before; rounds continue until
+the change passes or the person stops the work (D121). The last step's
+success hands the reviewed branch to the orchestrator's `merge`: this
+module never merges by itself. Returns the updated run and the decision.
+*/
 export function recordStepResult(
   def: PipelineDefinition,
   run: PipelineRun,
@@ -373,14 +373,6 @@ export function recordStepResult(
     return advance(def, { ...run, branch, reports })
   }
   const roundFindings = [...run.roundFindings, result.findings]
-  if (run.round >= def.maxRounds) {
-    const finished: PipelineRun = { ...run, branch, reports, roundFindings, status: 'redesign' }
-    const findings = result.findings
-    return {
-      run: finished,
-      decision: { status: 'redesign', findings, recurring: recurringFindings(roundFindings) },
-    }
-  }
   const rework = reworkStepIndex(def)
   const reworkStep = def.steps[rework]
   if (reworkStep === undefined) {
@@ -401,6 +393,7 @@ export function recordStepResult(
       step: reworkStep,
       round: repeated.round,
       findings: result.findings,
+      recurring: recurringFindings(roundFindings),
     },
   }
 }
@@ -431,9 +424,9 @@ function advance(
 }
 
 /**
- * One approval covers the whole pipeline: the steps with each step's first
- * entry. Structured data for lane T's card; no sentences.
- */
+The steps an approval names, with each step's first entry. Structured
+data for lane T's card; no sentences.
+*/
 export function approvalSteps(
   def: PipelineDefinition,
   firstEntries: readonly (string | undefined)[],
@@ -449,18 +442,7 @@ export function approvalSteps(
   }))
 }
 
-/**
- * The approval's ceiling: each step's ceiling times the rounds. Lengths must
- * match the steps.
- */
-export function pipelineCeiling(def: PipelineDefinition, stepCeilings: readonly number[]): number {
-  if (stepCeilings.length !== def.steps.length) {
-    throw new PipelineStepError(`${String(def.steps.length)} ceilings`, String(stepCeilings.length))
-  }
-  return stepCeilings.reduce((total, ceiling) => total + ceiling * def.maxRounds, 0)
-}
-
-const DEFINITION_KEYS = new Set(['id', 'steps', 'maxRounds', 'reviewSeverity'])
+const DEFINITION_KEYS = new Set(['id', 'steps', 'reviewSeverity'])
 const STEP_KEYS = new Set(['id', 'role', 'kind'])
 
 function unknownKey(value: unknown, allowed: ReadonlySet<string>): string | undefined {
@@ -476,9 +458,9 @@ function unknownKey(value: unknown, allowed: ReadonlySet<string>): string | unde
 }
 
 /**
- * File text as JSON. Only malformed text refuses as unparseable; anything
- * else keeps its kind for the caller.
- */
+File text as JSON. Only malformed text refuses as unparseable; anything
+else keeps its kind for the caller.
+*/
 function parseFileJson(
   json: string,
 ): { readonly ok: true; readonly value: unknown } | { readonly ok: false } {
@@ -520,19 +502,18 @@ function parseDefinition(file: string, json: string): PipelineDefinition | Pipel
   return semantic === undefined ? result.data : { file, reason: semantic, detail: result.data.id }
 }
 
-const NARROWING_KEYS = new Set(['id', 'maxRounds', 'removeSteps'])
+const NARROWING_KEYS = new Set(['id', 'removeSteps'])
 
 const narrowingSchema = z.object({
   id: z.string(),
-  maxRounds: z.optional(z.int().check(z.gte(1), z.lte(PIPELINE_MAX_ROUNDS))),
   removeSteps: z.optional(z.array(z.string())),
 })
 
 /**
- * A project file may only lower the rounds or remove steps of a pipeline the
- * user has. Anything else — an unknown id, raised rounds, added or changed
- * steps, an unknown key — refuses the file whole.
- */
+A project file may only remove steps of a pipeline the user has.
+Anything else — an unknown id, added or changed steps, an unknown key
+(including the removed round bound) — refuses the file whole.
+*/
 function applyNarrowing(
   file: string,
   base: PipelineDefinition,
@@ -551,14 +532,6 @@ function applyNarrowing(
   if (!result.success || result.data.id !== base.id) {
     return { file, reason: result.success ? 'unknownPipeline' : 'invalid', detail: base.id }
   }
-  const maxRounds = result.data.maxRounds ?? base.maxRounds
-  if (maxRounds > base.maxRounds) {
-    return {
-      file,
-      reason: 'widensRounds',
-      detail: `${String(maxRounds)} over ${String(base.maxRounds)}`,
-    }
-  }
   const omittedSteps = result.data.removeSteps ?? []
   for (const id of omittedSteps) {
     if (base.steps.every((step) => step.id !== id)) {
@@ -567,18 +540,18 @@ function applyNarrowing(
   }
   const omitted = new Set(omittedSteps)
   const steps = base.steps.filter((step) => !omitted.has(step.id))
-  const narrowed: PipelineDefinition = { ...base, maxRounds, steps }
+  const narrowed: PipelineDefinition = { ...base, steps }
   const semantic = validatePipeline(narrowed)
   return semantic === undefined ? narrowed : { file, reason: semantic, detail: narrowed.id }
 }
 
 /**
- * Load every pipeline: the built-ins, the user's personal folder
- * (`<config>/muse/pipelines/`, full definitions or narrowing replacements),
- * then the project's `.muse/pipelines/` in a trusted workspace, which may
- * only narrow a pipeline the user has. Refused files are reported, never
- * thrown.
- */
+Load every pipeline: the built-ins, the user's personal folder
+(`<config>/muse/pipelines/`, full definitions or narrowing replacements),
+then the project's `.muse/pipelines/` in a trusted workspace, which may
+only narrow a pipeline the user has. Refused files are reported, never
+thrown.
+*/
 export function loadPipelines(args: {
   readonly personalDir: string
   readonly projectDir: string

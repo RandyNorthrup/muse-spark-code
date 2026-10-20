@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { PLAYBOOK_FINDING_CLASSES, PLAYBOOK_ID_MAX_CHARS } from '../../../shared/constants'
 import { redactSecrets } from '../../../shared/redact'
 import {
+  isPatchRoundsExceeded,
   knownFindingClass,
   playbookRoundSchema,
   type PlaybookModule,
@@ -90,7 +91,7 @@ export function resolutionOutcome(
 }
 
 /** A redesign never drops an old id merely because the new review omits it.
- * Caught/remains references remain live alongside any newly found issue. */
+Caught/remains references remain live alongside any newly found issue. */
 export function reviewRounds(
   module: PlaybookModule,
   state: ModuleState,
@@ -140,9 +141,7 @@ export function reviewRounds(
     ...(redesign && { resolution: review.resolution }),
     at,
   })
-  const classes = [
-    ...new Set(findings.flatMap((finding) => (finding.class ? [finding.class] : []))),
-  ]
+  const classes = [...new Set(findings.flatMap((finding) => finding.class ?? []))]
   return [
     aggregate,
     ...classes.map((className) => ({
@@ -156,9 +155,9 @@ export function reviewRounds(
 
 export function redesignBlock(
   state: ModuleState,
-  max: number,
+  patchRoundsMax: number,
 ): PlaybookWhyNote['code'] | undefined {
   if (state.escalated || state.design?.outcome === 'remains') return 'redesignEscalated'
   if (state.design && state.design.outcome !== 'impossible') return 'redesignOpen'
-  return state.strikes > max ? 'redesignRequired' : undefined
+  return isPatchRoundsExceeded(patchRoundsMax, state.strikes) ? 'redesignRequired' : undefined
 }

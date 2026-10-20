@@ -19,11 +19,11 @@ import {
 import { sameFile, lstatIdentity } from '../fs/fileIdentity'
 
 /**
- * Reject a blank title at every ingress, including imported and synced
- * files. D121: any title/body length stands — the removed 80/10000 ceilings
- * were invented. NOLIMITS1FIX: the prompt file bound is gone too, so only
- * a blank title refuses.
- */
+Reject a blank title at every ingress, including imported and synced
+files. D121: any title/body length stands — the removed 80/10000 ceilings
+were invented. NOLIMITS1FIX: the prompt file bound is gone too, so only
+a blank title refuses.
+*/
 export function validatePrompt(prompt: SavedPrompt): SavedPrompt {
   const checked = parsePromptFile(serialisePromptFile(prompt))
   if (checked.title.trim() === '') {
@@ -37,9 +37,9 @@ function isMissing(error: unknown): boolean {
 }
 
 /**
- * The library moved under a writer that named its expected generation: the
- * write did not land, and the writer is stale (Codex on PR #227).
- */
+The library moved under a writer that named its expected generation: the
+write did not land, and the writer is stale (Codex on PR #227).
+*/
 export class PromptLibraryStaleError extends Error {
   public constructor() {
     super('prompt library changed under the writer')
@@ -151,12 +151,12 @@ export class PromptStore implements PromptStoragePort {
   }
 
   /**
-   * Writes the prompt, holding the scope's write lock. With
-   * `expectedLibraryGeneration` the library's generation (newest revision,
-   * 0 when empty) is recomputed under that same lock first, and a mismatch
-   * throws `PromptLibraryStaleError` instead of landing a save approved
-   * from a stale view (Codex on PR #227).
-   */
+  Writes the prompt, holding the scope's write lock. With
+  `expectedLibraryGeneration` the library's generation (newest revision,
+  0 when empty) is recomputed under that same lock first, and a mismatch
+  throws `PromptLibraryStaleError` instead of landing a save approved
+  from a stale view (Codex on PR #227).
+  */
   public async write(
     input: SavedPrompt,
     shouldKeepNewer = false,
@@ -231,10 +231,10 @@ export class PromptStore implements PromptStoragePort {
 }
 
 /**
- * Read through one handle at any size; refuse links/directories and never
- * read credentials. NOLIMITS1FIX: the removed 128 KiB bound was invented —
- * chunks stream to the end of the file instead.
- */
+Read through one handle at any size; refuse links/directories and never
+read credentials. NOLIMITS1FIX: the removed 128 KiB bound was invented —
+chunks stream to the end of the file instead.
+*/
 export async function readPromptFile(file: string): Promise<string> {
   const before = await lstatIdentity(file)
   if (!before.isFile() || before.isSymbolicLink()) {

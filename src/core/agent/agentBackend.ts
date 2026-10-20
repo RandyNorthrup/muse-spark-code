@@ -59,11 +59,11 @@ export interface HostExit {
   /** The process refuses to run as configured (a bad setting, an old build): restarting will not help. */
   readonly isPersistent: boolean
   /**
-   * The run ended in failure (a non-zero code, or a signal nobody asked
-   * for), whether or not a close was already asked when it landed: the
-   * incident's exit was "as asked" at code 1 (F94). A clean stop and an
-   * asked-for signal are not failures.
-   */
+  The run ended in failure (a non-zero code, or a signal nobody asked
+  for), whether or not a close was already asked when it landed: the
+  incident's exit was "as asked" at code 1 (F94). A clean stop and an
+  asked-for signal are not failures.
+  */
   readonly isFailure: boolean
 }
 
@@ -79,6 +79,8 @@ const GOAL_REFUSED_ERROR = 'GoalRefusedError'
 const MUSE_CODE_FAULT_ERROR = 'MuseCodeFaultError'
 const DECISION_NOT_APPLIED_ERROR = 'DecisionNotAppliedError'
 const STEER_REFUSED_ERROR = 'SteerRefusedError'
+const PERMISSION_REVIEWER_ERROR = 'PermissionReviewerError'
+const MODE_KEPT_ERROR = 'ModeKeptError'
 
 /** An `Error` of either bundle carrying the given name. */
 function isNamedError(error: unknown, name: string): error is Error {
@@ -86,9 +88,9 @@ function isNamedError(error: unknown, name: string): error is Error {
 }
 
 /**
- * A command named a session the host no longer holds (MSP `sessionNotLoaded`:
- * evicted, or closed by the host). The caller resumes it and retries.
- */
+A command named a session the host no longer holds (MSP `sessionNotLoaded`:
+evicted, or closed by the host). The caller resumes it and retries.
+*/
 export class SessionNotLoadedError extends Error {
   public constructor(
     public readonly sessionId: string,
@@ -118,10 +120,10 @@ const PROMPT_SETTLED_REASONS: readonly unknown[] = [
 ] satisfies readonly PromptSettledReason[]
 
 /**
- * The prompt was answered elsewhere, advanced to another stage, or is no
- * longer pending when this decision or answer arrived. Nothing is wrong: the
- * card follows the host's own resolve / update events.
- */
+The prompt was answered elsewhere, advanced to another stage, or is no
+longer pending when this decision or answer arrived. Nothing is wrong: the
+card follows the host's own resolve / update events.
+*/
 export class PromptSettledError extends Error {
   public constructor(
     public readonly reason: PromptSettledReason,
@@ -142,17 +144,17 @@ export function isPromptSettledError(error: unknown): error is PromptSettledErro
 }
 
 /**
- * A fault inside Muse Code that no choice of the user's caused (PLAN.md D26,
- * captured live 2026-10-02 on Muse Code 1.4.2):
- * - `approvalReplay`: every `turn/start` of the session fails with "approval
- *   replay failed: decision stage evidence contains an unrecorded human
- *   resolution" after a turn stopped while a multi-stage approval had a
- *   decided stage. A restart of `muse serve` lets the session run again.
- * - `approvalLedger`: `approval/decide` applied the decision, then answered
- *   "approval decide settlement failed: approval ledger durability fence…"
- *   (meta-models/muse-code-sdk#29); after the replay fault it does so for
- *   every decision of that session.
- */
+A fault inside Muse Code that no choice of the user's caused (PLAN.md D26,
+captured live 2026-10-02 on Muse Code 1.4.2):
+- `approvalReplay`: every `turn/start` of the session fails with "approval
+  replay failed: decision stage evidence contains an unrecorded human
+  resolution" after a turn stopped while a multi-stage approval had a
+  decided stage. A restart of `muse serve` lets the session run again.
+- `approvalLedger`: `approval/decide` applied the decision, then answered
+  "approval decide settlement failed: approval ledger durability fence…"
+  (meta-models/muse-code-sdk#29); after the replay fault it does so for
+  every decision of that session.
+*/
 export type MuseCodeFault = 'approvalReplay' | 'approvalLedger'
 
 const MUSE_CODE_FAULTS: readonly unknown[] = [
@@ -180,10 +182,10 @@ export function isMuseCodeFaultError(error: unknown): error is MuseCodeFaultErro
 }
 
 /**
- * A decision that failed, and that the host confirmed did not apply: its
- * stage is still the one waiting. Only then may the card offer the choice
- * again (one decision per stage, PLAN.md D26).
- */
+A decision that failed, and that the host confirmed did not apply: its
+stage is still the one waiting. Only then may the card offer the choice
+again (one decision per stage, PLAN.md D26).
+*/
 export class DecisionNotAppliedError extends Error {
   public constructor(message: string) {
     super(message)
@@ -197,12 +199,12 @@ export function isDecisionNotAppliedError(error: unknown): error is DecisionNotA
 }
 
 /**
- * A steer the backend refused outright, so none of it reached the running
- * turn: Muse Code found no turn to take it (MSP `commandRejected` with a
- * no-turn reason), or the Model API session took nothing. Only then may the
- * message go as a new turn instead. Any other steer failure may have
- * reached the turn, and nothing more is sent (CLI recovery, 2026-10-03).
- */
+A steer the backend refused outright, so none of it reached the running
+turn: Muse Code found no turn to take it (MSP `commandRejected` with a
+no-turn reason), or the Model API session took nothing. Only then may the
+message go as a new turn instead. Any other steer failure may have
+reached the turn, and nothing more is sent (CLI recovery, 2026-10-03).
+*/
 export class SteerRefusedError extends Error {
   public constructor(message: string) {
     super(message)
@@ -216,11 +218,70 @@ export function isSteerRefusedError(error: unknown): error is SteerRefusedError 
 }
 
 /**
- * Why a goal command was refused (M45, PLAN.md D38), as MSP's `commandRejected`
- * reasons say it (captured live 2026-09-25): `missing_goal` (there is none)
- * and `invalid_goal_state` (a finished goal cannot be paused, resumed or
- * edited). The Model API backend refuses in the same words.
- */
+A mode change applied the approval mode on the host but could not install
+its reviewer (a managed exclusion, `permission_profile_unavailable`, a
+dropped connection, a deadline), and the previous mode is not known or
+could not be put back. The session is quarantined: turns are refused
+until a mode change succeeds, so the judge cannot allow a command the
+person expects to be asked about. `actualMode` is the wire mode the host
+runs, so the surface can show it instead of the mode that did not take.
+*/
+export class PermissionReviewerError extends Error {
+  public constructor(
+    message: string,
+    public readonly actualMode: string,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options)
+    this.name = PERMISSION_REVIEWER_ERROR
+  }
+}
+
+/** Whether the mode took but its reviewer did not (a `PermissionReviewerError` of either bundle). */
+export function isPermissionReviewerError(error: unknown): error is PermissionReviewerError {
+  return (
+    isNamedError(error, PERMISSION_REVIEWER_ERROR) &&
+    'actualMode' in error &&
+    typeof error.actualMode === 'string'
+  )
+}
+
+/**
+A mode change did not take, and the host still runs a mode whose reviewer
+agrees with it: the mode command itself was refused (so nothing changed),
+or a refused reviewer step was rolled back to the previous mode. The
+session is not quarantined: turns run on `actualMode`, which is the wire
+mode the host runs, so the surface can show it instead of the mode that
+did not take. `actualMode` is empty when the running mode is not known
+(an unseeded resume whose envelope served none): then the surface cannot
+show it and must refuse the send in flight instead.
+*/
+export class ModeKeptError extends Error {
+  public constructor(
+    message: string,
+    public readonly actualMode: string,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options)
+    this.name = MODE_KEPT_ERROR
+  }
+}
+
+/** Whether the host kept running a mode instead of changing (a `ModeKeptError` of either bundle). */
+export function isModeKeptError(error: unknown): error is ModeKeptError {
+  return (
+    isNamedError(error, MODE_KEPT_ERROR) &&
+    'actualMode' in error &&
+    typeof error.actualMode === 'string'
+  )
+}
+
+/**
+Why a goal command was refused (M45, PLAN.md D38), as MSP's `commandRejected`
+reasons say it (captured live 2026-09-25): `missing_goal` (there is none)
+and `invalid_goal_state` (a finished goal cannot be paused, resumed or
+edited). The Model API backend refuses in the same words.
+*/
 export type GoalRefusal = 'noGoal' | 'wrongState'
 
 const GOAL_REFUSALS: readonly unknown[] = ['noGoal', 'wrongState'] satisfies readonly GoalRefusal[]
@@ -263,11 +324,14 @@ export interface HostInfo {
   /** False where the host is known to refuse `rename` and `forkSession` (D26). */
   readonly canEditSessions: boolean
   /**
-   * False where the host cannot delete a stored conversation: the Model API
-   * backend always can (its own session store); a Muse Code host only where
-   * its CLI still serves `session/delete`, removed in 1.4.4 (PLAN.md D26).
-   */
-  readonly canDeleteSessions: boolean
+  False where the host cannot delete a stored conversation: the Model API
+  backend always can (its own session store). Absent on a Muse Code host:
+  its delete gate (`canDeleteMuseSession`, version plus the injected
+  lifecycle reader) stays out of the activation bundle, so the host omits
+  the field and History offers no Delete there until the reader injection
+  lands and wires the offer (PLAN.md D26).
+  */
+  readonly canDeleteSessions?: boolean | undefined
 }
 
 export interface ModelSummary {
@@ -279,12 +343,12 @@ export interface ModelSummary {
   readonly isDefault: boolean
   readonly isActive: boolean
   /**
-   * A BYO provider's fields (M95, PLAN.md D74): set by the Model API
-   * backend's lane from the provider registry; absent on Meta's own models.
-   * `pricing` tells the picker and usage how the price reads; per-M-token
-   * prices only where the provider prices the model; `trainsOnContent`
-   * hides the model in a confidential workspace.
-   */
+  A BYO provider's fields (M95, PLAN.md D74): set by the Model API
+  backend's lane from the provider registry; absent on Meta's own models.
+  `pricing` tells the picker and usage how the price reads; per-M-token
+  prices only where the provider prices the model; `trainsOnContent`
+  hides the model in a confidential workspace.
+  */
   readonly providerId?: string | undefined
   readonly providerLabel?: string | undefined
   readonly pricing?: ModelPricing | undefined
@@ -295,20 +359,20 @@ export interface ModelSummary {
   readonly planLimitsUrl?: string | undefined
   /**
   /**
-   * Why this model cannot run the coding agent (tool calling unconfirmed):
-   * lists show it with this limit stated instead of hiding it, and an
-   * agent turn on it is refused with this sentence. Absent when it can.
-   */
+  Why this model cannot run the coding agent (tool calling unconfirmed):
+  lists show it with this limit stated instead of hiding it, and an
+  agent turn on it is refused with this sentence. Absent when it can.
+  */
   readonly agentLimit?: string | undefined
   /**
-   * The effort levels this model serves, where the backend knows them (a
-   * plan model reports its catalogue's levels, Muse Code its per-model
-   * tiers normalized to the UI range); absent where unknown, and the
-   * pickers fall back to the shared default range (the static family table
-   * applies). `defaultEffort` is the level a new session selects unless
-   * the person chose one. `fastTier` is the provider's priority tier where
-   * the model lists one.
-   */
+  The effort levels this model serves, where the backend knows them (a
+  plan model reports its catalogue's levels, Muse Code its per-model
+  tiers normalized to the UI range); absent where unknown, and the
+  pickers fall back to the shared default range (the static family table
+  applies). `defaultEffort` is the level a new session selects unless
+  the person chose one. `fastTier` is the provider's priority tier where
+  the model lists one.
+  */
   readonly effortLevels?: readonly EffortLevel[] | undefined
   readonly defaultEffort?: EffortLevel | undefined
   readonly fastTier?:
@@ -325,11 +389,11 @@ export interface SkillSummary {
 }
 
 /**
- * One background-task row (M127, MSP `task/list`): `kind` is an open
- * vocabulary, `status` the host's lifecycle word. `tool` names the
- * running tool on item-visible rows; `backgroundInitiator` who
- * backgrounded it: both additive-optional on the wire, never inferred.
- */
+One background-task row (M127, MSP `task/list`): `kind` is an open
+vocabulary, `status` the host's lifecycle word. `tool` names the
+running tool on item-visible rows; `backgroundInitiator` who
+backgrounded it: both additive-optional on the wire, never inferred.
+*/
 export interface BackgroundTaskSummary {
   readonly taskId: string
   readonly kind: string
@@ -377,10 +441,10 @@ export interface ComputerUseSetup {
 }
 
 /**
- * One `skill/import` candidate that could neither install nor quarantine:
- * `id` is null when the candidate never yielded one (present-but-null,
- * never omitted).
- */
+One `skill/import` candidate that could neither install nor quarantine:
+`id` is null when the candidate never yielded one (present-but-null,
+never omitted).
+*/
 export interface ForeignSkillFailure {
   readonly id: string | null
   readonly reason: string
@@ -429,13 +493,13 @@ export interface StartSessionOptions {
   readonly modelId: string
   readonly approvalMode: string
   /**
-   * A native permission-profile id the host catalog admits (1.4.6: select,
-   * never create; 1.4.7 `session/start.permissionProfile`): the interactive
-   * surfaces pass the profile their mode's words promise
-   * (`mspPermissionProfile`), so Manual asks the person instead of Muse
-   * Code's judge. Omitted means the host default; headless sessions omit it
-   * and behave as before.
-   */
+  A native permission-profile id the host catalog admits (1.4.6: select,
+  never create; 1.4.7 `session/start.permissionProfile`): the interactive
+  surfaces pass the profile their mode's words promise
+  (`mspPermissionProfile`), so Manual asks the person instead of Muse
+  Code's judge. Omitted means the host default; headless sessions omit it
+  and behave as before.
+  */
   readonly permissionProfile?: string | undefined
   /** Tool servers, keyed by name: the IDE's, or an ACP client's; needs the `sessionMcp` grant. */
   readonly mcpServers?: Readonly<Record<string, SessionMcpServer>>
@@ -444,10 +508,10 @@ export interface StartSessionOptions {
 }
 
 /**
- * A PDF sent whole (M54, PLAN.md D47): the Model API's `input_file`. MSP
- * 1.3.0 has no such part (meta-models/muse-code-sdk#48), so the Muse Code
- * host refuses it rather than send what `turn/start` rejects.
- */
+A PDF sent whole (M54, PLAN.md D47): the Model API's `input_file`. MSP
+1.3.0 has no such part (meta-models/muse-code-sdk#48), so the Muse Code
+host refuses it rather than send what `turn/start` rejects.
+*/
 export interface DocumentPart {
   readonly type: 'file'
   readonly base64Data: string
@@ -477,11 +541,11 @@ export interface TextFilePart {
 }
 
 /**
- * An attached video or audio file (M105 lane V): metadata and the host's
- * one-use attach token, never bytes or a path. The host's attached-media
- * registry resolves the token to its approved source; a part whose token,
- * digest, name or size the registry does not hold is refused.
- */
+An attached video or audio file (M105 lane V): metadata and the host's
+one-use attach token, never bytes or a path. The host's attached-media
+registry resolves the token to its approved source; a part whose token,
+digest, name or size the registry does not hold is refused.
+*/
 export interface MediaFilePart {
   readonly type: 'media'
   readonly token: string
@@ -514,9 +578,9 @@ export interface TurnSubmission {
 }
 
 /**
- * A message accepted as queued or steered (M87, PLAN.md D66), named as its
- * submission was acknowledged: what `withdrawQueued` takes back.
- */
+A message accepted as queued or steered (M87, PLAN.md D66), named as its
+submission was acknowledged: what `withdrawQueued` takes back.
+*/
 export interface QueuedMessageRef {
   readonly turnId: string
   /** The backend's user item id for it (the Model API's); undefined where none was given. */
@@ -526,10 +590,10 @@ export interface QueuedMessageRef {
 }
 
 /**
- * What withdrawing did (M87): `withdrawn`, with the images the message
- * carried (undefined where the backend keeps no bytes, an empty list for a
- * message with none), or `tooLate`: the message already reached a request.
- */
+What withdrawing did (M87): `withdrawn`, with the images the message
+carried (undefined where the backend keeps no bytes, an empty list for a
+message with none), or `tooLate`: the message already reached a request.
+*/
 export type WithdrawOutcome =
   | { readonly status: 'withdrawn'; readonly images: readonly SentImage[] | undefined }
   | { readonly status: 'tooLate' }
@@ -587,10 +651,16 @@ export interface SessionRecord {
   readonly forkedFrom?: { readonly sessionId: string } | null | undefined
   readonly workspaceRoot?: string | null | undefined
   /**
-   * Its history came from an imported file (M84, PLAN.md D49): the panel
-   * opens it in a mode that asks, whatever the initial mode.
-   */
+  Its history came from an imported file (M84, PLAN.md D49): the panel
+  opens it in a mode that asks, whatever the initial mode.
+  */
   readonly imported?: boolean
+  /**
+  The approval mode the host runs, served on start/read/resume (never on
+  `session/list` rows): a resumed handle starts knowing which mode to put
+  back when a later mode change fails.
+  */
+  readonly approvalMode?: { readonly mode: string } | undefined
 }
 
 export interface SessionPage {
@@ -599,10 +669,10 @@ export interface SessionPage {
 }
 
 /**
- * One page of session records under the cursor's offset, newest first
- * assumed. The cursor is the list's offset, so paging through reaches every
- * record; a cursor that is not one starts over, never empty. Pure.
- */
+One page of session records under the cursor's offset, newest first
+assumed. The cursor is the list's offset, so paging through reaches every
+record; a cursor that is not one starts over, never empty. Pure.
+*/
 export function sessionRecordsPage(
   ordered: readonly SessionRecord[],
   limit: number,
@@ -626,10 +696,10 @@ export interface SessionHistoryOutcome {
   readonly name: string | undefined
   readonly todos: readonly TodoItem[]
   /**
-   * The session goal (M45): `null` when the history says there is none,
-   * undefined when it cannot say (Muse Code's inline history carries no
-   * goal; its snapshot does).
-   */
+  The session goal (M45): `null` when the history says there is none,
+  undefined when it cannot say (Muse Code's inline history carries no
+  goal; its snapshot does).
+  */
   readonly goal?: SessionGoal | null
 }
 
@@ -655,50 +725,58 @@ export interface AgentSession {
   getScheduledRun?(turnId?: string): UnattendedRun | undefined
   onEvent(listener: SessionEventListener): () => void
   /**
-   * Submit a turn. `displayText` is the transcript's presentation form of
-   * the prompt, used when the parts carry more than the user typed (M5).
-   */
+  Submit a turn. `displayText` is the transcript's presentation form of
+  the prompt, used when the parts carry more than the user typed (M5).
+  */
   sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission>
   /**
-   * Bind a caller's remaining model-call allowance for the running turn;
-   * the last call is reserved for the tools-disabled wrap-up. Required on
-   * every backend so the compiler lists each implementer: a backend that
-   * manages its own turn bounds keeps the member as a no-op.
-   */
+  Bind a caller's remaining model-call allowance for the running turn;
+  the last call is reserved for the tools-disabled wrap-up. Required on
+  every backend so the compiler lists each implementer: a backend that
+  manages its own turn bounds keeps the member as a no-op.
+  */
   setModelCallAllowance(remaining: (() => number) | undefined): void
   /** Formats and repairs a user-requested Git draft in this session, under its live guards. */
   readonly gitDraftOutput?: GitDraftOutputPort
   /**
-   * A `/review` turn run as the built-in Reviewer, with its own prompt and
-   * only the tools that read (M70, PLAN.md D49). The Model API backend has
-   * one; Muse Code, which has no Reviewer the extension can pick, reviews
-   * with an ordinary turn held in Plan mode instead.
-   */
+  A `/review` turn run as the built-in Reviewer, with its own prompt and
+  only the tools that read (M70, PLAN.md D49). The Model API backend has
+  one; Muse Code, which has no Reviewer the extension can pick, reviews
+  with an ordinary turn held in Plan mode instead.
+  */
   readonly review?: (parts: readonly TurnPart[], displayText: string) => Promise<TurnSubmission>
   /**
-   * A `/playback` turn stating the agent's own understanding from working
-   * memory, with no tools (D203). The Model API backend offers none and
-   * refuses every call in code; Muse Code has no such turn (no approval
-   * mode denies reads, let alone the file tools' edits), so sessions
-   * without it have no playback and the surfaces refuse it there.
-   */
+  A `/playback` turn stating the agent's own understanding from working
+  memory, with no tools (D203). The Model API backend offers none and
+  refuses every call in code; Muse Code has no such turn (no approval
+  mode denies reads, let alone the file tools' edits), so sessions
+  without it have no playback and the surfaces refuse it there.
+  */
   readonly playback?: (parts: readonly TurnPart[], displayText: string) => Promise<TurnSubmission>
   /**
-   * Inject input into the running turn. A `SteerRefusedError` says none of
-   * it was taken (no turn to steer); any other failure may have reached it.
-   */
+  Inject input into the running turn. A `SteerRefusedError` says none of
+  it was taken (no turn to steer); any other failure may have reached it.
+  */
   steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<TurnSubmission>
   cancel(): Promise<void>
   setModel(modelId: string): Promise<void>
   /** The session's standing reasoning-effort default (wire vocabulary). */
   setReasoningEffort(reasoningEffort: string): Promise<void>
   /**
-   * The conversation's Fast tier: the plan catalogue's priority tier id
-   * while on, undefined while off. Plan sessions only; sessions without it
-   * never offer the switch.
-   */
+  The conversation's Fast tier: the plan catalogue's priority tier id
+  while on, undefined while off. Plan sessions only; sessions without it
+  never offer the switch.
+  */
   setServiceTier?: (serviceTier: string | undefined) => Promise<void>
-  /** One of the four MSP approval modes (shared/permissionModes.ts). */
+  /**
+  One of the four MSP approval modes (shared/permissionModes.ts). Throws
+  `PermissionReviewerError` when the mode took but its reviewer did not:
+  the session is quarantined (turns refused) and `actualMode` is the wire
+  mode the host runs, which the surface must show. Throws `ModeKeptError`
+  when the change did not take and the host still runs a mode whose
+  reviewer agrees with it: the session is not quarantined, and `actualMode`
+  is the running mode the surface must show instead (empty when unknown).
+  */
   setApprovalMode(mode: string): Promise<void>
   compact(): Promise<CompactOutcome>
   decideApproval(decision: ApprovalDecision): Promise<void>
@@ -706,45 +784,45 @@ export interface AgentSession {
   /** Decline the prompt: the tool call resolves with a cancelled result the model sees (M16). */
   cancelQuestions(userInputId: string): Promise<void>
   /**
-   * M112: continue without guessing, preserving the question for a late answer.
-   * Resolve only once the tool call is settled. Q binds both backend hosts;
-   * the registry takes this method through its required injected port.
-   */
+  M112: continue without guessing, preserving the question for a late answer.
+  Resolve only once the tool call is settled. Q binds both backend hosts;
+  the registry takes this method through its required injected port.
+  */
   deferQuestions(userInputId: string): Promise<void>
   /**
-   * Settle an MCP elicitation form (M91 lane M): accept with validated
-   * values, or decline or cancel. Absent where the backend never asks
-   * (Muse Code answers its own elicitations itself).
-   */
+  Settle an MCP elicitation form (M91 lane M): accept with validated
+  values, or decline or cancel. Absent where the backend never asks
+  (Muse Code answers its own elicitations itself).
+  */
   settleElicitation?: (elicitationId: string, reply: ElicitationReply) => Promise<void>
   /**
-   * Answer with an explanation instead of the options (MSP `userInput/clarify`,
-   * M46): the model reads it and decides again.
-   */
+  Answer with an explanation instead of the options (MSP `userInput/clarify`,
+  M46): the model reads it and decides again.
+  */
   clarifyQuestions(userInputId: string, text: string): Promise<void>
   /**
-   * Move a running tool call to the background, its row's id naming it (MSP
-   * `task/background`, the TUI's Ctrl+B, M46): the turn goes on without it.
-   */
+  Move a running tool call to the background, its row's id naming it (MSP
+  `task/background`, the TUI's Ctrl+B, M46): the turn goes on without it.
+  */
   moveToBackground(taskId: string): Promise<void>
   /** Stop one background task (`task/stop`), or every one (`task/stopAll`), M46. */
   stopTask(taskId: string): Promise<void>
   stopAllTasks(): Promise<void>
   /**
-   * The user's own shell command, the TUI's `!` (MSP `session/userShell`,
-   * M46): it runs outside any turn, its row arrives as a `userShell` item,
-   * and the model sees it with its next request.
-   */
+  The user's own shell command, the TUI's `!` (MSP `session/userShell`,
+  M46): it runs outside any turn, its row arrives as a `userShell` item,
+  and the model sees it with its next request.
+  */
   runUserShell(command: string): Promise<void>
   /** An owner command on a native subagent (M18): MSP `subagent/<action>`. */
   controlSubagent(subagentId: string, action: SubagentAction): Promise<void>
   /** A note to a running subagent (`subagent/sendMessage`) or a follow-up task for one that finished (`subagent/followupTask`), M18. */
   messageSubagent(subagentId: string, body: string, isFollowup: boolean): Promise<void>
   /**
-   * The session goal's verbs (M45, PLAN.md D38): MSP `goal/<verb>`. Admission
-   * only: the goal itself arrives as `goalChanged`. A refusal is a
-   * `GoalRefusedError`.
-   */
+  The session goal's verbs (M45, PLAN.md D38): MSP `goal/<verb>`. Admission
+  only: the goal itself arrives as `goalChanged`. A refusal is a
+  `GoalRefusedError`.
+  */
   controlGoal(command: GoalCommand): Promise<GoalCommandOutcome>
   /** Extension-owned schedules only. Muse Code's native cron has no MSP control verbs (M52). */
   readonly schedules?: {
@@ -761,79 +839,79 @@ export interface AgentSession {
   readOutput(request: OutputPageRequest): Promise<OutputPage>
   listSkills(): Promise<readonly SkillSummary[]>
   /**
-   * The session's live background-task inventory, oldest first (M127, MSP
-   * `task/list`). Absent where the backend keeps none.
-   */
+  The session's live background-task inventory, oldest first (M127, MSP
+  `task/list`). Absent where the backend keeps none.
+  */
   readonly listBackgroundTasks?: () => Promise<readonly BackgroundTaskSummary[]>
   /**
-   * The session's installed hook rows (M127, MSP `hook/list`). Absent
-   * where the backend keeps none.
-   */
+  The session's installed hook rows (M127, MSP `hook/list`). Absent
+  where the backend keeps none.
+  */
   readonly listSessionHooks?: () => Promise<readonly SessionHookRow[]>
   /**
-   * The installed plugin records (M127, MSP `plugin/list`). Absent where
-   * the backend keeps none.
-   */
+  The installed plugin records (M127, MSP `plugin/list`). Absent where
+  the backend keeps none.
+  */
   readonly listSessionPlugins?: () => Promise<readonly SessionPluginRow[]>
   /**
-   * Import foreign skills through the host seam (M127, MSP
-   * `skill/import`): `source` is `claude` or `codex`; `dryRun` previews
-   * without writing. Absent where the backend keeps no skill seam.
-   */
+  Import foreign skills through the host seam (M127, MSP
+  `skill/import`): `source` is `claude` or `codex`; `dryRun` previews
+  without writing. Absent where the backend keeps no skill seam.
+  */
   readonly importForeignSkills?: (
     source: string,
     options?: { readonly dryRun?: boolean; readonly force?: boolean },
   ) => Promise<ForeignSkillImport>
   /**
-   * Resume a paused workflow run (M127, MSP `workflow/resume`):
-   * host-driven, the reply names the driven turn. Absent where the
-   * backend runs no workflows.
-   */
+  Resume a paused workflow run (M127, MSP `workflow/resume`):
+  host-driven, the reply names the driven turn. Absent where the
+  backend runs no workflows.
+  */
   readonly resumeWorkflowRun?: (
     workflowRunId: string,
   ) => Promise<{ readonly status: string; readonly turnId: string }>
   /** Resolves to the canonical name, or undefined when it arrives as an event. */
   rename(name: string): Promise<string | undefined>
   /**
-   * The images a turn of this session sent, where the backend keeps them
-   * (M53, PLAN.md D46): the Model API's replay holds them. Muse Code echoes
-   * attachment metadata only (MSP `Item.attachments`), so its sessions do
-   * not offer this and a rewind warns that the bytes cannot be restored.
-   */
+  The images a turn of this session sent, where the backend keeps them
+  (M53, PLAN.md D46): the Model API's replay holds them. Muse Code echoes
+  attachment metadata only (MSP `Item.attachments`), so its sessions do
+  not offer this and a rewind warns that the bytes cannot be restored.
+  */
   readonly sentImages?: (turnId: string, itemId: string) => readonly SentImage[] | undefined
   /**
-   * Replace the todo list from outside a turn (M79): a plan's steps before
-   * its first turn. The Model API backend keeps the list itself. MSP 1.3.0
-   * has no such command (the list is `session/todoListChanged`, written by
-   * the model's own tool), so Muse Code sessions do not offer it.
-   */
+  Replace the todo list from outside a turn (M79): a plan's steps before
+  its first turn. The Model API backend keeps the list itself. MSP 1.3.0
+  has no such command (the list is `session/todoListChanged`, written by
+  the model's own tool), so Muse Code sessions do not offer it.
+  */
   readonly setTodos?: (items: readonly TodoItem[]) => void
   /**
-   * Fire one extension hook event from the session's own snapshot (M91):
-   * the Model API backend runs its spark-hooks.json snapshot outside any
-   * turn (a Best-of-N worktree, an idling teammate, a message about to
-   * show). Hook context has no turn to join, so only the decision comes
-   * back. Sessions without such a point leave it absent, and the operation
-   * proceeds as before.
-   */
+  Fire one extension hook event from the session's own snapshot (M91):
+  the Model API backend runs its spark-hooks.json snapshot outside any
+  turn (a Best-of-N worktree, an idling teammate, a message about to
+  show). Hook context has no turn to join, so only the decision comes
+  back. Sessions without such a point leave it absent, and the operation
+  proceeds as before.
+  */
   readonly fireExtensionHook?: (
     event: ExtensionHookEvent,
     fields: Readonly<Record<string, unknown>>,
     matcherValue?: string,
   ) => Promise<ExtensionHookDispatch>
   /**
-   * Told when the backend reports this session's own event log failed, so
-   * it can take no new message (CLI recovery): Muse Code 1.4.2 answered a
-   * command with "event log failed: …". The Model API keeps no such log.
-   */
+  Told when the backend reports this session's own event log failed, so
+  it can take no new message (CLI recovery): Muse Code 1.4.2 answered a
+  command with "event log failed: …". The Model API keeps no such log.
+  */
   readonly onLogDamaged?: (listener: () => void) => () => void
   /**
-   * Take back a message before the model has it (M87, PLAN.md D66): the
-   * Model API removes it from its queue or the running turn's steered input;
-   * Muse Code sends `turn/unqueue` for a submit acknowledged `queued`. It
-   * resolves `tooLate` once the message reached a request. A session
-   * without it offers no Edit: the controller refuses before asking.
-   */
+  Take back a message before the model has it (M87, PLAN.md D66): the
+  Model API removes it from its queue or the running turn's steered input;
+  Muse Code sends `turn/unqueue` for a submit acknowledged `queued`. It
+  resolves `tooLate` once the message reached a request. A session
+  without it offers no Edit: the controller refuses before asking.
+  */
   readonly withdrawQueued?: (ref: QueuedMessageRef) => Promise<WithdrawOutcome>
   dispose(): void
 }
@@ -843,11 +921,11 @@ export interface AgentHost {
   readonly info: HostInfo
   onExit(listener: (exit: HostExit) => void): () => void
   /**
-   * Why the host this one replaced went away, if that run ended in
-   * failure (`HostExit.isFailure`): every turn that fails for the lost
-   * sign-in names it, until a completed turn (or another definitive
-   * boundary) clears it. Absent where nothing replaced anything.
-   */
+  Why the host this one replaced went away, if that run ended in
+  failure (`HostExit.isFailure`): every turn that fails for the lost
+  sign-in names it, until a completed turn (or another definitive
+  boundary) clears it. Absent where nothing replaced anything.
+  */
   peekRestartCause?(): string | undefined
   /** A completed turn proves the host: no later failure blames the restart. */
   clearRestartCause?(): void
@@ -874,29 +952,29 @@ export interface AgentHost {
     options?: { readonly sideChat?: boolean },
   ): Promise<LoadedSession>
   /**
-   * Permanently removes a stored conversation from the backend's store, so
-   * History lists it no more: Muse Code through its `session/delete`
-   * command, the Model API through the product's own session store. Only
-   * where `info.canDeleteSessions` says so; the caller confirms first, and
-   * a failure names its real cause while the session stays listed.
-   */
+  Permanently removes a stored conversation from the backend's store, so
+  History lists it no more: Muse Code through its `session/delete`
+  command, the Model API through the product's own session store. Only
+  where `info.canDeleteSessions` says so; the caller confirms first, and
+  a failure names its real cause while the session stays listed.
+  */
   deleteSession(sessionId: string): Promise<void>
   onSessionListEvent(listener: (event: SessionListEvent) => void): () => void
   /**
-   * The subscription usage the host last observed (M8); undefined when there
-   * is none: a key-billed backend, or a CLI that has not seen a usage frame
-   * yet (it reports one after a turn).
-   */
+  The subscription usage the host last observed (M8); undefined when there
+  is none: a key-billed backend, or a CLI that has not seen a usage frame
+  yet (it reports one after a turn).
+  */
   readUsage(): Promise<SubscriptionUsage | undefined>
   readPlanUsage?(): readonly PlanUsageRow[]
   /** A fresh observation arrived (MSP `usage/changed`). */
   onUsageChanged(listener: (usage: SubscriptionUsage) => void): () => void
   /**
-   * Resume a parsed export as a new session (M84, PLAN.md D49): the host
-   * sanitizes it (fresh ids, the caller's asking mode and model, no rules,
-   * goals, schedules or patches, each imported turn untrusted data) and
-   * loads it. Only the Model API backend offers it.
-   */
+  Resume a parsed export as a new session (M84, PLAN.md D49): the host
+  sanitizes it (fresh ids, the caller's asking mode and model, no rules,
+  goals, schedules or patches, each imported turn untrusted data) and
+  loads it. Only the Model API backend offers it.
+  */
   readonly importSession?:
     | ((
         doc: SessionExport,
@@ -904,22 +982,22 @@ export interface AgentHost {
       ) => Promise<LoadedSession>)
     | undefined
   /**
-   * A "while you were away" recap (M127, MSP `recap/request`): the ack
-   * admits, then the request settles on `recap/completed` matched by
-   * commandId. Absent where the backend keeps no recaps.
-   */
+  A "while you were away" recap (M127, MSP `recap/request`): the ack
+  admits, then the request settles on `recap/completed` matched by
+  commandId. Absent where the backend keeps no recaps.
+  */
   readonly requestSessionRecap?: (sessionId: string) => Promise<SessionRecap>
   /**
-   * Cancel the session's in-flight recap (M127, MSP `recap/cancel`): it
-   * settles `cancelled`; idle is an accepted no-op. Absent where the
-   * backend keeps no recaps.
-   */
+  Cancel the session's in-flight recap (M127, MSP `recap/cancel`): it
+  settles `cancelled`; idle is an accepted no-op. Absent where the
+  backend keeps no recaps.
+  */
   readonly cancelSessionRecap?: (sessionId: string) => Promise<string>
   /**
-   * The host's computer-use setup state (M127, MSP
-   * `computerUseSetup/check`). Absent where the backend has no such
-   * setup.
-   */
+  The host's computer-use setup state (M127, MSP
+  `computerUseSetup/check`). Absent where the backend has no such
+  setup.
+  */
   readonly checkComputerUseSetup?: () => Promise<ComputerUseSetup>
   readonly sessionCount: number
   close(): Promise<void>

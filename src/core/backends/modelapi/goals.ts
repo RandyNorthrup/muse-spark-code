@@ -34,10 +34,10 @@ export interface GoalContext {
   readonly now: number
   readonly newId: () => string
   /**
-   * The selected model's recorded context window in tokens. A goal whose
-   * pinned section alone cannot fit it is refused before activation;
-   * undefined (unknown) means no check.
-   */
+  The selected model's recorded context window in tokens. A goal whose
+  pinned section alone cannot fit it is refused before activation;
+  undefined (unknown) means no check.
+  */
   readonly contextTokens?: number | undefined
 }
 
@@ -134,13 +134,13 @@ function parsedArgs<T>(schema: z.ZodMiniType<T>, args: string): T | undefined {
 }
 
 /**
- * A validation code shared by user verbs and model tools, with separate
- * text. D121: an objective of any length stands — the removed 4000-character
- * ceiling was invented (Muse Code states no limit) — so only blank refuses,
- * and an objective whose pinned section alone exceeds the selected model's
- * recorded window (the provider's own limit, measured with the established
- * bytes-per-token estimator).
- */
+A validation code shared by user verbs and model tools, with separate
+text. D121: an objective of any length stands — the removed 4000-character
+ceiling was invented (Muse Code states no limit) — so only blank refuses,
+and an objective whose pinned section alone exceeds the selected model's
+recorded window (the provider's own limit, measured with the established
+bytes-per-token estimator).
+*/
 type ObjectiveProblem = 'empty' | 'tooLarge'
 
 function isSectionOverWindow(objective: string, contextTokens: number | undefined): boolean {
@@ -296,12 +296,12 @@ export function runGoalTool(
 }
 
 /**
- * A user's verb (MSP `goal/<verb>`) applied to the goal, or the refusal
- * Muse Code gives (captured live 2026-09-25): none to act on (`noGoal`), or
- * a pause of a goal that is not active, a resume of one that is not paused,
- * an edit of a finished one (`wrongState`). A set replaces whatever was
- * there; an edit keeps the status.
- */
+A user's verb (MSP `goal/<verb>`) applied to the goal, or the refusal
+Muse Code gives (captured live 2026-09-25): none to act on (`noGoal`), or
+a pause of a goal that is not active, a resume of one that is not paused,
+an edit of a finished one (`wrongState`). A set replaces whatever was
+there; an edit keeps the status.
+*/
 export function applyGoalCommand(
   goal: GoalRecord | undefined,
   command: GoalCommand,
@@ -373,11 +373,11 @@ export function toSessionGoal(goal: GoalRecord): SessionGoal {
 }
 
 /**
- * The pinned section for an objective: the objective plus the other content
- * the feature pins with it on every request (the heading and the rules).
- * The per-request remainder (base instructions, tools, input) stays the
- * send-time preflight's guard (`assertContextFits`).
- */
+The pinned section for an objective: the objective plus the other content
+the feature pins with it on every request (the heading and the rules).
+The per-request remainder (base instructions, tools, input) stays the
+send-time preflight's guard (`assertContextFits`).
+*/
 function goalSection(objective: string): string {
   return [
     '# Session goal',
@@ -388,10 +388,10 @@ function goalSection(objective: string): string {
 }
 
 /**
- * The section pinned into the instructions while the goal is active (D38):
- * only the objective and rules. Mutable progress travels in a request-only
- * trailing message, outside the cached prefix (M101, D81).
- */
+The section pinned into the instructions while the goal is active (D38):
+only the objective and rules. Mutable progress travels in a request-only
+trailing message, outside the cached prefix (M101, D81).
+*/
 export function goalInstructions(goal: GoalRecord | undefined): string | undefined {
   return isGoalActive(goal) ? goalSection(goal.objective) : undefined
 }

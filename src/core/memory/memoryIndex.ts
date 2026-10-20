@@ -122,9 +122,9 @@ function oneLine(text: string): string {
 }
 
 /**
- * What a note is about, in one line: its front matter's `description`, else
- * its first line of text (a heading's marks dropped). Empty for an empty note.
- */
+What a note is about, in one line: its front matter's `description`, else
+its first line of text (a heading's marks dropped). Empty for an empty note.
+*/
 export function noteSummary(text: string): string {
   const lines = text.split(LINE_BREAK)
   let index = 0

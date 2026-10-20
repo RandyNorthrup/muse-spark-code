@@ -86,6 +86,15 @@ void (async () => {
   await serve.stop()
   process.disconnect()
 })().catch((error: unknown) => {
-  process.stderr.write(`relay fixture refused: ${String(error)}\n`)
+  // The cause chain names the real failure (a refused helper build reports
+  // only its fixed sentence otherwise).
+  const causes: string[] = []
+  let cause: unknown = error instanceof Error ? error.cause : undefined
+  while (cause instanceof Error && causes.length < 3) {
+    causes.push(String(cause))
+    cause = cause.cause
+  }
+  const trail = causes.length > 0 ? ` <- ${causes.join(' <- ')}` : ''
+  process.stderr.write(`relay fixture refused: ${String(error)}${trail}\n`)
   process.exitCode = 1
 })

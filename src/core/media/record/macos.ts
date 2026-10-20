@@ -1,9 +1,6 @@
 // M105 R1: portable macOS driver. The caller owns the interactive entry point,
 // preview and upload; M1 supplies inspect and the editor/runtime supplies spawn.
-import { Buffer } from 'node:buffer'
-import { chmod, lstat, mkdtemp, rm } from 'node:fs/promises'
 import path from 'node:path'
-import { StringDecoder } from 'node:string_decoder'
 import * as z from 'zod/mini'
 import { isCredentialVariable } from '../../../shared/credentialEnvironment'
 import {
@@ -13,7 +10,6 @@ import {
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../../shared/constants'
-import { fill } from '../../../shared/l10n/text'
 import {
   mediaInfoSchema,
   screenRecordingOptionsSchema,
@@ -21,6 +17,13 @@ import {
 } from '../../../shared/media'
 import type { HelperChild } from '../../voice/dictation'
 import type { ScreenRecordingDriver, ScreenRecordingResult } from './driver'
+import { type GuardedChildEnv } from '../../executables'
+import { noWorkspaceChildEnvironment } from '../../execGuard'
+import { Buffer } from 'node:buffer'
+import { chmod, lstat, mkdtemp, rm } from 'node:fs/promises'
+import { StringDecoder } from 'node:string_decoder'
+import { fill } from '../../../shared/l10n/text'
+import { realpathSync } from 'node:fs'
 
 const PRIVATE_DIRECTORY_MODE = 0o700
 const PRIVATE_FILE_MODE = 0o600
@@ -45,9 +48,9 @@ export interface MacosScreenRecordingDeps {
   readonly environment: NodeJS.ProcessEnv
   readonly fileExists: (file: string) => boolean
   /** REDM104L3's installed-root/link verifier, bound at integration. Absence refuses.
-   * The requirement comes from trusted release metadata: expected Team ID and
-   * designated requirement, or the exact ad-hoc CDHash; never workspace settings.
-   */
+  The requirement comes from trusted release metadata: expected Team ID and
+  designated requirement, or the exact ad-hoc CDHash; never workspace settings.
+  */
   readonly verifyTrustedHelper?: (file: string) => Promise<
     | {
         readonly path: string
@@ -58,8 +61,12 @@ export interface MacosScreenRecordingDeps {
   >
   /** Host power-suspend subscription. Unsubscribe when the run settles. */
   readonly onSuspend?: (listener: () => void) => () => void
-  /** Spawn directly with this exact argument array and environment; no shell. */
-  readonly spawn: (command: string, args: readonly string[], env: NodeJS.ProcessEnv) => HelperChild
+  /**
+  Spawn directly with this exact argument array and environment; no shell.
+  The driver hands it only the guarded recorder environment below, so a
+  raw environment does not type-check here.
+  */
+  readonly spawn: (command: string, args: readonly string[], env: GuardedChildEnv) => HelperChild
   /** M1's bounded sniffer, injected until its lane is integrated. */
   readonly inspect: (file: string) => Promise<MediaInfo>
   /** Lane W binds these to SCREEN_RECORDING_* tunables in shared/constants. */
@@ -99,8 +106,8 @@ const probeSchema = z.strictObject({
 })
 
 /** Called only from the recovery action the user chose.
- * @unwired M105 macOS recording permission recovery
- */
+@unwired M105 macOS recording permission recovery
+*/
 export async function openMacosRecordingPermissions(
   permission: Permission,
   openExternal: (uri: string) => Promise<void>,
@@ -112,13 +119,19 @@ function unavailable(reason: string): ScreenRecordingResult & { readonly ok: fal
   return { ok: false, reason: fill(UI_TEXT.media.recordingUnavailable, { reason }) }
 }
 
-/** No credential of any shape, or inherited disclaim marker, reaches the helper/converters. */
-function childEnvironment(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return Object.fromEntries(
+/**
+No credential of any shape, or inherited disclaim marker, reaches the
+helper/converters — and the recorder helpers run fixed absolute commands
+with the host working directory, never a workspace: absolute PATH entries
+only, links followed.
+*/
+function childEnvironment(base: NodeJS.ProcessEnv): GuardedChildEnv {
+  const filtered = Object.fromEntries(
     Object.entries(base).filter(
       ([name]) => !isCredentialVariable(name) && name.toUpperCase() !== 'MUSE_DICTATE_DISCLAIMED',
     ),
   )
+  return noWorkspaceChildEnvironment(process.platform, filtered, realpathSync)
 }
 
 export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): ScreenRecordingDriver {
@@ -359,7 +372,7 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
               info.mediaType !== 'video/mp4' ||
               info.sizeBytes !== stat.size ||
               info.durationSeconds === null ||
-              info.durationSeconds > options.data.maxSeconds + 2 ||
+              (options.data.maxSeconds > 0 && info.durationSeconds > options.data.maxSeconds + 2) ||
               info.hasSoundtrack !== (options.data.microphone || options.data.systemAudio)
             ) {
               throw new Error('invalid recording metadata')
@@ -430,17 +443,28 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
                 isRecording = true
                 if (!isStopping) {
                   clearTimeout(watchdog)
-                  onCountdown(remaining)
+                  // D121: maxSeconds 0 records until stopped — the tick then
+                  // reports seconds recorded and no watchdog stops the run.
+                  const isUncapped = options.data.maxSeconds === 0
+                  let elapsed = options.data.maxSeconds - remaining
+                  onCountdown(isUncapped ? elapsed : remaining)
                   tick = setInterval(() => {
+                    if (isUncapped) {
+                      elapsed += 1
+                      onCountdown(elapsed)
+                      return
+                    }
                     remaining -= 1
                     onCountdown(remaining)
                     if (remaining === 0) void stop()
                   }, MILLISECONDS_PER_SECOND)
-                  watchdog = setTimeout(() => {
-                    remaining = 0
-                    onCountdown(remaining)
-                    void stop()
-                  }, remaining * MILLISECONDS_PER_SECOND)
+                  if (!isUncapped) {
+                    watchdog = setTimeout(() => {
+                      remaining = 0
+                      onCountdown(remaining)
+                      void stop()
+                    }, remaining * MILLISECONDS_PER_SECOND)
+                  }
                 }
               }
             } catch {

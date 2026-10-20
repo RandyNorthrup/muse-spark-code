@@ -61,11 +61,11 @@ async function readBounded(
 }
 
 /**
- * POSTs the payload and answers with the first response's status, headers
- * and bounded body. Tries each resolved address in order; an HTTP answer,
- * whatever its status, ends the tries. Rejects when nothing resolves, no
- * address connects, or the signal aborts.
- */
+POSTs the payload and answers with the first response's status, headers
+and bounded body. Tries each resolved address in order; an HTTP answer,
+whatever its status, ends the tries. Rejects when nothing resolves, no
+address connects, or the signal aborts.
+*/
 export async function postHookPayload(
   url: string,
   payload: string,

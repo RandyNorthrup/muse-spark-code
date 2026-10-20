@@ -53,10 +53,10 @@ interface OwnListeners {
 }
 
 /**
- * One phase's own part of the fixture: a port of its own on every loopback
- * address, and a TCP listener of its own on this machine's address, that
- * answer and count for its nonce only. No earlier phase's probe names them.
- */
+One phase's own part of the fixture: a port of its own on every loopback
+address, and a TCP listener of its own on this machine's address, that
+answer and count for its nonce only. No earlier phase's probe names them.
+*/
 export interface PhaseFixture {
   readonly nonce: string
   readonly port: number
@@ -141,12 +141,12 @@ async function bindUdp(
 }
 
 /**
- * The check's fixture. For each phase: one HTTP handler for that phase's
- * nonce only, on 127.0.0.1 at a port the OS picks and on the same port at
- * 127.0.0.2 and ::1 where the OS has them, and a TCP listener on this
- * machine's own address that only counts. For the check: a UDP socket on
- * that address that only counts.
- */
+The check's fixture. For each phase: one HTTP handler for that phase's
+nonce only, on 127.0.0.1 at a port the OS picks and on the same port at
+127.0.0.2 and ::1 where the OS has them, and a TCP listener on this
+machine's own address that only counts. For the check: a UDP socket on
+that address that only counts.
+*/
 export async function startProbeFixture(
   platform: NodeJS.Platform,
   findOwnAddress: OwnAddressFinder,
@@ -313,11 +313,11 @@ function neighbourOf(address: string, widened: ReadonlySet<string>): string | un
 }
 
 /**
- * A loopback host the user did not widen, for C5w: CONNECT goes only to a
- * widened host, so its refusal is the construction's. The fixture's own
- * hosts first; when the user widened all of them, another 127/8 literal
- * (the widened set is finite, so one is free).
- */
+A loopback host the user did not widen, for C5w: CONNECT goes only to a
+widened host, so its refusal is the construction's. The fixture's own
+hosts first; when the user widened all of them, another 127/8 literal
+(the widened set is finite, so one is free).
+*/
 function unwidenedLoopback(hosts: readonly string[], widened: ReadonlySet<string>): string {
   const found = hosts.find((host) => !widened.has(host))
   if (found !== undefined) {
@@ -435,12 +435,12 @@ function seen(
 }
 
 /**
- * The phase's verdict from its own records at the proxy (only those that
- * arrived while it ran), its own fixture counters, the check's sign-in and
- * datagram counters, and the probe page's report: undefined when every
- * canary held, else the confinement failure it shows (the audit's are all
- * `auditFailed`).
- */
+The phase's verdict from its own records at the proxy (only those that
+arrived while it ran), its own fixture counters, the check's sign-in and
+datagram counters, and the probe page's report: undefined when every
+canary held, else the confinement failure it shows (the audit's are all
+`auditFailed`).
+*/
 export function phaseVerdict(
   plan: PhasePlan,
   observations: readonly ProxyObservation[],

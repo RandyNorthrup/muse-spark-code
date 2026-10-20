@@ -10,7 +10,7 @@ import { companionPcm, companionWav } from '../../shared/companionWav'
 import {
   MUSE_VOICE_SAMPLE_RATE,
   MILLISECONDS_PER_SECOND,
-  MAX_TEXT_ATTACHMENT_BYTES,
+  VOICE_TEXT_MAX_BYTES,
 } from '../../shared/constants'
 import {
   COMPANION_VOICE_MAX_BYTES,
@@ -21,7 +21,7 @@ import { UI_TEXT, fill, formatUnit } from '../../shared/l10n/text'
 
 function element<T extends HTMLElement>(selector: string, kind: new () => T): T {
   const node = document.querySelector(selector)
-  if (!(node instanceof kind)) throw new Error('EVOICE_PAGE')
+  if (!(node instanceof kind)) throw new TypeError('EVOICE_PAGE')
   return node
 }
 
@@ -240,7 +240,7 @@ function boot(): void {
   const events = async () => {
     await companionEvents({
       signal: ending.signal,
-      maxBytes: MAX_TEXT_ATTACHMENT_BYTES,
+      maxBytes: VOICE_TEXT_MAX_BYTES,
       ready: () => {
         ready.resolve(undefined)
       },
@@ -272,7 +272,7 @@ function boot(): void {
     void post({ type: 'cancel' }).catch(fail)
   })
   send.addEventListener('click', () => {
-    if (new TextEncoder().encode(prompt.value).length > MAX_TEXT_ATTACHMENT_BYTES) {
+    if (new TextEncoder().encode(prompt.value).length > VOICE_TEXT_MAX_BYTES) {
       fail()
       return
     }

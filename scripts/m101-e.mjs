@@ -20,8 +20,8 @@ import process from 'node:process'
 // Each task/arm owns an independent measured allowance. The global ceiling
 // is their sum, only a backstop; local overruns fail their task and continue.
 
-function planFor(selection) {
-  const wanted = (selection ?? '')
+function planFor(selection = '') {
+  const wanted = selection
     .split(',')
     .map((id) => id.trim())
     .filter(Boolean)

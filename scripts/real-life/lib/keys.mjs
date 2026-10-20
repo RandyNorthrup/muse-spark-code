@@ -21,9 +21,9 @@ export const keyVariable = (name) =>
   `REAL_LIFE_KEY_${name.toUpperCase().replaceAll(/[^A-Z0-9]/gu, '_')}`
 
 /**
- * What a source spells, or the reason it cannot be used.
- * @param {string} source `dpapi:<folder>` or `env`
- */
+What a source spells, or the reason it cannot be used.
+@param {string} source `dpapi:<folder>` or `env`
+*/
 export function keySource(source) {
   if (source === 'env') return { kind: 'env' }
   if (source.startsWith('dpapi:') && source.length > 'dpapi:'.length) {
@@ -58,14 +58,14 @@ function dpapiKey(folders, name) {
 }
 
 /**
- * The routes of a plan whose key the source does not hold, each with why.
- * A run with a requested route and no key for it stops before anything is
- * installed or sent, instead of recording the route as not run and
- * exiting 0. A Muse Code route takes no key.
- * @param {readonly { id: string, kind: string, stored?: string }[]} routes the plan's routes
- * @param {{ kind: string }} source what keySource() spelled
- * @returns {{ id: string, reason: string }[]}
- */
+The routes of a plan whose key the source does not hold, each with why.
+A run with a requested route and no key for it stops before anything is
+installed or sent, instead of recording the route as not run and
+exiting 0. A Muse Code route takes no key.
+@param {readonly { id: string, kind: string, stored?: string }[]} routes the plan's routes
+@param {{ kind: string }} source what keySource() spelled
+@returns {{ id: string, reason: string }[]}
+*/
 export function missingKeys(routes, source) {
   const missing = []
   const asked = new Set()
@@ -81,9 +81,9 @@ export function missingKeys(routes, source) {
 }
 
 /**
- * The key a source holds under a name.
- * @returns {{ key: string } | { reason: string }}
- */
+The key a source holds under a name.
+@returns {{ key: string } | { reason: string }}
+*/
 export function readKey(source, name) {
   if (!NAME.test(name)) return { reason: `not a key name: ${name}` }
   if (source.kind === 'dpapi') return dpapiKey(source.folders, name)

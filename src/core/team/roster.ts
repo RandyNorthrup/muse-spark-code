@@ -47,10 +47,10 @@ function roleLines(role: TeamStableRole): readonly string[] {
 }
 
 /**
- * The stable part: byte-identical for the same roles, whatever the live
- * numbers are. A live count here would rewrite the cached prefix on every
- * request (the byte-stability case).
- */
+The stable part: byte-identical for the same roles, whatever the live
+numbers are. A live count here would rewrite the cached prefix on every
+request (the byte-stability case).
+*/
 export function buildRosterStable(roles: readonly TeamStableRole[]): string {
   return [TEAM_MODEL_TEXT.rosterTeam, ...roles.flatMap((role) => roleLines(role))].join('\n')
 }
@@ -151,8 +151,8 @@ const liveSchema = z.strictObject({
 })
 
 /** Required adapters over S/C/Q's live snapshots; no placeholder snapshot is
- * used when a lane is unavailable. Base entry headroom/budget/report data is
- * preserved in the M96 tool's result. These reads do not dispatch work. */
+used when a lane is unavailable. Base entry headroom/budget/report data is
+preserved in the M96 tool's result. These reads do not dispatch work. */
 export interface SchedulerRosterSource {
   read(): unknown
 }
@@ -173,9 +173,9 @@ export function schedulerToolAnswer(
 }
 
 /** M96's note drains once per orchestrator conversation, at a request tail.
- * Usage changes wait for the next tool answer. Event text is JSON data, never
- * promoted to an instruction, and earlier instruction bytes are untouched.
- * @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
+Usage changes wait for the next tool answer. Event text is JSON data, never
+promoted to an instruction, and earlier instruction bytes are untouched.
+@unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export class SchedulerStateNote {
   private readonly pending: TeamSchedulerEvent[] = []
   private readonly seen: string[] = []

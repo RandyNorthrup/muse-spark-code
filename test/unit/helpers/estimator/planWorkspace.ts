@@ -34,9 +34,9 @@ function runGitIn(root: string) {
 }
 
 /** A real repository shaped like the M112 workspace: lane 0 merged into the
- * origin default, lane Q still open. All state is real git objects; the
- * origin refs are crafted locally (no network), as forged store files are
- * crafted elsewhere. */
+origin default, lane Q still open. All state is real git objects; the
+origin refs are crafted locally (no network), as forged store files are
+crafted elsewhere. */
 export async function m112Repo(git: (args: readonly string[]) => Promise<string>): Promise<void> {
   await git(['branch', '-M', 'main'])
   await git(['branch', 'm112/0', 'main'])

@@ -41,10 +41,10 @@ export type KeyShape =
   | { readonly kind: 'any'; readonly minLength: number }
 
 /**
- * Whether a pasted key is shaped like the preset's. A shape check never
- * proves a key works: the free key test does. Unknown shapes (`any`) accept
- * any non-blank key of the minimum length.
- */
+Whether a pasted key is shaped like the preset's. A shape check never
+proves a key works: the free key test does. Unknown shapes (`any`) accept
+any non-blank key of the minimum length.
+*/
 export function isKeyShape(shape: KeyShape, key: string): boolean {
   const trimmed = key.trim()
   if (trimmed === '') {
@@ -138,9 +138,9 @@ export interface FormatQuirks {
     | 'content-list'
     | 'none'
   /**
-   * Reasoning goes back only to its own provider, in its own form, to the
-   * same model; any other provider's turn drops it.
-   */
+  Reasoning goes back only to its own provider, in its own form, to the
+  same model; any other provider's turn drops it.
+  */
   readonly reasoningReplay: 'same-model' | 'none'
   /** Usage may share the finish chunk (read deltas and usage from every chunk). */
   readonly usageOnFinishChunk: boolean
@@ -153,77 +153,77 @@ export interface FormatQuirks {
   /** Compaction keeps the turn's tools with `tool_choice: auto`. */
   readonly keepToolsWithHistory: true
   /**
-   * Retry classification per format (M101 BYO 5): the shared retry tables,
-   * so every provider retries its own failures and never its quota.
-   */
+  Retry classification per format (M101 BYO 5): the shared retry tables,
+  so every provider retries its own failures and never its quota.
+  */
   readonly retry: RetryTables
   /**
   /**
-   * The format's documented retry bounds (lane RETRYLIMITS): absent fields
-   * are values the provider does not document, so the person's
-   * `museSpark.modelApiMaxRetries` setting decides and, with none set, the
-   * provider's own Retry-After (or stop answer) governs.
-   */
+  The format's documented retry bounds (lane RETRYLIMITS): absent fields
+  are values the provider does not document, so the person's
+  `museSpark.modelApiMaxRetries` setting decides and, with none set, the
+  provider's own Retry-After (or stop answer) governs.
+  */
   readonly retryLimits: RetryLimits
   /**
-   * EXECPROV round 7: the format's exact same-body input count, where the
-   * provider documents a request that returns the input token count for a
-   * given request body without running the model and without charge. The
-   * count request is built from the already-built native request by a
-   * per-kind function (`src/core/providers/tokenCount.ts`), so it cannot
-   * drift from what is sent. Undefined keeps the byte bound: no counter
-   * exists on the wire. A preset opts in through its own `quirks` where
-   * only some providers of a format document one (OpenAI's Responses
-   * siblings do; xAI's and Azure's do not).
-   */
+  EXECPROV round 7: the format's exact same-body input count, where the
+  provider documents a request that returns the input token count for a
+  given request body without running the model and without charge. The
+  count request is built from the already-built native request by a
+  per-kind function (`src/core/providers/tokenCount.ts`), so it cannot
+  drift from what is sent. Undefined keeps the byte bound: no counter
+  exists on the wire. A preset opts in through its own `quirks` where
+  only some providers of a format document one (OpenAI's Responses
+  siblings do; xAI's and Azure's do not).
+  */
   readonly exactCount: ExactCountKind | undefined
   /**
-   * The server takes `strict: true` tool schemas (M101 item 24): OpenAI
-   * and Azure's constrained decoding. The selected model record overrides
-   * this preset default, including explicit false. Meta's host binds its
-   * owner-confirmed strict capability; unknown/custom/local records stay off.
-   */
+  The server takes `strict: true` tool schemas (M101 item 24): OpenAI
+  and Azure's constrained decoding. The selected model record overrides
+  this preset default, including explicit false. Meta's host binds its
+  owner-confirmed strict capability; unknown/custom/local records stay off.
+  */
   readonly supportsStrictTools: boolean
   /**
-   * How the preset expresses reasoning effort `none` (Thinking off) on
-   * the wire. DeepSeek's thinking-mode switch (`thinking: {type:
-   * "disabled"}`, research D2 `guides/thinking_mode` and the lead's
-   * L98P2 live capture) and Together's hybrid toggle (`reasoning:
-   * {enabled: false}`, `docs/inference/chat/reasoning` read 2026-10-12)
-   * are the declared forms. Absent keeps the preset's existing bytes.
-   */
+  How the preset expresses reasoning effort `none` (Thinking off) on
+  the wire. DeepSeek's thinking-mode switch (`thinking: {type:
+  "disabled"}`, research D2 `guides/thinking_mode` and the lead's
+  L98P2 live capture) and Together's hybrid toggle (`reasoning:
+  {enabled: false}`, `docs/inference/chat/reasoning` read 2026-10-12)
+  are the declared forms. Absent keeps the preset's existing bytes.
+  */
   readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
   /**
-   * The preset's documented reasoning presentation parameter (Groq's
-   * `reasoning_format`, read 2026-10-12): `parsed` keeps reasoning in its
-   * dedicated field, which tool calling and JSON mode require. Absent
-   * sends nothing.
-   */
+  The preset's documented reasoning presentation parameter (Groq's
+  `reasoning_format`, read 2026-10-12): `parsed` keeps reasoning in its
+  dedicated field, which tool calling and JSON mode require. Absent
+  sends nothing.
+  */
   readonly reasoningFormat?: 'parsed' | 'raw' | 'hidden' | undefined
   /**
-   * The preset documents its effort vocabulary for every model, routed
-   * server-side (llama.cpp's `reasoning_effort`, where `none` disables
-   * and any other value reaches the chat template). Set, the codec sends
-   * the body's effort as named even when the record declares no levels.
-   * Absent keeps unknown models silent.
-   */
+  The preset documents its effort vocabulary for every model, routed
+  server-side (llama.cpp's `reasoning_effort`, where `none` disables
+  and any other value reaches the chat template). Set, the codec sends
+  the body's effort as named even when the record declares no levels.
+  Absent keeps unknown models silent.
+  */
   readonly sendUndeclaredEffort?: boolean | undefined
   /**
-   * The preset opts into preserved thinking (Z.ai's `clear_thinking:
-   * false`, `guides/capabilities/thinking-mode` read 2026-10-12): sent
-   * where the turn replays reasoning and thinking is not off. Absent
-   * keeps the default (Coding Plan on, standard endpoint off).
-   */
+  The preset opts into preserved thinking (Z.ai's `clear_thinking:
+  false`, `guides/capabilities/thinking-mode` read 2026-10-12): sent
+  where the turn replays reasoning and thinking is not off. Absent
+  keeps the default (Coding Plan on, standard endpoint off).
+  */
   readonly thinkingPreserved?: boolean | undefined
 }
 
 /**
- * EXECPROV round 7: which counting call a wire offers, if any. Only the
- * first-party providers below document one for the exact request
- * (`docs/certification/m95-research.md` §1.1 [O8, O13, O14] for Responses,
- * §1.5 [A-ov] for Anthropic, §1.6 [G-tk] for Gemini); every other wire
- * keeps the byte bound.
- */
+EXECPROV round 7: which counting call a wire offers, if any. Only the
+first-party providers below document one for the exact request
+(`docs/certification/m95-research.md` §1.1 [O8, O13, O14] for Responses,
+§1.5 [A-ov] for Anthropic, §1.6 [G-tk] for Gemini); every other wire
+keeps the byte bound.
+*/
 export type ExactCountKind =
   /** `POST {request-path}/input_tokens` with the native body, `{input_tokens}`. */
   | 'responses-input-tokens'
@@ -351,21 +351,21 @@ export interface ProviderPreset {
   readonly modelsList: ModelsListSpec
   readonly quirks: Partial<FormatQuirks>
   /**
-   * Doc-cited per-model reasoning facts the pinned catalogue snapshot
-   * lacks, keyed by exact native model id (never a prefix): Z.ai's
-   * glm-5.2 effort names and Thinking-off toggle, Together's hybrid
-   * toggle on MiniMax M3. Each entry names the provider page and the day
-   * it was read; re-check every entry on each catalogue sync, and prefer
-   * the catalogue the moment it carries the fact. Empty everywhere else.
-   */
+  Doc-cited per-model reasoning facts the pinned catalogue snapshot
+  lacks, keyed by exact native model id (never a prefix): Z.ai's
+  glm-5.2 effort names and Thinking-off toggle, Together's hybrid
+  toggle on MiniMax M3. Each entry names the provider page and the day
+  it was read; re-check every entry on each catalogue sync, and prefer
+  the catalogue the moment it carries the fact. Empty everywhere else.
+  */
   readonly reasoningFacts?: readonly PresetReasoningFacts[] | undefined
   /** The preset's own wire capture is recorded (rule 13). */
   readonly wireCapture: boolean
   /**
-   * The exact server build the quirks were captured against (C-M95-4 R2,
-   * local presets only; from the capture ledgers). The models lists carry
-   * no version, so this stamps what was proven, not what is assumed.
-   */
+  The exact server build the quirks were captured against (C-M95-4 R2,
+  local presets only; from the capture ledgers). The models lists carry
+  no version, so this stamps what was proven, not what is assumed.
+  */
   readonly capturedBuild?: string | undefined
 }
 
@@ -373,13 +373,13 @@ export interface ProviderPreset {
 export type PresetReplayField = 'details' | 'content' | 'none'
 
 /**
- * The reasoning field a preset replays on its assistant messages. A local
- * server carries no version on the wire, so a build older or newer than
- * the capture may not understand the captured replay field: local presets
- * never replay thinking (fail closed). Display is unaffected — the chat
- * decoder still reads every reasoning field, and a mistranslated replay
- * would otherwise be dropped silently or refused loudly mid-turn.
- */
+The reasoning field a preset replays on its assistant messages. A local
+server carries no version on the wire, so a build older or newer than
+the capture may not understand the captured replay field: local presets
+never replay thinking (fail closed). Display is unaffected — the chat
+decoder still reads every reasoning field, and a mistranslated replay
+would otherwise be dropped silently or refused loudly mid-turn.
+*/
 export function replayFieldFor(preset: ProviderPreset): PresetReplayField {
   let field: PresetReplayField = 'none'
   if (preset.category !== 'local') {
@@ -402,12 +402,12 @@ export interface PresetReasoningFacts {
 }
 
 /**
- * A preset's effective quirks: its format's defaults plus its overrides.
- * `retryLimits` merges field by field (review RVRETRYLIMITS): a preset
- * that documents only its own count must keep its format's documented
- * backoff bounds, the way the OpenAI preset already spreads the format's
- * retry table before adding its own `errorKinds`.
- */
+A preset's effective quirks: its format's defaults plus its overrides.
+`retryLimits` merges field by field (review RVRETRYLIMITS): a preset
+that documents only its own count must keep its format's documented
+backoff bounds, the way the OpenAI preset already spreads the format's
+retry table before adding its own `errorKinds`.
+*/
 export function quirksOf(preset: ProviderPreset): FormatQuirks {
   const format = FORMAT_QUIRKS[preset.format]
   return {
@@ -418,12 +418,12 @@ export function quirksOf(preset: ProviderPreset): FormatQuirks {
 }
 
 /**
- * A custom server's effective quirks (M101 BYO 14): its chosen format's
- * defaults plus its stored compatibility overrides. Presets keep their own
- * quirks; overrides ride only on `custom` entries. Each override applies
- * only when set: the schema types an absent override as undefined, and an
- * undefined must never blank a required quirk.
- */
+A custom server's effective quirks (M101 BYO 14): its chosen format's
+defaults plus its stored compatibility overrides. Presets keep their own
+quirks; overrides ride only on `custom` entries. Each override applies
+only when set: the schema types an absent override as undefined, and an
+undefined must never blank a required quirk.
+*/
 export function customQuirksFor(
   format: ProviderFormat,
   compat: CustomCompat | undefined,
@@ -1273,11 +1273,11 @@ export function azureOrigin(resource: string): string | undefined {
 }
 
 /**
- * The model name on the wire for an entry (research §1.2 [AZ1, AZ6]):
- * Azure's v1 API takes the deployment name, every other preset the listed
- * model. Records stay keyed by the model family in the entry's models, so
- * a deployment name never becomes a record lookup.
- */
+The model name on the wire for an entry (research §1.2 [AZ1, AZ6]):
+Azure's v1 API takes the deployment name, every other preset the listed
+model. Records stay keyed by the model family in the entry's models, so
+a deployment name never becomes a record lookup.
+*/
 export function wireModelFor(
   entry: { readonly preset: string; readonly deployment?: string | undefined },
   nativeModel: string,
@@ -1365,10 +1365,10 @@ export function openRouterRoutingRequest(
 }
 
 /**
- * The browser URL **Connect OpenRouter account** opens: `callback_url`
- * (a loopback address on any port, or absent for the paste flow),
- * `code_challenge` (S256), `code_challenge_method` and `state`.
- */
+The browser URL **Connect OpenRouter account** opens: `callback_url`
+(a loopback address on any port, or absent for the paste flow),
+`code_challenge` (S256), `code_challenge_method` and `state`.
+*/
 export function buildOpenRouterAuthUrl(options: {
   readonly challenge: string
   readonly state: string

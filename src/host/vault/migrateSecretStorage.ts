@@ -8,11 +8,11 @@ import {
 } from '../../core/vault/migrate/ports'
 
 /**
- * The SecretStorage side of a migration, shared by every legacy adapter:
- * only the migration's declared keys are reachable, and values cross as
- * owned bytes the engine erases. Retains the exact installed release's keys
- * and never enumerates another application's store.
- */
+The SecretStorage side of a migration, shared by every legacy adapter:
+only the migration's declared keys are reachable, and values cross as
+owned bytes the engine erases. Retains the exact installed release's keys
+and never enumerates another application's store.
+*/
 export function secretStorageLegacyPort(
   secrets: SecretStore,
   keys: readonly string[],

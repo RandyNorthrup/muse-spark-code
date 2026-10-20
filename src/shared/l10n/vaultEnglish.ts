@@ -5,7 +5,7 @@ import { UI_TEXT, uiLocale } from './text'
 const english = EN.vault
 
 /** Install the lazy English group before any vault render; validate installed-language data
- * that startup deferred, falling back to canonical English for a damaged group. */
+that startup deferred, falling back to canonical English for a damaged group. */
 export function installVaultEnglish(): void {
   setVaultEnglish(english)
   if (

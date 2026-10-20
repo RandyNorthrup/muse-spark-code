@@ -53,10 +53,10 @@ function quadY(p0: number, cp: number, p1: number, t: number): number {
 }
 
 /**
- * Beam height for beam position x in 0..100, following our P/QRS/T waveform:
- * flat at the baseline, a small P bump, the dip and sharp QRS spike, a T
- * bump, flat to the right edge.
- */
+Beam height for beam position x in 0..100, following our P/QRS/T waveform:
+flat at the baseline, a small P bump, the dip and sharp QRS spike, a T
+bump, flat to the right edge.
+*/
 export function beamY(x: number): number {
   if (x < P_START_X) {
     return TRACE_BASELINE_Y
@@ -128,12 +128,12 @@ export interface TrailSegment {
 }
 
 /**
- * The strokes to draw this frame: only the beam's last `trailTicks` ticks of
- * path, oldest first, fading from opaque at the beam to nothing at the end of
- * the trail. Nothing older is returned, and the canvas is cleared before
- * these are drawn, so no part of the waveform exists except what the beam
- * has just drawn (the owner's rule: the shape comes from the blip).
- */
+The strokes to draw this frame: only the beam's last `trailTicks` ticks of
+path, oldest first, fading from opaque at the beam to nothing at the end of
+the trail. Nothing older is returned, and the canvas is cleared before
+these are drawn, so no part of the waveform exists except what the beam
+has just drawn (the owner's rule: the shape comes from the blip).
+*/
 export function trailSegments(
   points: readonly TrailPoint[],
   nowTick: number,

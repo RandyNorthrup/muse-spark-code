@@ -1,9 +1,5 @@
 import * as z from 'zod/mini'
-import {
-  REVIEW_SEVERITIES,
-  TEAM_REVIEW_ROUNDS_MAX,
-  type ReviewSeverity,
-} from '../../../shared/constants'
+import { REVIEW_SEVERITIES, type ReviewSeverity } from '../../../shared/constants'
 import {
   knownSeverity,
   parseReviewFindings,
@@ -132,16 +128,7 @@ export class ReviewFlow {
 
   private async dispatch(taskId: string, record: ReviewRecord): Promise<ReviewOutcome> {
     if (record.hasDispatched) {
-      if (!record.isClean) {
-        if (record.round >= TEAM_REVIEW_ROUNDS_MAX) return 'redesign'
-        if (this.config.flow === 'full') return 'waiting'
-      }
-      return 'reviewed'
-    }
-    if (!record.isClean && record.round >= TEAM_REVIEW_ROUNDS_MAX) {
-      this.deps.redesign(taskId, record.findings, record.failedChecks)
-      record.hasDispatched = true
-      return 'redesign'
+      return !record.isClean && this.config.flow === 'full' ? 'waiting' : 'reviewed'
     }
     if (this.config.flow === 'full') {
       if (!record.isClean) {
@@ -161,7 +148,12 @@ export class ReviewFlow {
     return record?.isClean === true && record.head === this.deps.head(taskId)
   }
 
-  /** The caller restores the journal's round count; no new fourth round. */
+  /**
+  The caller restores the journal's round count. Rounds continue until the
+  change is clean or the person stops the work: no count of ours diverts
+  to `redesign` (D121). The orchestrator dispatches a redesign through its
+  own `redesign` implementation when the person asks for one.
+  */
   async afterRetirement(
     task: TeamBoardTask,
     isWriting: boolean,
@@ -183,10 +175,6 @@ export class ReviewFlow {
       }
     }
     const round = Math.max(task.reviewRounds, previous?.round ?? 0) + 1
-    if (round > TEAM_REVIEW_ROUNDS_MAX) {
-      this.deps.redesign(task.id, [], [])
-      return 'redesign'
-    }
     const authors = this.deps.authors(task.id)
     const available = this.deps.reviewers().filter((entry) => entry.freeLanes > 0)
     const independent = available.filter((entry) =>

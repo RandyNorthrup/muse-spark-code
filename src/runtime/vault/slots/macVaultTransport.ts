@@ -1,4 +1,5 @@
 import { spawnResourceProcess } from '../../../core/resources/launcher'
+import { probeChildEnvironment } from '../../../core/resources/trees/run'
 import path from 'node:path'
 import { UI_TEXT, VAULT_TRANSPORT_TIMEOUT_MS } from '../../../shared/constants'
 import { macVaultFailure, type MacVaultTransport } from './macVaultProtocol'
@@ -10,8 +11,10 @@ export function macVaultTransport(helper: string, signal?: AbortSignal): MacVaul
   return {
     exchange: async (header, key) => {
       if (signal?.aborted) throw new Error(UI_TEXT.vault.noAccess)
+      // The absolute helper with an empty environment: absolute entries
+      // only, links followed.
       const { child, stop } = await spawnResourceProcess('contained', helper, [], {
-        env: {},
+        env: probeChildEnvironment({}),
         ...(signal !== undefined && { signal }),
       })
       return await new Promise((resolve, reject) => {

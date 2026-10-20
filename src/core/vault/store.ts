@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { constants } from 'node:fs'
 import { renameSync, unlinkSync } from 'node:fs'
-import { copyFile, link, lstat, mkdir, open, readdir, realpath } from 'node:fs/promises'
+import { copyFile, link, lstat, mkdir, open, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
@@ -66,9 +66,9 @@ import {
 } from './crypto'
 
 /**
- * A broker authorization refusal, matched structurally so this layer keeps
- * no dependency on the broker: only its name and reason cross the boundary.
- */
+A broker authorization refusal, matched structurally so this layer keeps
+no dependency on the broker: only its name and reason cross the boundary.
+*/
 function isBrokerRefusal(error: unknown): error is Error {
   return (
     error instanceof Error &&
@@ -84,11 +84,11 @@ export type VaultWriterCheck = (() => void) & {
   mutate?: <T>(work: () => Promise<T>) => Promise<T>
 }
 /**
- * The serialized per-directory writer queue, shared process-wide (not per
- * module copy): two bundles loading this file in one process still run one
- * queue, so a second copy never adopts the first's live lock
- * (RVAPP-LEASE2 P2-1).
- */
+The serialized per-directory writer queue, shared process-wide (not per
+module copy): two bundles loading this file in one process still run one
+queue, so a second copy never adopts the first's live lock
+(RVAPP-LEASE2 P2-1).
+*/
 function sharedWriterQueues(): Map<string, Promise<void>> {
   // `globalThis` has no such property: the double assertion is the only
   // access to the lane-owned queue key (PLAN.md §8).
@@ -101,9 +101,9 @@ export interface VaultFilePort {
   readonly maxBytes: number
   read(name: VaultFileName): Promise<Buffer | null>
   /**
-   * `commit` runs synchronously immediately before the rename that publishes
-   * the file; if it throws, nothing is published and its error is rethrown.
-   */
+  `commit` runs synchronously immediately before the rename that publishes
+  the file; if it throws, nothing is published and its error is rethrown.
+  */
   writeAtomic(name: VaultFileName, data: Uint8Array, commit?: () => void): Promise<void>
   /** Retain any displaced document durably without reading it or removing its current path. */
   quarantine(name: 'vault.v1', authorize?: () => void): Promise<void>
@@ -211,12 +211,11 @@ export class NodeVaultFiles implements VaultFilePort {
     const created = await mkdir(this.root, { recursive: true, mode })
     for (let folder = path.resolve(this.root); ; folder = path.dirname(folder)) {
       const named = await lstatIdentity(folder)
-      if (
-        named.isSymbolicLink() ||
-        !named.isDirectory() ||
-        !sameFile(named, await lstatIdentity(await realpath(folder)))
-      )
-        throw new VaultError('io')
+      // A symlinked ancestor fails on its own entry: lstat never follows the
+      // final component. Re-resolving the canonical path would only repeat
+      // that verdict through a fresh race window (and costs a readlink storm
+      // per ancestor on some platforms).
+      if (named.isSymbolicLink() || !named.isDirectory()) throw new VaultError('io')
       if (path.dirname(folder) === folder) break
     }
     if (created !== undefined) await this.security?.protect(this.root, 'directory')
@@ -265,7 +264,8 @@ export class NodeVaultFiles implements VaultFilePort {
       await this.verify(path.join(this.root, name), 'file')
       await this.syncDirectory()
     } catch (error: unknown) {
-      if (refusal) throw refusal.error
+      // A refused commit keeps its own failure, never a generic I/O failure.
+      if (refusal !== undefined) throw error
       throw new VaultError('io', { cause: error })
     } finally {
       await handle.close()
@@ -295,9 +295,11 @@ export class NodeVaultFiles implements VaultFilePort {
     try {
       await this.verify(file, 'file')
       identity = await lstatIdentity(file)
-    } catch (error) {
+    } catch (error: unknown) {
       if (error !== null && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
         return
+      // A missing file is already quarantined; anything else is not the
+      // absence and keeps its failure as the cause.
       throw new VaultError('io', { cause: error })
     }
     const retained = path.join(
@@ -352,7 +354,8 @@ export class NodeVaultFiles implements VaultFilePort {
       await this.verify(retained, 'file')
       await this.syncDirectory()
     } catch (error: unknown) {
-      if (refusal) throw refusal.error
+      // A refused quarantine keeps its own failure, never a generic I/O failure.
+      if (refusal !== undefined) throw error
       throw new VaultError('io', { cause: error })
     }
   }
@@ -459,13 +462,15 @@ export class NodeVaultFiles implements VaultFilePort {
       if (isBrokerRefusal(error)) throw error
       // A filesystem without hard links refuses every publication the same
       // way: the cause keeps its name, never a generic I/O failure.
-      if (error instanceof LeaseLinkUnsupportedError) throw new VaultError('filesystemUnsupported')
+      if (error instanceof LeaseLinkUnsupportedError)
+        throw new VaultError('filesystemUnsupported', { cause: error })
       if (error instanceof LeaseBusyError && error.holder) {
         const self = await exactCurrentProcessOwner()
-        throw new VaultWriterError(this.writerFacts(error.holder, self))
+        throw new VaultWriterError(this.writerFacts(error.holder, self), { cause: error })
       }
-      if (error instanceof LeaseBusyError) throw new VaultWriterError({ kind: 'unreadable' })
-      throw new VaultError('io')
+      if (error instanceof LeaseBusyError)
+        throw new VaultWriterError({ kind: 'unreadable' }, { cause: error })
+      throw new VaultError('io', { cause: error })
     }
     if (this.writer) {
       await lease.release()
@@ -489,6 +494,8 @@ export class NodeVaultFiles implements VaultFilePort {
       try {
         if (!(await lease.renew())) isLost = true
       } catch {
+        // A failed renewal loses the lease; the next guarded use denies as
+        // busy, so the renewal failure keeps no cause.
         isLost = true
       } finally {
         renewing = undefined
@@ -573,10 +580,12 @@ export class NodeVaultFiles implements VaultFilePort {
       if (!sameFile(held, after) || after.size !== held.size || after.mtimeNs !== held.mtimeNs)
         throw new VaultError('io')
       return bytes
-    } catch (error) {
+    } catch (error: unknown) {
       bytes?.fill(0)
       if (error !== null && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
         return null
+      // A missing file reads absent; anything else is not the absence and
+      // keeps its failure as the cause.
       throw new VaultError('io', { cause: error })
     } finally {
       await handle?.close()
@@ -706,8 +715,11 @@ function parseJson(bytes: Buffer): unknown {
   try {
     const parsed: unknown = JSON.parse(bytes.toString('utf8'))
     return parsed
-  } catch {
-    throw new VaultError('invalid')
+  } catch (error: unknown) {
+    // JSON.parse fails only as SyntaxError: a malformed document is invalid,
+    // never adopted, with the parsing failure as its cause.
+    if (!(error instanceof SyntaxError)) throw error
+    throw new VaultError('invalid', { cause: error })
   }
 }
 function stateMac(key: Uint8Array, vaultId: string, domain: string, body: object): Buffer {
@@ -1004,10 +1016,10 @@ export class VaultStore implements VaultStorePort {
     }
   }
   /**
-   * An initial intent nobody can complete: only `pending.v1`, no slots, no
-   * document and no anchor, so no key can ever open it. Setup removes it so
-   * a fresh setup can start; a vault with any other file is never touched.
-   */
+  An initial intent nobody can complete: only `pending.v1`, no slots, no
+  document and no anchor, so no key can ever open it. Setup removes it so
+  a fresh setup can start; a vault with any other file is never touched.
+  */
   static async discardAbandonedCreation(files: VaultFilePort): Promise<boolean> {
     return await files.withWriter(async () => {
       const document = await files.read('vault.v1')
@@ -1022,10 +1034,10 @@ export class VaultStore implements VaultStorePort {
     })
   }
   /**
-   * Reset Vault (lead decision, 2026-10-10): offered only when the anchored
-   * vault cannot be opened by any slot or code, because its required files are
-   * missing or damaged. Never true for a vault that merely is locked.
-   */
+  Reset Vault (lead decision, 2026-10-10): offered only when the anchored
+  vault cannot be opened by any slot or code, because its required files are
+  missing or damaged. Never true for a vault that merely is locked.
+  */
   static async isLost(
     files: VaultFilePort,
     anchoredId: string,
@@ -1042,10 +1054,10 @@ export class VaultStore implements VaultStorePort {
     )
   }
   /**
-   * The reset's file side: appends a value-free audit line to `reset.v1`,
-   * retains any displaced document (quarantine) and removes the vault files,
-   * under the writer lock, refusing a vault that can be opened.
-   */
+  The reset's file side: appends a value-free audit line to `reset.v1`,
+  retains any displaced document (quarantine) and removes the vault files,
+  under the writer lock, refusing a vault that can be opened.
+  */
   static async resetLost(
     files: VaultFilePort,
     anchoredId: string | null,
@@ -1481,10 +1493,10 @@ export class VaultStore implements VaultStorePort {
     }
   }
   /**
-   * `expect` is checked inside the same writer transaction as the commit, so an
-   * add never replaces an item and an edit never resurrects a removed one
-   * (RVCM1091A F6).
-   */
+  `expect` is checked inside the same writer transaction as the commit, so an
+  add never replaces an item and an edit never resurrects a removed one
+  (RVCM1091A F6).
+  */
   async write(input: VaultItem, expect: 'absent' | 'present' | 'any' = 'any'): Promise<void> {
     // Own the input before the first await; the caller cannot change the approved item mid-write.
     const parsed = vaultItemSchema.safeParse(input)
@@ -1625,11 +1637,11 @@ export class VaultStore implements VaultStorePort {
     this.active()
   }
   /**
-   * All items or none (lead decision, C-M109-1): every item is new by id and
-   * name, sealed at one generation and published with its receipt in a
-   * single transaction. `verify` reads the staged items back before the
-   * commit; `authorize` runs at the physical commit, like every other write.
-   */
+  All items or none (lead decision, C-M109-1): every item is new by id and
+  name, sealed at one generation and published with its receipt in a
+  single transaction. `verify` reads the staged items back before the
+  commit; `authorize` runs at the physical commit, like every other write.
+  */
   async writeBatch(
     input: readonly VaultItem[],
     receipt: { id: string; record: string },
@@ -1727,10 +1739,10 @@ export class VaultStore implements VaultStorePort {
     })
   }
   /**
-   * The cross-process Keep/Delete claim: atomically removes the receipt and
-   * throws `invalid` when another broker already claimed it, so exactly one
-   * side wins. `forgetReceipt` stays idempotent for best-effort cleanup.
-   */
+  The cross-process Keep/Delete claim: atomically removes the receipt and
+  throws `invalid` when another broker already claimed it, so exactly one
+  side wins. `forgetReceipt` stays idempotent for best-effort cleanup.
+  */
   async takeReceipt(id: string, authorize: () => void): Promise<void> {
     await this.withWriter(async () => {
       const { snapshot, index } = await this.load()

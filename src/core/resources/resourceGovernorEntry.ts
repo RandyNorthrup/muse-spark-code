@@ -42,7 +42,7 @@ import {
   type ResourceHistoryBinding,
   type ResourceHistoryRecorder,
 } from '../../runtime/resources/history'
-import { runTreeProgram } from './trees/run'
+import { probeChildEnvironment, runTreeProgram } from './trees/run'
 import { powerShellQuoted } from '../shellQuote'
 import {
   WINDOWS_POWERSHELL_COMMAND_ARGS,
@@ -80,9 +80,9 @@ export interface ResourceHostSettings {
 const state: { host?: ResourceLaunchHost; recorder?: ResourceHistoryRecorder } = {}
 
 /**
- * Window disposal (RVM107W2 P2): the open minute and any pending snapshot are
- * written, waiting at most RESOURCE_HISTORY_FLUSH_TIMEOUT_MS so shutdown never hangs.
- */
+Window disposal (RVM107W2 P2): the open minute and any pending snapshot are
+written, waiting at most RESOURCE_HISTORY_FLUSH_TIMEOUT_MS so shutdown never hangs.
+*/
 export async function flushResourceHistory(): Promise<void> {
   const recorder = state.recorder
   if (recorder === undefined) return
@@ -127,6 +127,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
             return await runTreeProgram(
               path.join(__dirname, '..', 'native', 'darwin', 'muse-dictate'),
               ['--created-directory', ...args],
+              probeChildEnvironment({ LC_ALL: 'C' }),
             )
           const systemRoot = process.env['SystemRoot']
           const job = await options.windowsJob?.()
@@ -138,7 +139,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
               ...WINDOWS_POWERSHELL_COMMAND_ARGS,
               `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(job.assemblyPath)}); [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')})) } catch { exit 1 }`,
             ],
-            { SystemRoot: systemRoot },
+            probeChildEnvironment({ SystemRoot: systemRoot }),
           )
         })
   let registryPending: Promise<CreatedRegistry> | undefined
@@ -157,6 +158,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
                   runTreeProgram(
                     path.join(__dirname, '..', 'native', 'linux', process.arch, 'muse-created'),
                     args,
+                    probeChildEnvironment({ LC_ALL: 'C' }),
                   )),
               exited: (owner) => Promise.resolve(state.host?.hasRetired(owner) ?? false),
               archivedAndClean: () =>

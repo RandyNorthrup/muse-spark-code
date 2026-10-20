@@ -24,10 +24,10 @@ export const isPassedOn = (name) =>
   (NOT_A_CREDENTIAL.has(name) || !CREDENTIAL_NAME.test(name))
 
 /**
- * A fresh folder tree: where the artefact is installed, the home, and an
- * empty workspace per scenario.
- * @param {string} [parent] where to make it (the system's temporary folder by default)
- */
+A fresh folder tree: where the artefact is installed, the home, and an
+empty workspace per scenario.
+@param {string} [parent] where to make it (the system's temporary folder by default)
+*/
 export function newRunFolders(parent = tmpdir()) {
   mkdirSync(parent, { recursive: true })
   const root = mkdtempSync(path.join(parent, 'real-life-'))
@@ -42,14 +42,14 @@ export function newRunFolders(parent = tmpdir()) {
 }
 
 /**
- * The environment the product runs in: the caller's own (the machine as it
- * is: its path, its user, its session), without anything that can hold a
- * credential, and with the new home under every name a system knows a home
- * by. The folders an operating system gives every profile exist; nothing
- * else does.
- * @param {string} home
- * @param {NodeJS.ProcessEnv} [from]
- */
+The environment the product runs in: the caller's own (the machine as it
+is: its path, its user, its session), without anything that can hold a
+credential, and with the new home under every name a system knows a home
+by. The folders an operating system gives every profile exist; nothing
+else does.
+@param {string} home
+@param {NodeJS.ProcessEnv} [from]
+*/
 export function productEnvironment(home, from = process.env) {
   const env = {}
   for (const [name, value] of Object.entries(from)) {
@@ -89,10 +89,10 @@ export function productEnvironment(home, from = process.env) {
 }
 
 /**
- * Where the product keeps its own data in a home, as its README names the
- * folder for each system.
- * @param {string} home
- */
+Where the product keeps its own data in a home, as its README names the
+folder for each system.
+@param {string} home
+*/
 export function dataFolderOf(home) {
   if (process.platform === 'win32') return path.join(home, 'AppData', 'Local', 'Muse Spark Code')
   return process.platform === 'darwin'
@@ -101,12 +101,12 @@ export function dataFolderOf(home) {
 }
 
 /**
- * Sets the product's own daily budget in a new home, the way its README
- * says a person sets it for the terminal agent: `paidDailyBudgetUsd` in the
- * data folder's `settings.json` ($0.50 to $500; $5 when nothing is set).
- * @param {string} home a home the run made, with no settings yet
- * @param {number} usd
- */
+Sets the product's own daily budget in a new home, the way its README
+says a person sets it for the terminal agent: `paidDailyBudgetUsd` in the
+data folder's `settings.json` ($0.50 to $500; $5 when nothing is set).
+@param {string} home a home the run made, with no settings yet
+@param {number} usd
+*/
 export function setDailyBudget(home, usd) {
   const folder = dataFolderOf(home)
   mkdirSync(folder, { recursive: true })

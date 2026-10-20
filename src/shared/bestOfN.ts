@@ -62,11 +62,11 @@ export interface BestOfNRequest {
 export type BestOfNValidationError = 'prompt' | 'attempts' | 'ceiling'
 
 /**
- * The fields that refuse this run; empty means it may start. D121: the
- * attempt count and the per-attempt request ceiling are the person's own
- * per-run choice with no ceiling of ours, so only a whole number below 1
- * refuses.
- */
+The fields that refuse this run; empty means it may start. D121: the
+attempt count and the per-attempt request ceiling are the person's own
+per-run choice with no ceiling of ours, so only a whole number below 1
+refuses.
+*/
 export function validateBestOfNRequest(request: BestOfNRequest): readonly BestOfNValidationError[] {
   const errors: BestOfNValidationError[] = []
   if (request.prompt.trim() === '') {

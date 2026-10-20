@@ -87,10 +87,10 @@ async function forecastPlan(
 }
 
 /** The M103 lane table projected from the captured repository history: lane
- * ids and dependencies come from the fixture; hours are fixed test weights
- * (the original plan carries none, so the estimate would refuse without
- * them). Lane A carries the heaviest estimate, matching the DAG golden's
- * critical path through it. */
+ids and dependencies come from the fixture; hours are fixed test weights
+(the original plan carries none, so the estimate would refuse without
+them). Lane A carries the heaviest estimate, matching the DAG golden's
+critical path through it. */
 function historyPlan(mid = 'M103'): string {
   const records = repository.lanes.filter((lane) => lane.laneId.startsWith(`${mid}:`))
   const rows = records.map((record) => {

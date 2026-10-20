@@ -18,10 +18,10 @@ function isSegmentStart(candidate: string, index: number): boolean {
 }
 
 /**
- * Greedy left-to-right subsequence score of `needle` in `haystack`, both
- * already lower-cased; undefined when it is not a subsequence. Characters at
- * or past `basenameStart` earn the file-name bonus.
- */
+Greedy left-to-right subsequence score of `needle` in `haystack`, both
+already lower-cased; undefined when it is not a subsequence. Characters at
+or past `basenameStart` earn the file-name bonus.
+*/
 function greedyScore(needle: string, haystack: string, basenameStart: number): number | undefined {
   let score = 0
   let position = 0
@@ -49,13 +49,13 @@ function greedyScore(needle: string, haystack: string, basenameStart: number): n
 }
 
 /**
- * Score of `query` against `candidate`, or undefined when the query is not a
- * subsequence of the candidate. An empty query matches everything with 0.
- *
- * Greedy matching over the whole path can latch onto an early folder letter
- * ("c" of `src/` for `cfg` against `src/config.ts`), so a match confined to
- * the file name is scored separately and the better of the two wins.
- */
+Score of `query` against `candidate`, or undefined when the query is not a
+subsequence of the candidate. An empty query matches everything with 0.
+
+Greedy matching over the whole path can latch onto an early folder letter
+("c" of `src/` for `cfg` against `src/config.ts`), so a match confined to
+the file name is scored separately and the better of the two wins.
+*/
 export function fuzzyScore(query: string, candidate: string): number | undefined {
   const needle = query.toLowerCase()
   if (needle === '') {
@@ -77,10 +77,10 @@ interface Ranked<T> {
 }
 
 /**
- * The best `limit` items for `query`, highest score first; ties go to the
- * shorter key, then to the original order. An empty query keeps the
- * original order.
- */
+The best `limit` items for `query`, highest score first; ties go to the
+shorter key, then to the original order. An empty query keeps the
+original order.
+*/
 export function rankMatches<T>(
   query: string,
   items: readonly T[],

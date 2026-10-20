@@ -90,10 +90,10 @@ function noopCountdown(): void {
   // Countdown display is the host's.
 }
 
-function depsWith(
-  spawn: MacosScreenRecordingDeps['spawn'],
-  overrides: Partial<MacosScreenRecordingDeps> = {},
-): { deps: MacosScreenRecordingDeps; helpers: TestHelper[] } {
+function depsWith(spawn: MacosScreenRecordingDeps['spawn']): {
+  deps: MacosScreenRecordingDeps
+  helpers: TestHelper[]
+} {
   const helpers: TestHelper[] = []
   return {
     helpers,
@@ -119,7 +119,6 @@ function depsWith(
       startupTimeoutMs: 1000,
       finishTimeoutMs: 50,
       maxProtocolChars: 65_536,
-      ...overrides,
     },
   }
 }
@@ -221,7 +220,7 @@ describe('macos driver start', () => {
         },
       ),
     )
-    const spawning = (command: string, args: readonly string[], env: NodeJS.ProcessEnv) => {
+    const spawning: MacosScreenRecordingDeps['spawn'] = (command, args, env) => {
       if (args.includes('--record-screen') && args.includes('--output')) {
         throw new Error('recorder refused to start')
       }

@@ -101,11 +101,11 @@ function sampleStates(): Record<StateKind, VaultViewState> {
 }
 
 /**
- * The sample table derives its rows from the reducer unions themselves: the
- * types below only compile while every union member has its row, so a new
- * state or event without one fails the build instead of falling silent
- * (RVCM1091G P3).
- */
+The sample table derives its rows from the reducer unions themselves: the
+types below only compile while every union member has its row, so a new
+state or event without one fails the build instead of falling silent
+(RVCM1091G P3).
+*/
 type EventKind = VaultViewEvent['kind']
 type StateKind = VaultViewState['kind']
 type UnionCovers<Table extends readonly unknown[], Union extends string> =

@@ -91,12 +91,12 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
     writeFileAtomically(file, `${JSON.stringify(record)}\n`, { sleep: deps.sleep })
 
   /**
-   * Captures an existing generation before any await. The first generation
-   * is published complete with a no-replace hard link, so concurrent first
-   * writers cannot overwrite one another or expose half a record. A writer
-   * that began before a revocation cannot join the replacement generation.
-   * A crash's leftover temporary record grants nothing.
-   */
+  Captures an existing generation before any await. The first generation
+  is published complete with a no-replace hard link, so concurrent first
+  writers cannot overwrite one another or expose half a record. A writer
+  that began before a revocation cannot join the replacement generation.
+  A crash's leftover temporary record grants nothing.
+  */
   const generationFor = async (feature: PaidFeature): Promise<Generation> => {
     const file = generationFile(feature)
     const existing = read(file, generationSchema, true)

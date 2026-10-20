@@ -41,10 +41,10 @@ const PROXIED_BEFORE_KILL = 4
 const SEEN_AFTER_KILL = 6
 
 /**
- * Where the private context's requests to the counter went, before and after
- * the kill; and the page's loopback heartbeat after it, through the proxy
- * (its `Connection: close` reserialization) or not.
- */
+Where the private context's requests to the counter went, before and after
+the kill; and the page's loopback heartbeat after it, through the proxy
+(its `Connection: close` reserialization) or not.
+*/
 interface RouteCounts {
   proxiedBefore: number
   directBefore: number

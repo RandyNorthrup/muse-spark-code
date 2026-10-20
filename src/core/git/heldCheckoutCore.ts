@@ -30,11 +30,11 @@ export function blobHeaderOf(entry: Pick<HeldEntry, 'oid' | 'size'>): Buffer {
 }
 
 /**
- * `git cat-file --batch`'s answers, in the order asked. Every answer a
- * chunk completes is written before git goes on; a missing object, another
- * size, a byte past the last answer, or anything left over refuses through
- * `unreadable` (the host's error, whose words the user reads).
- */
+`git cat-file --batch`'s answers, in the order asked. Every answer a
+chunk completes is written before git goes on; a missing object, another
+size, a byte past the last answer, or anything left over refuses through
+`unreadable` (the host's error, whose words the user reads).
+*/
 export class BlobAnswers {
   private chunks: Buffer[] = []
   private length = 0
@@ -108,12 +108,12 @@ export function pullRequestCheckoutConfirmation(pullRequest: PullRequest, isOwn:
 }
 
 /**
- * Where a path of the commit lands: inside the worktree, with nothing on the
- * way that leads elsewhere. Every folder on the way was made by this
- * checkout with the commit's spelling, so any other canonical spelling is a
- * link, a junction or a name the volume reads as another (a short name).
- * Undefined then; each host refuses with `unsafePathReason`.
- */
+Where a path of the commit lands: inside the worktree, with nothing on the
+way that leads elsewhere. Every folder on the way was made by this
+checkout with the commit's spelling, so any other canonical spelling is a
+link, a junction or a name the volume reads as another (a short name).
+Undefined then; each host refuses with `unsafePathReason`.
+*/
 export async function heldDestination(
   platform: NodeJS.Platform,
   folder: string,
@@ -130,12 +130,12 @@ export async function heldDestination(
 const HOOK_KEY = /^hook\.(.+)\.(?:command|event|enabled)$/iu
 
 /**
- * `fixed`, then every named hook `configuration` (`git config --null
- * --name-only --list`) defines switched off: new Git configures named hooks
- * independently of core.hooksPath. Undefined when a name cannot be spelled
- * as a per-command override (`-c` splits at its first '='): never guess an
- * escape; the host refuses the checkout.
- */
+`fixed`, then every named hook `configuration` (`git config --null
+--name-only --list`) defines switched off: new Git configures named hooks
+independently of core.hooksPath. Undefined when a name cannot be spelled
+as a per-command override (`-c` splits at its first '='): never guess an
+escape; the host refuses the checkout.
+*/
 export function namedHookOverrides(
   configuration: string,
   fixed: readonly string[],
@@ -143,7 +143,7 @@ export function namedHookOverrides(
   const hooks = new Set(
     configuration.split('\0').flatMap((name) => {
       const hook = HOOK_KEY.exec(name)?.[1]
-      return hook === undefined ? [] : [hook]
+      return hook ?? []
     }),
   )
   if ([...hooks].some((name) => name.includes('=') || /\p{Cc}/u.test(name))) {

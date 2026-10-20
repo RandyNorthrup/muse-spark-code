@@ -52,6 +52,7 @@ const port = (diagnostic: EstimateDiagnostic): EstimatorPanelPort => ({
   context: () => context,
   estimate: () => Promise.resolve(diagnostic),
   subscribe: () => unsubscribe,
+  report: () => undefined,
   startExisting: () => Promise.resolve(diagnostic),
   price: () => 'test-price',
   provision: { state: 'waiting', dependency: 'test-provider' },
@@ -210,6 +211,9 @@ describe('M117 diagnostic × real surface replacement table', () => {
         // table for factory-less readers).
         'src/core/reporting/sources/estimate.ts',
         'src/host/views/webviewSetup.ts',
+        // The refusal recognizer reads the failure sentence's shape to tell
+        // the estimator's own words apart from anything else.
+        'src/shared/estimate.ts',
       ].toSorted(byText),
     )
   })

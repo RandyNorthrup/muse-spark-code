@@ -81,14 +81,14 @@ export interface LedgerTotals {
   lastResponse: LastResponse | null
 }
 /**
- * EXECPROV round 6: a run-cap budget refusal in typed numbers, so a harness
- * can act without parsing a sentence. `neededUsd` is what the refused request
- * had to reserve; `remainingUsd` is what the cap holds; `admitCapUsd` is the
- * cap that admits it, rounded up to the cent; `maxOutputTokens` is the
- * largest output limit that fits, or null when no output limit alone makes it
- * fit; `inputAloneExceeds` says the input alone already costs more than is
- * left; `inputCostUsd` is that input-alone cost.
- */
+EXECPROV round 6: a run-cap budget refusal in typed numbers, so a harness
+can act without parsing a sentence. `neededUsd` is what the refused request
+had to reserve; `remainingUsd` is what the cap holds; `admitCapUsd` is the
+cap that admits it, rounded up to the cent; `maxOutputTokens` is the
+largest output limit that fits, or null when no output limit alone makes it
+fit; `inputAloneExceeds` says the input alone already costs more than is
+left; `inputCostUsd` is that input-alone cost.
+*/
 export interface ExecBudgetRefusal {
   neededUsd: UsdAmount
   remainingUsd: UsdAmount
@@ -380,8 +380,14 @@ function microUsd(value: UsdAmount): bigint | undefined {
     // exact BigInt. Negative input stays unrepresentable here.
     const units = Usd.from(value).units(EXEC_USD_DECIMALS)
     return units >= USD_DECIMAL_ZERO ? units : undefined
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // A schema-valid amount meets only these two refusals here; anything
+    // else is not this boundary's answer to give.
+    if (error instanceof Error) {
+      if (error.message === 'USD amount is not representable') return undefined
+      if (error.message === 'USD amount must be a finite decimal') return undefined
+    }
+    throw error
   }
 }
 function isSumEqual(total: UsdAmount, values: readonly UsdAmount[]): boolean {

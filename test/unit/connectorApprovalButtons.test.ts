@@ -29,10 +29,10 @@ const view = (intentId: string): ConnectorIntentView => ({
 const network = { origin: '', token: '', posts: 0 }
 
 /**
- * The loopback-authed network for the shown page, which reads bare `fetch`.
- * Each `shown()` refreshes `network` before the page loads, so nothing
- * stale survives a case.
- */
+The loopback-authed network for the shown page, which reads bare `fetch`.
+Each `shown()` refreshes `network` before the page loads, so nothing
+stale survives a case.
+*/
 async function authedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   let source: string
   if (typeof input === 'string') source = input

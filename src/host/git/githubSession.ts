@@ -16,7 +16,7 @@
 //   on in user or machine settings (src/runtime/github/ghLoginSource.ts),
 //   read through the governed launcher for one call.
 
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { setTimeout as abortableSleep } from 'node:timers/promises'
 import * as vscode from 'vscode'
 import {
@@ -25,7 +25,8 @@ import {
   GITHUB_AUTH_PROVIDER,
   GITHUB_AUTH_SCOPES,
 } from '../../shared/constants'
-import { resolveExecutable } from '../../core/executables'
+import { NO_WORKSPACE } from '../../core/executables'
+import { resolveExecutable } from '../../core/execGuard'
 import { GitHubClient } from '../../core/git/github'
 import { GitHubSignIn } from '../../core/git/githubSignIn'
 import type { GitHubTokenSource, SettingInspection } from '../../core/git/tokenSource'
@@ -106,6 +107,7 @@ export function windowGitHubSignIn(deps: WindowGitHubSignInDeps): GitHubSignIn {
             platform: process.platform,
             pathVariable: process.env['PATH'],
             fileExists: existsSync,
+            scope: { noWorkspace: NO_WORKSPACE, realpath: realpathSync },
           })
           return command === undefined ? undefined : { command, args: [] }
         },

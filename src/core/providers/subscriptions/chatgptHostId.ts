@@ -7,9 +7,9 @@ import { randomUUID } from 'node:crypto'
 import { CHATGPT_HOST_ID_URN_PREFIX } from '../../../shared/constants'
 
 /**
- * Technical failure codes, one per cause; hosts translate each into its own
- * sentence without exposing wire text.
- */
+Technical failure codes, one per cause; hosts translate each into its own
+sentence without exposing wire text.
+*/
 export class ChatGptSignInError extends Error {
   public constructor(
     public readonly code:
@@ -47,16 +47,16 @@ export class ChatGptSignInError extends Error {
       | 'model-not-added'
       | 'request-failed',
     /**
-     * A short technical word hosts show beside the sentence, never free
-     * provider text: the operating system's code (`lock-unavailable`,
-     * `local-failed`, `EACCES`); OpenAI's own error code (`authorize-refused`
-     * `access_denied`, `sign-in-required` `invalid_grant`); the HTTP status and
-     * code of a refused answer (`catalogue-refused`, `request-failed`); Node's
-     * network codes (`request-failed`); where an unreadable host id is kept
-     * (`host-id-unreadable`); the model asked for (`model-not-added`); or this
-     * app's own word for why the providers file failed (`unparseable`,
-     * `invalid`, `io-error`).
-     */
+    A short technical word hosts show beside the sentence, never free
+    provider text: the operating system's code (`lock-unavailable`,
+    `local-failed`, `EACCES`); OpenAI's own error code (`authorize-refused`
+    `access_denied`, `sign-in-required` `invalid_grant`); the HTTP status and
+    code of a refused answer (`catalogue-refused`, `request-failed`); Node's
+    network codes (`request-failed`); where an unreadable host id is kept
+    (`host-id-unreadable`); the model asked for (`model-not-added`); or this
+    app's own word for why the providers file failed (`unparseable`,
+    `invalid`, `io-error`).
+    */
     public readonly reason?: string,
   ) {
     super(`chatgpt.${code}`)
@@ -65,11 +65,11 @@ export class ChatGptSignInError extends Error {
 }
 
 /**
- * The documented host id: `urn:uuid:` plus one generated UUIDv4, persisted
- * per host. Our host has no key pair, so the JWK-thumbprint form (an
- * identifier only, unverified by OpenAI) would add key management for
- * nothing; the UUID form is the documented supported alternative.
- */
+The documented host id: `urn:uuid:` plus one generated UUIDv4, persisted
+per host. Our host has no key pair, so the JWK-thumbprint form (an
+identifier only, unverified by OpenAI) would add key management for
+nothing; the UUID form is the documented supported alternative.
+*/
 const HOST_ID_PATTERN = /^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
 
 /** Whether the value is a documented `ext_agent_host_id`, never a bare random string. */

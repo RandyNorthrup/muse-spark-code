@@ -13,7 +13,7 @@ import type { MuseVoiceDeps } from '../../core/voice/museVoice'
 // arrives as a parameter (the M93 precedent), and the deferred-bundle build
 // refuses a `vscode` import by design.
 
-import { existsSync, realpathSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { CoreLogger } from '../../core/logging'
 import type { DictationSetup } from '../../core/voice/dictation'
@@ -33,35 +33,35 @@ import { deferredDriver, type VoiceBundle, type VoiceLinuxBundle } from './voice
 /** The window side this setup runs on, read from the host at construction. */
 export interface DictationHostNames {
   /**
-   * The remote this extension host runs on, or undefined on the user's own
-   * machine. `env.remoteName` alone is not enough: it is also set in the
-   * local extension host of a remote window, where a user's
-   * `remote.extensionKind` override could run this extension; the
-   * extension's kind says which side it is on.
-   */
+  The remote this extension host runs on, or undefined on the user's own
+  machine. `env.remoteName` alone is not enough: it is also set in the
+  local extension host of a remote window, where a user's
+  `remote.extensionKind` override could run this extension; the
+  extension's kind says which side it is on.
+  */
   readonly remoteName: string | undefined
   readonly appName: string
 }
 
 /**
- * Every host capability the setups touch, read where `vscode` is
- * available and handed in here.
- */
+Every host capability the setups touch, read where `vscode` is
+available and handed in here.
+*/
 export interface DictationHostCaps extends DictationHostNames {
   /** Whether the Linux model setting is on now. */
   readonly isLinuxModelEnabled: () => boolean
   /**
-   * Calls the listener when the Linux model setting changes (the caller
-   * filters to that setting); the setup calls back only while it is off.
-   */
+  Calls the listener when the Linux model setting changes (the caller
+  filters to that setting); the setup calls back only while it is off.
+  */
   readonly registerConfigListener: (listener: () => void) => { dispose(): void }
   /** Shows the user an error. */
   readonly showError: (message: string) => void
   /**
-   * Asks once for both downloads, and keeps asking nothing while the wait
-   * is cancelled. The sizes are the pins' display approximations; the pins
-   * enforce the exact per-file sizes at download.
-   */
+  Asks once for both downloads, and keeps asking nothing while the wait
+  is cancelled. The sizes are the pins' display approximations; the pins
+  enforce the exact per-file sizes at download.
+  */
   readonly askDownloadConsent: (
     sizes: { readonly helperDownloadBytes: number; readonly bytes: number },
     directory: string,
@@ -186,21 +186,21 @@ export interface MuseVoiceSetupDeps {
 }
 
 /**
- * Muse Voice (M35, PLAN.md D30): the paid engine's recorder for this
- * platform and the stream to Meta, or why it cannot run here. Whether it is
- * the microphone's engine (the setting, the accepted price, the Model API
- * backend) is the caller's to decide. `network` is the live `http`
- * posture (M56, PLAN.md D43): whether `http.proxy` names a proxy
- * (validated, never raw) and the support settings behind the socket, read
- * fresh on every rebuild so a settings change takes effect at once.
- */
+Muse Voice (M35, PLAN.md D30): the paid engine's recorder for this
+platform and the stream to Meta, or why it cannot run here. Whether it is
+the microphone's engine (the setting, the accepted price, the Model API
+backend) is the caller's to decide. `network` is the live `http`
+posture (M56, PLAN.md D43): whether `http.proxy` names a proxy
+(validated, never raw) and the support settings behind the socket, read
+fresh on every rebuild so a settings change takes effect at once.
+*/
 
 /**
- * The microphone's sentence for a network refusal: the old-version text
- * only for a socket no editor version routes, otherwise the setting left
- * off and what to change. Called when the setup runs (never at module
- * load) so the installed language is the one shown.
- */
+The microphone's sentence for a network refusal: the old-version text
+only for a socket no editor version routes, otherwise the setting left
+off and what to change. Called when the setup runs (never at module
+load) so the installed language is the one shown.
+*/
 function reasonForRefusal(refusal: VoiceNetworkRefusal): string {
   switch (refusal) {
     case 'proxy': {
@@ -221,8 +221,11 @@ function reasonForRefusal(refusal: VoiceNetworkRefusal): string {
 export function createMuseVoiceSetup(
   probe: Omit<
     CaptureProbe,
-    'fileExists' | 'programFiles' | 'remoteName' | 'appName' | 'pathVariable'
-  >,
+    'fileExists' | 'programFiles' | 'remoteName' | 'appName' | 'pathVariable' | 'realpath'
+  > & {
+    /** Link resolver for the workspace comparison. REQUIRED. */
+    readonly realpath: (filePath: string) => string
+  },
   deps: MuseVoiceSetupDeps,
   names: DictationHostNames,
   network: VoiceNetworkPosture,
@@ -244,7 +247,7 @@ export function createMuseVoiceSetup(
           remoteName: names.remoteName,
           appName: names.appName,
           pathVariable: process.env['PATH'],
-          realpath: probe.realpath ?? realpathSync,
+          realpath: probe.realpath,
         })
       : {
           isAvailable: false as const,

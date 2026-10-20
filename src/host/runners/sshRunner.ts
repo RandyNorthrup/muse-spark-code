@@ -350,10 +350,10 @@ export class SshRunner {
       }
       const environment = runnerEnvironment(this.deps.env, runner.environmentNames)
       const prefix = Object.entries(environment)
-        .map(([name, value]) =>
+        .map(([name, value = '']) =>
           runner.os === 'win32'
-            ? `$env:${name}=${powerShellQuoted(value ?? '')}`
-            : `export ${name}=${posixQuoted(value ?? '')}`,
+            ? `$env:${name}=${powerShellQuoted(value)}`
+            : `export ${name}=${posixQuoted(value)}`,
         )
         .join(runner.os === 'win32' ? ';' : '\n')
       const encode = (command: string) => Buffer.from(`${prefix}\n${command}`).toString('base64')

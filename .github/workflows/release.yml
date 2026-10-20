@@ -1,7 +1,7 @@
 # A version tag (v1.2.3) reuses verified exact-tree CI artifacts or runs the
-# shared build, then publishes its per-target
-# VSIX packages (PLAN.md D123), ACP tarball, CycloneDX inventories and
-# SHA256SUMS on GitHub with
+# shared build, then publishes its six platform
+# VSIX packages (PLAN.md D123, no universal package), ACP tarball, CycloneDX
+# inventories and SHA256SUMS on GitHub with
 # CHANGELOG notes and package attestations. The identical packages go to
 # Marketplace/Open VSX when the tag-only `marketplace` environment has
 # VSCE_PAT/OVSX_PAT, and to npm by trusted publishing (OIDC, no token).
@@ -100,7 +100,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
       - run: npm ci --ignore-scripts --no-audit
@@ -115,17 +115,17 @@ jobs:
         id: receipt
         if: steps.lookup.outputs.run-id != '' && steps.lookup.outputs.legacy-recovery != 'true'
         continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: source-tree-${{ steps.lookup.outputs.tree }}
           run-id: ${{ steps.lookup.outputs.run-id }}
           github-token: ${{ github.token }}
           path: reused
-      - name: download the CI per-target VSIX packages
+      - name: download the CI platform VSIX packages
         id: vsix
         if: steps.lookup.outputs.run-id != ''
         continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-spark-code-vsix
           run-id: ${{ steps.lookup.outputs.run-id }}
@@ -135,7 +135,7 @@ jobs:
         id: acp
         if: steps.lookup.outputs.run-id != ''
         continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-spark-code-acp
           run-id: ${{ steps.lookup.outputs.run-id }}
@@ -145,7 +145,7 @@ jobs:
         id: sboms
         if: steps.lookup.outputs.run-id != ''
         continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-spark-code-sboms
           run-id: ${{ steps.lookup.outputs.run-id }}
@@ -157,7 +157,7 @@ jobs:
         id: helpers-x64
         if: steps.lookup.outputs.run-id != ''
         continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-created-linux-x64
           run-id: ${{ steps.lookup.outputs.run-id }}
@@ -167,7 +167,7 @@ jobs:
         id: helpers-arm64
         if: steps.lookup.outputs.run-id != ''
         continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-created-linux-arm64
           run-id: ${{ steps.lookup.outputs.run-id }}
@@ -192,35 +192,35 @@ jobs:
             echo 'reused=false' >> "$GITHUB_OUTPUT"
             echo 'Full rebuild: a CI artifact download failed.' >> "$GITHUB_STEP_SUMMARY"
           fi
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.check.outputs.reused == 'true'
         with:
           name: muse-spark-code-vsix
           path: reused/*.vsix
           if-no-files-found: error
           retention-days: 30
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.check.outputs.reused == 'true'
         with:
           name: muse-spark-code-acp
           path: reused/*.tgz
           if-no-files-found: error
           retention-days: 30
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.check.outputs.reused == 'true'
         with:
           name: muse-spark-code-sboms
           path: reused/*.cdx.json
           if-no-files-found: error
           retention-days: 30
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.check.outputs.reused == 'true' && hashFiles('reused-helpers/x64/**') != ''
         with:
           name: muse-created-linux-x64
           path: reused-helpers/x64
           if-no-files-found: error
           retention-days: 30
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.check.outputs.reused == 'true' && hashFiles('reused-helpers/arm64/**') != ''
         with:
           name: muse-created-linux-arm64
@@ -263,22 +263,22 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           run-id: ${{ github.run_id }}
           github-token: ${{ github.token }}
           name: muse-spark-code-vsix
           path: release
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           run-id: ${{ github.run_id }}
           github-token: ${{ github.token }}
           name: muse-spark-code-acp
           path: release
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           run-id: ${{ github.run_id }}
           github-token: ${{ github.token }}
@@ -287,7 +287,7 @@ jobs:
       # D140: the helper builds for the same-tag release assets. Absent on
       # legacy recoveries only; the staging step refuses a modern VSIX
       # without them.
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         id: helpers-x64
         continue-on-error: true
         with:
@@ -295,7 +295,7 @@ jobs:
           github-token: ${{ github.token }}
           name: muse-created-linux-x64
           path: helpers/x64
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         id: helpers-arm64
         continue-on-error: true
         with:
@@ -418,10 +418,10 @@ jobs:
           persist-credentials: false
       # No npm cache in the job that holds the PAT: the lockfile's integrity
       # hashes are checked either way, and a restored cache is one input less.
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           run-id: ${{ github.run_id }}
           github-token: ${{ github.token }}
@@ -466,10 +466,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           run-id: ${{ github.run_id }}
           github-token: ${{ github.token }}
@@ -515,11 +515,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           run-id: ${{ github.run_id }}
           github-token: ${{ github.token }}
@@ -555,7 +555,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
       - name: report all channels and fail any incomplete job
@@ -613,7 +613,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
       - run: npm ci --ignore-scripts --no-audit

@@ -49,12 +49,12 @@ interface PlacedResidualAcceptance {
 }
 
 /** Whether an acceptance covers a residual instance: same name, answered
- * (published) strictly before the acceptance was recorded and reviewed no
- * later, and — when the acceptance carries evidence — the same safety
- * rationale, follow-up and module. A legacy record without evidence binds to
- * the same-name instances actually preceding it in the journal; a residual
- * answered after the acceptance stays open until freshly accepted, even when
- * its review predates the acceptance. */
+(published) strictly before the acceptance was recorded and reviewed no
+later, and — when the acceptance carries evidence — the same safety
+rationale, follow-up and module. A legacy record without evidence binds to
+the same-name instances actually preceding it in the journal; a residual
+answered after the acceptance stays open until freshly accepted, even when
+its review predates the acceptance. */
 function isResidualCovered(
   acceptance: PlacedResidualAcceptance,
   residual: PlacedResidualEntry,
@@ -79,15 +79,15 @@ export interface PlaybookResidualRegister {
   readonly open: readonly PlaybookResidualEntry[]
   readonly accepted: readonly PlaybookResidualAcceptance[]
   /** Acceptances that bound to no answered residual — legacy records with no
-   * preceding same-name instance. They cover nothing: the residual stays open
-   * (or a fresh acceptance is needed) and release names it. */
+  preceding same-name instance. They cover nothing: the residual stays open
+  (or a fresh acceptance is needed) and release names it. */
   readonly unbound: readonly PlaybookResidualAcceptance[]
 }
 
 /** G24: the per-milestone residual register. Named residuals from round
- * answers stay open until a lead/owner acceptance for that milestone and
- * name is recorded after the answer. Integration surfaces this and refuses
- * release while anything is open. */
+answers stay open until a lead/owner acceptance for that milestone and
+name is recorded after the answer. Integration surfaces this and refuses
+release while anything is open. */
 export function collectResidualRegister(
   records: readonly PlaybookRecord[],
   lanes: readonly PlaybookLane[] | undefined,
@@ -177,8 +177,8 @@ export function collectResidualRegister(
 }
 
 /** M113 supplies its current rows, including its residual register and Needs you facts.
- * @unwired M116 playbook report rows
- * The integration preserves their payloads and applies the same ordering in all editors. */
+@unwired M116 playbook report rows
+The integration preserves their payloads and applies the same ordering in all editors. */
 export function collectPlaybookReport<T extends PlaybookReportItem>(
   policy: Pick<PlaybookPolicy, 'orderReport'> & { getRecord(): readonly PlaybookRecord[] },
   kind: PlaybookReportKind,

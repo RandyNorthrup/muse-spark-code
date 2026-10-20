@@ -95,9 +95,9 @@ export function projectMemorySlug(canonicalRoot: string): string {
 }
 
 /**
- * The workspace's folder under `projects`: one that already ends in its key
- * (whatever Muse Code named it), else the name Muse Code would give it.
- */
+The workspace's folder under `projects`: one that already ends in its key
+(whatever Muse Code named it), else the name Muse Code would give it.
+*/
 export function projectMemoryFolder(
   existing: readonly string[],
   canonicalRoot: string,

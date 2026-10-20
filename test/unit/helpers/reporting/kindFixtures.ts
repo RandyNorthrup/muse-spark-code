@@ -206,7 +206,7 @@ export function reportOptions(
 }
 
 /** The read context the kind suites feed a source: the English table on the
- * fixture clock, in the fixture workspace. */
+fixture clock, in the fixture workspace. */
 export function contextFor(kind: ReportKind): SourceReadContext {
   return {
     reportText: EN,

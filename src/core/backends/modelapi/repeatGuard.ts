@@ -1,5 +1,4 @@
 import { fingerprint } from '../../verify/fingerprint'
-import { TOOL_REPEAT_LIMIT } from '../../../shared/constants'
 
 interface ToolIdentity {
   readonly name: string
@@ -33,7 +32,12 @@ export function toolRepeatKey(call: ToolIdentity): string {
   return JSON.stringify([call.name, args])
 }
 
-/** Turn-local, consecutive results only; stores digests, never tool output text. */
+/**
+Turn-local, consecutive results only; stores digests, never tool output
+text. D121: no repeat bound of ours — the guard only names a repeat so the
+person is told in plain words. The call always runs; only the person stops
+the turn.
+*/
 export class RepeatGuard {
   private previous:
     | {
@@ -49,22 +53,24 @@ export class RepeatGuard {
   }
 
   public needsWitness(call: ToolIdentity): boolean {
-    return (
-      this.previous?.key === toolRepeatKey(call) && this.previous.count >= TOOL_REPEAT_LIMIT - 1
-    )
+    // The witness read starts at the third identical call in a row; only it
+    // proves the complete observable result is still unchanged.
+    return this.previous?.key === toolRepeatKey(call) && this.previous.count >= 2
   }
 
-  /** A witness must freshly prove the complete observable result is unchanged. */
-  public before(call: ToolIdentity, witness: string | undefined): 'run' | 'skip' | 'stuck' {
+  /**
+  `'run'`, or the repeat count to tell the person when the same call keeps
+  returning the same result. A witness must freshly prove the complete
+  observable result is unchanged; anything else resets and runs.
+  */
+  public before(call: ToolIdentity, witness: string | undefined): 'run' | { repeat: number } {
     const previous = this.previous
     if (previous?.key !== toolRepeatKey(call)) return 'run'
     if (witness === undefined || witness !== previous.witness) {
       this.reset()
       return 'run'
     }
-    if (previous.count < TOOL_REPEAT_LIMIT - 1) return 'run'
-    previous.count += 1
-    return previous.count === TOOL_REPEAT_LIMIT ? 'skip' : 'stuck'
+    return previous.count >= 2 ? { repeat: previous.count + 1 } : 'run'
   }
 
   public observe(call: ToolIdentity, output: unknown, witness: string | undefined): void {

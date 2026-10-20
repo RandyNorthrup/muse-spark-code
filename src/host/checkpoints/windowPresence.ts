@@ -213,10 +213,10 @@ export class WindowPresence {
   }
 
   /**
-   * Removes a gone window's presence file, unless it was written again after
-   * it was read: it is moved aside under a name no other move uses, read
-   * again, and put back when that window beat meanwhile. True when removed.
-   */
+  Removes a gone window's presence file, unless it was written again after
+  it was read: it is moved aside under a name no other move uses, read
+  again, and put back when that window beat meanwhile. True when removed.
+  */
   private async removeIfGone(filePath: string): Promise<boolean> {
     const aside = `${filePath}.${randomUUID()}${ASIDE_SUFFIX}`
     try {
@@ -244,9 +244,9 @@ export class WindowPresence {
   }
 
   /**
-   * Publishes this window as present with these turns running (no lock:
-   * only this window writes its file). Resolves once the file says so.
-   */
+  Publishes this window as present with these turns running (no lock:
+  only this window writes its file). Resolves once the file says so.
+  */
   public async publish(running: readonly string[]): Promise<void> {
     this.isPresent = true
     this.running = [...running]
@@ -254,10 +254,10 @@ export class WindowPresence {
   }
 
   /**
-   * The heartbeat: the presence file is written again from memory, so a
-   * file another window removed (thinking this one gone) or a failed write
-   * heals within one beat.
-   */
+  The heartbeat: the presence file is written again from memory, so a
+  file another window removed (thinking this one gone) or a failed write
+  heals within one beat.
+  */
   public async beat(): Promise<void> {
     if (this.isPresent) {
       await this.writeInTurn()
@@ -265,11 +265,11 @@ export class WindowPresence {
   }
 
   /**
-   * The windows open on this store and the turns running in each, this one
-   * included. The presence files of windows that are gone are removed, but
-   * only while no 0.10.0 window is live: a file a window of this version
-   * left behind for it keeps it fenced.
-   */
+  The windows open on this store and the turns running in each, this one
+  included. The presence files of windows that are gone are removed, but
+  only while no 0.10.0 window is live: a file a window of this version
+  left behind for it keeps it fenced.
+  */
   public async liveWindows(): Promise<ReadonlyMap<string, readonly string[]>> {
     const live = new Map<string, readonly string[]>([[this.deps.instance, this.running]])
     let names: string[]
@@ -317,12 +317,12 @@ export class WindowPresence {
   }
 
   /**
-   * The window is closing: its presence goes at once, and no write brings it
-   * back. It stays when this window may still have work under way, and when
-   * a 0.10.0 window was seen since this one opened (that window stays fenced
-   * until it reloads; a later window of this version removes the file once
-   * no 0.10.0 window is live).
-   */
+  The window is closing: its presence goes at once, and no write brings it
+  back. It stays when this window may still have work under way, and when
+  a 0.10.0 window was seen since this one opened (that window stays fenced
+  until it reloads; a later window of this version removes the file once
+  no 0.10.0 window is live).
+  */
   public leave(): void {
     if (
       !this.isPresent ||

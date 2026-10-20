@@ -38,14 +38,14 @@ async function settled(isDone: () => boolean): Promise<void> {
 }
 
 // The held approval's identifying fields; the probes below never pick.
-function approvalEvent(choiceScope: string) {
+function approvalEvent() {
   return {
     approvalId: 'approval-1',
     turnId: 'turn-1',
     toolName: 'bash',
     rawArgs: '{}',
     requirementId: { sourceIndex: 0 },
-    availableChoices: [{ choiceId: 'allow-once', decision: 'approved', scope: choiceScope }],
+    availableChoices: [{ choiceId: 'allow-once', decision: 'approved', scope: 'once' }],
   } as unknown as Parameters<ReviewedApprovals['hold']>[0]
 }
 
@@ -92,7 +92,7 @@ describe('ReviewedApprovals', () => {
       })
       const session = { sessionId: 'session-1' } as unknown as AgentSession
       try {
-        approvals.hold(approvalEvent('once'), hold(session, host))
+        approvals.hold(approvalEvent(), hold(session, host))
         await settled(() => cards.length > 0)
       } finally {
         reviewer.dispose()
@@ -128,7 +128,7 @@ describe('ReviewedApprovals', () => {
     )
     const session = { sessionId: 'session-1' } as unknown as AgentSession
     const host = {} as unknown as AgentHost
-    approvals.hold(approvalEvent('once'), hold(session, host))
+    approvals.hold(approvalEvent(), hold(session, host))
     await settled(() => cards.length > 0)
     expect(cards).toHaveLength(1)
     expect(cards[0]?.note).toBe(UI_TEXT.autoReviewerFailed)
@@ -161,7 +161,7 @@ describe('ReviewedApprovals', () => {
       decideApproval: () => Promise.reject(decideFailure),
     } as unknown as AgentSession
     const host = {} as unknown as AgentHost
-    approvals.hold(approvalEvent('once'), hold(session, host))
+    approvals.hold(approvalEvent(), hold(session, host))
     await settled(() => infos.some((line) => line.includes('answer to')) || cards.length > 0)
     expect(cards).toHaveLength(0)
     expect(infos.some((line) => line.includes('PromptSettledError'))).toBe(true)

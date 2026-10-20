@@ -55,11 +55,11 @@ export interface VaultMigrationLoaderDeps {
 }
 
 /**
- * The migration chunk, required on the first unlock edge and kept from then
- * on. A missing or corrupt chunk throws the operation failure sentence and
- * is tried again at the next unlock (the log names the bundle, never a
- * credential).
- */
+The migration chunk, required on the first unlock edge and kept from then
+on. A missing or corrupt chunk throws the operation failure sentence and
+is tried again at the next unlock (the log names the bundle, never a
+credential).
+*/
 export function vaultMigrationLoader(deps: VaultMigrationLoaderDeps): () => VaultMigrationBundle {
   return lazyBundleLoader({
     ...deps,

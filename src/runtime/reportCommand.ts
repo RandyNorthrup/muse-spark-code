@@ -15,6 +15,7 @@ import {
   credentialFileVerdict,
   isSignedInByStructure,
 } from '../core/backends/musecode/credentialFile'
+import { realpathSync } from 'node:fs'
 import { credentialFilePath, resolveMuseLaunch } from '../core/backends/musecode/launch'
 import {
   buildVaultProblemReportDraft,
@@ -54,24 +55,24 @@ export interface ReportFactsDeps {
   /** The directory's file names; empty when it cannot be read. */
   readonly listDirectory: (directory: string) => readonly string[]
   /**
-   * `META_API_KEY` was in the agent's environment when it started (presence
-   * only). The agent takes credential variables out of its own environment
-   * at start, so the caller answers from what it took, never from
-   * `process.env` afterwards.
-   */
+  `META_API_KEY` was in the agent's environment when it started (presence
+  only). The agent takes credential variables out of its own environment
+  at start, so the caller answers from what it took, never from
+  `process.env` afterwards.
+  */
   readonly hasEnvironmentApiKey: boolean
   /** The OS credential store holds a Model API key (presence only; a store that cannot be read reads no). */
   readonly hasStoredApiKey: boolean
 }
 
 /**
- * The allowlisted facts for the standalone report. Every value is local and
- * already public-safe: versions, platform, defaults for the backend and
- * sandbox the report never starts, CLI presence from file discovery, and
- * sign-in/key booleans. Outside VS Code there is no VS Code version, so the
- * fact is left out and the draft says "none (standalone agent)". Throws
- * ReportBuildError (from the builder) for off-allowlist input.
- */
+The allowlisted facts for the standalone report. Every value is local and
+already public-safe: versions, platform, defaults for the backend and
+sandbox the report never starts, CLI presence from file discovery, and
+sign-in/key booleans. Outside VS Code there is no VS Code version, so the
+fact is left out and the draft says "none (standalone agent)". Throws
+ReportBuildError (from the builder) for off-allowlist input.
+*/
 export function collectReportFacts(deps: ReportFactsDeps): ProblemReportFacts {
   const { platform } = deps
   if (platform !== 'win32' && platform !== 'darwin' && platform !== 'linux') {
@@ -90,6 +91,10 @@ export function collectReportFacts(deps: ReportFactsDeps): ProblemReportFacts {
     readTextFile: deps.readTextFile,
     listDirectory: deps.listDirectory,
     serveArgs: [],
+    // The standalone report discovers but never starts the CLI: entries
+    // inside its own working directory are never probed, so a planted
+    // `muse` there is never reported as present.
+    scope: { workspaceRoot: process.cwd(), realpath: realpathSync },
   })
   const credentialText = deps.readTextFile(
     credentialFilePath({
@@ -121,10 +126,10 @@ export interface RunReportDeps extends Omit<ReportFactsDeps, 'hasStoredApiKey'> 
   readonly vaultScrub?: SecretScrubPort
   readonly options: ReportOptions
   /**
-   * Whether the OS credential store holds a Model API key. Presence only;
-   * the value never leaves the caller's closure. A store that cannot be
-   * read reads no (documented in docs/acp.md).
-   */
+  Whether the OS credential store holds a Model API key. Presence only;
+  the value never leaves the caller's closure. A store that cannot be
+  read reads no (documented in docs/acp.md).
+  */
   readonly readStoredKeyPresence: () => Promise<boolean>
   /** Renders the relative ages; a non-finite value refuses the report. */
   readonly nowMs: number
@@ -138,10 +143,10 @@ export interface RunReportDeps extends Omit<ReportFactsDeps, 'hasStoredApiKey'> 
 }
 
 /**
- * Prints (or saves) the scrubbed report. Exit `ok` when the report went out;
- * `internal` when it could not be built or written. stdout carries only the
- * draft text in stdout mode, and nothing at all in `--out` mode.
- */
+Prints (or saves) the scrubbed report. Exit `ok` when the report went out;
+`internal` when it could not be built or written. stdout carries only the
+draft text in stdout mode, and nothing at all in `--out` mode.
+*/
 export async function runReportCommand(
   deps: RunReportDeps,
 ): Promise<typeof EXEC_EXIT.ok | typeof EXEC_EXIT.internal> {

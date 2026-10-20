@@ -10,8 +10,6 @@ import {
   MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
   MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS,
   MEDIA_NAME_MAX_CHARS,
-  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
-  BYTES_PER_MIB,
   SECONDS_PER_DAY,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -41,10 +39,10 @@ const deletionSchema = z.object({ id: fileId, object: z.literal('file'), deleted
 export type ProviderFile = z.infer<typeof fileSchema>
 
 /**
- * `museSpark.mediaUploadExpiryDays` as Files `expires_after` seconds,
- * clamped to the setting's 1–30 days and the wire's bounds; anything else
- * keeps the 7-day default.
- */
+`museSpark.mediaUploadExpiryDays` as Files `expires_after` seconds,
+clamped to the setting's 1–30 days and the wire's bounds; anything else
+keeps the 7-day default.
+*/
 export function uploadExpirySeconds(days: unknown): number {
   const fallback = MEDIA_FILE_EXPIRY_DEFAULT_S
   if (typeof days !== 'number' || !Number.isSafeInteger(days)) return fallback
@@ -61,12 +59,12 @@ export function uploadExpirySeconds(days: unknown): number {
 }
 
 /**
- * A provider receipt the cleanup DELETE could not remove (RVM105 1): the
- * upload failed after the provider answered with this id, and the bounded
- * clean-up route was closed or failed too. The owner records it durably as
- * a clean-up intent; the ledger's next sweep deletes it. The cause is the
- * original upload failure the caller sees.
- */
+A provider receipt the cleanup DELETE could not remove (RVM105 1): the
+upload failed after the provider answered with this id, and the bounded
+clean-up route was closed or failed too. The owner records it durably as
+a clean-up intent; the ledger's next sweep deletes it. The cause is the
+original upload failure the caller sees.
+*/
 export class UploadCleanupPendingError extends Error {
   public readonly fileId: string
   public constructor(fileId: string, options?: ErrorOptions) {
@@ -125,10 +123,14 @@ export class FilesApi {
     ) {
       throw new Error('Invalid upload expiry')
     }
+    // D121: no upload bound of ours — an absent cap admits any size and the
+    // provider refuses what it cannot take. The attach admission and the
+    // modality gate still enforce the person's setting and the model's
+    // own record before anything reaches here.
     if (
       !Number.isSafeInteger(source.bytes) ||
       source.bytes < 0 ||
-      source.bytes > (this.deps.maxBytes ?? MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB)
+      (this.deps.maxBytes !== undefined && source.bytes > this.deps.maxBytes)
     ) {
       throw new Error('Invalid upload size')
     }

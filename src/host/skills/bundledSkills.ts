@@ -88,11 +88,11 @@ export interface BundledSkillsNotice {
 
 export interface BundledSkillsOffer {
   /**
-   * The notice for a Muse Code conversation that just started, at most once
-   * per window: the install while there is no copy and Not now was never
-   * said, the update while the copy's release is not the vendored one and
-   * its Not now named another release.
-   */
+  The notice for a Muse Code conversation that just started, at most once
+  per window: the install while there is no copy and Not now was never
+  said, the update while the copy's release is not the vendored one and
+  its Not now named another release.
+  */
   next(): Promise<BundledSkillsNotice | undefined>
   /** Not now on the notice shown: remembered for the install, or for this release's update. */
   decline(): Promise<void>
@@ -109,10 +109,10 @@ function listed(ids: readonly string[]): string {
 type ShownOffer = { readonly kind: 'install' } | { readonly kind: 'update'; readonly tag: string }
 
 /**
- * What a Not now answers when this window showed nothing (F66): the offer
- * the copy's state would make now. A current copy or someone else's folder
- * offers nothing, so there is nothing to remember either.
- */
+What a Not now answers when this window showed nothing (F66): the offer
+the copy's state would make now. A current copy or someone else's folder
+offers nothing, so there is nothing to remember either.
+*/
 function readShown(status: BundledSkillsStatus): ShownOffer | undefined {
   let answer: ShownOffer | undefined
   if (status.kind === 'notInstalled') {
@@ -124,9 +124,9 @@ function readShown(status: BundledSkillsStatus): ShownOffer | undefined {
 }
 
 /**
- * The remembered answer for a stray Not now (F66): the copy's state read
- * now; a broken read keeps nothing rather than a wrong memory.
- */
+The remembered answer for a stray Not now (F66): the copy's state read
+now; a broken read keeps nothing rather than a wrong memory.
+*/
 async function readStrayAnswer(
   readStatus: () => Promise<BundledSkillsStatus>,
 ): Promise<ShownOffer | undefined> {

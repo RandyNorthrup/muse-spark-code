@@ -1,9 +1,4 @@
-import {
-  TEAM_BOARD_MAX,
-  TEAM_MAX_REASSIGNMENTS,
-  TEAM_SCHED_HISTORY_MAX,
-  UI_TEXT,
-} from '../../../shared/constants'
+import { TEAM_BOARD_MAX, TEAM_SCHED_HISTORY_MAX, UI_TEXT } from '../../../shared/constants'
 import {
   teamBoardSchema,
   teamBoardTaskSchema,
@@ -391,7 +386,8 @@ export class TaskBoard {
     if (previous.state !== 'retired' && !(hasQuarantine && previous.state === 'uncertain'))
       return false
     if (reason === 'stall') {
-      if (task.reassignments >= TEAM_MAX_REASSIGNMENTS) return false
+      // Reassignments are counted, never capped: the next attempt opens
+      // until the work converges or the person stops it (D121).
       task.reassignments++
     }
     task.state = 'ready'

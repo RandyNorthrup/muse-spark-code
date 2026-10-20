@@ -17,11 +17,11 @@ import { noEventHistory, unavailableSource, type ScheduleSnapshotPort } from './
 import { retainedPollEvents } from './conditions'
 
 /**
- * The revision source for one ref: its loose file, or packed-refs when the
- * ref is packed. Metadata detects an unstable read; it never identifies an
- * event. Only a missing loose file falls back; any other stat failure
- * keeps its kind for the caller.
- */
+The revision source for one ref: its loose file, or packed-refs when the
+ref is packed. Metadata detects an unstable read; it never identifies an
+event. Only a missing loose file falls back; any other stat failure
+keeps its kind for the caller.
+*/
 export async function statRefRevision(
   gitDir: string,
   refName: string,
@@ -76,6 +76,9 @@ export function localGitRefs(
         env: withoutCredentials(process.env),
         maxBuffer: GIT_OUTPUT_MAX_BYTES,
         windowsHide: true,
+        // The schedule's own workspace: `git` never resolves to a file
+        // inside it, and the child's PATH is guarded for it.
+        workspaceRoot,
       }
       try {
         const common = await exec(

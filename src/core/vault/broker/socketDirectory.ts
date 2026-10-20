@@ -13,13 +13,13 @@ import {
 import { isVaultFileMissing } from './files'
 
 /**
- * RVCM109JE P2-3: the broker socket's bounded owner-only home. The default
- * data folder (`~/Library/Application Support/Muse Spark Code` on macOS)
- * already exceeds Darwin's bindable socket length, so the socket never lives
- * under the data folder. The leaf directory names a short hash of the data
- * folder, so two data folders never share a broker; the broker record in the
- * data folder still carries the full socket path.
- */
+RVCM109JE P2-3: the broker socket's bounded owner-only home. The default
+data folder (`~/Library/Application Support/Muse Spark Code` on macOS)
+already exceeds Darwin's bindable socket length, so the socket never lives
+under the data folder. The leaf directory names a short hash of the data
+folder, so two data folders never share a broker; the broker record in the
+data folder still carries the full socket path.
+*/
 export interface VaultSocketBaseInput {
   readonly platform: NodeJS.Platform
   readonly env: NodeJS.ProcessEnv
@@ -35,10 +35,10 @@ export function vaultSocketPathLimit(platform: NodeJS.Platform): number {
 }
 
 /**
- * Ordered socket-base candidates. On Linux the per-user runtime directory is
- * preferred when set; everywhere else the OS temporary directory is the home.
- * Every candidate is verified before use; a failed candidate falls through.
- */
+Ordered socket-base candidates. On Linux the per-user runtime directory is
+preferred when set; everywhere else the OS temporary directory is the home.
+Every candidate is verified before use; a failed candidate falls through.
+*/
 export function vaultSocketBaseCandidates(input: VaultSocketBaseInput): string[] {
   const runtimes =
     input.platform === 'linux' &&
@@ -65,11 +65,11 @@ export function vaultBrokerSocketIn(
 }
 
 /**
- * The created fallback base: a per-user run directory under the home folder.
- * Only reached when no shared base verifies (headless Linux without a
- * runtime directory, or a world-writable temporary root): it is created
- * owner-only here, never an existing user directory re-permissioned.
- */
+The created fallback base: a per-user run directory under the home folder.
+Only reached when no shared base verifies (headless Linux without a
+runtime directory, or a world-writable temporary root): it is created
+owner-only here, never an existing user directory re-permissioned.
+*/
 export function vaultSocketFallbackBase(homeDir: string): string | null {
   return path.posix.isAbsolute(homeDir) || path.win32.isAbsolute(homeDir)
     ? path.join(homeDir, '.muse-spark-code', 'run')
@@ -124,10 +124,10 @@ export function assertVaultSocketLength(socket: string, platform: NodeJS.Platfor
 }
 
 /**
- * Resolve, create and verify the socket location for one data folder: the
- * first candidate base that verifies supplies it. Refuses with the broker
- * sentence when no base verifies or even the bounded location is too long.
- */
+Resolve, create and verify the socket location for one data folder: the
+first candidate base that verifies supplies it. Refuses with the broker
+sentence when no base verifies or even the bounded location is too long.
+*/
 export async function resolveVaultSocket(
   dataDir: string,
   input: VaultSocketBaseInput,
@@ -137,6 +137,7 @@ export async function resolveVaultSocket(
     try {
       await verifyVaultSocketBase(base)
     } catch {
+      // A failing candidate loses; the next base is tried.
       continue
     }
     // Length before any side effect: an over-long candidate simply loses.
@@ -144,6 +145,7 @@ export async function resolveVaultSocket(
     try {
       assertVaultSocketLength(location.socket, input.platform)
     } catch {
+      // An over-long candidate loses; the next base is tried.
       continue
     }
     await ensureVaultSocketDirectory(location.directory)
@@ -163,13 +165,13 @@ export async function resolveVaultSocket(
 }
 
 /**
- * The client verifies the socket owner before it speaks: a kernel socket of
- * this user, never a symlink or another type. An absent socket is not a
- * verdict here: the caller connects next and reports that failure with its
- * own starting/stopping meaning. Reachability is already bounded by the
- * owner-only socket directory (verified before bind and before connect);
- * the broker additionally chmods the bound socket owner-only after bind.
- */
+The client verifies the socket owner before it speaks: a kernel socket of
+this user, never a symlink or another type. An absent socket is not a
+verdict here: the caller connects next and reports that failure with its
+own starting/stopping meaning. Reachability is already bounded by the
+owner-only socket directory (verified before bind and before connect);
+the broker additionally chmods the bound socket owner-only after bind.
+*/
 export async function verifyVaultSocketFile(socket: string): Promise<void> {
   let sample
   try {
@@ -183,11 +185,11 @@ export async function verifyVaultSocketFile(socket: string): Promise<void> {
 }
 
 /**
- * Containment by resolved identity, never by spelling: `/var` and
- * `/private/var` name the same macOS temporary root, so both sides resolve
- * before comparing. Falls back to a normalized spelling compare only while a
- * side is absent.
- */
+Containment by resolved identity, never by spelling: `/var` and
+`/private/var` name the same macOS temporary root, so both sides resolve
+before comparing. Falls back to a normalized spelling compare only while a
+side is absent.
+*/
 function isWithinSpelling(relative: string): boolean {
   return (
     relative !== '' &&
@@ -198,9 +200,9 @@ function isWithinSpelling(relative: string): boolean {
 }
 
 /**
- * Whether a broker record's socket stays inside one of the data folder's own
- * locations. A foreign record never directs a client or a cleanup elsewhere.
- */
+Whether a broker record's socket stays inside one of the data folder's own
+locations. A foreign record never directs a client or a cleanup elsewhere.
+*/
 export async function isExpectedVaultSocket(
   socket: string,
   locations: { directory: string; socket: string }[],

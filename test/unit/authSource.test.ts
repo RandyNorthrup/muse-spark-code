@@ -6,8 +6,8 @@ import { CREDENTIAL_RECORD_VERSION } from '../../src/shared/constants'
 const HTTP_SCHEME = 'http:'
 const ORIGIN = 'https://api.example.test'
 const KEY = 'plain'
-function stored(origin = ORIGIN, key = KEY) {
-  return { record: { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin }, key }
+function stored(key = KEY) {
+  return { record: { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin: ORIGIN }, key }
 }
 
 describe('AuthSource', () => {
@@ -37,13 +37,13 @@ describe('AuthSource', () => {
   })
   it('rereads the secret instead of keeping the previous key', async () => {
     let key = KEY
-    const source = new ApiKeyAuthSource(() => Promise.resolve(stored(ORIGIN, key)), 'bearer')
+    const source = new ApiKeyAuthSource(() => Promise.resolve(stored(key)), 'bearer')
     const first = await source.headers(ORIGIN)
     key = 'rotated-canary'
     const second = await source.headers(ORIGIN)
     expect(second.keyDigest).not.toBe(first.keyDigest)
   })
-  it.each([undefined, {}, stored(ORIGIN, ''), stored(ORIGIN, 'bad\r\nheader')])(
+  it.each([undefined, {}, stored(''), stored('bad\r\nheader')])(
     'refuses a missing or invalid stored credential',
     async (value) => {
       await expect(

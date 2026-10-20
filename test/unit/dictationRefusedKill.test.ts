@@ -8,12 +8,12 @@ const quiet = () => undefined
 const log: CoreLogger = { trace: quiet, info: quiet, warn: quiet, error: quiet }
 
 /**
- * The host side of the driver's spawn seam: a helper whose kill is
- * refused (it answers through `onStopFailed` and never exits on its own)
- * until the test observes its exit by hand. A real process cannot refuse
- * its own kill, so this path is only reachable through the seam the
- * driver was designed around.
- */
+The host side of the driver's spawn seam: a helper whose kill is
+refused (it answers through `onStopFailed` and never exits on its own)
+until the test observes its exit by hand. A real process cannot refuse
+its own kill, so this path is only reachable through the seam the
+driver was designed around.
+*/
 class ScriptChild implements HelperChild {
   private readonly data: ((chunk: Buffer | string) => void)[] = []
   private readonly exits: ((description: string) => void)[] = []
@@ -131,10 +131,10 @@ async function awaitFailureSettled(
 }
 
 /**
- * A refused kill's settlement: the quit kill and at least one retry were
- * refused, yet no second recorder started, idle was not reported, and the
- * failure was said.
- */
+A refused kill's settlement: the quit kill and at least one retry were
+refused, yet no second recorder started, idle was not reported, and the
+failure was said.
+*/
 function expectRetainedKill(
   h: ReturnType<typeof harness>,
   first: ScriptChild,
@@ -147,9 +147,9 @@ function expectRetainedKill(
 }
 
 /**
- * A press queued behind the retained exit spawns exactly one recorder once
- * the exit is observed, and the new helper starts on its ready signal.
- */
+A press queued behind the retained exit spawns exactly one recorder once
+the exit is observed, and the new helper starts on its ready signal.
+*/
 async function expectQueuedPressSpawnsOne(
   h: ReturnType<typeof harness>,
   first: ScriptChild,

@@ -24,7 +24,7 @@ it('settles the asker as unanswered when the surface cannot show', async () => {
     policy: () => undefined,
     now: () => Date.now(),
   })
-  await expect(prompt.ask('meta', ACCOUNT_POLICIES[0])).resolves.toBe('cancel')
+  await expect(prompt.ask('meta', ACCOUNT_POLICIES[0]!)).resolves.toBe('cancel')
 })
 
 it('an overlap fails closed while the first ask stays pending', async () => {
@@ -33,8 +33,8 @@ it('an overlap fails closed while the first ask stays pending', async () => {
     policy: () => undefined,
     now: () => Date.now(),
   })
-  const first = prompt.ask('meta', ACCOUNT_POLICIES[0])
-  await expect(prompt.ask('meta', ACCOUNT_POLICIES[0])).resolves.toBe('cancel')
+  const first = prompt.ask('meta', ACCOUNT_POLICIES[0]!)
+  await expect(prompt.ask('meta', ACCOUNT_POLICIES[0]!)).resolves.toBe('cancel')
   prompt.close()
   await expect(first).resolves.toBe('cancel')
 })

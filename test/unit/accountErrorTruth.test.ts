@@ -32,7 +32,7 @@ async function scratch(): Promise<string> {
 }
 
 /** A real unreadable providers file: a directory where providers.json
- * belongs, so the metadata read fails through real filesystem I/O. */
+belongs, so the metadata read fails through real filesystem I/O. */
 async function unreadableProvidersFailure(): Promise<unknown> {
   const folder = await scratch()
   await mkdir(path.join(folder, 'providers.json'))
@@ -45,8 +45,8 @@ async function unreadableProvidersFailure(): Promise<unknown> {
 }
 
 /** Runtime account services over a scratch dir whose credential store stays
- * shut: opening it throws, so these tests prove the read path never
- * touches it. */
+shut: opening it throws, so these tests prove the read path never
+touches it. */
 function offlineServices(folder: string): RuntimeAccountServices {
   return createRuntimeAccountServices({
     dataDir: folder,
@@ -57,7 +57,7 @@ function offlineServices(folder: string): RuntimeAccountServices {
 }
 
 /** A session over the given port whose change and notice callbacks stay
- * silent: the assertions below observe the thrown sentences, not them. */
+silent: the assertions below observe the thrown sentences, not them. */
 function silentAccounts(port: AccountsSessionPort): AcpAccounts {
   return new AcpAccounts(
     'session-1',

@@ -180,7 +180,10 @@ describe('M108 J account text', () => {
         isReached: false,
         resetAt: null,
       }),
-    ).toMatchObject({ label: 'Rate-Limit Headroom (Tokenanzahl)', value: '28,5 % / 28,75 %' })
+    ).toMatchObject({
+      label: 'Rate-Limit Headroom (Tokenanzahl)',
+      value: '28,5\u{A0}% / 28,75\u{A0}%',
+    })
     expect(
       accountUsageRowText({
         ...report.accounts[0]!,

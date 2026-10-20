@@ -12,17 +12,12 @@ import { EN } from '../../src/shared/l10n/en'
 import { EstimateSchedulingError } from '../../src/core/estimator/schedule'
 import { calibrationFailure } from '../../src/core/estimator/calibration/records'
 import { lookupEstimatePrices } from '../../src/core/estimator/prices'
-import { estimatorSourcePorts } from '../../src/host/estimator/localFleet'
+import { estimatePricePorts } from './helpers/estimateFailures'
 
 const AS_OF = '2026-10-17T00:00:00.000Z'
 
 async function catalogOptionsRefusal(): Promise<Error> {
-  const ports = estimatorSourcePorts(() => ({
-    enabled: true,
-    networkAllowed: false,
-    maxAgeMs: 60_000,
-    catalogUrls: [],
-  })).prices()
+  const ports = estimatePricePorts()
   try {
     await lookupEstimatePrices(
       {
@@ -41,12 +36,7 @@ async function catalogOptionsRefusal(): Promise<Error> {
 }
 
 async function catalogHandoffWait(): Promise<Error> {
-  const ports = estimatorSourcePorts(() => ({
-    enabled: true,
-    networkAllowed: false,
-    maxAgeMs: 60_000,
-    catalogUrls: [],
-  })).prices()
+  const ports = estimatePricePorts()
   try {
     await ports.cached('https://example.com/catalog.json')
   } catch (error) {

@@ -20,6 +20,7 @@ import {
   VAULT_AUDIT_MAX_BYTES,
 } from '../../shared/constants'
 import type { KeyringEntryFactory } from '../keyStore'
+import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
 import { KeyringVaultAnchor } from './keyringAnchor'
 import { FileVaultAnchor, vaultAnchorFile } from './fileAnchor'
 import type { VaultAnchorPort } from '../../core/vault/broker/repository'
@@ -27,7 +28,6 @@ import type { VaultBrokerBindings, VaultBrokerContext } from './vaultBrokerEntry
 import { isPosixVaultHost } from './posixHost'
 import { holdVaultStartupLock, vaultPeerExecutable, vaultProcessIdentity } from './posixNative'
 import type { WindowsBrokerPlatform } from './windowsHost'
-import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
 export { setUiText } from '../../shared/l10n/text'
 
 const count = z.number().check(z.int(), z.nonnegative(), z.refine(Number.isSafeInteger))
@@ -43,12 +43,12 @@ const auditAnchorSchema = z.strictObject({
 export type VaultAuditLock = <T>(work: () => Promise<T>) => Promise<T>
 
 /**
- * The OS binding is not installed (a staged package carries no
- * `node_modules`): every OS-store use reports the fixed storeUnavailable
- * repair through the existing per-operation mapping, while the file and
- * hardware tiers keep working. Never an empty success, never a startup
- * refusal for a missing binding.
- */
+The OS binding is not installed (a staged package carries no
+`node_modules`): every OS-store use reports the fixed storeUnavailable
+repair through the existing per-operation mapping, while the file and
+hardware tiers keep working. Never an empty success, never a startup
+refusal for a missing binding.
+*/
 function unavailableOperation(): Promise<never> {
   return Promise.reject(new VaultStoreUnavailableError())
 }
@@ -223,10 +223,10 @@ function missingOsKeyring(
 }
 
 /**
- * The override or OS keyring, falling back to the file anchor where the OS
- * binding is not installed; the factories differ only in which OS store
- * they create.
- */
+The override or OS keyring, falling back to the file anchor where the OS
+binding is not installed; the factories differ only in which OS store
+they create.
+*/
 async function resolveBrokerKeyring(
   context: VaultBrokerContext,
   overrides: Pick<VaultBrokerBindings, 'keyring' | 'anchor'>,
@@ -272,9 +272,9 @@ async function createCredentialManagerKeyring(): Promise<{
 }
 
 /**
- * Management and first-party reads shared by every platform; the factories
- * differ only in how a host proves itself and where the audit anchors.
- */
+Management and first-party reads shared by every platform; the factories
+differ only in how a host proves itself and where the audit anchors.
+*/
 function baseVaultBrokerBindings(
   context: VaultBrokerContext,
   parts: {

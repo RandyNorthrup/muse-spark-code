@@ -68,20 +68,20 @@ function expectOk(response: VaultChannelResponse['response']): void {
 
 export class VaultManageSession {
   /**
-   * `encode` is injected so the vault's opening bundle never carries the
-   * write-only crypto: the panel passes the lazily loaded actions bundle's
-   * encoder, the CLI its direct one (RVAPP-CM1091D5 BYTES).
-   */
+  `encode` is injected so the vault's opening bundle never carries the
+  write-only crypto: the panel passes the lazily loaded actions bundle's
+  encoder, the CLI its direct one (RVAPP-CM1091D5 BYTES).
+  */
   constructor(
     private readonly connect: VaultConnect,
     private readonly encodeMaterial?: (material: VaultItem['material']) => Buffer,
   ) {}
 
   /**
-   * `authorize` runs after the connection is acquired, immediately before the
-   * request that commits is sent: a caller retired while the connection was
-   * pending sends nothing (RVCM1091A F5).
-   */
+  `authorize` runs after the connection is acquired, immediately before the
+  request that commits is sent: a caller retired while the connection was
+  pending sends nothing (RVCM1091A F5).
+  */
   private async call<T>(
     work: (client: VaultBrokerConnection) => Promise<T>,
     authorize?: () => void,
@@ -260,18 +260,21 @@ export class VaultManageSession {
     )
   }
   /**
-   * Pushed events until `signal` aborts. A stream the broker closes is
-   * reopened after `VAULT_WATCH_RETRY_MS`, and each (re)open first reports
-   * `changed` so views reload. A connection or watch that fails rejects, so
-   * every caller reports it; only cancellation ends quietly (RVCM1091A F7).
-   */
+  Pushed events until `signal` aborts. A stream the broker closes is
+  reopened after `VAULT_WATCH_RETRY_MS`, and each (re)open first reports
+  `changed` so views reload. A connection or watch that fails rejects, so
+  every caller reports it; only cancellation ends quietly (RVCM1091A F7).
+  */
   async watch(onEvent: (event: VaultBrokerEvent) => void, signal: AbortSignal): Promise<void> {
-    while (!signal.aborted) {
+    for (;;) {
+      if (isCancelled(signal)) return
       let client: VaultBrokerConnection
       try {
         client = await this.connect()
       } catch (error: unknown) {
-        if (isCancelled(signal)) return
+        // Only cancellation ends quietly; a failed connection rejects so
+        // every caller reports it.
+        if (signal.aborted) return
         throw error
       }
       // Cancelled while the connection was being acquired: close the late
@@ -289,7 +292,9 @@ export class VaultManageSession {
         onEvent({ kind: 'changed', v: VAULT_PROTOCOL_VERSION })
         await client.closed()
       } catch (error: unknown) {
-        if (isCancelled(signal)) return
+        // Only cancellation ends quietly; a failed watch rejects so every
+        // caller reports it.
+        if (signal.aborted) return
         throw error
       } finally {
         signal.removeEventListener('abort', stop)

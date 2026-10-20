@@ -6,7 +6,10 @@ import {
   serveOptionsFor,
 } from '../../src/runtime/exec/execArgs'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
-import { capRefusalReason } from '../../src/core/backends/modelapi/toolResultBound'
+import {
+  capRefusalReason,
+  validateToolResultCap,
+} from '../../src/core/backends/modelapi/toolResultBound'
 import { PAID_PRICES_USD, UI_TEXT } from '../../src/shared/constants'
 import type { PaidUseRequest } from '../../src/shared/paid'
 import { fill } from '../../src/shared/l10n/text'
@@ -265,7 +268,6 @@ describe('M80 args (A1–A10, F1)', () => {
     { effort: 'unknown' },
     { timeout: '0' },
     { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': '0' },
-    { backend: 'modelApi', 'max-budget-usd': '1', 'max-tool-output-bytes': '0' },
     { backend: 'modelApi', 'max-budget-usd': '1', 'max-tool-output-bytes': '1023' },
     { backend: 'museCode', 'max-tool-output-bytes': '70000' },
     { timeout: '10.1' },
@@ -400,6 +402,16 @@ describe('M80 args (A1–A10, F1)', () => {
     const floor = parseExec({ ...values, 'max-tool-output-bytes': '1024' }, ['hi'])
     if (!floor.ok) throw new Error(floor.reason)
     expect(floor.options.maxToolOutputBytes).toBe(1024)
+  })
+
+  it('TOOLCAP takes an explicit 0 tool-output guard as no guard of ours', () => {
+    const values = { backend: 'modelApi', 'max-budget-usd': '1' }
+    const parsed = parseExec({ ...values, 'max-tool-output-bytes': '0' }, ['hi'])
+    if (!parsed.ok) throw new Error(parsed.reason)
+    expect(parsed.options.maxToolOutputBytes).toBe(0)
+    expect(validateToolResultCap(parsed.options.maxToolOutputBytes, undefined)).toEqual({
+      bytes: Infinity,
+    })
   })
   it('accepts --effort none for Thinking off (lane REASONSHAPESR2)', () => {
     // The terminal agent can be told to send none; the record decides

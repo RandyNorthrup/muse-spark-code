@@ -191,10 +191,10 @@ function filterModel(key, entry) {
 }
 
 /**
- * Keep the presets' providers and their tool-capable models, refusing a
- * download that misses a listed provider or keeps none of its models.
- * Returns the snapshot's providers, keyed by preset id.
- */
+Keep the presets' providers and their tool-capable models, refusing a
+download that misses a listed provider or keeps none of its models.
+Returns the snapshot's providers, keyed by preset id.
+*/
 export function filterCatalog(api) {
   if (!isRecord(api)) throw new Error('Provider catalogue must be an object')
   api = apiSchema.parse(api)
@@ -358,7 +358,7 @@ function presentFiles(directory, prefix = '') {
       const relative = `${prefix}${entry.name}`
       return entry.isDirectory()
         ? presentFiles(path.join(directory, entry.name), `${relative}/`)
-        : [relative]
+        : relative
     })
     .map((file) => file.split(path.sep).join('/'))
     .toSorted((a, b) => a.localeCompare(b, 'en'))
@@ -430,10 +430,10 @@ function readVendorManifest(paths) {
 }
 
 /**
- * Verify the vendor directory against VENDOR.json: exactly the listed files,
- * every digest matching, the licence present, and the snapshot's shape, size
- * cap and manifest agreement. Returns the sealed file and snapshot sizes.
- */
+Verify the vendor directory against VENDOR.json: exactly the listed files,
+every digest matching, the licence present, and the snapshot's shape, size
+cap and manifest agreement. Returns the sealed file and snapshot sizes.
+*/
 export function verifyVendorFiles(vendorDir = DEFAULT_VENDOR_DIR) {
   const paths = vendorPaths(vendorDir)
   const manifest = readVendorManifest(paths)

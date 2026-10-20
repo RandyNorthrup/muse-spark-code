@@ -32,10 +32,10 @@ const EXIT_FAILED = 1
 const OWNER_JOURNAL = '_owner'
 
 /**
- * The owner's command leaves its control receipt (design §6): grant and
- * revoke in that connection's journal, the kill switch in the owner's. Best
- * effort: the owner's own command is never held back by the journal.
- */
+The owner's command leaves its control receipt (design §6): grant and
+revoke in that connection's journal, the kill switch in the owner's. Best
+effort: the owner's own command is never held back by the journal.
+*/
 async function controlReceipt(
   store: ConnectorStore,
   io: CommandIo,

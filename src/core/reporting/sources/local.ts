@@ -43,26 +43,26 @@ const LOCAL_FAILURES: Record<string, LocalFailure | undefined> = {
 }
 export class LocalSourceError extends Error {
   /**
-   * Minification-safe brand: lazy bundles (report inputs, network) carry
-   * their own copy of this class, so `instanceof` alone cannot recognize a
-   * failure thrown across the bundle boundary (C-M113-2).
-   */
+  Minification-safe brand: lazy bundles (report inputs, network) carry
+  their own copy of this class, so `instanceof` alone cannot recognize a
+  failure thrown across the bundle boundary (C-M113-2).
+  */
   readonly isLocalSourceError = true
   constructor(
     readonly code: LocalFailure,
     /**
-     * A pre-scrubbed free-text reason for the record. The source that
-     * throws it owns the wording (and its scrubbing), so the record can
-     * name the failure instead of repeating the fixed table sentence.
-     * Absent or unusable detail falls back to the table sentence.
-     */
+    A pre-scrubbed free-text reason for the record. The source that
+    throws it owns the wording (and its scrubbing), so the record can
+    name the failure instead of repeating the fixed table sentence.
+    Absent or unusable detail falls back to the table sentence.
+    */
     readonly detail?: string,
   ) {
     super(detail ?? code)
   }
 }
 /** A branded free-text reason from any bundle copy, or undefined when the
- * failure carries none. Length-checked so the record stays schema-valid. */
+failure carries none. Length-checked so the record stays schema-valid. */
 export function localDetailOf(error: unknown): string | undefined {
   if (typeof error !== 'object' || error === null) return undefined
   const branded = error as { isLocalSourceError?: unknown; code?: unknown; detail?: unknown }
@@ -116,13 +116,13 @@ function ignoreSettlement(): void {
 }
 
 /**
- * Partial reasons are a set of sentences: a reason already present is never
- * appended again (RVCM1132C finding 5). Entries may themselves be joined
- * sentences (a damaged journal plus a thrown budget read arrives as one
- * string), so the check is per sentence, not per element: an existing entry
- * containing the sentence skips it, and entries contained in the new reason
- * fold into it (RVCM1132D finding 2).
- */
+Partial reasons are a set of sentences: a reason already present is never
+appended again (RVCM1132C finding 5). Entries may themselves be joined
+sentences (a damaged journal plus a thrown budget read arrives as one
+string), so the check is per sentence, not per element: an existing entry
+containing the sentence skips it, and entries contained in the new reason
+fold into it (RVCM1132D finding 2).
+*/
 export function pushPartialReason(partials: string[], reason: string): void {
   if (partials.some((existing) => existing.includes(reason))) return
   for (let index = partials.length - 1; index >= 0; index -= 1) {
@@ -131,18 +131,18 @@ export function pushPartialReason(partials: string[], reason: string): void {
   partials.push(reason)
 }
 /**
- * Whether a throw is the content failing to parse: malformed JSON or a schema
- * mismatch. Sources map both to their invalid-data outcome; anything else is
- * not a content failure.
- *
- * Read by shape, never by `instanceof` on zod's error class: `zod/mini`
- * exports no error class, so `z.core.$ZodError` would read `core` off the
- * shared validation bundle, which does not export it (the split gate fails,
- * and the packed bundle throws `TypeError` where the source maps a code).
- * The pinned zod names every schema failure `$ZodError` explicitly
- * (`inst.name = "$ZodError"` in its core), so the name survives minification;
- * the `issues` array keeps a same-named foreign error out.
- */
+Whether a throw is the content failing to parse: malformed JSON or a schema
+mismatch. Sources map both to their invalid-data outcome; anything else is
+not a content failure.
+
+Read by shape, never by `instanceof` on zod's error class: `zod/mini`
+exports no error class, so `z.core.$ZodError` would read `core` off the
+shared validation bundle, which does not export it (the split gate fails,
+and the packed bundle throws `TypeError` where the source maps a code).
+The pinned zod names every schema failure `$ZodError` explicitly
+(`inst.name = "$ZodError"` in its core), so the name survives minification;
+the `issues` array keeps a same-named foreign error out.
+*/
 export function isParseFailure(error: unknown): boolean {
   return (
     error instanceof SyntaxError ||
@@ -159,9 +159,9 @@ export function codeUnitCompare(a: string, b: string): number {
 }
 
 /**
- * Millisecond stamps render as ISO dates. A schema-valid stamp outside the
- * Date range stays a number at the call site, never a guessed date.
- */
+Millisecond stamps render as ISO dates. A schema-valid stamp outside the
+Date range stays a number at the call site, never a guessed date.
+*/
 export function isoDateMs(value: number): string | undefined {
   if (!Number.isSafeInteger(value)) return undefined
   const time = new Date(value).getTime()

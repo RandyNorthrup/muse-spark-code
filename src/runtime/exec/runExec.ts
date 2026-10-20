@@ -61,7 +61,7 @@ import type { AccountsSessionPort } from '../../acp/accounts'
 import { accountStopText, accountUsageUrl } from '../../acp/accountText'
 import { execFetch, type ExecTransport } from './execFetch'
 import { statusForStop, type Lifecycle, type StopCause } from './execLimits'
-import { createExecLogger, redactWhole, type ExecSink } from './execOutput'
+import { createExecLogger, redactWhole } from './execOutput'
 import { createResourceExecSink } from '../resources/execSink'
 import type { RuntimeResources } from '../resources/port'
 import type { ResourceSettings } from '../../shared/resources'
@@ -136,13 +136,13 @@ export const execOutputSchemaPort: ExecOutputSchemaPort = {
 export { setUiText } from '../../shared/l10n/text'
 
 /**
- * EXECPROV round 6: the final sentence of a run-cap budget stop, true for
- * what happened. Kept text is shown with the kept-work sentence; with
- * nothing produced yet the run was still reading and no answer exists. Both
- * remedies follow with numbers — the output limit only when it alone can
- * make the next request fit, the input note only when the input alone
- * already costs more than is left.
- */
+EXECPROV round 6: the final sentence of a run-cap budget stop, true for
+what happened. Kept text is shown with the kept-work sentence; with
+nothing produced yet the run was still reading and no answer exists. Both
+remedies follow with numbers — the output limit only when it alone can
+make the next request fit, the input note only when the input alone
+already costs more than is left.
+*/
 export function budgetFinalMessage(input: {
   readonly kept: readonly string[]
   readonly requests: number
@@ -270,10 +270,10 @@ export interface ProviderRunRequest {
 export type ProviderExecRunner = (request: ProviderRunRequest) => Promise<number>
 
 /**
- * A missing price is not a budget stop (5a): the sentence states the reason
- * and the remedy. A provider run names the runner's own providers file,
- * where a price for the model is added; anything else names a priced model.
- */
+A missing price is not a budget stop (5a): the sentence states the reason
+and the remedy. A provider run names the runner's own providers file,
+where a price for the model is added; anything else names a priced model.
+*/
 function unpricedMessage(
   requestedModel: string | null | undefined,
   file: string | undefined,
@@ -339,7 +339,7 @@ function relativePaths(cwd: string, paths: readonly string[]): string[] {
           !relative.startsWith('../') &&
           !path.isAbsolute(relative) &&
           !relative.includes(':')
-          ? [relative]
+          ? relative
           : []
       }),
     ),
@@ -491,14 +491,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     sink.resource(event)
     log.warn(text.replaceAll('\n', ' · '))
   })
-  const drain = (target: ExecSink) => {
+  const drain = () => {
     const messages = tap?.releasedMessages() ?? []
     for (const item of messages) {
       if (emitted.has(item.itemId)) {
         continue
       }
 
-      target.message(item)
+      sink.message(item)
       emitted.add(item.itemId)
     }
   }
@@ -562,14 +562,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         durationMs: event.item.durationMs ?? 0,
       })
     }
-    drain(sink)
+    drain()
   }
   /**
-   * A BYO provider run (M95, PLAN.md D74): everything is resolved and
-   * checked up front — the provider from the runner's own user file, a
-   * model naming it, a bound credential, a re-checked endpoint and the
-   * pinned fetch — then the ordinary ACP engine runs the turn.
-   */
+  A BYO provider run (M95, PLAN.md D74): everything is resolved and
+  checked up front — the provider from the runner's own user file, a
+  model naming it, a bound credential, a re-checked endpoint and the
+  pinned fetch — then the ordinary ACP engine runs the turn.
+  */
   async function runWithProvider(): Promise<number | undefined> {
     // Provider assembly rides the lazy provider bundle beside the packed
     // agent (never inlined here): dist/headless.js keeps its budget.
@@ -850,7 +850,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           },
           onResponseSettled: (outcome) => {
             tap?.settleResponse(outcome)
-            if (!isFinishing) drain(sink)
+            if (!isFinishing) drain()
           },
         })
       const engine = await import('../runtimeEngineEntry')
@@ -956,7 +956,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                     totals: ledger.totals(),
                   })
                   tap?.settleResponse(outcome)
-                  if (!isFinishing) drain(sink)
+                  if (!isFinishing) drain()
                 },
               },
             }),
@@ -1201,9 +1201,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               const levels =
                 config?.type === 'select'
                   ? config.options.flatMap((option) =>
-                      'value' in option
-                        ? [option.value]
-                        : option.options.map((entry) => entry.value),
+                      'value' in option ? option.value : option.options.map((entry) => entry.value),
                     )
                   : [...effortLevelsFor(model ?? undefined)]
               if (
@@ -1484,7 +1482,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     const signal = lifecycle.cause?.kind === 'signal' ? lifecycle.cause.signal : null
     const cause = lifecycle.cause
     const tokens = totals?.tokens ?? latestTokens
-    drain(sink)
+    drain()
     const hasCompleteResponse =
       options.backend === 'museCode'
         ? terminal === 'completed'

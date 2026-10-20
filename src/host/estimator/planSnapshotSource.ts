@@ -10,14 +10,15 @@ import { EstimateDiagnosticError } from '../../core/estimator/diagnostic'
 // Reports admission is acquired on every estimate and rechecked at dispatch.
 // Issue/label goals refuse before IO until their explicit associations exist.
 import { execFile } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import { buildPlanSnapshot, checkPlan } from '../../core/estimator/planSnapshot'
-import { resolveExecutable } from '../../core/executables'
+import { NO_WORKSPACE } from '../../core/executables'
+import { resolveExecutable } from '../../core/execGuard'
 import type { EstimateGoal } from '../../shared/estimate'
 import type { UiText } from '../../shared/l10n/en'
 import {
@@ -71,8 +72,8 @@ export interface PlanSnapshotSourceDeps {
 }
 
 /** Installs the caller's language table in the snapshot bundle: each bundle
- * keeps its own installed-language state, so the lazy loader calls this
- * with its table before the first snapshot reads it. */
+keeps its own installed-language state, so the lazy loader calls this
+with its table before the first snapshot reads it. */
 export function installPlanSnapshotText(table: UiText, locale: string): void {
   setUiText(table, locale)
 }
@@ -82,6 +83,7 @@ function program(name: string): string | undefined {
     platform: process.platform,
     pathVariable: process.env['PATH'],
     fileExists: existsSync,
+    scope: { noWorkspace: NO_WORKSPACE, realpath: realpathSync },
   })
 }
 
@@ -270,9 +272,9 @@ export interface PlanCheckSourceDeps {
 }
 
 /** The whole plan's estimator problems, evidence-free: no git, no `gh`, no
- * network. Reports every duplicate, malformed Starts cell, unknown
- * prerequisite, unknown rig and unknown release member; empty means every
- * goal is forecastable. */
+network. Reports every duplicate, malformed Starts cell, unknown
+prerequisite, unknown rig and unknown release member; empty means every
+goal is forecastable. */
 export function createPlanCheckSource(
   deps: PlanCheckSourceDeps,
 ): (signal?: AbortSignal) => Promise<string[]> {

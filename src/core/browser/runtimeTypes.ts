@@ -16,16 +16,16 @@ export type PreparationReason = PreparationFailure | 'cancelled'
 export interface WorkLifetime {
   readonly signal: AbortSignal
   /**
-   * The monotonic time (`performance.now()`) a named deadline ends it at,
-   * at the latest; undefined when the work names no deadline of its own
-   * (owner 2026-10-16) and ends only at its signals or its owner's `end()`.
-   */
+  The monotonic time (`performance.now()`) a named deadline ends it at,
+  at the latest; undefined when the work names no deadline of its own
+  (owner 2026-10-16) and ends only at its signals or its owner's `end()`.
+  */
   readonly deadlineAt: number | undefined
   /**
-   * Runs `run` while the lifetime lasts; refuses, and closes a late result,
-   * after its end. A step whose value has no `close` names its `dispose`,
-   * run on a late value instead.
-   */
+  Runs `run` while the lifetime lasts; refuses, and closes a late result,
+  after its end. A step whose value has no `close` names its `dispose`,
+  run on a late value instead.
+  */
   step<T>(
     run: (signal: AbortSignal) => Promise<T>,
     dispose?: (value: T) => Promise<void>,

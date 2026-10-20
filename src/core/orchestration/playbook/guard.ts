@@ -8,7 +8,7 @@ import type {
 } from '../../../shared/playbook'
 
 /** Hash only normalized effect/subject, never shell text. A different agent,
- * team or tool spelling cannot change a recorded refusal's identity. */
+team or tool spelling cannot change a recorded refusal's identity. */
 export function actionIdentity(action: PlaybookAction): string {
   return createHash('sha256')
     .update(JSON.stringify([action.effect.trim(), action.subject.trim()]))
@@ -16,7 +16,7 @@ export function actionIdentity(action: PlaybookAction): string {
 }
 
 /** Advisory early warning only. Do not interpret wrapper programs, aliases,
- * substitutions or generated arguments. Outcome receipts control push/done. */
+substitutions or generated arguments. Outcome receipts control push/done. */
 function hasHookEarlyWarning(text: string): boolean {
   // Pure string matching: nothing here throws for a string, so no catch.
   // (A catch returning false would hide exactly the warning this reports.)

@@ -61,9 +61,9 @@ export interface LoopbackListener {
 }
 
 /**
- * Listens on an ephemeral loopback port for one MCP server. Errors after the
- * listen (a socket fault) are logged, never thrown at the host.
- */
+Listens on an ephemeral loopback port for one MCP server. Errors after the
+listen (a socket fault) are logged, never thrown at the host.
+*/
 export async function listenLoopback(
   onRequest: (request: IncomingMessage, response: ServerResponse) => void,
   log: Logger,

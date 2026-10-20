@@ -10,10 +10,10 @@ export function storeErrorCode(error: unknown): string | undefined {
 }
 
 /**
- * The catch-gate-visible form of the expected store condition: `is`-named so
- * the inventory reads it as the one handled case, with exactly the same
- * answer as `storeErrorCode` on every input.
- */
+The catch-gate-visible form of the expected store condition: `is`-named so
+the inventory reads it as the one handled case, with exactly the same
+answer as `storeErrorCode` on every input.
+*/
 export function isStoreErrorCode(error: unknown, code: string): boolean {
   return storeErrorCode(error) === code
 }
@@ -23,17 +23,17 @@ export function describeStoreError(error: unknown): string {
 }
 
 /**
- * A provider failure as the log names it: the HTTP status and the
- * envelope's words, never its message — a delete error can name the file
- * id and the file name it failed on. Anything else keeps its code, or a
- * fixed phrase when it has none. The user-facing failure keeps the
- * truthful reason; only the log line is scrubbed.
- *
- * The provider check is structural and local: importing the client would
- * drag its graph into the sessions chunk, and dist/modelApiSessions.js
- * must not require dist/modelApi.js at load. It mirrors
- * transport.isModelApiError's shape (a message with a numeric status).
- */
+A provider failure as the log names it: the HTTP status and the
+envelope's words, never its message — a delete error can name the file
+id and the file name it failed on. Anything else keeps its code, or a
+fixed phrase when it has none. The user-facing failure keeps the
+truthful reason; only the log line is scrubbed.
+
+The provider check is structural and local: importing the client would
+drag its graph into the sessions chunk, and dist/modelApiSessions.js
+must not require dist/modelApi.js at load. It mirrors
+transport.isModelApiError's shape (a message with a numeric status).
+*/
 function isProviderError(value: unknown): value is { status: number } {
   return (
     typeof value === 'object' &&

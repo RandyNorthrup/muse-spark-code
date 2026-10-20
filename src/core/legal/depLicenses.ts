@@ -35,11 +35,11 @@ export interface DependencyLicenseResult {
   readonly evaluated: readonly EvaluatedDependency[]
   readonly incomplete: readonly string[]
   /**
-   * True when a dependency's terms need a human read (M97 C-M97-1):
-   * proprietary or UNLICENSED markers, custom references, unrecognized
-   * ids or unknown exceptions. Deprecated or `+` forms stay recognized
-   * advice and do not set this.
-   */
+  True when a dependency's terms need a human read (M97 C-M97-1):
+  proprietary or UNLICENSED markers, custom references, unrecognized
+  ids or unknown exceptions. Deprecated or `+` forms stay recognized
+  advice and do not set this.
+  */
   readonly requiresReview: boolean
 }
 
@@ -78,10 +78,10 @@ function proprietaryFinding(
 }
 
 /**
- * Evaluate every dependency's declared license. `isShipped` names the
- * dependencies distribution evidence places in the shipment; anything
- * else counts as unshipped, never as clean.
- */
+Evaluate every dependency's declared license. `isShipped` names the
+dependencies distribution evidence places in the shipment; anything
+else counts as unshipped, never as clean.
+*/
 export function evaluateDependencyLicenses(
   dependencies: readonly LegalDependency[],
   isShipped: (dependency: LegalDependency) => boolean,

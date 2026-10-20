@@ -76,11 +76,11 @@ function describe(error: unknown): string {
 }
 
 /**
- * The goal's snapshot from the loader's root, the bundle required the first
- * time it is asked for and kept from then on. A missing or corrupt bundle
- * throws `estimateUnavailable` (the log has the cause) and is tried again on
- * the next call.
- */
+The goal's snapshot from the loader's root, the bundle required the first
+time it is asked for and kept from then on. A missing or corrupt bundle
+throws `estimateUnavailable` (the log has the cause) and is tried again on
+the next call.
+*/
 export function planSnapshotLoader(
   deps: PlanSnapshotLoaderDeps,
 ): (goal: EstimateGoal, asOf: string, signal?: AbortSignal) => Promise<unknown> {
@@ -110,10 +110,10 @@ export function planSnapshotLoader(
 }
 
 /**
- * Every estimator plan problem in the loader's root, the bundle required
- * the first time it is asked for and kept from then on. Evidence-free: no
- * git, no `gh`, no network. Empty means every goal is forecastable.
- */
+Every estimator plan problem in the loader's root, the bundle required
+the first time it is asked for and kept from then on. Evidence-free: no
+git, no `gh`, no network. Empty means every goal is forecastable.
+*/
 export function planCheckLoader(
   deps: PlanSnapshotLoaderDeps,
 ): (signal?: AbortSignal) => Promise<string[]> {

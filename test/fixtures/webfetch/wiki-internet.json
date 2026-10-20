@@ -1,0 +1,16 @@
+{
+  "url": "https://en.wikipedia.org/wiki/History_of_the_Internet",
+  "finalUrl": "https://en.wikipedia.org/wiki/History_of_the_Internet",
+  "capturedAt": "2026-10-19T16:27:51Z",
+  "command": "curl -sSL -D wiki.headers -o wiki.html https://en.wikipedia.org/wiki/History_of_the_Internet",
+  "status": 200,
+  "requestHeaders": {},
+  "responseHeaders": {
+    "content-type": "text/html; charset=UTF-8"
+  },
+  "wireFile": "wiki-internet.body",
+  "wireBytes": 1325472,
+  "wireSha256": "478da427565d49094470e8def3067185a669e1d1a98fa1bf2f5536b3abcc1e58",
+  "decompressedBytes": 1325472,
+  "note": "History of the Internet (1.3 MB HTML, 290,810 Markdown chars): past the removed 50,000-char page slice and the removed 100,000-char converter bound, inside the kept 5 MiB buffer window. The wire bytes are the server identity body byte-for-byte; the test feeds them at the injected-transport seam, which never dials."
+}

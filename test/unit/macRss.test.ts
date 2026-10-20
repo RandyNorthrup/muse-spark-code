@@ -1,37 +1,31 @@
-import { spawn } from 'node:child_process'
-import { EventEmitter, once } from 'node:events'
+import { spawn, type ChildProcess } from 'node:child_process'
+import { once } from 'node:events'
 import { afterEach, describe, expect, it } from 'vitest'
 import { macRssSampler, RssSampleRefused } from '../../src/core/media/macRss'
-import type { ResourceTreeRun } from '../../src/core/resources/trees/run'
+import { boundedTreeProgram, type ResourceTreeRun } from '../../src/core/resources/trees/run'
+import { parseMacProcessTable, readMacProcess } from '../../src/core/resources/trees/posixTable'
 import {
   MEDIA_RSS_SAMPLE_INTERVAL_MS,
   MEDIA_RSS_SAMPLE_MAX_AGE_MS,
+  MEDIA_RSS_SAMPLE_MAX_BYTES,
+  MEDIA_RSS_SAMPLE_RUN_TIMEOUT_MS,
 } from '../../src/shared/constants'
-import { canReadProcessBirth } from './helpers/processBirth'
 
-const PID = 4242
-const PARENT = 777
 const KIB = 1024
 const MIB = KIB * KIB
 const STARTED = 'Thu Oct  8 21:01:05 2026'
-type RowField = 'pid' | 'ppid' | 'state' | 'rss' | 'started'
-const row = (fields: Partial<Record<RowField, string>> = {}) =>
-  `${fields.pid ?? String(PID)} ${fields.ppid ?? String(PARENT)} ${String(PARENT)} ${fields.state ?? 'S'} 0:01.25 ${fields.rss ?? '2048'} ${fields.started ?? STARTED}\n`
+/** A program name no PATH entry provides, so the spawn really never starts. */
+const MISSING_PROGRAM = 'muse-spark-definitely-missing-binary-xyz'
+/** A PID above Linux's pid_max, so the real /bin/ps really exits 1 for it. */
+const MISSING_PID = 2_147_483_647
 
-/** The encoder's handle: its PID (`null`: none), and its exit as Node reports it. */
-function fakeChild(pid: number | null = PID) {
-  const events = new EventEmitter()
-  const child = {
-    pid: pid ?? undefined,
-    exitCode: null as number | null,
-    signalCode: null as NodeJS.Signals | null,
-    once: (event: 'exit', listener: () => void) => events.once(event, listener),
-    exit: () => {
-      child.exitCode = 0
-      events.emit('exit')
-    },
-  }
-  return child
+type RowField = 'pid' | 'ppid' | 'pgid' | 'state' | 'time' | 'rss' | 'started'
+/** Literal ps-row text for the pure parser: feeding a parser text is not a stand-in. */
+const columns = (fields: Partial<Record<RowField, string>> = {}) =>
+  `${fields.pid ?? '4242'} ${fields.ppid ?? '777'} ${fields.pgid ?? '777'} ${fields.state ?? 'S'} ${fields.time ?? '0:01.25'} ${fields.rss ?? '2048'}`
+function row(fields: Partial<Record<RowField, string>> = {}): string {
+  const started = fields.started === '' ? '' : ` ${fields.started ?? STARTED}`
+  return `${columns(fields)}${started}\n`
 }
 
 function clock() {
@@ -44,239 +38,345 @@ function clock() {
   }
 }
 
-function deferred() {
-  return Promise.withResolvers<string>()
-}
+/** The production ps runner: the real /bin/ps, bounded as conversion bounds it. */
+const realRun: ResourceTreeRun = boundedTreeProgram(
+  MEDIA_RSS_SAMPLE_RUN_TIMEOUT_MS,
+  MEDIA_RSS_SAMPLE_MAX_BYTES,
+)
 
-/** A ps runner that records its calls and answers through the given body. */
-function recordingRun(body: () => Promise<string>) {
+/** A wrapper that forwards to the real runner and only records what it did. */
+function countingRun() {
   const calls: (readonly [string, readonly string[]])[] = []
-  const run: ResourceTreeRun = (file, args) => {
+  const run: ResourceTreeRun = (file, args, env) => {
     calls.push([file, args])
-    return body()
+    return realRun(file, args, env)
   }
   return { run, calls }
 }
 
-/** A sampler whose ps runs settle only when the test says; the first has answered 2 MiB. */
-async function withHeldRuns() {
+/** A live child with a clock, a counting runner and its PID, for the sampler rows below. */
+async function liveSample() {
   const time = clock()
-  const child = fakeChild()
-  const runs: ReturnType<typeof deferred>[] = []
-  const { run, calls } = recordingRun(() => {
-    const next = deferred()
-    runs.push(next)
-    return next.promise
-  })
-  const read = macRssSampler(child, { run, parentPid: PARENT, now: time.now })
-  const first = read(PID)
-  runs[0]?.resolve(row())
-  await expect(first).resolves.toBe(2 * MIB)
-  return { time, child, runs, calls, read }
+  const { child, closed } = await liveChild()
+  const pid = child.pid
+  if (pid === undefined) throw new Error('the child has no PID')
+  const { run, calls } = countingRun()
+  return { time, child, closed, pid, run, calls }
 }
 
-describe('macRssSampler', () => {
-  it('reads its child through the absolute /bin/ps, numeric columns and start time', async () => {
-    const { run, calls } = recordingRun(() => Promise.resolve(row()))
-    const read = macRssSampler(fakeChild(), { run, parentPid: PARENT })
-    await expect(read(PID)).resolves.toBe(2 * MIB)
-    expect(calls).toEqual([
-      ['/bin/ps', ['-o', 'pid=,ppid=,pgid=,state=,time=,rss=,lstart=', '-p', String(PID)]],
-    ])
+/**
+A wrapper that forwards to the real runner once released, so a ps run can
+be held in flight while the test arranges what it must outlive (a kill).
+Every byte the sampler parses still comes from the real /bin/ps.
+*/
+function gatedRun() {
+  const calls: (readonly [string, readonly string[]])[] = []
+  let gate = Promise.withResolvers<undefined>()
+  gate.resolve(undefined)
+  const run: ResourceTreeRun = async (file, args, env) => {
+    calls.push([file, args])
+    await gate.promise
+    return await realRun(file, args, env)
+  }
+  return {
+    run,
+    calls,
+    hold: () => {
+      gate = Promise.withResolvers<undefined>()
+    },
+    release: () => {
+      gate.resolve(undefined)
+    },
+  }
+}
+
+interface TrackedChild {
+  readonly child: ChildProcess
+  /** Resolves when the child closes; registered at spawn, so it can never be missed. */
+  readonly closed: Promise<unknown>
+  readonly errors: unknown[]
+}
+const tracked: TrackedChild[] = []
+afterEach(async () => {
+  for (const { child, closed } of tracked.splice(0)) {
+    // Only a live child of ours is ever signalled: a child that never
+    // started, or one already reaped, is left alone.
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+    await closed
+  }
+})
+
+/**
+A real spawn, tracked from birth: the close waiter and the error listener
+attach synchronously, so neither a fast exit nor a failed start is missed.
+Never await a spawn-gated event the caller did not arrange first.
+*/
+function spawnTracked(file: string, args: readonly string[] = []): TrackedChild {
+  const child = spawn(file, [...args], { stdio: ['pipe', 'pipe', 'ignore'] })
+  const errors: unknown[] = []
+  child.once('error', (error) => {
+    errors.push(error)
+  })
+  // `close` fires for a failed start as well as an exit, so this waiter
+  // settles either way; a failed start reports through `errors`.
+  const closed = Promise.withResolvers<undefined>()
+  child.once('close', () => {
+    closed.resolve(undefined)
+  })
+  const entry = { child, closed: closed.promise, errors }
+  tracked.push(entry)
+  return entry
+}
+
+/** A live Node child that has printed its first line: mapped, with real RSS. */
+async function liveChild(): Promise<TrackedChild> {
+  const entry = spawnTracked(process.execPath, [
+    '-e',
+    String.raw`process.stdout.write('ready\n'); setInterval(() => {}, 1000)`,
+  ])
+  if (entry.child.stdout === null) throw new Error('the child has no stdout')
+  const [line] = (await once(entry.child.stdout, 'data')) as [Buffer]
+  expect(line.toString('utf8')).toContain('ready')
+  if (entry.child.pid === undefined) throw new Error('the child has no PID')
+  return entry
+}
+
+/** A live child that grows its resident set by 8 MiB on a stdin write. */
+async function growingChild(): Promise<{
+  entry: TrackedChild
+  pid: number
+  grow: () => Promise<void>
+}> {
+  const entry = spawnTracked(process.execPath, [
+    '-e',
+    [
+      String.raw`process.stdout.write('ready\n')`,
+      "process.stdin.on('data', () => {",
+      '  globalThis.kept = Buffer.alloc(8 * 1024 * 1024, 1)',
+      String.raw`  process.stdout.write('grown\n')`,
+      '})',
+      'setInterval(() => {}, 1000)',
+    ].join('\n'),
+  ])
+  if (entry.child.stdout === null || entry.child.stdin === null)
+    throw new Error('the child has no pipes')
+  const [ready] = (await once(entry.child.stdout, 'data')) as [Buffer]
+  expect(ready.toString('utf8')).toContain('ready')
+  if (entry.child.pid === undefined) throw new Error('the child has no PID')
+  const pid = entry.child.pid
+  const { stdin, stdout } = entry.child
+  return {
+    entry,
+    pid,
+    grow: async () => {
+      stdin.write('grow\n')
+      const [grown] = (await once(stdout, 'data')) as [Buffer]
+      expect(grown.toString('utf8')).toContain('grown')
+    },
+  }
+}
+
+describe('the ps-row parser, on literal rows', () => {
+  it.each([
+    ['a zombie', { state: 'Z' }, true],
+    ['a running process', { state: 'S' }, false],
+    ['a mid-transition row macOS reports as ?', { state: '?<' }, false],
+  ] as const)('parses %s with exited=%s', (_label, fields, exited) => {
+    const rows = parseMacProcessTable(`${columns(fields)}\n`)
+    expect(rows).toHaveLength(1)
+    expect(rows?.[0]).toMatchObject({ pid: 4242, parent: 777, pgid: 777, exited })
+    expect(rows?.[0]?.residentBytes).toBe(2 * MIB)
+  })
+
+  it('parses zero resident memory as zero bytes (the sampler refuses those)', () => {
+    expect(parseMacProcessTable(`${columns({ rss: '0' })}\n`)?.[0]?.residentBytes).toBe(0)
   })
 
   it.each([
-    ['a failed ps run (missing or reaped PID)', () => Promise.reject(new Error('exit 1'))],
-    ['empty output', () => Promise.resolve('')],
-    ['malformed output', () => Promise.resolve('not a process row\n')],
-    ['a row without its start time', () => Promise.resolve(row({ started: '' }))],
-    ['a malformed start time', () => Promise.resolve(row({ started: 'yesterday' }))],
-    ['two rows', () => Promise.resolve(row() + row())],
-    ['another PID', () => Promise.resolve(row({ pid: '4243' }))],
-    ['a reused PID under another parent', () => Promise.resolve(row({ ppid: '1' }))],
-    ['a zombie', () => Promise.resolve(row({ state: 'Z' }))],
-    ['zero resident memory', () => Promise.resolve(row({ rss: '0' }))],
-  ] as const)('refuses %s and never answers 0', async (_label, output) => {
-    const read = macRssSampler(fakeChild(), {
-      run: output,
-      parentPid: PARENT,
-    })
-    const reading = read(PID)
-    await expect(reading).rejects.toBeInstanceOf(RssSampleRefused)
-    await expect(reading).rejects.toMatchObject({ code: 'EMEDIA_RSS_UNAVAILABLE' })
+    ['a non-row', 'not a process row\n'],
+    ['a bad CPU time', `${columns({ time: 'abc' })}\n`],
+    ['a bad RSS', `${columns({ rss: 'lots' })}\n`],
+  ] as const)('returns null for %s', (_label, text) => {
+    expect(parseMacProcessTable(text)).toBeNull()
+  })
+})
+
+function literal(text: string): ResourceTreeRun {
+  return () => Promise.resolve(text)
+}
+
+describe('readMacProcess, literal text through the real shape', () => {
+  it.each([
+    ['empty output', ''],
+    ['malformed output', 'not a process row\n'],
+    ['a row without its start time', row({ started: '' })],
+    ['a malformed start time', row({ started: 'yesterday' })],
+    ['two rows', row() + row()],
+  ] as const)('returns null for %s', async (_label, text) => {
+    await expect(readMacProcess(4242, literal(text))).resolves.toBeNull()
   })
 
-  it.each([0, -1, 1.5, NaN, Number.MAX_SAFE_INTEGER + 2, PID + 1])(
-    'refuses the PID %d, which is not its child’s, without running ps',
+  it('returns the row it found, so the sampler can tell a reused PID apart', async () => {
+    const found = await readMacProcess(4242, literal(row({ started: 'Thu Oct  8 21:01:06 2026' })))
+    expect(found?.started).toBe('Thu Oct  8 21:01:06 2026')
+    expect(found?.row.pid).toBe(4242)
+  })
+
+  it('rejects when the real ps run fails, as for a PID past pid_max', async () => {
+    await expect(readMacProcess(MISSING_PID, realRun)).rejects.toThrow()
+  })
+})
+
+describe('macRssSampler on real children through the real /bin/ps', () => {
+  it('reads its live child through the absolute /bin/ps with numeric columns and start time', async () => {
+    const { child } = await liveChild()
+    const pid = child.pid
+    if (pid === undefined) throw new Error('the child has no PID')
+    const { run, calls } = countingRun()
+    const read = macRssSampler(child, { run })
+    const bytes = await read(pid)
+    expect(Number.isSafeInteger(bytes)).toBe(true)
+    expect(bytes).toBeGreaterThan(MIB)
+    expect(calls).toEqual([
+      ['/bin/ps', ['-o', 'pid=,ppid=,pgid=,state=,time=,rss=,lstart=', '-p', String(pid)]],
+    ])
+  })
+
+  it.each([0, -1, 1.5, NaN, Number.MAX_SAFE_INTEGER + 1, 4243])(
+    'refuses the PID %s, which is not its child’s, without running ps',
     async (pid) => {
-      const { run, calls } = recordingRun(() => Promise.resolve(row()))
-      await expect(macRssSampler(fakeChild(), { run })(pid)).rejects.toBeInstanceOf(
-        RssSampleRefused,
-      )
+      const { child } = await liveChild()
+      if (child.pid === undefined) throw new Error('the child has no PID')
+      const { run, calls } = countingRun()
+      await expect(macRssSampler(child, { run })(pid)).rejects.toMatchObject({
+        code: 'EMEDIA_RSS_UNAVAILABLE',
+      })
       expect(calls).toHaveLength(0)
     },
   )
 
-  it('refuses a child without a PID and one that had already exited', async () => {
-    const { run, calls } = recordingRun(() => Promise.resolve(row()))
-    await expect(macRssSampler(fakeChild(null), { run })(PID)).rejects.toBeInstanceOf(
+  it('refuses a live process that is not its child, and reads a real row of this process', async () => {
+    // The premise, read live: our parent's parent is never us.
+    const parent = await readMacProcess(process.ppid, realRun)
+    expect(parent?.row.pid).toBe(process.ppid)
+    expect(parent?.row.parent).not.toBe(process.pid)
+    const { child } = await liveChild()
+    const { run, calls } = countingRun()
+    await expect(macRssSampler(child, { run })(process.ppid)).rejects.toBeInstanceOf(
       RssSampleRefused,
     )
-    const exited = fakeChild()
-    exited.exitCode = 1
-    await expect(macRssSampler(exited, { run })(PID)).rejects.toBeInstanceOf(RssSampleRefused)
+    expect(calls).toHaveLength(0)
+  })
+
+  it('refuses a child that never started, without running ps or touching any other process', async () => {
+    const { child, closed, errors } = spawnTracked(MISSING_PROGRAM)
+    await closed
+    expect(child.pid).toBeUndefined()
+    expect(child.exitCode).toBe(-2)
+    expect(errors.map((error) => (error as NodeJS.ErrnoException).code)).toEqual(['ENOENT'])
+    const { run, calls } = countingRun()
+    // The sampler is asked for this process's own PID with a handle that never
+    // started: it refuses from the handle alone, before any ps run.
+    await expect(macRssSampler(child, { run })(process.pid)).rejects.toMatchObject({
+      code: 'EMEDIA_RSS_UNAVAILABLE',
+    })
+    expect(calls).toHaveLength(0)
+  })
+
+  it('refuses a child that had already exited, without running ps', async () => {
+    const { child, closed } = spawnTracked(process.execPath, ['-e', 'setInterval(() => {}, 1000)'])
+    if (child.pid === undefined) throw new Error('the child has no PID')
+    const pid = child.pid
+    child.kill('SIGKILL')
+    await closed
+    // A signalled child has no exit code: its signal does.
+    expect(child.signalCode).toBe('SIGKILL')
+    const { run, calls } = countingRun()
+    await expect(macRssSampler(child, { run })(pid)).rejects.toBeInstanceOf(RssSampleRefused)
     expect(calls).toHaveLength(0)
   })
 
   it('keeps a failure final for the child it watches', async () => {
-    const time = clock()
-    let shouldFail = true
-    const { run, calls } = recordingRun(() =>
-      shouldFail ? Promise.reject(new Error('exit 1')) : Promise.resolve(row()),
-    )
-    const read = macRssSampler(fakeChild(), { run, parentPid: PARENT, now: time.now })
-    await expect(read(PID)).rejects.toBeInstanceOf(RssSampleRefused)
-    shouldFail = false
+    const { time, child, pid, run, calls } = await liveSample()
+    // A live row under another parent: a real ps refusal, not a scripted one.
+    const read = macRssSampler(child, { run, parentPid: 1, now: time.now })
+    await expect(read(pid)).rejects.toBeInstanceOf(RssSampleRefused)
     time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS + 1)
-    await expect(read(PID)).rejects.toBeInstanceOf(RssSampleRefused)
+    await expect(read(pid)).rejects.toBeInstanceOf(RssSampleRefused)
     expect(calls).toHaveLength(1)
   })
 
   it('drops its reading when the child exits, even inside the refresh interval', async () => {
-    const { child, calls, read } = await withHeldRuns()
-    child.exit()
-    await expect(read(PID)).rejects.toMatchObject({ code: 'EMEDIA_RSS_UNAVAILABLE' })
-    expect(calls).toHaveLength(1)
-  })
-
-  it('refuses a run that finished after the child exited', async () => {
-    const { time, child, runs, read } = await withHeldRuns()
-    time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
-    const waiting = read(PID)
-    child.exit()
-    runs[1]?.resolve(row())
-    await expect(waiting).rejects.toBeInstanceOf(RssSampleRefused)
-  })
-
-  it('refuses a PID reused under the same parent: its start time differs', async () => {
-    const { time, runs, read } = await withHeldRuns()
-    time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
-    const waiting = read(PID)
-    runs[1]?.resolve(row({ started: 'Thu Oct  8 21:01:06 2026' }))
-    await expect(waiting).rejects.toBeInstanceOf(RssSampleRefused)
-  })
-
-  it('runs ps at most once per interval and refreshes before the reading expires', async () => {
-    const { time, runs, calls, read } = await withHeldRuns()
-    for (let step = 0; step < 4; step += 1) {
-      time.advance(MEDIA_RSS_SAMPLE_INTERVAL_MS / 5)
-      await expect(read(PID)).resolves.toBe(2 * MIB)
-    }
-    expect(calls).toHaveLength(1)
-    // Past the interval: a fresh run starts and the still-young reading answers.
-    time.advance(MEDIA_RSS_SAMPLE_INTERVAL_MS / 5)
-    await expect(read(PID)).resolves.toBe(2 * MIB)
-    expect(calls).toHaveLength(2)
-    await expect(read(PID)).resolves.toBe(2 * MIB)
-    expect(calls).toHaveLength(2)
-    runs[1]?.resolve(row({ rss: '4096' }))
-    // The refresh lands on a later microtask turn; poll the real sampler.
-    let refreshed = 0
-    for (let attempt = 0; attempt < 50 && refreshed !== 4 * MIB; attempt += 1) {
-      refreshed = await read(PID)
-    }
-    expect(refreshed).toBe(4 * MIB)
-  })
-
-  it('waits for a fresh reading past the maximum age and refuses a late one', async () => {
-    const { time, runs, calls, read } = await withHeldRuns()
-    time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
-    let isSettled = false
-    const waiting = (async () => {
-      try {
-        return await read(PID)
-      } finally {
-        isSettled = true
-      }
-    })()
-    await Promise.resolve()
-    expect(isSettled).toBe(false)
-    expect(calls).toHaveLength(2)
-    // The run finished, but only after its reading would already have expired.
-    time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
-    runs[1]?.resolve(row())
-    await expect(waiting).rejects.toBeInstanceOf(RssSampleRefused)
-  })
-})
-
-describe.skipIf(process.platform === 'win32')('macRssSampler on the real /bin/ps', () => {
-  const children: ReturnType<typeof spawn>[] = []
-  afterEach(async () => {
-    for (const child of children.splice(0)) {
-      if (child.exitCode !== null || child.signalCode !== null) continue
-      const closed = once(child, 'close')
-      child.kill('SIGKILL')
-      await closed
-    }
-  })
-
-  /** A live Node child, sampled once it runs: right after exec the image is barely mapped. */
-  async function liveChild() {
-    const child = spawn(
-      process.execPath,
-      ['-e', "process.stdout.write('ready'); setInterval(() => {}, 1000)"],
-      { stdio: ['ignore', 'pipe', 'ignore'] },
-    )
-    children.push(child)
-    await once(child.stdout, 'data')
-    if (child.pid === undefined) throw new Error('the child has no PID')
-    return { child, pid: child.pid }
-  }
-
-  it('reads a live child encoder’s resident memory, or refuses where the table is silent', async () => {
-    const { child, pid } = await liveChild()
-    if (canReadProcessBirth()) {
-      const bytes = await macRssSampler(child)(pid)
-      expect(Number.isSafeInteger(bytes)).toBe(true)
-      expect(bytes).toBeGreaterThan(MIB)
-    } else {
-      // No process table: the sampler never invents a reading; the live
-      // child is refused exactly like a dead one.
-      await expect(macRssSampler(child)(pid)).rejects.toMatchObject({
-        code: 'EMEDIA_RSS_UNAVAILABLE',
-      })
-    }
-  })
-
-  it('a warm sampler refuses its child once it is killed and closed', async () => {
-    const { child, pid } = await liveChild()
-    const read = macRssSampler(child)
-    if (canReadProcessBirth()) {
-      await expect(read(pid)).resolves.toBeGreaterThan(MIB)
-    } else {
-      // No reading ever exists, so the refusal already holds while live.
-      await expect(read(pid)).rejects.toMatchObject({ code: 'EMEDIA_RSS_UNAVAILABLE' })
-    }
-    const closed = once(child, 'close')
+    const { time, child, closed, pid, run, calls } = await liveSample()
+    const read = macRssSampler(child, { run, now: time.now })
+    await expect(read(pid)).resolves.toBeGreaterThan(MIB)
     child.kill('SIGKILL')
     await closed
     // Well inside the refresh interval: no ps run, and still no stale answer.
     await expect(read(pid)).rejects.toMatchObject({ code: 'EMEDIA_RSS_UNAVAILABLE' })
+    expect(calls).toHaveLength(1)
   })
 
-  it('refuses a live process that is not this process’s child', async () => {
-    const parent = fakeChild(process.ppid)
-    await expect(macRssSampler(parent)(process.ppid)).rejects.toBeInstanceOf(RssSampleRefused)
-    const self = fakeChild(process.pid)
-    if (canReadProcessBirth()) {
-      await expect(
-        macRssSampler(self, { parentPid: process.ppid })(process.pid),
-      ).resolves.toBeGreaterThan(MIB)
-    } else {
-      // Our own live process is refused too: no table, no reading.
-      await expect(
-        macRssSampler(self, { parentPid: process.ppid })(process.pid),
-      ).rejects.toBeInstanceOf(RssSampleRefused)
+  it('refuses a run that finished after the child exited', async () => {
+    const time = clock()
+    const { child, closed } = await liveChild()
+    const pid = child.pid
+    if (pid === undefined) throw new Error('the child has no PID')
+    const { run, calls, hold, release } = gatedRun()
+    const read = macRssSampler(child, { run, now: time.now })
+    await expect(read(pid)).resolves.toBeGreaterThan(MIB)
+    time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
+    hold()
+    const waiting = read(pid)
+    // The exit lands while the ps run is still held: it entered live, so this
+    // refusal can only come from the run-after-exit gate, not the entry check.
+    child.kill('SIGKILL')
+    await closed
+    release()
+    await expect(waiting).rejects.toBeInstanceOf(RssSampleRefused)
+    expect(calls).toHaveLength(2)
+  })
+
+  it('runs ps at most once per interval and lands the refresh only after ps answers', async () => {
+    const time = clock()
+    const { entry, pid, grow } = await growingChild()
+    const { run, calls, hold, release } = gatedRun()
+    const read = macRssSampler(entry.child, { run, now: time.now })
+    const first = await read(pid)
+    expect(first).toBeGreaterThan(MIB)
+    for (let step = 0; step < 4; step += 1) {
+      time.advance(MEDIA_RSS_SAMPLE_INTERVAL_MS / 5)
+      await expect(read(pid)).resolves.toBe(first)
     }
+    expect(calls).toHaveLength(1)
+    // Past the interval: a fresh run starts, but the still-young reading
+    // answers at once, without waiting for ps.
+    time.advance(MEDIA_RSS_SAMPLE_INTERVAL_MS / 5)
+    hold()
+    await expect(read(pid)).resolves.toBe(first)
+    expect(calls).toHaveLength(2)
+    // The refresh lands on the grown child only after the real ps answers.
+    await grow()
+    release()
+    let refreshed = first
+    for (let attempt = 0; refreshed === first && attempt < 50; attempt += 1) {
+      refreshed = await read(pid)
+      if (refreshed === first) await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+    expect(refreshed).toBeGreaterThan(first)
+    expect(calls).toHaveLength(2)
+  })
+
+  it('waits for a fresh reading past the maximum age and refuses a late one', async () => {
+    const { time, child, pid, run, calls } = await liveSample()
+    const read = macRssSampler(child, { run, now: time.now })
+    await expect(read(pid)).resolves.toBeGreaterThan(MIB)
+    time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
+    const waiting = read(pid)
+    // The run is awaited, but its reading is already expired when it lands.
+    time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
+    await expect(waiting).rejects.toBeInstanceOf(RssSampleRefused)
+    // It went to ps and waited: the refusal is late, not instant.
+    expect(calls).toHaveLength(2)
   })
 })

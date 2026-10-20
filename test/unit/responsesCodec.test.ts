@@ -12,7 +12,6 @@ import {
   createResponsesCodec,
   ResponsesDecodeError,
   type ResponsesCodecQuirks,
-  type ResponsesWireCodec,
 } from '../../src/core/backends/modelapi/codecs/responses'
 import {
   type CreateResponseBody,
@@ -66,10 +65,9 @@ function stream(...parts: readonly string[]): ReadableStream<Uint8Array> {
 function collect(
   chunks: AsyncIterable<Uint8Array>,
   costs: UsdAmount[] = [],
-  codec: ResponsesWireCodec = createResponsesCodec(withRetention),
 ): Promise<StreamEvent[]> {
   return Array.fromAsync(
-    codec.decodeStream(chunks, {
+    createResponsesCodec(withRetention).decodeStream(chunks, {
       settledCostUsd: (costUsd) => {
         costs.push(costUsd)
       },

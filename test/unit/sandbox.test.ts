@@ -1,7 +1,8 @@
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { resolveExecutable } from '../../src/core/executables'
+import { resolveExecutable } from '../../src/core/execGuard'
+import { NO_WORKSPACE } from '../../src/core/executables'
 import type { MuseLaunch } from '../../src/core/backends/musecode/launch'
 import {
   elevatedInvocation,
@@ -447,6 +448,7 @@ describe('probeLinuxSandboxShell', () => {
       platform: process.platform,
       pathVariable: process.env['PATH'],
       fileExists: existsSync,
+      scope: { noWorkspace: NO_WORKSPACE, realpath: realpathSync },
     })
     const readiness = await probeLinuxSandboxShell(
       resolved === undefined ? path.sep : path.dirname(resolved),

@@ -86,10 +86,10 @@ const DECISION_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
   'TeammateIdle',
 ])
 /**
- * The turn-bound events whose `additionalContext` is appended at the tail of
- * the turn (SoL-Pi rule 2). Anywhere else a hook sends context, the answer is
- * refused: outside a turn it has nowhere to go.
- */
+The turn-bound events whose `additionalContext` is appended at the tail of
+the turn (SoL-Pi rule 2). Anywhere else a hook sends context, the answer is
+refused: outside a turn it has nowhere to go.
+*/
 const CONTEXT_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
   'InstructionsLoaded',
   'UserPromptExpansion',
@@ -132,7 +132,11 @@ export interface ExtensionHookDefinition {
   readonly event: ExtensionHookEvent
   readonly source: HookSource
   readonly command: string
-  readonly timeoutSeconds: number
+  /**
+  D121: no default deadline of ours — absent runs until it ends or the
+  caller stops it (the Tab request's own bound still applies).
+  */
+  readonly timeoutSeconds?: number | undefined
   readonly matcher: ExtensionHookMatcher | undefined
   readonly isAsync: boolean
   /** The group's own words, for the Run Hook pick (M91 lane E). */
@@ -332,10 +336,10 @@ export interface SparkHookConfigResult {
 }
 
 /**
- * Parse one spark-hooks.json file. A Muse Code event name is refused with a
- * warning (it belongs in `.muse/hooks.json`, where it runs once); an unknown
- * name warns and is skipped while the rest of the file stays in effect.
- */
+Parse one spark-hooks.json file. A Muse Code event name is refused with a
+warning (it belongs in `.muse/hooks.json`, where it runs once); an unknown
+name warns and is skipped while the rest of the file stays in effect.
+*/
 export function parseSparkHooksConfig(
   text: string | undefined,
   source: Extract<HookSource, 'user' | 'project'>,
@@ -492,21 +496,21 @@ type SparkHookSource = Extract<HookSource, 'user' | 'project'>
 export interface SparkHookSnapshot {
   readonly hooks: readonly ExtensionHookDefinition[]
   /**
-   * The scopes whose spark-hooks.json is present but did not load whole:
-   * unreadable, too large, not text, linked out of the workspace, or with
-   * any diagnostic (RVM94KR 1). Other events keep what loaded; Tab's read
-   * guard refuses while one is listed, so a broken file never reads as none.
-   */
+  The scopes whose spark-hooks.json is present but did not load whole:
+  unreadable, too large, not text, linked out of the workspace, or with
+  any diagnostic (RVM94KR 1). Other events keep what loaded; Tab's read
+  guard refuses while one is listed, so a broken file never reads as none.
+  */
   readonly invalidSources: readonly SparkHookSource[]
 }
 
 /**
- * Load spark-hooks.json beside Muse Code's sources: the user's file next to
- * Muse Code's settings.json, then the project's inside the workspace. The
- * same gates as M51 hold: an untrusted workspace loads nothing, and the
- * caller keeps the per-session snapshot (this function reads the files, it
- * does not watch them).
- */
+Load spark-hooks.json beside Muse Code's sources: the user's file next to
+Muse Code's settings.json, then the project's inside the workspace. The
+same gates as M51 hold: an untrusted workspace loads nothing, and the
+caller keeps the per-session snapshot (this function reads the files, it
+does not watch them).
+*/
 export async function loadSparkHookSnapshot(deps: HookLoadDeps): Promise<SparkHookSnapshot> {
   if (!deps.isWorkspaceTrusted()) {
     return { hooks: [], invalidSources: [] }
@@ -567,12 +571,12 @@ export async function loadSparkHookDefinitions(
 // --- Payloads ---
 
 /**
- * What every extension hook receives: Claude Code's documented envelope
- * (`hook_event_name`, `session_id`, `cwd`, `transcript_path`,
- * `permission_mode`), plus this runtime's additions: `turn_id` on a
- * turn-bound event, and `model` with `model_provider`, so a hook sees which
- * model it advises.
- */
+What every extension hook receives: Claude Code's documented envelope
+(`hook_event_name`, `session_id`, `cwd`, `transcript_path`,
+`permission_mode`), plus this runtime's additions: `turn_id` on a
+turn-bound event, and `model` with `model_provider`, so a hook sees which
+model it advises.
+*/
 export interface ExtensionHookContext {
   readonly sessionId: string
   readonly workspaceRoot: string
@@ -683,11 +687,11 @@ export function directoryAddedFields(relativePath: string): Readonly<Record<stri
 }
 
 /**
- * What an Elicitation hook sees before the form shows: the requesting
- * server, its bounded message and the field names (which are required).
- * Values are never sent up front: a user hook answers through the `answer`
- * field, which the caller validates against the server's schema.
- */
+What an Elicitation hook sees before the form shows: the requesting
+server, its bounded message and the field names (which are required).
+Values are never sent up front: a user hook answers through the `answer`
+field, which the caller validates against the server's schema.
+*/
 export function elicitationFields(
   server: string,
   message: string,
@@ -703,10 +707,10 @@ export function elicitationFields(
 }
 
 /**
- * What the user answered. A project hook sees the action and the field
- * names only; `values` are passed for user-scope hooks alone (the caller
- * decides the scope; lane M validates the answer against the schema).
- */
+What the user answered. A project hook sees the action and the field
+names only; `values` are passed for user-scope hooks alone (the caller
+decides the scope; lane M validates the answer against the schema).
+*/
 export function elicitationResultFields(options: {
   readonly server: string
   readonly action: 'accept' | 'decline' | 'cancel'
@@ -734,13 +738,13 @@ function isVerdictAnswerRecord(value: unknown): value is Record<string, unknown>
 }
 
 /**
- * The Elicitation verdict from the two scope-grouped dispatches (M91 D70).
- * Policy hooks (project, managed) run first and can only decline; the
- * user's own hooks run next and may also answer. A refusal declines with
- * the hook's reason; cancel stays the caller's own stop/timeout path,
- * because the hook protocol carries a single refusal. A user answer that
- * is not a record declines rather than guessing.
- */
+The Elicitation verdict from the two scope-grouped dispatches (M91 D70).
+Policy hooks (project, managed) run first and can only decline; the
+user's own hooks run next and may also answer. A refusal declines with
+the hook's reason; cancel stays the caller's own stop/timeout path,
+because the hook protocol carries a single refusal. A user answer that
+is not a record declines rather than guessing.
+*/
 export function elicitationVerdictFromDispatch(
   policy: ExtensionHookDispatch | undefined,
   personal: ExtensionHookDispatch | undefined,
@@ -768,12 +772,12 @@ export type ElicitationHookFire = (
 ) => Promise<ExtensionHookDispatch | undefined>
 
 /**
- * The Elicitation hook run before the form (M91 D70): policy hooks (project
- * and managed) first, decline only; then the user's own hooks, which may
- * also answer. A policy refusal settles it, so the user's hooks do not run
- * at all: their answer could not be used, and they still observe the
- * outcome through ElicitationResult.
- */
+The Elicitation hook run before the form (M91 D70): policy hooks (project
+and managed) first, decline only; then the user's own hooks, which may
+also answer. A policy refusal settles it, so the user's hooks do not run
+at all: their answer could not be used, and they still observe the
+outcome through ElicitationResult.
+*/
 export async function dispatchElicitationHooks(
   fire: ElicitationHookFire,
   input: ElicitationHookInput,
@@ -793,10 +797,10 @@ export async function dispatchElicitationHooks(
 }
 
 /**
- * The ElicitationResult observation run (M91 D70): project and managed
- * hooks see the field names and the action only; the accepted values go to
- * the user's own hooks alone.
- */
+The ElicitationResult observation run (M91 D70): project and managed
+hooks see the field names and the action only; the accepted values go to
+the user's own hooks alone.
+*/
 export async function dispatchElicitationResultHooks(
   fire: ElicitationHookFire,
   input: ElicitationResultInput,
@@ -903,10 +907,10 @@ function isAnswerRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Parse one command answer. Anything outside the closed per-event schema
- * fails the hook, never the operation: an observation hook cannot block, and
- * a refusal carries the hook's own reason.
- */
+Parse one command answer. Anything outside the closed per-event schema
+fails the hook, never the operation: an observation hook cannot block, and
+a refusal carries the hook's own reason.
+*/
 export function parseExtensionHookAnswer(
   event: ExtensionHookEvent,
   exitCode: number | null,
@@ -1060,7 +1064,7 @@ export interface ExtensionHookRunIo {
     command: string,
     payload: string,
     cwd: string,
-    timeoutMs: number,
+    timeoutMs: number | undefined,
     signal?: AbortSignal,
     extraEnvNames?: readonly string[],
   ) => Promise<ShellResult>
@@ -1151,7 +1155,7 @@ async function runExtensionHandler(
       hook.command,
       serialized,
       cwd,
-      hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
+      hook.timeoutSeconds === undefined ? undefined : hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
       signal,
       undefined,
     )
@@ -1215,12 +1219,12 @@ async function runExtensionHandler(
 }
 
 /**
- * Execute the matching extension hooks, one at a time: extension events are
- * rare, and sequential runs never exceed the host-wide hook cap from `hooks.ts`.
- * An async hook runs without waiting and its output is dropped. A refused
- * operation keeps the first reason; display text and tool narrowings take the
- * last answer, like `updatedInput` does.
- */
+Execute the matching extension hooks, one at a time: extension events are
+rare, and sequential runs never exceed the host-wide hook cap from `hooks.ts`.
+An async hook runs without waiting and its output is dropped. A refused
+operation keeps the first reason; display text and tool narrowings take the
+last answer, like `updatedInput` does.
+*/
 export async function dispatchExtensionHooks(options: {
   readonly hooks: readonly ExtensionHookDefinition[]
   readonly event: ExtensionHookEvent
@@ -1334,10 +1338,10 @@ export interface FileChangedThrottle {
 }
 
 /**
- * One FileChanged run per path per quiet window; every change past the
- * window fires, whatever the minute's count. Pure time comes from the
- * caller, so tests drive it with explicit timestamps.
- */
+One FileChanged run per path per quiet window; every change past the
+window fires, whatever the minute's count. Pure time comes from the
+caller, so tests drive it with explicit timestamps.
+*/
 export function createFileChangedThrottle(): FileChangedThrottle {
   const lastFire = new Map<string, number>()
   return {

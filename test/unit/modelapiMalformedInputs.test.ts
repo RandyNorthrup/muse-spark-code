@@ -14,7 +14,7 @@ import { parseNdjson } from '../../src/core/backends/modelapi/ndjson'
 import { jsonOutput } from '../../src/core/backends/modelapi/hookFormats/core'
 import { functionParameters } from '../../src/core/backends/modelapi/mcp/functions'
 import { placeMemoryCall } from '../../src/core/backends/modelapi/memoryTools'
-import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
+import { ObservationPack } from '../../src/core/backends/modelapi/observationPacking'
 import { parseHookAnswer, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import { parseQuestions } from '../../src/core/backends/modelapi/tools'
 import {
@@ -46,8 +46,8 @@ import { writeFileAtomically } from '../../src/host/fsAtomic'
 import { createMemoryIo, systemPath } from '../../src/host/backend/memoryIo'
 import {
   CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
-  MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
+  PACK_MODEL_TEXT,
   UI_TEXT,
 } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -93,7 +93,7 @@ describe('unparseable hook and schema input', () => {
 describe('a packed-output recall with unparseable arguments', () => {
   it('fails with the recall refusal, not with a lookup of nothing', () => {
     const outcome = new ObservationPack().recall('{not json')
-    expect(outcome.output).toBe(`Error: ${MODEL_API_MODEL_TEXT.packInvalidJson}`)
+    expect(outcome.output).toBe(`Error: ${PACK_MODEL_TEXT.packInvalidJson}`)
     expect(outcome.failureReason).toBe(UI_TEXT.packRecallInvalid)
   })
 })

@@ -278,10 +278,10 @@ export function createSubscriptionFeatures(options: {
       return services.client
     },
     /**
-     * Connect ChatGPT. A saved registration is reused; `isNewAccount` registers
-     * a different account instead, and like a terminal `add` it never
-     * replaces a grant that is still stored.
-     */
+    Connect ChatGPT. A saved registration is reused; `isNewAccount` registers
+    a different account instead, and like a terminal `add` it never
+    replaces a grant that is still stored.
+    */
     connectChatGpt: async (isNewAccount = false) => {
       const core = await chatgpt()
       const isNew = (await options.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined

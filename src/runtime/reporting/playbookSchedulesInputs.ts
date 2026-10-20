@@ -25,11 +25,11 @@ import type { SourceReadContext } from '../../core/reporting/sources/types'
 import { createNodeScheduleFs, type ScheduleQueueFailure } from '../schedules/nodeScheduleFs'
 
 /**
- * The reporting `playbook` source from M116's journal: the same file the
- * orchestrator replays, read-only. A lost journal (the marker without its
- * lines) is a failure with its reason, never an empty success; a workspace
- * with no journal yet reads empty, never an error.
- */
+The reporting `playbook` source from M116's journal: the same file the
+orchestrator replays, read-only. A lost journal (the marker without its
+lines) is a failure with its reason, never an empty success; a workspace
+with no journal yet reads empty, never an error.
+*/
 export function createPlaybookReportReader(input: {
   readonly agentDataFolder: string
   readonly workspaceRoot: string
@@ -50,20 +50,20 @@ export function createPlaybookReportReader(input: {
 }
 
 /**
- * The reporting `schedules` source from M115's store and fire record: the
- * workspace's schedules with their triggers and grants, and the settled
- * fires with outcomes and cost. Until delivery is registered (CM1151) no v2
- * fire exists; the fires read empty and the report shows that truthfully.
- */
+The reporting `schedules` source from M115's store and fire record: the
+workspace's schedules with their triggers and grants, and the settled
+fires with outcomes and cost. Until delivery is registered (CM1151) no v2
+fire exists; the fires read empty and the report shows that truthfully.
+*/
 /**
- * Store-content failures the reader maps to `invalid`, like the playbook
- * reader maps malformed journals: damaged JSON, a workspace or identity
- * mismatch, a broken revision chain, a fencing-token regression (another
- * writer's older delta superseding the lease owner's: corrupt journal data,
- * never a generic read failure) and every zod parse rejection. Genuine I/O
- * failures stay `failed`. A corrupt store is never an empty success and
- * never a generic read failure with the store's reason discarded.
- */
+Store-content failures the reader maps to `invalid`, like the playbook
+reader maps malformed journals: damaged JSON, a workspace or identity
+mismatch, a broken revision chain, a fencing-token regression (another
+writer's older delta superseding the lease owner's: corrupt journal data,
+never a generic read failure) and every zod parse rejection. Genuine I/O
+failures stay `failed`. A corrupt store is never an empty success and
+never a generic read failure with the store's reason discarded.
+*/
 const SCHEDULE_CONTENT_FAILURES = new Set([
   'scheduleStoredJsonInvalid',
   'scheduleWorkspaceMismatch',

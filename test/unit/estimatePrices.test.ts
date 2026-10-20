@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { lookupEstimatePrices, type EstimatePricePort } from '../../src/core/estimator/prices'
-import { estimatorSourcePorts } from '../../src/host/estimator/localFleet'
+import { estimatePricePorts } from './helpers/estimateFailures'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { EN } from '../../src/shared/l10n/en'
 
@@ -77,12 +77,7 @@ describe('estimate price catalog cache', () => {
 
   it('leaves the refusing catalog binding’s wait alone', async () => {
     setUiText(EN, BASE_LOCALE)
-    const ports = estimatorSourcePorts(() => ({
-      enabled: true,
-      networkAllowed: false,
-      maxAgeMs: 60_000,
-      catalogUrls: [],
-    })).prices()
+    const ports = estimatePricePorts()
     await expect(
       lookupEstimatePrices(
         {

@@ -1,6 +1,6 @@
 import { EstimateDiagnosticError } from '../core/estimator/diagnostic'
-import { estimateRefusalDetail, isEstimateRefusal } from '../shared/estimate'
-import { fill, UI_TEXT } from '../shared/l10n/text'
+import { isEstimateRefusal } from '../shared/estimate'
+import { UI_TEXT } from '../shared/l10n/text'
 import {
   collectEstimate,
   estimateFailureText,
@@ -56,8 +56,7 @@ export function createAcpEstimate(deps: {
         // else keeps its kind past the boundary (D119).
         if (signal.aborted) signal.throwIfAborted()
         if (isEstimateRefusal(error)) {
-          const refusal = estimateRefusalDetail(error)
-          return fill(UI_TEXT.estimateFailed, { detail: refusal ?? 'estimate-unavailable' })
+          return estimateFailureText(error)
         }
         throw error
       }

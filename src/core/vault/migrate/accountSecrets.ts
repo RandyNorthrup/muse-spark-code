@@ -19,6 +19,7 @@
 import { createHash } from 'node:crypto'
 import { ACCOUNT_DEFAULT_ID, VAULT_KEY_BYTES } from '../../../shared/constants'
 import {
+  AccountStoreError,
   accountSecretKey,
   boundCredential,
   credentialRecordSchema,
@@ -38,8 +39,11 @@ function parseStored(provider: string, account: string, text: string): AccountCr
   let value: unknown
   try {
     value = JSON.parse(text)
-  } catch {
-    throw new VaultMigrationFault('invalid')
+  } catch (error: unknown) {
+    // JSON.parse fails only as SyntaxError: a malformed record is invalid,
+    // never adopted, with the parsing failure as its cause.
+    if (!(error instanceof SyntaxError)) throw error
+    throw new VaultMigrationFault('invalid', { cause: error })
   }
   const parsed = credentialRecordSchema.safeParse(value)
   if (!parsed.success) throw new VaultMigrationFault('invalid')
@@ -47,8 +51,11 @@ function parseStored(provider: string, account: string, text: string): AccountCr
   // authenticate another, and a short document without identity is refused.
   try {
     return boundCredential(parsed.data, { provider, account, origin: parsed.data.origin })
-  } catch {
-    throw new VaultMigrationFault('invalid')
+  } catch (error: unknown) {
+    // Only the binding check lands here: a mismatched record is invalid with
+    // the store failure as its cause.
+    if (!(error instanceof AccountStoreError)) throw error
+    throw new VaultMigrationFault('invalid', { cause: error })
   }
 }
 
@@ -77,8 +84,9 @@ export function accountSecretMigrationCredential(
   let key: string
   try {
     key = accountSecretKey(provider, account)
-  } catch {
-    throw new VaultMigrationFault('invalid')
+  } catch (error: unknown) {
+    // An unparsable id is invalid with the parse failure as its cause.
+    throw new VaultMigrationFault('invalid', { cause: error })
   }
   const itemId = createHash('sha256').update(key).digest('hex').slice(0, VAULT_KEY_BYTES)
   return migrationCodec(

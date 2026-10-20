@@ -2,8 +2,8 @@ import type { GovernedTeamSlots } from '../../core/team/scheduler/slots'
 import type { ResourcePermit } from '../../core/resources/queue'
 
 /** Heavy team checks use the same governor queue as workers, under the check kind.
- * @unwired M96 heavy team check slot
- */
+@unwired M96 heavy team check slot
+*/
 export function requestCheckSlot(
   slots: GovernedTeamSlots,
   priority: number,
@@ -72,7 +72,7 @@ export async function captureCheckSnapshot(
     GIT_COMMITTER_EMAIL: 'snapshot@localhost',
   }
   const options = [...GIT_METADATA_OPTIONS, '-c', 'core.hooksPath=/dev/null']
-  const run = async (args: readonly string[], input?: string) => {
+  const run = async (args: readonly string[]) => {
     admit()
     const result = await git.run({
       file: git.file,
@@ -80,7 +80,6 @@ export async function captureCheckSnapshot(
       cwd,
       env,
       timeoutMs,
-      ...(input !== undefined && { input }),
     })
     if (!result.descendantsEnded) throw new Error(UI_TEXT.teamTrafficNotices.uncertainAttempt)
     if (result.exitCode !== 0) throw new Error(UI_TEXT.teamRunners.testFailed)

@@ -130,10 +130,10 @@ function isMatchAnywhere(rule: CommandRule, command: string, dialect: ShellDiale
 }
 
 /**
- * An allow rule over one plain command: the command begins with its words
- * exactly (the name by case alone in PowerShell, never by a path: `./git`
- * is not `git`).
- */
+An allow rule over one plain command: the command begins with its words
+exactly (the name by case alone in PowerShell, never by a path: `./git`
+is not `git`).
+*/
 function isCommandAllowed(
   rule: CommandRule,
   words: readonly string[],
@@ -169,9 +169,9 @@ export function isEvaluator(words: readonly string[], dialect: ShellDialect): bo
 }
 
 /**
- * Whether one plain command is allowed by these rules and does not run text
- * as code. Its rule, or undefined.
- */
+Whether one plain command is allowed by these rules and does not run text
+as code. Its rule, or undefined.
+*/
 function allowingRule(
   rules: readonly CommandRule[],
   command: string,
@@ -304,10 +304,10 @@ function compileOne(
 }
 
 /**
- * The rules of one setting, each checked against its own examples. A rule
- * that is wrong is left out if it allows, and kept if it only tightens; a
- * repository's allow rules are always left out.
- */
+The rules of one setting, each checked against its own examples. A rule
+that is wrong is left out if it allows, and kept if it only tightens; a
+repository's allow rules are always left out.
+*/
 export function compileCommandRules(raw: readonly unknown[], source: RuleSource): CompiledRules {
   const rules: CommandRule[] = []
   const problems: RuleProblem[] = []

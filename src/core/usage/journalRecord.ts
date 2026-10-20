@@ -117,11 +117,11 @@ function hasMetaPrice(context: UsageRecordContext): boolean {
 }
 
 /**
- * The tier a plan request really used: the priced whitelist first, else the
- * contributor suffix the backend's own model id carries. Only an equivalent
- * display price may use the suffix tier; actual (computed/reported) costs
- * stay on the verified whitelist, never a guessed tariff.
- */
+The tier a plan request really used: the priced whitelist first, else the
+contributor suffix the backend's own model id carries. Only an equivalent
+display price may use the suffix tier; actual (computed/reported) costs
+stay on the verified whitelist, never a guessed tariff.
+*/
 function planPriceTier(context: UsageRecordContext): 'standard' | 'contributor' | undefined {
   if (context.provider !== 'meta' && context.backend !== 'museCode') {
     return undefined

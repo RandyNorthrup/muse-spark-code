@@ -27,10 +27,10 @@ export interface LocalProbeResult {
 }
 
 /**
- * Probes every target at once. A refused connection, a timeout and a
- * non-2xx answer all read as unanswered: the panel only prefills what
- * answered.
- */
+Probes every target at once. A refused connection, a timeout and a
+non-2xx answer all read as unanswered: the panel only prefills what
+answered.
+*/
 export async function probeLocalServers(
   targets: readonly LocalProbeTarget[],
   fetchImpl: typeof fetch,

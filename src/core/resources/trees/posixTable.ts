@@ -1,6 +1,6 @@
 import * as z from 'zod/mini'
 import { resourceProcessIdentitySchema, resourceTreeUsageSchema } from '../../../shared/resources'
-import type { ResourceTreeRun } from './run'
+import { probeChildEnvironment, type ResourceTreeRun } from './run'
 
 const DECIMAL = /^\d+$/
 
@@ -82,15 +82,19 @@ const MAC_START_TIME = /^[A-Z][a-z]{2} [A-Z][a-z]{2} [ \d]\d \d{2}:\d{2}:\d{2} \
 const MAC_PROCESS_WITH_START = /^(\s*\d+\s+\d+\s+\d+\s+\S+\s+\S+\s+\d+)\s+(\S.*\S)\s*$/
 
 /**
- * One process's row and start time: the table's ps columns and parser, for
- * one PID, plus `lstart` so a reused PID is told apart (M105 RSS). Null for
- * anything but exactly one well-formed row.
- */
+One process's row and start time: the table's ps columns and parser, for
+one PID, plus `lstart` so a reused PID is told apart (M105 RSS). Null for
+anything but exactly one well-formed row.
+*/
 export async function readMacProcess(
   pid: number,
   run: ResourceTreeRun,
 ): Promise<{ readonly row: Omit<ProcessSample, 'startTime'>; readonly started: string } | null> {
-  const text = await run(MAC_PS, ['-o', `${MAC_PROCESS_COLUMNS},lstart=`, '-p', String(pid)])
+  const text = await run(
+    MAC_PS,
+    ['-o', `${MAC_PROCESS_COLUMNS},lstart=`, '-p', String(pid)],
+    probeChildEnvironment({ LC_ALL: 'C' }),
+  )
   const lines = text.trim().split(/\r?\n/)
   const match = lines.length === 1 ? MAC_PROCESS_WITH_START.exec(lines[0] ?? '') : null
   const [, columns = '', started = ''] = match ?? []

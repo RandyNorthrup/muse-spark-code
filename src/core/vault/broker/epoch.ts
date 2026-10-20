@@ -57,7 +57,7 @@ export class VaultLockEpoch implements VaultEpochPort {
     const release = await this.files.claim(this.writer, record)
     try {
       const epoch = (await this.current()) + 1
-      if (!Number.isSafeInteger(epoch)) throw new Error(UI_TEXT.vault.noAccess)
+      if (!Number.isSafeInteger(epoch)) throw new TypeError(UI_TEXT.vault.noAccess)
       await this.files.replace(this.path, Buffer.from(JSON.stringify({ v: 1, epoch })), authorize)
       return epoch
     } finally {
@@ -72,6 +72,8 @@ export class VaultLockEpoch implements VaultEpochPort {
           if (!isClosed) listener(epoch)
         })
         .catch(() => {
+          // An unreadable epoch reads as the far future so the vault locks;
+          // the read failure keeps no cause.
           if (!isClosed) listener(Number.MAX_SAFE_INTEGER)
         })
     }

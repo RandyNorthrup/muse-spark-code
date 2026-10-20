@@ -29,7 +29,7 @@ export interface AccountRequestEstimate {
 }
 export interface AccountPoolClaim {
   /** Excludes this owned pending projection only. Already-sent attempts and
-   * settled/uncertain liability (including earlier retries) remain visible. */
+  settled/uncertain liability (including earlier retries) remain visible. */
   readonly journal: AccountJournalReader
   /** Original shared daily and conversation scopes, never changed by a swap. */
   readonly checkSharedCaps: () => void
@@ -60,7 +60,7 @@ export interface AccountPoolDeps {
   /** Resolves only after the credential-free event is recorded and the UI can show it. */
   readonly record: (event: AccountEvent) => Promise<void>
   /** Owner transaction: call adopt and publish the event synchronously together.
-   * A thrown fence/I/O refusal commits neither. No await or reentry between them. */
+  A thrown fence/I/O refusal commits neither. No await or reentry between them. */
   readonly commit: (event: AccountEvent, adopt: () => void) => void
   readonly sharedGroupNotice: (account: string) => Promise<void>
 }
@@ -110,8 +110,8 @@ function projected(estimate: AccountRequestEstimate) {
 }
 
 /** Conservative full re-read, even within a group until Q-M108 captures cache sharing.
- * @unwired M108 conservative pool cost estimate
- */
+@unwired M108 conservative pool cost estimate
+*/
 export function accountColdCacheEstimate(inputTokens: number, inputUsdPerMillion: string): Usd {
   if (!Number.isSafeInteger(inputTokens) || inputTokens < 0)
     throw new Error(UI_TEXT.accounts.invalidAccount)
@@ -458,8 +458,8 @@ export interface AccountReplayIdentity {
 }
 
 /** Captured codecs classify native items and retain their visible text. No group exception yet.
- * @unwired M108 pool replay of captured items
- */
+@unwired M108 pool replay of captured items
+*/
 export function accountReplay<Item>(
   entries: readonly {
     readonly item: Item

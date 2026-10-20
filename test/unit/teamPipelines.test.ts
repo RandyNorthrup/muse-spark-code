@@ -1,14 +1,18 @@
-// Lane L: pipelines — built-ins, rounds, `redesign`, loading and the merge
-// hand-off (M96 acceptance 21, PLAN.md D75 "Pipelines").
+// Lane L: pipelines — built-ins, unbounded rounds, loading and the merge
+// hand-off (M96 acceptance 21, PLAN.md D75 "Pipelines"). Rounds continue
+// until the change passes or the person stops the work (D121).
 
-import { describe, expect, it } from 'vitest'
+import { readdirSync, readFileSync } from 'node:fs'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import {
   approvalSteps,
   builtInPipelines,
   changePipeline,
   isFailingSeverity,
   loadPipelines,
-  pipelineCeiling,
   PipelineBranchError,
   PipelineResultError,
   recordStepResult,
@@ -45,11 +49,11 @@ function review(
   }
 }
 
-function check(stepId: string, branch: string, isPassed: boolean): PipelineStepResult {
+function check(stepId: string, isPassed: boolean): PipelineStepResult {
   return {
     kind: 'checked',
     stepId,
-    branch,
+    branch: 'agents/engineering/t1',
     passed: isPassed,
     findings: [],
     report: `${stepId} checked`,
@@ -77,34 +81,82 @@ function drive(
   return { run, statuses, decisions }
 }
 
-function memoryFs(files: Readonly<Record<string, string>>): PipelineFileSystem {
+/** A clean Change run through to the orchestrator's merge hand-off. */
+function cleanHandoff(def: PipelineDefinition) {
+  return drive(def, [
+    work('implement', 'agents/engineering/t1'),
+    review('review', 'agents/engineering/t1', []),
+    check('verify', true),
+  ])
+}
+
+function isMissing(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
+}
+
+/** The loader over the real filesystem: real reads, real directory lists. */
+function nodePipelineFs(): PipelineFileSystem {
   return {
-    listFiles: (dir) =>
-      Object.keys(files)
-        .filter((path) => path.startsWith(`${dir}/`))
-        .map((path) => path.slice(dir.length + 1)),
-    readFile: (path) => files[path],
+    listFiles: (dir) => {
+      try {
+        return readdirSync(dir, { withFileTypes: true })
+          .filter((entry) => entry.isFile())
+          .map((entry) => entry.name)
+      } catch (error: unknown) {
+        // A folder the user never created loads as empty, as before; any
+        // other failure is real and reaches the caller.
+        if (isMissing(error)) return []
+        throw error
+      }
+    },
+    readFile: (file) => {
+      try {
+        return readFileSync(file, 'utf8')
+      } catch (error: unknown) {
+        if (isMissing(error)) return undefined
+        throw error
+      }
+    },
   }
 }
 
-function loadFiles(files: Readonly<Record<string, string>>, isTrusted = true) {
-  return loadPipelines({
-    personalDir: 'personal',
-    projectDir: 'project',
+/**
+The loader over real temp directories: every entry of `files` is written
+to disk (`personal/…` under the personal folder, `project/…` under the
+project folder) and refusals name the file relative to the temp root, so
+the assertions below read exactly as before on every platform.
+*/
+async function loadFromFiles(files: Readonly<Record<string, string>>, isTrusted = true) {
+  const root = await mkdtemp(path.join(tmpdir(), 'team-pipelines-'))
+  onTestFinished(() => rm(root, { recursive: true, force: true }))
+  for (const [name, text] of Object.entries(files)) {
+    const file = path.join(root, name)
+    await mkdir(path.dirname(file), { recursive: true })
+    await writeFile(file, text)
+  }
+  const loaded = loadPipelines({
+    personalDir: path.join(root, 'personal'),
+    projectDir: path.join(root, 'project'),
     trusted: isTrusted,
-    fs: memoryFs(files),
+    fs: nodePipelineFs(),
   })
+  return {
+    pipelines: loaded.pipelines,
+    refused: loaded.refused.map((refusal) => ({
+      ...refusal,
+      file: path.relative(root, refusal.file).split(path.sep).join('/'),
+    })),
+  }
 }
 
 function pipelineIds(pipelines: readonly PipelineDefinition[]) {
   return pipelines.map((def) => def.id).toSorted((a, b) => a.localeCompare(b))
 }
 
-function researchPipeline(id: string, maxRounds: number): PipelineDefinition {
+function researchPipeline(id: string): PipelineDefinition {
   return {
     id,
     steps: [{ id: 'only', role: 'research', kind: 'work' }],
-    maxRounds,
     reviewSeverity: 'high',
   }
 }
@@ -128,14 +180,9 @@ describe('built-in pipelines', () => {
   })
 })
 
-describe('rounds and redesign', () => {
+describe('rounds without a bound', () => {
   it('a clean change run hands the reviewed branch to the orchestrator merge', () => {
-    const def = changePipeline()
-    const { run, statuses } = drive(def, [
-      work('implement', 'agents/engineering/t1'),
-      review('review', 'agents/engineering/t1', []),
-      check('verify', 'agents/engineering/t1', true),
-    ])
+    const { run, statuses } = cleanHandoff(changePipeline())
     expect(statuses).toEqual(['next', 'next', 'handoff'])
     expect(run.status).toBe('handoff')
   })
@@ -145,7 +192,7 @@ describe('rounds and redesign', () => {
     const pass = drive(def, [
       work('implement', 'agents/engineering/t1'),
       review('review', 'agents/engineering/t1', []),
-      check('verify', 'agents/engineering/t1', true),
+      check('verify', true),
     ])
     const failingTitle = 'null dereference on empty input'
     const fail = drive(def, [
@@ -181,10 +228,11 @@ describe('rounds and redesign', () => {
       'next',
       'next',
       'next',
-      'redesign',
+      'repeat',
       'repeat',
       'repeat',
     ])
+    expect(fail.run.status).toBe('running')
     for (const text of [JSON.stringify(pass.decisions), JSON.stringify(fail.decisions)]) {
       expect(text).not.toContain('merge')
     }
@@ -211,7 +259,7 @@ describe('rounds and redesign', () => {
     const { statuses } = drive(def, [
       work('implement', 'agents/engineering/t1'),
       review('review', 'agents/engineering/t1', ['medium', 'low', 'info']),
-      check('verify', 'agents/engineering/t1', true),
+      check('verify', true),
     ])
     expect(statuses).toEqual(['next', 'next', 'handoff'])
   })
@@ -229,17 +277,17 @@ describe('rounds and redesign', () => {
     const first = drive(def, [
       work('implement', 'agents/engineering/t1'),
       review('review', 'agents/engineering/t1', []),
-      check('verify', 'agents/engineering/t1', false),
+      check('verify', false),
     ])
     expect(first.statuses).toEqual(['next', 'next', 'repeat'])
   })
 
-  it('the third failed round stops at redesign, naming the findings that came back', () => {
+  it('failed rounds keep repeating past the old third-round stop', () => {
     const def = changePipeline()
     const title = 'null dereference on empty input'
     let run = startPipelineRun(def, 'seeded bug')
     let rounds = 0
-    for (let round = 1; round <= 3; round += 1) {
+    for (let round = 1; round <= 5; round += 1) {
       run = recordStepResult(def, run, work('implement', 'agents/engineering/t1')).run
       const moved = recordStepResult(def, run, {
         kind: 'reviewed',
@@ -253,11 +301,11 @@ describe('rounds and redesign', () => {
         rounds = moved.decision.round
       }
     }
-    expect(rounds).toBe(3)
-    expect(run.status).toBe('redesign')
+    expect(rounds).toBe(6)
+    expect(run.status).toBe('running')
   })
 
-  it('redesign names the recurring finding', () => {
+  it('a repeat names the recurring finding', () => {
     const def = changePipeline()
     const title = 'null dereference on empty input'
     let run = startPipelineRun(def, 'seeded bug')
@@ -273,27 +321,18 @@ describe('rounds and redesign', () => {
       })
       run = last.run
     }
-    if (last?.decision.status !== 'redesign') {
-      throw new Error('expected redesign')
+    if (last?.decision.status !== 'repeat') {
+      throw new Error('expected repeat')
     }
     expect(last.decision.findings.map((finding) => finding.title)).toEqual([title])
     expect(last.decision.recurring.map((finding) => finding.title)).toEqual([title])
   })
 
-  it('no fourth round starts: recording on a terminal run throws', () => {
+  it('recording on a handed-off run throws instead of starting another round', () => {
     const def = changePipeline()
-    let run = startPipelineRun(def, 'seeded bug')
-    for (let round = 1; round <= 3; round += 1) {
-      run = recordStepResult(def, run, work('implement', 'agents/engineering/t1')).run
-      run = recordStepResult(def, run, {
-        kind: 'reviewed',
-        stepId: 'review',
-        branch: 'agents/engineering/t1',
-        findings: [{ title: `finding ${String(round)}`, severity: 'critical' }],
-        report: `review ${String(round)}`,
-      }).run
-    }
-    expect(run.status).toBe('redesign')
+    const { run, statuses } = cleanHandoff(def)
+    expect(statuses).toEqual(['next', 'next', 'handoff'])
+    expect(run.status).toBe('handoff')
     expect(() => recordStepResult(def, run, work('implement', 'agents/engineering/t1'))).toThrow(
       PipelineTerminalError,
     )
@@ -354,9 +393,7 @@ describe('result kinds', () => {
     expect(() =>
       recordStepResult(def, run, review('implement', 'agents/engineering/t1', [])),
     ).toThrow(PipelineResultError)
-    expect(() =>
-      recordStepResult(def, run, check('implement', 'agents/engineering/t1', true)),
-    ).toThrow(PipelineResultError)
+    expect(() => recordStepResult(def, run, check('implement', true))).toThrow(PipelineResultError)
   })
 
   it('the mismatch names the step and both kinds', () => {
@@ -395,19 +432,11 @@ describe('approval', () => {
       { stepId: 'verify', role: 'qa', firstEntry: 'model-c' },
     ])
   })
-
-  it('the ceiling is each step ceiling times the rounds', () => {
-    expect(pipelineCeiling(changePipeline(), [100, 50, 25])).toBe(525)
-  })
-
-  it('mismatched ceilings throw', () => {
-    expect(() => pipelineCeiling(changePipeline(), [100])).toThrow(PipelineStepError)
-  })
 })
 
 describe('loading', () => {
-  it('a personal pipeline loads beside the built-ins', () => {
-    const { pipelines, refused } = loadFiles(
+  it('a personal pipeline loads beside the built-ins', async () => {
+    const { pipelines, refused } = await loadFromFiles(
       {
         'personal/docs.json': JSON.stringify({
           id: 'docs-flow',
@@ -415,10 +444,9 @@ describe('loading', () => {
             { id: 'draft', role: 'docs', kind: 'work' },
             { id: 'edit', role: 'code-review', kind: 'review' },
           ],
-          maxRounds: 2,
           reviewSeverity: 'medium',
         }),
-        'project/anything.json': JSON.stringify({ id: 'change', maxRounds: 1 }),
+        'project/anything.json': JSON.stringify({ id: 'change', removeSteps: [] }),
       },
       false,
     )
@@ -426,10 +454,10 @@ describe('loading', () => {
     expect(refused).toEqual([])
   })
 
-  it('an untrusted workspace never reads the project folder', () => {
-    const { pipelines, refused } = loadFiles(
+  it('an untrusted workspace never reads the project folder', async () => {
+    const { pipelines, refused } = await loadFromFiles(
       {
-        'project/narrow.json': JSON.stringify({ id: 'change', maxRounds: 1 }),
+        'project/narrow.json': JSON.stringify({ id: 'change', removeSteps: [] }),
       },
       false,
     )
@@ -437,50 +465,49 @@ describe('loading', () => {
     expect(refused).toEqual([])
   })
 
-  it('a project file may lower the rounds or remove steps', () => {
-    const { pipelines, refused } = loadFiles({
+  it('a project file may remove steps', async () => {
+    const { pipelines, refused } = await loadFromFiles({
       'project/narrow.json': JSON.stringify({
         id: 'change',
-        maxRounds: 2,
         removeSteps: ['verify'],
       }),
     })
     expect(refused).toEqual([])
     const narrowed = pipelines.find((def) => def.id === 'change')
-    expect(narrowed?.maxRounds).toBe(2)
     expect(narrowed?.steps.map((step) => step.id)).toEqual(['implement', 'review'])
   })
 
-  it('a project file for an unknown pipeline is refused whole', () => {
-    const { refused } = loadFiles({
-      'project/new.json': JSON.stringify({ id: 'nope', maxRounds: 1 }),
+  it('a project file for an unknown pipeline is refused whole', async () => {
+    const { refused } = await loadFromFiles({
+      'project/new.json': JSON.stringify({ id: 'nope', removeSteps: [] }),
     })
     expect(refused).toEqual([
       { file: 'project/new.json', reason: 'unknownPipeline', detail: 'nope' },
     ])
   })
 
-  it('a project file that raises the rounds is refused whole', () => {
-    const { refused } = loadFiles({
-      'personal/quick.json': JSON.stringify(researchPipeline('quick', 1)),
+  it('a project file that still names a round bound is refused whole', async () => {
+    const { refused } = await loadFromFiles({
+      'personal/quick.json': JSON.stringify(researchPipeline('quick')),
       'project/raise.json': JSON.stringify({ id: 'quick', maxRounds: 2 }),
     })
-    expect(refused).toHaveLength(1)
-    expect(refused[0]?.reason).toBe('widensRounds')
+    expect(refused).toEqual([
+      { file: 'project/raise.json', reason: 'unknownKey', detail: 'maxRounds' },
+    ])
   })
 
-  it('a project file that removes an unknown step is refused whole', () => {
-    const { refused } = loadFiles({
+  it('a project file that removes an unknown step is refused whole', async () => {
+    const { refused } = await loadFromFiles({
       'project/remove.json': JSON.stringify({ id: 'change', removeSteps: ['deploy'] }),
     })
     expect(refused).toHaveLength(1)
     expect(refused[0]?.reason).toBe('widensSteps')
   })
 
-  it('an unknown key refuses the file whole', () => {
-    const { pipelines, refused } = loadFiles({
+  it('an unknown key refuses the file whole', async () => {
+    const { pipelines, refused } = await loadFromFiles({
       'personal/bad.json': JSON.stringify({
-        ...researchPipeline('bad', 2),
+        ...researchPipeline('bad'),
         merge: true,
       }),
     })
@@ -488,36 +515,24 @@ describe('loading', () => {
     expect(refused).toEqual([{ file: 'personal/bad.json', reason: 'unknownKey', detail: 'merge' }])
   })
 
-  it('malformed files refuse as unparseable', () => {
-    const { pipelines, refused } = loadFiles({
-      'personal/bad.json': '{oops',
-      'project/bad.json': '{oops',
+  it('a removed round bound refuses the file whole, naming the key', async () => {
+    const { pipelines, refused } = await loadFromFiles({
+      'personal/wide.json': JSON.stringify({ ...researchPipeline('wide'), maxRounds: 4 }),
     })
     expect(pipelineIds(pipelines)).toEqual(['change', 'spec'])
     expect(refused).toEqual([
-      { file: 'personal/bad.json', reason: 'unparseable', detail: 'not JSON' },
-      { file: 'project/bad.json', reason: 'unparseable', detail: 'not JSON' },
+      { file: 'personal/wide.json', reason: 'unknownKey', detail: 'maxRounds' },
     ])
   })
 
-  it('a fourth round cannot be configured: rounds above three are refused', () => {
-    const { pipelines, refused } = loadFiles({
-      'personal/wide.json': JSON.stringify(researchPipeline('wide', 4)),
-    })
-    expect(pipelineIds(pipelines)).toEqual(['change', 'spec'])
-    expect(refused).toHaveLength(1)
-    expect(refused[0]?.reason).toBe('invalid')
-  })
-
-  it('a review before any work step is refused', () => {
-    const { refused } = loadFiles({
+  it('a review before any work step is refused', async () => {
+    const { refused } = await loadFromFiles({
       'personal/dangling.json': JSON.stringify({
         id: 'dangling',
         steps: [
           { id: 'first', role: 'code-review', kind: 'review' },
           { id: 'then', role: 'engineering', kind: 'work' },
         ],
-        maxRounds: 2,
         reviewSeverity: 'high',
       }),
     })
@@ -530,36 +545,25 @@ describe('loading', () => {
       validatePipeline({
         id: 'reviews-only',
         steps: [{ id: 'r', role: 'code-review', kind: 'review' }],
-        maxRounds: 2,
         reviewSeverity: 'high',
       }),
     ).toBe('noWorkStep')
   })
 
-  it('a fractional round limit is refused: rounds are positive integers', () => {
-    const { pipelines, refused } = loadFiles({
-      'personal/fraction.json': JSON.stringify(researchPipeline('fraction', 1.5)),
-    })
-    expect(pipelineIds(pipelines)).toEqual(['change', 'spec'])
-    expect(refused).toEqual([
-      { file: 'personal/fraction.json', reason: 'invalid', detail: 'schema mismatch' },
-    ])
-  })
-
-  it('a project file that lowers the rounds to a fraction is refused whole', () => {
-    const { refused } = loadFiles({
-      'project/fraction.json': JSON.stringify({ id: 'change', maxRounds: 2.5 }),
+  it('a project file that removes no array of steps is refused whole', async () => {
+    const { refused } = await loadFromFiles({
+      'project/fraction.json': JSON.stringify({ id: 'change', removeSteps: 'verify' }),
     })
     expect(refused).toEqual([
       { file: 'project/fraction.json', reason: 'invalid', detail: 'change' },
     ])
   })
 
-  it('unparseable files are refused, and other files still load', () => {
-    const { pipelines, refused } = loadFiles({
+  it('unparseable files are refused, and other files still load', async () => {
+    const { pipelines, refused } = await loadFromFiles({
       'personal/broken.json': '{ not json',
       'personal/notes.txt': 'ignored',
-      'personal/ok.json': JSON.stringify(researchPipeline('ok', 1)),
+      'personal/ok.json': JSON.stringify(researchPipeline('ok')),
     })
     expect(pipelines.some((def) => def.id === 'ok')).toBe(true)
     expect(refused).toEqual([

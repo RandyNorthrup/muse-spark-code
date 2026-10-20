@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest'
 import {
   absolutePathEntries,
   isFullyQualifiedWindowsPath,
   resolveAllExecutables,
   resolveExecutable,
-} from '../../src/core/executables'
+} from '../../src/core/execGuard'
+import { NO_WORKSPACE } from '../../src/core/executables'
+import { describe, expect, it } from 'vitest'
 
 const POSIX_INSTALLED: ReadonlySet<string> = new Set(['/usr/local/bin/git', '/usr/bin/git'])
 // A git.exe planted in the workspace, a batch-file git, and the real one.
@@ -28,17 +29,23 @@ function isWindowsInstalled(file: string): boolean {
 
 describe('absolutePathEntries', () => {
   it('keeps absolute entries only: an empty or relative one means the working directory', () => {
-    expect(absolutePathEntries('linux', ':/usr/bin::.:bin:/bin')).toEqual(['/usr/bin', '/bin'])
-    expect(absolutePathEntries('win32', String.raw`;C:\Git\cmd;.;tools; D:\bin `)).toEqual([
-      String.raw`C:\Git\cmd`,
-      String.raw`D:\bin`,
+    const noWorkspace = { noWorkspace: NO_WORKSPACE, realpath: throwingRealpath } as const
+    expect(absolutePathEntries('linux', ':/usr/bin::.:bin:/bin', noWorkspace)).toEqual([
+      '/usr/bin',
+      '/bin',
     ])
-    expect(absolutePathEntries('linux', undefined)).toEqual([])
+    expect(
+      absolutePathEntries('win32', String.raw`;C:\Git\cmd;.;tools; D:\bin `, noWorkspace),
+    ).toEqual([String.raw`C:\Git\cmd`, String.raw`D:\bin`])
+    expect(absolutePathEntries('linux', undefined, noWorkspace)).toEqual([])
   })
 
   it('drops drive-relative Windows entries, which resolve on the working directory drive', () => {
     expect(
-      absolutePathEntries('win32', String.raw`\Tools\bin;/Tools/bin;C:\Git\cmd;\\srv\share\bin`),
+      absolutePathEntries('win32', String.raw`\Tools\bin;/Tools/bin;C:\Git\cmd;\\srv\share\bin`, {
+        noWorkspace: NO_WORKSPACE,
+        realpath: throwingRealpath,
+      }),
     ).toEqual([String.raw`C:\Git\cmd`, String.raw`\\srv\share\bin`])
   })
 
@@ -67,6 +74,18 @@ describe('absolutePathEntries', () => {
       ),
     ).toEqual([String.raw`C:\Git\cmd`])
   })
+
+  it('follows links for the workspace comparison when a realpath is given', () => {
+    // A PATH entry that is a symlink into the workspace is the workspace:
+    // lexical comparison alone would keep it and run its planting.
+    expect(
+      absolutePathEntries('linux', '/tmp/tools:/usr/bin', {
+        workspaceRoot: '/home/person/work',
+        realpath: (filePath: string) =>
+          filePath === '/tmp/tools' ? '/home/person/work/bin' : filePath,
+      }),
+    ).toEqual(['/usr/bin'])
+  })
 })
 
 describe('resolveExecutable', () => {
@@ -76,6 +95,7 @@ describe('resolveExecutable', () => {
         platform: 'linux',
         pathVariable: '.:/usr/local/bin:/usr/bin',
         fileExists: isPosixInstalled,
+        scope: { noWorkspace: NO_WORKSPACE, realpath: throwingRealpath },
       }),
     ).toBe('/usr/local/bin/git')
   })
@@ -88,6 +108,7 @@ describe('resolveExecutable', () => {
         platform: 'linux',
         pathVariable: '.:/usr/local/bin:/usr/bin:/bin',
         fileExists: isPosixInstalled,
+        scope: { noWorkspace: NO_WORKSPACE, realpath: throwingRealpath },
       }),
     ).toEqual(['/usr/local/bin/git', '/usr/bin/git'])
     expect(
@@ -95,6 +116,7 @@ describe('resolveExecutable', () => {
         platform: 'linux',
         pathVariable: '.:/bin',
         fileExists: isPosixInstalled,
+        scope: { noWorkspace: NO_WORKSPACE, realpath: throwingRealpath },
       }),
     ).toEqual([])
   })
@@ -106,6 +128,7 @@ describe('resolveExecutable', () => {
         platform: 'win32',
         pathVariable: String.raw`.;C:\Tools;C:\Git\cmd`,
         fileExists: isWindowsInstalled,
+        scope: { noWorkspace: NO_WORKSPACE, realpath: throwingRealpath },
       }),
     ).toBe(String.raw`C:\Git\cmd\git.exe`)
     expect(
@@ -113,6 +136,7 @@ describe('resolveExecutable', () => {
         platform: 'win32',
         pathVariable: String.raw`C:\Tools`,
         fileExists: isWindowsInstalled,
+        scope: { noWorkspace: NO_WORKSPACE, realpath: throwingRealpath },
       }),
     ).toBeUndefined()
   })
@@ -124,8 +148,10 @@ describe('resolveExecutable', () => {
         platform: 'win32',
         pathVariable: String.raw`C:\ws\bin;C:\Git\cmd`,
         fileExists: (file: string) => files.has(file),
-        workspaceRoot: String.raw`C:\ws`,
-        realpath: (filePath: string) => filePath,
+        scope: {
+          workspaceRoot: String.raw`C:\ws`,
+          realpath: (filePath: string) => filePath,
+        },
       }),
     ).toBe(String.raw`C:\Git\cmd\git.exe`)
   })
@@ -141,6 +167,7 @@ describe('resolveExecutable', () => {
       platform: 'win32' as const,
       pathVariable: String.raw`.;C:\Tools;C:\Windows\System32`,
       fileExists: (file: string) => system.has(file),
+      scope: { noWorkspace: NO_WORKSPACE, realpath: throwingRealpath } as const,
     }
     expect(resolveExecutable('rundll32.exe', probe)).toBe(
       String.raw`C:\Windows\System32\rundll32.exe`,

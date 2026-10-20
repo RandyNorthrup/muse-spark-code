@@ -1,9 +1,10 @@
-import { constants } from 'node:fs'
+import { constants, realpathSync } from 'node:fs'
 import { open, realpath, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { userInfo } from 'node:os'
 import * as z from 'zod/mini'
+import { noWorkspaceChildEnvironment } from '../core/execGuard'
 import { runProgram } from '../host/processTree'
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { handleIdentity, lstatIdentity, sameFile } from '../core/fs/fileIdentity'
@@ -14,7 +15,13 @@ import type { TrustedPathVerifier } from './trustedPathPort'
 async function isUserPrivateGroup(gid: bigint, packageRoot: string): Promise<boolean> {
   const current = userInfo()
   if (gid !== BigInt(current.gid) || process.getgid?.() !== current.gid) return false
-  const env = withoutKeyringRoutes(withoutCredentials(process.env))
+  // Fixed system binaries only (the group's own tools never run): absolute
+  // entries only, links followed.
+  const env = noWorkspaceChildEnvironment(
+    process.platform,
+    withoutKeyringRoutes(withoutCredentials(process.env)),
+    realpathSync,
+  )
   try {
     if (process.platform === 'darwin') {
       const output = await runProgram(
@@ -85,9 +92,9 @@ async function isUserPrivateGroup(gid: bigint, packageRoot: string): Promise<boo
 }
 
 /** OpenSSH misc.c safe_path / StrictModes, with the root-owned sticky exception.
- * https://github.com/openssh/openssh-portable/blob/master/misc.c
- * Inspect the real ancestry, never treat a selected XDG/home root as authority.
- */
+https://github.com/openssh/openssh-portable/blob/master/misc.c
+Inspect the real ancestry, never treat a selected XDG/home root as authority.
+*/
 export async function verifyTrustedPath(
   directory: string,
   isPrivateLeaf = true,
@@ -195,13 +202,13 @@ function executableRefusal(component: string, reason: string): TrustedExecutable
 }
 
 /**
- * An executable the product may launch: realpath first; every ancestor of
- * the canonical path passes `verifyTrustedPath`'s directory walk (root or the
- * current user, no group/other write beyond its sticky and user-private-group
- * rules); the target is a regular executable file owned by root or the
- * current user, with no group or other write. The caller launches the
- * returned canonical path, never the name it was given.
- */
+An executable the product may launch: realpath first; every ancestor of
+the canonical path passes `verifyTrustedPath`'s directory walk (root or the
+current user, no group/other write beyond its sticky and user-private-group
+rules); the target is a regular executable file owned by root or the
+current user, with no group or other write. The caller launches the
+returned canonical path, never the name it was given.
+*/
 export async function verifyTrustedExecutable(
   file: string,
   packageRoot = path.resolve(__dirname, '..'),

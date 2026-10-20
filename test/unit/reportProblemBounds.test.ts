@@ -2,18 +2,19 @@
 // the first few examples plus the localized remainder can never exceed the
 // source-reason bound, so 5,000 bad slots beside one good row keep the good
 // row, and problem text can never cause evidence to be dropped.
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { REPORT_MAX_TEXT_CHARS } from '../../src/shared/constants'
 import { joinPartialReasons } from '../../src/core/reporting/sources/boundary'
 import { readReportSource } from '../../src/core/reporting/sources/boundary'
-import { stubLocalSources } from './helpers/reporting/localStubs'
+import { realLocalSources } from './helpers/reporting/realLocalSources'
 import { createAccountsReportReader } from '../../src/runtime/reporting/reportInputs'
 import type { AccountsFacts } from '../../src/core/reporting/sources/types'
 import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/kindFixtures'
-
-const TEMP = path.resolve(import.meta.dirname, '../../temp')
+import { removeFolder } from './helpers/temporaryFolders'
 const badUsage = (account: string): AccountsFacts['usage'][number] => ({
   provider: 'meta',
   account,
@@ -64,9 +65,13 @@ describe('bounded problem text', () => {
       ...Array.from({ length: 5000 }, (_, index) => badUsage(`bad-${String(index)}`)),
       goodUsage(),
     ]
-    const sources = stubLocalSources({
+    // A real empty root: no providers registry beside the reader's data, so
+    // the reader reports its missing registry and the usage override below.
+    const root = await mkdtemp(path.join(tmpdir(), 'problem-bounds-'))
+    onTestFinished(() => removeFolder(root))
+    const sources = realLocalSources(root, {
       accounts: createAccountsReportReader({
-        dataDir: path.join(TEMP, 'problem-bounds-no-registry'),
+        dataDir: path.join(root, 'problem-bounds-no-registry'),
         readUsage: () => Promise.resolve(rows),
       }),
     })

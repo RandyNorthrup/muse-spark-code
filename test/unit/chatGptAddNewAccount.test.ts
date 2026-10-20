@@ -24,10 +24,10 @@ const ACCOUNT_A = 'add-new-account-a'
 const ACCOUNT_B = 'add-new-account-b'
 
 /**
- * The real host, signalling when its first `readRecord` resolves. The
- * methods capture their baseline with the first host they build, so the
- * test writes the post-command grant only after that signal: no timing.
- */
+The real host, signalling when its first `readRecord` resolves. The
+methods capture their baseline with the first host they build, so the
+test writes the post-command grant only after that signal: no timing.
+*/
 function watchFirstRead(
   createHost: () => Promise<ChatGptHostPort>,
   onFirstRead: () => void,

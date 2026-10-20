@@ -6,6 +6,7 @@
 !dist/resourceJournal.js
 !dist/mcpVault.js
 !dist/questionNotes.js
+!dist/approvalModes.js
 !dist/conversation.js
 !dist/conversationTransfer.js
 !dist/tab.js
@@ -14,6 +15,7 @@
 !dist/museCode.js
 !dist/modelApiSessions.js
 !dist/rulesFile.js
+!dist/execGuard.js
 !dist/modelApiCodeIntel.js
 !dist/mcpPool.js
 !dist/structuredSchema.js

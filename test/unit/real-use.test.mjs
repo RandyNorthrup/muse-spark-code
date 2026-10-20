@@ -173,10 +173,10 @@ describe('exec shape', () => {
 })
 
 /**
- * Schematic exec results: validator inputs for `verdictForStep`, shaped to
- * the result schema's invariants (never presented as recorded product
- * output). Each override re-derives a failing or passing verdict.
- */
+Schematic exec results: validator inputs for `verdictForStep`, shaped to
+the result schema's invariants (never presented as recorded product
+output). Each override re-derives a failing or passing verdict.
+*/
 function schematicResult(overrides = {}) {
   const usage = {
     requests: 1,

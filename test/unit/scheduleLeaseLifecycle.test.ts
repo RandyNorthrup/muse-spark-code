@@ -33,7 +33,6 @@ import { createSchedulesReportReader } from '../../src/runtime/reporting/playboo
 import { localFailureOf } from '../../src/core/reporting/sources/local'
 import { FIXTURE_WORKSPACE_KEY } from './helpers/reporting/reportKindFixtures'
 import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/kindFixtures'
-import { MemoryScheduleFs } from './helpers/schedules/kindStorage'
 import { temporaryDir, removeFolder } from './helpers/temporaryFolders'
 
 const portFile = path.resolve('src/runtime/schedules/nodeScheduleFs.ts')
@@ -92,10 +91,21 @@ function visit(node: ts.Node) {
 visit(tree)
 const root = await temporaryDir('lease-lifecycle-')
 afterAll(() => removeFolder(root))
-const ports = [
-  { name: 'disk', make: () => createNodeScheduleFs(path.join(root, randomUUID())) },
-  { name: 'memory', make: () => new MemoryScheduleFs() },
-]
+/** Every row runs on the disk-backed port the product uses: no memory filesystem. */
+const make = () => createNodeScheduleFs(path.join(root, randomUUID()))
+
+/** Independent port instances over one directory, as the product opens them. */
+function makeCollisionPorts() {
+  const directory = path.join(root, `collision-${randomUUID()}`)
+  const fsA = createNodeScheduleFs(directory)
+  const fsB = createNodeScheduleFs(directory)
+  const fsC = createNodeScheduleFs(directory)
+  return { fsA, fsB, fsC }
+}
+
+const makeLegacyFs = () => createNodeScheduleFs(path.join(root, `legacy-${randomUUID()}`))
+
+const makeSuccessorFs = () => createNodeScheduleFs(path.join(root, `successor-${randomUUID()}`))
 const key = `${FIXTURE_WORKSPACE_KEY}/index`
 const file = `leases/${scheduleStorageHash(key)}.json`
 const header = `leaseFences/${scheduleStorageHash(key)}/0/0.json`
@@ -165,7 +175,7 @@ class RecordingScheduleFs implements ScheduleFsPort {
   }
 }
 
-describe.each(ports)('$name structural lease lifecycle', ({ make }) => {
+describe('structural lease lifecycle', () => {
   it.each([
     { seed: 'fresh', stop: 'abort' },
     { seed: 'fresh', stop: 'deadline' },
@@ -363,28 +373,8 @@ it.each(['token', 'pid', 'start', 'fencingToken'])(
   },
 )
 
-describe.each([
-  {
-    name: 'disk',
-    make: () => {
-      const directory = path.join(root, `collision-${randomUUID()}`)
-      const fsA = createNodeScheduleFs(directory)
-      const fsB = createNodeScheduleFs(directory)
-      const fsC = createNodeScheduleFs(directory)
-      return { fsA, fsB, fsC }
-    },
-  },
-  {
-    name: 'memory',
-    make: () => {
-      const shared = new MemoryScheduleFs()
-      const fsA = new MemoryScheduleFs(shared)
-      const fsB = new MemoryScheduleFs(shared)
-      const fsC = new MemoryScheduleFs(shared)
-      return { fsA, fsB, fsC }
-    },
-  },
-])('cancelled loser releases nothing ($name)', ({ make }) => {
+describe('cancelled loser releases nothing', () => {
+  const make = makeCollisionPorts
   it('never releases the live winner fence', async () => {
     // B publishes the slot first and holds it. A attempts behind B: its
     // publication loses, it polls, and cancellation lands mid-poll — after
@@ -429,13 +419,8 @@ describe.each([
   })
 })
 
-describe.each([
-  {
-    name: 'disk',
-    make: () => createNodeScheduleFs(path.join(root, `legacy-${randomUUID()}`)),
-  },
-  { name: 'memory', make: () => new MemoryScheduleFs() },
-])('previous-version heartbeat ($name)', ({ make }) => {
+describe('previous-version heartbeat', () => {
+  const make = makeLegacyFs
   it.each(['fence', 'hint'] as const)(
     'acquires past an expired previous-version heartbeat under a %s header',
     async (headerKind) => {
@@ -476,7 +461,7 @@ describe.each([
 })
 
 it('refuses a forged, re-released or foreign fence handle with the ownership word', async () => {
-  const fs = new MemoryScheduleFs()
+  const fs = createNodeScheduleFs(path.join(root, `forge-${randomUUID()}`))
   const candidateA = 'leaseFences/forge/0/0.json'
   const candidateB = 'leaseFences/forge/0/1.json'
   const ownedA = OwnedScheduleFence.issue(candidateA)
@@ -502,13 +487,8 @@ it('refuses a forged, re-released or foreign fence handle with the ownership wor
   )
 })
 
-describe.each([
-  {
-    name: 'disk',
-    make: () => createNodeScheduleFs(path.join(root, `successor-${randomUUID()}`)),
-  },
-  { name: 'memory', make: () => new MemoryScheduleFs() },
-])('loser cleanup beside a live successor ($name)', ({ make }) => {
+describe('loser cleanup beside a live successor', () => {
+  const make = makeSuccessorFs
   it('retires the hint before publishing its own release', async () => {
     const fs = new RecordingScheduleFs(make())
     const lock = createScheduleLeaseLock(fs)
@@ -589,27 +569,6 @@ describe.each([
 it('allows no raw awaited filesystem call outside the structural wrapper', () => {
   expect(rawAwaits).toEqual([])
   expect(sites.map(({ label }) => label)).toContain('lease.fence')
-})
-
-it('removes the last expired memory tail after its predecessor settles without a repair read', async () => {
-  const fs = new MemoryScheduleFs()
-  const entered = Promise.withResolvers<undefined>()
-  const release = Promise.withResolvers<undefined>()
-  const held = fs.lock(key, () => {
-    entered.resolve(undefined)
-    return release.promise
-  })
-  await entered.promise
-  try {
-    await expect(
-      fs.lock(key, () => Promise.resolve(), { deadlineMs: Date.now() + 10 }),
-    ).rejects.toThrow('scheduleLeaseBusy')
-  } finally {
-    release.resolve(undefined)
-    await held
-  }
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  expect(fs.tails.size).toBe(0)
 })
 
 it('certification identifies the actual filesystem-port bytes', async () => {

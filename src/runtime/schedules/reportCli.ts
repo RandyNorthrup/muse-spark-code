@@ -4,9 +4,9 @@ import type { ScheduleCommandOptions } from './args'
 
 export interface ScheduleReportCliPort {
   /** M113 X parses the report arguments through its existing parser. Q resolves
-   * user-selected paths/addresses into approved opaque ids and completes its
-   * preview/verification/consent. Never persist raw addresses or vault values.
-   * Return only destination ids whose complete targets the user authorized. */
+  user-selected paths/addresses into approved opaque ids and completes its
+  preview/verification/consent. Never persist raw addresses or vault values.
+  Return only destination ids whose complete targets the user authorized. */
   resolve(
     kind: string,
     args: readonly string[],

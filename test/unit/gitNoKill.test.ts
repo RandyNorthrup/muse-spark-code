@@ -1,8 +1,9 @@
-import { chmodSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
+import { spawnGuarded } from '../../src/core/guardedChildProcess'
 import { createGitProcess, processGitRunner } from '../../src/host/git'
 
 const GIT_ENV = {
@@ -54,7 +55,8 @@ describe('git waits without an invented kill (NOLIMITS2 C3)', () => {
       platform: process.platform,
       env: process.env,
       fileExists: existsSync,
-      spawn,
+      realpath: realpathSync,
+      spawn: spawnGuarded,
     })
     const folder = mkdtempSync(path.join(tmpdir(), 'nolimits-git-'))
     const output = await run(['--version'], { cwd: folder, env: GIT_ENV })

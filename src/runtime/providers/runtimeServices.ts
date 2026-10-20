@@ -42,9 +42,9 @@ import {
 } from '../../shared/constants'
 
 /** No M95b revoker exists outside VS Code: removing a sign-in refuses loudly
- * rather than orphan it. API keys delete normally; revoke is never called
- * for them. The refusal is branded so `AccountSecrets.remove` preserves it
- * instead of reporting a generic store outage. */
+rather than orphan it. API keys delete normally; revoke is never called
+for them. The refusal is branded so `AccountSecrets.remove` preserves it
+instead of reporting a generic store outage. */
 export function runtimeRevokeSignIn(): Promise<void> {
   return Promise.reject(new RevokeUnsupportedError())
 }
@@ -66,14 +66,14 @@ export interface RuntimeAccountServices {
   /** The backend's key reads through the fixed account; nothing else changes. */
   secretsFor(provider: string, account: string, fallback: SecretStore): SecretStore
   /** The terminal `developer` owner: real store, real confirmation, while
-   * profile processes wait for M109's broker binding. */
+  profile processes wait for M109's broker binding. */
   developer(deps: {
     readLine(prompt: string): Promise<string>
     print(line: string): void
   }): Promise<DeveloperOptions>
   /** The terminal `developer reset` recovery when stored state belongs to
-   * another machine identity: `open` refuses it, so reset runs here without
-   * an owner (DEVID017B). */
+  another machine identity: `open` refuses it, so reset runs here without
+  an owner (DEVID017B). */
   developerReset(deps: {
     readLine(prompt: string): Promise<string>
     print(line: string): void
@@ -231,13 +231,13 @@ function developerUnavailableProfile(): Promise<void> {
 }
 
 /** The one mapping point for a refused providers file: every runtime caller
- * (exec `--account`, the ACP store, developer multiple-accounts open, the
- * CLI account commands) reads through this port, so the brand reaches the
- * person as its own refusal sentence here — never a keyring-outage message
- * and never a raw code. The brand is kept so typed checks (the ACP store's
- * `providersInvalid` code, the CLI command's sentence) still match; only the
- * message becomes the person-facing sentence. Sibling typed failures pass
- * through untouched, each keeping its own refusal. */
+(exec `--account`, the ACP store, developer multiple-accounts open, the
+CLI account commands) reads through this port, so the brand reaches the
+person as its own refusal sentence here — never a keyring-outage message
+and never a raw code. The brand is kept so typed checks (the ACP store's
+`providersInvalid` code, the CLI command's sentence) still match; only the
+message becomes the person-facing sentence. Sibling typed failures pass
+through untouched, each keeping its own refusal. */
 function withProvidersFileRefusal(metadata: AccountsMetadataPort): AccountsMetadataPort {
   return {
     read: async (provider) => {

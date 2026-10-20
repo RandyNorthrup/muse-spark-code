@@ -141,10 +141,10 @@ function cellsFor(route) {
 }
 
 /**
- * The plan: per route what is set up once (the provider with its models),
- * and per model the cells that run on it. Outside a matrix a route has one
- * model.
- */
+The plan: per route what is set up once (the provider with its models),
+and per model the cells that run on it. Outside a matrix a route has one
+model.
+*/
 // One identity per invocation, shared by all models of a route. Twenty-four
 // random hex digits plus the route ordinal fit the product's 32-character id.
 const runId = randomBytes(12).toString('hex')
@@ -260,9 +260,9 @@ const terminal = (args, stdin = '') => runCommand(product, args, { cwd: folders.
 const cleaner = (args) => runCommand(product, args, { cwd: folders.workspaces, isCleanUp: true })
 
 /**
- * The product's own usage records for this home, or why they cannot be
- * read: an unreadable usage is spend nobody knows, never an empty reading.
- */
+The product's own usage records for this home, or why they cannot be
+read: an unreadable usage is spend nobody knows, never an empty reading.
+*/
 async function usageRecords() {
   return parseUsageOutput(await terminal(['usage', '--json']))
 }
@@ -270,12 +270,12 @@ async function usageRecords() {
 const said = (run) => clip(`${run.stdout} ${run.stderr}`)
 
 /**
- * Meta's key. A terminal command takes it on standard input and stores
- * nothing. An editor session reads it from the credential store only, and
- * that entry is the person's own: the run stores its key there only when
- * no key is stored, and removes it afterwards. While another key is there
- * (the person's, or another run's) the editor scenarios are not run.
- */
+Meta's key. A terminal command takes it on standard input and stores
+nothing. An editor session reads it from the credential store only, and
+that entry is the person's own: the run stores its key there only when
+no key is stored, and removes it afterwards. While another key is there
+(the person's, or another run's) the editor scenarios are not run.
+*/
 async function setUpMeta(key) {
   const onPipe = 'the key goes to each terminal command on standard input'
   if (!surfaces.includes('acp')) return { ok: true, key, state: onPipe }
@@ -305,10 +305,10 @@ async function setUpMeta(key) {
 }
 
 /**
- * Adds a provider under the run's own name with its key on standard input,
- * and checks the key: what a person does first, so it is a scenario of its
- * own in the record (`seen`), with the product's own words.
- */
+Adds a provider under the run's own name with its key on standard input,
+and checks the key: what a person does first, so it is a scenario of its
+own in the record (`seen`), with the product's own words.
+*/
 async function setUp(route, models) {
   if (route.kind === 'museCode')
     return { ok: true, state: 'uses the Muse Code sign-in of this machine' }
@@ -391,11 +391,11 @@ const setUpCell = (route, state) => ({
 const left = []
 
 /**
- * Removes what the run has stored and not yet removed, through the
- * product's own commands, and checks that it is gone. An entry leaves the
- * list only once that check is made, so a clean-up that is itself cut short
- * is taken up again where it stopped.
- */
+Removes what the run has stored and not yet removed, through the
+product's own commands, and checks that it is gone. An entry leaves the
+list only once that check is made, so a clean-up that is itself cut short
+is taken up again where it stopped.
+*/
 async function removeStored() {
   for (const route of configured.toReversed()) {
     // `providers remove` takes the provider out of this home and its key out
@@ -439,19 +439,19 @@ async function removeAfter(earlier) {
 }
 
 /**
- * The clean-up. It runs after every route, at the end, and when the run is
- * cut short; a second call finds nothing left to do.
- */
+The clean-up. It runs after every route, at the end, and when the run is
+cut short; a second call finds nothing left to do.
+*/
 function cleanUp() {
   cleaning.last = removeAfter(cleaning.last)
   return cleaning.last
 }
 
 /**
- * The run is being ended from outside (a key press, a closing terminal, a
- * signal) or by an error nobody caught: the product's processes are ended
- * and what the run stored is removed before it exits.
- */
+The run is being ended from outside (a key press, a closing terminal, a
+signal) or by an error nobody caught: the product's processes are ended
+and what the run stored is removed before it exits.
+*/
 async function cutShort(why) {
   if (cut.why !== undefined) return
   cut.why = why
@@ -475,10 +475,10 @@ process.on('unhandledRejection', (reason) =>
 )
 
 /**
- * What the product's usage journal holds of some records: the settled
- * dollars and the rest. An amount it holds that the run cannot read is
- * spend nobody knows, and is kept as the text it was (`unread`).
- */
+What the product's usage journal holds of some records: the settled
+dollars and the rest. An amount it holds that the run cannot read is
+spend nobody knows, and is kept as the text it was (`unread`).
+*/
 function journalOf(records) {
   const held = { requests: records.length, micro: 0, uncertain: 0, unread: [] }
   for (const record of records) {
@@ -493,9 +493,9 @@ function journalOf(records) {
 }
 
 /**
- * @param {object} cell one scenario on one route by one surface
- * @param {string | undefined} key the route's key
- */
+@param {object} cell one scenario on one route by one surface
+@param {string | undefined} key the route's key
+*/
 async function runCell(cell, key) {
   const { scenario, route, surface, steps } = cell
   const workspace = path.join(
@@ -651,10 +651,10 @@ const isBarren = (cell, done) =>
 const unsent = { inARow: 0 }
 
 /**
- * The cells of one model on a route that is set up. A plain turn that fails
- * ends what costs a request on that surface for this model.
- * @returns {Promise<boolean>} whether the model's first turn failed with no usage reported
- */
+The cells of one model on a route that is set up. A plain turn that fails
+ends what costs a request on that surface for this model.
+@returns {Promise<boolean>} whether the model's first turn failed with no usage reported
+*/
 async function runUnit(unit, state, stopped, say) {
   // The surfaces on which this model could not answer a plain turn.
   const silent = new Set()
@@ -689,11 +689,11 @@ let productUsage = { requests: 0, usd: usdText(0) }
 let unsettled = { claims: 0, micro: 0, unread: [] }
 
 /**
- * A run that was ended outright may have left Meta's key in the credential
- * store; it left a note (lib/marker.mjs). This run never removes a key on
- * the strength of that note, since the person may have stored their own
- * since: it says what it found and what it did.
- */
+A run that was ended outright may have left Meta's key in the credential
+store; it left a note (lib/marker.mjs). This run never removes a key on
+the strength of that note, since the person may have stored their own
+since: it says what it found and what it did.
+*/
 async function earlierRunLeft(note) {
   const status = await terminal(['auth', 'status'])
   if (status.code !== 0) {
@@ -709,11 +709,11 @@ async function earlierRunLeft(note) {
 let earlierRun
 
 /**
- * The provider keys in the credential store under a name of the run's own
- * (`rl-<route>`) or of its diagnostic (`rlq-<route>`): what a run or a
- * diagnostic that was ended outright left behind. The product itself is
- * asked, name by name; nothing is removed here.
- */
+The provider keys in the credential store under a name of the run's own
+(`rl-<route>`) or of its diagnostic (`rlq-<route>`): what a run or a
+diagnostic that was ended outright left behind. The product itself is
+asked, name by name; nothing is removed here.
+*/
 async function entriesLeft() {
   const names = [
     ...providerMarkers(),

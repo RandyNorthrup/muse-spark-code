@@ -8,7 +8,7 @@
 
 import * as z from 'zod/mini'
 import { VAULT_LIMITS } from '../../../shared/constants'
-import { type VaultSecuredListenerPort } from './channel'
+import { type VaultSecuredListenerPort } from './ports'
 import { type WindowsVaultPipePort } from './peer'
 import { type VaultFileSecurityPort } from '../store'
 import { type VaultPrivateFilesPort } from './files'
@@ -147,30 +147,30 @@ export const windowsVaultPipeProcessResultSchema = z.strictObject({
 export type WindowsVaultPipeProcess = z.infer<typeof vaultPipeProcessSchema>
 
 /**
- * The host side of a Windows connection (lane C-M109-1c): the pipe server,
- * identified natively, must be this user's helper. The verifier refuses
- * unless `server.userId === ownerSid`, `remote` is false and the DACL is
- * owner-only; the broker itself is bound by the claim file and the hello.
- */
+The host side of a Windows connection (lane C-M109-1c): the pipe server,
+identified natively, must be this user's helper. The verifier refuses
+unless `server.userId === ownerSid`, `remote` is false and the DACL is
+owner-only; the broker itself is bound by the claim file and the hello.
+*/
 export interface WindowsVaultPipeServerCheck {
   inspectServer(pipe: string): Promise<z.infer<typeof windowsVaultPipeServerResultSchema>>
 }
 
 /**
- * The `files` helper's native read of any process (VAULTPARITY): broker
- * discovery liveness on Windows, where no POSIX peer binary exists.
- */
+The `files` helper's native read of any process (VAULTPARITY): broker
+discovery liveness on Windows, where no POSIX peer binary exists.
+*/
 export interface WindowsVaultPipeProcessCheck {
   inspectProcess(processId: number): Promise<z.infer<typeof windowsVaultPipeProcessResultSchema>>
 }
 
 /**
- * The TS side of the helper (lane C-M109-1c): starts the guarded helper in
- * `serve` mode for the broker or `files` mode for any other process, and
- * exposes the pipe as the channel's secured listener, the relayed client's
- * identity to WindowsVaultPeerVerifier, and the owner-only DACL commands to
- * the store and the broker's private files.
- */
+The TS side of the helper (lane C-M109-1c): starts the guarded helper in
+`serve` mode for the broker or `files` mode for any other process, and
+exposes the pipe as the channel's secured listener, the relayed client's
+identity to WindowsVaultPeerVerifier, and the owner-only DACL commands to
+the store and the broker's private files.
+*/
 export interface WindowsVaultPipeHelper extends VaultSecuredListenerPort, WindowsVaultPipePort {
   readonly files: VaultFileSecurityPort & VaultPrivateFilesPort
   /** Ends every connection and the helper; idempotent. */
@@ -178,12 +178,12 @@ export interface WindowsVaultPipeHelper extends VaultSecuredListenerPort, Window
 }
 
 /**
- * The host's decision on a server check (RVCM1091A F9): the pipe's server is
- * this user's helper only when every field the OS reported matches. The
- * lock's process is the broker node, never the pipe-owning helper, so the
- * server binds by owner SID here (the claim file binds the pipe name, and
- * the hello binds the broker); staleness still reads the broker node.
- */
+The host's decision on a server check (RVCM1091A F9): the pipe's server is
+this user's helper only when every field the OS reported matches. The
+lock's process is the broker node, never the pipe-owning helper, so the
+server binds by owner SID here (the claim file binds the pipe name, and
+the hello binds the broker); staleness still reads the broker node.
+*/
 export function isVaultPipeServerTrusted(answer: unknown, ownerSid: string): boolean {
   const parsed = windowsVaultPipeServerResultSchema.safeParse(answer)
   if (!parsed.success || parsed.data.result !== 'ok' || parsed.data.server === null) return false

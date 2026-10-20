@@ -674,7 +674,7 @@ describe('tiered CI (CIFLOW)', () => {
     const leaves = (names: readonly string[]): string[] =>
       names.flatMap((name) => {
         const script = scripts[name] ?? ''
-        return script.startsWith('run-s ') ? leaves(script.split(' ').slice(1)) : [name]
+        return script.startsWith('run-s ') ? leaves(script.split(' ').slice(1)) : name
       })
     const gates = manifest.scripts['quality:gates'].split(' ')
     expect(gates.slice(0, 1)).toEqual(['run-s'])

@@ -75,11 +75,11 @@ export interface ProviderRequestPath {
 }
 
 /**
- * The codec's request path per preset, from the 2026-10-04 captures unless
- * said. Local servers, the custom preset and Azure follow the research's
- * official references (research §1); a preset without either has no
- * request path and refuses to run until its capture is recorded (rule 13).
- */
+The codec's request path per preset, from the 2026-10-04 captures unless
+said. Local servers, the custom preset and Azure follow the research's
+official references (research §1); a preset without either has no
+request path and refuses to run until its capture is recorded (rule 13).
+*/
 function requestPathFor(preset: ProviderPreset): ProviderRequestPath | undefined {
   switch (preset.id) {
     case 'openai':
@@ -208,16 +208,16 @@ export function parseCatalogPresence(value: unknown): CatalogPresence | undefine
 }
 
 /**
- * D4: whether a configured model has no price card anywhere. Mirrors the
- * pricing half of `core/providers/configured.ts`, which stays the pricing
- * source of truth; this copy only warns at add/test/list time, never
- * refuses. An `unpriced` catalogue entry is capability evidence, not price
- * evidence — configured resolution still leaves that model unpriced and an
- * exec run refuses it — so only a priced catalogue record or a user-entered
- * price suppresses the warning. A plan-key preset never warns: configured
- * resolution assigns its models `{ kind: 'plan' }`, so the run is not
- * refused as unpriced.
- */
+D4: whether a configured model has no price card anywhere. Mirrors the
+pricing half of `core/providers/configured.ts`, which stays the pricing
+source of truth; this copy only warns at add/test/list time, never
+refuses. An `unpriced` catalogue entry is capability evidence, not price
+evidence — configured resolution still leaves that model unpriced and an
+exec run refuses it — so only a priced catalogue record or a user-entered
+price suppresses the warning. A plan-key preset never warns: configured
+resolution assigns its models `{ kind: 'plan' }`, so the run is not
+refused as unpriced.
+*/
 export function isModelUnpriced(
   catalog: CatalogPresence,
   presetId: string,
@@ -247,12 +247,12 @@ export interface ResolvedProvider {
 }
 
 /**
- * Resolve a provider id against the runner's own user file only. `presets`
- * is the built-in table (lane P's `presetById`); `resolveHost` answers DNS
- * for the address check. A repository file is never read here: callers pass
- * the user file's content, so a workspace's `providers.json` cannot aim a
- * run elsewhere.
- */
+Resolve a provider id against the runner's own user file only. `presets`
+is the built-in table (lane P's `presetById`); `resolveHost` answers DNS
+for the address check. A repository file is never read here: callers pass
+the user file's content, so a workspace's `providers.json` cannot aim a
+run elsewhere.
+*/
 export async function resolveProvider(
   file: ProvidersFile,
   providerId: string,
@@ -343,10 +343,10 @@ export function isEndpointBindingCurrent(
 export type ProviderCredentialError = 'no-secret' | 'unparseable' | 'origin-mismatch'
 
 /**
- * The provider's key from the secret store: parsed, present, and bound to
- * the resolved origin. An edited file aiming elsewhere refuses here and the
- * caller asks for the credential again, naming both origins.
- */
+The provider's key from the secret store: parsed, present, and bound to
+the resolved origin. An edited file aiming elsewhere refuses here and the
+caller asks for the credential again, naming both origins.
+*/
 export async function readProviderKey(
   secrets: { get(key: string): PromiseLike<string | undefined> },
   provider: ResolvedProvider,
@@ -437,26 +437,26 @@ function endPinnedBody(
 }
 
 /**
- * Whether an answer's status refuses the request instead of being
- * followed: redirects are refused like `redirect: 'error'`, never
- * followed. Pure — `sendPinned` calls this on every answer's status — so
- * the refusal is provable with statuses as plain input and nothing
- * answering; the end-to-end behaviour is proven by the real-life run
- * through the packed product (docs/certification/auditsec0190b.md).
- */
+Whether an answer's status refuses the request instead of being
+followed: redirects are refused like `redirect: 'error'`, never
+followed. Pure — `sendPinned` calls this on every answer's status — so
+the refusal is provable with statuses as plain input and nothing
+answering; the end-to-end behaviour is proven by the real-life run
+through the packed product (docs/certification/auditsec0190b.md).
+*/
 export function isRedirectRefusal(statusCode: number | undefined): boolean {
   return statusCode !== undefined && HTTP_REDIRECT_STATUSES.has(statusCode)
 }
 
 /**
- * One request to the checked address: Node's HTTP stack dials it through a
- * `lookup` that answers that address only, so the address checked is the
- * address dialled even when DNS changes in between (DNS rebinding). TLS
- * still sends and verifies the original name (`servername` defaults to it)
- * and the `Host` header carries it, as web fetch's pinned transport does
- * (`src/host/web/pinnedRequest.ts`). Answers a fetch `Response`; redirects
- * are refused like `redirect: 'error'`.
- */
+One request to the checked address: Node's HTTP stack dials it through a
+`lookup` that answers that address only, so the address checked is the
+address dialled even when DNS changes in between (DNS rebinding). TLS
+still sends and verifies the original name (`servername` defaults to it)
+and the `Host` header carries it, as web fetch's pinned transport does
+(`src/host/web/pinnedRequest.ts`). Answers a fetch `Response`; redirects
+are refused like `redirect: 'error'`.
+*/
 function sendPinned(url: URL, init: RequestInit | undefined, address: string): Promise<Response> {
   const isTls = url.protocol === 'https:'
   const headers = new Headers(init?.headers ?? {})
@@ -523,14 +523,14 @@ function sendPinned(url: URL, init: RequestInit | undefined, address: string): P
 }
 
 /**
- * The origin pin in front of the provider: only `https:` (or `http:` to the
- * pinned loopback origin) on the resolved origin, with no userinfo, query
- * (except the codec's own) or fragment, and only an allowlisted path. The
- * name is resolved once per request, the answers are checked against the
- * saved network, and the request dials the checked address itself — never a
- * name looked up again at connect time. A refusal throws before anything is
- * sent.
- */
+The origin pin in front of the provider: only `https:` (or `http:` to the
+pinned loopback origin) on the resolved origin, with no userinfo, query
+(except the codec's own) or fragment, and only an allowlisted path. The
+name is resolved once per request, the answers are checked against the
+saved network, and the request dials the checked address itself — never a
+name looked up again at connect time. A refusal throws before anything is
+sent.
+*/
 function bareOriginOf(url: URL): string | undefined {
   // `originOf` refuses any URL with a query or fragment, but the codec's
   // own query (list filters, Gemini's `alt=sse`) is ruled per path below;
@@ -542,13 +542,13 @@ function bareOriginOf(url: URL): string | undefined {
 }
 
 /**
- * A provider request URL through the origin pin and path allowlist, or
- * undefined when it fails the pin: a non-string, an unparsable address,
- * userinfo, a foreign origin, a scheme other than `https:` (`http:` only
- * to the pinned loopback origin), a fragment, or a path outside the
- * allowlist. Shared by both pin shapes below; each names the refusal its
- * own way.
- */
+A provider request URL through the origin pin and path allowlist, or
+undefined when it fails the pin: a non-string, an unparsable address,
+userinfo, a foreign origin, a scheme other than `https:` (`http:` only
+to the pinned loopback origin), a fragment, or a path outside the
+allowlist. Shared by both pin shapes below; each names the refusal its
+own way.
+*/
 function parsePinnedUrl(
   provider: ResolvedProvider,
   rules: readonly ProviderPathRule[],
@@ -712,12 +712,12 @@ export type ProviderAssemblyFailure =
   | { readonly kind: 'auth'; readonly reason: string }
 
 /**
- * Resolve a provider run from the runner's own user file: the provider, a
- * model naming it, a bound credential (standard input or the store), a
- * re-checked endpoint, and the pinned fetch. Usage failures are the
- * caller's mistake; auth failures need a key. The turn itself is lane T/I's
- * `ProviderExecRunner` seam (`runExec.ts`); this function never sends one.
- */
+Resolve a provider run from the runner's own user file: the provider, a
+model naming it, a bound credential (standard input or the store), a
+re-checked endpoint, and the pinned fetch. Usage failures are the
+caller's mistake; auth failures need a key. The turn itself is lane T/I's
+`ProviderExecRunner` seam (`runExec.ts`); this function never sends one.
+*/
 export async function assembleProviderRun(input: ProviderRunInput): Promise<
   | {
       readonly ok: true

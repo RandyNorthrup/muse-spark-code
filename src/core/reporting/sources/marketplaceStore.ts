@@ -31,10 +31,10 @@ const extensionSchema = z.looseObject({
 })
 
 /**
- * The default Marketplace channel adapter: latest gallery version, `version`
- * only. The publisher and name come from the workspace manifest, never a
- * hard-coded extension.
- */
+The default Marketplace channel adapter: latest gallery version, `version`
+only. The publisher and name come from the workspace manifest, never a
+hard-coded extension.
+*/
 export function marketplaceStoreAdapter(publisher: string, name: string): ReportStoreAdapter {
   const url = `https://${MARKETPLACE_HOST}/_apis/public/gallery/extensionquery?api-version=${MARKETPLACE_API_VERSION}`
   const body = JSON.stringify({

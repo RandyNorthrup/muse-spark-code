@@ -926,10 +926,10 @@
         },
         "museSpark.hooksMaxStopContinuations": {
           "type": "number",
-          "default": 8,
+          "default": 0,
           "scope": "machine",
           "description": "%config.hooksMaxStopContinuations.description%",
-          "minimum": 1,
+          "minimum": 0,
           "maximum": 8
         },
         "museSpark.hooksMaxRunningCommands": {
@@ -941,10 +941,10 @@
         },
         "museSpark.subagentMaxConcurrent": {
           "type": "number",
-          "default": 8,
+          "default": 0,
           "scope": "machine",
           "description": "%config.subagentMaxConcurrent.description%",
-          "minimum": 1,
+          "minimum": 0,
           "maximum": 64
         },
         "museSpark.modelApiShellKeepsDirectory": {
@@ -1051,7 +1051,7 @@
         },
         "museSpark.modelApiMaxToolOutputBytes": {
           "type": "integer",
-          "default": 64000,
+          "default": 0,
           "description": "%config.modelApiMaxToolOutputBytes.description%",
           "scope": "machine"
         },
@@ -1422,24 +1422,33 @@
           "scope": "machine"
         },
         "museSpark.resourceCpuMaxPercent": {
-          "type": "number",
-          "default": 85,
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
           "minimum": 30,
           "maximum": 100,
           "description": "%config.resourceCpuMaxPercent.description%",
           "scope": "machine"
         },
         "museSpark.resourceMemoryMaxPercent": {
-          "type": "number",
-          "default": 90,
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
           "minimum": 40,
           "maximum": 98,
           "description": "%config.resourceMemoryMaxPercent.description%",
           "scope": "machine"
         },
         "museSpark.resourceMemoryMinFreeGiB": {
-          "type": "number",
-          "default": 2,
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
           "minimum": 0.5,
           "maximum": 64,
           "description": "%config.resourceMemoryMinFreeGiB.description%",
@@ -1495,7 +1504,7 @@
         },
         "museSpark.questions.deferAfterSeconds": {
           "type": "integer",
-          "default": 60,
+          "default": 0,
           "minimum": 0,
           "maximum": 3600,
           "description": "%config.questions.deferAfterSeconds.description%",
@@ -1526,10 +1535,10 @@
         },
         "museSpark.webSearchMaxPerRequest": {
           "type": "number",
-          "default": 5,
+          "default": 0,
           "scope": "machine",
           "description": "%config.webSearchMaxPerRequest.description%",
-          "minimum": 1,
+          "minimum": 0,
           "maximum": 20
         },
         "museSpark.modelApiMaxRetries": {
@@ -1634,8 +1643,8 @@
         },
         "museSpark.mediaMaxUploadMiB": {
           "type": "integer",
-          "default": 200,
-          "minimum": 1,
+          "default": 0,
+          "minimum": 0,
           "description": "%config.mediaMaxUploadMiB.description%",
           "scope": "machine"
         },
@@ -1649,8 +1658,8 @@
         },
         "museSpark.screenRecordingMaxSeconds": {
           "type": "integer",
-          "default": 120,
-          "minimum": 10,
+          "default": 0,
+          "minimum": 0,
           "maximum": 600,
           "description": "%config.screenRecordingMaxSeconds.description%",
           "scope": "machine"
@@ -1860,6 +1869,8 @@
     "check:roadmap": "node scripts/gen-roadmap.mjs --check",
     "check:usable-reply": "node scripts/check-usable-reply.mjs src",
     "check:wrap-up-request": "node scripts/check-wrap-up-request.mjs src/core/backends/modelapi/ModelApiHost.ts",
+    "check:no-output-cap": "node scripts/check-no-output-continuation-cap.mjs src/core/backends/modelapi/ModelApiHost.ts",
+    "check:no-round-cap": "node scripts/check-no-round-cap.mjs src/core/backends/modelapi/ModelApiHost.ts",
     "build:confine": "node scripts/build-confine.mjs",
     "roadmap:generate": "node scripts/gen-roadmap.mjs",
     "format": "prettier --write .",
@@ -1888,7 +1899,7 @@
     "test:integration:run": "vscode-test",
     "security:audit": "node scripts/audit.mjs",
     "security:secrets": "gitleaks git --redact --no-banner .",
-    "quality:gates": "run-s format:check lint typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap check:catches check:usable-reply check:wrap-up-request deadcode cycles duplication test:unit build security:audit",
+    "quality:gates": "run-s format:check lint typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap check:catches check:usable-reply check:wrap-up-request check:no-output-cap check:no-round-cap deadcode cycles duplication test:unit build security:audit",
     "quality": "run-s quality:gates test:a11y test:legal-a11y security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
@@ -1919,7 +1930,7 @@
     "{*.{json,jsonc,md,yml,yaml},!(vendor)/**/*.{json,jsonc,md,yml,yaml}}": "prettier --write"
   },
   "devDependencies": {
-    "@agentclientprotocol/sdk": "1.7.0",
+    "@agentclientprotocol/sdk": "1.8.0",
     "@eslint/js": "10.0.1",
     "@muse-code/sdk": "1.4.10",
     "@testing-library/dom": "10.4.2",
@@ -1927,7 +1938,7 @@
     "@testing-library/react": "16.3.3",
     "@types/jsdom": "30.0.0",
     "@types/mocha": "10.0.10",
-    "@types/node": "22.20.4",
+    "@types/node": "22.20.5",
     "@types/pngjs": "6.0.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
@@ -1937,28 +1948,28 @@
     "@vscode/test-cli": "0.0.15",
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "4.0.0",
-    "axe-core": "4.13.0",
+    "axe-core": "4.14.0",
     "dpdm": "4.3.0",
     "esbuild": "0.28.2",
-    "eslint": "10.11.0",
+    "eslint": "10.12.0",
     "eslint-plugin-react-hooks": "7.1.1",
-    "eslint-plugin-unicorn": "76.0.0",
+    "eslint-plugin-unicorn": "77.0.0",
     "husky": "9.1.7",
-    "jscpd": "5.4.0",
-    "jsdom": "30.1.1",
-    "knip": "6.39.0",
+    "jscpd": "5.4.1",
+    "jsdom": "30.1.2",
+    "knip": "6.41.0",
     "lint-staged": "17.6.0",
     "npm-run-all2": "9.0.3",
     "ovsx": "1.2.0",
-    "playwright-core": "1.63.0",
-    "prettier": "3.9.9",
+    "playwright-core": "1.64.0",
+    "prettier": "3.9.10",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "rimraf": "6.1.3",
-    "stylelint": "17.15.0",
+    "stylelint": "17.16.0",
     "stylelint-config-standard": "40.0.0",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.70.1",
+    "typescript-eslint": "8.71.1",
     "vitest": "5.0.3",
     "yaml": "2.9.1",
     "zod": "4.6.5"
@@ -1969,19 +1980,19 @@
     "source-map-js": "1.2.2"
   },
   "dependencies": {
-    "@napi-rs/keyring": "2.1.0",
+    "@napi-rs/keyring": "2.1.1",
     "highlight.js": "11.12.0",
     "html-encoding-sniffer": "7.0.0",
     "jpeg-js": "0.4.4",
     "lz-string": "1.5.0",
-    "mdast-util-from-markdown": "2.0.3",
+    "mdast-util-from-markdown": "2.1.0",
     "mdast-util-gfm": "3.1.0",
-    "mdast-util-to-markdown": "2.1.3",
+    "mdast-util-to-markdown": "2.2.0",
     "micromark-extension-gfm": "3.0.0",
     "parse5": "8.0.1",
     "pngjs": "7.0.0",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
-    "smol-toml": "1.9.0"
+    "smol-toml": "1.9.1"
   }
 }

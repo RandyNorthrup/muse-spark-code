@@ -41,14 +41,10 @@ import {
   type WindowsVaultPipeClient,
   type WindowsVaultPipeHelper,
 } from '../../core/vault/broker/windowsPipe'
-import {
-  monitoredDescriptor,
-  monitoredFileWriter,
-  replaceFileContent,
-} from '../../core/vault/broker/files'
 import type { VaultPrivateFilesPort, VaultFileWriter } from '../../core/vault/broker/files'
+import { privateFileWriter } from '../../core/vault/broker/files'
 import { collectSlotChunk, drainSlotStderr, watchSlotChildErrors } from './slots/slotChild'
-import { spawnGuardedHelper, type WindowsVaultExecutable } from './slots/windowsVaultTransport'
+import { spawnGuardedVaultHelper, type WindowsVaultExecutable } from './slots/windowsVaultTransport'
 
 /** A new random pipe name per broker start, published only in the owner-only lock file. */
 export function windowsVaultPipeName(): string {
@@ -149,10 +145,10 @@ export function adaptPipeRelayChild(child: SpawnedPipeChild): PipeRelayChild {
 }
 
 /**
- * One guarded helper process and its relay frames. Serve mode additionally
- * owns the pipe the channel listens on; files mode answers file and
- * native-identity queries for hosts and CLIs.
- */
+One guarded helper process and its relay frames. Serve mode additionally
+owns the pipe the channel listens on; files mode answers file and
+native-identity queries for hosts and CLIs.
+*/
 export class PipeRelay {
   private readonly chunks: Buffer[] = []
   private size = 0
@@ -447,11 +443,11 @@ const fileCommandSchema = z.strictObject({
 })
 
 /**
- * The `files` side of one relay: owner-only DACL commands for the store and
- * the broker's private files, plus the native server/process identity reads
- * for the client side. `refused` maps like the design says (store → io, files
- * → noAccess); `missing` is always an ENOENT-coded error.
- */
+The `files` side of one relay: owner-only DACL commands for the store and
+the broker's private files, plus the native server/process identity reads
+for the client side. `refused` maps like the design says (store → io, files
+→ noAccess); `missing` is always an ENOENT-coded error.
+*/
 export class WindowsPipeFiles {
   constructor(
     private readonly relay: PipeRelay,
@@ -509,13 +505,32 @@ export async function inspectWindowsProcess(
 }
 
 /**
- * The broker's private files on Windows: Node's filesystem calls with the
- * helper's owner-only DACL commands around them. There is no O_NOFOLLOW on
- * Windows, so every read and write verifies first (the helper refuses
- * reparse points in the path and its ancestors and any non-owner DACL);
- * only the broker's own user can pass that check, and code running as the
- * same user is outside D89.15's scope, exactly like the pipe itself.
- */
+Reopen a replaced relay file after the relay guard re-verifies it: the
+stale descriptor is closed and only a verified owner-only file is
+returned. Any failure keeps its meaning with the old file unreplaced.
+*/
+function reopenRelayDescriptor(helperFile: string, path: string, stale: number): number {
+  closeSync(stale)
+  verifyWindowsVaultFileSync(helperFile, path)
+  const replacement = openSync(path, 'a')
+  const resample = fstatSync(replacement)
+  try {
+    if (!resample.isFile()) throw new Error(UI_TEXT.vault.noAccess)
+  } catch (error: unknown) {
+    closeSync(replacement)
+    throw error
+  }
+  return replacement
+}
+
+/**
+The broker's private files on Windows: Node's filesystem calls with the
+helper's owner-only DACL commands around them. There is no O_NOFOLLOW on
+Windows, so every read and write verifies first (the helper refuses
+reparse points in the path and its ancestors and any non-owner DACL);
+only the broker's own user can pass that check, and code running as the
+same user is outside D89.15's scope, exactly like the pipe itself.
+*/
 export class WindowsVaultPrivateFiles implements VaultPrivateFilesPort {
   constructor(
     private readonly guard: WindowsPipeFiles,
@@ -627,50 +642,33 @@ export class WindowsVaultPrivateFiles implements VaultPrivateFilesPort {
       descriptor = null
       throw new Error(UI_TEXT.vault.noAccess)
     }
-    const current = (): number =>
-      monitoredDescriptor(
-        () => descriptor,
-        (fd) => {
-          descriptor = fd
-        },
-        path,
-        (target) => {
-          verifyWindowsVaultFileSync(this.helperFile, target)
-          const replacement = openSync(target, 'a')
-          if (!fstatSync(replacement).isFile()) {
-            closeSync(replacement)
-            throw new Error(UI_TEXT.vault.noAccess)
-          }
-          return replacement
-        },
-      )
-    return monitoredFileWriter({
+    const current = (): number => {
+      if (descriptor === null) throw new Error(UI_TEXT.vault.locked)
+      if (!sameFile(handleIdentitySync(descriptor), lstatIdentitySync(path))) {
+        descriptor = reopenRelayDescriptor(this.helperFile, path, descriptor)
+      }
+      return descriptor
+    }
+    return privateFileWriter(path, {
       current,
-      replace: (bytes) => {
-        replaceFileContent(path, bytes, {
-          current,
-          open: (temporary) =>
-            openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL),
-          syncDirectory: (directory) => openSync(directory, 'r'),
-          adopt: (fd) => {
-            descriptor = fd
-          },
-        })
+      adopt: (fd) => {
+        descriptor = fd
       },
-      close: () => {
+      release: () => {
         if (descriptor === null) return
         closeSync(descriptor)
         descriptor = null
       },
+      tempFlags: constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL,
     })
   }
 }
 
 /**
- * One synchronous helper round trip for the synchronous writer: the mode
- * line plus one `verify` file frame into the digest-pinned executable,
- * answered before the timeout. Anything else fails closed.
- */
+One synchronous helper round trip for the synchronous writer: the mode
+line plus one `verify` file frame into the digest-pinned executable,
+answered before the timeout. Anything else fails closed.
+*/
 function pipeRefused(): Error {
   return new Error(UI_TEXT.vault.noAccess)
 }
@@ -741,7 +739,14 @@ async function spawnPipeRelay(
   pipe: string | null,
   signal?: AbortSignal,
 ): Promise<PipeRelay> {
-  const { child, stop } = await spawnGuardedHelper(helper)
+  if (
+    !pathModule.isAbsolute(helper.file) ||
+    !helper.file.toLowerCase().endsWith('.exe') ||
+    !pathModule.isAbsolute(helper.powershell) ||
+    !/^[a-f0-9]{64}$/u.test(helper.sha256)
+  )
+    throw new Error(UI_TEXT.vault.noAccess)
+  const { child, stop } = await spawnGuardedVaultHelper(helper)
   const relay = new PipeRelay(adaptPipeRelayChild(child), () => stop(), mode, pipe)
   watchSlotChildErrors(child, signal, () => {
     relay.fail(new Error(UI_TEXT.vault.noAccess))
@@ -865,9 +870,9 @@ export async function startWindowsPipeServe(
 }
 
 /**
- * Files mode: owner-only file commands and native identity reads.
- * @unwired M109 Windows broker files mode (waits on the Windows broker join)
- */
+Files mode: owner-only file commands and native identity reads.
+@unwired M109 Windows broker files mode (waits on the Windows broker join)
+*/
 export async function startWindowsPipeFiles(
   helper: WindowsVaultExecutable,
   signal?: AbortSignal,

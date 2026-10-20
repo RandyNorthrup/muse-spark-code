@@ -1,6 +1,3 @@
-import { execResourceFile } from '../../core/resources/launcher'
-import { constants as fsConstants, existsSync, realpathSync } from 'node:fs'
-import { open, opendir, realpath } from 'node:fs/promises'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   EXEC_UNTRUSTED_FILE_MAX_BYTES,
@@ -9,13 +6,6 @@ import {
   REPORT_STORAGE_LINK_COUNT,
   REPORT_SOURCE_TIMEOUT_MS,
 } from '../../shared/constants'
-import { isPrivateFileName } from '../../shared/privateFiles'
-import { withoutCredentials } from '../../core/credentialEnvironment'
-import { resolveAllExecutables, workspaceChildEnvironment } from '../../core/executables'
-import { handleIdentity, lstatIdentity, sameFile, statIdentity } from '../../core/fs/fileIdentity'
-import { pathModule } from '../../core/workspaceRoot'
-import { isBelow, resolveWorkspacePath } from '../../core/workspacePath'
-import { createLocalReportSources, type LocalReportSourceDeps } from '../../core/reporting/sources'
 import {
   LocalSourceError,
   reportWorkspaceKey,
@@ -32,6 +22,16 @@ import {
   type AgentUsageFile,
   type AgentUsageFiles,
 } from '../../core/reporting/sources/agentUsage'
+import { resolveAllExecutables, workspaceChildEnvironment } from '../../core/execGuard'
+import { execResourceFile } from '../../core/resources/launcher'
+import { constants as fsConstants, existsSync, realpathSync } from 'node:fs'
+import { open, opendir, realpath } from 'node:fs/promises'
+import { isPrivateFileName } from '../../shared/privateFiles'
+import { withoutCredentials } from '../../core/credentialEnvironment'
+import { handleIdentity, lstatIdentity, sameFile, statIdentity } from '../../core/fs/fileIdentity'
+import { pathModule } from '../../core/workspaceRoot'
+import { isBelow, resolveWorkspacePath } from '../../core/workspacePath'
+import { createLocalReportSources, type LocalReportSourceDeps } from '../../core/reporting/sources'
 
 function isPrivatePath(file: string): boolean {
   return file
@@ -44,13 +44,13 @@ function isPrivatePath(file: string): boolean {
     )
 }
 /**
- * One confined, regular-file descriptor. NOLIMITS1FIX: the removed 16 MiB
- * bound was invented — the default reads at any size. The chunks decode
- * straight into the returned string through one streaming decoder, so a
- * large source is never held as retained chunks plus a second concatenated
- * buffer plus the string on top. An explicit finite `maxBytes` (the
- * untrusted-file bound one caller passes) still refuses past itself.
- */
+One confined, regular-file descriptor. NOLIMITS1FIX: the removed 16 MiB
+bound was invented — the default reads at any size. The chunks decode
+straight into the returned string through one streaming decoder, so a
+large source is never held as retained chunks plus a second concatenated
+buffer plus the string on top. An explicit finite `maxBytes` (the
+untrusted-file bound one caller passes) still refuses past itself.
+*/
 export function reportFileIo(
   root: string,
   platform: NodeJS.Platform,
@@ -219,8 +219,7 @@ export function reportGitIo(
     platform,
     pathVariable: env['PATH'] ?? env['Path'],
     fileExists: existsSync,
-    workspaceRoot: root,
-    realpath: realpathSync,
+    scope: { workspaceRoot: root, realpath: realpathSync },
   })
   const childEnvironment = workspaceChildEnvironment(
     platform,

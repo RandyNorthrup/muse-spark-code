@@ -20,11 +20,11 @@ export interface TierPrice {
   readonly output: UsdAmount
 }
 /**
- * EXECPROV round 6: which input bound a ticket's reservation used. `exact`
- * is the provider's same-body count; `bytes-after-failure` is the byte bound
- * after an exact count was tried and failed. Absent is the legacy path, which
- * never tried an exact count.
- */
+EXECPROV round 6: which input bound a ticket's reservation used. `exact`
+is the provider's same-body count; `bytes-after-failure` is the byte bound
+after an exact count was tried and failed. Absent is the legacy path, which
+never tried an exact count.
+*/
 export type ResponseInputBound = 'exact' | 'estimate' | 'bytes-after-failure'
 export interface ResponseTicket {
   readonly contextTokens?: number | undefined
@@ -70,15 +70,15 @@ export interface SettlementResult {
   latch?: 'accounting_invalid' | 'breach'
 }
 /**
- * The run's one resolved output cap: the policy cap by default, lowered by an
- * explicit `--max-output-tokens` that never exceeds it. A resolved provider
- * policy always replaces the cached value: the first no-arg call runs before
- * model resolution, when `modelPolicyFor` has no provider evidence and can
- * only see the global Model API cap, while the model bind (`wrap`, through
- * `modelOutputMaxTokens`) and every request body carry the resolved policy.
- * Caching that first global would pin an oversized cap — and its reservation
- * — onto a model whose provider maximum is lower.
- */
+The run's one resolved output cap: the policy cap by default, lowered by an
+explicit `--max-output-tokens` that never exceeds it. A resolved provider
+policy always replaces the cached value: the first no-arg call runs before
+model resolution, when `modelPolicyFor` has no provider evidence and can
+only see the global Model API cap, while the model bind (`wrap`, through
+`modelOutputMaxTokens`) and every request body carry the resolved policy.
+Caching that first global would pin an oversized cap — and its reservation
+— onto a model whose provider maximum is lower.
+*/
 export function createExecOutputCap(input: {
   readonly model: () => string | null
   readonly maxOutputTokens: number | undefined
@@ -188,10 +188,10 @@ function freezeResponseTicket(
 }
 
 /**
- * Quote the start reservation without spending, consuming this run's request
- * count, or admitting it against the run cap: a valid low budget stays
- * quotable so the caller reports its own minimum, never an unpriced model.
- */
+Quote the start reservation without spending, consuming this run's request
+count, or admitting it against the run cap: a valid low budget stays
+quotable so the caller reports its own minimum, never an unpriced model.
+*/
 export function previewResponseReservation(
   ledger: RunLedger,
   model: string,

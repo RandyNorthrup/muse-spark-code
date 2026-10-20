@@ -61,9 +61,9 @@ const PRIVATE_FILE = 0o600
 const NUMBER_TOKEN = /\d(?:[\d.,']|\s(?=\d))*/g
 
 /**
- * True for a usable Model API key value: nonempty, single-line, within the
- * byte bound and matching the key pattern. Never echoes the value.
- */
+True for a usable Model API key value: nonempty, single-line, within the
+byte bound and matching the key pattern. Never echoes the value.
+*/
 export function isValidModelApiKey(value) {
   return (
     typeof value === 'string' &&
@@ -75,10 +75,10 @@ export function isValidModelApiKey(value) {
 }
 
 /**
- * The key from the run step's environment, which is deleted at once. One
- * trailing LF is stripped; empty, multi-line, oversize or malformed keys
- * are refused (undefined) without echoing anything.
- */
+The key from the run step's environment, which is deleted at once. One
+trailing LF is stripped; empty, multi-line, oversize or malformed keys
+are refused (undefined) without echoing anything.
+*/
 export function takeModelApiKey(env) {
   const raw = env[KEY_VARIABLE]
   Reflect.deleteProperty(env, KEY_VARIABLE)
@@ -131,11 +131,11 @@ export function execArguments({ agentJs, paths, inputs }) {
 }
 
 /**
- * A patch Git renders as binary, that holds a NUL byte or that is not UTF-8
- * is withheld whole. The NUL check is Git's own binary test applied to the
- * patch itself, so a repository's .gitattributes cannot turn a binary file
- * into a textual diff that passes.
- */
+A patch Git renders as binary, that holds a NUL byte or that is not UTF-8
+is withheld whole. The NUL check is Git's own binary test applied to the
+patch itself, so a repository's .gitattributes cannot turn a binary file
+into a textual diff that passes.
+*/
 export function isBinaryPatch(bytes) {
   if (bytes.includes(0)) return true
   let text
@@ -254,10 +254,10 @@ function revokePatch(paths) {
 }
 
 /**
- * A stopped or failed wrapper publishes nothing (SPEC §6.1 step 8, RVM80CD
- * P2-2): whatever reached out/ before the stop is removed, synchronously, and
- * the report no longer offers a result. Ordinary exec failures keep theirs.
- */
+A stopped or failed wrapper publishes nothing (SPEC §6.1 step 8, RVM80CD
+P2-2): whatever reached out/ before the stop is removed, synchronously, and
+the report no longer offers a result. Ordinary exec failures keep theirs.
+*/
 export function revokeIfStopped(report, owner, paths) {
   if (!owner.stopped && !report.wrapperFailed) return
   rmSync(paths.result, { force: true })
@@ -274,13 +274,13 @@ function interruptedReason(report, owner) {
 }
 
 /**
- * The fix patch (SPEC §6.5): only after a valid completed result with exec
- * code 0. Intent-to-add plus `git diff --binary` against the exact head into
- * private staging; a binary patch is withheld whole; the trusted scanner
- * reads the exact staged bytes; a clean patch and its manifest are moved
- * into out/ unchanged, or neither is. Returns the withholding reason ('' when
- * published or when there was no change) and whether a patch was published.
- */
+The fix patch (SPEC §6.5): only after a valid completed result with exec
+code 0. Intent-to-add plus `git diff --binary` against the exact head into
+private staging; a binary patch is withheld whole; the trusted scanner
+reads the exact staged bytes; a clean patch and its manifest are moved
+into out/ unchanged, or neither is. Returns the withholding reason ('' when
+published or when there was no change) and whether a patch was published.
+*/
 async function proposePatch(input) {
   const { owner, result, execCode } = input
   if (result === null) return { withheld: 'no_result', published: false }
@@ -304,9 +304,9 @@ async function proposePatch(input) {
 }
 
 /**
- * The whole run under one owner. Returns the report the outputs and exit
- * code come from; never throws for an ordinary stop or failure.
- */
+The whole run under one owner. Returns the report the outputs and exit
+code come from; never throws for an ordinary stop or failure.
+*/
 export async function runProposal(input) {
   const { owner, paths, inputs, key, log } = input
   const report = {

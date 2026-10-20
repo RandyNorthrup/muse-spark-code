@@ -52,10 +52,10 @@ export async function runLegalScan(request: LegalScanRequest): Promise<LegalScan
 }
 
 /**
- * The release build's check of its own bundle records (M97 CM971-R3):
- * every enumeration and build-evidence problem, unbounded. Empty only when
- * every input, generated module and output is attributed and fresh.
- */
+The release build's check of its own bundle records (M97 CM971-R3):
+every enumeration and build-evidence problem, unbounded. Empty only when
+every input, generated module and output is attributed and fresh.
+*/
 export async function verifyLegalBuildRecords(workspaceRoot: string): Promise<readonly string[]> {
   const snapshot = await createLegalSnapshot(workspaceRoot)
   return [...snapshot.incompleteChecks, ...buildRecordProblems(snapshot)]

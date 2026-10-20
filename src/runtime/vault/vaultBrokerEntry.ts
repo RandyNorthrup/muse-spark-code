@@ -9,11 +9,7 @@ export { setUiText } from '../../shared/l10n/text'
 import { isCredentialVariable } from '../../core/credentialEnvironment'
 import * as z from 'zod/mini'
 import { VaultBroker } from '../../core/vault/broker/broker'
-import {
-  VaultChannelServer,
-  type VaultChannelDeps,
-  type VaultSecuredListenerPort,
-} from '../../core/vault/broker/channel'
+import { VaultChannelServer, type VaultChannelDeps } from '../../core/vault/broker/channel'
 import { VaultManagement } from '../../core/vault/broker/management'
 import {
   VaultStoreRepository,
@@ -26,7 +22,7 @@ import type { VaultSlotRecord } from '../../shared/vault'
 import { VaultLockEpoch } from '../../core/vault/broker/epoch'
 import { UnixVaultPrivateFiles, type VaultPrivateFilesPort } from '../../core/vault/broker/files'
 import { UnixVaultPeerVerifier, type VaultPeerVerifier } from '../../core/vault/broker/peer'
-import { type VaultBrokerDeps } from '../../core/vault/broker/ports'
+import { type VaultBrokerDeps, type VaultSecuredListenerPort } from '../../core/vault/broker/ports'
 import { NodeVaultFiles } from '../../core/vault/store'
 import { KeyringVaultAnchor } from './keyringAnchor'
 import { type KeyringEntryFactory } from '../keyStore'
@@ -104,10 +100,10 @@ export interface VaultBrokerBindings {
   readonly slots?: VaultSlotProvider
   readonly keyring?: KeyringEntryFactory
   /**
-   * The rollback anchor the bindings chose: the OS store where its binding
-   * is installed, the owner-only file anchor where it is not. Absent for
-   * foreign constructors, which keep the keyring anchor below.
-   */
+  The rollback anchor the bindings chose: the OS store where its binding
+  is installed, the owner-only file anchor where it is not. Absent for
+  foreign constructors, which keep the keyring anchor below.
+  */
   readonly anchor?: VaultAnchorPort
   readonly peers?: VaultPeerVerifier
   readonly privateFiles?: VaultPrivateFilesPort
@@ -116,10 +112,10 @@ export interface VaultBrokerBindings {
 }
 
 /**
- * This platform's slots: DPAPI/CNG/Hello on Windows, Keychain plus the
- * Secure Enclave on macOS, Secret Service plus the TPM2 sealed object on
- * Linux. The same selection serves every editor on the machine.
- */
+This platform's slots: DPAPI/CNG/Hello on Windows, Keychain plus the
+Secure Enclave on macOS, Secret Service plus the TPM2 sealed object on
+Linux. The same selection serves every editor on the machine.
+*/
 export function defaultBrokerSlots(
   context: Pick<VaultBrokerContext, 'installRoot'> & {
     readonly windowsHelper?: z.infer<typeof windowsHelperSchema> | undefined
@@ -159,14 +155,14 @@ export function defaultBrokerSlots(
 }
 
 /**
- * One channel body for every starter: the starter owns the pipe or socket
- * and the claim, and supplies exactly what differs (files, keyring, peers,
- * epoch contention and the listener). Everything else runs the same.
- */
+One channel body for every starter: the starter owns the pipe or socket
+and the claim, and supplies exactly what differs (files, keyring, peers,
+epoch contention and the listener). Everything else runs the same.
+*/
 /**
- * Locking a broker process cancels a pending setup first; disposal only
- * disposes. One pair for every starter.
- */
+Locking a broker process cancels a pending setup first; disposal only
+disposes. One pair for every starter.
+*/
 export function brokerProcessLock(owned: {
   broker?: VaultBroker
   management?: VaultManagement
@@ -396,13 +392,13 @@ async function createWindowsVaultBrokerProcess(
 }
 
 /**
- * Entry-process shutdown: the signal handlers are armed before any startup
- * await, an early signal is buffered, and the buffer is re-checked after
- * startup (the same subscribe-then-recheck pattern as the guardian onLost
- * replay). A buffered signal closes the broker without announcing readiness.
- * The signal source is injectable for regression tests; production passes the
- * process object.
- */
+Entry-process shutdown: the signal handlers are armed before any startup
+await, an early signal is buffered, and the buffer is re-checked after
+startup (the same subscribe-then-recheck pattern as the guardian onLost
+replay). A buffered signal closes the broker without announcing readiness.
+The signal source is injectable for regression tests; production passes the
+process object.
+*/
 type VaultBrokerProcessHandle = Pick<
   Awaited<ReturnType<typeof createVaultBrokerProcess>>,
   'close' | 'closed'
@@ -410,6 +406,19 @@ type VaultBrokerProcessHandle = Pick<
 
 function streamError(): void {
   /* The socket, not these diagnostic streams, carries broker availability. */
+}
+
+/**
+Process-lifetime stream guards: readiness and diagnostic writes must stay
+harmless when the launcher closes its reading ends, through process exit.
+runVaultBrokerEntry's own guards come off when the entry settles, while a
+destroyed reader can still fail a pending write after that, so the entry
+process installs these once and never removes them. The installed entry
+does it in main; fixture children that bypass main do it themselves.
+*/
+export function guardBrokerProcessStreams(): void {
+  for (const stream of [process.stdin, process.stdout, process.stderr])
+    stream.on('error', streamError)
 }
 
 export async function runVaultBrokerEntry(
@@ -472,6 +481,49 @@ async function stopFailedServe(serve: { stop(): Promise<void> }): Promise<void> 
   }
 }
 
+/**
+The governor behind every broker admission. The installed entry and the
+session fixture children run this same wiring over their own generated
+paths, so a fixture broker admits exactly the way the product does. The
+loader differs only by packaging (the installed dist sibling versus a
+fixture bundle's static import); the validated export is the same typed
+build boundary either way.
+*/
+export async function configureBrokerResources(
+  context: Pick<VaultBrokerContext, 'dataDir' | 'runDirectory'>,
+  loadGovernor: () => Promise<Pick<typeof ResourceGovernor, 'createResources'>>,
+): Promise<() => void> {
+  // Same-build governor factory; validate its export before use (PLAN §8).
+  const module = await loadGovernor()
+  if (typeof module.createResources !== 'function') throw new TypeError(UI_TEXT.vault.brokerBlocked)
+  const resources = await module.createResources(
+    {
+      machineDir: path.dirname(context.dataDir),
+      sleep: async (ms) => {
+        await delay(ms)
+      },
+      onError: resourceFailure,
+    },
+    UI_TEXT,
+    uiLocale(),
+  )
+  const disposeAdmission = configureResources({
+    // The broker owns a separate creation registry; live editor registries must not overwrite it.
+    registryFile: path.join(context.runDirectory, 'resource-created', 'registry.json'),
+    inspect: () => ({}),
+    onError: resourceFailure,
+    admission: async (request, signal) => {
+      await resources.status(signal)
+      signal?.throwIfAborted()
+      return await resources.admit(request, undefined, signal)
+    },
+  })
+  return () => {
+    disposeAdmission()
+    resources.dispose()
+  }
+}
+
 /** Internal child entry: only the installed sibling runtime may supply the trusted bindings. */
 async function main(): Promise<void> {
   for (const name of Object.keys(process.env))
@@ -487,43 +539,19 @@ async function main(): Promise<void> {
     ) => Promise<VaultBrokerBindings>
   }
   if (typeof runtime.createVaultBrokerBindings !== 'function')
-    throw new Error(UI_TEXT.vault.brokerBlocked)
+    throw new TypeError(UI_TEXT.vault.brokerBlocked)
   const createBindings = runtime.createVaultBrokerBindings
   let disposeResources: (() => void) | undefined
   try {
     await runVaultBrokerEntry(async () => {
-      // Same-build governor factory; validate its export before use (PLAN §8).
-      const module = createRequire(__filename)(path.join(__dirname, 'resourceGovernor.js')) as Pick<
-        typeof ResourceGovernor,
-        'createResources'
-      >
-      if (typeof module.createResources !== 'function') throw new Error(UI_TEXT.vault.brokerBlocked)
-      const resources = await module.createResources(
-        {
-          machineDir: path.dirname(context.dataDir),
-          sleep: async (ms) => {
-            await delay(ms)
-          },
-          onError: resourceFailure,
-        },
-        UI_TEXT,
-        uiLocale(),
+      disposeResources = await configureBrokerResources(context, () =>
+        Promise.resolve(
+          createRequire(__filename)(path.join(__dirname, 'resourceGovernor.js')) as Pick<
+            typeof ResourceGovernor,
+            'createResources'
+          >,
+        ),
       )
-      const disposeAdmission = configureResources({
-        // The broker owns a separate creation registry; live editor registries must not overwrite it.
-        registryFile: path.join(context.runDirectory, 'resource-created', 'registry.json'),
-        inspect: () => ({}),
-        onError: resourceFailure,
-        admission: async (request, signal) => {
-          await resources.status(signal)
-          signal?.throwIfAborted()
-          return await resources.admit(request, undefined, signal)
-        },
-      })
-      disposeResources = () => {
-        disposeAdmission()
-        resources.dispose()
-      }
       // Windows serves its pipe before the bindings exist: the serve
       // platform feeds the bindings, and the broker starts on that same
       // serve instead of serving twice. POSIX builds no serve here.
@@ -558,10 +586,7 @@ async function main(): Promise<void> {
   }
 }
 if (require.main === module) {
-  for (const stream of [process.stdin, process.stdout, process.stderr])
-    stream.on('error', () => {
-      /* Fixed failure diagnostics cannot depend on a surviving launcher's pipes. */
-    })
+  guardBrokerProcessStreams()
   void main().catch(() => {
     // Startup failed before readiness: the fixed word on stderr and a nonzero exit are the record.
     process.stderr.write('vault-broker-refused\n')
