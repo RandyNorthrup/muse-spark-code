@@ -322,6 +322,28 @@ function refused(reason: string): Extract<RuntimeCommand, { command: 'invalid' }
 }
 
 /**
+The option a `parseArgs` invalid-value throw names, without its value
+placeholder (`--range` from "Option '--range <value>' argument missing").
+Undefined when the throw names no option (an unexpected positional): that
+path never echoes the raw parser sentence either.
+*/
+function parserOptionName(error: unknown): string | undefined {
+  const message = error instanceof Error ? error.message : String(error)
+  return /^Option '(--[A-Za-z][A-Za-z0-9_-]*)/.exec(message)?.[1]
+}
+
+/**
+A known option's bad value names the option and the help that lists its
+accepted values, never the supplied value (D120 secret rule). Exec keeps
+its released sentence; every other topic follows its shape.
+*/
+function valueInvalidReason(topic: string, option: string): string {
+  return topic === 'exec'
+    ? fill(UI_TEXT.execValueInvalid, { option })
+    : fill(UI_TEXT.cliValueInvalid, { option, help: `${topic} --help` })
+}
+
+/**
 A strict-parser throw as a usage refusal (D120): a wrong option names the
 option, the topic's accepted options, and the nearest valid option when
 the name is close. Anything else keeps the parser's reason, still exit 2.
@@ -334,7 +356,12 @@ function invalidStrictOption(
   if (error instanceof Error && /unknown option/i.test(error.message)) {
     return refused(unknownOptionReason(UI_TEXT, ACP_AGENT_NAME, topic, valid, error.message))
   }
-  return refused(error instanceof Error ? error.message : String(error))
+  // A bad or missing value names the option and its help, never the value
+  // and never the parser's English sentence.
+  const option = parserOptionName(error)
+  if (option !== undefined) return refused(valueInvalidReason(topic, option))
+  const raw = error instanceof Error ? error.message : String(error)
+  return refused(unknownOptionReason(UI_TEXT, ACP_AGENT_NAME, topic, valid, raw))
 }
 
 /** An option-parser failure on one topic as its usage refusal (D120): a wrong
@@ -367,10 +394,7 @@ function enumRefusal(
     if (value === undefined || option.fact?.kind !== 'enum') continue
     if (typeof value === 'string' && option.fact.values.includes(value)) continue
     const optionName = `--${option.name}`
-    const reason =
-      topic === 'exec'
-        ? fill(UI_TEXT.execValueInvalid, { option: optionName })
-        : fill(UI_TEXT.acpUnknownArgument, { argument: optionName })
+    const reason = valueInvalidReason(topic, optionName)
     return refused(
       `${reason} (${fill(UI_TEXT.cliHelp.accepts, { values: option.fact.values.join('|') })})`,
     )
@@ -516,6 +540,20 @@ export function parseCommandLine<T>(
     try {
       return localSharing(argv)
     } catch (error: unknown) {
+      // The owner's parser throws the library's sentences: an unknown
+      // option names what the command accepts, a bad value names the
+      // option and its help, still exit 2. Anything else keeps the
+      // owner's own words, which never echo a credential.
+      if (error instanceof Error && 'code' in error) {
+        const root = argv[0] === 'prompts' ? 'prompts' : 'share'
+        const topic = helpTopicNamed(root)
+        if (
+          topic !== undefined &&
+          (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION' ||
+            error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+        )
+          return invalidStrictOption(topic.name, topicShownOptionNames(topic), error)
+      }
       return {
         command: 'invalid',
         reason: error instanceof Error ? error.message : UI_TEXT.promptFileInvalid,
@@ -640,7 +678,15 @@ export function parseCommandLine<T>(
     // Auth argv is never echoed: a mistyped token may be the key itself.
     if (argv.includes('auth'))
       return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp, exitCode: 2 }
-    return refused(error instanceof Error ? error.message : String(error))
+    // A bad or missing value names the option and the help that lists its
+    // accepted values: the parser's English sentence never reaches the
+    // person. The strict grammar is the serve family, so a bare wrong
+    // value belongs to serve and a named one to its command, as above.
+    const topicName = argv.find((argument) => helpTopicNamed(argument) !== undefined) ?? 'serve'
+    const topic = helpTopicNamed(topicName)
+    return topic === undefined
+      ? { ...invalid(topicName), exitCode: 2 }
+      : invalidStrictOption(topic.name, topicShownOptionNames(topic), error)
   }
   const { values, positionals } = parsed
   if (values.help === true) {
@@ -660,20 +706,21 @@ export function parseCommandLine<T>(
   if (enumError !== undefined) return enumError
   const backend = values.backend ?? ACP_DEFAULT_BACKEND
   if (!isOneOf(ACP_BACKENDS, backend)) {
-    // Auth argv is never echoed, but the misuse still owns exit 2.
+    // Auth argv is never echoed, but the misuse still owns exit 2. A bad
+    // value names the option and its help, never the supplied value.
     return positionals[0] === 'auth'
       ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp, exitCode: 2 }
-      : invalid(`--backend ${backend}`)
+      : refused(valueInvalidReason('serve', '--backend'))
   }
   const shellSandbox = values['shell-sandbox'] ?? SETTING_DEFAULTS.shellSandbox
   if (!isOneOf(SHELL_SANDBOX_MODES, shellSandbox)) {
     return positionals[0] === 'auth'
       ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp, exitCode: 2 }
-      : invalid(`--shell-sandbox ${shellSandbox}`)
+      : refused(valueInvalidReason('serve', '--shell-sandbox'))
   }
   const paidFeatures = paidFeaturesOf(values)
   if (values['usage-history'] !== undefined && !['on', 'off'].includes(values['usage-history']))
-    return { ...invalid('--usage-history'), exitCode: 2 }
+    return refused(valueInvalidReason('serve', '--usage-history'))
   const rawSeconds = values['questions-defer-after']
   const questionsDeferAfterSeconds =
     rawSeconds === undefined ? questionDeferSeconds() : questionDeferSeconds(Number(rawSeconds))
@@ -681,7 +728,7 @@ export function parseCommandLine<T>(
     questionsDeferAfterSeconds === undefined ||
     (rawSeconds !== undefined && !/^\d+$/.test(rawSeconds))
   )
-    return { ...invalid(`--questions-defer-after ${rawSeconds ?? ''}`), exitCode: 2 }
+    return refused(valueInvalidReason('serve', '--questions-defer-after'))
   const [firstPaid] = paidFeatures
   if (firstPaid !== undefined && backend !== 'modelApi') {
     return {
