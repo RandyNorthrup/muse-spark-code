@@ -18,7 +18,7 @@ function limit(
   overrides: Partial<UsageLimitSnapshot> & { source: UsageLimitSnapshot['source'] },
 ): UsageLimitSnapshot {
   return usageLimitSnapshotSchema.parse({
-    v: 2,
+    v: 3,
     type: 'limit',
     id: `limit-${String(overrides.observedAt ?? 1)}`,
     at: NOW,
