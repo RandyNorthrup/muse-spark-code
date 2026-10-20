@@ -7,7 +7,7 @@ import type { LaunchResolution } from '../core/backends/musecode/launch'
 import type { GuardedChildEnv } from '../core/executables'
 import { isValidModelApiKey, type SecretStore } from '../host/auth/credentialStore'
 import type { ProvidersFileRead } from '../core/providers/providersFile'
-import { distinctProviderLabels } from '../core/providers/distinctLabels'
+import { distinctProviderLabels } from '../shared/providerLabels'
 import {
   CREDENTIAL_RECORD_VERSION,
   type GITHUB_AUTH_ACTIONS,
