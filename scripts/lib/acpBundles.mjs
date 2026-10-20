@@ -120,6 +120,7 @@ export const ACP_BUNDLES = [
   'hookRuntime.js',
   'modelApiTools.js',
   'modelApiVerify.js',
+  'modelApiImage.js',
   'recorder.js',
   'reporting.js',
   'reportingNetwork.js',
