@@ -11614,6 +11614,7 @@ gui|tui`, an item in the bar's mark menu, and one in the TUI's menu.
     - **Kept current:** Electron ships a major every eight weeks with three
       supported; the desktop's image follows its security releases (OS2's
       channel).
+
 13. **The workbench feels like VS Code, arranged as the owner said.**
     - **Left: our chat and agents panel,** the existing panel unchanged, with
       the Agent map and board.
@@ -11869,6 +11870,7 @@ gui|tui`, an item in the bar's mark menu, and one in the TUI's menu.
         same numbers and keys where the terminal passes them through.
       - **Tested** on the compositor port's fake and by an image smoke test
         under headless Hyprland.
+
 16. **The system settings app is ours** (React in Electron, over sysd):
     Appearance, Displays, Sound, Network, Bluetooth, Cellular, Power and
     sleep, Keyboard (layouts, repeat, shortcuts), Input methods (fcitx5),
@@ -35461,29 +35463,35 @@ the repository's age policy and all other dependency filters stay unchanged.
   attempts had not closed the gap; fixing misplaced K15 recovery callbacks
   subsequently closed it. All total bundle caps also pass. Full composed
   certification still belongs to the lead.
+
 - **K-contract:** lane M supplies the shared Models schema; lane U supplies
   chat `setupComplete`. K tests use M's exact temporary source dependency,
   which is not committed. M must adopt strict `providers/edit` and scoped
   prefill variants. Follow-up: certify the final composed protocol/editor flow.
+
 - **K-recovery (superseded by PROVWIZ9, 2026-10-09):** provider Save validates
   before writing and retains completed provider/key/default/limit/model steps
   after a later failure, reporting every partial outcome. No rollback remains.
   The origin guard prevents an old key serving a newly saved origin. Same-host
   snapshot comparisons remain; cross-window provider/key serialization awaits
   PROVSTORE-LOCKLIB after M123. Shared-store crash atomicity remains follow-up.
+
 - **K-release-base merge:** local `origin/main` at `a95f24cf` conflicts in
   release/build files, every manifest translation, extension and constants.
   Merge was aborted; lead must reconcile the release base on integration.
   This preserves the lane and both sides' behavior rather than choosing a
   side wholesale. Full certification stays open.
+
 - **K-hook verification:** ignored Husky wrapper was missing; an early
   commit proceeded despite lint errors. `npm run prepare` regenerated the
   local `sh -e` wrapper with the same configured hook path. No bypass was
   used. Require the closing commit's positive lint/Gitleaks receipt.
+
 - **K-final-runtime:** live setup/OAuth/discovery, unsaved-draft scan
   cancellation, four themes, pseudo-locale and 320px remain integration gates.
   Focused host tests do not certify those surfaces. Final evidence and merge
   status are recorded in `docs/certification/m95-k.md`.
+
 - **M95MU-HOST-API-RECORD (2026-10-05, integration prerequisite).** The
   composed M/U tree's host API record still describes 30 commands rather
   than the 33 from lane 0 and names only the chat stylesheet. Its gate
@@ -35493,6 +35501,7 @@ the repository's age policy and all other dependency filters stay unchanged.
   Lane W / the lead must regenerate and review it on the fully integrated
   tree, where lane K also contributes APIs. The full quality gate remains
   required before integration is proposed.
+
 - **M95-H bundle registration (FIXM95H, 2026-10-05).** All seven RVM95RH
   codec/test findings are fixed; none is deferred. The independent Chat
   lane still lacks its entry in `scripts/check-bundle-split.mjs`, owned by
@@ -35501,6 +35510,7 @@ the repository's age policy and all other dependency filters stay unchanged.
   the build. Follow-up: lane W registers Chat, lane I supplies its caller's
   vision capability and tools-retaining compaction body, then the lead runs
   full integrated quality/live acceptance. No product-support claim here.
+
 - **M95 Ollama review repair (FIXM95O, 2026-10-05).** Rebuild the native
   codec against nine counted local Ollama 0.35.1 receipts before changing
   its parser: native tool index/id matching, caller-supplied session-unique
@@ -35521,6 +35531,7 @@ the repository's age policy and all other dependency filters stay unchanged.
   has 34 commands while the generated host record has 31. Safe only as an
   unmerged scaffold; follow-up: lane W regenerates/reviews the record before
   milestone certification. Both are observed gate failures, not green gates.
+
 - **Open documentation residual RVM95SC-R-host-api-record (2026-10-05).**
   The required merges leave five generated Node-import counts stale. The
   source/API membership is unchanged by the owned fixes, and actual counts
@@ -35730,6 +35741,7 @@ the lead's gates. The namespace export/type checks extend Knip's existing
 issue set without an ignore or lowered severity; value/type plants prove
 both guards fire. Scoped macmini evidence is recorded in
 `docs/certification/knip-constants.md`.
+
 **DEFLAKE4 lane (2026-10-05).** The named brief and common.md assign full
 quality, coverage and hosted certification to the lead; this lane runs the
 owning test file and scoped gates only. Full quality remains required before
@@ -35763,6 +35775,7 @@ local merge of the already-fetched `origin/main`, keeping both sides and
 renumbering nothing. Only changed-document formatting/Markdown checks and
 normal commit hooks run here; full quality remains the lead's joined-tree
 gate. The research record separates these receipts from runtime certification. 9. **Picker, first run and usage** (lane U). The first-run screen's
+
 **Start with your own model** (equal rank when no backend is set up),
 the walkthrough step, and the post-wizard confirmation. The wizard is
 step 8's, opened at "Pick a provider". 10. **ACP and headless** (lane X). 11. **Security** (lane S). 12. **Docs** (lane W). 13. **Captures with keys**, as the owner supplies them (Owner steps): for
@@ -35808,6 +35821,7 @@ no check, cap or ignore was changed. The inherited Model API bundle is
 426.5 KiB under main's existing 475 KiB gate, not compliant with common.md's
 older 400 KiB figure. Full quality and the later build-chain checks remain
 open. See `docs/certification/m94-0.md` for scoped tests and byte-exact drills.
+
 **MRG78 rig PowerShell analyzer unavailable.** The additional
 `npm run lint:ps` check fails before analysis because this Win11 rig has
 no PSScriptAnalyzer 1.25.0 module. JavaScript and CSS lint pass. Native
@@ -35884,6 +35898,7 @@ file untouched. W regenerates it with `npm run check:host-api -- --write`
 on the integrated tree and runs the unmodified check before certification.
 
 FIXM109PW's final check also has `node:crypto` **46 → 50** and `node:os`
+
 **9 → 10**, from the trusted build digest and protected temporary-directory
 fallback. The other counts above are unchanged. W owns this same generated
 snapshot handoff; the portable-module check and all build checks pass.
@@ -35986,7 +36001,9 @@ threshold, ignore or timeout is weakened.
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **MSM95 models-section budget 13 → 14 KiB (2026-10-17, macmini).** CM954 R4's required saved-model editor UI (the validated per-model context-window field, `src/webview/models/components/ContextWindow.tsx`) grew the deferred models-section chunk from 12,074 B to 13,448 B, 136 bytes over the row's 13 KiB. The field cannot shrink: every byte is required behaviour or its accessible label, hint and alert. The row is re-measured at 14 KiB (14,336 B; 888 B headroom), following the MODELSPLIT row-setting precedent. No other budget moves. Detail: `docs/certification/msm95.md`.
+
 **MSM9M35 lane-K activation budget (2026-10-17, macmini; open, lead-owned).** `test/unit/modelsActivationBudget.test.ts` (at most 3 KiB over the immutable pre-K production bundle) fails on the lane tree: baseline 561,352 B, current 568,566 B, growth 7,214 B against the 3,072 B cap. `main-now` 3d30a7321 alone measures 561,352 B to 564,215 B = 2,863 B (the test passes there with 209 B headroom), so the lane's specified behaviour adds 4,351 B and no behaviour-adding milestone can fit the remainder. Diet already applied, none of it a gate change: the Linux driver ships in the new `dist/voiceLinux.js` (50 KiB budget by the measured-plus-15% rule, actual 35,907 B) instead of raising `dist/voice.js`'s 50 KiB cap; companion tunables moved out of `src/shared/constants.ts`; moving the download-consent card into `dist/voiceLinux.js` was tried and reverted because deferred bundles keep no `vscode` import by build design (a stray import fails `npm run build`) and consent arrives as a parameter, the M93 precedent. What remains in activation is specified behaviour: the M9 Linux availability probe (`src/core/voice/helperLocation.ts`), the disabled-model cleanup with its honest pending/removed states (`src/host/voice/dictationHost.ts`, RVCM9LNX P3), the Linux bundle loader (`src/host/voice/voiceBundle.ts`), the M35 paid scope identity and reserve wiring (`src/extension.ts`, D30), and the `LINUX_DICTATION` pins and paths (`src/shared/constants.ts`, D140). No threshold, rule level or ignore is changed and the test is not skipped. **Fixed 2026-10-17 (linuxlt, RVMSM9M35FIX), no cap change:** the setups moved off the activation path into the new `dist/dictation.js` (13,032 B measured, 25 KiB budget by the measured-plus-15% rule), required at their existing construction points with the installed table, so timing and behaviour are unchanged; `dictationHost.ts` takes its host capabilities as parameters (the M93 precedent) because deferred bundles keep no `vscode` import; `LINUX_DICTATION` moved to `src/shared/linuxDictationConstants.ts` (re-exported, the browser-check precedent) so activation no longer carries it. Growth is now 2,577 B of the 3,072 B cap (495 B headroom). The split gate refuses the four moved modules back in activation, and its fire drill is recorded with the real-use proof in `docs/certification/msm9m35.md`. No threshold, rule level or ignore changed; the deferral is closed.
+
 **PR226W1 budget remainder (2026-10-18, macbook rig, branch `ms/msm105-w1`).**
 The lane fixed the compact-help truth test and dieted activation 12777 →
 10704 bytes over the pre-K baseline (uploads binding to
@@ -35999,6 +36016,7 @@ decomposition. No budget raised, no test weakened. The VSIX cap decision
 is the lead's per D6; the activation remainder needs a cross-milestone
 diet lane or the same. Hosted CI re-runs the two tests and
 `npm run package` (Linux-only helpers) for the verdict.
+
 **FIXM101C2 current check scope (2026-10-05, kubuntu).** The five inherited
 test repairs from `3e04f6f5` are carried unchanged after their failures are
 reproduced here. Their old C2 baseline deferral below is historical, superseded
@@ -36566,6 +36584,7 @@ No new escape hatch is introduced.
   Keep this named blocker visible before M107 acceptance; T/C1/lead owns native
   creation caps plus Windows/macOS/Linux stress receipts. No owner acceptance
   of the remaining gap is implied.
+
 - **M107-D100-service-probes (FIXM107W; qualification blocker).** G12 now
   consumes Linux PSI service stalls and existing relocation headroom-probe outcomes
   through the portable governor. The one-minute transport window requires five
@@ -36576,6 +36595,7 @@ No new escape hatch is introduced.
   existing relocator require their owning adapters and native receipts. The
   signal policy and real relocator producer are implemented; wider platform
   coverage remains a named acceptance blocker, with no guessed measurements.
+
 - **M107-W-Linux-archive-qualification (FIXM107W).** Both x64 and arm64
   helpers are built from reviewed source and required in every VSIX/ACP stage;
   SHA is static and runtime dependencies are system libc/loader only. Kubuntu
@@ -36586,6 +36606,7 @@ No new escape hatch is introduced.
   the CI libc baseline against older supported Linux hosts. Missing helpers
   refuse packaging and runtime allocation. Existing caps stay unchanged;
   no binary placeholder substitutes for an unbuilt architecture.
+
 - **FIXM118INT / RVM118INT (closed, 2026-10-06).** All five reviewed P2s
   are fixed: sharing writers bind the canonical confinement result for target
   and identity; prompt cancellation fences in-flight Save dialogs and atomic
@@ -36675,6 +36696,7 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   governor per process, registered launch host), recorded in
   `docs/ide-compatibility/resources.md`; installed-editor (not harness)
   qualification stays with the lead's native/editor run.
+
 - **FIXM118X / RVM118X (2026-10-06).** All four reviewed P2 adapter
   findings are fixed; no P1/P2/P3 finding is deferred. Regression failures,
   byte-exact red drills and bounded Kubuntu checks are recorded in
@@ -36717,6 +36739,7 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   including large-history paging and keyboard/axe checks, on a working rig
   before the M102 page join ships. No harness gate or production policy is
   weakened to work around the browser installation.
+
 - **M107-C2-live-capacity-binding (FIXM107C2, 2026-10-06).** RVM107C2's
   sole P2 is fixed in the portable adapter, with pause/throttle regressions
   and byte-exact guard drills. No reviewed finding is accepted as a residual.
@@ -36730,6 +36753,7 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   certify joined fairness/child rules, runner dispatch, responsiveness,
   bundle sizes and all editors. The rig forbids aggregate quality here;
   the lead runs it before integration. See `m107-c2-the-team-and-runners.md`.
+
 - **M107-R-integration-binding (FIXM107R, 2026-10-06).** The portable
   relocation coordinator remains unbound in production on this base.
   M100 supplies task-bound offer/dispatch and final normal-level receiver
@@ -36827,6 +36851,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   Follow-up: the platform lead qualifies the kernel interleaving receipts;
   stronger isolation would require a distinct OS identity or private mount
   namespace, outside this final lane's scope.
+
 - **M107-DK-manifest-artifacts (FIXM107DK4 operational qualification).**
   Keeping staging/displaced names avoids a file-loss race at POSIX unlink:
   an identity recheck cannot bind a subsequent name-based file deletion.
@@ -36838,11 +36863,13 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   Safety now: no unlink of these external names, no overwritten destination,
   and missing/uncertain manifests refuse cleanup or leave identity-less intent
   report-only; they never grant deletion authority.
+
 - **M107-DK-Windows-owner (updated FIXM107DK2).** The native helper now
   checks base/root/marker owner SID through their held handles. Node's
   manifest stat remains no Windows owner/DACL proof; no ACL is changed and
   POSIX-equivalent private ACL validation is not claimed. W/T must qualify
   inherited ACLs and the manifest's owner before making that wider claim.
+
 - **M107-DK-native-qualification (FIXM107DK2).** The previous
   `M107-DK-non-Linux-ancestor-window` is closed by the native handle port;
   missing helpers refuse allocation/cleanup rather than use path recursion.
@@ -36929,6 +36956,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   controls report unknown. Follow-up: bind and certify the integrated
   governor in every editor and on Win11/Mac/Kubuntu, then run the unchanged
   full gate. Detailed scoped receipts are in `docs/certification/m107-a.md`.
+
 - **M107-T3 harness placement dispatch window (FIXM107T3, 2026-10-06).**
   Both RVM107T3G P2s are fixed, with no reviewed finding deferred. Directory
   identity is an open read-only handle with exact BigInt (dev, ino), retained
@@ -36989,11 +37017,13 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   GPU cost remain unqualified. Safe for now: S is staged and unwired, and
   failed/unavailable counters stay unknown. Follow-up: lead/W collect the
   missing platform and optional-hardware receipts before full M107 acceptance.
+
 - **M107-S-Darwin-disk.** No qualified unprivileged disk duty-cycle counter
   exists on this lane's base. Safe for now: Darwin disk explicitly returns
   unknown, performs no root probe, and cannot clear pressure with a fabricated
   zero. Follow-up: lead/W qualify a counter or formally defer Darwin disk in
   the integrated milestone; do not claim supported Mac disk utilization.
+
 - **M107-S-shipping-gates.** W has not bound the sampler into the lazy
   resourceGovernor bundle or every editor/runtime, and the generated host-API
   record has the documented Node-importer drift. Safe for now: S is unshipped
@@ -37001,6 +37031,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   wires all runtimes, updates its owned record and certifies the joined size,
   full quality/coverage and editor matrix. These are inherited qualification
   handoffs, not deferred RVM107S findings.
+
 - **M107-H-W-integration (FIXM107H).** Both RVM107H findings are fixed;
   no P2/P3 finding is deferred. Existing W-owned validation-bundle and
   host-API-record failures remain: seven missing `zod/mini._default` reads,
@@ -37013,6 +37044,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   The ACP bundle fits its unchanged 850 KiB hard cap but remains above
   M107's ≤2 KiB addition target already handed to W; W reviews shared/lazy
   factoring without weakening resource boundary validation or a budget.
+
 - **M112 integration (2026-10-06, Windows rig).** Bind the real question store and registry to the extension and ACP launcher, with an owner-only bounded durable late-answer queue and session removal. ACP owns its deadline timer; the registry accepts its frozen arrival timing without another timer. History carries per-session counts from authenticated listed sessions. Move question UI and runtime implementation to guarded lazy closures; preserve every existing cap. Reconcile model-text readers with actual lazy ownership, prove changed guards with red controls, and record all acceptance evidence in docs/certification/m112.md. Round 2 integrates U's authoritative open set, retained history and newest-waiting dock priority while preserving session-generation delivery guards and settled outcomes. HELPREF and M104 sources are absent on this base: their named handoffs stay explicit; no substitute protocol or full catalog is invented. Live checks and hosted full quality remain with the lead; the startup growth waiver follows below.
 
 - **FIXM112Q (2026-10-06).** All six RVM112Q findings are corrected; none is
@@ -37025,6 +37057,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   inventory and runtime/editor binding handoffs remain integration work on
   this frozen Q base; full quality and cross-platform/live receipts stay with
   the lead, with no new guard exception or dependency here.
+
 - **FIXM112A-Q-RUNTIME (inherited integration handoff, 2026-10-06).** All six
   RVM112A findings are fixed with regressions and byte-restored drills in
   `docs/certification/m112-a.md`; none is deferred. Lane A meets the ACP
@@ -37055,6 +37088,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   adapter is claimed as newly shipped. HELPREF's absent catalogue/reference,
   aggregate quality and the installed editor/backend matrix remain lead
   handoffs, with no live or paid call in this rig lane.
+
 - **RVM114P12 forced-colors repair (2026-10-06):** the remaining P2 is
   fixed with system-colour hover/focus/pressed outlines and a distinct
   pressed offset, inside the existing enabled conversation-control guard.
@@ -37071,6 +37105,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   inherited lane 0/S imported-role inventories, shared changelog/goldens,
   4 KiB startup-growth compaction target and lead aggregate quality keep
   their existing owners. No guard, permission or paid-call scope changes.
+
 - **M114-P2-HOST-API resolved / integrated certification pending (2026-10-06).**
   S fixed the imported-role scanner and regenerated/reviewed the host-API
   inventory; the unchanged gate now exits 0. The remaining live capture of `--vscode-contrastActiveBorder` for the
@@ -37089,6 +37124,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   the native parent/grandchild timeout fixture. macmini proves native POSIX
   group cleanup and the Windows admission/options branches with fixture doubles;
   it does not certify a native Windows job run.
+
 - **FIXM116P4-M107-governed-tree-binding (M116 I/W handoff).** The shared
   synchronous runner prefers `PlaybookHookAdmission.runContained` on Linux
   when a prepared cgroup/scope is available. I/W must bind M107's governed
@@ -37102,6 +37138,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   macmini tests cover hanging descendants in both the original group and a
   separate session. This is the requested integration handoff, not a claim
   of native Linux cgroup certification.
+
 - **FIXM116P4 native-hook contract.** The lead explicitly replaced the prior
   Husky compatibility refusal with Git's own exit verdict, including its
   startup/body/layout behavior. No shell script is interpreted by policy.
@@ -37120,6 +37157,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   renew reservations while work runs, release canceled work, surface lost
   history's `needsUser` error, and bind override authority to the user's actual
   decision. These planned integrations remain outside P's certification.
+
 - **M116-U review repair (RVM116U2).** The second review's one P2 is fixed:
   changed durable fields reconcile before enabled controls render, including
   the round-limit selector after a rule save. No review residual is retained;
@@ -37156,6 +37194,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   and compactions. The memory benchmark excludes native lease metadata and
   filesystem allocation/locked retirement debt. These scope limits and the
   corrected default-deadline evidence are in `docs/certification/m115-s.md`.
+
 - **FIXM115U7-PURE-HELPERS (named residual).** Recording factories accept
   only two fixed module-level named functions with one reader parameter;
   their output must carry the reader's frozen private-field `ReaderContent` brand;
@@ -37236,6 +37275,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   Existing S/D/V/W/X, M112/M103/M109/M107/M95 and HELPREF bindings remain
   named in `docs/certification/m115-u.md`; W/lead owns full quality and
   integrated coverage. Zero-cap migration records carry no paid authority.
+
 - **FIXM115D review scope.** All six RVM115D P2 findings are repaired;
   none is a deferred review residual. When-idle owns a backend queue entry
   with run-scoped Skip through admission/acknowledgement, child-turn filtering
@@ -37250,6 +37290,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   full quality and live/platform receipts. These modules remain unshipped on
   this base; those implementing lanes must certify the bound behavior before
   release. Evidence is in `docs/certification/m115-d.md`.
+
 - **FIXM115E-SharedStoreBinding.** All three RVM115E P2 findings are fixed;
   none is deferred. E's open/join/consume logic uses an injected atomic shared
   transaction, with a window-plus-lease takeover and separate imported legacy
@@ -37277,6 +37318,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   entry; this repair adds no VS Code API or shipping binding; the engine's
   owner UUID increases the existing Node crypto source count by one.
   W regenerates it when registering E's bundle, as the original lane certification requires.
+
 - **FIXM115G review scope and G-ADMISSION-LEDGER binding.** RVM115G's sole
   P2 (historical ended caps permanently consuming Always's daily allowance)
   is repaired; no review finding is deferred. The required `dailyUsage`
@@ -37289,6 +37331,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   commit; W certifies that cross-process binding and every editor on the
   integrated tree. Fake-backed lane tests certify the admission arithmetic,
   not deployed ledger durability. Receipts: `docs/certification/m115-g.md`.
+
 - **FIXM115V bindings (unshipped).** RVM115V's ten P2s and P3 are repaired
   in V's owned React/channel regions; no review finding is intentionally
   deferred. W/S must publish validated `scheduleChanged` messages with the
@@ -37304,6 +37347,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   its commands and corrected help with the existing integration bindings.
   Aggregate quality/platform/live proof stays with W/lead; no paid or live
   call is authorized here. Receipts: `docs/certification/m115-v.md`.
+
 - **FIXM115X5 review repair supersedes REDM115X's search/task/retirement claims.**
   Both RVM115X4 P1 findings and its P2 are fixed without deferral. Registration
   and launcher fires query all systemd search roots and verify existing
@@ -37314,6 +37358,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   verification retains its original OS-owner rule. macOS disables the native
   job before publishing the verified disabled record, keeps the full grace
   interval and refuses a live/starting/unknown instance before bootout.
+
 - **FIXM115X5-NATIVE-RECEIPTS.** Kubuntu natively refuses an empty writable
   disposable drop-in directory and leaves no timer armed. Positive native
   registration is blocked by the rig's existing writable
@@ -37379,6 +37424,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   before reconciliation. Busy/unknown states and bounded retry failures refuse
   mutation. The scheduling user and trusted OS owners can still change their
   own installation; this is the explicit trust boundary, not code signing.
+
 - **FIXM115X-OS-RECEIPTS.** This repair authorizes no real OS entries. Linux's
   disabled-but-active removal and macOS's running-wake/rearm receipts use fake
   platform ports. Windows ACL policy uses real native ACL operations on fake
@@ -37386,6 +37432,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   Safe for now: the shipping factory remains unbound and every unsafe/unknown
   native state refuses. Follow-up: W runs exact packaged native receipts on
   Linux, macOS and a normal Windows identity before claiming support.
+
 - **FIXM115X-W-BINDINGS-HELPREF.** This base has no feature catalogue/reference
   generator or real schedules bundle. X supplies CLI help (paid flags and
   exit 3), caller metadata, wake locks and the internal `background-maintain`
@@ -37415,53 +37462,63 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   translations, so the repair introduces no undocumented command or option.
   Follow-up: add the setting to HELPREF's catalogue when that lane joins the
   release. RVENVFENCE's two P1 findings are fixed; no review finding is deferred.
+
 - **FIXM102J / RVM102J (2026-10-05):** all four P2 findings are repaired;
   no assigned finding remains. Generation-checked snapshots, complete-handle
   rollup reads with fsync/atomic publication, owner-token release markers and
   partial priced usage have regressions and byte-exact red drills in
   `docs/certification/m102-j.md`. These shared fixes reach every consumer of
   the journal; combined editor wiring and full quality remain lead/W work.
+
 - **FIXM102J-L10N-COMPOSITION:** the unchanged localization gate fails for
   fourteen missing `l10n/usage.<locale>.json` files and three unregistered
   manifest references. Safe in this isolated, unmerged repair: it adds no UI
   text, command or setting. L supplies the tables and W binds the manifest;
   the lead must obtain a green localization gate on the composed release.
+
 - **FIXM102J-HOST-INVENTORY:** the unchanged host API gate reports one
   generated-record drift in five Node importer counts. This documentation
   mismatch changes no runtime policy or VS Code API. W must regenerate and
   review `docs/ide-compatibility/host-api.md` on the composed tree and pass the
   gate before release; the repair does not touch that W-owned file.
+
 - **FIXM102E / RVM102E (2026-10-05):** both assigned P2 findings are repaired
   with SDK/process regressions and seven restored red drills in
   `docs/certification/m102-e.md`; no assigned review finding is deferred.
+
 - **M102E-NATIVE-DIALOG-TRANSPORT (carried integration limit):** the bare
   `usage serve --stdio` route cannot supply native chooser/confirmation ports
   through the frozen page protocol. It refuses those writes/deletions instead
   of accepting page-supplied approval; the companion remains the interim route.
   M64/M65/integration must add the trusted dialog transport and certify native
   export/delete equivalence. No transport redesign in this adapter repair.
+
 - **M102E-INTEGRATION-GATES (carried integration limit):** the isolated adapter
   branch still depends on L's usage translations and W's manifest/host record,
   and S/U's real service, companion and page assets. Targeted fake-only repairs
   do not certify installation or full editor equivalence. W/L and the lead must
   compose the lanes and pass full quality/editor checks before release; the rig
   brief explicitly reserves that full gate and prohibits a merge here.
+
 - **FIXM95N findings (2026-10-05):** all five RVM95N P2 and both P3 findings
   are repaired; no numbered finding is left as a residual. Joined regressions
   and exact-source mutation receipts are in `docs/certification/m95-n.md`.
   Native media support still requires affirmative model evidence. Its byte
   policy applies Anthropic's documented 10 MB bound and otherwise preserves
   the application's 10 MiB image bound; those bounds do not establish vision.
+
 - **FIXM95N-RELEASE-REF:** `integrate/m72-on-24ff` is absent locally; the
   prescribed merge returns 1 without changing the tree. Local `origin/main`
   cannot establish that it contains an absent required ref. Safe for lane
   review because no publication or release is attempted. Lead supplies the
   exact release candidate and merges by meaning before combined certification.
+
 - **FIXM95N-COMBINED-CERT:** full quality, package/editor matrix, lane I's
   dispatch and new live Haiku/Gemini 2.5 receipts remain with the lead under
   the lane brief. Offline scoped proof does not certify installed dispatch,
   service behavior or the inherited universal package debt. Follow-up: run
   those gates on the combined exact release tree before a release claim.
+
 - **FIXM95BU (2026-10-05):** all three RVM95BU P2 UI findings are repaired;
   no numbered finding is deferred. Account acknowledgement is keyed by
   provider plus SHA-256 account-id hash through the production persistence
@@ -37470,6 +37527,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   and cleared on successful completion or conversation replacement. Plan
   billing follows the bound reference even with an empty catalogue. Tests,
   byte-exact drills and gate receipts are in `docs/certification/m95b-u.md`.
+
 - **M95BU-R-account-producer:** the authored `authState.planAccount` field
   is `{ providerId, accountIdHash }`, with a valid non-Meta provider id and
   exactly 64 lower-case hexadecimal SHA-256 characters. V/X/W must produce
@@ -37485,11 +37543,13 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   only this hash; legacy/pending/signed-out states omit it. Production factory,
   refresh and auth regressions plus eight byte-exact integration drills are in
   `docs/certification/m95b.md`. Installed/profile persistence remains separate.
+
 - **M95BU-R-persistence-origin:** default browser persistence is scoped to
   the webview's origin as well as provider/account; isolated editor origins
   may repeat the disclosure. It never suppresses another account. Hosts can
   inject the same keyed port for profile-wide persistence. Follow-up: V/W
   certify cross-window/profile persistence on the composed editor adapters.
+
 - **M95BU-R-composed-gates:** full quality/coverage, live/editor receipts,
   CHANGELOG/README incorporation and the inherited generated host API
   `node:crypto` count mismatch remain W/lead acceptance. The unchanged
@@ -37505,6 +37565,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   `pendingRefresh: { idToken?: string }` marker and map `expired` to an
   insufficient-lifetime message, `request-failed` to service unavailable /
   retry, and token HTTP 400/401 `invalid_grant` to sign-in required.
+
 - **M95BS-R-store-outage-lifetime:** when the first secret-store write fails,
   recovery retains the replacement only in the live host port's memory.
   Reuse that port for its grant; distinct processes cannot share this slot,
@@ -37514,6 +37575,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   certify their atomic stores, process lock, outage recovery and shutdown
   behavior before aggregate acceptance; no guarantee of durability after an
   unsuccessful write is made.
+
 - **M95BS-R-integration-evidence:** exact raw OAuth/refresh/error receipts,
   `earliest_refresh_at`, host/runtime wiring, plain translated error mapping,
   CHANGELOG incorporation and composed bundle/platform gates remain with
@@ -37551,6 +37613,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   accepted shipping risk or a certification of M95b. Follow-up: integrate
   those contracts, then V completes its rows and command region, tests the
   real panel-to-dispatch path and runs production membership/size drills.
+
 - **RVM95BV-1-LEGACY-LOCK-MIGRATION (FIXM95BV, 2026-10-05).** The new lock
   publishes complete owner metadata atomically and recovers dead owners.
   The original, unshipped adapter's ownerless regular file remains closed:
@@ -37565,22 +37628,26 @@ FIXM107DK4 qualification below supersedes that earlier claim.
 - **FIXM95BX review findings:** RVM95BX P2 command reachability and P2
   sanitized store recovery are both repaired with production parser/dispatch,
   ACP, packaging and failure regressions. No assigned finding is deferred.
+
 - **BX-WIN32-ATOMIC-RENAME:** the pre-existing simultaneous providers-file
   writer can fail with EPERM on Windows. Baseline reproduction and the
   unchanged test are in `m95b-x.md`; failures remain explicit, and failed
   ChatGPT setup attempts revocation and local grant deletion. The grant lock
   serializes ChatGPT commands; cross-editor/general-file transactions remain
   lane P/integration's follow-up. No success is substituted for a failed save.
+
 - **BX-NATIVE-STORE-CERTIFICATION:** native persistence/rotation still needs
   a logged-in desktop rig session, as the original certificate records.
   Synthetic platform errors and real process locking certify the recovery
   category, not an actual unlocked OS store. The brief forbids real credential
   reads and live/paid calls; the lead reruns the native certification.
+
 - **BX-HOST-API-INVENTORY:** the generated host API inventory has exactly the
   four stale Node import counts already reported by RVM95BX; the portable
   boundary check reports no new violation. No new host API permission or
   runtime capability follows from a count. Integration must regenerate and
   review the shared record before its full quality gate can pass.
+
 - **BX-AGGREGATE-M95B:** this repair completes executable/editor sign-in
   management and account-catalogue configuration. Combined model dispatch,
   per-editor acceptance and the owner's raw capture workspace/receipts remain
@@ -37594,9 +37661,11 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   deferred. These isolated core checks do not certify combined provider
   integration, installed-editor behavior, live service calls or the full
   platform matrix, which remain the lead's work under the rig brief.
+
 - **FIXM95P-HOST-API — closed by M95INT:** the regenerated combined import
   inventory passes the unchanged host API gate; see §7 and
   `docs/certification/m95-int.md`. No portable-boundary exception was added.
+
 - **M95-G tool-result image replay (FIXM95G / RVM95A 11).** The existing
   Gemini captures and research §1.6 do not establish a multimedia
   `functionResponse` representation. The codec explicitly refuses the whole
@@ -37607,6 +37676,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   then add replay and exact-byte regressions before enabling it. The review
   finding is fixed by the lead-approved explicit-refusal option; the media
   capability remains unavailable, with no new live/paid calls in this lane.
+
 - **M95 / RVM95AO-4-SSE — upstream Anthropic SSE buffering (FIXM95A,
   2026-10-05).** The Anthropic decoder caps complete-frame bytes, argument
   bytes, item bytes/count, stream bytes and frame count. Its input seam is
@@ -37681,6 +37751,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   dispatch; no fallback creates duplicate work. Full integrated quality and
   the existing generated host-API record handoff stay with the lead/X.
   Evidence: `docs/certification/m96-t.md` and its review-drill record.
+
 - **M96 W-I-policy-integration (RVM96W3 integration residual, 2026-10-05):**
   the unshipped W and I lanes still have separate command and environment
   authorities. The review found different admissions for worktree list,
@@ -37707,6 +37778,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   Follow-up: the lead runs M96 step 1 in a throwaway workspace and records
   the capture name, workspace and counted attempts in
   `docs/certification/m96-w.md` before enabling those presets.
+
 - **FIXM96I2 / RVM96I2C (2026-10-05):** final lane-I round covers six P2
   and seven P3 findings. Named validation residual **I-default-timeout**:
   shared real-Git seed/copy fixtures and cached immutable Git object reads
@@ -37861,6 +37933,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   private reset markers without a usage baseline keep their old clearing
   semantics; every new Reset persists its baseline. No shipped team ledger
   exists to migrate. Record: `docs/certification/m96-a.md`.
+
 - **Open integration item RVM95SC-R-shell-env (2026-10-05).** The extension's
   inherited shell environment still forwards the user's `HF_TOKEN`,
   `ANTHROPIC_AUTH_TOKEN` and `AWS_BEARER_TOKEN_BEDROCK`; hooks and ACP strip
@@ -37927,6 +38000,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   credential boundaries, CSP, dependencies and bundle caps are unchanged.
   The lead retains integrated quality and real host/release certification.
   Tests, exact-restoration drills and rig receipts: docs/certification/diet1.md.
+
 - **FIXM117C review outcome.** RVM117C's sole P2 is fixed, with no review
   finding deferred. Exclusive cross-basis lane claims prevent concurrent
   identity conflicts; legacy identity conflicts and unknown/mixed basis records
@@ -37967,6 +38041,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   followed by a standalone pass and a complete unchanged 70/70 green run;
   the certificate retains all samples without claiming calibrated timing or
   its cause. The named handoff includes aggregate/cross-rig performance acceptance.
+
 - **M117-P provisioning bindings (partial).** Slice 1 implements the
   five-operation connected-provider adapter and audited first-wave owner.
   **M117-P-Slice2-lifecycle** is absent internally: liability reservations,
@@ -38068,6 +38143,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   and hashes. Text/JSON/HTML boundaries, saved-JSON round trips, outside
   paths and three byte-exact red drills are recorded in the lane R
   certification and `docs/certification/m113-r-review-drills.json`.
+
 - **M113-R-shape-only-source-prose (existing D93 limit, clarified by
   RVM113R2, 2026-10-06).** The scrub recognizes registered shapes after
   decoding the outer saved document. It does not recursively decode inner
@@ -38132,6 +38208,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   includes crashes at every writer boundary and both recovery orders.
   Named byte-restored red drills are in H's certification. No P1/P3 was
   reported; no review finding is deferred.
+
 - **M113-H-unknown-owner-lease (2026-10-06).** A crash during initial
   O_EXCL record creation can leave an empty or malformed lease. Its exact
   process identity is unknowable, so it cannot safely be declared stale.
@@ -38228,6 +38305,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   source before this relationship and condition were added. Regenerated help
   retains the complete security contract; RVENVFENCE's two P1 findings remain
   fixed. Receipts: `docs/certification/rel0142.md`.
+
 - **FIXHELPREF4 audit outcome.** RVHELPREF4's P1 and both P2 findings are fixed,
   with no deferred finding. The closed predicate vocabulary is checked over
   the complete emitted reference rather than a list of row kinds. Existing
@@ -38256,6 +38334,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   claim ships. Follow-up: integrate and certify actual native/phone adapters
   under the IDE compatibility milestones. RVHELPREF 1–23 retain no false-claim
   residual; this boundary is recorded explicitly for finding 16.
+
 - **M2-W-HOST-API (W).** The host-API record gate reports existing
   crypto/path count drift and this repair's one additional child_process
   importer (13→14). Safe for this bounded lane: the check reports no
@@ -38284,6 +38363,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   its manager's process disposal before adopting another account, preserving
   old-account usage/liability for already-dispatched work. No RVM108M finding
   is accepted as an unresolved review residual.
+
 - **FIXM108U2-PROCESS-OWNERSHIP (K / U / M109 / W).** The lead approved
   the minimal cross-lane store edit after accepting K. Addition ownership
   and rollback comparison share the existing process-local mutation queue,
@@ -38308,6 +38388,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   installed VS Code/native/companion transports before enabling them; H owns
   equivalent ACP/terminal/headless bindings. Full quality and generated host
   API/README/CHANGELOG/help updates remain W's joined-tree work.
+
 - **FIXM108H-INTEGRATION (H-P-SESSION / H-W-PROFILE / W / M109).**
   No RVM108H finding remains in the injected ACP account owner/router.
   Installed composition still requires one profile-owned account service:
@@ -38437,6 +38518,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   unavailable inline formats refuse explicitly. Overfull pending turns use
   existing localized `removeAttachmentNamed` hints. W owns shipped
   README/CHANGELOG/reference updates because these ports remain unbound here.
+
 - **M105-M2-W-gate-handoff (W).** The inherited deferred browser JavaScript
   size overage, generated host API importer counts and backend split-list
   registration remain W responsibilities. The inline restore adds Node buffer
@@ -38461,6 +38543,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   existing monitor binding handoff, not a deferred review finding.
   Certification: `docs/certification/m105-m1-media-core-(a).md`. No review
   finding is deferred.
+
 - **M105-M1-trusted-converter-binding (REDM104L3/W/E1/E2).** All RVM105M1
   converter-trust guards consume the shared `TrustedPathVerifier` seam. This
   base lacks `src/runtime/trustedPath.ts`; without a verified binding discovery
@@ -38470,6 +38553,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   captured and supported; verified ffmpeg remains the alternative. Tests and
   drills: `docs/certification/m105-m1-media-core-(a).md`. No review finding is
   deferred and no gate is weakened.
+
 - **M105-VB-platform-bindings (lane VB, 2026-10-08; lead decisions).** The
   converter's three platform bindings, for lane V to wire into
   `convertToMp4`/`convertToWav16kMono`. The API is in
@@ -38697,6 +38781,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   W binds the media/account page, classifies the module and regenerates the
   host record; the lead runs full quality on the integrated tree. No cap or
   gate is weakened here.
+
 - **M105-F-binding-and-capture-evidence.** Provider/account storage and its
   cross-process lock, U6c storage admission, replay/export and editor bridges
   remain required injected bindings; the capture workspace and round-2 raw
@@ -38746,6 +38831,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   the file under test is not a trust anchor. Safe for now: no recorder entry
   point or unverified helper can launch from this lane. Follow-up: W's
   exact-package tests and all editor bindings before recorder reachability.
+
 - **M105-R1-live-validation (FIXM105R1, 2026-10-06).** Actual capture,
   permission prompts, sleep/wake and macOS 12.0–12.2 remain uncertified on
   this permission-free rig. These are validation residuals, not findings
@@ -38763,6 +38849,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   recording is explicitly unavailable here and is not certified or advertised.
   Follow-up: lead runs the generated encoder smoke and M105 acceptance 14 on
   GPU hardware before enabling direct capture.
+
 - **M105-R2-forced-exit-preview.** Owner death cancels the helper and an
   independent native watchdog forces exit if work does not settle within two
   seconds. Cooperative latest-copy cancellation deletes its partial preview.
@@ -38772,12 +38859,14 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   automatically, and the helper cannot keep running after owner death.
   Follow-up W/E1/E2: bind confined removal and orphan-preview purge and prove
   them with a crash/locked-file integration receipt before claiming support.
+
 - **M105-R2-latest-provenance.** Latest import uses the file's modification
   time, as the existing contract does; a refreshed old file can win over a
   newer recording. Folder membership and age do not prove capture provenance.
   Safe for now: the copied file is sniffed, bounded and previewed, and only
   explicit Attach sends it. Follow-up: lead settles the timestamp policy and
   keeps the UI's provenance claim limited to a recent file in that folder.
+
 - **M105-R2-host-api-record.** The existing generated host record still has
   84 `node:path` importers while the source has 85, as recorded before RVM105R2.
   Safe only as an unmerged lane: the unchanged gate continues to reject the
@@ -38823,6 +38912,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   Follow-up: P/B bind and certify retention on Windows/Linux; W exposes the
   diagnostic location and explicit cleanup when it wires restore. No RVM109C2
   finding is deferred.
+
 - **M109C-anchor-binding (FIXM109C, unmerged integration contract).** RVM109C's
   five findings are repaired in shared core. P/B must persist generation,
   audit state and `stateDigest` independently of the replaceable vault files,
@@ -38830,6 +38920,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   that protected anchor with all files is D89 V11's existing limit. Safe for
   now: this core remains unwired and the adapter is mandatory, with no silent
   fallback. Follow-up: P/B prove durable anchor binding before W ships it.
+
 - **M109C-restore-history (FIXM109C, deliberate admission policy).** Confirmed
   restore imports onto a new device without history, or restores the exact
   snapshot matching an existing device's complete anchor. A different or
@@ -38839,6 +38930,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   confirmation action in every editor; any future cross-history import needs
   separately designed revocation proof, never a weaker generation guard.
   No RVM109C finding is deferred.
+
 - **P-mac/B-error-surface (FIXM109PM, 2026-10-06).** The macOS native
   helper and slot port now preserve six fixed named failures with distinct
   recovery-action identifiers. The broker does not exist on this lane base;
@@ -38854,6 +38946,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   stays false and neither SE mode is offered. Follow-up: the owner's Touch ID
   Mac capture after 17:00 must also prove a second executable cannot read the
   real item silently. No helper-only ACL guarantee is asserted meanwhile.
+
 - **FIXM109PW3 / RVM109PW2G (2026-10-06).** The one P2 is repaired with
   no review residual. The trusted native guard reads owner/DACL information
   from held handles, refuses null DACLs, maps generic file rights and respects
@@ -38882,6 +38975,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   Existing TPM/Hello, screen-lock and stable DPAPI live-capture handoffs
   remain the original integration requirements, not residual review findings.
   See `docs/certification/m109-pw.md` for regression and red-drill evidence.
+
 - **FIXM109U / RVM109U (2026-10-07).** All six findings (five P2, one P3)
   are fixed; none is accepted as residual risk. `changed` notifications join
   the host generation barrier so older native drafts cannot commit after
@@ -38984,6 +39078,7 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   payloads; existing OpenAI/xAI non-strict streams qualify only the shared
   decoder. Lead must capture and count a complete strict Meta stream before
   claiming that wire receipt. No new live/paid call is authorized here.
+
 - **FIXM106O22 (2026-10-06).** Both RVM106O22 P2 findings are fixed;
   neither is deferred. O2's shared record parser refuses own `__proto__`,
   `constructor` and `prototype` keys at every depth before strict grammar or
@@ -39088,6 +39183,7 @@ review findings and terminal settlement-pricing failure.
   Safe for now: there is no new command, setting or public support claim.
   Follow-up: W documents whole-value redaction, processing bounds, final flush and settlement.
   The previous **L1-BUNDLE** registration handoff is resolved in this repair.
+
 - **FIXM106L2-W-integration (lane L2, 2026-10-06).** All four RVM106L2 P2
   findings, both RVM106L22 P2 findings and RVM106L23's observer-exception P2
   are repaired, with fake-only regressions and byte-exact red drills. Steering
@@ -39101,6 +39197,7 @@ review findings and terminal settlement-pricing failure.
   size cap, paid gate or dependency is widened. Follow-up: W integrates
   these bindings/docs and classifications and runs aggregate quality and
   the authorized release checks. See `docs/certification/m106-l2.md`.
+
 - **FIXM106R2 (2026-10-06): no review residual.** RVM106R2's sole P2 is
   closed by one idle-deadline helper covering dispatched headers and all
   response-body reads, including non-success envelopes and retries. A
@@ -39115,6 +39212,7 @@ review findings and terminal settlement-pricing failure.
   scrubber; provider prose, identifiers, tokens and causes are discarded.
   The original provider/team/health/help bindings remain named integration
   handoffs in the M106 R certification, not newly accepted review findings.
+
 - **M106 S third review (RVM106S3, 2026-10-06).** The one P2
   literal-registry race at dispatch is fixed; no review residual is accepted. Host literals
   stay in the host, and preview changes require fresh approval. The existing
@@ -39202,6 +39300,7 @@ review findings and terminal settlement-pricing failure.
   because adapters remain unwired and the gates continue to reject release;
   W/lead must update the record and classify/wire the files before integration
   can be certified. The passing size checks do not close the split gate.
+
 - **M91-I-Bundle-budget (FIXM91I3).** The import bundle is 148.5/125 KiB;
   the starting commit is already 147.7/125 KiB (see §7's recorded deferral).
   Safe for now only as an unmerged, unsupported milestone lane: packaging
@@ -39214,6 +39313,7 @@ review findings and terminal settlement-pricing failure.
   Kiro Manual row, so the importer now refuses Manual as `unmapped` and
   emits no runnable record. Safe for now because it runs nothing. Follow-up:
   P adds and certifies its Manual contract, then I lifts that refusal.
+
 - **M91-I-Foreign-wiring (FIXM91I3).** Import records remain inert in this
   tree: the native parser skips foreign group fields and W has not wired
   dispatch. Importer tests and the pinned adapter's eighteen Cursor stdin
@@ -39224,6 +39324,7 @@ review findings and terminal settlement-pricing failure.
   adapter input and model payloads, runtime MCP registry identity binding,
   fail-closed results, and paid handler admission; certify integrated guards
   before declaring support.
+
 - **M91-I-Live-Cline-reference (FIXM91I3).** Scan and planning now reject
   retargeted executable references, and generated Unix/PowerShell commands
   quote literal paths with the source's 30-second timeout. A file can still
@@ -39231,6 +39332,7 @@ review findings and terminal settlement-pricing failure.
   foreign-record boundary above. Follow-up W/X: invoke sourceEntry.path as
   a path under live canonical scope and workspace trust checks immediately
   before spawning, and prove the real Unix and Windows execution paths.
+
 - **FIXM93R-R7 — aggregate journal disk budget (RVM93R finding 7, P2).**
   Residual requiring redesign: the unchanged 256-KiB bound is enforced per
   owned journal, and against the merged report, but several retained/live
@@ -39246,6 +39348,7 @@ review findings and terminal settlement-pricing failure.
   that serializes admission, append and oldest-first aggregate eviction, with
   native concurrent-process tests, before claiming that guarantee. The R7
   regression demonstrates both the bounded merged report and this disk limit.
+
 - **FIXM93R native-directory race boundary (finding 3 correction).**
   Static links/junctions, hard-linked leaves and unexpected file types are
   refused; no-follow opens, exact handle identity, canonical-directory checks
@@ -39265,6 +39368,7 @@ review findings and terminal settlement-pricing failure.
   a crash; a frame inside the package can be forged by an error message that
   imitates a stack line, but it can then name only a shipped bundle and two
   numbers.
+
 - **FIXM95T-R5 — transport still carried by activation (RVM95T finding 5,
   P2).** The Muse Code image client eagerly imports `transport.ts` through
   `client.ts`. Actual lazy loading requires W/I's bundle entry/loader and
@@ -39323,15 +39427,18 @@ review findings and terminal settlement-pricing failure.
   M102INT must pass the unchanged combined gates and installed-editor checks
   before claiming the complete feature certified. No paid/live calls,
   network operation or portable-boundary exception is introduced here.
+
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate
   failure drills in `docs/certification/m95-p.md`; no assigned finding is
   deferred. These isolated core checks do not certify combined provider
   integration, installed-editor behavior, live service calls or the full
   platform matrix, which remain the lead's work under the rig brief.
+
 - **FIXM95P-HOST-API — closed by M95INT:** the regenerated combined import
   inventory passes the unchanged host API gate; see §7 and
   `docs/certification/m95-int.md`. No portable-boundary exception was added.
+
 - **M95-G tool-result image replay (FIXM95G / RVM95A 11).** The existing
   Gemini captures and research §1.6 do not establish a multimedia
   `functionResponse` representation. The codec explicitly refuses the whole
@@ -39342,6 +39449,7 @@ review findings and terminal settlement-pricing failure.
   then add replay and exact-byte regressions before enabling it. The review
   finding is fixed by the lead-approved explicit-refusal option; the media
   capability remains unavailable, with no new live/paid calls in this lane.
+
 - **M95 / RVM95AO-4-SSE — upstream Anthropic SSE buffering (FIXM95A,
   2026-10-05).** The Anthropic decoder caps complete-frame bytes, argument
   bytes, item bytes/count, stream bytes and frame count. Its input seam is
