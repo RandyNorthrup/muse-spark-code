@@ -108,3 +108,22 @@ export function isLegalScanBundle(value: unknown): value is LegalScanBundle {
     typeof value.runLegalScan === 'function'
   )
 }
+
+/**
+The header-fix bundle (dist/legalFix.js, D6): the selected-fix preview
+store, loaded on the first fix request. The scan bundle no longer carries
+it, so the 150 KiB scan budget holds the scan.
+*/
+export interface LegalFixBundle {
+  /** The selected-fix preview store, built on the first legal fix request. */
+  readonly LegalFixPreviews?: new () => LegalFixPreviewStore
+}
+
+export function isLegalFixBundle(value: unknown): value is LegalFixBundle {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'prepareLegalHeaderPatches' in value &&
+    typeof value.prepareLegalHeaderPatches === 'function'
+  )
+}

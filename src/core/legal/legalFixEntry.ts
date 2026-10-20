@@ -5,3 +5,7 @@
 // (or the first fix request). A scan that needs it and cannot load it is
 // refused, never silently unfixable.
 export { prepareLegalHeaderPatches } from './headerFix'
+// The selected-fix preview store rides the fix chunk too: previews are
+// built only on a fix request, never during the scan, so the 150 KiB scan
+// budget holds the scan.
+export { LegalFixPreviews } from './fixPreviews'

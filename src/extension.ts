@@ -68,6 +68,7 @@ import {
   MODELS_PANEL_BUNDLE_FILE,
   MODELS_SUBSCRIPTIONS_BUNDLE_FILE,
   LEGAL_SCAN_BUNDLE_FILE,
+  LEGAL_FIX_BUNDLE_FILE,
   EXTENSION_SKILLS_DIR,
   WEB_FETCH_BUNDLE_FILE,
   DICTATION_BUNDLE_FILE,
@@ -330,7 +331,7 @@ import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTool'
 
 import { fill as fillLegalNotice, fill, formatBytes, plural, uiLocale } from './shared/l10n/text'
-import { legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
+import { legalFixLoader, legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
@@ -2428,6 +2429,10 @@ async function activateWindow(
   })
   const legalScanBundle = legalScanLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', LEGAL_SCAN_BUNDLE_FILE).fsPath,
+    log,
+  })
+  const legalFixBundle = legalFixLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', LEGAL_FIX_BUNDLE_FILE).fsPath,
     log,
   })
   const runLegalScan: LegalScanRunner = async (input, signal) => {
@@ -4556,8 +4561,8 @@ async function activateWindow(
             return render(report)
           },
           createLegalFixPreviews: () => {
-            const Previews = legalScanBundle().LegalFixPreviews
-            if (Previews === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+            const Previews = legalFixBundle().LegalFixPreviews
+            if (Previews === undefined) throw new Error(UI_TEXT.legalFixRefusedUnavailable)
             return new Previews()
           },
           legalFixApplier: createLegalFixApplier({

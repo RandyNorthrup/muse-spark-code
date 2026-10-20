@@ -177,7 +177,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runWithProvider', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'openRouterApi', side: ['acp'] },
-      { importer: 'src/runtime/providersCommands.ts', symbol: 'probeProvider', side: ['acp'] },
+      { importer: 'src/runtime/providersCommands.ts', symbol: 'probeWithTransport', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'readProviderJson', side: ['acp'] },
     ],
   },
@@ -354,8 +354,8 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'legalFix.js',
     side: 'both',
     requestedBy: [
-      { importer: 'src/core/legal/entry.ts', symbol: 'prepareLegalFixes', side: ['acp', 'vscode'] },
-      { importer: 'src/core/legal/scan.ts', symbol: 'scanLegal', side: ['acp', 'vscode'] },
+      { importer: 'src/core/legal/files.ts', symbol: 'loadFixPlanner', side: ['acp', 'vscode'] },
+      { importer: 'src/shared/constants.ts', symbol: 'LEGAL_FIX_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
   {
