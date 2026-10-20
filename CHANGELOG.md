@@ -326,7 +326,10 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   delegate without our ceilings, and team review, pipeline, reassignment and
   playbook patch rounds run until the work converges (paid consent still asks
   per spawn, pricing each request as it goes); exports,
-  shares and report sources read and write at any size and item count; and a
+  shares and report sources read and write at any size and item count; the plan
+  reader parses the whole plan however large unless you set your own byte bound
+  (`museSpark.reports.planMaxBytes`, `reportsPlanMaxBytes` in the agent's
+  `settings.json`); and a
   held pull request checks out without our entry and byte ceilings. A saved
   prompt file reads, imports and shares at any size (only a blank title
   still refuses); a link import reads under web fetch's own body bound; an
