@@ -19279,6 +19279,7 @@ extension's own storage, never the workspace's `.git`.
 ### M73 — Observation packing (D49)
 
 - **Goal.** Long sessions stop resending large old tool outputs.
+
 - **D78 released-main default (2026-10-04): on.** The owner's target makes
   `museSpark.modelApiObservationPacking` available by default.
   **Candidate packing default: on.** M101INT integrated the released manifest
@@ -23462,6 +23463,7 @@ process that owns the work.
   Copilot and VS Code, Windsurf, Kiro, Cline, Amp or OpenCode. Every hook
   concept in the research has such a point (D70). Muse Code's own 1.4 hooks
   behave the same on both backends. Nothing breaks the SoL-Pi optimisations.
+
 - **Scope.**
   - Muse parity: Interrupt, SessionFork's acceptance, and the
     PostToolUseFailure correction.
@@ -26546,6 +26548,7 @@ Acceptance and the exact composed gate receipts live in
 
 - **Goal.** A user can prepare and inspect a useful, scrubbed report without
   an active chat, backend or credential, then choose where it goes.
+
 - **Scope.** D72's journal, crash offer, report builder, preview and export;
   error entry points and the standalone ACP command. No automatic issue
   submission, log upload, telemetry, model call or wire-shape changes.
