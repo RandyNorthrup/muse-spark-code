@@ -23,10 +23,14 @@ the project report's other sources to remain available. JSON is decoded before
 validation; every returned string (including diagnostic paths and the ledger)
 has Unicode escapes resolved before the shared credential scrub. The gate
 scrubs final diagnostics and selection output again, and never echoes
-filesystem error details. UTF-8 input above `REPORT_PLAN_MAX_BYTES` (4 MiB)
-returns `input-size` drift with the technical byte limit, never an empty
-success. The gate checks file size before reading and caps the read at the
-limit plus one byte even if the file grows. Parsing indexes headings once
+filesystem error details. There is no limit of ours: the reader parses the
+whole plan however large. A byte limit applies only when the person sets one
+(`museSpark.reports.planMaxBytes` in the editor, `reportsPlanMaxBytes` in the
+agent data folder's `settings.json` in a terminal or an ACP editor; `0`, the
+default, means none). Past a set limit the read returns `input-size` drift
+naming the person's limit, never an empty success. The gate reads the whole
+file and fails past its own archive budget, naming the archiving procedure.
+Parsing indexes headings once
 and uses sets for duplicate ids rather than rescanning prior milestones.
 Folded status continuations are scanned once, and ledger evidence is indexed
 by acceptance id and passing check kind instead of searched for each check.
