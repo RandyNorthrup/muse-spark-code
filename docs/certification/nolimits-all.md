@@ -946,3 +946,68 @@ the count` fails. Reset as a no-op: both reset tests fail (the new
 - `test/integration` (VS Code) and `npm run build` were not run in
   this lane; the real-use path (packed product plugin run) is the
   lead's at integration.
+
+# PLANBOUND addendum — the report plan reader (D121, 2026-10-20)
+
+Linux rig `linuxlt`, worktree `/home/randy/lanes/PLANBOUND`, branch
+`fix/0190-planbound`. The Grok review of the 0.19.0 join found the report
+plan reader refused a person's PLAN.md above 4 MiB with `input-size` drift:
+a limit of ours, against D121.
+
+## Fix
+
+- `src/core/reporting/plan/reader.ts`: `readPlan` takes an optional byte
+  limit (`maxBytes`, default 0) and parses the whole plan however large. A byte limit applies
+  only when set above 0; past it the read refuses with `input-size` drift
+  naming the person's limit. The UTF-8 fast path is kept, parameterized by
+  the person's bound.
+- `src/runtime/reporting/engine.ts`: `ReportingContext` gains optional
+  `planMaxBytes` (0/absent = none). The plan source streams the whole
+  PLAN.md with no cap of ours and passes the person's value to the parse.
+- The person's setting: `museSpark.reports.planMaxBytes` (bytes, 0 = none,
+  machine-scoped) in `package.json`, all 16 `package.nls.*.json` tables,
+  host settings, defaults, feature catalog and the regenerated reference.
+  The editor passes its value in; the terminal/ACP runtime reads
+  `reportsPlanMaxBytes` from the agent data folder's `settings.json`
+  (`src/runtime/runtimeReportsPlan.ts`; the budget strict schema accepts
+  the key).
+- `scripts/check-plan.mjs`: the hygiene gate keeps the same 3,565,158-byte
+  archive threshold as its own named constant with the reason, no longer
+  depending on a product bound. `FORMAT.md`, the README report section plus
+  both settings tables, and the 0.19.0 no-limits sentence say reports parse
+  the whole plan unless the person sets their own bound.
+
+## Tests and break proof
+
+- `planReader` 55/55: a plan past the old 4 MiB bound parses with zero
+  drift by default and refuses with `input-size` naming the set limit when
+  one is set (byte and multi-byte inputs); explicit 0 means none.
+- `noDefaultLimits` 20/20: the new setting defaults to 0 in defaults and
+  manifest, reads whole with nothing set, refuses past a person-set bound,
+  and the runtime reader returns 0 for a missing key or file (real temp
+  dir under `$TMPDIR`, removed afterwards).
+- Break 1: `maxBytes > 0` forced to `>= 0` → 53 of 55 planReader tests
+  failed, reverted to green.
+- Break 2: runtime reader `?? 0` forced to `?? 1` → passed until the
+  valid-file-without-key assertion was added; then exactly the new runtime
+  test failed, reverted to green.
+
+## Gates (final tree, repository's own timeout)
+
+- prettier and eslint (zero warnings) on every touched file: clean.
+- `npm run typecheck`: exit 0, all five projects clean.
+- `npm run check:l10n`: 0 problems. `npm run check:reference`: current.
+- `npm run check:plan`: `plan-format-v1; 222 milestones; 0 drift`.
+- Suites: reportEngineLanguage + runtimeAccountingEntry + runtimeDailyBudget
+  48/48; reportSourceFailures + reportPlaybookSchedules + manifest 68
+  passed and 1 failed; paidMoneyStructure + execExactCount 50/50. The one
+  manifest failure (`tiered CI` expects `check:no-output-cap` and
+  `check:no-round-cap` CI leaves) fails identically on the untouched base
+  commit, so it is pre-existing and unrelated.
+- `npm run build`: exit 0. `npm run check:roadmap`: current.
+
+## Open
+
+- `CONTRIBUTING.md` still describes the old 4 MiB product bound stopping
+  check:plan, check:roadmap and /report; out of this lane's listed scope.
+- The packed-product real-use run is the lead's outside the sandbox.
