@@ -57,8 +57,11 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
     const socket = stream
     // The peer verifier binary runs with an empty environment: absolute
     // entries only, links followed.
+    // A read-only probe: the helper reads the peer credentials from the
+    // passed descriptor and exits, writing and holding nothing, so it owns
+    // no temp root — admission and containment, like every probe.
     const { child, stop } = await spawnResourceProcess(
-      'contained',
+      'probe',
       this.executable,
       [],
       { env: probeChildEnvironment({}) },
