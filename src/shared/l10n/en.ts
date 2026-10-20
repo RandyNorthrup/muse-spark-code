@@ -64,7 +64,7 @@ export const EN = {
   resourceDiskWriteRefused:
     'Cannot write to {volume}: free space is below the disk floor set in settings.',
   resourceDiskMinFreeGiBDescription:
-    'Free disk space floor in GiB. Unset means no floor; a set floor is at least 2 GiB.',
+    'Free disk space floor in GiB. Unset means no floor; a set floor of zero or more is honoured as set.',
   resourceHistory: 'Resource History',
   resourceHarness: 'Harness Work',
   resourceCpuTime: 'CPU Time',
@@ -5681,8 +5681,6 @@ export const EN = {
     '{setting}: rule {index} ({pattern}) is an allow rule, and a repository’s rules can only tighten, so it is not applied.',
   commandRuleAllowsEvaluator:
     '{setting}: allow rule {index} ({pattern}) would allow a command that runs text as code, so it is not applied.',
-  commandRulesTooMany:
-    '{setting}: {detail} rules is more than are read; rule {index} and those after it are not applied.',
   permissionProfileUnknown:
     '{setting}: no permission profile is named “{name}”. Until one is, every shell command asks and file tools refuse every file.',
   permissionProfileInvalid:

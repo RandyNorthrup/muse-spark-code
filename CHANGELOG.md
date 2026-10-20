@@ -697,6 +697,16 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   ancestor of the installed package itself is no longer mistaken for a link
   inside the skill tree, while a link inside the tree that leads outside it
   is still refused with its warning.
+- Your values are honoured as set, with no floor, ceiling or default of
+  ours on them. Stop-hook continuations, subagent concurrency, command
+  rules, browser-check hosts, CPU and memory thresholds, disk and memory
+  floors, web searches per response and upload expiry days no longer stop
+  at 8, 64, 500, 32, 30%, 40–98%, 0.5–64 GiB, 2 GiB, 20 or 1–30 days: a
+  number you set governs as set, and only what the quantity itself cannot
+  be (a negative count, a percentage past 100) is refused with its setting
+  named. Usage history no longer trims to a year by default: with nothing
+  set it is kept until you set a number of days or clear it, and a set
+  number of days of 1 or more trims as set.
 
 ### Security
 

@@ -936,8 +936,7 @@
           "default": 0,
           "scope": "machine",
           "description": "%config.hooksMaxStopContinuations.description%",
-          "minimum": 0,
-          "maximum": 8
+          "minimum": 0
         },
         "museSpark.hooksMaxRunningCommands": {
           "type": "number",
@@ -951,8 +950,7 @@
           "default": 0,
           "scope": "machine",
           "description": "%config.subagentMaxConcurrent.description%",
-          "minimum": 0,
-          "maximum": 64
+          "minimum": 0
         },
         "museSpark.pluginHookTimeoutSeconds": {
           "type": "number",
@@ -1112,7 +1110,6 @@
           "type": "array",
           "default": [],
           "markdownDescription": "%config.modelApiCommandRules.markdownDescription%",
-          "maxItems": 500,
           "items": {
             "type": "object",
             "required": [
@@ -1304,7 +1301,6 @@
           "items": {
             "type": "string"
           },
-          "maxItems": 32,
           "description": "%config.browserCheckExtraHosts.description%",
           "scope": "machine"
         },
@@ -1462,8 +1458,6 @@
             "null"
           ],
           "default": null,
-          "minimum": 30,
-          "maximum": 100,
           "description": "%config.resourceCpuMaxPercent.description%",
           "scope": "machine"
         },
@@ -1473,8 +1467,6 @@
             "null"
           ],
           "default": null,
-          "minimum": 40,
-          "maximum": 98,
           "description": "%config.resourceMemoryMaxPercent.description%",
           "scope": "machine"
         },
@@ -1484,8 +1476,6 @@
             "null"
           ],
           "default": null,
-          "minimum": 0.5,
-          "maximum": 64,
           "description": "%config.resourceMemoryMinFreeGiB.description%",
           "scope": "machine"
         },
@@ -1517,7 +1507,6 @@
             "null"
           ],
           "default": null,
-          "minimum": 2,
           "description": "%config.resourceDiskMinFreeGiB.description%",
           "scope": "machine"
         },
@@ -1572,8 +1561,7 @@
           "default": 0,
           "scope": "machine",
           "description": "%config.webSearchMaxPerRequest.description%",
-          "minimum": 0,
-          "maximum": 20
+          "minimum": 0
         },
         "museSpark.modelApiMaxRetries": {
           "type": [
@@ -1599,10 +1587,11 @@
           "scope": "machine"
         },
         "museSpark.usageHistoryDays": {
-          "type": "integer",
-          "default": 365,
-          "minimum": 30,
-          "maximum": 1825,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "default": null,
           "description": "%setting.usageHistoryDays.description%",
           "scope": "machine"
         },
@@ -1693,7 +1682,6 @@
           "type": "integer",
           "default": 7,
           "minimum": 1,
-          "maximum": 30,
           "description": "%config.mediaUploadExpiryDays.description%",
           "scope": "machine"
         },

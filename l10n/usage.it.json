@@ -242,5 +242,6 @@
   "sortAscending": "Ordinamento crescente",
   "sortDescending": "Ordinamento decrescente",
   "retentionNote": "Il dettaglio per chiamata è conservato {detailDays} giorni; i riepiloghi giornalieri, {historyDays} giorni.",
+  "retentionNoteKept": "Il dettaglio per chiamata è conservato {detailDays} giorni; i riepiloghi giornalieri sono conservati finché non imposti un numero di giorni o non li cancelli.",
   "privacyNote": "La cronologia resta su questa macchina. Non contiene prompt, risposte, argomenti degli strumenti, percorsi né chiavi."
 }

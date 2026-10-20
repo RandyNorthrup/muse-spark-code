@@ -255,5 +255,6 @@
   "sortAscending": "Sortuj rosnąco",
   "sortDescending": "Sortuj malejąco",
   "retentionNote": "Szczegóły wywołań są przechowywane {detailDays} dni, podsumowania dzienne {historyDays} dni.",
+  "retentionNoteKept": "Szczegóły wywołań są przechowywane {detailDays} dni, a podsumowania dzienne do czasu ustawienia liczby dni lub ich wyczyszczenia.",
   "privacyNote": "Historia pozostaje na tym komputerze. Nie zawiera promptów, odpowiedzi, argumentów narzędzi, ścieżek ani kluczy."
 }

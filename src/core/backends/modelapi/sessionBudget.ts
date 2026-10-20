@@ -28,7 +28,6 @@ import {
   TOKENS_PER_MILLION,
   UI_TEXT,
   WEB_SEARCH_MIN_PER_REQUEST,
-  WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
 } from '../../../shared/constants'
 import { fill, plural } from '../../../shared/l10n/text'
 import { modelApiPaidTier } from '../../../shared/paid'
@@ -268,14 +267,16 @@ export function searchAllowanceUsd(
   bound: number | undefined,
   priceUsd: UsdAmount | undefined,
 ): UsdAmount {
+  // NOLIMITSSET (PLAN.md D121): no upper bound of ours on the search count —
+  // a set whole count of at least 1 estimates as set (the removed 20 was
+  // ours). Anything else stays unavailable.
   if (
     bound !== undefined &&
     (priceUsd === undefined ||
       !usdAmountSchema.safeParse(priceUsd).success ||
       Usd.from(priceUsd).compare(Usd.from(0)) < 0 ||
       !Number.isSafeInteger(bound) ||
-      bound < WEB_SEARCH_MIN_PER_REQUEST ||
-      bound > WEB_SEARCH_MAX_PER_REQUEST_LIMIT)
+      bound < WEB_SEARCH_MIN_PER_REQUEST)
   ) {
     throw new SessionBudgetExceededError(UI_TEXT.sessionBudgetSearchUnavailable)
   }

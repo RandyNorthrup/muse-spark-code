@@ -242,5 +242,6 @@
   "sortAscending": "Orden ascendente",
   "sortDescending": "Orden descendente",
   "retentionNote": "El detalle por llamada se conserva {detailDays} días; los resúmenes diarios, {historyDays} días.",
+  "retentionNoteKept": "El detalle por llamada se conserva {detailDays} días; los resúmenes diarios se conservan hasta que fije un número de días o los borre.",
   "privacyNote": "El historial permanece en esta máquina. No contiene indicaciones, respuestas, argumentos de herramientas, rutas ni claves."
 }

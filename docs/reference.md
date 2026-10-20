@@ -2454,7 +2454,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.hooksMaxStopContinuations
 
-hooks: How many times in a row Stop hooks may keep a finished turn going. No limit unless you set one: 0 (the default) keeps going until the turn ends on its own; a set value stays within Muse Code's own 1–8, and higher values are refused, so no workspace can raise it.
+hooks: How many times in a row Stop hooks may keep a finished turn going. No limit unless you set one: 0 (the default) keeps going until the turn ends on its own; a set number of times is honoured as set.
 
 Type: `"number"`. Default: `0`. Scope: `machine`.
 
@@ -2462,8 +2462,7 @@ Type: `"number"`. Default: `0`. Scope: `machine`.
 {
   "type": "number",
   "default": 0,
-  "minimum": 0,
-  "maximum": 8
+  "minimum": 0
 }
 ```
 
@@ -2483,7 +2482,7 @@ Type: `"number"`. Default: `0`. Scope: `machine`.
 
 ### museSpark.subagentMaxConcurrent
 
-sessionBoard&subagents: How many subagents work at once. No limit unless you set one: 0 (the default) starts every subagent at once, and a set value stays within 1–64. Later ones queue.
+sessionBoard&subagents: How many subagents work at once. No limit unless you set one: 0 (the default) starts every subagent at once, and a set number is honoured as set. Later ones queue.
 
 Type: `"number"`. Default: `0`. Scope: `machine`.
 
@@ -2491,8 +2490,7 @@ Type: `"number"`. Default: `0`. Scope: `machine`.
 {
   "type": "number",
   "default": 0,
-  "minimum": 0,
-  "maximum": 64
+  "minimum": 0
 }
 ```
 
@@ -2798,7 +2796,6 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
 {
   "type": "array",
   "default": [],
-  "maxItems": 500,
   "items": {
     "type": "object",
     "required": ["pattern", "decision", "match"],
@@ -3011,8 +3008,7 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
   "default": [],
   "items": {
     "type": "string"
-  },
-  "maxItems": 32
+  }
 }
 ```
 
@@ -3242,9 +3238,7 @@ Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 ```json
 {
   "type": ["number", "null"],
-  "default": null,
-  "minimum": 30,
-  "maximum": 100
+  "default": null
 }
 ```
 
@@ -3257,9 +3251,7 @@ Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 ```json
 {
   "type": ["number", "null"],
-  "default": null,
-  "minimum": 40,
-  "maximum": 98
+  "default": null
 }
 ```
 
@@ -3272,9 +3264,7 @@ Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 ```json
 {
   "type": ["number", "null"],
-  "default": null,
-  "minimum": 0.5,
-  "maximum": 64
+  "default": null
 }
 ```
 
@@ -3317,8 +3307,7 @@ Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 ```json
 {
   "type": ["number", "null"],
-  "default": null,
-  "minimum": 2
+  "default": null
 }
 ```
 
@@ -3408,7 +3397,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.webSearchMaxPerRequest
 
-conversationStart&hosted.webSearch: Maximum hosted web searches per response. No limit unless you set one: 0 (the default) sends no max and the provider decides; a set value stays within 1–20. The price and shared daily budget are shown before the first charge.
+conversationStart&hosted.webSearch: Maximum hosted web searches per response. No limit unless you set one: 0 (the default) sends no max and the provider decides; a set number is honoured as set. The price and shared daily budget are shown before the first charge.
 
 Type: `"number"`. Default: `0`. Scope: `machine`.
 
@@ -3416,8 +3405,7 @@ Type: `"number"`. Default: `0`. Scope: `machine`.
 {
   "type": "number",
   "default": 0,
-  "minimum": 0,
-  "maximum": 20
+  "minimum": 0
 }
 ```
 
@@ -3450,16 +3438,14 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.usageHistoryDays
 
-Days to keep daily usage summaries (30–1825). Per-call detail is kept for 30 days.
+Days to keep daily usage summaries. Unset keeps them until you set a number of days or clear them; a whole number of days of 1 or more is honoured as set. Per-call detail is kept for 30 days.
 
-Type: `"integer"`. Default: `365`. Scope: `machine`.
+Type: `["integer","null"]`. Default: `null`. Scope: `machine`.
 
 ```json
 {
-  "type": "integer",
-  "default": 365,
-  "minimum": 30,
-  "maximum": 1825
+  "type": ["integer", "null"],
+  "default": null
 }
 ```
 
@@ -3581,7 +3567,7 @@ Type: `"integer"`. Default: `0`. Scope: `machine`.
 
 ### museSpark.mediaUploadExpiryDays
 
-Days a provider upload stays listed before cleanup is offered. 7 by default; 1–30. Expiry is decided by the provider; an upload another session still references is never deleted. Only this machine’s setting is used.
+Days a provider upload stays listed before cleanup is offered. 7 by default; a whole number of days of 1 or more is honoured as set. Expiry is decided by the provider; an upload another session still references is never deleted. Only this machine’s setting is used.
 
 Type: `"integer"`. Default: `7`. Scope: `machine`.
 
@@ -3589,8 +3575,7 @@ Type: `"integer"`. Default: `7`. Scope: `machine`.
 {
   "type": "integer",
   "default": 7,
-  "minimum": 1,
-  "maximum": 30
+  "minimum": 1
 }
 ```
 

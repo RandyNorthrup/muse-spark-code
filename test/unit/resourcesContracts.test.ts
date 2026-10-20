@@ -87,10 +87,12 @@ describe('M107 resource contracts', () => {
       RESOURCE_HISTORY_MINUTE_MS: 60_000,
     })
   })
+  // NOLIMITSSET (PLAN.md D121): the person's CPU, memory and memory-floor
+  // values keep only the quantity's own nature (a percentage's 0–100, a GiB
+  // floor's zero). The GPU and disk-busy probes keep their 1–100 (out of scope).
   it.each([
-    ['cpuMaxPercent', 30, 100],
-    ['memoryMaxPercent', 40, 98],
-    ['memoryMinFreeGiB', 0.5, 64],
+    ['cpuMaxPercent', 0, 100],
+    ['memoryMaxPercent', 0, 100],
     ['gpuMaxPercent', 1, 100],
     ['diskBusyMaxPercent', 1, 100],
   ])('enforces both ends of %s and rejects nonfinite values', (key, min, max) => {
@@ -100,6 +102,16 @@ describe('M107 resource contracts', () => {
       expect(resourceSettingsSchema.safeParse({ [key]: value }).success).toBe(false)
     }
   })
+  it.each([['memoryMinFreeGiB'], ['diskMinFreeGiB']])(
+    'accepts any nonnegative %s and rejects the rest',
+    (key) => {
+      expect(resourceSettingsSchema.safeParse({ [key]: 0 }).success).toBe(true)
+      expect(resourceSettingsSchema.safeParse({ [key]: 128 }).success).toBe(true)
+      for (const value of [-1, NaN, Infinity, '2']) {
+        expect(resourceSettingsSchema.safeParse({ [key]: value }).success).toBe(false)
+      }
+    },
+  )
   it('ignores workspace and folder overrides; preserves machine false and null', () => {
     expect(readResourceSettings(workspaceOnly)).toEqual(defaults)
     expect(
@@ -114,9 +126,14 @@ describe('M107 resource contracts', () => {
         key === 'resourceGpuMaxPercent' ? { globalValue: null, defaultValue: 90 } : undefined,
       ).gpuMaxPercent,
     ).toBeNull()
-    expect(() =>
+    expect(
       readResourceSettings((key) =>
         key === 'resourceCpuMaxPercent' ? { globalValue: 29, workspaceValue: 85 } : undefined,
+      ).cpuMaxPercent,
+    ).toBe(29)
+    expect(() =>
+      readResourceSettings((key) =>
+        key === 'resourceCpuMaxPercent' ? { globalValue: -1, workspaceValue: 85 } : undefined,
       ),
     ).toThrow()
   })

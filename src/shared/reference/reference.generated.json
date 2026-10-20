@@ -3266,13 +3266,13 @@
       },
       "id": "museSpark.hooksMaxStopContinuations",
       "name": "museSpark.hooksMaxStopContinuations",
-      "description": "How many times in a row Stop hooks may keep a finished turn going. No limit unless you set one: 0 (the default) keeps going until the turn ends on its own; a set value stays within Muse Code's own 1–8, and higher values are refused, so no workspace can raise it.",
+      "description": "How many times in a row Stop hooks may keep a finished turn going. No limit unless you set one: 0 (the default) keeps going until the turn ends on its own; a set number of times is honoured as set.",
       "descriptionKey": "config.hooksMaxStopContinuations.description",
       "type": "number",
       "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 0, "minimum": 0, "maximum": 8 }
+      "schema": { "type": "number", "default": 0, "minimum": 0 }
     },
     {
       "text": {
@@ -3296,13 +3296,13 @@
       },
       "id": "museSpark.subagentMaxConcurrent",
       "name": "museSpark.subagentMaxConcurrent",
-      "description": "How many subagents work at once. No limit unless you set one: 0 (the default) starts every subagent at once, and a set value stays within 1–64. Later ones queue.",
+      "description": "How many subagents work at once. No limit unless you set one: 0 (the default) starts every subagent at once, and a set number is honoured as set. Later ones queue.",
       "descriptionKey": "config.subagentMaxConcurrent.description",
       "type": "number",
       "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 0, "minimum": 0, "maximum": 64 }
+      "schema": { "type": "number", "default": 0, "minimum": 0 }
     },
     {
       "text": {
@@ -3602,7 +3602,6 @@
       "schema": {
         "type": "array",
         "default": [],
-        "maxItems": 500,
         "items": {
           "type": "object",
           "required": ["pattern", "decision", "match"],
@@ -3756,7 +3755,7 @@
       "default": [],
       "scope": "machine",
       "refinements": ["valid:host"],
-      "schema": { "type": "array", "default": [], "items": { "type": "string" }, "maxItems": 32 }
+      "schema": { "type": "array", "default": [], "items": { "type": "string" } }
     },
     {
       "id": "museSpark.browserCheckRuntime",
@@ -4054,7 +4053,7 @@
       "default": null,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": ["number", "null"], "default": null, "minimum": 30, "maximum": 100 }
+      "schema": { "type": ["number", "null"], "default": null }
     },
     {
       "text": {
@@ -4073,7 +4072,7 @@
       "default": null,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": ["number", "null"], "default": null, "minimum": 40, "maximum": 98 }
+      "schema": { "type": ["number", "null"], "default": null }
     },
     {
       "text": {
@@ -4089,7 +4088,7 @@
       "default": null,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": ["number", "null"], "default": null, "minimum": 0.5, "maximum": 64 }
+      "schema": { "type": ["number", "null"], "default": null }
     },
     {
       "text": {
@@ -4137,7 +4136,7 @@
       "default": null,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": ["number", "null"], "default": null, "minimum": 2 }
+      "schema": { "type": ["number", "null"], "default": null }
     },
     {
       "text": {
@@ -4283,13 +4282,13 @@
       },
       "id": "museSpark.webSearchMaxPerRequest",
       "name": "museSpark.webSearchMaxPerRequest",
-      "description": "Maximum hosted web searches per response. No limit unless you set one: 0 (the default) sends no max and the provider decides; a set value stays within 1–20. The price and shared daily budget are shown before the first charge.",
+      "description": "Maximum hosted web searches per response. No limit unless you set one: 0 (the default) sends no max and the provider decides; a set number is honoured as set. The price and shared daily budget are shown before the first charge.",
       "descriptionKey": "config.webSearchMaxPerRequest.description",
       "type": "number",
       "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 0, "minimum": 0, "maximum": 20 }
+      "schema": { "type": "number", "default": 0, "minimum": 0 }
     },
     {
       "id": "museSpark.modelApiMaxRetries",
@@ -4316,13 +4315,13 @@
     {
       "id": "museSpark.usageHistoryDays",
       "name": "museSpark.usageHistoryDays",
-      "description": "Days to keep daily usage summaries (30–1825). Per-call detail is kept for 30 days.",
+      "description": "Days to keep daily usage summaries. Unset keeps them until you set a number of days or clear them; a whole number of days of 1 or more is honoured as set. Per-call detail is kept for 30 days.",
       "descriptionKey": "setting.usageHistoryDays.description",
-      "type": "integer",
-      "default": 365,
+      "type": ["integer", "null"],
+      "default": null,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "integer", "default": 365, "minimum": 30, "maximum": 1825 }
+      "schema": { "type": ["integer", "null"], "default": null }
     },
     {
       "id": "museSpark.legalHeaderPolicy",
@@ -4432,13 +4431,13 @@
     {
       "id": "museSpark.mediaUploadExpiryDays",
       "name": "museSpark.mediaUploadExpiryDays",
-      "description": "Days a provider upload stays listed before cleanup is offered. 7 by default; 1–30. Expiry is decided by the provider; an upload another session still references is never deleted. Only this machine’s setting is used.",
+      "description": "Days a provider upload stays listed before cleanup is offered. 7 by default; a whole number of days of 1 or more is honoured as set. Expiry is decided by the provider; an upload another session still references is never deleted. Only this machine’s setting is used.",
       "descriptionKey": "config.mediaUploadExpiryDays.description",
       "type": "integer",
       "default": 7,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "integer", "default": 7, "minimum": 1, "maximum": 30 }
+      "schema": { "type": "integer", "default": 7, "minimum": 1 }
     },
     {
       "id": "museSpark.screenRecordingMaxSeconds",

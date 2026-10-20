@@ -225,6 +225,10 @@ export const USAGE_EN = {
   sortDescending: 'Sort Descending',
   retentionNote:
     'Per-call detail is kept for {detailDays} days; daily summaries for {historyDays} days.',
+  // NOLIMITSSET (PLAN.md D121): with no day count set, daily summaries are
+  // kept until the person sets a number of days or clears them.
+  retentionNoteKept:
+    'Per-call detail is kept for {detailDays} days; daily summaries are kept until you set a number of days or clear them.',
   privacyNote:
     'History stays on this machine. It contains no prompts, replies, tool arguments, paths or keys.',
 }
