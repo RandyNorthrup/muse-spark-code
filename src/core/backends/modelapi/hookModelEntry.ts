@@ -26,11 +26,7 @@ import { fitRequest, helperRequestCost, type OwnedSessionBudgetScope } from './s
 import { estimateCostUsd } from '../../usage/insights'
 import type { SubagentUsage } from '../../../shared/paid'
 import type { ItemSnapshot } from '../../../shared/agentEvents'
-import {
-  HOOK_MODEL_ROW_TOOL,
-  HOOK_MODEL_TIMEOUT_MS,
-  MODEL_API_EFFORT_OFF,
-} from '../../../shared/constants'
+import { HOOK_MODEL_ROW_TOOL, MODEL_API_EFFORT_OFF } from '../../../shared/constants'
 import { hookDecisionSchema } from '../../../shared/sideCallSchemas'
 import { setUiText } from '../../../shared/l10n/text'
 import { minOutputTokensForPolicy, modelPolicyFor } from './modelPolicy'
@@ -393,7 +389,7 @@ async function requestHookStep(
       context.deps.client,
       body,
       signal,
-      HOOK_MODEL_TIMEOUT_MS,
+      undefined,
       admission,
       confirmed,
     )

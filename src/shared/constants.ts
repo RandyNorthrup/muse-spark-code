@@ -1070,7 +1070,6 @@ export const HOOK_IP_V6_FAMILY = 6
 export const HOOK_HTTP_REDIRECT_MIN_STATUS = 300
 // A prompt or agent handler's own model call: one attempt, no retry, with
 // the hook's answer parsed like a command's.
-export const HOOK_MODEL_TIMEOUT_MS = 60_000
 // D121: the hook call sends no output cap of ours — the capability record's
 // published maximum rides along (hookModelEntry.hookModelOutputCap), or none
 // is sent when the record names none.
