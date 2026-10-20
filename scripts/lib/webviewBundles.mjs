@@ -135,12 +135,25 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
   {
     name: 'surface English',
     entries: ['browser-surface-english:browser-surface-english'],
-    // TRAIN15H: 21,695 bytes +15%, rounded up to 25 KiB. Release 0.19.0:
-    // 25,638 bytes (the merged truth lanes' sentences) +15%, rounded up to
-    // 29 KiB.
-    // JOIN0190 final: the 25 KiB budget stands (brief item 6); the merged
-    // sentences are shortened back to it before release preparation.
-    budgetKiB: 29,
+    // TRAIN15H: 21,695 bytes +15%, rounded up to 25 KiB. JOIN0190: the
+    // ChatGPT sign-in's English (4,243 bytes) and the team runners'
+    // English (1,070 bytes) load in their own chunks below; the shared
+    // closure measures 22,102 bytes +15%, inside the unchanged 25 KiB.
+    budgetKiB: 25,
+  },
+  {
+    name: 'chatgpt English',
+    entries: ['browser-chatgpt-english:browser-chatgpt-english'],
+    // JOIN0190: the ChatGPT plan sign-in's English rides its own deferred
+    // chunk out of the shared surface closure: 2,449 bytes +15%, 25 KiB.
+    budgetKiB: 25,
+  },
+  {
+    name: 'runners English',
+    entries: ['browser-runners-english:browser-runners-english'],
+    // JOIN0190: the team runners' English rides its own deferred chunk out
+    // of the shared surface closure: 1,352 bytes +15%, 25 KiB.
+    budgetKiB: 25,
   },
   {
     name: 'playbook English',

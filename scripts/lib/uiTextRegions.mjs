@@ -410,12 +410,64 @@ export const compactBrowserUiText = {
                 /UI_TEXT\.playbook/.test(readFileSync(file, 'utf8')),
             ),
       )
+      // JOIN0190: the ChatGPT plan sign-in's English loads with its deferred
+      // readers (the models page's provider sections), out of the shared
+      // surface closure, the way the playbook's English already does.
+      const chatGptKeys = deferredKeys.filter(
+        (key) =>
+          (key === 'acpChatGpt' || key.startsWith('acpChatGpt.')) &&
+          !helpKeys.includes(key) &&
+          !accountKeys.includes(key) &&
+          !scheduleKeys.includes(key) &&
+          !playbookKeys.includes(key) &&
+          key !== 'vault' &&
+          nonResourceKeys.has(key),
+      )
+      // JOIN0190: the team runners' English loads with its deferred readers
+      // (the models page's runner sections), out of the shared surface
+      // closure, the same way.
+      const runnersKeys = deferredKeys.filter(
+        (key) =>
+          (key === 'teamRunners' || key.startsWith('teamRunners.')) &&
+          !helpKeys.includes(key) &&
+          !accountKeys.includes(key) &&
+          !scheduleKeys.includes(key) &&
+          !playbookKeys.includes(key) &&
+          !chatGptKeys.includes(key) &&
+          key !== 'vault' &&
+          nonResourceKeys.has(key),
+      )
+      // Each deferred ChatGPT reader module installs it before its body
+      // runs (an eager reader would carry the key in startup instead).
+      const chatGptReaders = new Set(
+        chatGptKeys.length === 0
+          ? []
+          : files.filter(
+              (file) =>
+                /[/\\]src[/\\]webview[/\\]/.test(file) &&
+                !eagerSources.has(file) &&
+                /UI_TEXT\.acpChatGpt/.test(readFileSync(file, 'utf8')),
+            ),
+      )
+      // Each deferred runners module installs it before its body runs.
+      const runnersReaders = new Set(
+        runnersKeys.length === 0
+          ? []
+          : files.filter(
+              (file) =>
+                /[/\\]src[/\\]webview[/\\]/.test(file) &&
+                !eagerSources.has(file) &&
+                /UI_TEXT\.teamRunners/.test(readFileSync(file, 'utf8')),
+            ),
+      )
       const surfaceKeys = deferredKeys.filter(
         (key) =>
           !helpKeys.includes(key) &&
           !accountKeys.includes(key) &&
           !scheduleKeys.includes(key) &&
           !playbookKeys.includes(key) &&
+          !chatGptKeys.includes(key) &&
+          !runnersKeys.includes(key) &&
           key !== 'vault' &&
           nonResourceKeys.has(key),
       )
@@ -441,6 +493,10 @@ export const compactBrowserUiText = {
         surfaceKeys,
         playbookKeys,
         playbookReaders,
+        chatGptKeys,
+        chatGptReaders,
+        runnersKeys,
+        runnersReaders,
         helpKeys,
         accountKeys,
         scheduleKeys,
@@ -474,6 +530,8 @@ export const compactBrowserUiText = {
       'browser-table-contract',
       'browser-surface-english',
       'browser-playbook-english',
+      'browser-chatgpt-english',
+      'browser-runners-english',
       'browser-resource-english',
       'browser-reference-english',
       'browser-account-english',
@@ -492,7 +550,7 @@ export const compactBrowserUiText = {
     }))
     build.onLoad({ filter: /[/\\]l10n[/\\]deferredEnglish\.ts$/ }, () => ({
       contents:
-        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english'), import('browser-playbook-english')]) }",
+        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english'), import('browser-playbook-english'), import('browser-chatgpt-english'), import('browser-runners-english')]) }",
       loader: 'js',
     }))
     build.onLoad({ filter: /[/\\]installTable\.ts$/ }, (args) => ({
@@ -515,6 +573,26 @@ export const compactBrowserUiText = {
     build.onLoad({ filter: /.*/, namespace: 'browser-playbook-english' }, () => ({
       contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
 ${inlineBrowserTable(Object.fromEntries(data.playbookKeys.map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    build.onResolve({ filter: /^browser-chatgpt-english$/ }, () => ({
+      path: 'browser-chatgpt-english',
+      namespace: 'browser-chatgpt-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-chatgpt-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.chatGptKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    build.onResolve({ filter: /^browser-runners-english$/ }, () => ({
+      path: 'browser-runners-english',
+      namespace: 'browser-runners-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-runners-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.runnersKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
 installSurfaceEnglish(EN);`,
       loader: 'js',
     }))
@@ -575,6 +653,33 @@ installSurfaceEnglish(EN);`,
         throw new Error(`Unsupported lazy surface in a playbook English reader: ${args.path}`)
       return {
         contents: "await import('browser-playbook-english');\n" + source,
+        loader: args.path.endsWith('.tsx') ? 'tsx' : 'ts',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [args.path],
+      }
+    })
+    // JOIN0190: same installer for the ChatGPT sign-in's own English, with
+    // the same loud failure when a reader declares one.
+    build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx?$/ }, (args) => {
+      if (!data.chatGptReaders.has(path.resolve(args.path))) return
+      const source = readFileSync(args.path, 'utf8')
+      if (/\blazy\(|ReferencePage/.test(source))
+        throw new Error(`Unsupported lazy surface in a ChatGPT English reader: ${args.path}`)
+      return {
+        contents: "await import('browser-chatgpt-english');\n" + source,
+        loader: args.path.endsWith('.tsx') ? 'tsx' : 'ts',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [args.path],
+      }
+    })
+    // JOIN0190: same installer for the team runners' own English.
+    build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx?$/ }, (args) => {
+      if (!data.runnersReaders.has(path.resolve(args.path))) return
+      const source = readFileSync(args.path, 'utf8')
+      if (/\blazy\(|ReferencePage/.test(source))
+        throw new Error(`Unsupported lazy surface in a runners English reader: ${args.path}`)
+      return {
+        contents: "await import('browser-runners-english');\n" + source,
         loader: args.path.endsWith('.tsx') ? 'tsx' : 'ts',
         resolveDir: path.dirname(args.path),
         watchFiles: [args.path],
