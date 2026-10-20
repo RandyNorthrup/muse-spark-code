@@ -1,21 +1,17 @@
-import { execResourceFile } from '../resources/launcher'
 import * as z from 'zod/mini'
 import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
-import { lstat, mkdir, open, readFile, readdir, realpath, rename, unlink } from 'node:fs/promises'
+import { lstat, mkdir, open, readdir, realpath, rename, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
   CHECKPOINT_STORAGE_MODE,
   REPORT_HISTORY_MAX_PER_KIND,
   REPORT_MAX_ID_CHARS,
-  REPORT_PROCESS_START_FIELD_INDEX,
   REPORT_WRITER_LOCK_WAIT_MS,
   REPORT_WRITER_LOCK_BACKOFF_MS,
   REPORT_WRITER_LOCK_BACKOFF_MAX_MS,
   REPORT_WRITER_LOCK_PROBE_MS,
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
   REPORT_MAX_SOURCES,
   REPORT_MAX_TEXT_CHARS,
   REPORT_STORAGE_FILE_MODE,
@@ -30,8 +26,8 @@ import {
   type ReportKind,
 } from '../../shared/reportSchema'
 import { handleIdentity, lstatIdentity, sameFile } from '../fs/fileIdentity'
-import { withoutCredentials } from '../credentialEnvironment'
 import { compareReports } from './diff'
+import { processStartTime } from '../locks/processOwner'
 import { isErrno } from '../fs/errno'
 
 /** R supplies canonical, scrubbed JSON and verifies the saved content hash on decode. */
@@ -80,54 +76,18 @@ const lockOwnerSchema = z.strictObject({
 // collide with one; isDead skips birth comparison for it and lets the
 // signal govern.
 const BIRTH_UNAVAILABLE = 'birth-unavailable'
-const execFileAsync = execResourceFile
 const processBirth: { own?: Promise<string | undefined> } = {}
 
-/** OS birth identity, so a reused PID never keeps an abandoned writer lock alive. */
-async function processStart(pid: number, probeBudgetMs: number): Promise<string | undefined> {
-  const reportUi = UI_TEXT.reportUi
-
-  try {
-    process.kill(pid, 0)
-  } catch (error: unknown) {
-    if (isErrno(error) && error.code === 'ESRCH') return
-    throw error
-  }
-  if (process.platform === 'linux') {
-    try {
-      const stat = await readFile(`/proc/${String(pid)}/stat`, 'utf8')
-      const fields = stat
-        .slice(stat.lastIndexOf(')') + 1)
-        .trim()
-        .split(/\s+/)
-      const startedAt = fields[REPORT_PROCESS_START_FIELD_INDEX]
-      if (startedAt === undefined || !/^\d+$/.test(startedAt)) throw new Error(reportUi.saveFailed)
-      return startedAt
-    } catch (error: unknown) {
-      if (isErrno(error) && error.code === 'ENOENT') return
-      if (isErrno(error) && error.code === 'ESRCH') return
-      throw error
-    }
-  }
-  const env = { ...withoutCredentials(process.env), LC_ALL: 'C', TZ: 'UTC' }
-  let file = '/bin/ps'
-  let args = ['-o', 'lstart=', '-p', String(pid)]
-  if (process.platform === 'win32') {
-    const systemRoot = process.env['SystemRoot']
-    if (systemRoot === undefined) throw new Error(reportUi.saveFailed)
-    file = path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
-    args = [
-      ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-      // Module discovery can consume the probe deadline on a cold/loaded rig.
-      `try { [Diagnostics.Process]::GetProcessById(${String(pid)}).StartTime.ToFileTimeUtc() } catch [ArgumentException] { }`,
-    ]
-  }
-  const { stdout } = await execFileAsync('probe', file, args, {
-    env,
-    windowsHide: true,
-    timeout: Math.min(REPORT_WRITER_LOCK_PROBE_MS, probeBudgetMs),
-  })
-  return stdout.trim() || undefined
+/**
+OS birth identity as digits, so a reused PID never keeps an abandoned
+writer lock alive: the shared table probe (epoch milliseconds on macOS
+and Windows, ticks on Linux), which needs no resource host and never
+throws. A governed launch here would fail wherever no host is
+configured and strand every lock birthless.
+*/
+async function processStart(pid: number): Promise<string | undefined> {
+  const started = await processStartTime(pid)
+  return started === undefined ? undefined : String(started)
 }
 
 // This process's lock identity. The OS birth when the table answers;
@@ -135,28 +95,37 @@ async function processStart(pid: number, probeBudgetMs: number): Promise<string 
 // no process table). A birthless owner still locks safely: death is proven
 // by signal, and an unreadable birth never authorizes removal (see isDead).
 async function ownStart(): Promise<string> {
-  const deadline = performance.now() + REPORT_WRITER_LOCK_PROBE_MS
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const remaining = deadline - performance.now()
-      if (remaining <= 0) return BIRTH_UNAVAILABLE
-      const startedAt = await processStart(
-        process.pid,
-        Math.max(1, Math.floor(remaining / (2 - attempt))),
-      )
-      return startedAt ?? BIRTH_UNAVAILABLE
-    } catch {
-      if (attempt === 1 || performance.now() >= deadline) return BIRTH_UNAVAILABLE
-    }
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    const startedAt = await Promise.race([
+      processStart(process.pid),
+      new Promise<undefined>((resolve) => {
+        timeout = setTimeout(resolve, REPORT_WRITER_LOCK_PROBE_MS)
+      }),
+    ])
+    return startedAt ?? BIRTH_UNAVAILABLE
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout)
   }
-  return BIRTH_UNAVAILABLE
 }
 
 async function startOf(
   pid: number,
   probeBudgetMs = REPORT_WRITER_LOCK_PROBE_MS,
 ): Promise<string | undefined> {
-  if (pid !== process.pid) return await processStart(pid, probeBudgetMs)
+  if (pid !== process.pid) {
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    try {
+      return await Promise.race([
+        processStart(pid),
+        new Promise<undefined>((resolve) => {
+          timeout = setTimeout(resolve, Math.max(1, Math.floor(probeBudgetMs)))
+        }),
+      ])
+    } finally {
+      if (timeout !== undefined) clearTimeout(timeout)
+    }
+  }
   processBirth.own ??= ownStart()
   const pending = processBirth.own
   try {
