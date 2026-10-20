@@ -7226,6 +7226,18 @@ use the contributor models and are counted and reported (2026-09-25).
 
 <!-- plan-archive:end id="decisions-3087b10dd-21498" -->
 
+<!-- plan-archive:begin id="decisions-f77f1809b-20111" lines="20111-20111" at="f77f1809b" bytes="115" sha256="6ccac683eca047043069a12409e5dd1e280ed950878fa1c57a8b952ff13503e5" -->
+
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-20111" -->
+
+<!-- plan-archive:begin id="decisions-f77f1809b-20113" lines="20113-20113" at="f77f1809b" bytes="107" sha256="9e6e1f998c239caaed1fcbd04c42276e2baa2dbbb31ed70d7d95971d7d297c0a" -->
+
+- **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-20113" -->
+
 ## ### M99
 
 <!-- plan-archive:begin id="decisions-3087b10dd-26230" lines="26230-26233" at="3087b10dd" bytes="245" sha256="ede58e7a997dcce78688a6784d52f5aa27ca46385e474cf61b61a9b1f5994548" -->
@@ -7340,6 +7352,12 @@ acceptances still hold.
   - [x] README/ACP/privacy/changelog/host-API and `m93.md` match shipped behavior.
 
 <!-- plan-archive:end id="decisions-3087b10dd-28146" -->
+
+<!-- plan-archive:begin id="decisions-f77f1809b-26725" lines="26725-26725" at="f77f1809b" bytes="115" sha256="6ccac683eca047043069a12409e5dd1e280ed950878fa1c57a8b952ff13503e5" -->
+
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-26725" -->
 
 ## ### M118
 
@@ -7563,6 +7581,12 @@ Record regression failures, byte-exact red drills and bounded checks in
 - [x] P2-4 shared leading-whitespace local-command interception.
 
 <!-- plan-archive:end id="decisions-3087b10dd-35525" -->
+
+<!-- plan-archive:begin id="decisions-f77f1809b-33833" lines="33833-33833" at="f77f1809b" bytes="115" sha256="6ccac683eca047043069a12409e5dd1e280ed950878fa1c57a8b952ff13503e5" -->
+
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-33833" -->
 
 ## ### M97
 
@@ -7865,3 +7889,23 @@ Record regression failures, byte-exact red drills and bounded checks in
   - [ ] Each phase-2 section certified on its own when it ships.
 
 <!-- plan-archive:end id="decisions-3087b10dd-36027" -->
+
+<!-- plan-archive:begin id="decisions-f77f1809b-34093" lines="34093-34093" at="f77f1809b" bytes="115" sha256="6ccac683eca047043069a12409e5dd1e280ed950878fa1c57a8b952ff13503e5" -->
+
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-34093" -->
+
+<!-- plan-archive:begin id="decisions-f77f1809b-34095" lines="34095-34095" at="f77f1809b" bytes="107" sha256="9e6e1f998c239caaed1fcbd04c42276e2baa2dbbb31ed70d7d95971d7d297c0a" -->
+
+- **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-34095" -->
+
+## ### M73
+
+<!-- plan-archive:begin id="decisions-f77f1809b-19491" lines="19491-19491" at="f77f1809b" bytes="107" sha256="9e6e1f998c239caaed1fcbd04c42276e2baa2dbbb31ed70d7d95971d7d297c0a" -->
+
+- **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-19491" -->
