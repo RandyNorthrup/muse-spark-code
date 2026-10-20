@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { constants } from 'node:fs'
-import { renameSync, unlinkSync } from 'node:fs'
-import { copyFile, link, lstat, mkdir, open, readdir } from 'node:fs/promises'
+import { renameSync, unlinkSync, type BigIntStats } from 'node:fs'
+import { copyFile, link, lstat, mkdir, open, readdir, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
@@ -231,6 +231,32 @@ export class NodeVaultFiles implements VaultFilePort {
       await directory.close()
     }
   }
+  /**
+  Protect and verify a file this store just created, returning the handle
+  to write it. The Windows guard examines a file with read-only sharing, so
+  protect and verify cannot succeed while this process holds a write
+  handle: there the new (empty) file is closed, protected and verified,
+  then the same file, by identity, reopens for the write.
+  */
+  private async protectCreated(
+    file: string,
+    created: FileHandle,
+    identity: BigIntStats,
+  ): Promise<FileHandle> {
+    if (this.platform === 'win32') await created.close()
+    await this.security?.protect(file, 'file')
+    await this.verify(file, 'file')
+    if (this.platform !== 'win32') return created
+    const reopened = await open(file, 'r+')
+    let isSame = false
+    try {
+      isSame = sameFile(identity, await handleIdentity(reopened))
+    } finally {
+      if (!isSame) await reopened.close()
+    }
+    if (!isSame) throw new VaultError('io')
+    return reopened
+  }
   private async writeFileAtomic(
     name: VaultFileName,
     data: Uint8Array,
@@ -243,11 +269,10 @@ export class NodeVaultFiles implements VaultFilePort {
       this.root,
       `${name}.${randomVaultBytes(VAULT_LIMITS.idBytes).toString('hex')}.stage`,
     )
-    const handle = await open(stage, 'wx', constants.S_IRUSR | constants.S_IWUSR)
+    let handle = await open(stage, 'wx', constants.S_IRUSR | constants.S_IWUSR)
     const identity = await handleIdentity(handle)
     try {
-      await this.security?.protect(stage, 'file')
-      await this.verify(stage, 'file')
+      handle = await this.protectCreated(stage, handle, identity)
       await handle.writeFile(data)
       await handle.sync()
       await handle.close()
@@ -418,10 +443,9 @@ export class NodeVaultFiles implements VaultFilePort {
             await this.verify(folder, 'directory')
           },
           createExclusive: async (file, content, durability) => {
-            const handle = await open(file, 'wx', constants.S_IRUSR | constants.S_IWUSR)
+            let handle = await open(file, 'wx', constants.S_IRUSR | constants.S_IWUSR)
             try {
-              await this.security?.protect(file, 'file')
-              await this.verify(file, 'file')
+              handle = await this.protectCreated(file, handle, await handleIdentity(handle))
               await handle.writeFile(content)
               if (durability === 'flushed') await handle.sync()
             } finally {

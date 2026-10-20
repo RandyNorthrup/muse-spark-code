@@ -8,6 +8,8 @@ import os from 'node:os'
 import { randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
 import { windowsPipeExecutable } from '../../../src/host/vault/slots/windowsVaultBuild'
+import { configureResources } from '../../../src/core/resources/admission'
+import { runtimeResourceJobs } from '../../../src/runtime/resources/jobs'
 
 const messageSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('stage'), stage: z.string() }),
@@ -24,12 +26,27 @@ async function prebuildWindowsPipeHelper(): Promise<void> {
   await mkdir(storageDir, { recursive: true })
   const systemRoot = process.env['SystemRoot']
   if (systemRoot === undefined || systemRoot === '') throw new Error('SystemRoot is missing')
-  const helper = await windowsPipeExecutable({
-    storageDir,
-    systemRoot,
-    readSlotSource: () => readFile(path.resolve('native/windows/MuseSparkVault.cs'), 'utf8'),
-    readPipeSource: () => readFile(path.resolve('native/windows/MuseSparkVaultPipe.cs'), 'utf8'),
-  })
+  // The helper build is admitted by the real resource governor, configured
+  // here as the standalone runtime configures it (src/runtime/resources/load.ts).
+  const disposeAdmission = configureResources({ inspect: () => ({}), onError: () => undefined })
+  let helper: Awaited<ReturnType<typeof windowsPipeExecutable>>
+  try {
+    helper = await windowsPipeExecutable({
+      storageDir,
+      systemRoot,
+      readSlotSource: () => readFile(path.resolve('native/windows/MuseSparkVault.cs'), 'utf8'),
+      readPipeSource: () => readFile(path.resolve('native/windows/MuseSparkVaultPipe.cs'), 'utf8'),
+    })
+    // The job helpers every child's governor records its launches through,
+    // prepared once here: each child finds them present instead of compiling.
+    if (
+      (await runtimeResourceJobs(path.join(fixture.directory, 'jobs'), path.resolve('.'))) ===
+      undefined
+    )
+      throw new Error('the Windows job helpers could not be prepared')
+  } finally {
+    disposeAdmission()
+  }
   fixture.pipeHelper = path.join(fixture.directory, 'pipe-helper.json')
   await writeFile(
     fixture.pipeHelper,
@@ -41,14 +58,16 @@ async function prebuildWindowsPipeHelper(): Promise<void> {
     }),
   )
 }
-function child(root: string, action: string, key: Buffer, stage?: string) {
+function child(root: string, action: string, key: Buffer, stage = '') {
   const process = spawn(
     globalThis.process.execPath,
     [
       fixture.file,
       root,
       action,
-      ...(stage ? [stage] : []),
+      // The stage slot is always filled (empty: run to completion), so the
+      // Windows helper path keeps its own position (argv[5]) in every child.
+      stage,
       ...(fixture.pipeHelper === '' ? [] : [fixture.pipeHelper]),
     ],
     // The writer lease identifies each process through its machine identity,

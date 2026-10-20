@@ -34,6 +34,11 @@ const SLOT_SOURCES = [
 ] as const
 const PIPE_SOURCE = 'native/windows/MuseSparkVaultPipe.cs'
 
+/** A built helper as the broker's launch payload names it (VaultBrokerLaunch). */
+function launchHelper(helper: { file: string; sha256: string; powershell: string }) {
+  return { file: helper.file, sha256: helper.sha256, powershell: helper.powershell }
+}
+
 /** Installed Windows vault client: builds both helpers at first use, then mirrors the POSIX flow. */
 export async function windowsVaultClientPlatform(
   context: VaultClientPlatformContext,
@@ -83,7 +88,17 @@ export async function windowsVaultClientPlatform(
       process.stderr.write('vault-slot-rebuild-refused\n')
     },
   })
-  const ownerSid = pipeFiles.relay.owner()
+  // Files mode owns no pipe, so no ready frame names the owner: every
+  // identity answer carries the helper's own token user, the SID a serve
+  // helper announces.
+  let ownerSid: string
+  try {
+    const self = await pipeFiles.inspectProcess(process.pid)
+    ownerSid = self.ownerSid
+  } catch (error: unknown) {
+    await pipeFiles.stop()
+    throw error
+  }
   const userSession = ownerSid
   const runDirectory = path.join(context.dataDir, 'vault', 'run')
   const relay: PipeRelay = pipeFiles.relay
@@ -199,8 +214,10 @@ export async function windowsVaultClientPlatform(
             runDirectory,
             installRoot,
             userSession,
-            pipeHelper: plainPipeHelper,
-            windowsHelper: plainSlotHelper,
+            // File, digest and PowerShell only: the broker reads the guard
+            // source from its own install (a command line cannot hold it).
+            pipeHelper: launchHelper(plainPipeHelper),
+            windowsHelper: launchHelper(plainSlotHelper),
           },
           env,
           isReady: async () => (await discovery.discover(identity)) !== null,

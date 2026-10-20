@@ -28,6 +28,29 @@ function tempDir(): string {
   return realpathSync(mkdtempSync(path.join(tmpdir(), 'legal-build-')))
 }
 
+/** Bundle `entry` with one plugin through the recording build; the metafile's input keys. */
+async function bundledInputs(
+  entry: string,
+  plugin: esbuild.Plugin,
+  record: ReturnType<typeof newBuildRecord>,
+): Promise<string[]> {
+  const result = await esbuild.build(
+    withCompiledRecording(
+      {
+        entryPoints: [entry],
+        bundle: true,
+        write: false,
+        metafile: true,
+        format: 'esm',
+        logLevel: 'silent',
+        plugins: [plugin],
+      },
+      record,
+    ),
+  )
+  return Object.keys(result.metafile.inputs)
+}
+
 describe('build-captured input hashes', () => {
   it('records the bytes esbuild compiled, not the file after the build', async () => {
     const entry = path.join(tempDir(), 'value.ts')
@@ -96,21 +119,7 @@ describe('build-captured input hashes', () => {
       },
     }
     const record = newBuildRecord()
-    const result = await esbuild.build(
-      withCompiledRecording(
-        {
-          entryPoints: [entry],
-          bundle: true,
-          write: false,
-          metafile: true,
-          format: 'esm',
-          logLevel: 'silent',
-          plugins: [plugin],
-        },
-        record,
-      ),
-    )
-    const keys = Object.keys(result.metafile.inputs)
+    const keys = await bundledInputs(entry, plugin, record)
     expect(keys).toContain('virtual-english:table')
     const { inputs, generated } = compiledRecordFor(keys, record)
     expect(generated['virtual-english:table']).toBe(sha('globalThis.EN = 1'))
@@ -118,6 +127,32 @@ describe('build-captured input hashes', () => {
     // The source bytes are pinned at the hand-over; the generated contents are recorded beside them.
     expect(inputs[replacedKey]).toBe(sha('export const value = 1\n'))
     expect(generated[replacedKey]).toBe(sha(generatedContents))
+  })
+
+  it('records a plugin namespace path with Windows separators under the key it is read back by', async () => {
+    const dir = tempDir()
+    const entry = path.join(dir, 'entry.ts')
+    writeFileSync(entry, "import 'virtual-windows'\n")
+    const windowsPath = String.raw`C:\work\node_modules\zod\v4\core\util.js`
+    const plugin: esbuild.Plugin = {
+      name: 'test-windows-namespace',
+      setup(build) {
+        build.onResolve({ filter: /^virtual-windows$/ }, () => ({
+          path: windowsPath,
+          namespace: 'resource-validation',
+        }))
+        build.onLoad({ filter: /.*/, namespace: 'resource-validation' }, () => ({
+          contents: 'globalThis.Z = 1',
+          loader: 'js',
+        }))
+      },
+    }
+    const record = newBuildRecord()
+    const keys = await bundledInputs(entry, plugin, record)
+    expect(keys).toContain(`resource-validation:${windowsPath}`)
+    expect(compiledRecordFor(keys, record).generated).toEqual({
+      'resource-validation:C:/work/node_modules/zod/v4/core/util.js': sha('globalThis.Z = 1'),
+    })
   })
 
   it('hashes binary inputs as exact bytes and disabled modules as empty', async () => {

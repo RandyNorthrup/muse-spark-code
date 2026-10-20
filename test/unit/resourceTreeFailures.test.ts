@@ -7,7 +7,12 @@ import { describe, expect, it } from 'vitest'
 import { signalVerifiedPosix } from '../../src/core/resources/trees/actions'
 import { LinuxResourceTreeReader } from '../../src/core/resources/trees/linux'
 
-describe('LinuxResourceTreeReader identity codes', () => {
+// The product builds this reader only on Linux
+// (src/core/resources/resourceGovernorEntry.ts, process.platform === 'linux';
+// trees/linuxLaunch.ts is the Linux launcher). On macOS it still runs and
+// answers without /proc; Windows reads process trees through
+// WindowsResourceTreeReader and never constructs this one.
+describe.skipIf(process.platform === 'win32')('LinuxResourceTreeReader identity codes', () => {
   const reader = new LinuxResourceTreeReader()
 
   it('reads a live process identity', async () => {

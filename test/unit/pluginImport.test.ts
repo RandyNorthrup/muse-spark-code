@@ -79,7 +79,9 @@ function input(
   sources: readonly AgentImportSource[] = ['amp', 'opencode'],
 ): ImportScanInput & { readonly reads: string[] } {
   return {
-    platform: 'linux',
+    // The scan reads the real files planted above, so it takes this
+    // machine's own platform (its path rules decide what is absolute).
+    platform: process.platform,
     homeDir: planted.homeDir,
     claudeConfigDir: undefined,
     codexHome: undefined,
