@@ -103,9 +103,23 @@ describe.runIf(process.platform === 'darwin')('macOS probes live', () => {
     const io = createSamplerIo({ timeoutMs: 5000, maxOutputBytes: 64 * 1024 })
     const probes = createOptionalResourceProbes(io)
     const gpu = await probes.gpu()
-    expect(gpu).not.toBeNull()
-    expect(gpu).toBeGreaterThanOrEqual(0)
-    expect(gpu).toBeLessThanOrEqual(100)
+    // A VM without a GPU publishes no accelerator utilization: unknown
+    // (null) is the product's honest answer there. Corroborate against the
+    // raw exchange through the same real port: a reading exists exactly
+    // when an accelerator publishes an in-range utilization.
+    const tool = await io.executable('ioreg')
+    const raw = tool === null ? null : await io.run(tool, ['-r', '-c', 'IOAccelerator', '-d', '1'])
+    const published: number[] = []
+    if (raw !== null) {
+      for (const match of raw.matchAll(/"Device Utilization %"=(\d+(?:\.\d+)?)/g)) {
+        published.push(Number(match[1]))
+      }
+    }
+    if (published.length > 0 && published.every((value) => value >= 0 && value <= 100)) {
+      expect(gpu).toBe(Math.max(...published))
+    } else {
+      expect(gpu).toBeNull()
+    }
     expect(await probes.disk()).toBeNull()
     const disk = await new Promise<number | null>((resolve) => {
       setTimeout(() => {
