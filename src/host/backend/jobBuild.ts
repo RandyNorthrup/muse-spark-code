@@ -183,6 +183,7 @@ export function screenRecordExecutable(deps: {
         )
         return answer.trim() === 'muse-spark-screen-record-ready' ? target : undefined
       } catch {
+        // A compiler whose self-test fails offers no binary: no target.
         return
       }
     })())

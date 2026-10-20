@@ -287,6 +287,7 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
             try {
               onCountdown(elapsed)
             } catch {
+              // A countdown listener that throws ends the recording with its failure.
               end(true)
             }
             return

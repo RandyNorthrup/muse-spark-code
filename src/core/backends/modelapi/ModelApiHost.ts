@@ -19911,7 +19911,9 @@ export class ModelApiHost implements AgentHost {
       try {
         await session.endHooks(ending)
       } catch (error: unknown) {
-        this.deps.log.warn(`Model API SessionEnd hook failed: ${describe(error)}`)
+        this.deps.log.warn(
+          `Model API SessionEnd hook failed: ${wireWordForLog(error instanceof Error ? error.name : 'unknown')}`,
+        )
       }
     }
     // A turn the close stops charges what it spent and saves as it ends
