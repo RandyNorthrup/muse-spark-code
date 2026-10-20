@@ -1,5 +1,4 @@
 import type { PlanFacts, PlanMilestone, ReportQuestion } from '../sources/types'
-import { REPORT_PLAN_MAX_BYTES } from '../../../shared/constants'
 import {
   compact,
   comparePlanText,
@@ -275,14 +274,19 @@ export function emptyPlanFacts(): PlanFacts {
   }
 }
 
-/** Pure parser. Decode and scrub every returned string; R scrubs each rendered output again. */
-export function readPlan(text: string, evidence: PlanEvidence = {}): PlanReadResult {
-  const result = parsePlan(text, evidence)
+/**
+Pure parser. Decode and scrub every returned string; R scrubs each rendered output again.
+D121: no limit of ours — the whole plan parses however large. A byte limit
+applies only when the person sets one (`maxBytes` above 0); past it the
+read refuses with `input-size` drift naming the person's limit.
+*/
+export function readPlan(text: string, evidence: PlanEvidence = {}, maxBytes = 0): PlanReadResult {
+  const result = parsePlan(text, evidence, maxBytes)
   scrubPlanStrings(result)
   return result
 }
 
-function parsePlan(text: string, evidence: PlanEvidence): PlanReadResult {
+function parsePlan(text: string, evidence: PlanEvidence, maxBytes: number): PlanReadResult {
   const empty: PlanFacts = {
     format: 'none',
     milestones: [],
@@ -293,11 +297,13 @@ function parsePlan(text: string, evidence: PlanEvidence): PlanReadResult {
     deliveryOrder: [],
     drift: [],
   }
-  // Encode only when the bound is reachable: UTF-8 spends at most three bytes per UTF-16 unit.
+  // Encode only when the person's bound is reachable: UTF-8 spends at most
+  // three bytes per UTF-16 unit. With no bound set the whole plan parses.
   if (
-    text.length > REPORT_PLAN_MAX_BYTES ||
-    (text.length * UTF8_BYTES_PER_UTF16_UNIT_MAX > REPORT_PLAN_MAX_BYTES &&
-      new TextEncoder().encode(text).byteLength > REPORT_PLAN_MAX_BYTES)
+    maxBytes > 0 &&
+    (text.length > maxBytes ||
+      (text.length * UTF8_BYTES_PER_UTF16_UNIT_MAX > maxBytes &&
+        new TextEncoder().encode(text).byteLength > maxBytes))
   )
     return {
       facts: {
@@ -306,7 +312,7 @@ function parsePlan(text: string, evidence: PlanEvidence): PlanReadResult {
           {
             code: 'input-size',
             line: 1,
-            detail: `maxUtf8Bytes=${String(REPORT_PLAN_MAX_BYTES)}`,
+            detail: `maxUtf8Bytes=${String(maxBytes)}`,
           },
         ],
       },

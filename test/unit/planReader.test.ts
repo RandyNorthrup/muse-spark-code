@@ -141,21 +141,25 @@ describe('plan-format v1', () => {
       })
   })
 
-  it('refuses oversized UTF-8 plans honestly before parsing either format', () => {
-    for (const text of [
-      'x'.repeat(REPORT_PLAN_MAX_BYTES + 1),
-      'é'.repeat(REPORT_PLAN_MAX_BYTES / 2 + 1),
-    ]) {
-      const parsed = readPlan(text)
-      expect(parsed.facts.milestones).toEqual([])
-      expect(parsed.facts.drift).toEqual([
+  it('reads an oversized plan whole by default, refusing it only past a set limit', () => {
+    // D121: no limit of ours — a plan past the old 4 MiB bound still parses.
+    const big = `## 6. Milestones\n### M12 — Big\n**Status 2026-10-05: planned.**\n${'x'.repeat(REPORT_PLAN_MAX_BYTES + 1)}\n`
+    const parsed = readPlan(big)
+    expect(parsed.facts.drift).toEqual([])
+    expect(parsed.facts.milestones.map(({ id }) => id)).toEqual(['M12'])
+    // A limit the person sets still refuses honestly, naming their limit.
+    for (const text of ['x'.repeat(11), 'é'.repeat(6)]) {
+      const refused = readPlan(text, {}, 10)
+      expect(refused.facts.milestones).toEqual([])
+      expect(refused.facts.drift).toEqual([
         {
           code: 'input-size',
           line: 1,
-          detail: `maxUtf8Bytes=${String(REPORT_PLAN_MAX_BYTES)}`,
+          detail: 'maxUtf8Bytes=10',
         },
       ])
     }
+    expect(readPlan('x'.repeat(11), {}, 0).facts.drift).toEqual([])
   })
 
   it('parses ten thousand milestones within the named plan budget without per-milestone rescans', () => {
