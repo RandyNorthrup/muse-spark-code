@@ -7,7 +7,7 @@ import type { ToolIo } from '../core/backends/modelapi/tools'
 import { LEGAL_FIX_FILE_READ_MAX_BYTES, UI_TEXT } from '../shared/constants'
 import type { LegalFinding } from '../shared/legal'
 import type { LegalPreparedPatch } from '../shared/legalScanEntry'
-import type { LegalFixApplier } from './legalFix'
+import type { LegalFixApplier } from '../core/legal/fixPreviews'
 
 export interface LegalFixApplierDeps {
   readonly prepare: (findings: readonly LegalFinding[]) => Promise<readonly LegalPreparedPatch[]>

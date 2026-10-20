@@ -15,15 +15,26 @@ export async function darwinProcessHelper(): Promise<{
 }> {
   const folder = await mkdtemp(path.join(tmpdir(), 'm107-t2-native-helper-'))
   const native = path.join(folder, 'native', 'darwin')
+  const posix = path.join(folder, 'native', 'posix')
   try {
     // build.sh compiles every source beside it (M105 screen recording, M109
     // vault) and localizes the screen app from its .lproj folders and the UI
     // tables, so the fixture holds the whole folder rather than a file list.
+    // The vault-peer block compiles beside it from ../../native/posix, so
+    // that folder is staged too, with the broker peer source it includes.
     await mkdir(native, { recursive: true })
     await cp(path.resolve('native/darwin'), native, {
       recursive: true,
       filter: (source) => !BUILT.test(source),
     })
+    await mkdir(posix, { recursive: true })
+    await cp(path.resolve('native/posix'), posix, { recursive: true })
+    const peerDir = path.join(folder, 'src', 'core', 'vault', 'broker')
+    await mkdir(peerDir, { recursive: true })
+    await copyFile(
+      path.resolve('src', 'core', 'vault', 'broker', 'peer.c'),
+      path.join(peerDir, 'peer.c'),
+    )
     await mkdir(path.join(folder, 'l10n'))
     const tables = await readdir('l10n')
     for (const file of tables)

@@ -38,6 +38,7 @@ import {
   WINDOWS_FRAMEWORK_RELATIVE_PATH,
 } from '../../src/shared/constants'
 import { deferred, exitedProcessId, nextTurn, pausingPort } from './helpers/leaseFs'
+import { canReadProcessBirth } from './helpers/processBirth'
 
 /** A lock instance's stats as inode reuse looks: one inode number for all. */
 function reused<T extends { ino: bigint }>(file: string, stats: T): T {
@@ -397,11 +398,21 @@ async function steppingClock(timeoutMs: number) {
 }
 
 describe('process owners (M123 lane P)', () => {
-  it('reads this process’s birth from the system', async () => {
+  it('reads this process’s birth from the system, or the documented estimate where the table is silent', async () => {
     const started = await processStartTime(process.pid)
-    expect(started).toBeDefined()
     const self = await currentProcessOwner()
-    expect(self.processStart).toBe(started)
+    if (canReadProcessBirth()) {
+      expect(started).toBeDefined()
+      expect(self.processStart).toBe(started)
+    } else {
+      // No process table: no birth to read, and the owner falls back to
+      // the uptime estimate instead of inventing one.
+      expect(started).toBeUndefined()
+      expect(self.pid).toBe(process.pid)
+      expect(Math.abs(self.processStart - (Date.now() - process.uptime() * 1000))).toBeLessThan(
+        2000,
+      )
+    }
     expect(await processStartTime(await exitedProcessId())).toBeUndefined()
   })
 
@@ -476,11 +487,18 @@ describe('process owners (M123 lane P)', () => {
   )
 
   it.skipIf(process.platform === 'linux')(
-    'reads a Windows or macOS birth as the epoch time it was recorded at',
+    'reads a Windows or macOS birth as the epoch time it was recorded at, or the estimate where the table is silent',
     async () => {
       const started = await processStartTime(process.pid)
-      expect(Math.abs((started ?? 0) - (Date.now() - process.uptime() * 1000))).toBeLessThan(2000)
       const self = await currentProcessOwner()
+      if (canReadProcessBirth()) {
+        expect(Math.abs((started ?? 0) - (Date.now() - process.uptime() * 1000))).toBeLessThan(2000)
+      } else {
+        expect(started).toBeUndefined()
+        expect(Math.abs(self.processStart - (Date.now() - process.uptime() * 1000))).toBeLessThan(
+          2000,
+        )
+      }
       expect(self.bootId).toBeUndefined()
     },
   )
@@ -492,17 +510,29 @@ describe('process owners (M123 lane P)', () => {
       const bootId = await systemBootId()
       expect(bootId).toMatch(/^[\da-f-]{36}$/u)
       const self = await currentProcessOwner()
-      expect(self.bootId).toBe(bootId)
-      expect(self.processStart).toBe(await processStartTime(process.pid))
-      // Ticks since boot: far below any epoch time.
-      expect(self.processStart).toBeLessThan(Date.now() / 1000)
+      if (canReadProcessBirth()) {
+        expect(self.bootId).toBe(bootId)
+        expect(self.processStart).toBe(await processStartTime(process.pid))
+        // Ticks since boot: far below any epoch time.
+        expect(self.processStart).toBeLessThan(Date.now() / 1000)
+      } else {
+        // Without the table the owner is the estimate form: no boot, no birth.
+        expect(await processStartTime(process.pid)).toBeUndefined()
+        expect(self.bootId).toBeUndefined()
+        expect(Math.abs(self.processStart - (Date.now() - process.uptime() * 1000))).toBeLessThan(
+          2000,
+        )
+      }
     },
   )
 
   it('names a gone owner only when it is provably gone', async () => {
+    const canReadTable = canReadProcessBirth()
     const self = await currentProcessOwner()
     expect(await isProcessOwnerGone(self)).toBe(false)
-    // This process's id with another start time: an earlier process.
+    // This process's id with another start time: our own birth is known
+    // without any table (it is this process's), so the mismatch is
+    // provable everywhere, table or none.
     expect(await isProcessOwnerGone({ ...self, processStart: self.processStart - 60_000 })).toBe(
       true,
     )
@@ -514,14 +544,18 @@ describe('process owners (M123 lane P)', () => {
     const live = liveProcess()
     try {
       const started = await processStartTime(live.pid)
-      expect(started).toBeDefined()
+      // A live id whose birth the table answers carries it; where the
+      // table is silent there is nothing to carry, and doubt keeps it.
+      if (canReadTable) expect(started).toBeDefined()
+      else expect(started).toBeUndefined()
       const owner = { ...self, pid: live.pid, processStart: started ?? 0 }
       expect(await isProcessOwnerGone(owner)).toBe(false)
       // RVM123P4 finding 4: the id now names a process that started at
-      // another time, so the recorded owner is gone, whoever's id it is.
+      // another time, so the recorded owner is gone, whoever's id it is —
+      // provable only where the table answers.
       expect(
         await isProcessOwnerGone({ ...owner, processStart: owner.processStart - 60_000 }),
-      ).toBe(true)
+      ).toBe(canReadTable)
       // A live id whose start time cannot be read proves nothing.
       expect(
         await isProcessOwnerGone(
@@ -900,13 +934,15 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
   it('takes over at once a lock whose owner id now names another process', async () => {
     // RVM123P4 finding 4: the owner crashed and the system gave its id to a
     // live, unrelated process; its lease would otherwise hold for a minute.
+    // Reuse is provable at once only where the table answers; where it is
+    // silent the waiter takes over at the lease's own expiry instead.
     const { lockPath } = await lockFolder()
     const live = liveProcess()
     try {
       const self = await currentProcessOwner()
       // Born at another time than the id's live process, in this boot.
       const reused = { ...self, pid: live.pid, processStart: 1 }
-      await writeFile(lockPath, lockNote(reused, 60_000))
+      await writeFile(lockPath, lockNote(reused, canReadProcessBirth() ? 60_000 : 1000))
       const lease = await acquireFileLease(lockPath, await leaseEnv({ timeoutMs: 3000 }))
       expect(await lease.isHeld()).toBe(true)
       await lease.release()

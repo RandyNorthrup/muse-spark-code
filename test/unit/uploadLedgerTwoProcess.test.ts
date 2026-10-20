@@ -15,6 +15,7 @@ import {
 } from '../../src/core/media/uploadLedger'
 import { fileUploadLedgerStorage } from '../../src/core/media/uploadLedgerStorage'
 import { systemBootId } from '../../src/core/locks/processOwner'
+import { canReadProcessBirth } from './helpers/processBirth'
 
 const accountId = 'c'.repeat(64)
 const fileId = 'file-shared'
@@ -181,7 +182,7 @@ describe('upload ledger across two real processes', () => {
     await pinCycleThenDelete(ledger, deletes)
   })
 
-  it('reaps a pin whose birth no longer matches its live id', async () => {
+  it('reaps a pin whose birth no longer matches its live id, or keeps it while the birth is unreadable', async () => {
     const { deletes, ledger, stop, done, stderr, child } = await seededChild('3', 'hold')
     const holder = child.pid
     if (holder === undefined) throw new Error('the holder has no pid')
@@ -200,7 +201,23 @@ describe('upload ledger across two real processes', () => {
         },
       ],
     })
-    await pinCycleThenDelete(ledger, deletes)
+    if (canReadProcessBirth()) {
+      await pinCycleThenDelete(ledger, deletes)
+    } else {
+      // No process table: the live holder's birth cannot be read, so doubt
+      // keeps the pin and the delete is refused. Once the holder exits, its
+      // id is provably gone without any birth read, and the delete proceeds.
+      await ledger.pinFiles([fileId], 'parent-owner')
+      await ledger.unpinFiles([fileId], 'parent-owner')
+      await expect(ledger.deleteFile(fileId, () => Promise.resolve(true))).rejects.toThrow(
+        'in use by a running request',
+      )
+      expect(deletes).toEqual([])
+      writeFileSync(stop, 'stop')
+      await waitFor(done, stderr)
+      await pinCycleThenDelete(ledger, deletes)
+      return
+    }
     writeFileSync(stop, 'stop')
     await waitFor(done, stderr)
   })

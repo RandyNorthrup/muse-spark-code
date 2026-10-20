@@ -114,20 +114,20 @@ async function seed(fs: ScheduleFsPort, state: 'fresh' | 'released' | 'held') {
   if (state === 'released') await fs.publish(`${header}.released`, '')
 }
 
-/** Every owned fence carries its immutable marker; an ordinary writer enters. */
+// Every owned fence carries its immutable marker; an ordinary writer enters.
+// Entry is the assertion, not speed: no disk operation has a wall-clock
+// budget any real machine guarantees, so the acquisition waits (a store that
+// never frees still fails on the harness timeout). The busy path stays
+// covered by the already-past deadlines below.
 async function expectReleasedForNextWriter(fs: ScheduleFsPort) {
   expect(await fs.read(`${header}.released`)).toBe('')
-  expect(await fs.lock(key, () => Promise.resolve('next'), { deadlineMs: Date.now() + 100 })).toBe(
-    'next',
-  )
+  expect(await fs.lock(key, () => Promise.resolve('next'))).toBe('next')
 }
 
-/**
- * A port decorator that records calls and can pause heartbeat pulses: every
- * method passes through to the real port, so observations never change
- * behaviour. The heartbeat gate holds one pulse in flight for the drain
- * case; the operations log orders releases for the successor case.
- */
+// A port decorator that records calls and can pause heartbeat pulses: every
+// method passes through to the real port, so observations never change
+// behaviour. The heartbeat gate holds one pulse in flight for the drain
+// case; the operations log orders releases for the successor case.
 class RecordingScheduleFs implements ScheduleFsPort {
   readonly operations: string[] = []
   public onReplace: ((file: string) => Promise<void>) | undefined
@@ -210,9 +210,8 @@ describe.each(ports)('$name structural lease lifecycle', ({ make }) => {
           } else expect(await fs.read(`${candidate}.released`)).toBe('')
         }
       }
-      expect(
-        await fs.lock(key, () => Promise.resolve('next'), { deadlineMs: Date.now() + 100 }),
-      ).toBe('next')
+      // Entry, not speed: no wall-clock budget holds on every real machine.
+      expect(await fs.lock(key, () => Promise.resolve('next'))).toBe('next')
     },
   )
 

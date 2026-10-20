@@ -85,6 +85,7 @@ export async function prepareLegalFixes(
 }
 
 export { renderLegalMarkdown } from './markdown'
+export { LegalFixPreviews } from './fixPreviews'
 export { setUiText as setLanguage } from '../../shared/l10n/text'
 
 export { enrichInteractiveLegalScan } from '../../runtime/legal/legalRegistry'
