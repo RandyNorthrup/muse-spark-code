@@ -5,14 +5,6 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/). Entries record what actually
 happened, not what was planned; superseded entries are kept.
 
-## [Unreleased]
-
-### Fixed
-
-- A crashed-connect journal recovery that cannot read this computer's
-  credential store says so with exit 1 (`auth status` and its siblings)
-  instead of an internal error.
-
 ## [0.19.0] - 2026-10-18
 
 ### Highlights
@@ -295,6 +287,13 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- In VS Code on macOS and Linux, started from the Dock, Finder or a desktop
+  launcher, the editor's working folder (`/` or the home folder) no longer
+  reads as a workspace a program could be planted in, so the vault's
+  identity check and other helpers run instead of being refused.
+- A crashed-connect journal recovery that cannot read this computer's
+  credential store says so with exit 1 (`auth status` and its siblings)
+  instead of an internal error.
 - A screen recording length you set is used as set, any whole number of
   seconds: 5 or 3600 now records for 5 or 3600 seconds, with no floor of 10
   and no ceiling of 600. 0 (the default) still records until you stop.
