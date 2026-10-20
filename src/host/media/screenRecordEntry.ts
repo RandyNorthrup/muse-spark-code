@@ -12,7 +12,7 @@ export {
   createWindowsLatestPort,
   createWindowsPrivateDirectory,
   isScreenshotRecordingName,
-  resolveWindowsVideosDir,
+  resolveWindowsRecordingFolders,
 } from './recordingLatest'
 export type { RecordingCommandDeps, RecordingPreviewDeps } from './screenRecordBundle'
 export type { ScreenRecordingPreview } from '../../core/media/record/driver'

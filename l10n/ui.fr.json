@@ -967,7 +967,7 @@
     "recordingRemote": "Cette fenêtre s’exécute sur un hôte distant sans écran local. Utilisez la page compagnon ou choisissez un fichier d’enregistrement.",
     "recordingBrowserUnsupported": "{browser} ne peut pas enregistrer en mp4. Choisissez un fichier d’enregistrement mp4.",
     "recordingUserOnly": "Seul un utilisateur interactif peut démarrer un enregistrement d’écran.",
-    "recordingNoRecent": "Aucun enregistrement d’écran récent trouvé.",
+    "recordingNotFound": "Aucun enregistrement d’écran trouvé dans {folders}.",
     "recorderUnavailable": "Aucun enregistreur d’écran n’est disponible sur cet hôte.",
     "attachHeadless": "Refusé pour les exécutions headless : passez le fichier avec --attach à la place.",
     "uploadStorageUnknown": "Les téléversements vidéo et audio ne sont pas disponibles dans cette version : les liaisons de téléversement et de transcription de production sont encore manquantes.",

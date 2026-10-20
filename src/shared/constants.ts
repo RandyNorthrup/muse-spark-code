@@ -1693,10 +1693,15 @@ export const MEDIA_AUDIO_ACTION_OPTIONS = ['transcribe', 'sendAudio'] as const
 /** @unwired M105 read only by tests deleted 2026-10-17 (no fakes) */
 export const MEDIA_AUDIO_ACTION_DEFAULT = 'transcribe'
 // D121: the companion records until stopped unless the host passes a bound.
+// A length the person sets is any whole number of seconds, used as set.
 export const SCREEN_RECORDING_DEFAULT_MAX_SECONDS = 0
-export const SCREEN_RECORDING_MIN_SECONDS = 10
-export const SCREEN_RECORDING_MAX_SECONDS = 600
-export const SCREEN_RECORDING_RECENT_MAX_AGE_MS = 10 * 60 * 1000
+/**
+Windows' own recorders save under the Videos known folder: Snipping Tool in
+Screen Recordings, Xbox Game Bar in Captures. Attach Latest searches both.
+*/
+export const VIDEOS_FOLDER_NAME = 'Videos'
+export const WINDOWS_SCREEN_RECORDINGS_FOLDER = 'Screen Recordings'
+export const WINDOWS_CAPTURES_FOLDER = 'Captures'
 export const SCREEN_RECORDING_REMOVE_ATTEMPTS = 3
 export const SCREEN_RECORDING_REMOVE_RETRY_MS = 200
 

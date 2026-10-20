@@ -389,7 +389,7 @@ import type { AttachedMedia } from './core/media/attachedMedia'
 import { lazyAttachedMedia } from './core/media/attachedMediaPort'
 import { mediaBundleLoader, mediaHostBundleLoader } from './host/media/mediaBundle'
 import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
-import type { ScreenRecordingPreview } from './core/media/record/driver'
+import type { ScreenRecordingResult } from './core/media/record/driver'
 import { registerVaultCommands, vaultBundleLoader } from './host/vault/vaultPanelBundle'
 import { createMigrationShell, type MigrationShell } from './host/vault/migrationShell'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
@@ -3922,29 +3922,30 @@ async function activateWindow(
   )
   const recordingTempRoot = path.join(context.globalStorageUri.fsPath, 'muse-screen')
   // PARITYREC: Attach latest reads the running platform's OS recordings
-  // location (Linux Videos, Windows Screen Recordings, macOS Desktop). The
-  // discovery modules live in dist/screenRecord.js, required on the first
-  // latest command, so activation never carries the scanner (budget). On
-  // Windows the Videos known folder resolves first (redirect-aware) and
-  // each preview copy gets its owner-only directory (icacls, verified).
+  // locations (Linux Videos, Windows Screen Recordings and Captures, macOS
+  // Desktop). The discovery modules live in dist/screenRecord.js, required
+  // on the first latest command, so activation never carries the scanner
+  // (budget). On Windows the Videos and Captures known folders resolve first
+  // (redirect-aware) and each preview copy gets its owner-only directory
+  // (icacls, verified). Nothing found keeps discovery's words, which name
+  // the folders it searched.
   const loadScreenRecord = screenRecordLoader(
     path.join(context.extensionPath, 'dist', 'screenRecord.js'),
     log,
   )
-  const latestScreenRecording = async (): Promise<ScreenRecordingPreview | undefined> => {
+  const latestScreenRecording = async (): Promise<ScreenRecordingResult> => {
     const bundle = loadScreenRecord()
-    const videosDir =
-      process.platform === 'win32' ? await bundle.resolveWindowsVideosDir() : undefined
+    const folders =
+      process.platform === 'win32' ? await bundle.resolveWindowsRecordingFolders() : {}
     const latestPort = bundle.createLatestRecordingPort({
       platform: process.platform,
       tempRoot: recordingTempRoot,
-      ...(videosDir !== undefined && { videosDir }),
+      ...folders,
       ...(process.platform === 'win32' && {
         createPrivateDirectory: () => bundle.createWindowsPrivateDirectory(recordingTempRoot),
       }),
     })
-    const result = await bundle.findLatestRecording(latestPort)
-    return result.ok ? result.preview : undefined
+    return await bundle.findLatestRecording(latestPort)
   }
   const schedulesLifetime = new AbortController()
   const backgroundSchedules = new Map<

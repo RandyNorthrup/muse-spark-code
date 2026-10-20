@@ -1,7 +1,8 @@
 // M105 W + PARITYREC: the host recording-temp gate and latest-file discovery
 // run against real temp directories on every platform: no fake filesystem
-// stands in for them. Windows proves the Screen Recordings layout, macOS the
-// Desktop default plus its Screenshot-name gate, Linux its Videos roots. The
+// stands in for them. Windows proves the Screen Recordings and Captures
+// layout, macOS the Desktop default plus its Screenshot-name gate, Linux its
+// Videos roots. D121: no age cutoff; the newest recording wins at any age. The
 // video bytes below are runtime-built sniff fixtures (the header comment on
 // ./helpers/media/fixtures says they are not playable clips): they prove
 // layout, recency and selection, never an OS application's encoding.
@@ -9,12 +10,12 @@
 // hosts (lane PR236W1).
 import { mkdtemp, mkdir, readdir, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { promisify } from 'node:util'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { findLatestRecording, isWithinRecordingRoot } from '../../src/core/media/record/linux'
-import { UI_TEXT } from '../../src/shared/constants'
 import { ebmlFixture, videoFixture, wavFixture } from './helpers/media/fixtures'
 import { withPowerShell7ModulePath } from './helpers/powerShell7'
 import { createMediaSourceOpen } from '../../src/host/media/mediaProviders'
@@ -26,8 +27,8 @@ import {
   createWindowsPrivateDirectory,
   isRecordingTempPath,
   isScreenshotRecordingName,
-  parseWindowsVideosDir,
-  resolveWindowsVideosDir,
+  parseWindowsRecordingFolders,
+  resolveWindowsRecordingFolders,
 } from '../../src/host/media/recordingLatest'
 
 const runFile = promisify(execFile)
@@ -57,6 +58,7 @@ async function homeWith(files: Record<string, { ageMs: number; bytes: Uint8Array
 }
 // path.win32.sep is the single Windows separator without a literal backslash.
 const WINDOWS_SEPARATOR = path.win32.sep
+const HOUR_MS = 60 * 60 * 1000
 /** PowerShell answers end in CRLF; the spoken dir plus its line ending. */
 function spoken(dir: string): string {
   return dir + '\r\n'
@@ -117,7 +119,7 @@ describe('PARITYREC recording-root confinement', () => {
 })
 
 describe('M105 W Linux latest-file discovery', () => {
-  it('lists regular files only while latest picks the recent capture', async () => {
+  it('lists regular files only while latest picks the newest capture', async () => {
     const { home, tempRoot } = await homeWith({
       'Videos/Screencasts/new.mp4': { ageMs: 1000, bytes: videoFixture() },
       'Videos/Screencasts/old.webm': { ageMs: 60 * 60 * 1000, bytes: ebmlFixture() },
@@ -139,7 +141,7 @@ describe('M105 W Linux latest-file discovery', () => {
       path.join(home, 'Videos'),
     ])
     const listed = await port.list(path.join(home, 'Videos', 'Screencasts'))
-    // list() admits every regular file; recency is findLatestRecording's filter.
+    // list() admits every regular file; the kind filter is findLatestRecording's.
     const names = listed
       .map((file) => path.basename(file.path))
       .toSorted((first, second) => {
@@ -159,18 +161,28 @@ describe('M105 W Linux latest-file discovery', () => {
     await expect(stat(latest.preview.path)).rejects.toThrow()
   })
 
-  it('reports no recent recording when only old, missing or non-video files exist', async () => {
+  it('takes a recording made two hours ago: no age cutoff', async () => {
     const { home, tempRoot } = await homeWith({
-      'Videos/Screencasts/old.mp4': { ageMs: 60 * 60 * 1000, bytes: videoFixture() },
+      'Videos/Screencasts/old.mp4': { ageMs: 2 * HOUR_MS, bytes: videoFixture() },
+    })
+    const latest = await findLatestRecording(createLinuxLatestPort({ homeDir: home, tempRoot }))
+    if (!latest.ok) throw new Error('expected the two-hour-old capture')
+    expect(path.basename(latest.preview.path)).toBe('old.mp4')
+    await latest.preview.dispose()
+  })
+
+  it('refuses a newest file that is not a video, and names the folders when none exist', async () => {
+    const { home, tempRoot } = await homeWith({
+      'Videos/Screencasts/old.mp4': { ageMs: HOUR_MS, bytes: videoFixture() },
       'Videos/sound.mp4': { ageMs: 1000, bytes: wavFixture() },
     })
     const port = createLinuxLatestPort({ homeDir: home, tempRoot })
     // The .mp4 holding wav bytes fails the video sniff after its private copy.
     await expect(findLatestRecording(port)).resolves.toMatchObject({ ok: false })
     const empty = createLinuxLatestPort({ homeDir: await temp(), tempRoot })
-    expect(await findLatestRecording(empty)).toMatchObject({
+    expect(await findLatestRecording(empty)).toEqual({
       ok: false,
-      reason: UI_TEXT.media.recordingNoRecent,
+      reason: 'No screen recording was found in Videos/Screencasts or Videos.',
     })
   })
 
@@ -206,48 +218,98 @@ describe('M105 W Linux latest-file discovery', () => {
 })
 
 describe('PARITYREC Windows latest-file discovery', () => {
-  it('selects the newest recent .mp4 under Screen Recordings', async () => {
+  it('selects the newest .mp4 under Screen Recordings', async () => {
     const { home, tempRoot } = await homeWith({
       'Videos/Screen Recordings/Screen Recording 2026-10-18.mp4': {
         ageMs: 1000,
         bytes: videoFixture(),
       },
       'Videos/Screen Recordings/older.mp4': {
-        ageMs: 60 * 60 * 1000,
+        ageMs: HOUR_MS,
         bytes: videoFixture(),
       },
     })
     const port = createWindowsLatestPort({ homeDir: home, tempRoot })
-    expect(port.roots).toEqual([path.join(home, 'Videos', 'Screen Recordings')])
+    expect(port.roots).toEqual([
+      path.join(home, 'Videos', 'Screen Recordings'),
+      path.join(home, 'Videos', 'Captures'),
+    ])
     const latest = await findLatestRecording(port)
-    if (!latest.ok) throw new Error('expected the recent recording')
+    if (!latest.ok) throw new Error('expected the newest recording')
+    expect(path.basename(latest.preview.path)).toBe('Screen Recording 2026-10-18.mp4')
     expect(latest.preview.path.startsWith(tempRoot)).toBe(true)
     expect(latest.preview.info).toMatchObject({ kind: 'video', mediaType: 'video/mp4' })
     await latest.preview.dispose()
     await expect(stat(latest.preview.path)).rejects.toThrow()
   })
 
-  it('follows a redirected Videos folder instead of the profile one', async () => {
+  // D121: a person who recorded hours ago still gets that recording.
+  it('takes a recording made two hours ago: no age cutoff', async () => {
     const { home, tempRoot } = await homeWith({
-      'OD/Videos/Screen Recordings/moved.mp4': { ageMs: 1000, bytes: videoFixture() },
+      'Videos/Screen Recordings/two hours ago.mp4': { ageMs: 2 * HOUR_MS, bytes: videoFixture() },
     })
-    const videosDir = path.join(home, 'OD', 'Videos')
-    const port = createWindowsLatestPort({ homeDir: home, tempRoot, videosDir })
-    expect(port.roots).toEqual([path.join(videosDir, 'Screen Recordings')])
-    const latest = await findLatestRecording(port)
-    if (!latest.ok) throw new Error('expected the redirected recording')
-    expect(path.basename(latest.preview.path)).toBe('moved.mp4')
+    const latest = await findLatestRecording(createWindowsLatestPort({ homeDir: home, tempRoot }))
+    if (!latest.ok) throw new Error('expected the two-hour-old recording')
+    expect(path.basename(latest.preview.path)).toBe('two hours ago.mp4')
     await latest.preview.dispose()
   })
 
-  it('reports no recent recording when the folder holds only stale captures', async () => {
+  // Snipping Tool saves to Screen Recordings, Xbox Game Bar (Win+Alt+R) to
+  // Captures: the newest video across both wins, and Game Bar's screenshots
+  // (.png) beside its clips are never taken, however new.
+  it('picks the newest recording across Screen Recordings and Captures, never a newer screenshot', async () => {
     const { home, tempRoot } = await homeWith({
-      'Videos/Screen Recordings/old.mp4': { ageMs: 60 * 60 * 1000, bytes: videoFixture() },
+      'Videos/Screen Recordings/snip.mp4': { ageMs: 3 * HOUR_MS, bytes: videoFixture() },
+      'Videos/Captures/game clip.mp4': { ageMs: 2 * HOUR_MS, bytes: videoFixture() },
+      'Videos/Captures/screenshot.png': { ageMs: 1000, bytes: new Uint8Array([137, 80, 78, 71]) },
     })
     const port = createWindowsLatestPort({ homeDir: home, tempRoot })
-    await expect(findLatestRecording(port)).resolves.toMatchObject({
+    const fromCaptures = await findLatestRecording(port)
+    if (!fromCaptures.ok) throw new Error('expected the Game Bar clip')
+    expect(path.basename(fromCaptures.preview.path)).toBe('game clip.mp4')
+    await fromCaptures.preview.dispose()
+    const newer = path.join(home, 'Videos', 'Screen Recordings', 'newer snip.mp4')
+    await writeFile(newer, videoFixture())
+    const at = (Date.now() - HOUR_MS) / 1000
+    await utimes(newer, at, at)
+    const fromSnipping = await findLatestRecording(port)
+    if (!fromSnipping.ok) throw new Error('expected the newer Snipping Tool recording')
+    expect(path.basename(fromSnipping.preview.path)).toBe('newer snip.mp4')
+    await fromSnipping.preview.dispose()
+  })
+
+  it('follows redirected Videos and moved Captures folders instead of the profile ones', async () => {
+    const { home, tempRoot } = await homeWith({
+      'OD/Videos/Screen Recordings/moved.mp4': { ageMs: HOUR_MS, bytes: videoFixture() },
+      'D/Game Captures/clip.mp4': { ageMs: 1000, bytes: videoFixture() },
+    })
+    const videosDir = path.join(home, 'OD', 'Videos')
+    const capturesDir = path.join(home, 'D', 'Game Captures')
+    const port = createWindowsLatestPort({ homeDir: home, tempRoot, videosDir, capturesDir })
+    expect(port.roots).toEqual([path.join(videosDir, 'Screen Recordings'), capturesDir])
+    const latest = await findLatestRecording(port)
+    if (!latest.ok) throw new Error('expected the moved Captures recording')
+    expect(path.basename(latest.preview.path)).toBe('clip.mp4')
+    await latest.preview.dispose()
+    const redirected = createWindowsLatestPort({ homeDir: home, tempRoot, videosDir })
+    expect(redirected.roots).toEqual([
+      path.join(videosDir, 'Screen Recordings'),
+      path.join(videosDir, 'Captures'),
+    ])
+    const fromVideos = await findLatestRecording(redirected)
+    if (!fromVideos.ok) throw new Error('expected the redirected recording')
+    expect(path.basename(fromVideos.preview.path)).toBe('moved.mp4')
+    await fromVideos.preview.dispose()
+  })
+
+  it('names both folders when neither holds a recording', async () => {
+    const { home, tempRoot } = await homeWith({
+      'Videos/Captures/screenshot.png': { ageMs: 1000, bytes: new Uint8Array([137, 80, 78, 71]) },
+    })
+    const port = createWindowsLatestPort({ homeDir: home, tempRoot })
+    expect(await findLatestRecording(port)).toEqual({
       ok: false,
-      reason: UI_TEXT.media.recordingNoRecent,
+      reason: String.raw`No screen recording was found in Videos\Screen Recordings or Videos\Captures.`,
     })
   })
 })
@@ -286,26 +348,26 @@ describe('PARITYREC macOS latest-file discovery', () => {
     await latest.preview.dispose()
   })
 
-  it('reports no recent recording when only non-Screenshot videos are fresh', async () => {
+  it('names the Desktop when only non-Screenshot videos are there', async () => {
     const { home, tempRoot } = await homeWith({
       'Desktop/export.mov': { ageMs: 1000, bytes: videoFixture({ brand: 'qt  ' }) },
       'Desktop/clip.mp4': { ageMs: 1000, bytes: videoFixture() },
     })
     const port = createMacosLatestPort({ homeDir: home, tempRoot })
-    await expect(findLatestRecording(port)).resolves.toMatchObject({
+    await expect(findLatestRecording(port)).resolves.toEqual({
       ok: false,
-      reason: UI_TEXT.media.recordingNoRecent,
+      reason: 'No screen recording was found in Desktop.',
     })
   })
 
-  it('reports no recent recording when the Desktop holds no fresh video', async () => {
+  it('names the Desktop when it holds no video', async () => {
     const { home, tempRoot } = await homeWith({
       'Desktop/notes.txt': { ageMs: 1000, bytes: new Uint8Array([1, 2, 3]) },
     })
     const port = createMacosLatestPort({ homeDir: home, tempRoot })
-    await expect(findLatestRecording(port)).resolves.toMatchObject({
+    await expect(findLatestRecording(port)).resolves.toEqual({
       ok: false,
-      reason: UI_TEXT.media.recordingNoRecent,
+      reason: 'No screen recording was found in Desktop.',
     })
   })
 })
@@ -325,44 +387,68 @@ describe('PR236W1 Screenshot-name gate', () => {
   })
 })
 
-describe('PR236W1 Windows Videos known folder', () => {
+describe('PR236W1 Windows Videos and Captures known folders', () => {
   const systemRoot = String.raw`C:\Windows`
   it.each([
-    [spoken(String.raw`C:\Users\u\Videos`), String.raw`C:\Users\u\Videos`],
-    [String.raw`D:\Media\Videos`, String.raw`D:\Media\Videos`],
-    ['', undefined],
-    [String.raw`relative\Videos`, undefined],
-    ['/posix/Videos', '/posix/Videos'],
-  ])('parses the known-folder answer %s as %s', (output, expected) => {
-    expect(parseWindowsVideosDir(output)).toBe(expected)
+    [
+      spoken(String.raw`C:\Users\u\Videos`) + spoken(String.raw`C:\Users\u\Videos\Captures`),
+      {
+        videosDir: String.raw`C:\Users\u\Videos`,
+        capturesDir: String.raw`C:\Users\u\Videos\Captures`,
+      },
+    ],
+    [spoken(String.raw`D:\Media\Videos`) + spoken(''), { videosDir: String.raw`D:\Media\Videos` }],
+    [spoken('') + spoken(String.raw`E:\Clips`), { capturesDir: String.raw`E:\Clips` }],
+    ['', {}],
+    [spoken(String.raw`relative\Videos`) + spoken(String.raw`relative\Captures`), {}],
+    ['/posix/Videos', { videosDir: '/posix/Videos' }],
+  ])('parses the known-folder answer %j as %j', (output, expected) => {
+    expect(parseWindowsRecordingFolders(output)).toEqual(expected)
   })
 
   it('stays on the homedir layout off Windows', async () => {
-    await expect(resolveWindowsVideosDir({ systemRoot }, 'linux')).resolves.toBeUndefined()
+    await expect(resolveWindowsRecordingFolders({ systemRoot }, 'linux')).resolves.toEqual({})
   })
 
   // The system's own answer, read independently: the registry's resolved
-  // Videos folder, which a redirection (OneDrive, another drive) updates.
+  // Videos folder, which a redirection (OneDrive, another drive) updates,
+  // and Captures where the registry names it (a moved Captures folder) or
+  // else beside it in Videos, when that folder exists.
   it.runIf(process.platform === 'win32')(
-    'resolves the Videos folder through system PowerShell',
+    'resolves the Videos and Captures folders through system PowerShell',
     async () => {
-      const { stdout } = await runFile(path.join(windowsRoot(), 'System32', 'reg.exe'), [
+      const reg = path.join(windowsRoot(), 'System32', 'reg.exe')
+      const explorer = String.raw`HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer`
+      const { stdout } = await runFile(reg, [
         'query',
-        String.raw`HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders`,
-        '/v',
-        'My Video',
+        `${explorer}${WINDOWS_SEPARATOR}Shell Folders`,
       ])
       const registry = /My Video\s+REG_SZ\s+(.+)/u.exec(stdout)?.[1]?.trim()
-      expect(registry).toEqual(expect.any(String))
-      await expect(resolveWindowsVideosDir()).resolves.toBe(registry)
+      if (registry === undefined) throw new Error('the registry names no Videos folder')
+      // A moved Captures folder is recorded under its known-folder id.
+      const user = await runFile(reg, [
+        'query',
+        `${explorer}${WINDOWS_SEPARATOR}User Shell Folders`,
+      ])
+      const moved = /\{EDC0FE71-98D8-4F4A-B920-C8DC133CB165\}\s+REG_(?:EXPAND_)?SZ\s+(.+)/iu
+        .exec(user.stdout)?.[1]
+        ?.trim()
+        .replaceAll(/%([^%]+)%/gu, (_whole, name: string) => process.env[name] ?? `%${name}%`)
+      const captures = moved ?? path.join(registry, 'Captures')
+      // The shell names Captures only where that folder exists.
+      const hasCaptures = existsSync(captures)
+      await expect(resolveWindowsRecordingFolders()).resolves.toEqual({
+        videosDir: registry,
+        ...(hasCaptures && { capturesDir: captures }),
+      })
     },
   )
 
-  it('falls back when the system will not answer', async () => {
+  it('keeps the homedir layout when the system will not answer', async () => {
     // A system root without PowerShell: the query fails for real.
     await expect(
-      resolveWindowsVideosDir({ systemRoot: await temp() }, 'win32'),
-    ).resolves.toBeUndefined()
+      resolveWindowsRecordingFolders({ systemRoot: await temp() }, 'win32'),
+    ).resolves.toEqual({})
   })
 })
 
@@ -427,7 +513,7 @@ describe('PARITYREC per-platform latest port', () => {
     const home = await temp()
     const tempRoot = await temp()
     expect(createLatestRecordingPort({ platform: 'win32', homeDir: home, tempRoot }).roots).toEqual(
-      [path.join(home, 'Videos', 'Screen Recordings')],
+      [path.join(home, 'Videos', 'Screen Recordings'), path.join(home, 'Videos', 'Captures')],
     )
     expect(
       createLatestRecordingPort({ platform: 'darwin', homeDir: home, tempRoot }).roots,

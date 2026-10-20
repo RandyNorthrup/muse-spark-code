@@ -1701,7 +1701,6 @@
           "type": "integer",
           "default": 0,
           "minimum": 0,
-          "maximum": 600,
           "description": "%config.screenRecordingMaxSeconds.description%",
           "scope": "machine"
         },

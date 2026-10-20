@@ -967,7 +967,7 @@
     "recordingRemote": "Esta janela é executada em um host remoto sem tela local. Use a página complementar ou escolha um arquivo de gravação.",
     "recordingBrowserUnsupported": "{browser} não pode gravar mp4. Escolha um arquivo de gravação mp4.",
     "recordingUserOnly": "Somente um usuário interativo pode iniciar uma gravação de tela.",
-    "recordingNoRecent": "Nenhuma gravação de tela recente encontrada.",
+    "recordingNotFound": "Nenhuma gravação de tela encontrada em {folders}.",
     "recorderUnavailable": "Nenhum gravador de tela está disponível neste host.",
     "attachHeadless": "Recusado para execuções headless: passe o arquivo com --attach.",
     "uploadStorageUnknown": "Os envios de vídeo e áudio não estão disponíveis nesta versão: as ligações de produção de envio e transcrição ainda estão ausentes.",
