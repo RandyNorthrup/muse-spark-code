@@ -16675,8 +16675,6 @@ every branch.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
-
 ### M125 — The Judge: our own Jev, for speed and accuracy (D107)
 
 **Status 2026-10-10: building.** F1a builds the internal B1 runner and
@@ -18046,8 +18044,6 @@ Its Node entry stays in core, outside the browser project's shared sources.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
-
 ### FIXCYCLES2 — Share the build's integration-test roots (2026-10-08, Kubuntu)
 
 **Status 2026-10-08: built.** Complete locally. Shared discovery replaces the guard's copied
@@ -19189,8 +19185,6 @@ owner commands; accepted control shapes remain uncaptured.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
-
 **Status 2026-09-29: resumed** from unverified WIP `cfa2bc68` on
 `feature/m71-git-prs`; the older gate on `3af80e40` does not certify this
 tree. Current integration is isolated on `integrate/m71-resume-20260929`
@@ -19280,11 +19274,7 @@ extension's own storage, never the workspace's `.git`.
 
 - **Goal.** Long sessions stop resending large old tool outputs.
 
-- **D78 released-main default (2026-10-04): on.** The owner's target makes
-  `museSpark.modelApiObservationPacking` available by default.
-  **Candidate packing default: on.** M101INT integrated the released manifest
-  and runtime default with the README; ACP/headless uses the same shared packing
-  engine. Explicit-off requests retain their golden bytes.
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 - **Status 2026-10-02: shipped off by default after its M75 run passed.**
   Built 2026-10-01 on
@@ -23465,22 +23455,7 @@ process that owns the work.
   concept in the research has such a point (D70). Muse Code's own 1.4 hooks
   behave the same on both backends. Nothing breaks the SoL-Pi optimisations.
 
-- **Scope.**
-  - Muse parity: Interrupt, SessionFork's acceptance, and the
-    PostToolUseFailure correction.
-  - The 21 extension events, with the operations that ten of them need: the
-    kept shell directory, MCP elicitation, the Setup and Manual commands,
-    added folders, TeammateIdle, the MessageDisplay marker,
-    BeforeToolSelection's admission check, and AfterAgentThought.
-  - spark-hooks.json, with its rows in the Hooks picker.
-  - The handler types `http`, `mcp_tool`, `prompt` and `agent`.
-  - Importers for Codex, Gemini, Cursor, Copilot and VS Code, Windsurf, Kiro
-    and Cline, plus Claude Code's extended set.
-  - The format adapters, and the out-of-process plugin host for Amp and
-    OpenCode.
-  - Strings in all 14 tables.
-  - Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, this plan
-    (D70 and the M83 Codex correction), and `docs/certification/m91.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 - **Depends on.** `fix/protect-agent-folders` (acceptance 7 ships there).
   The two items under M74 (SoL-Pi rule 5's compaction cases) wait on Q-M74,
@@ -23498,39 +23473,6 @@ process that owns the work.
 
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)
   (`session/fork` refused on Windows) is still open on 1.4.2.
-
-- **Lanes.** One branch, `feature/m91-hooks-parity`.
-  - Lane 0 goes first. Then R, E, I, P, S, M, H and X run in parallel, and
-    W goes last.
-  - Region rules are as in M87. Each lane adds its tunables beside the hook
-    region of `src/shared/constants.ts`, never at the file's end.
-  - `hooks.ts` is region-owned: lane R owns its events, lane H its handler
-    fields.
-  - **Settings and commands.** A lane that adds a setting or a command adds
-    all of it in one commit:
-    - its constant and `SETTING_DEFAULTS` entry, and its place among the
-      machine-scoped settings;
-    - its `package.json` contribution;
-    - its text in `package.nls.json` and the 14 `package.nls.<lang>.json`;
-    - its registration.
-
-    `manifest.test.ts` holds every contributed command to a registered one,
-    and check-l10n holds every manifest string to its use, so none can land
-    ahead. `package.json` and the 15 `package.nls*.json` are region-owned:
-    each lane edits only its own entries, beside the related ones.
-
-  | Lane                    | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-  | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-  | 0 Strings and constants | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json` and `l10n/untranslated.json`; the hook region of `src/shared/constants.ts` (`SPARK_HOOKS_SEGMENTS`, `EXTENSION_HOOK_EVENTS`, `HOOK_FILE_CHANGED_DEBOUNCE_MS`, `HOOK_FILE_CHANGED_MAX_PER_MINUTE`)                                                                                                                                                                                                                                         |
-  | R Muse parity           | `hooks.ts`'s events (Interrupt, SessionFork's acceptance, PostToolUseFailure `updatedInput`); the cancel, dispose, forkSession and tool-failure regions of `ModelApiHost.ts`; the modelApiHooks tests                                                                                                                                                                                                                                                                                      |
-  | E Extension events      | the new `src/core/backends/modelapi/extensionHooks.ts`; `toolHookPayload.ts`; the setModel, todo_write, skill-invocation, touchPath/rules, autoReview/refused, noteExternalEdit, request (BeforeToolSelection's admission), reasoning and message regions of `ModelApiHost.ts`; `bestOfNRunner.ts` and `worktrees.ts`; the watcher, configuration, folders and command regions of `extension.ts`; the ACP agent's `setup` command (`src/runtime/cliArgs.ts`, `src/runtime/main.ts`); tests |
-  | I Import                | `agentImport.ts`, `importConvert.ts`, the `AGENT_IMPORT_*` constants (new sources gemini, copilot, windsurf, kiro and cline; their paths; per-source event and tool maps); tests                                                                                                                                                                                                                                                                                                           |
-  | P Adapters              | the new `src/core/backends/modelapi/hookFormats.ts` (formats gemini, cursor, copilot, windsurf, kiro and cline); tests                                                                                                                                                                                                                                                                                                                                                                     |
-  | S Shell directory       | the shell tool's directory: its regions of `tools.ts`, `ModelApiHost.ts` and `src/host/backend/toolIo.ts`; the tool row's directory; tests                                                                                                                                                                                                                                                                                                                                                 |
-  | M MCP elicitation       | `src/core/backends/modelapi/mcp/` (the capability, `elicitation/create`, the answer); the panel's form and its protocol messages; the ACP agent's form (`src/acp/questions.ts`); tests                                                                                                                                                                                                                                                                                                     |
-  | H Handler types         | `hooks.ts`'s handler fields; the new `src/core/backends/modelapi/hookHandlers.ts` (`http`, `mcp_tool`, `prompt`, `agent`); the paid gate's new feature and its tally; the Muse Code side session for `prompt` and `agent`; tests                                                                                                                                                                                                                                                           |
-  | X Plugin host           | the new `src/core/backends/modelapi/pluginHost.ts` and its child entry (its own bundle if D6 needs it; M91b if the budget does); the Amp and OpenCode shims; tests                                                                                                                                                                                                                                                                                                                         |
-  | W Wiring                | the Hooks picker (`museConfigCommands.ts`); the MessageDisplay marker in the panel; README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN, `docs/certification/m91.md`; the full gate                                                                                                                                                                                                                                                                                                  |
 
 ### M91b — Amp and OpenCode plugin dispatch (D70)
 
@@ -26550,24 +26492,6 @@ Acceptance and the exact composed gate receipts live in
 
 - **Goal.** A user can prepare and inspect a useful, scrubbed report without
   an active chat, backend or credential, then choose where it goes.
-
-- **Scope.** D72's journal, crash offer, report builder, preview and export;
-  error entry points and the standalone ACP command. No automatic issue
-  submission, log upload, telemetry, model call or wire-shape changes.
-- **Lanes and file ownership.** Muse implements; Codex reviews each completed
-  lane and its failing-test receipts. The lead serializes shared-file edits,
-  merges and aggregate certification. Lane 0 first; R and P next; W and A
-  after their contracts; I last. These are future lanes, not agents launched
-  by this plan-only task.
-
-  | Lane                | Muse owns                                                                                                                                                                                                                                                                               | Codex review focus                                                                                   |
-  | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-  | 0 Strings/contracts | Report constants region; `src/shared/l10n/en.ts`, all 14 `l10n/ui.*.json`, `package.nls*.json`; report-message region in shared protocol; owning schema tests                                                                                                                           | Real translations, runtime lookup, bounded zod shapes, no free-text event payload                    |
-  | R Recorder          | New portable `src/core/support/flightRecorder.ts`; journal/marker adapter in `src/host/support/`; `test/unit/flightRecorder.test.ts`                                                                                                                                                    | Write-time scrub, size/age caps, truncated/tampered records, multi-window ownership, storage failure |
-  | P Report/export     | `src/core/support/report.ts`, new scrubbed report builder and `src/host/support/reportProblem.ts`; owning report/export unit tests                                                                                                                                                      | D14 value allowlist, final draft identity, second scrub, URL/clipboard/save failures, no network     |
-  | W Webview           | Report preview and render-failure UI in `src/webview/**`; report-only message handler in `src/host/conversation/`; error-row/notice regions; harness scenarios and owning UI tests                                                                                                      | Error transport contains no raw text; keyboard/focus/labels; 320px, pseudo-locale, four themes       |
-  | A ACP/headless      | `src/runtime/**` report subcommand and recorder adapter; ACP error-observer region; runtime/stdio owning tests; `docs/acp.md`                                                                                                                                                           | No backend/auth/model startup; local capped data; stdout is text only in standalone report mode      |
-  | I Integration/docs  | Report registration/activation/error-observer regions in `src/extension.ts` and backend managers; `src/shared/palette.ts`, `package.json`, build/split scripts if needed; README, `docs/PRIVACY.md`, CHANGELOG, PLAN, `docs/ide-compatibility/host-api.md`, `docs/certification/m93.md` | Both backends; native-command disclosure/fallback; D6 measured; invariant and complete gate receipts |
 
 - **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
@@ -34377,12 +34301,6 @@ release certification and the change must not be described as fully green.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
 The complete vault run also records sshImport's unchanged fixture setup
 failure: Windows ssh-keygen exits 255 without stdout/stderr under its
 restricted environment, leaving two tests unexecuted. The four previously
@@ -34393,8 +34311,6 @@ clones in modelApiHost/modelApiLoopGuarantees; both files match snap/train's
 Git blobs exactly. Their test restructuring is deferred to the train owner,
 with no ignore or threshold change. Knip's two unused type declarations
 are removed, preserving their schemas and runtime behavior.
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
@@ -34570,12 +34486,6 @@ workflow_dispatch on the same commit, ended cancelled.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
 - [x] Repair and drill historical-label readiness and the strict provider-budget fixture.
 - [x] Reconstruct all 9,792 historical frames; compare all 1,632 light-theme candidate frames.
 - [x] Classify 120 observed changed scenes; stop on three class-(d) release-note scenes.
@@ -34584,26 +34494,6 @@ workflow_dispatch on the same commit, ended cancelled.
 - [x] Refresh approved baselines and perform the old-baseline drill.
 - [ ] Complete the full unsharded zero-changed-scene replay.
 - [x] Run owning suites and scoped gates; record the blocked outcome, source restoration drill and hooks-on repairs.
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
@@ -34629,8 +34519,6 @@ recognition, guarded acquisition, licence and focused gate receipts are in
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
 **CM1134AR6 scoped qualification (2026-10-12, Kubuntu).** The rig/common
 brief prohibits aggregate quality and delegates the full gate to the lead.
 Run each writer owner alone at repository deadlines, the source-derived lease
@@ -34643,8 +34531,6 @@ source tables/checker, outside this port/twin/reader repair's explicit boundary;
 no table, gate, fixture assertion or timeout is weakened to bypass it. Record
 its full failing setup receipt and precise correction needed for lead
 integration in `docs/certification/m113-playbook-schedules-c-m113-4.md`.
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
@@ -34686,8 +34572,6 @@ owned process group after 288 baseline captures (exit 143), clean only its
 owned directories, and defer full visual approval to the lead with aggregate
 quality. No baseline or tolerance changes. Native Windows replay remains a
 separate lead step.
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
@@ -34795,28 +34679,12 @@ for the lead's integration gate. Receipt: `docs/certification/cifixv.md`.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
 **Archived gate records (2026-10-11).** The gate records that stood from here
 on for lanes verified on or before 2026-10-08, which no open branch touches,
 are in [docs/plan-archive/gates.md](docs/plan-archive/gates.md), unchanged and
 in their original order. The records that remain in this section are later
 ones, records an open branch touches with their neighbours, and records of
 milestones that have nothing in a release yet.
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
@@ -34879,49 +34747,11 @@ the new lease suite and full quality on the integrated tree. Results are in
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
 **B-W-host-api** deferral: its W-owned generated Node totals still need
 child_process 13 → 14, crypto 46 → 53, fs 33 → 36, fs/promises 47 → 49,
 net 7 → 10 and path 84 → 89. This repair adds no Node import or host API;
 `docs/certification/m109-b-host-api.patch` still applies cleanly. Evidence and
 restored-source check results: `docs/certification/m109-b.md`.
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
@@ -35465,8 +35295,6 @@ the repository's age policy and all other dependency filters stay unchanged.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
 - **Phase 2 sections.** Planned, not dropped. Each starts after its
   dependency and the evidence it names.
   - **2a — Cascade, `both`, and `auto` → `both`.**
@@ -35546,16 +35374,6 @@ the repository's age policy and all other dependency filters stay unchanged.
         `docs/ci.md` and this record updated.
 
 ### QPIN lane verification (2026-10-07)
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
@@ -35828,12 +35646,6 @@ The browser and SAST failures below are historical and repaired in round two.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
 **KNIPC bounded lane (2026-10-05).** The rig brief and shared rules prohibit
 aggregate quality/full-unit runs and integration merges/pushes on this lane.
 Full quality, coverage, accessibility and integration certification remain
@@ -35943,16 +35755,6 @@ detail as its tip; no new English or translated key is needed.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
 **M115-G bounded-lane gate delegation (2026-10-06).** The rig brief and
 `common.md` prohibit aggregate quality/full-suite runs in this worktree.
 G runs its owned suites, red drills, all five compiler projects, scoped
@@ -35992,8 +35794,6 @@ from this base and are named integration handoffs in C's certification.
 S/lead retain the host-API inventory, public docs, real editor captures and
 the full integrated quality/visual/accessibility gates. No gate is weakened
 and internal-port fakes do not certify unavailable native engines.
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 

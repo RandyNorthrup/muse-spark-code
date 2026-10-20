@@ -7359,6 +7359,28 @@ acceptances still hold.
 
 <!-- plan-archive:end id="decisions-f77f1809b-26725" -->
 
+<!-- plan-archive:begin id="decisions-d753c0d64-26554" lines="26554-26570" at="d753c0d64" bytes="3841" sha256="0371b133d46b08f7d0c087b4349d4d0dca4d6052122a70a414877f3fe8495ff7" -->
+
+- **Scope.** D72's journal, crash offer, report builder, preview and export;
+  error entry points and the standalone ACP command. No automatic issue
+  submission, log upload, telemetry, model call or wire-shape changes.
+- **Lanes and file ownership.** Muse implements; Codex reviews each completed
+  lane and its failing-test receipts. The lead serializes shared-file edits,
+  merges and aggregate certification. Lane 0 first; R and P next; W and A
+  after their contracts; I last. These are future lanes, not agents launched
+  by this plan-only task.
+
+  | Lane                | Muse owns                                                                                                                                                                                                                                                                               | Codex review focus                                                                                   |
+  | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+  | 0 Strings/contracts | Report constants region; `src/shared/l10n/en.ts`, all 14 `l10n/ui.*.json`, `package.nls*.json`; report-message region in shared protocol; owning schema tests                                                                                                                           | Real translations, runtime lookup, bounded zod shapes, no free-text event payload                    |
+  | R Recorder          | New portable `src/core/support/flightRecorder.ts`; journal/marker adapter in `src/host/support/`; `test/unit/flightRecorder.test.ts`                                                                                                                                                    | Write-time scrub, size/age caps, truncated/tampered records, multi-window ownership, storage failure |
+  | P Report/export     | `src/core/support/report.ts`, new scrubbed report builder and `src/host/support/reportProblem.ts`; owning report/export unit tests                                                                                                                                                      | D14 value allowlist, final draft identity, second scrub, URL/clipboard/save failures, no network     |
+  | W Webview           | Report preview and render-failure UI in `src/webview/**`; report-only message handler in `src/host/conversation/`; error-row/notice regions; harness scenarios and owning UI tests                                                                                                      | Error transport contains no raw text; keyboard/focus/labels; 320px, pseudo-locale, four themes       |
+  | A ACP/headless      | `src/runtime/**` report subcommand and recorder adapter; ACP error-observer region; runtime/stdio owning tests; `docs/acp.md`                                                                                                                                                           | No backend/auth/model startup; local capped data; stdout is text only in standalone report mode      |
+  | I Integration/docs  | Report registration/activation/error-observer regions in `src/extension.ts` and backend managers; `src/shared/palette.ts`, `package.json`, build/split scripts if needed; README, `docs/PRIVACY.md`, CHANGELOG, PLAN, `docs/ide-compatibility/host-api.md`, `docs/certification/m93.md` | Both backends; native-command disclosure/fallback; D6 measured; invariant and complete gate receipts |
+
+<!-- plan-archive:end id="decisions-d753c0d64-26554" -->
+
 ## ### M118
 
 <!-- plan-archive:begin id="decisions-3087b10dd-35335" lines="35335-35356" at="3087b10dd" bytes="1684" sha256="04f645f4d9d4fb0a005bb058f181a0628a35fedbb6931e898c082e7721546072" -->
@@ -7910,6 +7932,16 @@ Record regression failures, byte-exact red drills and bounded checks in
 
 <!-- plan-archive:end id="decisions-f77f1809b-19491" -->
 
+<!-- plan-archive:begin id="decisions-d753c0d64-19283" lines="19283-19287" at="d753c0d64" bytes="356" sha256="7fc2318b0c5d4dbf8575133f3b0348bd2d5c50a2ef6135153dc42edddf827051" -->
+
+- **D78 released-main default (2026-10-04): on.** The owner's target makes
+  `museSpark.modelApiObservationPacking` available by default.
+  **Candidate packing default: on.** M101INT integrated the released manifest
+  and runtime default with the README; ACP/headless uses the same shared packing
+  engine. Explicit-off requests retain their golden bytes.
+
+<!-- plan-archive:end id="decisions-d753c0d64-19283" -->
+
 ## ### M92
 
 <!-- plan-archive:begin id="decisions-473930d25-26577" lines="26577-26621" at="473930d25" bytes="3154" sha256="d809bc504122a4c59fc2abde7b6320465a891d3e2620a06291bb193fd212e9b4" -->
@@ -8046,3 +8078,63 @@ Record regression failures, byte-exact red drills and bounded checks in
         commit-writing path exists
 
 <!-- plan-archive:end id="decisions-473930d25-26672" -->
+
+## ### M91
+
+<!-- plan-archive:begin id="decisions-d753c0d64-23468" lines="23468-23483" at="d753c0d64" bytes="894" sha256="265b736edaf8db46b940e353401e5f39232d5f4012dbf6341f521df1afaf20a6" -->
+
+- **Scope.**
+  - Muse parity: Interrupt, SessionFork's acceptance, and the
+    PostToolUseFailure correction.
+  - The 21 extension events, with the operations that ten of them need: the
+    kept shell directory, MCP elicitation, the Setup and Manual commands,
+    added folders, TeammateIdle, the MessageDisplay marker,
+    BeforeToolSelection's admission check, and AfterAgentThought.
+  - spark-hooks.json, with its rows in the Hooks picker.
+  - The handler types `http`, `mcp_tool`, `prompt` and `agent`.
+  - Importers for Codex, Gemini, Cursor, Copilot and VS Code, Windsurf, Kiro
+    and Cline, plus Claude Code's extended set.
+  - The format adapters, and the out-of-process plugin host for Amp and
+    OpenCode.
+  - Strings in all 14 tables.
+  - Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, this plan
+    (D70 and the M83 Codex correction), and `docs/certification/m91.md`.
+
+<!-- plan-archive:end id="decisions-d753c0d64-23468" -->
+
+<!-- plan-archive:begin id="decisions-d753c0d64-23502" lines="23502-23533" at="d753c0d64" bytes="7101" sha256="b7ea6663d451fba6b1da73176935094ddfa6618b6ea55d82a7b84a9df27cc557" -->
+
+- **Lanes.** One branch, `feature/m91-hooks-parity`.
+  - Lane 0 goes first. Then R, E, I, P, S, M, H and X run in parallel, and
+    W goes last.
+  - Region rules are as in M87. Each lane adds its tunables beside the hook
+    region of `src/shared/constants.ts`, never at the file's end.
+  - `hooks.ts` is region-owned: lane R owns its events, lane H its handler
+    fields.
+  - **Settings and commands.** A lane that adds a setting or a command adds
+    all of it in one commit:
+    - its constant and `SETTING_DEFAULTS` entry, and its place among the
+      machine-scoped settings;
+    - its `package.json` contribution;
+    - its text in `package.nls.json` and the 14 `package.nls.<lang>.json`;
+    - its registration.
+
+    `manifest.test.ts` holds every contributed command to a registered one,
+    and check-l10n holds every manifest string to its use, so none can land
+    ahead. `package.json` and the 15 `package.nls*.json` are region-owned:
+    each lane edits only its own entries, beside the related ones.
+
+  | Lane                    | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+  | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | 0 Strings and constants | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json` and `l10n/untranslated.json`; the hook region of `src/shared/constants.ts` (`SPARK_HOOKS_SEGMENTS`, `EXTENSION_HOOK_EVENTS`, `HOOK_FILE_CHANGED_DEBOUNCE_MS`, `HOOK_FILE_CHANGED_MAX_PER_MINUTE`)                                                                                                                                                                                                                                         |
+  | R Muse parity           | `hooks.ts`'s events (Interrupt, SessionFork's acceptance, PostToolUseFailure `updatedInput`); the cancel, dispose, forkSession and tool-failure regions of `ModelApiHost.ts`; the modelApiHooks tests                                                                                                                                                                                                                                                                                      |
+  | E Extension events      | the new `src/core/backends/modelapi/extensionHooks.ts`; `toolHookPayload.ts`; the setModel, todo_write, skill-invocation, touchPath/rules, autoReview/refused, noteExternalEdit, request (BeforeToolSelection's admission), reasoning and message regions of `ModelApiHost.ts`; `bestOfNRunner.ts` and `worktrees.ts`; the watcher, configuration, folders and command regions of `extension.ts`; the ACP agent's `setup` command (`src/runtime/cliArgs.ts`, `src/runtime/main.ts`); tests |
+  | I Import                | `agentImport.ts`, `importConvert.ts`, the `AGENT_IMPORT_*` constants (new sources gemini, copilot, windsurf, kiro and cline; their paths; per-source event and tool maps); tests                                                                                                                                                                                                                                                                                                           |
+  | P Adapters              | the new `src/core/backends/modelapi/hookFormats.ts` (formats gemini, cursor, copilot, windsurf, kiro and cline); tests                                                                                                                                                                                                                                                                                                                                                                     |
+  | S Shell directory       | the shell tool's directory: its regions of `tools.ts`, `ModelApiHost.ts` and `src/host/backend/toolIo.ts`; the tool row's directory; tests                                                                                                                                                                                                                                                                                                                                                 |
+  | M MCP elicitation       | `src/core/backends/modelapi/mcp/` (the capability, `elicitation/create`, the answer); the panel's form and its protocol messages; the ACP agent's form (`src/acp/questions.ts`); tests                                                                                                                                                                                                                                                                                                     |
+  | H Handler types         | `hooks.ts`'s handler fields; the new `src/core/backends/modelapi/hookHandlers.ts` (`http`, `mcp_tool`, `prompt`, `agent`); the paid gate's new feature and its tally; the Muse Code side session for `prompt` and `agent`; tests                                                                                                                                                                                                                                                           |
+  | X Plugin host           | the new `src/core/backends/modelapi/pluginHost.ts` and its child entry (its own bundle if D6 needs it; M91b if the budget does); the Amp and OpenCode shims; tests                                                                                                                                                                                                                                                                                                                         |
+  | W Wiring                | the Hooks picker (`museConfigCommands.ts`); the MessageDisplay marker in the panel; README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN, `docs/certification/m91.md`; the full gate                                                                                                                                                                                                                                                                                                  |
+
+<!-- plan-archive:end id="decisions-d753c0d64-23502" -->
