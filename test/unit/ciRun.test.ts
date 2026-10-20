@@ -5,7 +5,7 @@
 // local CI host (the owner's no-stand-ins rule); those behaviours wait for
 // hosted receipts and are listed in docs/real-life/unproven.md.
 
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -422,7 +422,9 @@ describe('key intake, inputs and the job deadline', () => {
       const ws = path.join(root, 'ws')
       mkdirSync(ws)
       const own = mkdtempSync(path.join(root, 'ci-'))
-      expect(privateTemp(own, ws, process.platform)).toBe(own)
+      // privateTemp returns the canonical path: under a symlinked TMPDIR
+      // (macOS /tmp) that differs textually from the mkdtemp spelling.
+      expect(privateTemp(own, ws, process.platform)).toBe(realpathSync(own))
       expect(() => privateTemp('relative', ws, process.platform)).toThrow('absolute')
       expect(() => privateTemp(ws, ws, process.platform)).toThrow('outside the workspace')
       expect(() => privateTemp(root, ws, process.platform)).toThrow(

@@ -3,7 +3,15 @@
 // an unreadable prompt file stays out of the prompt, and the runner's own
 // failures reach the caller (aborts as `closed`, everything else unchanged).
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -14,7 +22,9 @@ import type { GitProcess } from '../../src/host/git'
 import { NativeGitRefusalError, NativeGitService } from '../../src/runtime/panel/git/service'
 import { neverCalled, silentLogger, testGit } from './helpers/nativeGitHarness'
 
-const root = mkdtempSync(path.join(tmpdir(), 'm123-native-service-'))
+// The canonical root: the service binds and reports the real path, so the
+// harness must hand it the spelling the product keeps (macOS /tmp is a link).
+const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'm123-native-service-')))
 const dataFolder = mkdtempSync(path.join(root, 'data-'))
 const git = testGit(root)
 
