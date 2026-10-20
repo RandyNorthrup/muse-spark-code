@@ -3039,8 +3039,9 @@ Meta's paid web search.
   page nested to be slow to parse), and then refused with the reason. Plain text, Markdown, JSON,
   XML, CSV, YAML, TOML, CSS and JavaScript come back as they are; XHTML
   (`application/xhtml+xml`) is refused, since read as HTML its XML syntax
-  would be misread; anything else is refused with the reason. The whole page is read (after decompression) within 30
-  seconds, however large; the model reads the first 50,000 characters, and is told when
+  would be misread; anything else is refused with the reason. The whole page is read (after decompression),
+  however large — a fetch waits until the page answers or you press Stop, saying how long it has waited;
+  the model reads the first 50,000 characters, and is told when
   there was more. A page built to expand stops converting at 100,000.
 - **Where it may go.** Public internet addresses only. A URL that names a
   local or reserved name (`localhost`, `*.local`, `*.internal`, single-label
@@ -3056,7 +3057,7 @@ Meta's paid web search.
   lookup, and TLS still verifies the page's name; when one address does not
   connect within a quarter of a second, the next is tried too. A redirect on
   the same host is checked and pinned the same way, as many times as it takes
-  within the 30 seconds (a loop of redirects ends at the deadline); a
+  until the page answers or you press Stop; a
   redirect to another host is handed back to the model, which asks again.
 - **Asking.** Each host is approved on its own: the Model API backend's card
   names the URL, and "Always allow in this session" covers that host only.
