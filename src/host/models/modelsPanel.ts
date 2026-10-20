@@ -53,7 +53,7 @@ import {
   createOpenRouterDraftDiscard,
 } from '../backend/providersEntry'
 import { Usd } from '../../shared/usd'
-import { distinctProviderLabels } from '../../core/providers/distinctLabels'
+import { distinctProviderLabels } from '../../shared/providerLabels'
 import { redactSecrets } from '../../shared/redact'
 import { wireWordForLog } from '../../core/logging'
 import { type SessionBudgetConfig } from './sessionBudget'

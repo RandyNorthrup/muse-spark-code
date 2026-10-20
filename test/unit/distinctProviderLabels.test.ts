@@ -1,9 +1,9 @@
 // The one provider-label rule the Models panel and `auth status` share
-// (src/core/providers/distinctLabels.ts). Windows real use, 0.19.0: two
+// (src/shared/providerLabels.ts). Windows real use, 0.19.0: two
 // providers made from the Anthropic preset showed as two identical
 // "Anthropic" cards and two identical stored-key lines.
 import { expect, it } from 'vitest'
-import { distinctProviderLabels } from '../../src/core/providers/distinctLabels'
+import { distinctProviderLabels } from '../../src/shared/providerLabels'
 
 it('adds the id only to labels more than one provider shares', () => {
   expect(
