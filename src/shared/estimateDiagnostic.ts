@@ -49,8 +49,9 @@ export class EstimateDiagnosticError extends Error {
   constructor(
     public readonly estimateDiagnostic: string,
     message?: string,
+    options?: { readonly cause?: unknown },
   ) {
-    super(message ?? fill(UI_TEXT.estimateFailed, { detail: estimateDiagnostic }))
+    super(message ?? fill(UI_TEXT.estimateFailed, { detail: estimateDiagnostic }), options)
   }
 }
 
@@ -124,8 +125,11 @@ export async function collectEstimateView(
       ? { status: 'showing', section: parsed.data }
       : { status: 'failed', diagnostic: { estimateDiagnostic: 'request-mismatch' } }
   } catch (error: unknown) {
-    return isCurrent() && !(error instanceof DOMException && error.name === 'AbortError')
-      ? failedEstimate(error)
-      : { status: 'idle' }
+    // A cancelled run stays silent. Any other failure reaches the panel's
+    // run boundary, which says it in words and keeps a foreign failure's
+    // kind past the panel through the port's report (D119).
+    if (!isCurrent() || (error instanceof DOMException && error.name === 'AbortError'))
+      return { status: 'idle' }
+    throw error
   }
 }

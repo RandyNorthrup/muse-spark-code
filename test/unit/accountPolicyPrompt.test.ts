@@ -9,6 +9,9 @@ import { expect, it } from 'vitest'
 import { ACCOUNT_POLICIES } from '../../src/core/providers/accountPolicy'
 import { AccountPolicyPrompt } from '../../src/host/models/accountPolicyPrompt'
 
+const policy = ACCOUNT_POLICIES[0]
+if (policy === undefined) throw new Error('the account policies table is empty')
+
 it('settles the asker as unanswered when the surface cannot show', async () => {
   let refusal: unknown
   try {
@@ -24,7 +27,7 @@ it('settles the asker as unanswered when the surface cannot show', async () => {
     policy: () => undefined,
     now: () => Date.now(),
   })
-  await expect(prompt.ask('meta', ACCOUNT_POLICIES[0]!)).resolves.toBe('cancel')
+  await expect(prompt.ask('meta', policy)).resolves.toBe('cancel')
 })
 
 it('an overlap fails closed while the first ask stays pending', async () => {
@@ -33,8 +36,8 @@ it('an overlap fails closed while the first ask stays pending', async () => {
     policy: () => undefined,
     now: () => Date.now(),
   })
-  const first = prompt.ask('meta', ACCOUNT_POLICIES[0]!)
-  await expect(prompt.ask('meta', ACCOUNT_POLICIES[0]!)).resolves.toBe('cancel')
+  const first = prompt.ask('meta', policy)
+  await expect(prompt.ask('meta', policy)).resolves.toBe('cancel')
   prompt.close()
   await expect(first).resolves.toBe('cancel')
 })

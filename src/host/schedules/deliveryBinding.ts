@@ -8,6 +8,7 @@ import { ScheduleGrants } from '../../core/schedules/grant'
 import { UnattendedRun, type ScheduleRunDeps } from '../../core/schedules/unattended'
 import type { RealPathIo } from '../../core/workspacePath'
 import type { AgentEvent } from '../../shared/agentEvents'
+import { usableReply } from '../../core/turns/usableReply'
 import { SCHEDULE_MODEL_TEXT, UI_TEXT } from '../../shared/constants'
 import { noScheduleCost, type ScheduleRunContext, type ScheduleV2 } from '../../shared/scheduleV2'
 import {
@@ -313,8 +314,10 @@ export function createScheduleDeliveryBinding(
           else {
             const terminal = await entry.terminal
             let outcome: ScheduleRunSettlement['outcome'] = 'skipped'
+            // A capped turn never settles a run as ran: only a turn that
+            // completed without a limit marks its run done.
             if (terminal.type === 'turnCompleted')
-              outcome = terminal.terminal === 'completed' ? 'ran' : 'failed'
+              outcome = usableReply(terminal, entry.run).usable ? 'ran' : 'failed'
             result = {
               outcome,
               ...(terminal.type === 'turnCompleted' &&

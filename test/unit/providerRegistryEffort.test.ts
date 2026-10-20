@@ -37,8 +37,8 @@ describe('configured provider models list their effort levels (F79)', () => {
   })
 
   it('keeps only levels the app can represent', async () => {
-    const [model] = await listed(['low', 'xhigh', 'ultra'])
-    expect(model?.effortLevels).toEqual(['low', 'xhigh'])
+    const [model] = await listed(['low', 'xhigh', 'ultra', 'none'])
+    expect(model?.effortLevels).toEqual(['low', 'xhigh', 'ultra'])
   })
 
   it('lists no levels where the record names none', async () => {

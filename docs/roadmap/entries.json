@@ -783,7 +783,7 @@
     {
       "id": "M106",
       "title": "Stronger agent-loop guarantees",
-      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers, concurrent read-only calls and live previews where the selected model supports them, with no round cap of ours; Muse Code's native effort and feedback readers are in progress.",
+      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers, concurrent calls with live tool-argument previews wherever the selected model supports them, with no round cap; Muse Code's native effort and feedback readers are in progress.",
       "area": "agents",
       "release": "0.16.0"
     },
@@ -803,9 +803,8 @@
     {
       "id": "M109",
       "title": "Credential vault for agents",
-      "summary": "A credential vault gives agents approved, logged uses through session-owned POSIX brokers: setup, home imports, confirmed reset with damaged-document retention, a crash-recoverable writer lease, and a mounted panel with window commands.",
-      "area": "security",
-      "release": "0.17.0"
+      "summary": "A credential vault gives agents approved, logged uses through POSIX brokers: setup, imports and confirmed reset with damaged-document retention, a crash-recoverable writer lease and a mounted panel with window commands; key-store migration is in progress.",
+      "area": "security"
     },
     {
       "id": "M110",
@@ -829,7 +828,7 @@
     {
       "id": "M113",
       "title": "Deterministic reports",
-      "summary": "Run /report for project, quality, milestone, release, change, session, usage, keybindings, accounts, security, estimate, playbook, schedules as Markdown, HTML, JSON or text, with snapshots, lease release on cancellation and no model call.",
+      "summary": "Run /report for project, quality, milestone, release, change, session, usage, keybindings, accounts, security, estimate, playbook, schedules with snapshots, lease release on cancellation and no model call, while additional report kinds are in progress.",
       "area": "platform",
       "release": "0.17.0"
     },
@@ -843,7 +842,7 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "Scheduled prompts v2 is in progress, with automatic delivery disabled pending certification so the running editor neither asks for v2 consent nor reserves paid caps.",
+      "summary": "Automatic delivery stays disabled pending certification, so the running editor neither asks for v2 consent nor reserves paid caps, while scheduled prompts v2 is in progress.",
       "area": "agents"
     },
     {
@@ -856,9 +855,8 @@
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Forecast goal completion with explicit prerequisite grammar and closure-scoped validation; check every plan row with --check-plan, preserve typed refusal diagnostics and replace stale forecasts across all surfaces, and honor the current Reports network policy.",
-      "area": "agents",
-      "release": "0.17.0"
+      "summary": "Forecast goal completion with explicit prerequisite grammar; check every plan row with --check-plan and preserve typed refusal diagnostics while the remaining plan bindings are in progress.",
+      "area": "agents"
     },
     {
       "id": "M118",

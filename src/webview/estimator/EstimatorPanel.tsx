@@ -188,34 +188,17 @@ export default function EstimatorPanel({
       try {
         next = await boundary.collectEstimateView(
           parsed.data,
-          async () => {
-            try {
-              return await port.estimate(parsed.data, controller.signal)
-            } catch (error: unknown) {
-              // A foreign failure keeps its kind past the panel for the host
-              // log; the estimator's own refusal said everything on the
-              // panel. A cancelled run stays silent.
-              if (
-                !controller.signal.aborted &&
-                !(error instanceof DOMException && error.name === 'AbortError') &&
-                !isEstimateRefusal(error)
-              )
-                port.report(error)
-              throw error
-            }
-          },
+          () => port.estimate(parsed.data, controller.signal),
           controller.signal,
         )
       } catch (error: unknown) {
-        // A cancelled run stays silent: a stillborn run reads failed. The
-        // typed failure keeps a refusal's detail in words on the panel, and
+        // A cancelled run stays silent: a stillborn run reads failed. A
+        // refusal said everything on the panel; only a foreign failure
         // keeps its kind past the panel through the port's report for the
         // host log (D119).
         if (controller.signal.aborted) return
         if (error instanceof DOMException && error.name === 'AbortError') return
         next = boundary.failedEstimate(error)
-        // A foreign failure keeps its kind past the panel for the host log;
-        // the estimator's own refusal said everything on the panel.
         if (!isEstimateRefusal(error)) port.report(error)
       }
     } catch {

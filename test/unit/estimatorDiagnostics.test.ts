@@ -74,9 +74,25 @@ function inventory(directory: string): { site: string; kind: string; expression:
         true,
       )
       const sites: { site: string; kind: string; expression: string }[] = []
+      // The catch clause variables on the path to this node: a `throw` of
+      // one rethrows what the catch caught after its named checks (the
+      // gate's NARROW idiom), preserving the failure's kind by definition.
+      const caught: string[] = []
       const visit = (node: ts.Node): void => {
         const site = `${file.replaceAll('\\', '/')}:${String(source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1)}`
-        if (ts.isThrowStatement(node))
+        if (ts.isCatchClause(node) && node.variableDeclaration !== undefined) {
+          const name = node.variableDeclaration.name
+          if (ts.isIdentifier(name)) {
+            caught.push(name.text)
+            ts.forEachChild(node, visit)
+            caught.pop()
+            return
+          }
+        }
+        if (
+          ts.isThrowStatement(node) &&
+          !(ts.isIdentifier(node.expression) && caught.includes(node.expression.text))
+        )
           sites.push({ site, kind: 'throw', expression: node.expression.getText(source) })
         if (ts.isNewExpression(node) && node.expression.getText(source).endsWith('Error'))
           sites.push({ site, kind: 'producer', expression: node.expression.getText(source) })

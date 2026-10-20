@@ -37,7 +37,7 @@ it('holds one well-formed entry per bundle, each loader by file and symbol', () 
   const files = LAZY_BUNDLES.map((entry) => entry.file)
   expect(new Set(files).size).toBe(files.length)
   for (const entry of LAZY_BUNDLES) {
-    expect(entry.file).toMatch(/^([a-z]+\/)?[A-Za-z0-9_.-]+\.js$/u)
+    expect(entry.file).toMatch(/^([A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.js$/u)
     expect(['vscode', 'acp', 'both', 'unreached'].includes(entry.side)).toBe(true)
     const loaders = entry.requestedBy.map((asked) => `${asked.importer} ${asked.symbol}`)
     expect(new Set(loaders).size).toBe(loaders.length)

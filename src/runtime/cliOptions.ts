@@ -368,6 +368,10 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
     providersList: 'providers list',
     providersTest: 'providers test <provider>',
     providersRemove: 'providers remove <provider>',
+    openRouterConnect: 'providers connect openrouter',
+    providerKeyUsage: 'providers usage <id>',
+    helpTopic: 'help <command>',
+    authGitHub: 'auth github login|logout|status',
   }
   const lines = [`${command} ${localUsage[route] ?? name}`]
   if (definition === undefined) {
@@ -375,6 +379,10 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
       providersList: table.referenceProviders,
       providersTest: table.referenceProviders,
       providersRemove: table.referenceProviders,
+      openRouterConnect: table.providerOpenRouterServices,
+      providerKeyUsage: table.usageKeyUsage,
+      helpTopic: table.referenceBriefHelp,
+      authGitHub: table.referenceAuthGitHub,
       schedule: table.scheduleV2.runtime.usage,
       playbook: table.playbookCommandUsage,
       developer: table.developer.commandUsage,

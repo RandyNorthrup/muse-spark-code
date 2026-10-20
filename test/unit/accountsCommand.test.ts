@@ -186,10 +186,13 @@ describe('terminal ChatGPT command boundary', () => {
     })
   })
 
-  it('uses the same credential-store refusal as the other terminal surfaces', () => {
+  it('names a dead credential store with the ChatGPT sign-in guidance', () => {
+    // R7 gives local ChatGPT causes their own sentence: the shared
+    // outage line other surfaces use would not tell a person how to
+    // unlock a store.
     const failure = chatGptCommandText().failure('store-unavailable')
-    expect(failure).toBe(UI_TEXT.acpStoreDown)
-    expect(failure).toContain('stored keys cannot be checked')
+    expect(failure).toBe(UI_TEXT.acpChatGpt.storeUnavailable)
+    expect(failure).toContain('Secret Service')
     expect(chatGptCommandText().status('signed-out')).toBe(UI_TEXT.acpChatGpt.states['signed-out'])
     expect(chatGptCommandText().failure('expired')).toBe(UI_TEXT.planUi.expired)
   })

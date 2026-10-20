@@ -624,8 +624,10 @@ export function createSubscriptionClient(
         assertConfirmedAllowed(body.model, confirmed)
         if (ref.providerId === 'copilot') {
           const adapter = deps.copilot?.().get(ref.modelId)
-          // Same unreachable grant as above: name VS Code, never a key.
-          if (adapter === undefined) throw new Error(UI_TEXT.planUi.copilotHostGrant)
+          // Same unreachable grant as above: name VS Code, never a key. Typed
+          // so the catch below yields the grant's own words (D119), never the
+          // ChatGPT failure text, before the throw keeps its kind.
+          if (adapter === undefined) throw new CopilotFailureError(UI_TEXT.planUi.copilotHostGrant)
           const account = await deps.accountId()
           const guard = Object.assign(() => admitAttempt?.(account), {
             ...admitAttempt,
