@@ -100,7 +100,9 @@ async function ownStart(): Promise<string> {
     const startedAt = await Promise.race([
       processStart(process.pid),
       new Promise<undefined>((resolve) => {
-        timeout = setTimeout(resolve, REPORT_WRITER_LOCK_PROBE_MS)
+        timeout = setTimeout(() => {
+          resolve(undefined)
+        }, REPORT_WRITER_LOCK_PROBE_MS)
       }),
     ])
     return startedAt ?? BIRTH_UNAVAILABLE
@@ -119,7 +121,12 @@ async function startOf(
       return await Promise.race([
         processStart(pid),
         new Promise<undefined>((resolve) => {
-          timeout = setTimeout(resolve, Math.max(1, Math.floor(probeBudgetMs)))
+          timeout = setTimeout(
+            () => {
+              resolve(undefined)
+            },
+            Math.max(1, Math.floor(probeBudgetMs)),
+          )
         }),
       ])
     } finally {
