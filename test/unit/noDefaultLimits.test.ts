@@ -333,4 +333,13 @@ describe('no default limits: report plan bytes', () => {
       await rm(folder, { recursive: true, force: true })
     }
   })
+
+  it('lets a failure that is not a missing or malformed file throw past the reader', async () => {
+    const folder = await mkdtemp(path.join(tmpdir(), 'nolimits-plan-'))
+    try {
+      expect(() => runtimeReportsPlanMaxBytes(folder + path.sep + 'bad\0name')).toThrow()
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
+  })
 })
