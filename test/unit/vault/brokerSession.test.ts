@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { fork, spawn, type ChildProcess } from 'node:child_process'
+import { execFileSync, fork, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -8,6 +8,7 @@ import * as z from 'zod/mini'
 import { setTimeout as delay } from 'node:timers/promises'
 import { vaultBrokerLockSchema } from '../../../src/shared/vaultProtocol'
 import { buildBrokerChildren } from '../helpers/vault/sessionBrokerBuild'
+import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
 import { stopFixtureChild } from '../helpers/vault/fixtureChildren'
 import { hasBrokerSocketFit } from '../helpers/vault/socketFit'
 
@@ -25,6 +26,21 @@ beforeAll(async () => {
     ['sessionClientChild', 'client.cjs'],
     ['sessionBrokerChild', 'vaultBroker.js'],
   ])
+  // One-time OS costs belong in hooks, never in a case: the first exec of
+  // each fresh helper binary pays macOS trust evaluation, and the registry
+  // save behind every governed launch execs the created helper. Warm both
+  // once here so no case races that cost against the test timeout.
+  execFileSync(vaultPeerExecutable(fixture.root), ['identity', String(process.pid)], {
+    stdio: 'ignore',
+  })
+  if (process.platform === 'darwin')
+    execFileSync(
+      path.join(fixture.root, 'native', 'darwin', 'muse-dictate'),
+      ['proc-identity', String(process.pid)],
+      {
+        stdio: 'ignore',
+      },
+    )
 })
 afterAll(async () => {
   for (const child of children) {
@@ -121,7 +137,8 @@ describe.skipIf(!hasSocketFit || process.platform === 'win32')('session-owned PO
     const clients = await Promise.all(['a', 'b', 'c', 'd'].map((id) => client(data, id)))
     const locations = await Promise.all(clients.map((child) => ready(child)))
     expect(new Set(locations.map((location) => location.pid)).size).toBe(1)
-    for (const child of clients) await status(child)
+    // Each status is its own client's roundtrip; order between clients is not asserted.
+    await Promise.all(clients.map((child) => status(child)))
     await Promise.all(clients.map((child) => close(child)))
     const location = locations[0]
     if (!location) throw new Error('missing generated location')
