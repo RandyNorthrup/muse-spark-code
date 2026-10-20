@@ -5,7 +5,7 @@ import process from 'node:process'
 import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
 import * as z from 'zod/mini'
 import type { ResourcePipedProcess, ResourceProcessOptions } from '../../resources/launch'
-import { probeChildEnvironment } from '../../resources/trees/run'
+import { probeChildEnvironment } from '../../executables'
 import {
   JUDGE_FAST_B1_DARWIN_ABI,
   JUDGE_FAST_B1_MAX_ABI,

@@ -42,7 +42,8 @@ import {
   type ResourceHistoryBinding,
   type ResourceHistoryRecorder,
 } from '../../runtime/resources/history'
-import { probeChildEnvironment, runTreeProgram } from './trees/run'
+import { probeChildEnvironment } from '../executables'
+import { runTreeProgram } from './trees/run'
 import { powerShellQuoted } from '../shellQuote'
 import {
   WINDOWS_POWERSHELL_COMMAND_ARGS,

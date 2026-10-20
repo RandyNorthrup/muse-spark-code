@@ -10,11 +10,8 @@ import { LinuxResourceTreeReader } from '../../src/core/resources/trees/linux'
 import { MacResourceTreeReader } from '../../src/core/resources/trees/mac'
 import { ResourceTreeRegistry } from '../../src/core/resources/trees/registry'
 import { signalVerifiedPosix } from '../../src/core/resources/trees/actions'
-import {
-  probeChildEnvironment,
-  runTreeProgram,
-  type ResourceTreeRun,
-} from '../../src/core/resources/trees/run'
+import { probeChildEnvironment } from '../../src/core/executables'
+import { runTreeProgram, type ResourceTreeRun } from '../../src/core/resources/trees/run'
 import type { ResourceProcessIdentity, ResourceTicket } from '../../src/shared/resources'
 import { removeFolder } from './helpers/temporaryFolders'
 import { darwinProcessHelper } from './helpers/darwinProcessHelper'

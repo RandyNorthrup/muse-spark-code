@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- The ACP estimate read no longer crashes when an estimate call fails: the
+  shared schema chunk carries the schema error class beside the conversion,
+  so the failure is rethrown as the estimate's own diagnostic. The guarded
+  probe environment the vault transports build moved beside the executable
+  resolver, so the vault chunks no longer carry the resource tree reader.
 - The playbook and schedules report inputs are back within their 59 KiB
   budget: the git rename evidence the orchestrator reads now lives in its own
   module beside the playbook registry, so the report chunk no longer carries

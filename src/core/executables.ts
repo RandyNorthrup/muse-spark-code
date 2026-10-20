@@ -1,3 +1,6 @@
+import { realpathSync } from 'node:fs'
+import { noWorkspaceChildEnvironment } from './execGuard'
+
 // Finding a program on PATH without the working directory (PLAN.md D24).
 // A bare name handed to `spawn` / `execFile` is looked up by the platform:
 // libuv on Windows tries the current directory before PATH, and an empty or
@@ -77,4 +80,15 @@ type, so passing a raw `process.env` is a type error the compiler lists.
 */
 export type GuardedChildEnv = NodeJS.ProcessEnv & {
   readonly [guardedChildEnvBrand]: true
+}
+
+/**
+The guarded environment for a fixed absolute probe (`/bin/ps`,
+`/usr/bin/getconf`, the compiled tree helpers, SystemRoot PowerShell):
+absolute PATH entries only, links followed — never a PATH search, so a
+planted program never runs. The call sites name this form explicitly
+instead of leaving the environment unguarded.
+*/
+export function probeChildEnvironment(env: NodeJS.ProcessEnv): GuardedChildEnv {
+  return noWorkspaceChildEnvironment(process.platform, env, realpathSync)
 }

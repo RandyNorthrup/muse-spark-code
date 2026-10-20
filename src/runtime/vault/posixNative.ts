@@ -5,7 +5,7 @@ import { open } from 'node:fs/promises'
 import { type Socket } from 'node:net'
 import * as z from 'zod/mini'
 import { execResourceFile, spawnResourceProcess } from '../../core/resources/launcher'
-import { probeChildEnvironment } from '../../core/resources/trees/run'
+import { probeChildEnvironment } from '../../core/executables'
 import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import {
   type VaultProcessIdentity,

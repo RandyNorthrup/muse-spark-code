@@ -12,7 +12,8 @@ import {
   type ResourceProcessIdentity,
   type ResourceTicket,
 } from '../../../shared/resources'
-import { probeChildEnvironment, runTreeProgram, type ResourceTreeRun } from '../trees/run'
+import { probeChildEnvironment } from '../../executables'
+import { runTreeProgram, type ResourceTreeRun } from '../trees/run'
 import type { WindowsTreeDeps } from '../trees/windows'
 import type { ResourceActuatorPort, ResourceControl } from './controls'
 

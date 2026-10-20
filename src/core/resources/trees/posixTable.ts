@@ -1,6 +1,7 @@
 import * as z from 'zod/mini'
 import { resourceProcessIdentitySchema, resourceTreeUsageSchema } from '../../../shared/resources'
-import { probeChildEnvironment, type ResourceTreeRun } from './run'
+import { probeChildEnvironment } from '../../executables'
+import { type ResourceTreeRun } from './run'
 
 const DECIMAL = /^\d+$/
 
