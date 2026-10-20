@@ -334,6 +334,22 @@ export class ReportJournal {
     this.vaultScrub = options.vaultScrub
   }
 
+  /** This activation's marker goes; a stop also ends recording. Never throws. */
+  private async removeOwnMarker(isStopping: boolean): Promise<void> {
+    try {
+      await this.enqueue(async () => {
+        if (isStopping) this.stopped = true
+        try {
+          await this.store.remove(this.ownMarker)
+        } catch (error: unknown) {
+          if (!isMissingPath(error)) this.disable(error)
+        }
+      })
+    } catch (error: unknown) {
+      this.disable(error)
+    }
+  }
+
   private disable(error: unknown): void {
     this.disabled = true
     if (this.warned) {
@@ -627,32 +643,11 @@ export class ReportJournal {
   continues until shutdown. Never throws.
   */
   public async clearMarker(): Promise<void> {
-    try {
-      await this.enqueue(async () => {
-        try {
-          await this.store.remove(this.ownMarker)
-        } catch (error: unknown) {
-          if (!isMissingPath(error)) this.disable(error)
-        }
-      })
-    } catch (error: unknown) {
-      this.disable(error)
-    }
+    await this.removeOwnMarker(false)
   }
 
   /** Clear only this activation's marker on deactivate. Never throws. */
   public async shutdown(): Promise<void> {
-    try {
-      await this.enqueue(async () => {
-        this.stopped = true
-        try {
-          await this.store.remove(this.ownMarker)
-        } catch (error: unknown) {
-          if (!isMissingPath(error)) this.disable(error)
-        }
-      })
-    } catch (error: unknown) {
-      this.disable(error)
-    }
+    await this.removeOwnMarker(true)
   }
 }

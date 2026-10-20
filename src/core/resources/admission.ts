@@ -56,8 +56,8 @@ async function disposeHost(onError: (error?: unknown) => void): Promise<void> {
     host?.dispose()
     // The window's open resource minute is written, bounded, after sampling stops.
     await state.flush?.()
-  } catch (error: unknown) {
-    onError(error)
+  } catch {
+    onError()
   }
 }
 
@@ -75,8 +75,8 @@ async function createHost(configured: ResourceHostSettings): Promise<ResourceLau
     for (const attach of state.attachers) {
       try {
         attach(window)
-      } catch (error: unknown) {
-        configured.onError(error)
+      } catch {
+        configured.onError()
       }
     }
   }
