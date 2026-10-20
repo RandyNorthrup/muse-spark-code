@@ -69,8 +69,12 @@ const action = process.argv[3]
 const stopAt = process.argv[4]
 const vaultId = 'a'.repeat(32)
 const anchorPath = path.join(root, 'protected-anchor.json')
+// One child can run several steps (`prepare-reset+reset`,
+// `recover-reset+open`): the stop points arm for the last step only, so a
+// setup's own writes never stop the child.
+const armed = { isArmed: false }
 async function point(stage: string): Promise<void> {
-  if (stage !== stopAt) return
+  if (stage !== stopAt || !armed.isArmed) return
   await new Promise<void>(() => {
     process.stdout.write(`${JSON.stringify({ kind: 'stage', stage })}\n`)
     setInterval(() => {
@@ -152,85 +156,92 @@ async function run(): Promise<void> {
         recovery.code.fill(0)
       }
     }
-    switch (action) {
-      case 'prepare-reset':
-      case 'prepare-restore': {
-        const store = await create()
-        try {
-          if (action === 'prepare-restore') {
-            const snapshot = await store.exportSnapshot()
-            const slot = snapshot.slots.records[0]
-            if (!slot) throw new Error('missing recovery slot')
-            const backup = await createEncryptedBackup(store, key, slot)
-            await writeFile(path.join(root, 'backup'), backup, { mode: 0o600 })
-            backup.fill(0)
-            await files.writeAtomic('vault.v1', Buffer.from('damaged generated document'))
-          } else {
-            await files.writeAtomic('slots.v1', Buffer.from('damaged generated slots'))
-            await files.writeAtomic('pending.v1', Buffer.from('damaged generated intent'))
-          }
-        } finally {
-          store.lock()
-        }
-        break
-      }
-      case 'reset':
-      case 'recover-reset': {
-        const expected = await anchor.minimum(vaultId)
-        if (expected !== null)
-          await VaultStore.resetLost(
-            files,
-            vaultId,
-            JSON.stringify({ kind: 'vaultReset' }),
-            clear,
-            () => anchor.reset(vaultId, expected, clear),
-            anchor,
-            expected,
-          )
-        if (action === 'recover-reset') {
+    const perform = async (step: string | undefined): Promise<void> => {
+      switch (step) {
+        case 'prepare-reset':
+        case 'prepare-restore': {
           const store = await create()
           try {
-            const items = await store.list()
-            if (items.length > 0) throw new Error('unexpected recovered items')
+            if (step === 'prepare-restore') {
+              const snapshot = await store.exportSnapshot()
+              const slot = snapshot.slots.records[0]
+              if (!slot) throw new Error('missing recovery slot')
+              const backup = await createEncryptedBackup(store, key, slot)
+              await writeFile(path.join(root, 'backup'), backup, { mode: 0o600 })
+              backup.fill(0)
+              await files.writeAtomic('vault.v1', Buffer.from('damaged generated document'))
+            } else {
+              await files.writeAtomic('slots.v1', Buffer.from('damaged generated slots'))
+              await files.writeAtomic('pending.v1', Buffer.from('damaged generated intent'))
+            }
           } finally {
             store.lock()
           }
+          break
         }
-        break
-      }
-      case 'restore':
-      case 'recover-restore': {
-        let store: VaultStore | undefined
-        if (action === 'recover-restore') {
-          try {
-            store = await VaultStore.open(options, vaultId)
-          } catch (error: unknown) {
-            if (!(error instanceof VaultError) || error.code === 'busy') throw error
+        case 'reset':
+        case 'recover-reset': {
+          const expected = await anchor.minimum(vaultId)
+          if (expected !== null)
+            await VaultStore.resetLost(
+              files,
+              vaultId,
+              JSON.stringify({ kind: 'vaultReset' }),
+              clear,
+              () => anchor.reset(vaultId, expected, clear),
+              anchor,
+              expected,
+            )
+          if (step === 'recover-reset') {
+            const store = await create()
+            try {
+              const items = await store.list()
+              if (items.length > 0) throw new Error('unexpected recovered items')
+            } finally {
+              store.lock()
+            }
           }
+          break
         }
-        store ??= await restoreEncryptedBackup(
-          options,
-          await readFile(path.join(root, 'backup')),
-          VAULT_LIMITS.frameBytes,
-          true,
-        )
-        try {
-          const items = await store.list()
-          if (items.length > 0) throw new Error('unexpected restored items')
-          await store.exportSnapshot()
-        } finally {
+        case 'restore':
+        case 'recover-restore': {
+          let store: VaultStore | undefined
+          if (step === 'recover-restore') {
+            try {
+              store = await VaultStore.open(options, vaultId)
+            } catch (error: unknown) {
+              if (!(error instanceof VaultError) || error.code === 'busy') throw error
+            }
+          }
+          store ??= await restoreEncryptedBackup(
+            options,
+            await readFile(path.join(root, 'backup')),
+            VAULT_LIMITS.frameBytes,
+            true,
+          )
+          try {
+            const items = await store.list()
+            if (items.length > 0) throw new Error('unexpected restored items')
+            await store.exportSnapshot()
+          } finally {
+            store.lock()
+          }
+          break
+        }
+        case 'open': {
+          const store = await VaultStore.open(options, vaultId)
           store.lock()
+          break
         }
-        break
+        default: {
+          throw new Error('unknown fixture action')
+        }
       }
-      case 'open': {
-        const store = await VaultStore.open(options, vaultId)
-        store.lock()
-        break
-      }
-      default: {
-        throw new Error('unknown fixture action')
-      }
+    }
+    const steps = (action ?? '').split('+')
+    for (const [index, step] of steps.entries()) {
+      armed.isArmed = index === steps.length - 1
+      await perform(step)
     }
     process.stdout.write(`${JSON.stringify({ kind: 'complete' })}\n`)
   } finally {

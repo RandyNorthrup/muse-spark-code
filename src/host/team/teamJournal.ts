@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { lstatSync } from 'node:fs'
 import { open, readFile, readdir, rename } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -159,7 +160,11 @@ export function createTeamJournal(options: {
         try {
           content = await readFile(target, 'utf8')
         } catch (error: unknown) {
-          return storeErrorCode(error) === 'ENOENT'
+          // No entry is a missing record. An entry that is there but cannot
+          // be read through (a link to nothing; on Windows a junction to a
+          // file, which the path check above cannot see) is evidence.
+          return storeErrorCode(error) === 'ENOENT' &&
+            lstatSync(target, { throwIfNoEntry: false }) === undefined
             ? { kind: 'missing' }
             : { kind: 'broken', file: target, wasMovedAside: false }
         }

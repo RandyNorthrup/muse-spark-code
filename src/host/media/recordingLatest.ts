@@ -261,7 +261,7 @@ export interface WindowsPrivateDirectoryDeps {
 
 /**
 A fresh owner-only directory for one preview copy on Windows: `mkdtemp`
-under `tempRoot`, then the inherited ACL is replaced with a single grant
+under `tempRoot`, then its whole DACL is replaced with a single grant
 to the object's owner (OWNER RIGHTS, `*S-1-3-4`), verified through the
 operating system before the copy starts. Absolute system tools, no shell,
 bounded; anything the system will not confirm throws and the caller keeps
@@ -278,8 +278,6 @@ export async function createWindowsPrivateDirectory(
   await mkdir(tempRoot, { recursive: true })
   const dir = await mkdtemp(path.join(tempRoot, 'latest-'))
   try {
-    const icacls = path.win32.join(systemRoot, 'System32', 'icacls.exe')
-    await runSystemCommand(icacls, [dir, '/inheritance:r', '/grant:r', '*S-1-3-4:(OI)(CI)F'])
     const powershell = path.win32.join(
       systemRoot,
       'System32',
@@ -287,12 +285,25 @@ export async function createWindowsPrivateDirectory(
       'v1.0',
       'powershell.exe',
     )
+    // The exact DACL, protected, with one grant to the object's owner
+    // (OWNER RIGHTS): replacing only the inherited grants would keep the
+    // explicit ones a new folder can carry (an elevated administrator's,
+    // under Windows Server's defaults), then read back through the system.
     const verdict = await runSystemCommand(powershell, [
       '-NoLogo',
       '-NoProfile',
       '-NonInteractive',
       '-Command',
-      `$acl = Get-Acl -LiteralPath ${powerShellQuoted(dir)}; $acl.AreAccessRulesProtected -and ($acl.Access.Count -eq 1)`,
+      [
+        `$dir = ${powerShellQuoted(dir)}`,
+        '$acl = New-Object System.Security.AccessControl.DirectorySecurity',
+        '$acl.SetAccessRuleProtection($true, $false)',
+        "$owner = New-Object System.Security.Principal.SecurityIdentifier('S-1-3-4')",
+        "$acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($owner, 'FullControl', 'ContainerInherit, ObjectInherit', 'None', 'Allow')))",
+        'Set-Acl -LiteralPath $dir -AclObject $acl',
+        '$check = Get-Acl -LiteralPath $dir',
+        '$check.AreAccessRulesProtected -and ($check.Access.Count -eq 1)',
+      ].join('; '),
     ])
     if (verdict.trim() !== 'True') throw new Error('Unprotected preview directory')
     return dir

@@ -152,13 +152,15 @@ describe('POSIX production writer crash recovery (CM109JOINA)', () => {
       const key = randomBytes(32)
       let held: Awaited<ReturnType<typeof child>> | undefined
       try {
-        await complete(root, `prepare-${operation}`, key)
-        held = child(root, operation, key, stage)
+        // The setup runs in the process that is killed mid-operation, and a
+        // new process recovers and then opens the store: the kill is the
+        // boundary under test, and what recovery wrote is on disk for the
+        // open either way.
+        held = child(root, `prepare-${operation}+${operation}`, key, stage)
         expect(await held.message).toEqual({ kind: 'stage', stage })
         held.process.kill('SIGKILL')
         expect(await held.exited).toEqual([null, 'SIGKILL'])
-        await complete(root, `recover-${operation}`, key)
-        await complete(root, 'open', key)
+        await complete(root, `recover-${operation}+open`, key)
       } finally {
         key.fill(0)
         if (held) {
@@ -177,8 +179,8 @@ describe('POSIX production writer crash recovery (CM109JOINA)', () => {
       let held: Awaited<ReturnType<typeof child>> | undefined
       let contender: Awaited<ReturnType<typeof child>> | undefined
       try {
-        await complete(root, action === 'reset' ? 'prepare-reset' : 'prepare-restore', key)
-        held = child(root, action === 'reset' ? 'reset' : 'restore', key, 'writer-acquired')
+        const operation = action === 'reset' ? 'reset' : 'restore'
+        held = child(root, `prepare-${operation}+${operation}`, key, 'writer-acquired')
         expect(await held.message).toEqual({ kind: 'stage', stage: 'writer-acquired' })
         contender = child(root, action, key)
         expect(await contender.message).toEqual({ kind: 'refused', reason: 'busy' })
@@ -186,7 +188,7 @@ describe('POSIX production writer crash recovery (CM109JOINA)', () => {
         expect(held.process.exitCode).toBeNull()
         held.process.kill('SIGKILL')
         await held.exited
-        await complete(root, action === 'reset' ? 'recover-reset' : 'recover-restore', key)
+        await complete(root, `recover-${operation}`, key)
       } finally {
         key.fill(0)
         for (const run of [held, contender])

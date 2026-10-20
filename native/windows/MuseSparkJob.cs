@@ -623,7 +623,11 @@ public static class MuseSparkCreated {
     IntPtr owner, group, dacl, sacl, descriptor;
     if (GetSecurityInfo(h, 1, 1, out owner, out group, out dacl, out sacl, out descriptor) != 0) Refuse();
     try { using (WindowsIdentity current = WindowsIdentity.GetCurrent()) {
-      if (current.User == null || new SecurityIdentifier(owner).Value != current.User.Value) Refuse();
+      // The token's own default owner counts as this user's: an elevated
+      // administrator's new objects can belong to Administrators (Windows
+      // Server's default), and the registry folder is made that way.
+      string found = new SecurityIdentifier(owner).Value;
+      if (current.User == null || (found != current.User.Value && (current.Owner == null || found != current.Owner.Value))) Refuse();
     }} finally { LocalFree(descriptor); }
   }
   static SafeFileHandle Open(SafeFileHandle parent, string name, bool directory, bool create, bool allowMissing = false) {
