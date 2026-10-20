@@ -67,6 +67,34 @@ describe('auth status stored-secret verdicts', () => {
     expect(said.out.join('\n')).toContain('testprovider')
   })
 
+  it('tells apart two providers that share one preset label', async () => {
+    // Real use, Windows 0.19.0: anthropic-s1 and anthropic-s2 printed two
+    // identical "The Anthropic key is stored…" lines.
+    const said = lines()
+    const twins: ProviderEntry[] = ['anthropic-s2', 'anthropic-s1'].map((id) => ({
+      id,
+      preset: 'anthropic',
+      auth: 'apiKey',
+      models: [],
+    }))
+    const exit = await authStatusAll(
+      deps(
+        mapSecrets({
+          'museSpark.provider.anthropic-s2': ENVELOPE,
+          'museSpark.provider.anthropic-s1': ENVELOPE,
+        }),
+        said,
+      ),
+      () => Promise.resolve({ ok: true, file: { v: 1, providers: twins } }),
+    )
+    expect(exit).toBe(0)
+    const stored = said.out.filter((line) => line.startsWith('The Anthropic'))
+    expect(stored).toEqual([
+      'The Anthropic (anthropic-s2) key is stored in test store, bound to https://api.example.com.',
+      'The Anthropic (anthropic-s1) key is stored in test store, bound to https://api.example.com.',
+    ])
+  })
+
   it('reads a malformed stored secret as unreadable for one provider', async () => {
     const said = lines()
     const exit = await authStatusProvider(
