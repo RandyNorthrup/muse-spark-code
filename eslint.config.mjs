@@ -532,6 +532,7 @@ export default tseslint.config(
       'harness-shots/**',
       '.claude/**',
       'vendor/**',
+      'temp/**',
     ],
   },
   {
