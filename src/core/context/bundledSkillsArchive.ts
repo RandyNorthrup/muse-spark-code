@@ -47,9 +47,31 @@ export function withBundledSkillsArchive(
   const pathModule = platform === 'win32' ? path.win32 : path.posix
   const archive = pathModule.join(pathModule.dirname(vendorRoot), BUNDLED_SKILLS_ARCHIVE_FILE)
 
-  /** The vendor-relative posix path, or undefined past the package root. */
-  const relative = (absolutePath: string): string | undefined => {
-    const local = pathModule.relative(vendorRoot, absolutePath)
+  /**
+  The root in its canonical spelling, resolved once: an ancestor of the
+  root itself spelled through a symlink (`/var` on macOS, a short name on
+  Windows) is not a link inside the tree, so the link check must compare
+  against this spelling, not the spelled root. A file system that refuses
+  to say keeps the spelled root; the reads then fail as they do today.
+  */
+  let canonicalRoot: string | undefined
+  const rootCanonical = async (): Promise<string> => {
+    if (canonicalRoot === undefined) {
+      try {
+        canonicalRoot = await base.realPath(vendorRoot)
+      } catch (error: unknown) {
+        // Only a shaped store failure keeps the spelled root: anything
+        // else keeps its kind past the archive.
+        if (!isCodedError(error)) throw error
+        canonicalRoot = vendorRoot
+      }
+    }
+    return canonicalRoot
+  }
+
+  /** The vendor-relative posix path below `root`, or undefined past it. */
+  const relativeTo = (root: string, absolutePath: string): string | undefined => {
+    const local = pathModule.relative(root, absolutePath)
     return local === '' ||
       local === '..' ||
       local.startsWith(`..${pathModule.sep}`) ||
@@ -57,6 +79,18 @@ export function withBundledSkillsArchive(
       ? undefined
       : local.split(pathModule.sep).join('/')
   }
+
+  /** The vendor-relative posix path, or undefined past the package root. */
+  const relative = (absolutePath: string): string | undefined =>
+    relativeTo(vendorRoot, absolutePath)
+
+  /**
+  The vendor-relative posix path under either spelling of the root: the
+  caller names the spelled install path, while a path past the link check
+  carries the canonical one.
+  */
+  const relativeEither = async (absolutePath: string): Promise<string | undefined> =>
+    relative(absolutePath) ?? relativeTo(await rootCanonical(), absolutePath)
 
   /** The archive's validated members; undefined beside a loose tree. */
   const archived = async (): Promise<SolidTextFiles | undefined> => {
@@ -114,7 +148,7 @@ export function withBundledSkillsArchive(
         absolutePath: string,
         maxBytes?: number,
       ): Promise<ContextSourceRead | undefined> => {
-        if (relative(absolutePath) === undefined)
+        if ((await relativeEither(absolutePath)) === undefined)
           return await base.readSource?.(absolutePath, maxBytes)
         const bytes = await overlay.readFile(absolutePath, maxBytes)
         if (bytes === undefined) return undefined
@@ -135,7 +169,7 @@ export function withBundledSkillsArchive(
       },
     }),
     readFile: async (absolutePath: string, maxBytes?: number): Promise<Uint8Array | undefined> => {
-      const name = relative(absolutePath)
+      const name = await relativeEither(absolutePath)
       if (name === undefined) return await base.readFile(absolutePath, maxBytes)
       const bytes = await memberBytes(name)
       // An archived member the loose tree holds instead (LICENSE,
@@ -145,7 +179,8 @@ export function withBundledSkillsArchive(
       return bytes ?? (await base.readFile(absolutePath, maxBytes))
     },
     listDirectory: async (absolutePath: string): Promise<readonly string[]> => {
-      if (relative(absolutePath) === undefined) return await base.listDirectory(absolutePath)
+      if ((await relativeEither(absolutePath)) === undefined)
+        return await base.listDirectory(absolutePath)
       const files = await archived()
       if (files === undefined) return await base.listDirectory(absolutePath)
       // The loose directory is absent in a packaged install: its listing
@@ -157,14 +192,20 @@ export function withBundledSkillsArchive(
         if (!isCodedError(error)) throw error
         loose = []
       }
-      const prefix = relative(absolutePath) ?? ''
+      const prefix = (await relativeEither(absolutePath)) ?? ''
       return [...new Set([...loose, ...archivedDirs(files, prefix)])].toSorted((left, right) =>
         left.localeCompare(right, 'en'),
       )
     },
     realPath: async (absolutePath: string): Promise<string> => {
-      // The archive holds no links: a vendor path is already canonical.
-      return relative(absolutePath) === undefined ? await base.realPath(absolutePath) : absolutePath
+      // A vendor path canonicalises through the file system like any other
+      // path, so the link check compares the canonical target with the
+      // canonical root: a symlinked or short-named ancestor of the root
+      // itself then stays inside it. Archive members absent from the loose
+      // tree resolve through their nearest existing ancestor, while a link
+      // inside the tree that leads outside it still resolves outside it
+      // and is refused exactly as today.
+      return await base.realPath(absolutePath)
     },
   }
   return overlay
