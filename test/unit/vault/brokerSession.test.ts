@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { fork, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import * as z from 'zod/mini'
@@ -17,7 +17,10 @@ const brokers = new Set<number>()
 const hasSocketFit = hasBrokerSocketFit()
 beforeAll(async () => {
   if (!hasSocketFit || process.platform === 'win32') return
-  fixture.root = await mkdtemp(path.join(os.tmpdir(), 'vs-'))
+  // Canonical spelling: macOS spells its temporary root through /var or
+  // /tmp, both symlinks, and the store refuses symlink-spelled ancestors, so
+  // the generated root resolves to its real path first (same directory).
+  fixture.root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'vs-')))
   await buildBrokerChildren(fixture.root, [
     ['sessionClientChild', 'client.cjs'],
     ['sessionBrokerChild', 'vaultBroker.js'],
@@ -109,7 +112,6 @@ describe.skipIf(!hasSocketFit || process.platform === 'win32')('session-owned PO
     const other = await ready(b)
     expect(other.pid).toBe(location.pid)
     await close(a)
-    await delay(300)
     await status(b)
     await close(b)
     await cleaned(location.directory)

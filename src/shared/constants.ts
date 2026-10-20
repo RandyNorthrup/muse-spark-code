@@ -6126,8 +6126,6 @@ export const REPORT_WRITER_LOCK_BACKOFF_MAX_MS = 100
 // PowerShell start on windows-latest was killed inside the former 2 s, so a
 // report save failed. 5 s covers that start and stays a hard bound.
 export const REPORT_WRITER_LOCK_PROBE_MS = 5000
-// Linux /proc/<pid>/stat fields after the closing command-name parenthesis start at 3.
-export const REPORT_PROCESS_START_FIELD_INDEX = 19
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const REPORT_LOCAL_BUDGET_MS = 2000
 export const REPORT_PLAN_BUDGET_MS = 200
