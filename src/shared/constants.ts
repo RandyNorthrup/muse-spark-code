@@ -5963,16 +5963,34 @@ export const META_DASHBOARD_URL = 'https://dev.meta.ai/'
 // macOS. Linux has no built-in recogniser, so the button explains itself.
 export const DICTATION_HELPER_DIR = 'native'
 export const DICTATION_WINDOWS_SCRIPT_SEGMENTS = ['windows', 'dictate.ps1'] as const
-// The signed .app's executable serves every role (dictation, screen
-// recording, created-directory, process identity): the bare binary no longer
-// ships, and the bundle's localized resources stand behind the prompts.
-export const DICTATION_DARWIN_HELPER_SEGMENTS = [
-  'darwin',
-  'muse-dictate-screen.app',
-  'Contents',
-  'MacOS',
-  'muse-dictate',
-] as const
+// One signed .app per Mac architecture (D209): darwin-arm64 ships only the
+// arm64 slices, darwin-x64 only x86_64, each still signed and verified. The
+// bare binary ships no more, and the bundle's localized resources stand
+// behind the prompts.
+export const DARWIN_APP_ARCHES = ['arm64', 'x64'] as const
+export type DarwinAppArch = (typeof DARWIN_APP_ARCHES)[number]
+/** The signed .app holding the executable for this Mac architecture. */
+export function darwinDictationApp(arch: string): string {
+  if (arch === 'arm64') return 'muse-dictate-screen-arm64.app'
+  if (arch === 'x64') return 'muse-dictate-screen-x64.app'
+  throw new Error(`Unsupported Mac architecture: ${arch}`)
+}
+/** This Mac's helper executable, inside its architecture's signed .app. */
+export function darwinDictationHelperSegments(arch: string): readonly string[] {
+  return ['darwin', darwinDictationApp(arch), 'Contents', 'MacOS', 'muse-dictate']
+}
+/** This Mac's vault peer helper beside the .apps. */
+export function darwinVaultPeerFile(arch: string): string {
+  if (arch === 'arm64') return 'muse-vault-peer-arm64'
+  if (arch === 'x64') return 'muse-vault-peer-x64'
+  throw new Error(`Unsupported Mac architecture: ${arch}`)
+}
+/** This Mac's vault slot helper under dist. */
+export function darwinVaultSlotFile(arch: string): string {
+  if (arch === 'arm64') return 'muse-vault-arm64'
+  if (arch === 'x64') return 'muse-vault-x64'
+  throw new Error(`Unsupported Mac architecture: ${arch}`)
+}
 export const DICTATION_HELPER_COMMANDS = { start: 'start', stop: 'stop', quit: 'quit' } as const
 /** A press shorter than this is a tap (toggle); longer is push-to-talk. */
 export const DICTATION_HOLD_MS = 300

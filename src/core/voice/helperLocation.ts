@@ -9,17 +9,20 @@
 // workspace host cannot hear the local microphone (M26, PLAN.md D29).
 
 import path from 'node:path'
+import process from 'node:process'
 import {
   DICTATION_DARWIN_APP_NAME_FLAG,
   DICTATION_DARWIN_CAPTURE_FLAG,
-  DICTATION_DARWIN_HELPER_SEGMENTS,
   DICTATION_WINDOWS_CAPTURE_SEGMENTS,
   DICTATION_WINDOWS_SCRIPT_SEGMENTS,
   LINUX_RECORDERS,
   UI_TEXT,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_PSMODULEPATH_VARIABLE,
+  darwinDictationApp,
+  darwinDictationHelperSegments,
 } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { LINUX_DICTATION } from '../../shared/linuxDictationConstants'
 import {
   deleteEnvironmentVariable,
@@ -105,7 +108,18 @@ function darwinHelper(
 ):
   | { readonly isAvailable: true; readonly invocation: HelperInvocation }
   | { readonly isAvailable: false; readonly reason: string } {
-  const command = path.join(probe.helperDir, ...DICTATION_DARWIN_HELPER_SEGMENTS)
+  // One signed .app per Mac architecture (D209): this Mac runs its own.
+  // No helper ships for any other architecture: name the file it would be.
+  const arch = probe.arch ?? process.arch
+  if (arch !== 'arm64' && arch !== 'x64') {
+    return {
+      isAvailable: false,
+      reason: fill(UI_TEXT.dictationUnavailableDarwin, { app: `muse-dictate-screen-${arch}.app` }),
+    }
+  }
+  // Narrowed to this Mac's architecture: the lookup below cannot throw.
+  const app = darwinDictationApp(arch)
+  const command = path.join(probe.helperDir, ...darwinDictationHelperSegments(arch))
   return probe.fileExists(command)
     ? {
         isAvailable: true,
@@ -115,7 +129,10 @@ function darwinHelper(
           earlyExitHint: UI_TEXT.dictationDarwinEarlyExit,
         },
       }
-    : { isAvailable: false, reason: UI_TEXT.dictationUnavailableDarwin }
+    : {
+        isAvailable: false,
+        reason: fill(UI_TEXT.dictationUnavailableDarwin, { app }),
+      }
 }
 
 /**

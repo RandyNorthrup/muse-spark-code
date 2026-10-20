@@ -17,6 +17,8 @@ import {
   VAULT_LIMITS,
   VAULT_FILE_SINGLE_LINK,
   WORKSPACE_IDENTITY_ZERO,
+  darwinVaultPeerFile,
+  darwinVaultSlotFile,
 } from '../../shared/constants'
 
 const processSchema = z.strictObject({
@@ -40,12 +42,13 @@ export const vaultSocketDescriptors: VaultSocketDescriptorPort = {
 /** The Secure Enclave slot helper (built by native/darwin/build.sh in CI's macOS job). */
 export function macVaultSlotExecutable(installRoot: string): string {
   if (process.platform !== 'darwin') throw new Error(UI_TEXT.vault.noAccess)
-  return path.join(installRoot, 'dist', 'native', 'darwin', 'muse-vault')
+  // One thin binary per Mac architecture (D209): this Mac runs its own.
+  return path.join(installRoot, 'dist', 'native', 'darwin', darwinVaultSlotFile(process.arch))
 }
 /** Installed helper only; never a PATH lookup or a source/workspace-selected executable. */
 export function vaultPeerExecutable(installRoot: string): string {
   if (process.platform === 'darwin')
-    return path.join(installRoot, 'native', 'darwin', 'muse-vault-peer')
+    return path.join(installRoot, 'native', 'darwin', darwinVaultPeerFile(process.arch))
   if (process.platform === 'linux' && (process.arch === 'x64' || process.arch === 'arm64'))
     return path.join(installRoot, 'native', 'linux', process.arch, 'muse-vault-peer')
   throw new Error(UI_TEXT.vault.noAccess)

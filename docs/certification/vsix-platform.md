@@ -255,3 +255,61 @@ One line per finding; each fixed at its cause in this lane:
 - Not measurable on this rig (no Linux helper toolchain, darwin binaries
   are CI builds): linux-arm64, darwin-x64, darwin-arm64, universal sizes —
   CI's package job prints and checks them (`stat -c '%n %s' ./*.vsix`).
+
+## 6. Darwin single-copy and per-arch (lane VSIXDARWIN, 2026-10-20, macmini rig)
+
+Method: helpers built here with `native/darwin/build.sh` (dictation .apps
+plus `muse-vault`/`muse-vault-peer` as the repository builds them), full
+production build (`npm run build` green), then each darwin target through
+the real pipeline (`node scripts/package-vsix.mjs --target darwin-<arch>`:
+l10n, badges, module-exports, vsce pack, compact, Zopfli recompress with
+the pinned zopfli==0.4.3 on PATH, size check). Budget 3,788,800 bytes,
+unchanged. BEFORE measured in a scratch worktree at the pre-change base
+through the same pipeline (own `npm ci`, own build, own helper build).
+
+| Package      | Before (base)        | After A: one copy    | After A + per-arch  | With VSIXWEB savings (computed) |
+| ------------ | -------------------- | -------------------- | ------------------- | ------------------------------- |
+| darwin-arm64 | 4,177,113 (−388,313) | 4,008,981 (−220,181) | 3,880,288 (−91,488) | ~3,675,300 (+113,500)           |
+| darwin-x64   | 4,177,112 (−388,312) | 4,008,980 (−220,180) | 3,887,687 (−98,887) | ~3,682,700 (+106,100)           |
+
+Part A (every role runs the signed `.app`'s executable, bare binary no
+longer built or shipped) saves 168,132 bytes. Per-arch (each darwin target
+ships only its own architecture's thin slices, D209 amended) saves another
+128,693 (arm64) / 121,293 (x64).
+
+Darwin share by member, Zopfli bytes (arm64 after per-arch; x64 in
+parentheses): `.app` executable 81,170 (86,310); `muse-vault` 35,264
+(37,477); `muse-vault-peer` 2,251 (2,378); `CodeResources` 1,531 (1,531);
+`Info.plist` 679 (679); 15 `lproj` resources ~6,700 (~6,700); plus zip
+headers. Before, the share was: bare `muse-dictate` 169,420, universal
+`.app` executable 169,512, universal `muse-vault` 73,648, universal peer
+4,478, `CodeResources` 1,531, `Info.plist`/resources ~7,400. Each package
+holds only its own architecture: no cross-arch and no legacy universal or
+bare member (asserted by listing), and each `.app` executable keeps mode
+755 through the pack (compactVsix fixup for the Windows-stat package job).
+
+The VSIXWEB column applies that lane's measured neutral savings to the
+per-arch packages: ~134 KB webview members plus ~27 KB of headers, ~42 KB
+vendored skill plus headers (~205 KB total, brief figures). Both darwin
+targets land within budget with triple-digit-KB headroom, so the universal
+binaries stay gone; D209's universal sentence is amended to per-arch thin
+slices. The darwin size check stays red until VSIXWEB lands (expected: the
+unpacked savings are another lane's change, not a raised budget).
+
+Verification on this Mac (Intel x64; arm64 slices verified without
+running, since CI has no Rosetta guarantee either): `proc-identity`,
+created-directory `mkdir`, dictation start reaching the permission check
+(check-disclaim.sh green), screen probe without requesting access,
+unsigned/replaced/tampered-resources refusal for both architectures with
+pinned CDHash requirements (check-screen-resources.sh green, both bundles
+asserted thin), vault contracts plus capture probe (check-vault.sh green).
+Suites with the repository's own timeouts: helperLocation (17),
+vsixTargets, acpNativeFiles, macosRecording green; treesLifecycleNative
+passes except the `/bin/ps` spawn the sandbox forbids (`spawn EPERM`,
+also blocks macRss); vault broker suites skip on the socket bind the
+sandbox forbids. Break-one: the helper-path constant pointed back at the
+removed bare binary goes red (2 failed), reverted byte-exact, green again.
+Pre-existing, not this lane: manifest's CIFLOW test (quality:gates lists
+`check:no-output-cap`/`check:no-round-cap`, which the CI checks job has no
+parts for — identical on the untouched base; this lane touches no `gates:`
+line).

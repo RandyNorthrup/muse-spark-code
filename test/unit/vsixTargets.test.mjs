@@ -27,11 +27,22 @@ const WINDOWS_FILES = [
   'native/windows/MuseSparkVaultLock.cs',
   'native/windows/MuseSparkVaultPipe.cs',
 ]
-const DARWIN_FILES = [
-  'native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate',
-  'native/darwin/muse-vault-peer',
-  'dist/native/darwin/muse-vault',
-]
+// One thin binary per Mac architecture (D209): each darwin target ships
+// only its own architecture's slices.
+const DARWIN_FILES = {
+  'darwin-arm64': [
+    'native/darwin/muse-dictate-screen-arm64.app/Contents/MacOS/muse-dictate',
+    'native/darwin/muse-dictate-screen-arm64.app/Contents/_CodeSignature/CodeResources',
+    'native/darwin/muse-vault-peer-arm64',
+    'dist/native/darwin/muse-vault-arm64',
+  ],
+  'darwin-x64': [
+    'native/darwin/muse-dictate-screen-x64.app/Contents/MacOS/muse-dictate',
+    'native/darwin/muse-dictate-screen-x64.app/Contents/_CodeSignature/CodeResources',
+    'native/darwin/muse-vault-peer-x64',
+    'dist/native/darwin/muse-vault-x64',
+  ],
+}
 const LINUX_HELPERS = {
   'linux-x64': ['native/linux/x64/muse-created', 'native/linux/x64/muse-vault-peer'],
   'linux-arm64': ['native/linux/arm64/muse-created', 'native/linux/arm64/muse-vault-peer'],
@@ -64,8 +75,8 @@ describe('per-platform VSIX inventory', () => {
       const [platform] = target.split('-', 1)
       for (const file of WINDOWS_FILES)
         expect(isVsixTargetFile(target, file)).toBe(platform === 'win32')
-      for (const file of DARWIN_FILES)
-        expect(isVsixTargetFile(target, file)).toBe(platform === 'darwin')
+      for (const [owner, files] of Object.entries(DARWIN_FILES))
+        for (const file of files) expect(isVsixTargetFile(target, file)).toBe(target === owner)
       for (const [owner, files] of Object.entries(LINUX_HELPERS))
         for (const file of files) expect(isVsixTargetFile(target, file)).toBe(target === owner)
       for (const file of SHARED_FILES) expect(isVsixTargetFile(target, file)).toBe(true)
@@ -79,7 +90,12 @@ describe('per-platform VSIX inventory', () => {
     expect(isVsixTargetFile('linux-x64', String.raw`native\windows\MuseSparkVaultPipe.cs`)).toBe(
       false,
     )
-    expect(isVsixTargetFile('darwin-arm64', String.raw`dist\native\darwin\muse-vault`)).toBe(true)
+    expect(isVsixTargetFile('darwin-arm64', String.raw`dist\native\darwin\muse-vault-arm64`)).toBe(
+      true,
+    )
+    expect(isVsixTargetFile('darwin-arm64', String.raw`dist\native\darwin\muse-vault-x64`)).toBe(
+      false,
+    )
   })
 
   it('refuses an unknown target instead of packing the wrong package', () => {
@@ -118,7 +134,7 @@ describe('per-platform VSIX inventory', () => {
   })
 
   it('keeps the fallback Linux-only: neutral content plus both Linux helpers', () => {
-    for (const file of [...WINDOWS_FILES, ...DARWIN_FILES])
+    for (const file of [...WINDOWS_FILES, ...Object.values(DARWIN_FILES).flat()])
       expect(isVsixTargetFile(undefined, file)).toBe(false)
     expect(isVsixTargetFile(undefined, String.raw`native\windows\dictate.ps1`)).toBe(false)
     expect(isVsixTargetFile(undefined, String.raw`dist\native\darwin\muse-vault`)).toBe(false)

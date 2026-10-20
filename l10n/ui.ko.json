@@ -2620,7 +2620,7 @@
   "dictationUnavailable": "이 플랫폼에서는 음성 받아쓰기를 사용할 수 없습니다.",
   "dictationUnavailableLinux": "Linux 받아쓰기에는 PulseAudio 또는 PulseAudio를 지원하는 PipeWire가 실행되는 x64 또는 arm64 컴퓨터가 필요합니다.",
   "dictationUnavailableWindows": "음성 받아쓰기에는 Windows PowerShell이 필요하지만 찾을 수 없습니다(SystemRoot가 설정되지 않음).",
-  "dictationUnavailableDarwin": "음성 받아쓰기에는 macOS 도우미(native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate)가 필요하지만 이 빌드에는 포함되어 있지 않습니다.",
+  "dictationUnavailableDarwin": "음성 받아쓰기에는 macOS 도우미(native/darwin/{app}/Contents/MacOS/muse-dictate)가 필요하지만 이 빌드에는 포함되어 있지 않습니다.",
   "dictationNotLoaded": "받아쓰기 코드를 불러오지 못했습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그에 있습니다.",
   "announceListening": "듣는 중",
   "announceStoppedListening": "듣기 중지됨",

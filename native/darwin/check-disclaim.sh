@@ -11,9 +11,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-# One copy serves every role: the signed .app's executable is the helper.
-HELPER="$PWD/muse-dictate-screen.app/Contents/MacOS/muse-dictate"
-SCREEN_HELPER="$PWD/muse-dictate-screen.app/Contents/MacOS/muse-dictate"
+# One thin signed .app per Mac architecture (D209): this Mac probes its own.
+# Only the host architecture can execute here (no Rosetta guarantee in CI).
+case "$(uname -m)" in arm64) DISCLAIM_ARCH=arm64 ;; *) DISCLAIM_ARCH=x64 ;; esac
+HELPER="$PWD/muse-dictate-screen-${DISCLAIM_ARCH}.app/Contents/MacOS/muse-dictate"
+SCREEN_HELPER="$PWD/muse-dictate-screen-${DISCLAIM_ARCH}.app/Contents/MacOS/muse-dictate"
 ERR="$(mktemp -t muse-dictate-check)"
 trap 'rm -f "$ERR"' EXIT
 EXIT_REFUSED=2
