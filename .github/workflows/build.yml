@@ -4,7 +4,7 @@
 # groups, manual runs, release.yml) runs every gate on three platforms, unit
 # shards (eight on Ubuntu, sixteen each on Windows and macOS), the
 # integration runs, the macOS helper and one .vsix per supported target
-# (PLAN.md D123, no universal package ships).
+# plus the untargeted fallback (PLAN.md D209).
 # With ORG_CI on (D122, CISHARDS2), a same-repository pull request is part
 # `home`: every Windows and macOS leg (static gates, unit shards, Windows
 # integration, the macOS helper) runs in the capacity repository (part
@@ -222,6 +222,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The VSIX recompression suite needs the pinned Zopfli (VSIXFIT B):
+      # the compressor refuses to run without it, on every shard that
+      # reaches it.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - run: pip install -r .github/vsix-compress/requirements.txt
       # The vault broker fixtures compile muse-created through the product's
       # own build script, which links -lcrypto: the same package the native
       # job installs below.
@@ -293,6 +300,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The schedule integration tests drive the real governed runner, whose
+      # resource registry shells out to the created-path helper: build it on
+      # Linux, where the runner needs it.
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y libssl-dev
+          node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; buildLinuxHelper()"
       # The integration tests run twice (.vscode-test.mjs): on the latest
       # stable VS Code and on the manifest's floor (engines.vscode). The two
       # downloads are cached under a key naming both versions.
@@ -782,10 +796,16 @@ jobs:
       # the packaged extension embeds their exact digests; unset pins fail.
       - run: node scripts/build-linux-helper-pins.mjs native/linux/x64 native/linux/arm64
       - run: node scripts/check-linux-helper-pins.mjs --require-values
+      # The .vsix recompressor needs the pinned Zopfli (VSIXFIT B): without
+      # it packaging fails rather than falling back to zlib level 9.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - run: pip install -r .github/vsix-compress/requirements.txt
       # One production build for every target; each target is packed from
-      # its own filtered stage (PLAN.md D123, no universal package ships).
+      # its own filtered stage, plus the untargeted fallback (PLAN.md D209).
       - run: npm run build
-      - name: pack one .vsix per supported target
+      - name: pack one .vsix per supported target plus the fallback
         env:
           # The packaged-README badge check lists public main (GitHub API).
           GITHUB_TOKEN: ${{ github.token }}
@@ -804,7 +824,10 @@ jobs:
       # web page it converts, M69, and requires browserCheck.js on the first
       # browser check, M81), plus only that target's own native helpers and
       # its TargetPlatform in the packed manifest — and none of the other
-      # platforms' helpers (PLAN.md D123).
+      # platforms' helpers (PLAN.md D209). The untargeted fallback carries
+      # the same neutral content plus both Linux helpers, no TargetPlatform
+      # and no darwin or Windows pieces: it only ever serves Linux-family
+      # servers without their own package.
       - name: each .vsix carries its own helpers, the bundles and its target
         run: |
           version="$(node -p "require('./package.json').version")"
@@ -816,7 +839,7 @@ jobs:
             extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js
             extension/dist/uiTextMedia.js extension/dist/media.js extension/dist/screenRecord.js
             extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js
-            extension/dist/legalScan.js extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json
+            extension/dist/legalScan.js extension/dist/legal-data.json.br extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json
             extension/dist/sessionBoard.js extension/dist/reviewer.js
             extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js
             extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js
@@ -864,24 +887,27 @@ jobs:
             fi
             echo "$vsix holds $(wc -l <<< "$listing") entries, its own helpers and TargetPlatform=\"$target\" included"
           done
-          # The untargeted universal package carries every platform's helpers
-          # (both muse-created binaries, the Windows sources, the darwin
-          # binaries) and declares no TargetPlatform. It is built for local
-          # default installs only and is never published (PLAN.md D123).
           vsix="muse-spark-code-${version}.vsix"
           listing="$(unzip -Z1 "$vsix")"
           # shellcheck disable=SC2086
-          for entry in $common $windows $darwin extension/native/linux/x64/muse-created extension/native/linux/arm64/muse-created; do
+          for entry in $common extension/native/linux/x64/muse-created extension/native/linux/x64/muse-vault-peer extension/native/linux/arm64/muse-created extension/native/linux/arm64/muse-vault-peer; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from $vsix" >&2
               exit 1
             fi
           done
-          if unzip -p "$vsix" extension.vsixmanifest | grep -Fq "TargetPlatform="; then
+          # shellcheck disable=SC2086
+          for prefix in extension/native/windows/ extension/native/darwin/ extension/dist/native/darwin/; do
+            if grep -Fq -- "$prefix" <<< "$listing"; then
+              echo "::error::$vsix carries another platform's helper under $prefix" >&2
+              exit 1
+            fi
+          done
+          if unzip -p "$vsix" extension.vsixmanifest | grep -Fq 'TargetPlatform='; then
             echo "::error::$vsix must not declare a TargetPlatform" >&2
             exit 1
           fi
-          echo "$vsix holds $(wc -l <<< "$listing") entries, every helper and no TargetPlatform included"
+          echo "$vsix holds $(wc -l <<< "$listing") entries: neutral content plus both Linux helpers, no TargetPlatform"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-spark-code-vsix
@@ -932,7 +958,7 @@ jobs:
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
             package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json \
             package/schemas/exec-result-v2.schema.json package/schemas/exec-event-v2.schema.json \
-            package/dist/runtime.bundles.json.br package/dist/legalScan.js \
+            package/dist/runtime.bundles.json.br package/dist/legalScan.js package/dist/legal-data.json.br \
             package/dist/legal-data/NOTICE.md package/dist/legal-data/provenance.json \
             package/schemas/share-v1.schema.json; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then

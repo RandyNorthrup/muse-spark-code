@@ -534,10 +534,11 @@ Muse Code's subscription and its existing explicit key-paid opt-ins are unchange
    Each release ships one `.vsix` per platform
    (`muse-spark-code-<target>-<version>.vsix` for `win32-x64`,
    `win32-arm64`, `darwin-x64`, `darwin-arm64`, `linux-x64` and
-   `linux-arm64`) plus the universal `muse-spark-code-<version>.vsix`,
-   which VS Code serves as the fallback on platforms without their own
-   package (Alpine and 32-bit ARM Linux servers keep installing the way
-   they always have). Pick the file matching the machine VS Code runs
+   `linux-arm64`) plus the fallback `muse-spark-code-<version>.vsix`,
+   which carries the Linux helpers and which VS Code serves on platforms
+   without their own package (Alpine and 32-bit ARM Linux servers keep
+   installing the way they always have). Pick the file matching the
+   machine VS Code runs
    on — in a Remote SSH or Dev Container window, the machine holding
    the workspace folder.
 
@@ -6353,8 +6354,8 @@ and every pull request until the queue is on) runs the full tier:
 - gitleaks and semgrep, as jobs of their own;
 - a job that compiles the macOS helper and checks its disclaim;
 - a packaging job (Ubuntu) that packs one `.vsix` per platform
-  (`muse-spark-code-<target>-<version>.vsix`) plus the universal fallback
-  (`muse-spark-code-<version>.vsix`) as the
+  (`muse-spark-code-<target>-<version>.vsix`) plus the Linux-helpers
+  fallback (`muse-spark-code-<version>.vsix`) as the
   `muse-spark-code-vsix` artifact, checks each against the same compressed
   size budget, and
   packages the ACP agent with every locale table, and writes both CycloneDX
@@ -6398,8 +6399,8 @@ The workflow creates a GitHub Release with
 those seven `.vsix` files, the ACP tarball, both inventories, the exec schemas from `docs/schemas/` and `SHA256SUMS`, with the
 CHANGELOG section as its notes and package provenance attestations. Each
 target's VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX,
-which serve each person their platform's package, and the universal fallback
-goes with them for platforms without their own package; the same
+which serve each person their platform's package, and the Linux-helpers
+fallback goes with them for platforms without their own package; the same
 ACP tarball goes to npm with provenance by npm trusted publishing: npm
 trusts `release.yml` in the tag-only `marketplace` environment, so the npm
 job reads no npm token. Marketplace and Open VSX use their tokens from that

@@ -505,14 +505,14 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
 | `node:events`            | 5     |
-| `node:fs`                | 130   |
+| `node:fs`                | 133   |
 | `node:fs/promises`       | 144   |
 | `node:http`              | 17    |
 | `node:https`             | 3     |
 | `node:module`            | 4     |
 | `node:net`               | 26    |
 | `node:os`                | 45    |
-| `node:path`              | 260   |
+| `node:path`              | 262   |
 | `node:perf_hooks`        | 4     |
 | `node:process`           | 27    |
 | `node:readline`          | 1     |
@@ -526,7 +526,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:util`              | 11    |
 | `node:vm`                | 1     |
 | `node:worker_threads`    | 6     |
-| `node:zlib`              | 8     |
+| `node:zlib`              | 9     |
 
 ## The webview's host
 

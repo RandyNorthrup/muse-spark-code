@@ -3,6 +3,7 @@
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { packLegalDataArchive } from './lib/legalArchive.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { compactVsix } from './lib/compactVsix.mjs'
 import { removePackageStage } from './lib/packageStage.mjs'
@@ -95,10 +96,10 @@ export async function stageVsix(root, stage, target) {
   const listed = await listFiles({ cwd: root, dependencies: false })
   assertNoVsixFonts(listed)
   assertPackagedBundles(root, listed)
-  // One package per platform (PLAN.md D210): a targeted package stages
-  // only its own platform's native pieces; the universal stage keeps all.
-  const files =
-    target === undefined ? listed : listed.filter((file) => isVsixTargetFile(target, file))
+  // One package per platform (PLAN.md D209, D210): a targeted package
+  // stages only its own platform's native pieces; the untargeted fallback
+  // keeps the neutral content plus the Linux helpers only.
+  const files = listed.filter((file) => isVsixTargetFile(target, file))
   for (const page of [
     'webview',
     'modelsWebview',
@@ -112,12 +113,13 @@ export async function stageVsix(root, stage, target) {
       if (!files.includes(file)) throw new Error(`Webview output excluded from VSIX: ${file}`)
     }
   }
+  // requiredNativeFiles already enforces each target's own helpers (and both
+  // arches for the universal stage): a second arch loop here predates
+  // per-target staging and rejects every targeted stage, whose filter
+  // rightly drops the other platforms' files.
   for (const required of requiredNativeFiles(target))
     if (files.every((file) => file.replaceAll('\\', '/') !== required))
       throw new Error(`Required native helper excluded from VSIX: ${required}`)
-  for (const arch of ['x64', 'arm64'])
-    if (files.every((file) => file.replaceAll('\\', '/') !== `native/linux/${arch}/muse-created`))
-      throw new Error(`Required Linux created-path helper excluded from VSIX: ${arch}`)
   const normalized = new Set(files.map((file) => file.replaceAll('\\', '/')))
   // D140: the Linux dictation helper ships as release assets, never in the
   // VSIX. Any helper binary staged for packaging refuses the whole stage.
@@ -162,6 +164,9 @@ export async function stageVsix(root, stage, target) {
   )
     throw new Error('Translation tables have inconsistent key order')
   await packRuntimeArchive(root, stage, files, tables)
+  // The pinned legal texts ship as one solid brotli archive (VSIXFIT A):
+  // NOTICE.md and provenance.json stay loose beside it.
+  packLegalDataArchive(stage)
   writeFileSync(
     path.join(stage, 'README.md'),
     renderPackageReadme(

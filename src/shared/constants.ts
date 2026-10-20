@@ -8808,6 +8808,13 @@ export const LEGAL_DIRECTORY_ENTRIES_MAX = 20_000
 // output, text or binary) keep no bytes, so they get their own bounds.
 export const LEGAL_HASH_FILE_MAX_BYTES = 64_000_000
 export const LEGAL_HASH_TOTAL_MAX_BYTES = 512_000_000
+// The packaged solid archive of the pinned legal texts (VSIXFIT A): every
+// pinned template and word list in one brotli archive beside the scanner
+// (`dist/legal-data.json.br`), decoded to JSON holding each member's
+// exact UTF-8 text. The decoded form is about 400 KiB today, and the
+// compressed file is smaller still, so one bound covers both reads; each
+// decoded member keeps its own LEGAL_FILE_MAX_BYTES bound.
+export const LEGAL_ARCHIVE_MAX_BYTES = 2_000_000
 // Entries, files and readers between event-loop yields inside the legal
 // walk and scan (PR #214 review): often enough that Stop lands mid-scan,
 // seldom enough that yielding costs nothing measurable against sync syscalls.

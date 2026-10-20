@@ -38,6 +38,14 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+  # The Zopfli compressor the VSIX `packages` steps pin
+  # (.github/vsix-compress/requirements.txt).
+  - package-ecosystem: pip
+    directory: /.github/vsix-compress
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
   - package-ecosystem: github-actions
     directory: /
     schedule:

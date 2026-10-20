@@ -1,6 +1,6 @@
 # A version tag (v1.2.3) reuses verified exact-tree CI artifacts or runs the
 # shared build, then publishes its six platform
-# VSIX packages (PLAN.md D123, no universal package), ACP tarball, CycloneDX
+# VSIX packages plus the untargeted fallback (PLAN.md D209), ACP tarball, CycloneDX
 # inventories and SHA256SUMS on GitHub with
 # CHANGELOG notes and package attestations. The identical packages go to
 # Marketplace/Open VSX when the tag-only `marketplace` environment has
