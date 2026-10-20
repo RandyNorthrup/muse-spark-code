@@ -354,7 +354,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'legalFix.js',
     side: 'both',
     requestedBy: [
-      { importer: 'src/core/legal/files.ts', symbol: 'loadFixPlanner', side: ['acp', 'vscode'] },
+      {
+        importer: 'src/core/legal/fixLoader.ts',
+        symbol: 'loadFixPlanner',
+        side: ['acp', 'vscode'],
+      },
       { importer: 'src/shared/constants.ts', symbol: 'LEGAL_FIX_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
