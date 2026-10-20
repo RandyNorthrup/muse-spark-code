@@ -1,6 +1,12 @@
 import * as vscode from 'vscode'
-import { REPORT_WORKING_KINDS, UI_TEXT, WEBVIEW_DIST_SEGMENTS } from '../../shared/constants'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import { REPORT_WORKING_KINDS, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import {
+  resolveWebviewBundleDir,
+  webviewBundleErrorHtml,
+  WebviewBundleError,
+} from '../views/webviewBundleRoot'
 import { reportsMethods } from '../../shared/hostApi/reports'
 import {
   reportDiffSchema,
@@ -31,7 +37,7 @@ function newestFirst(a: HistoryEntry, b: HistoryEntry): number {
 export type { ReportPanelEngine } from '../../shared/reportingEngine'
 import type { ReportPanelEngine } from '../../shared/reportingEngine'
 export interface ReportPanelDeps {
-  readonly context: Pick<WebviewHostContext, 'extensionUri' | 'l10n' | 'log'>
+  readonly context: Pick<WebviewHostContext, 'extensionUri' | 'globalStoragePath' | 'l10n' | 'log'>
   readonly workspaceKey: string
   readonly engine: () => ReportPanelEngine
   readonly now: () => string
@@ -71,7 +77,22 @@ export class ReportPanel implements vscode.Disposable {
       this.panel.reveal()
       return
     }
-    const bundleRoot = vscode.Uri.joinPath(this.deps.context.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
+    // The verified webview copy (VSIXWEB A): a packaged install extracts it
+    // once per archive digest into global storage, the source tree serves
+    // its loose files. A missing, damaged or unwritable extraction shows
+    // the fixed sentence, never unverified files.
+    let bundleRoot: vscode.Uri | undefined
+    try {
+      bundleRoot = vscode.Uri.file(
+        resolveWebviewBundleDir({
+          extensionPath: this.deps.context.extensionUri.fsPath,
+          globalStoragePath: this.deps.context.globalStoragePath,
+        }),
+      )
+    } catch (error: unknown) {
+      if (!(error instanceof WebviewBundleError)) throw error
+      this.deps.context.log.error(`Reporting webview bundle failed: ${failureForLog(error)}`)
+    }
     const panel = vscode.window.createWebviewPanel(
       'museSpark.reportingPanel',
       UI_TEXT.reportUi.title,
@@ -79,10 +100,18 @@ export class ReportPanel implements vscode.Disposable {
       {
         enableScripts: true,
         enableCommandUris: false,
-        localResourceRoots: [bundleRoot],
+        localResourceRoots: bundleRoot === undefined ? [] : [bundleRoot],
       },
     )
     this.panel = panel
+    if (bundleRoot === undefined) {
+      panel.webview.html = webviewBundleErrorHtml(
+        UI_TEXT.webviewBundleUnavailable,
+        this.deps.context.l10n.locale,
+      )
+      this.finishShow(panel)
+      return
+    }
     this.nonce = createNonce()
     panel.webview.html = buildWebviewHtml({
       scriptUri: panel.webview
@@ -95,6 +124,11 @@ export class ReportPanel implements vscode.Disposable {
       nonce: this.nonce,
       l10n: this.deps.context.l10n,
     })
+    this.finishShow(panel)
+  }
+
+  /** The message handling every report tab shares, bundle or failure document alike. */
+  private finishShow(panel: vscode.WebviewPanel): void {
     const receive = panel.webview.onDidReceiveMessage((raw: unknown) => {
       const message = reportingWebviewMessageSchema.safeParse(raw)
       if (!message.success || this.panel !== panel) return

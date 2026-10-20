@@ -1,13 +1,13 @@
 // Lane M's strict bridge is shared by both sides. Credentials stay in this
 // host-owned draft and never join state, exceptions, logs or postMessage.
 import * as vscode from 'vscode'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   MODELS_PANEL_VIEW_TYPE,
   MODELS_WEBVIEW_SCRIPT_FILE,
   MODELS_WEBVIEW_STYLE_FILE,
   PROVIDER_HARNESS_MIN_CONTEXT_TOKENS,
   UI_TEXT,
-  WEBVIEW_DIST_SEGMENTS,
 } from '../../shared/constants'
 import {
   parsePanelToHostMessage,
@@ -30,6 +30,11 @@ import {
   type VaultHostMessage,
 } from '../../shared/hostApi/vaultMessages'
 import { buildWebviewHtml, createNonce } from '../html'
+import {
+  resolveWebviewBundleDir,
+  webviewBundleErrorHtml,
+  WebviewBundleError,
+} from '../views/webviewBundleRoot'
 import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import { editedOutputTokens, modelLimitsSchema } from '../../shared/providerRouting'
@@ -65,6 +70,8 @@ export interface ModelsPanelDeps {
   readonly removeSubscription?: ((id: string) => Promise<void>) | undefined
   readonly isConfidential?: (() => boolean) | undefined
   readonly extensionUri: vscode.Uri
+  /** The machine's storage for the verified webview copy (VSIXWEB A). */
+  readonly globalStoragePath: string
   readonly l10n: UiTable
   readonly log: Logger
   readonly providers: ProvidersHost
@@ -188,7 +195,31 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     vscode.ViewColumn.One,
     { retainContextWhenHidden: true },
   )
-  const root = vscode.Uri.joinPath(deps.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
+  let root: vscode.Uri
+  try {
+    root = vscode.Uri.file(
+      resolveWebviewBundleDir({
+        extensionPath: deps.extensionUri.fsPath,
+        globalStoragePath: deps.globalStoragePath,
+      }),
+    )
+  } catch (error: unknown) {
+    if (!(error instanceof WebviewBundleError)) throw error
+    deps.log.error(`Models webview bundle failed: ${failureForLog(error)}`)
+    panel.webview.options = { enableScripts: true, localResourceRoots: [] }
+    panel.webview.html = webviewBundleErrorHtml(UI_TEXT.webviewBundleUnavailable, deps.l10n.locale)
+    // No verified bundle behind the panel: it shows the fixed sentence,
+    // and revealing still brings the failure into view.
+    return {
+      reveal: () => {
+        panel.reveal(vscode.ViewColumn.One)
+      },
+      onDidDispose: (run) => panel.onDidDispose(run),
+      dispose: () => {
+        panel.dispose()
+      },
+    }
+  }
   panel.webview.options = { enableScripts: true, localResourceRoots: [root] }
   panel.webview.html = buildWebviewHtml({
     scriptUri: panel.webview

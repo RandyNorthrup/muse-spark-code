@@ -52,6 +52,8 @@ export interface ModelsPanelHostDeps {
   readonly secrets: SecretStore
   readonly credentials?: CredentialStore
   readonly extensionUri: vscode.Uri
+  /** The machine's storage for the verified webview copy (VSIXWEB A). */
+  readonly globalStoragePath: string
   readonly l10n: UiTable
   readonly log: Logger
   readonly globalState: ModelsPanelMemento
@@ -417,6 +419,7 @@ export function createModelsPanelFeatures(
     if (panel === undefined) {
       const created = createModelsPanel({
         extensionUri: host.extensionUri,
+        globalStoragePath: host.globalStoragePath,
         l10n: host.l10n,
         log: host.log,
         vault: vaultBindingFactory(host, seam),

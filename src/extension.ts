@@ -2783,6 +2783,7 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', WHATS_NEW_BUNDLE_FILE).fsPath,
     pages: {
       extensionUri: context.extensionUri,
+      globalStoragePath: context.globalStorageUri.fsPath,
       contentPath: vscode.Uri.joinPath(context.extensionUri, 'dist', WHATS_NEW_CONTENT_FILE).fsPath,
       current: version,
       isShownOnUpdate: () => currentSettings().showWhatsNewOnUpdate,
@@ -3808,7 +3809,12 @@ async function activateWindow(
       const reportController = surface === undefined ? undefined : controllerFor(surface)
       reportingPanel = loadReportingPanel().createReportingWindow(
         {
-          context: { extensionUri: context.extensionUri, l10n, log },
+          context: {
+            extensionUri: context.extensionUri,
+            globalStoragePath: context.globalStorageUri.fsPath,
+            l10n,
+            log,
+          },
           generatorVersion: version,
           ...(reportController !== undefined && {
             questions: reportController.reportingQuestions(),
@@ -4687,6 +4693,7 @@ async function activateWindow(
 
   const hostContext: WebviewHostContext = {
     extensionUri: context.extensionUri,
+    globalStoragePath: context.globalStorageUri.fsPath,
     l10n,
     log,
     getSettings: () => toSettingsSnapshot(currentSettings()),
@@ -5008,6 +5015,7 @@ async function activateWindow(
           isConfidential: () => currentSettings().confidentialWorkspace,
           secrets: bundle.credentialLeaseSecrets(context.secrets),
           extensionUri: context.extensionUri,
+          globalStoragePath: context.globalStorageUri.fsPath,
           // The key-store migration's source material: the raw store for
           // its legacy port (never the shell above — the shell mirrors
           // through the migration and would deadlock it), the shell to
@@ -5098,6 +5106,7 @@ async function activateWindow(
     usagePanel ??= (async () => {
       const panel = await usageBundle().createUsagePanel({
         extensionUri: context.extensionUri,
+        globalStoragePath: context.globalStorageUri.fsPath,
         l10n,
         log,
         beforeRead: () => usageRecording.flush(),

@@ -281,6 +281,7 @@
   "estimateDisclosureMissing": "Informacje o kalibracji wartości liczbowych są niepełne.",
   "estimateRuntimeUnavailable": "Szacunki są niedostępne w tym hoście. Żaden obraz planu nie jest podłączony.",
   "estimateUnavailable": "Nie można załadować estymatora, więc nie można uruchomić szacowania; zainstaluj ponownie rozszerzenie i załaduj okno. Szczegóły są w dzienniku.",
+  "webviewBundleUnavailable": "Nie można wczytać panelu, więc nie może zostać wyświetlony; zainstaluj rozszerzenie ponownie i załaduj okno od nowa. Szczegóły są w dzienniku.",
   "estimateStaleBase": "Nieaktualna baza ({lanes}): przed rozpoczęciem wykonaj rebase.",
   "estimateWaveStarted": "Uruchomiono: {lanes}.",
   "referenceAgentControls": "Sterowanie agentem; Przerwij; Zatrzymaj; Wznów; Zamknij agenta; Otwórz agenta ponownie; Oznacz wynik jako przeczytany; Wyślij wiadomość; Kolejne zadanie",

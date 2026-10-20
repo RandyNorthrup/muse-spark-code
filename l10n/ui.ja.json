@@ -278,6 +278,7 @@
   "estimateDisclosureMissing": "数値の較正情報が不足しています。",
   "estimateRuntimeUnavailable": "このホストでは見積もりを利用できません。計画のスナップショットは接続されていません。",
   "estimateUnavailable": "見積もりモジュールを読み込めなかったため、見積もりを実行できません。拡張機能を再インストールしてウィンドウを再読み込みしてください。詳細はログにあります。",
+  "webviewBundleUnavailable": "パネルを読み込めなかったため表示できません。拡張機能を再インストールしてウィンドウを再読み込みしてください。詳細はログにあります。",
   "estimateStaleBase": "ベースが古いです ({lanes}): 開始前にリベースしてください。",
   "estimateWaveStarted": "開始しました: {lanes}。",
   "referenceAgentControls": "エージェントの操作; 中断; 停止; 再開; エージェントを閉じる; エージェントを再度開く; 結果を既読にする; メッセージを送信; フォローアップ タスク",

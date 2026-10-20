@@ -279,6 +279,7 @@
   "estimateDisclosureMissing": "Sayısal değerlerin kalibrasyon bilgileri eksik.",
   "estimateRuntimeUnavailable": "Bu ana bilgisayarda tahminler kullanılamıyor. Bağlı bir plan anlık görüntüsü yok.",
   "estimateUnavailable": "Tahmin aracı yüklenemedi, bu yüzden tahmin çalıştırılamaz; uzantıyı yeniden yükleyip pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
+  "webviewBundleUnavailable": "Panel yüklenemediği için gösterilemiyor; uzantıyı yeniden yükleyip pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "estimateStaleBase": "Eski taban ({lanes}): başlamadan önce rebase yapın.",
   "estimateWaveStarted": "Başlatıldı: {lanes}.",
   "referenceAgentControls": "Aracı denetimleri; Kes; Durdur; Sürdür; Aracıyı kapat; Aracıyı yeniden aç; Sonucu okundu olarak işaretle; Mesaj gönder; Takip görevi",

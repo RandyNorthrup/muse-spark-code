@@ -278,6 +278,7 @@
   "estimateDisclosureMissing": "数值的校准披露不完整。",
   "estimateRuntimeUnavailable": "此主机无法提供估算。尚未绑定计划快照。",
   "estimateUnavailable": "无法加载估算器，因此无法运行估算；请重新安装扩展并重新加载窗口。详细信息见日志。",
+  "webviewBundleUnavailable": "无法加载面板，因此无法显示；请重新安装扩展并重新加载窗口。详细信息见日志。",
   "estimateStaleBase": "基线已过时 ({lanes})：开始前请先变基。",
   "estimateWaveStarted": "已启动 {lanes}。",
   "referenceAgentControls": "代理控制; 中断; 停止; 恢复; 关闭代理; 重新打开代理; 将结果标记为已读; 发送消息; 后续任务",

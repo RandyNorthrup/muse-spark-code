@@ -278,6 +278,7 @@
   "estimateDisclosureMissing": "數值的校準揭露不完整。",
   "estimateRuntimeUnavailable": "此主機無法提供估算。尚未繫結計畫快照。",
   "estimateUnavailable": "無法載入估算器，因此無法執行估算；請重新安裝擴充功能並重新載入視窗。詳細資訊見記錄檔。",
+  "webviewBundleUnavailable": "無法載入面板，因此無法顯示；請重新安裝擴充功能並重新載入視窗。詳細資訊見記錄檔。",
   "estimateStaleBase": "基線已過時 ({lanes})：開始前請先變基。",
   "estimateWaveStarted": "已啟動 {lanes}。",
   "referenceAgentControls": "代理程式控制項; 中斷; 停止; 恢復; 關閉代理程式; 重新開啟代理程式; 將結果標示為已讀; 傳送訊息; 後續工作",

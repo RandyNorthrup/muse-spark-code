@@ -5,6 +5,11 @@ import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'no
 import path from 'node:path'
 import { packLegalDataArchive } from './lib/legalArchive.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
+import {
+  SOLID_TEXT_ARCHIVE_QUALITY,
+  parseSolidTextArchive,
+  packSolidTextArchive,
+} from './lib/solidTextArchive.mjs'
 import { compactVsix } from './lib/compactVsix.mjs'
 import { removePackageStage } from './lib/packageStage.mjs'
 import {
@@ -100,6 +105,10 @@ export async function stageVsix(root, stage, target) {
   // stages only its own platform's native pieces; the untargeted fallback
   // keeps the neutral content plus the Linux helpers only.
   const files = listed.filter((file) => isVsixTargetFile(target, file))
+  // VSIXWEB A: `dist/webview/**` ships as one solid brotli archive, not
+  // loose members: every emitted webview script must be a member of the
+  // packed archive below, and the loose files leave the stage with it.
+  const webviewOutputs = new Set()
   for (const page of [
     'webview',
     'modelsWebview',
@@ -110,7 +119,7 @@ export async function stageVsix(root, stage, target) {
     const webview = JSON.parse(readFileSync(path.join(root, `dist/meta/${page}.json`), 'utf8'))
     for (const file of Object.keys(webview.outputs)) {
       if (!file.endsWith('.js')) continue
-      if (!files.includes(file)) throw new Error(`Webview output excluded from VSIX: ${file}`)
+      webviewOutputs.add(file.replaceAll('\\', '/'))
     }
   }
   // requiredNativeFiles already enforces each target's own helpers (and both
@@ -167,6 +176,43 @@ export async function stageVsix(root, stage, target) {
   // The pinned legal texts ship as one solid brotli archive (VSIXFIT A):
   // NOTICE.md and provenance.json stay loose beside it.
   packLegalDataArchive(stage)
+  // The webview bundle ships as one solid brotli archive (VSIXWEB A):
+  // `dist/webview.json.br` holds every file's exact text and SHA-256, and
+  // the loose files leave the stage. The host extracts and verifies it on
+  // first use (src/host/views/webviewBundleRoot.ts).
+  // The ACP agent's voice companion lives in the same build tree but was
+  // never allowlisted into the VSIX (the agent's npm package ships it
+  // loose): it leaves the stage instead of joining the archive.
+  packSolidTextArchive(
+    stage,
+    'dist/webview',
+    'dist/webview.json.br',
+    new Set(),
+    SOLID_TEXT_ARCHIVE_QUALITY,
+    new Set(['voiceCompanion.js', 'voiceCompanion.css']),
+  )
+  const webviewMembers = new Set(
+    Object.keys(
+      parseSolidTextArchive(
+        readFileSync(path.join(stage, 'dist', 'webview.json.br')),
+        4_000_000,
+        1,
+      ),
+    ),
+  )
+  for (const output of webviewOutputs)
+    if (!webviewMembers.has(output.replace(/^dist\/webview\//, '')))
+      throw new Error(`Webview output excluded from the archive: ${output}`)
+  // The vendored skill package ships as one solid brotli archive (VSIXWEB
+  // B): every file's exact text and SHA-256 except LICENSE and VENDOR.json,
+  // which stay loose (the legal evidence and the attribution a person
+  // reads). The installer stages from the archive (src/host/skills/).
+  packSolidTextArchive(
+    stage,
+    'vendor/high-quality-projects-skill',
+    'vendor/high-quality-projects-skill.json.br',
+    new Set(['LICENSE', 'VENDOR.json']),
+  )
   writeFileSync(
     path.join(stage, 'README.md'),
     renderPackageReadme(

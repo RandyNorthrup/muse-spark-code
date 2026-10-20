@@ -1,10 +1,11 @@
 import * as vscode from 'vscode'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import { SETTINGS_SECTION, UI_TEXT, VSCODE_COMMANDS } from '../../shared/constants'
 import {
-  SETTINGS_SECTION,
-  UI_TEXT,
-  VSCODE_COMMANDS,
-  WEBVIEW_DIST_SEGMENTS,
-} from '../../shared/constants'
+  resolveWebviewBundleDir,
+  webviewBundleErrorHtml,
+  WebviewBundleError,
+} from '../views/webviewBundleRoot'
 import { USAGE_TEXT, type UsageTable } from '../../shared/l10n/usageTable'
 import { usageDeleteDetail } from '../../shared/usageDeleteText'
 import {
@@ -19,6 +20,8 @@ import type { Logger } from '../logger'
 
 export interface UsagePanelDeps {
   readonly extensionUri: vscode.Uri
+  /** The machine's storage for the verified webview copy (VSIXWEB A). */
+  readonly globalStoragePath: string
   readonly l10n: UiTable
   readonly usageTable: UsageTable
   readonly log: Logger
@@ -39,7 +42,6 @@ export class UsagePanel implements vscode.Disposable {
       this.panel.reveal(undefined, false)
       return
     }
-    const root = vscode.Uri.joinPath(this.deps.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
     const panel = vscode.window.createWebviewPanel(
       'museSpark.usagePanel',
       UI_TEXT.usagePageTitle,
@@ -47,6 +49,35 @@ export class UsagePanel implements vscode.Disposable {
       {},
     )
     this.panel = panel
+    let root: vscode.Uri
+    try {
+      root = vscode.Uri.file(
+        resolveWebviewBundleDir({
+          extensionPath: this.deps.extensionUri.fsPath,
+          globalStoragePath: this.deps.globalStoragePath,
+        }),
+      )
+    } catch (error: unknown) {
+      if (!(error instanceof WebviewBundleError)) throw error
+      this.deps.log.error(`Usage webview bundle failed: ${failureForLog(error)}`)
+      panel.webview.options = {
+        enableScripts: true,
+        enableCommandUris: false,
+        localResourceRoots: [],
+      }
+      panel.webview.html = webviewBundleErrorHtml(
+        UI_TEXT.webviewBundleUnavailable,
+        this.deps.l10n.locale,
+      )
+      // No verified bundle behind the panel: it shows the fixed sentence,
+      // and closing it clears the handle as usual.
+      panel.onDidDispose(() => {
+        if (this.panel === panel) {
+          this.panel = undefined
+        }
+      })
+      return
+    }
     panel.webview.options = {
       enableScripts: true,
       enableCommandUris: false,

@@ -348,6 +348,11 @@ export const EN = {
   // The estimator's own module (dist/estimator.js) could not be loaded.
   estimateUnavailable:
     'The estimator could not be loaded, so no estimate can run; reinstall the extension and reload the window. The log has the details.',
+  // The webview's solid archive (dist/webview.json.br, VSIXWEB A) is
+  // missing, damaged or unwritable: the panel shows this instead of
+  // unverified files, and the cause goes to the log.
+  webviewBundleUnavailable:
+    'The panel could not be loaded, so it cannot be shown; reinstall the extension and reload the window. The log has the details.',
   // M117 W (PLAN.md D100, gotcha G4): {lanes} is the stale-base lane list.
   estimateStaleBase: 'Stale base ({lanes}): rebase before starting.',
   // M117 W: {lanes} is the submitted first wave.
