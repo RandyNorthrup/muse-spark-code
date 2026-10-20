@@ -1174,14 +1174,6 @@ export function checkDeferredBundles(inputsOf) {
         !(
           source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js'
         ) &&
-        // JOIN0190: the image call resolves the provider's documented
-        // edit-item cap through the capability record beside the call.
-        // Image tools never list providers; the record rides the image
-        // machinery in the two entries that run image turns.
-        !(
-          source === 'src/core/providers/capabilityRecord.ts' &&
-          (bundle.output === 'dist/extension.js' || bundle.output === 'dist/modelApi.js')
-        ) &&
         // C-M113-2: the session and usage inputs read M102's journal
         // through its store, whose static record import carries the card.
         // Reporting never prices; the bytes ride the journal machinery.
