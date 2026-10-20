@@ -19285,6 +19285,7 @@ extension's own storage, never the workspace's `.git`.
   **Candidate packing default: on.** M101INT integrated the released manifest
   and runtime default with the README; ACP/headless uses the same shared packing
   engine. Explicit-off requests retain their golden bytes.
+
 - **Status 2026-10-02: shipped off by default after its M75 run passed.**
   Built 2026-10-01 on
   `feature/m73-packing`, from M75's merged head. What is in it:
@@ -23480,6 +23481,7 @@ process that owns the work.
   - Strings in all 14 tables.
   - Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, this plan
     (D70 and the M83 Codex correction), and `docs/certification/m91.md`.
+
 - **Depends on.** `fix/protect-agent-folders` (acceptance 7 ships there).
   The two items under M74 (SoL-Pi rule 5's compaction cases) wait on Q-M74,
   the owner's contract for automatic compaction.
