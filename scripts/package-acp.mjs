@@ -139,27 +139,35 @@ try {
     mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
     copyFileSync(source, path.join(STAGE, source))
   }
-  // The darwin app bundle and vault helper ship only where darwin pieces do:
-  // the universal package and the darwin targets. Their absence elsewhere is
-  // the target working as designed, never a missing file.
+  // The darwin app bundles and vault helpers ship only where darwin pieces
+  // do: the universal package (both architectures, like the Linux helpers)
+  // and the darwin targets (their own architecture only). Their absence
+  // elsewhere is the target working as designed, never a missing file.
   // Keep every signed resource and executable mode when macOS CI supplied it.
   // Linux-only packages retain the runtime's honest missing-helper refusal.
-  const shipsDarwin = target === undefined || target.startsWith('darwin-')
-  const screenBundle = path.join('native', 'darwin', 'muse-dictate-screen.app')
-  if (shipsDarwin && existsSync(screenBundle)) {
-    cpSync(screenBundle, path.join(STAGE, screenBundle), { recursive: true })
-  }
-  for (const helper of [
-    path.join('dist', 'native', 'darwin', 'muse-vault'),
-    path.join('native', 'darwin', 'muse-vault-peer'),
-  ]) {
-    if (!shipsDarwin || !existsSync(helper)) {
-      continue
+  // Arch names mirror src/shared/constants.ts (darwinDictationApp and friends).
+  const darwinArches = []
+  if (target === undefined) darwinArches.push('arm64', 'x64')
+  else if (target.startsWith('darwin-')) darwinArches.push(target.split('-', 2)[1])
+  for (const arch of darwinArches) {
+    const screenBundle = path.join('native', 'darwin', `muse-dictate-screen-${arch}.app`)
+    if (existsSync(screenBundle)) {
+      cpSync(screenBundle, path.join(STAGE, screenBundle), { recursive: true })
     }
+  }
+  for (const arch of darwinArches) {
+    for (const helper of [
+      path.join('dist', 'native', 'darwin', `muse-vault-${arch}`),
+      path.join('native', 'darwin', `muse-vault-peer-${arch}`),
+    ]) {
+      if (!existsSync(helper)) {
+        continue
+      }
 
-    const staged = path.join(STAGE, helper)
-    mkdirSync(path.dirname(staged), { recursive: true })
-    copyFileSync(helper, staged)
+      const staged = path.join(STAGE, helper)
+      mkdirSync(path.dirname(staged), { recursive: true })
+      copyFileSync(helper, staged)
+    }
   }
   cpSync(RUNNER_HELPERS, path.join(STAGE, RUNNER_HELPERS), { recursive: true })
   const tables = readdirSync('l10n')

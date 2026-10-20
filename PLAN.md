@@ -15115,9 +15115,17 @@ the platform-neutral bundles; `native/runner/*` ships everywhere because
 the SSH runner copies the helper to the remote side. Windows targets
 carry the same arch-independent sources (the .ps1 run directly, the .cs
 compiled on the person's machine), so win32-arm64 is supported today.
-The darwin binaries ship universal (both slices) in both darwin
-targets: splitting per-arch saves little against the megabytes the other
-platforms' pieces free, and keeps build.sh's single lipo output unchanged.
+Each darwin target ships only its own architecture's thin slices
+(amended 2026-10-20, VSIXDARWIN): darwin-arm64 carries the arm64 .app, vault
+and peer, darwin-x64 the x64 ones, each signed and verified the same way
+(build.sh signs and version-checks both; execution probes run on the host
+arch). The split saves ~129 KB per darwin package at 0.19.0 (measured on
+macmini), which the unchanged budget needs alongside the webview/skill
+archive savings; the ACP universal package carries both architectures and
+the runtime selects by architecture, as it already does for the Linux
+helpers. The universal sentence above stood while the webview dominated;
+the 0.19.0 measurements showed the darwin targets still ~92 KB over after
+the single-copy change, so per-arch ships.
 Beside the six, the release ships the untargeted universal package (no
 `--target`): VS Code serves it as the fallback on every platform without
 its own package, so Alpine (`alpine-x64`, `alpine-arm64`) and `linux-armhf`

@@ -1,27 +1,32 @@
 import { execFileSync } from 'node:child_process'
 import { chmod, copyFile, mkdir } from 'node:fs/promises'
 import path from 'node:path'
+import process from 'node:process'
 import { build } from 'esbuild'
+import { darwinDictationHelperSegments } from '../../../../src/shared/constants'
 import { vaultPeerExecutable } from '../../../../src/runtime/vault/posixNative'
 import { buildVaultPeer } from '../../../../scripts/build-vault-peer.mjs'
 import { buildLinuxHelper } from '../../../../scripts/build-linux-helper.mjs'
 
 /**
 Stage the product's own created-directories helper beside the bundled
-governor, where resourceGovernorEntry resolves it on macOS
-(installRoot/native/darwin/muse-dictate). The binary is the one
-native/darwin/build.sh produces for the native job; a source checkout
-cannot build it, so its absence fails here naming the build instead of
-deep in a governed launch.
+governor, where resourceGovernorEntry resolves it on macOS (this Mac's
+signed .app executable). The executable is the one native/darwin/build.sh
+produces for the native job; a source checkout cannot build it, so its
+absence fails here naming the build instead of deep in a governed launch.
 */
 async function stageDarwinCreatedHelper(root: string): Promise<void> {
-  const staged = path.join(root, 'native', 'darwin', 'muse-dictate')
+  // One thin signed .app per Mac architecture (D209): the same path the
+  // product resolves, so the fixture stages what the governor runs.
+  const helper = path.join('native', ...darwinDictationHelperSegments(process.arch))
+  const staged = path.join(root, helper)
   try {
-    await copyFile(path.resolve('native/darwin/muse-dictate'), staged)
+    await mkdir(path.dirname(staged), { recursive: true })
+    await copyFile(path.resolve(helper), staged)
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     throw new Error(
-      'the broker fixture needs native/darwin/muse-dictate: run bash native/darwin/build.sh first',
+      'the broker fixture needs the .app executable: run bash native/darwin/build.sh first',
       { cause: error },
     )
   }

@@ -2676,7 +2676,7 @@
   "dictationUnavailable": "Die Spracheingabe ist auf dieser Plattform nicht verfügbar.",
   "dictationUnavailableLinux": "Linux-Spracheingabe benötigt einen x64- oder arm64-Computer mit PulseAudio oder PipeWire.",
   "dictationUnavailableWindows": "Die Spracheingabe benötigt Windows PowerShell, das nicht gefunden wurde (SystemRoot ist nicht gesetzt).",
-  "dictationUnavailableDarwin": "Die Spracheingabe benötigt das macOS-Hilfsprogramm (native/darwin/muse-dictate), das in diesem Build nicht enthalten ist.",
+  "dictationUnavailableDarwin": "Die Spracheingabe benötigt das macOS-Hilfsprogramm (native/darwin/{app}/Contents/MacOS/muse-dictate), das in diesem Build nicht enthalten ist.",
   "dictationNotLoaded": "der Code der Spracheingabe konnte nicht geladen werden; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
   "announceListening": "Hört zu",
   "announceStoppedListening": "Hört nicht mehr zu",

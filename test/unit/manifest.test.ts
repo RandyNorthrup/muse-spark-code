@@ -452,9 +452,18 @@ describe('packaging (M26)', () => {
         'THIRD_PARTY_NOTICES.txt',
         'native/windows/dictate.ps1',
         'native/windows/capture.ps1',
-        'native/darwin/muse-dictate',
+        // One thin signed .app per Mac architecture (D209); neither the
+        // universal app nor the bare binary ships any more.
+        'native/darwin/muse-dictate-screen-arm64.app/**',
+        'native/darwin/muse-dictate-screen-x64.app/**',
+        'native/darwin/muse-vault-peer-arm64',
+        'native/darwin/muse-vault-peer-x64',
+        'dist/native/darwin/muse-vault-arm64',
+        'dist/native/darwin/muse-vault-x64',
       ]),
     )
+    expect(shipped).not.toContain('native/darwin/muse-dictate')
+    expect(shipped).not.toContain('native/darwin/muse-dictate-screen.app/**')
     // The notices name every bundled runtime dependency (the build's check
     // keeps the whole list current; this pins the obvious ones).
     // @napi-rs/keyring is a dependency but not a bundled one: the build
@@ -532,7 +541,14 @@ describe('packaging (M26)', () => {
     expect(build).toContain('MANIFEST=../../package.json')
     expect(build).toContain('VERSION="$(plutil -extract version raw -o - "$MANIFEST")"')
     expect(build).toContain('plutil -replace "$VERSION_KEY" -string "$VERSION" "$PLIST"')
-    expect(build).toContain('launchctl plist __TEXT,__info_plist "$OUTPUT"')
+    expect(build).toContain('launchctl plist __TEXT,__info_plist "$EXECUTABLE"')
+    // One thin signed .app per Mac architecture (D209): the version check
+    // runs against each architecture's executable, and no universal or bare
+    // binary is produced.
+    expect(build).toContain(
+      'EXECUTABLE="muse-dictate-screen-${arch}.app/Contents/MacOS/$SCREEN_EXECUTABLE"',
+    )
+    expect(build).toContain('for legacy in muse-dictate muse-dictate-screen.app; do')
   })
 
   it('keeps exact-tree reuse behind tag checks and preserves full-build fallback (RELFAST)', () => {
