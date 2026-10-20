@@ -7,6 +7,7 @@ import type { LaunchResolution } from '../core/backends/musecode/launch'
 import type { GuardedChildEnv } from '../core/executables'
 import { isValidModelApiKey, type SecretStore } from '../host/auth/credentialStore'
 import type { ProvidersFileRead } from '../core/providers/providersFile'
+import { distinctProviderLabels } from '../core/providers/distinctLabels'
 import {
   CREDENTIAL_RECORD_VERSION,
   type GITHUB_AUTH_ACTIONS,
@@ -123,19 +124,13 @@ export async function authStatusAll(
     return EXIT_FAILED
   }
   const entries = read.ok ? read.file.providers : []
-  // Two providers can carry one preset's label (two Anthropic keys): each
-  // line then adds the provider's own id, so the lines tell them apart.
-  const labels = new Map<string, string>()
-  const sharing = new Map<string, number>()
-  for (const entry of entries) {
-    const label = await providerLabel(read, entry.id)
-    labels.set(entry.id, label)
-    sharing.set(label, (sharing.get(label) ?? 0) + 1)
-  }
-  const labelFor = (id: string): string => {
-    const label = labels.get(id) ?? id
-    return label !== id && (sharing.get(label) ?? 0) > 1 ? `${label} (${id})` : label
-  }
+  // Two providers can carry one preset's label (two Anthropic keys): the
+  // lines then tell them apart by id, as the Models panel does.
+  const named: { id: string; label: string }[] = []
+  for (const entry of entries)
+    named.push({ id: entry.id, label: await providerLabel(read, entry.id) })
+  const labels = new Map(distinctProviderLabels(named).map((row) => [row.id, row.label]))
+  const labelFor = (id: string): string => labels.get(id) ?? id
   let hasAnyKey = hasMetaKey
   let hasFailure = false
   for (const entry of entries) {
