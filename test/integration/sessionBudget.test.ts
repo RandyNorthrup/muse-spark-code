@@ -7,8 +7,6 @@
 // setting's effective scope. The budget key is restored to its previous
 // value after each case, so no setting leaks into other suites.
 import * as assert from 'node:assert/strict'
-import { chmod } from 'node:fs/promises'
-import path from 'node:path'
 import * as vscode from 'vscode'
 import { SETTINGS_SECTION, UI_TEXT } from '../../src/shared/constants'
 import { createLogger } from '../../src/host/logger'
@@ -89,47 +87,46 @@ suite('wizard session budget over the real store', () => {
   })
 
   test('lets the store failure reject with the original error', async () => {
-    // A read-only User settings file is a real store failure: the update
-    // below rejects with the filesystem's own error, never a scripted
-    // refusal. The file and its folder both lose write permission: a
-    // directory without write access refuses the atomic save's new file on
-    // every platform, and a read-only file refuses its replacement where
-    // the directory flag alone is advisory.
+    // A dirty User settings model is a real store failure: the production
+    // configuration service refuses the update itself, on every platform,
+    // with its own words and no filesystem change, so nothing can leak
+    // into the suites after it. (A read-only settings file refuses the
+    // same write, but on Windows the read-only attribute outlived this
+    // test's restore and poisoned every later User-settings write.)
     await withBudgetConfig({ value: 10 }, async (config) => {
       await vscode.commands.executeCommand('workbench.action.openSettingsJson')
       const editor = vscode.window.activeTextEditor
       assert.ok(editor)
-      const settingsFile = editor.document.uri.fsPath
       // Save first: the opened model can hold unsaved changes, and the
-      // configuration service refuses a write while it does, before the
-      // read-only permissions below are even reached.
+      // configuration service refuses a write while it does.
       await vscode.commands.executeCommand('workbench.action.files.saveFiles')
-      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
-      const settingsDir = path.dirname(settingsFile)
-      await chmod(settingsFile, 0o444)
-      await chmod(settingsDir, 0o555)
+      // An unsaved edit dirties the model; the service refuses the write
+      // while it is dirty. Settings files take comments, so the probe
+      // keeps the on-disk content valid JSONC.
+      await editor.edit((builder) => {
+        builder.insert(new vscode.Position(0, 0), '// session budget store-failure probe\n')
+      })
+      assert.equal(editor.document.isDirty, true)
       try {
         await applyWizardSessionBudget(canonicalUsd(5), config, canonicalUsd(10))
-        assert.fail('the read-only settings file must refuse the write')
+        assert.fail('the dirty settings model must refuse the write')
       } catch (error: unknown) {
         // The store's own refusal, unwrapped: the configuration service
-        // reports its failed save in its own words (the raw EACCES never
-        // surfaces), and it must never read as the wizard's invalid value.
-        // A Workspace-targeted write would fail with 'Workspace Settings'
-        // instead: this row proves the write went to User settings.
+        // reports its refused save in its own words, and it must never
+        // read as the wizard's invalid value. A Workspace-targeted write
+        // would fail with 'Workspace Settings' instead: this row proves
+        // the write went to User settings.
         assert.ok(error instanceof Error)
         assert.ok(!(error instanceof SessionBudgetInvalidError))
         assert.match(String(error), /user settings/i)
         assert.doesNotMatch(String(error), /Workspace Settings/)
-        // The refused write leaves the settings text model dirty, and a
-        // dirty model refuses the cleanup write below: revert the model to
-        // the on-disk content (the seed's 10) before restoring permissions.
+      } finally {
+        // Revert the model to the on-disk content (the seed's 10), so the
+        // cleanup write below is accepted, then close the probe editor.
+        // Both are in-memory: no permission can fail them on any platform.
         await vscode.commands.executeCommand('workbench.action.openSettingsJson')
         await vscode.commands.executeCommand('workbench.action.files.revert')
         await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
-      } finally {
-        await chmod(settingsDir, 0o755)
-        await chmod(settingsFile, 0o644)
       }
       assert.equal(config.read().effectiveUsd, canonicalUsd(10))
     })
