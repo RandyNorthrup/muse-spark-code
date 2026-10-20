@@ -4,9 +4,12 @@
 // own frame validity, and the model's real context window (with a spill file
 // the model pages through). Each test below fails on the code before the
 // change and passes after it.
+import { mkdtempSync, realpathSync } from 'node:fs'
+import { writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { resolveModelCapabilities } from '../../src/core/providers/capabilities'
 import { metaCapabilityRecord } from '../../src/core/providers/capabilityRecord'
 import {
@@ -21,7 +24,9 @@ import { AttachedMedia, type AttachedSource } from '../../src/core/media/attache
 import { convertHtmlJob } from '../../src/core/web/htmlToMarkdown'
 import { fetchWebPage } from '../../src/core/web/webFetch'
 import { attachmentStore, wavRecord } from './helpers/attachedRecords'
+import { headlessToolIo } from './helpers/headlessToolIo'
 import { pngFixture, wavFixture } from './helpers/media/fixtures'
+import { removeFolder } from './helpers/temporaryFolders'
 import { loadWebCapture, recordedFetchDeps, recordedPinnedResponse } from './helpers/webfetchRecord'
 
 function fixedSource(bytes: Uint8Array): AttachedSource {
@@ -160,31 +165,37 @@ describe('no input limits: a fetched page reaches the model whole', () => {
   })
 })
 
-// A workspace port stub: only realPath/pathExists/readBytes run in
-// prepare, and reads are counted to prove a refusal reads nothing.
-function unusedIo(): Promise<never> {
-  return Promise.reject(new Error('unused in prepare'))
-}
+// The edit sources as real PNG files in a real workspace, read through
+// the standalone runtime's own ToolIo (headless: no editor buffers,
+// src/runtime/backends.ts). Reads are counted through a forwarding
+// wrapper — observation, not a stand-in — to prove a refusal reads
+// nothing.
+const imageRoot = { dir: '' }
+
+beforeAll(async () => {
+  imageRoot.dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'muse-image-sources-')))
+  for (let index = 0; index < 11; index += 1) {
+    await writeFile(path.join(imageRoot.dir, `s${String(index)}.png`), pngFixture(1, 1))
+  }
+})
+
+afterAll(async () => {
+  await removeFolder(imageRoot.dir)
+})
 
 function imageWorkspace(onRead: () => void): ImageWorkspace {
-  const io: ToolIo = {
-    readFile: () => Promise.resolve(undefined),
-    readBytes: () => {
-      onRead()
-      return Promise.resolve(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))
+  const io = headlessToolIo(imageRoot.dir)
+  return {
+    workspaceRoot: imageRoot.dir,
+    platform: process.platform,
+    io: {
+      ...io,
+      readBytes: (...args: Parameters<ToolIo['readBytes']>) => {
+        onRead()
+        return io.readBytes(...args)
+      },
     },
-    writeFile: () => Promise.resolve(),
-    writeFileIfUnchanged: () => unusedIo(),
-    pathExists: () => Promise.resolve(false),
-    reserveFile: () => unusedIo(),
-    hasUnsavedChanges: () => false,
-    unsavedFiles: () => [],
-    listFiles: () => Promise.resolve([]),
-    searchFiles: () => unusedIo(),
-    runShell: () => unusedIo(),
-    realPath: (absolutePath) => Promise.resolve(absolutePath),
   }
-  return { workspaceRoot: '/work', platform: 'linux', io }
 }
 
 function customImageRecord(value: { mimes: string[]; maxEditSources?: number }) {
