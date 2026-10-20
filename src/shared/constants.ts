@@ -8751,6 +8751,8 @@ export const LEGAL_SKILL_ID = 'legal'
 // in dist/extension.js. Lane R adds the build entry; until then the loader
 // reports the scanner unavailable.
 export const LEGAL_SCAN_BUNDLE_FILE = 'legalScan.js'
+/** dist/legalFix.js beside the running bundle: loaded on the first fix request. */
+export const LEGAL_FIX_BUNDLE_FILE = 'legalFix.js'
 // The read-only legal scan on the `ide` session server for Muse Code (M97,
 // PLAN.md D76): `mcp__ide__legalScan` in its items, the same deterministic
 // scan as the Model API backend's native `legal_scan`.
