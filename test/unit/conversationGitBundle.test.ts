@@ -18,19 +18,12 @@ import {
 } from '../../src/host/git/conversationGitBundle'
 import type { GitFeaturesDeps } from '../../src/host/git/gitWindow'
 import { requireFile } from '../../src/host/lazyBundle'
-import type { Logger } from '../../src/host/logger'
+import { errorLogger } from './helpers/collectingLogger'
 import { usingTempDir } from './helpers/temporaryFolders'
 
 function harness(bundlePath: string) {
   const errors: string[] = []
-  const log: Logger = {
-    trace: () => undefined,
-    info: () => undefined,
-    warn: () => undefined,
-    error: (message) => {
-      errors.push(message)
-    },
-  }
+  const log = errorLogger(errors)
   const bundle = conversationGitLoader({ bundlePath, log })
   return {
     errors,
