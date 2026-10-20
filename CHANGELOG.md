@@ -289,6 +289,17 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- On Windows the credential vault now starts. Its helpers build in the
+  vault's own folder, the broker launches and serves its private pipe, and
+  the editor's requests reach it. Before, faults in the Windows helper and
+  its relay stopped it at each step: the pipe never served, missing files
+  read as refused, and every vault write was refused while the file was
+  being written.
+- On Windows, a process that stops a child it started through the resource
+  governor now exits as soon as the child has ended, instead of up to
+  10 seconds later.
+- On Windows, a paid-use grants folder replaced by a file is now logged as
+  damage instead of reading as no saved choice, as it already was elsewhere.
 - Web fetch dropped a dead second converter no code called. No behaviour
   change.
 - The unused paid-consent helpers for scheduled runs and per-account consent

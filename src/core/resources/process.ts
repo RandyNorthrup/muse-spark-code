@@ -59,6 +59,20 @@ async function untilAborted<T>(pending: Promise<T>, signal: AbortSignal | undefi
   }
 }
 
+/**
+Whether a launcher's exit settles within `ms`. The wait's own timer ends
+with it, so a launcher that exits at once never leaves a timer holding the
+process open for the rest of the wait.
+*/
+async function isExitedWithin(exited: Promise<boolean>, ms: number): Promise<boolean> {
+  const wait = new AbortController()
+  try {
+    return await Promise.race([exited, delay(ms, false, { signal: wait.signal })])
+  } finally {
+    wait.abort()
+  }
+}
+
 /** The job's caps, enforced by the job object and the helper, never by a reader process. */
 const ATTESTED_JOB = {
   activeProcessLimit: RESOURCE_TREE_PROCESS_CAP,
@@ -387,9 +401,9 @@ async function spawnPiped(
     stop = async () => {
       if (isRunning()) {
         control.stop()
-        if (!(await Promise.race([exited, delay(TREE_EXIT_WAIT_MS, false)]))) {
+        if (!(await isExitedWithin(exited, TREE_EXIT_WAIT_MS))) {
           launcher.kill()
-          await Promise.race([exited, delay(TREE_EXIT_WAIT_MS, false)])
+          await isExitedWithin(exited, TREE_EXIT_WAIT_MS)
         }
       }
       if (!isRunning()) await settlement

@@ -223,6 +223,29 @@ describe('computeShipped', () => {
     expect([...(shipped.shippedFiles ?? [])]).toEqual(['src/ok.ts'])
   })
 
+  it('matches a Windows-separator generated module against its build-captured hash', () => {
+    const files = { 'src/ok.ts': 'x', [OUT]: OUT_TEXT }
+    const windowsModule = String.raw`resource-validation:C:\work\node_modules\zod\v4\core\util.js`
+    const bundle = record(
+      'bundle',
+      { 'src/ok.ts': 'x' },
+      { [OUT]: OUT_TEXT },
+      { generated: [windowsModule] },
+    )
+    const shipped = computeShipped(snapshotFrom(files), [], {
+      bundleInputs: ['src/ok.ts'],
+      bundles: [
+        {
+          ...bundle,
+          generatedHashes: {
+            'resource-validation:C:/work/node_modules/zod/v4/core/util.js': fingerprint('zod'),
+          },
+        },
+      ],
+    })
+    expect(shipped.incomplete).toEqual([])
+  })
+
   it('leaves distribution unknown without evidence', () => {
     const shipped = computeShipped(
       snapshotFrom(lock),

@@ -40,6 +40,7 @@ internal static class MuseSparkVaultPipe
 
     private const uint PipeAccessDuplex = 0x3;
     private const uint FileFlagFirstPipeInstance = 0x00080000;
+    private const uint FileFlagOverlapped = 0x40000000;
     private const uint PipeTypeByte = 0x00000000, PipeReadmodeByte = 0x00000000;
     private const uint PipeRejectRemoteClients = 0x00000008;
     private const uint PipeUnlimitedInstances = 255;
@@ -50,10 +51,13 @@ internal static class MuseSparkVaultPipe
     private const uint TokenQuery = 0x0008;
     private const int TokenUserClass = 1;
     private const uint ErrorPipeConnected = 535, ErrorPipeBusy = 231, ErrorAccessDenied = 5;
-    private const uint ErrorFileNotFound = 2, ErrorInvalidParameter = 87;
+    private const uint ErrorFileNotFound = 2, ErrorInvalidParameter = 87, ErrorSemTimeout = 121, NmpwaitUseDefaultWait = 0;
     private const uint SeKernelObject = 6;
     private const uint OwnerSecurityInformation = 0x00000001, DaclSecurityInformation = 0x00000004;
     private const uint GenericAllMask = 0x10000000;
+    // GENERIC_ALL as the kernel stores it on a pipe: mapped through the
+    // file object's generic mapping to FILE_ALL_ACCESS.
+    private const uint FileAllAccessMask = 0x001F01FF;
     private const ulong FiletimeToUnixBias = 116444736000000000UL;
     private const ulong FiletimeTicksPerMillisecond = 10000UL;
     private const int HeaderLimit = 4096;
@@ -89,6 +93,8 @@ internal static class MuseSparkVaultPipe
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern SafeFileHandle CreateFile(string name, uint access, uint share, IntPtr security, uint creation, uint flags, IntPtr template);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool WaitNamedPipe(string name, uint timeout);
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr OpenProcess(uint access, bool inherit, uint processId);
@@ -288,7 +294,8 @@ internal static class MuseSparkVaultPipe
     }
 
     // Exactly the owner-only DACL the pipe is created with: protected, one
-    // allow ACE granting generic-all to the helper's own token user.
+    // allow ACE granting generic-all to the helper's own token user (read
+    // back mapped to FILE_ALL_ACCESS, the form the kernel stores).
     private static bool IsOwnerOnlyPipe(SafeHandle handle)
     {
         IntPtr owner, group, dacl, sacl, descriptor;
@@ -306,7 +313,8 @@ internal static class MuseSparkVaultPipe
             var ace = acl[0] as CommonAce;
             if (ace == null || ace.AceQualifier != AceQualifier.AccessAllowed) return false;
             if (ace.SecurityIdentifier.Value != OwnerSid) return false;
-            return unchecked((uint)ace.AccessMask) == GenericAllMask;
+            uint mask = unchecked((uint)ace.AccessMask);
+            return mask == FileAllAccessMask || mask == GenericAllMask;
         }
         catch { return false; }
         finally { LocalFree(descriptor); }
@@ -401,7 +409,10 @@ internal static class MuseSparkVaultPipe
                 security.Length = Marshal.SizeOf(typeof(SecurityAttributes));
                 security.Descriptor = descriptor;
                 security.Inherit = false;
-                uint openMode = PipeAccessDuplex;
+                // Overlapped, so a connection's waiting read never holds back its
+                // writes: synchronous calls on one handle run one at a time, and an
+                // answer could never leave while the read waits for the client.
+                uint openMode = PipeAccessDuplex | FileFlagOverlapped;
                 if (first) openMode |= FileFlagFirstPipeInstance;
                 handle = CreateNamedPipe(pipe, openMode, PipeTypeByte | PipeReadmodeByte | PipeRejectRemoteClients,
                     PipeUnlimitedInstances, PipeBufferBytes, PipeBufferBytes, 0, ref security);
@@ -430,9 +441,11 @@ internal static class MuseSparkVaultPipe
                     WriteFrame(Ready, 0, Encoding.UTF8.GetBytes(Json.Serialize(ready)));
                     first = false;
                 }
+                // The async stream owns the instance from here and waits for its
+                // client (an overlapped handle needs an overlapped connect).
+                var listening = new NamedPipeServerStream(PipeDirection.InOut, true, false, handle);
                 lock (TableLock) { ListenHandle = handle; }
-                if (!ConnectNamedPipe(handle, IntPtr.Zero) && Marshal.GetLastWin32Error() != (int)ErrorPipeConnected)
-                    throw new InvalidOperationException();
+                listening.WaitForConnection();
                 lock (TableLock) { ListenHandle = null; }
                 int simultaneous;
                 lock (TableLock) { simultaneous = Connections.Count; }
@@ -440,7 +453,7 @@ internal static class MuseSparkVaultPipe
                 {
                     try { DisconnectNamedPipe(handle); }
                     catch { }
-                    handle.Dispose();
+                    listening.Dispose();
                     handle = null;
                     continue;
                 }
@@ -449,7 +462,7 @@ internal static class MuseSparkVaultPipe
                 {
                     try { DisconnectNamedPipe(handle); }
                     catch { }
-                    handle.Dispose();
+                    listening.Dispose();
                     handle = null;
                     continue;
                 }
@@ -458,9 +471,8 @@ internal static class MuseSparkVaultPipe
                 {
                     if (Shutdown) throw new InvalidOperationException();
                     id = ++NextId;
-                    var stream = new NamedPipeServerStream(PipeDirection.InOut, false, true, handle);
                     handle = null;
-                    var connection = new Connection { Id = id, Stream = stream };
+                    var connection = new Connection { Id = id, Stream = listening };
                     Connections.Add(id, connection);
                     try { WriteFrame(Open, id, Encoding.UTF8.GetBytes(Json.Serialize(record))); }
                     catch { RemoveConnection(id, false); continue; }
@@ -515,8 +527,22 @@ internal static class MuseSparkVaultPipe
         if (!ValidPipeName(pipe)) throw new InvalidDataException();
         string result = "refused";
         Dictionary<string, object> server = null;
-        var handle = CreateFile(pipe, GenericRead | GenericWrite, 0, IntPtr.Zero, OpenExisting,
-            SecuritySqosPresent | SecurityIdentification, IntPtr.Zero);
+        // Between connections a live server can have every instance taken for
+        // a moment (ERROR_PIPE_BUSY): wait for the instance its accept loop
+        // makes next, as a client connect does, instead of reading it refused.
+        SafeFileHandle handle;
+        int openError = 0;
+        for (;;)
+        {
+            handle = CreateFile(pipe, GenericRead | GenericWrite, 0, IntPtr.Zero, OpenExisting,
+                SecuritySqosPresent | SecurityIdentification, IntPtr.Zero);
+            if (handle != null && !handle.IsInvalid) break;
+            openError = Marshal.GetLastWin32Error();
+            if (openError != (int)ErrorPipeBusy) break;
+            if (WaitNamedPipe(pipe, NmpwaitUseDefaultWait)) continue;
+            openError = Marshal.GetLastWin32Error();
+            if (openError != (int)ErrorSemTimeout) break;
+        }
         if (handle != null && !handle.IsInvalid)
         {
             try
@@ -538,7 +564,7 @@ internal static class MuseSparkVaultPipe
             }
             finally { handle.Dispose(); }
         }
-        else if (Marshal.GetLastWin32Error() == (int)ErrorFileNotFound) result = "missing";
+        else if (openError == (int)ErrorFileNotFound) result = "missing";
         var answer = new Dictionary<string, object>
         { { "v", RelayVersion }, { "id", id }, { "result", result }, { "ownerSid", OwnerSid }, { "server", server } };
         WriteFrame(ServerResult, 0, Encoding.UTF8.GetBytes(Json.Serialize(answer)));
@@ -663,14 +689,19 @@ internal static class MuseSparkVaultPipe
                 Dictionary<string, object> first;
                 try { first = Object(Json.DeserializeObject(line)); }
                 catch { return 1; }
-                Fields(first, "v", "mode");
+                // The serve handshake names its pipe; files mode names nothing
+                // else. Each mode's exact field set is checked before any field
+                // is read, so neither can carry an extra one.
+                object named;
+                bool isServe = first.TryGetValue("mode", out named) && named as string == "serve";
+                if (isServe) Fields(first, "v", "mode", "pipe");
+                else Fields(first, "v", "mode");
                 if (!(first["v"] is int) || (int)first["v"] != RelayVersion) return 1;
                 string mode = Text(first, "mode");
                 if (mode != "serve" && mode != "files") return 1;
                 string pipe = null;
                 if (mode == "serve")
                 {
-                    Fields(first, "v", "mode", "pipe");
                     pipe = Text(first, "pipe");
                     if (!ValidPipeName(pipe)) return 1;
                 }

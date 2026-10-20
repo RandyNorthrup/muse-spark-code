@@ -199,7 +199,6 @@ homedir fallback. Never throws.
 */
 export interface WindowsVideosDeps {
   readonly systemRoot?: string
-  readonly run?: (executable: string, args: readonly string[]) => Promise<string>
 }
 
 export function parseWindowsVideosDir(output: string): string | undefined {
@@ -242,9 +241,8 @@ export async function resolveWindowsVideosDir(
       'v1.0',
       'powershell.exe',
     )
-    const run = deps.run ?? runSystemCommand
     return parseWindowsVideosDir(
-      await run(powershell, [
+      await runSystemCommand(powershell, [
         '-NoLogo',
         '-NoProfile',
         '-NonInteractive',
@@ -259,7 +257,6 @@ export async function resolveWindowsVideosDir(
 
 export interface WindowsPrivateDirectoryDeps {
   readonly systemRoot?: string
-  readonly run?: (executable: string, args: readonly string[]) => Promise<string>
 }
 
 /**
@@ -278,12 +275,11 @@ export async function createWindowsPrivateDirectory(
   if (platform !== 'win32') throw new Error('Windows private directories need Windows')
   const systemRoot = windowsSystemRoot(deps.systemRoot)
   if (systemRoot === undefined) throw new Error('Windows private directories need a system root')
-  const run = deps.run ?? runSystemCommand
   await mkdir(tempRoot, { recursive: true })
   const dir = await mkdtemp(path.join(tempRoot, 'latest-'))
   try {
     const icacls = path.win32.join(systemRoot, 'System32', 'icacls.exe')
-    await run(icacls, [dir, '/inheritance:r', '/grant:r', '*S-1-3-4:(OI)(CI)F'])
+    await runSystemCommand(icacls, [dir, '/inheritance:r', '/grant:r', '*S-1-3-4:(OI)(CI)F'])
     const powershell = path.win32.join(
       systemRoot,
       'System32',
@@ -291,7 +287,7 @@ export async function createWindowsPrivateDirectory(
       'v1.0',
       'powershell.exe',
     )
-    const verdict = await run(powershell, [
+    const verdict = await runSystemCommand(powershell, [
       '-NoLogo',
       '-NoProfile',
       '-NonInteractive',

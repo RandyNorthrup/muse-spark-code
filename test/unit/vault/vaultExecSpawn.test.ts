@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { chmod, mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { vaultPrivateDirectory } from '../../../src/core/vault/broker/files'
 import { prepareVaultExecHelperPaths } from '../../../src/host/vault/vaultExecSpawn'
+import { denyWrites } from '../helpers/deniedAccess'
 
 // The exec helper paths over real directories: created owner-only, removed
 // on close, and a failed write removes the half-built folder while the
@@ -39,7 +40,8 @@ describe('vault exec helper paths', () => {
     const root = await mkdtemp(path.join(tmpdir(), 'vs-exec-refused-'))
     try {
       // The kernel refuses the write for real: the folder is read-only after
-      // the owner-only protection below runs.
+      // the owner-only protection below runs (mode 0555, or on Windows a
+      // denial of new entries).
       await expect(
         prepareVaultExecHelperPaths(
           root,
@@ -49,7 +51,7 @@ describe('vault exec helper paths', () => {
           process.platform,
           async (dir) => {
             await vaultPrivateDirectory(dir)
-            if (dir !== root) await chmod(dir, 0o555)
+            if (dir !== root) await denyWrites(dir)
           },
         ),
       ).rejects.toBeInstanceOf(Error)

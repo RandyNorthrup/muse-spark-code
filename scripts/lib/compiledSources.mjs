@@ -82,7 +82,9 @@ function capture(buildRecord, args, contents) {
   const bytes = typeof contents === 'string' ? Buffer.from(contents, 'utf8') : contents
   const digest = sha256(bytes)
   if (args.namespace !== 'file') {
-    buildRecord.generated.set(`${args.namespace}:${args.path}`, digest)
+    // Keyed as compiledRecordFor looks it up: a Windows path a plugin
+    // resolved into its namespace keeps backslashes in esbuild's key.
+    buildRecord.generated.set(`${args.namespace}:${args.path}`.replaceAll('\\', '/'), digest)
     return
   }
   const key = workspaceKey(args.path)

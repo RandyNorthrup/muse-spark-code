@@ -2,13 +2,14 @@ import path from 'node:path'
 import type { RunProgram } from '../../processTree'
 import {
   windowsVaultGuardScript,
+  windowsVaultGuardSource,
   type WindowsVaultExecutable,
 } from '../../../runtime/vault/slots/windowsVaultTransport'
 import { noWorkspaceChildEnvironment } from '../../../core/execGuard'
 import { runBootstrap } from '../../../core/bootstrapCommand'
 import { createHash, randomUUID } from 'node:crypto'
 import { realpathSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { UI_TEXT } from '../../../shared/constants'
 import { compileJob, jobFileName, type JobBuild } from '../../backend/jobBuild'
@@ -47,15 +48,6 @@ const runCompiler = (
   )
 const cache = new Map<string, WindowsVaultExecutable>()
 
-function extractGuard(source: string): string {
-  const guardSource = source
-    .split('// BEGIN VAULT PATH GUARD', 2)[1]
-    ?.split('// END VAULT PATH GUARD', 1)[0]
-  if (guardSource === undefined || guardSource.trim() === '')
-    throw new Error(UI_TEXT.vault.noAccess)
-  return guardSource
-}
-
 /** Only this process's completed build supplies a trusted digest, never a cache sidecar. */
 export async function windowsVaultExecutable(deps: {
   readonly storageDir: string
@@ -68,7 +60,7 @@ export async function windowsVaultExecutable(deps: {
     if (!path.isAbsolute(deps.storageDir) || !path.isAbsolute(deps.systemRoot))
       throw new Error(UI_TEXT.vault.noAccess)
     const source = await deps.readSource()
-    const guardSource = extractGuard(source)
+    const guardSource = windowsVaultGuardSource(source)
     const name = jobFileName(build, source)
     const cacheKey = `${deps.storageDir}\0${deps.systemRoot}\0${name}`
     const cached = cache.get(cacheKey)
@@ -96,6 +88,10 @@ export async function windowsVaultExecutable(deps: {
       }
       let directory: string
       try {
+        // The storage folder is made on first use (inheriting its parent's
+        // grants); the guard then refuses it unless it is safe. Without it
+        // every build fell back to the temp tree below.
+        await mkdir(deps.storageDir, { recursive: true })
         directory = await prepare(deps.storageDir)
       } catch (error: unknown) {
         if (isResourcePaused(error)) throw error
@@ -150,8 +146,10 @@ export async function windowsPipeExecutable(deps: {
   readonly run?: RunProgram
   readonly report?: () => void
 }): Promise<WindowsVaultExecutable> {
-  const guardSource = extractGuard(await deps.readSlotSource())
-  const source = `${guardSource}\n${await deps.readPipeSource()}`
+  const guardSource = windowsVaultGuardSource(await deps.readSlotSource())
+  // The composed source keeps the guard's markers: windowsVaultExecutable
+  // finds the same guard region in it to record beside the build.
+  const source = `// BEGIN VAULT PATH GUARD${guardSource}// END VAULT PATH GUARD\n${await deps.readPipeSource()}`
   return await windowsVaultExecutable({
     ...deps,
     readSource: () => Promise.resolve(source),

@@ -4,7 +4,7 @@
 // as cancelled and never thrown; only git's own exit 1 reads as an empty
 // filter inventory.
 import { execFile } from 'node:child_process'
-import { chmod, mkdir, symlink } from 'node:fs/promises'
+import { mkdir, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { describe, expect, it } from 'vitest'
@@ -13,6 +13,7 @@ import {
   createReviewCollector,
   type ReviewCollectorDeps,
 } from '../../src/host/review/reviewCollector'
+import { denyAccess } from './helpers/deniedAccess'
 import { realGit } from './helpers/realGit'
 import { usingTempDir } from './helpers/temporaryFolders'
 
@@ -45,8 +46,9 @@ describe('createReviewCollector', () => {
     await usingTempDir('review-collector-', async (folder) => {
       const locked = path.join(folder, 'locked')
       await mkdir(locked)
+      // A real permission failure (chmod 0 on POSIX, a deny entry on Windows).
+      const restore = await denyAccess(locked)
       try {
-        await chmod(locked, 0)
         const collect = createReviewCollector({
           workspaceRoot: locked,
           runGit: realGit,
@@ -56,7 +58,7 @@ describe('createReviewCollector', () => {
         expect(collection.kind).toBe('refused')
         expect(collection).toMatchObject({ refusal: 'gitFailed' })
       } finally {
-        await chmod(locked, 0o755)
+        await restore()
       }
     })
   })
