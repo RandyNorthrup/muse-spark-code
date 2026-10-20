@@ -822,7 +822,7 @@ jobs:
             extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js
             extension/dist/uiTextMedia.js extension/dist/media.js extension/dist/screenRecord.js
             extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js
-            extension/dist/legalScan.js extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json
+            extension/dist/legalScan.js extension/dist/legal-data.json.br extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json
             extension/dist/sessionBoard.js extension/dist/reviewer.js
             extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js
             extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js
@@ -920,7 +920,7 @@ jobs:
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
             package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json \
             package/schemas/exec-result-v2.schema.json package/schemas/exec-event-v2.schema.json \
-            package/dist/runtime.bundles.json.br package/dist/legalScan.js \
+            package/dist/runtime.bundles.json.br package/dist/legalScan.js package/dist/legal-data.json.br \
             package/dist/legal-data/NOTICE.md package/dist/legal-data/provenance.json \
             package/schemas/share-v1.schema.json; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then

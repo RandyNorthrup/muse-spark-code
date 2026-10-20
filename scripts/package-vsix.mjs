@@ -3,6 +3,7 @@
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { packLegalDataArchive } from './lib/legalArchive.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { compactVsix } from './lib/compactVsix.mjs'
 import { removePackageStage } from './lib/packageStage.mjs'
@@ -163,6 +164,9 @@ export async function stageVsix(root, stage, target) {
   )
     throw new Error('Translation tables have inconsistent key order')
   await packRuntimeArchive(root, stage, files, tables)
+  // The pinned legal texts ship as one solid brotli archive (VSIXFIT A):
+  // NOTICE.md and provenance.json stay loose beside it.
+  packLegalDataArchive(stage)
   writeFileSync(
     path.join(stage, 'README.md'),
     renderPackageReadme(

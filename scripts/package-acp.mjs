@@ -35,6 +35,7 @@ import { renderPackageReadme } from './check-badges.mjs'
 import { CI_LAUNCHER_SOURCES, RUNNER_HELPERS, acpNativeFiles } from './lib/acpNativeSources.mjs'
 import { stageCiLauncher } from './lib/ciStageLayout.mjs'
 import { targetFromArgs } from './lib/vsixTargets.mjs'
+import { packLegalDataArchive } from './lib/legalArchive.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { ACP_BUNDLES as BUNDLES, acpUsageAssets } from './lib/acpBundles.mjs'
 import { removePackageStage, writeStageReceipt } from './lib/packageStage.mjs'
@@ -173,6 +174,9 @@ try {
     BUNDLES.map((bundle) => `dist/${bundle}`),
     tables,
   )
+  // The pinned legal texts ship as one solid brotli archive (VSIXFIT A):
+  // NOTICE.md and provenance.json stay loose beside it.
+  packLegalDataArchive(STAGE)
   execFileSync(process.execPath, ['scripts/check-l10n.mjs', '--packaged-acp', STAGE], {
     stdio: 'inherit',
   })
