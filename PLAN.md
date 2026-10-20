@@ -826,6 +826,17 @@ and its exact-lock behavior are unchanged. Integrity matches the official
 tarball and private install; shipped metafiles/notices contain none of it.
 The shared tooling install remains 1.2.1 until the owner refreshes it.
 
+REALUSE0190M audit update (2026-10-20): pin the existing development-only
+`follow-redirects` leaf to 1.16.1 for GHSA-q3jh-wrc6-jgq8 and
+GHSA-8r9p-f939-6h3c (array-form headers bypass cross-origin credential
+stripping; sensitiveHeaders regex escaping can expose credential headers).
+Registry metadata declares no peers and Node >= 4.0; published October 1.
+Integrity matches the official tarball
+(sha512-FNvFGzoMLWmE6Yj9spb/zjd7yiNCHiAW9/Tg9CXrQ8wuu32HtlJOwWO11OJafl5FfY3DxTdQ0vj42zU1kvv5jg==).
+It reaches the tree only through `ovsx` (`^1.16.0`, development packaging
+tool); shipped bundles, metafiles and notices contain none of it.
+`security:audit` exits 0 with the standing braces exception.
+
 SDK142 update (2026-10-02): `@muse-code/sdk` 1.4.2, published September 30,
 matches CLI 1.4.2-R4684.1 and is a drop-in for the runtime code imported by
 the extension. It waits for `.npmrc`'s seven-day release-age rule until

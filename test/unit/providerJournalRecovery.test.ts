@@ -2,8 +2,13 @@
 // store instead of failing silent: `providers usage`, `auth status` and their
 // siblings return 1 with no notices when the store itself cannot be read,
 // and the person gets the cause with the documented failure code.
+import { randomUUID } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { reportJournalRecovery } from '../../src/runtime/providerAuth'
+import { keyringSecretStore, StoreUnavailableError } from '../../src/runtime/keyStore'
+import {
+  recoverOpenRouterJournalReport,
+  reportJournalRecovery,
+} from '../../src/runtime/providerAuth'
 import { EN } from '../../src/shared/l10n/en'
 import { fill } from '../../src/shared/l10n/text'
 
@@ -53,5 +58,24 @@ describe('journal recovery reporting', () => {
     reportJournalRecovery(deps, { notices: [], committed: true, failed: false })
     expect(printed).toEqual([EN.providerConnectRecoveredStored])
     expect(errors).toEqual([])
+  })
+
+  it('reports a dead credential store as failed with the store cause instead of throwing', async () => {
+    const store = keyringSecretStore(
+      () => ({
+        getPassword: (): Promise<never> =>
+          Promise.reject(new Error('the keychain cannot be reached')),
+        setPassword: () => Promise.resolve(),
+        deletePassword: () => Promise.resolve(false),
+      }),
+      { lockScope: randomUUID() },
+    )
+    const report = await recoverOpenRouterJournalReport(store)
+    expect(report.failed).toBe(true)
+    expect(report.storeError).toBeInstanceOf(StoreUnavailableError)
+    const { deps, printed, errors } = sinks()
+    reportJournalRecovery(deps, report)
+    expect(printed).toEqual([])
+    expect(errors).toEqual([fill(EN.acpStoreUnavailable, { reason: 'store-unavailable' })])
   })
 })

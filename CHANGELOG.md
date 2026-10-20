@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- A crashed-connect journal recovery that cannot read this computer's
+  credential store says so with exit 1 (`auth status` and its siblings)
+  instead of an internal error.
+
 ## [0.19.0] - 2026-10-18
 
 ### Highlights

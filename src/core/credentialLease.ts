@@ -330,22 +330,16 @@ export async function recoverCredentialJournal(
   account: string,
   staging: string,
 ): Promise<CredentialRecovery> {
-  let staged: string | undefined
-  try {
-    staged = await secrets.get(staging)
-  } catch {
-    throw new Error('credential recovery failed')
-  }
+  // A store failure rides through as the store's own error, so a caller
+  // that names a dead store keeps naming it instead of meeting an internal
+  // sentence here.
+  const staged = await secrets.get(staging)
   if (staged === undefined || staged === '')
     return { decision: { kind: 'none' }, journalKept: false }
   const journal =
     journalText(staged) === undefined ? undefined : parseCredentialJournal(journalText(staged))
-  let primary: string | undefined
-  try {
-    primary = await secrets.get(account)
-  } catch {
-    throw new Error('credential recovery failed')
-  }
+  // As above: the store's own failure, not an internal sentence.
+  const primary = await secrets.get(account)
   let isJournalKept = false
   const deleteStaging = async (): Promise<void> => {
     try {
