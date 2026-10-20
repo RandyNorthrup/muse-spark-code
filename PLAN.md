@@ -681,16 +681,8 @@ Constraints and decisions:
 
 ### D2 — Thin, schema-validated HTTP client for the Model API instead of the `openai` npm SDK
 
-The `openai` package (7.20.0) pulls seven optional peers, requires Node ≥ 22
-and would ship an entire API surface of which the extension uses three
-endpoints. A ~300-line client over global `fetch` with `zod` schemas for
-every response boundary is smaller, keeps `no-unsafe-*` lint rules
-meaningful, and lets us model Meta's documented deviations (`tool_choice`
-only `"auto"`, `reasoning_effort` `none` → 400). Revisit if Meta ships a
-first-party SDK. **Amended at M7:** the stream is plain WHATWG server-sent
-events (`event:` / `data:` lines), so the planned `eventsource-parser`
-dependency was not added; `src/core/backends/modelapi/sse.ts` (80 lines) is
-tested on chunk splits inside frames and inside multi-byte characters.
+temp/planfix0190/d2-summary.txt Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D3 — Quality toolchain versions (verified against the npm registry 2026-09-21)
 
@@ -933,31 +925,7 @@ fake-transport unit pattern, the `vscode` mock in unit tests, and the
 coverage-threshold gate. What stays: unit tests over `src/**`, webview
 component tests, and the real-editor integration run.
 
-- **Unit (vitest, node env)**: everything in `src/core/**` (protocol types,
-  backends with fake transports, the host ⇄ webview protocol, settings
-  mapping, path guards). The `vscode` module is aliased to
-  `test/unit/mocks/vscode.ts`.
-- **Unit (vitest, jsdom env)**: webview components with Testing Library.
-- **Integration (@vscode/test-cli)**: activates the extension in a real VS Code
-  (xvfb on CI), asserts commands/views register and the webview posts its
-  ready message.
-- **Coverage thresholds are gates**: 90 % statements/lines/functions, 85 %
-  branches on `src/**` excluding `src/extension.ts` and `src/webview/main.tsx`
-  (entry points exercised by integration tests). A threshold flagging an
-  unreachable branch means the branch is dead — delete it, do not lower the bar.
-- **Every test must be able to fail**: each new assertion is checked once
-  against a deliberately broken implementation (recorded in the milestone
-  certification checklist).
-- **The real-life run (2026-10-12, the owner: "test the app in real life
-  thats the tests")**: the product's test is the packed product used for
-  real. `scripts/real-life/run.mjs` installs the candidate into a new empty
-  folder with a new empty home and drives it by the terminal agent and the
-  editor protocol, against real providers on their cheapest models, under a
-  request cap and a dollar cap. A scenario observes what a person observes
-  (an answer, a file on disk, an exit code, a sentence, a cost, a session
-  that loads again). Its record is the release's gate and the proof behind
-  a claim (`docs/testing/real-life.md`); nothing is tested against fake
-  code.
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D6 — Bundle budgets (Phase 6)
 
@@ -2441,23 +2409,13 @@ account can, without asking in any mode, Plan included. Full record:
 
 ### D8 — Attachments live in the host; images are validated by header parsing
 
-Pasted or dropped images cross postMessage once (base64) into an
-`AttachmentStore` owned by the conversation controller; the webview only
-shows chips. Width, height and media type come from the file's own header
-(`src/core/imageDimensions.ts`: PNG, GIF, JPEG SOF scan, WebP VP8/VP8L/VP8X),
-which is what the MSP `image` part needs and what refuses non-images with a
-reason. Limits: 10 MiB per image, 20 per message.
+temp/planfix0190/d8-summary.txt Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D9 — Mention index from `git ls-files`, VS Code file search as fallback
 
-`workspace.findFiles` honours `files.exclude` but not `.gitignore`, and the
-`findFiles2` API that does is still proposed. With `museSpark.respectGitIgnore`
-on, the index runs `git ls-files --cached --others --exclude-standard -z` in
-the workspace root (git's own ignore semantics), falls back to `findFiles`
-with a logged warning when git is missing or the folder is not a repository,
-with no path count of ours, cached for 15 s and invalidated by a
-create/delete file watcher. Ranking is a deterministic fuzzy scorer
-(`src/core/fuzzy.ts`), file-name matches winning over folder matches.
+temp/planfix0190/d9-summary.txt Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D13 — Workspace context (rules, skills, memory) follows Muse Code's own conventions and VS Code's workspace trust (2026-09-22)
 
@@ -3476,31 +3434,8 @@ and the constrained hosts (M66). Full record:
 
 ### D63 — Turn checkpoints restore the tools' own writes (2026-10-01)
 
-- **What happened.** PR #55 went through seven Codex review rounds. From
-  the third on, each round found new races in attributing whole-workspace
-  differences to the model rather than the user, another window or a
-  process. The owner's redesign rule applied from round three.
-- **Decision (owner, 2026-10-01).** 0.10.0 shipped with
-  `museSpark.turnCheckpoints` off by default and marked Preview. M86 turns
-  it on again with restoration rebuilt on the model's own file-tool
-  writes. [SPEC v3.1](docs/design/m86-restore-by-tool-writes.md) and the
-  [build contract](docs/design/m86-build-contract.md) govern the work.
-- **The new design (M86).** Every model file-tool write records its bytes
-  before and after in a durable owner-bound journal. A restore follows
-  an unbroken chain for each file, restoring only while its current bytes
-  equal the last recorded after; a file already at the earlier state is
-  unchanged. Captures and ignored-file scans are removed. Commands,
-  hooks and MCP tools are noted when they run; their changed files are
-  neither listed nor undone. The user's edits, other windows' writes and
-  personal memory are never undone. This narrows D51's restore promise.
-  Missing records refuse the whole range; per-file refusals name the
-  reason. Mixed-version fences, native process safety and the ABA and
-  final compare-to-rename limits remain explicit in the spec.
-- **Lead decision (2026-10-02), F07 closed by decision.** File copies and
-  unit payloads remain bounded by sequence, age and session. Shared-journal
-  identity metadata, never file contents, may persist until its owning
-  instance retires; only that instance compacts its journal, at retirement.
-  Removing extension storage clears it. SPEC section 9 records this exception.
+temp/planfix0190/d63-summary.txt Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D64 — Exposure-preserving import, replacing credential detection (2026-10-02)
 
@@ -7158,22 +7093,7 @@ secrets, an optional skill, the phone ping as a recipe), never become one (no
 Linux gadget service on a dev machine, no prosthesis for Cursor). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
-- **ESP32 SDK:** firmware on ESP-IDF 6.0.1 for about 17 boards. Build with
-  `idf.py build`; flash and watch with `idf.py -p <port> flash monitor`
-  (Ctrl-] ends the monitor), or `tools/board.sh BOARD …`. The per-user SDK
-  token is set in menuconfig as `CONFIG_GADGET_SDK_TOKEN`, which lands in
-  `sdkconfig` and is compiled into the firmware. Pairing goes over BLE with
-  the Muse phone app; after that the device reaches Muse's cloud over Wi-Fi.
-- **Linux SDK:** a Python service (`/opt/musegadget`) installed with
-  `install.sh --sdk-token mgst_…`. It gives the Muse assistant `system.run`,
-  `file.read`, `file.write` and `device.health` on that machine, with the
-  installing account's rights. `musegadget send-user-msg "…"` posts to the
-  user's Muse chat.
-- **Built for coding agents already:** each SDK folder ships an `AGENTS.md`
-  (setup, build, flash), and `skills/` holds 50+ community `SKILL.md` device
-  skills.
-- **The token** matches `^mgst_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$` (the
-  installer's own check).
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 **Decisions:**
 
@@ -14800,17 +14720,7 @@ after a write belongs to the transmission branch
 everything past the definite-refusal decision. Full record:
 `docs/certification/provider-refusals.md`.
 
-**Cause.** On 2026-10-12 an Anthropic account ran out of credit; Anthropic
-answered HTTP 400 with `invalid_request_error` "Your credit balance is too
-low …", and the product ended the turn with "Internal error: Models &
-Agents is not available in this build", requests 1, settled 0, uncertain
-2.262144. The raise site was `src/core/providers/configured.ts`
-`streamResponse`'s catch (`return fail()`, base `:106`, called at base
-`:800`), measured by stack on base. The fix replaces the catch's tail with
-the refusal sentence, keeps status/kind/code/request id/wait, and releases
-definite 4xx reservations. Nine answers, the raise-site table, the
-providers' documentation quotes for "not billed" (with what they do not say
-marked), and five red drills are in the certification record.
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D118 — Refusals read by shape, retried by code, stored without leaks (lanes PROVERR round 2 + PROVERRR2, 2026-10-13; numbered D109 until 2026-10-17, renumbered with D117)
 
@@ -17410,221 +17320,53 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
     the scope precheck ships with lane A; the panel wiring follows in
     lane U. No new command, setting, UI string or bundle.
 
-- **Lane A landed on `m123/a` (2026-10-09, Kubuntu).** Record:
-  `docs/certification/m123.md` § Lane A.
-  - **Q-M123 resolved.** The owner registered the OAuth App: client id
-    `Ov23liXlNSPBbFyJ0A1z` (public) in `GITHUB_OAUTH_CLIENT_ID`; device
-    flow on; expiring user tokens on; no client secret, and no code path
-    needs one. An empty id is still refused (`clientIdUnset`). gitleaks'
-    `generic-api-key` rule matches the id, so that line carries
-    `gitleaks:allow` (§8).
-  - **Source (b).** `src/core/git/deviceFlow.ts` (request, poll at
-    `interval`, `slow_down` +5 s or GitHub's longer interval, stop before
-    `expires_in`, Cancel, only `https://github.com/login/device`, a user
-    code of letters, digits and hyphens only, refresh with rotation) and
-    `src/runtime/github/deviceFlowSource.ts` (the store port, refresh a
-    minute before expiry, a refused refresh drops the pair and a lost
-    network keeps it, one sign-in at a time, 401 deletes the stored token,
-    Sign out deletes it and opens the app's GitHub page, redactor
-    registration).
-  - **Storage.** The OS keychain through `keyStore.ts` under
-    `museSpark.github.deviceFlow`. The M109 vault's `oauth` item is not
-    used yet: the runtime vault's broker binding (`createRuntimeVault`) is
-    not built on this base, and its commands refuse closed. The source takes
-    any `SecretStore`, so the vault item replaces the keychain in the
-    binding when the broker lands, with the M109 owner.
-  - **Source (c).** `src/runtime/github/ghLoginSource.ts`: only with the
-    user's or machine's own `museSpark.github.useGhLogin`; `gh auth token
---hostname github.com` through the governed runner, no shell, 4 KiB
-    output cap, credential variables stripped; held for one call,
-    registered with the redactor; `gh`'s login never changed. The runtime
-    has no user-settings store on this base, so the setting is an injected
-    port, bound by the panel's settings (M104 lane B) and lanes G/P.
-  - **CLI.** `auth github login|logout|status` (exact grammar), the code
-    and address printed, never a token.
-  - **Per editor.** The code and address are one template
-    (`UI_TEXT.githubSignIn.code`) passed through the source's `present`
-    port: the CLI prints it now (every editor's terminal, the companion
-    and Neovim/Emacs/Sublime/Zed/Xcode/Qt Creator users); the ACP notice
-    and the panel card bind the same port when lanes G/P (the runtime
-    client) and U (the card) land; `exec` never asks (headless). Source
-    (a) is lane L's.
-  - **Revocation (not re-read).** GitHub's `DELETE
-/applications/{client_id}/token` authenticates with the client id and
-    secret (Basic), which a public client cannot send; Sign out deletes
-    the local token and points at
-    `github.com/settings/connections/applications/<client id>`. From the
-    lane's knowledge of GitHub's docs, not re-read: the docs fetch was
-    refused in this lane's session (2026-10-09). The lead re-reads and
-    dates it.
-  - **Not captured.** The device-flow shapes stay GitHub's documented
-    examples; the fetch to re-read them was refused (2026-10-09), and no
-    live sign-in is allowed without the lead. The parser keeps unknown
-    fields.
-- **Lane A review RVM123A fixed on `m123/a2` (2026-10-09, Kubuntu).**
-  Record: `docs/certification/m123.md` § Lane A fixes. One P1 and four
-  P2, each with a test red on the reviewed source:
-  - **Sign out vs. a late sign-in or refresh (P1).** Sign out writes a
-    random mark (`museSpark.github.deviceFlow.signedOut`, no secret)
-    before it deletes the item; a sign-in or refresh reads the mark when
-    it starts and again after storing, and takes its pair back when the
-    mark changed. Holds across windows and processes sharing the store.
-  - **Concurrent refreshes (P2).** One refresh per source for all its
-    callers; a refused refresh deletes the item only while it still holds
-    the spent pair, so another window's rotated pair survives.
-  - **Joined callers' Cancel (P2).** The shared sign-in and refresh own
-    their signal; each caller's Cancel ends its own wait, and the run is
-    aborted when the last caller leaves.
-  - **HTTP failures with JSON (P2).** 5xx and 429 are `network` whatever
-    the body; only `bad_refresh_token` drops the pair; any other refresh
-    failure keeps it and serves the access token while it is valid.
-  - **Oversleep (P2).** The signal and the code's deadline are checked
-    after every wait, just before the poll is sent.
-  - **Residual.** A keychain has no compare-and-swap: a 401 or a refused
-    refresh reads the item and then deletes it, and a pair stored by
-    another process between those two calls is lost (the user signs in
-    again). The mark did not close the publication interval (RVM123A2);
-    replaced by the sign-in generation below.
-- **Lane A review RVM123A2: the sign-in generation, on `m123/a3`
-  (2026-10-09, Kubuntu).** Record: `docs/certification/m123.md` § Lane A
-  redesign. The third round on the same code redesigned instead of
-  patching. `src/runtime/github/deviceFlowSource.ts` holds one state
-  machine. The stored pair (`GITHUB_STORED_TOKEN_VERSION` 2) names the
-  generation it was issued under; the generation is a random id beside it
-  under `museSpark.github.deviceFlow.generation` (no secret; none stored
-  is the first generation). In one process every check-and-write runs in
-  the source's queue. Its state table (Read, Publish, Retire, Refuse,
-  Serve) is replaced by the logout barrier's (RVM123A4, below).
-  - **P1, a stale pair readable before rollback.** A pair is read only
-    under its own generation, so a late write after a Sign out is never
-    readable, before or after its rollback.
-  - **P2, a pre-logout completion deletes a post-logout sign-in.**
-    Publish refuses a moved generation before it writes.
-  - **P2, the outage fallback after logout.** Serve rechecks the
-    generation for every bearer handed out.
-  - **Invariant.** Once Sign out has returned, no call started after it
-    receives a bearer issued before it, in any window or process (the
-    store reads back its own completed writes, as the keychain does).
-  - **Residual window (cross-process only, the store has no
-    compare-and-swap).** Each is two store calls in another process, and
-    each loses a pair, never serves a stale one: (1) Publish's check and
-    its write: a Sign out plus a completed new sign-in in another process
-    between them is overwritten, then removed by the read-back (that
-    process signs in again); (2) the read-back and its take-back delete: a
-    new-generation pair stored between them is deleted; (3) Refuse's
-    compare and its new generation: a pair another process publishes
-    between them is retired (signed out on its next call); (4) two
-    processes publishing in one generation: the last write stays, and a
-    process whose read-back saw the other pair uses it. A refusal also
-    discards a sign-in another window started before it. A call that
-    overlaps a Sign out may still return the earlier bearer. Closing the
-    windows needs an atomic store or a cross-process lock; neither the
-    keychain binding nor the M109 vault port offers one.
+Lane A landed the GitHub sign-in on m123/a (2026-10-09, Kubuntu; record
+docs/certification/m123.md section Lane A): Q-M123 resolved with the owner's
+registered OAuth App (public client id Ov23liXlNSPBbFyJ0A1z in
+GITHUB_OAUTH_CLIENT_ID, device flow on, expiring user tokens on, no client
+secret and no code path needing one, empty id still refused, with a
+gitleaks:allow line for the generic-api-key rule); source (b) device flow with
+poll interval, slow_down, expiry stop and Cancel plus the runtime store port
+with refresh rotation; keychain storage under museSpark.github.deviceFlow (the
+M109 vault oauth item replaces it when the broker lands, with the M109 owner);
+source (c) gh CLI login through the governed runner with credential variables
+stripped; auth github login/logout/status commands that print the code and
+address but never a token; and the per-editor UI_TEXT template with ACP and
+panel binding when lanes G/P and U land. The revocation design rests on the
+lane's knowledge of GitHub's docs, not a re-read (the docs fetch was refused
+in the lane's session on 2026-10-09); the lead re-reads and dates it. The
+device-flow shapes stay GitHub's documented examples with unknown fields kept,
+and no live sign-in is allowed without the lead. Review RVM123A fixed one P1
+and four P2 on m123/a2 (sign-out mark against late sign-in/refresh, single
+refresh per source, joined callers' Cancel, JSON HTTP failures, oversleep
+checks), and review RVM123A2 redesigned around a sign-in generation on m123/a3
+(a pair is readable only under its own generation, Publish refuses a moved
+generation, Serve rechecks per call, with the stated invariant). The residual
+cross-process windows remain: each loses a pair and never serves a stale one,
+but closing the windows needs an atomic store or a cross-process lock, and
+neither the keychain binding nor the M109 vault port offers one. Full record:
+[docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
-- **Lane A review RVM123A3 fixed on `m123/a4` (2026-10-09, Mac mini
-  rig).** Record: `docs/certification/m123.md` § Lane A fixes II. Two
-  P2, each with a test red on the reviewed source:
-  - **Refusal-first concurrent refresh (P2).** A losing refresh retired
-    the generation before the winner's rotation published, discarding the
-    valid pair. Sign out now also moves a sign-out count
-    (`museSpark.github.deviceFlow.signOutEpoch`, no secret) that a
-    refusal never moves; a publish that found a moved generation keeps
-    the successful rotation under the current generation when the count
-    is unchanged, and still drops it after a Sign out. A refusal-first
-    loser still returns nothing itself; the account stays signed in and
-    a retry serves the rotated pair.
-  - **Final Serve read outside cancellation (P2).** `credential()` read
-    the generation one last time outside the caller's race, so an abort
-    during that read still served a bearer. The read now races the
-    caller's signal and the signal is checked again before the
-    credential is issued; the CLI's login then reports Cancelled
-    (exit 1) instead of success.
-  - **Residual.** The recovery is one more window of the documented
-    kind: a retire landing between its recheck and its read-back drops
-    the recovery (taking the write back when it won); a same-generation
-    pair stored between them is adopted instead. A refusal still
-    discards a sign-in another window started before it, except the
-    successful rotation it duplicated. (The count and the recovery are
-    gone since RVM123A4, below.)
-
-- **Lane A review RVM123A4: one logout barrier, on `m123/a5`
-  (2026-10-09, Windows host).** Record: `docs/certification/m123.md` §
-  Lane A redesign II. The fifth review round on this source, so its state
-  was redesigned rather than patched. RVM123A4's P1 came from two stored
-  values (the generation and the sign-out count) read at different times
-  and combined to let a rotation through; its P2 from that recovery not
-  knowing what had been refused. Both existed only because a refusal
-  moved the generation. Now the generation is the logout barrier and
-  nothing else, and a refusal touches only the pair it refuses.
-  - **One barrier.** The sign-in generation
-    (`museSpark.github.deviceFlow.generation`, a random id, no secret;
-    none stored is the first) is written by Sign out only: a fresh value,
-    in one store write, read in one read. Nothing else writes it, so no
-    value read before a Sign out can be written back over it.
-  - **Read once.** A Read (with the refresh that follows it) and a sign-in
-    each read the generation once, when they begin. The pair they store
-    (`GITHUB_STORED_TOKEN_VERSION` 3, with a random `id`) names that
-    generation and no other; it is stored only while that generation is
-    still current, and read or served only while it is. Nothing is ever
-    stored under a generation its operation did not read when it began,
-    so nothing is recovered into another flow's generation.
-  - **A refusal touches only the refused pair.** It notes the pair's id
-    (`museSpark.github.deviceFlow.refused`, no secret) and then deletes
-    the pair, while the pair is still that one. The generation stays.
-  - **A rotation replaces only the pair it began from:** that pair, or the
-    empty slot that pair's own refusal left (a duplicate refresh that
-    lost to this one; the note names it). Over another pair it writes
-    nothing and uses that pair; into a slot that another pair's refusal
-    emptied it writes nothing. A sign-in is the user's own approval and
-    is stored in its generation whatever the slot holds.
-
-  | Transition | When                                                     | What it does (in order)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-  | ---------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | Read       | a call begins; `auth github status`                      | read the pair, then the generation: that read is the operation's generation; the pair counts only if it names it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-  | Sign in    | `ask` with nothing usable                                | read the generation (the sign-in's); run the device flow; Publish                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-  | Refresh    | a Read's pair expires within a minute                    | GitHub rotates both tokens: Publish the rotation. GitHub refuses (`bad_refresh_token`), or the refresh token is past its expiry: Refuse, then use a stored pair only if it names the Read's generation and is fresh (another window's rotation). Any other failure: the Read's pair serves while its access token lasts                                                                                                                                                                                                                                                                                   |
-  | Publish    | a sign-in or rotation completes                          | queued. (1) A rotation reads the pair; then read the generation: not the operation's means nothing, and no write. (2) A rotation only: its own start pair goes on; an empty slot goes on only if the note names that pair, else nothing; another pair means no write, and that pair if it names the generation. (3) Store the new pair (a new id, the operation's generation). (4) Read the pair, then the generation: moved (a Sign out in another process between 1 and 3) means take the write back if it is still there, and nothing; else the stored pair, or the pair another window stored over it |
-  | Refuse     | a 401 for the stored token; a refused or expired refresh | queued: only while the pair is still the refused one, write the note (its id), then delete the pair. The generation is never written                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-  | Sign out   | `auth github logout`; the panel's Sign out (lane U)      | queued: write a fresh generation (one write), then delete the pair; this source's Sign-out count moves once that write has returned or failed. Then open the app's page                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-  | Serve      | `credential()` returns                                   | read the generation under the caller's signal; a bearer only if its pair names it, this source's Sign-out count has not moved since the operation began, and the caller is still waiting. No await follows the check                                                                                                                                                                                                                                                                                                                                                                                      |
-  - **Joining.** In one source, a caller joins a running Read or sign-in
-    only if this source's Sign-out count has not moved since it began;
-    otherwise it starts its own, under the new generation.
-  - **Invariant.** Once Sign out's generation write has landed, a pair
-    stored by an operation that read an earlier generation is readable
-    by no one, in any window or process; no such operation stores its
-    pair (Publish's step 1 refuses it, and one already past that step in
-    another process stores a pair nobody can read and takes it back at
-    step 4); and Serve hands out none of its bearers. A crash at any
-    point of Sign out: before the write lands, nothing changed and Sign
-    out did not happen; after it, all of the above holds, and the earlier
-    pair, still stored but unreadable, is overwritten by the next sign-in
-    or deleted by the next Sign out. In one source the Sign-out count
-    makes it hold for a Serve whose last read was answered before the
-    write too: once its Sign out has returned, nothing begun before it is
-    served.
-  - **Overlap (not closable over this store).** In another process, a
-    Serve whose last generation read the store answered before the Sign
-    out's write may return its bearer after that Sign out has returned:
-    its check came first. A store with no notification or lock cannot
-    close it.
-  - **Residual windows (another process; two store calls; the store has
-    no compare-and-swap).** Each loses a pair (that process signs in
-    again); none serves a pair issued before a Sign out. (1) Publish's
-    checks and its write: a pair another process stores between them is
-    overwritten (after a Sign out, by a pair nobody can read, which step 4
-    takes back). (2) A take-back's compare and its delete, (3) Refuse's
-    compare and its delete, and (4) Sign out's write and its delete: a
-    pair another process stores between them is deleted. (5) A crash
-    between a write and its take-back leaves an unreadable pair until the
-    next sign-in or Sign out. (6) A refresh whose last caller cancels
-    after GitHub rotated the pair loses the rotation.
-  - **Changed from the rounds before.** The sign-out count
-    (`museSpark.github.deviceFlow.signOutEpoch`) and the recovery are
-    gone. A sign-in that completes after another window's refusal is now
-    stored in its own generation (before, it was discarded): a refusal
-    says nothing about a grant the user approved separately, and only
-    Sign out is the user's word to stop.
+Reviews RVM123A3 (two P2 on m123/a4, Mac mini: a refusal-first loser keeps the
+winner's rotation under the current generation via the sign-out count, and the
+final Serve read races the caller's signal with the CLI reporting Cancelled)
+and RVM123A4 (one logout barrier on m123/a5, Windows host: the generation is
+written by Sign out only in one store write, each operation reads it once when
+it begins, a refusal touches only the refused pair, a rotation replaces only
+the pair it began from, with the full transition table, the joining rule and
+the generation invariant; the sign-out count and the recovery are gone since
+RVM123A4) stand in docs/certification/m123.md sections Lane A fixes II and
+Lane A redesign II. The overlap is not closable over this store: in another
+process, a Serve whose last generation read the store answered before Sign
+out's write may return its bearer after that Sign out has returned, because
+its check came first, and a store with no notification or lock cannot close
+it. The residual windows (another process, two store calls, no
+compare-and-swap) each lose a pair while none serves a pair issued before a
+Sign out: Publish's checks versus its write, a take-back's compare versus its
+delete, Refuse's compare versus its delete, Sign out's write versus its
+delete, a crash between a write and its take-back, and a refresh whose last
+caller cancels after GitHub rotated the pair. Full record:
+[docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 - **Goal.** F36 (M71's Git and pull request features) works in every editor
   in M104's matrix. That means the same forms, drafts, confirmations, links,
@@ -35458,88 +35200,57 @@ the repository's age policy and all other dependency filters stay unchanged.
 
 ### M95 K repair residuals (2026-10-05)
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
-
-- **K-contract:** lane M supplies the shared Models schema; lane U supplies
-  chat `setupComplete`. K tests use M's exact temporary source dependency,
-  which is not committed. M must adopt strict `providers/edit` and scoped
-  prefill variants. Follow-up: certify the final composed protocol/editor flow.
-
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
-
-- **K-release-base merge:** local `origin/main` at `a95f24cf` conflicts in
-  release/build files, every manifest translation, extension and constants.
-  Merge was aborted; lead must reconcile the release base on integration.
-  This preserves the lane and both sides' behavior rather than choosing a
-  side wholesale. Full certification stays open.
-
-- **K-hook verification:** ignored Husky wrapper was missing; an early
-  commit proceeded despite lint errors. `npm run prepare` regenerated the
-  local `sh -e` wrapper with the same configured hook path. No bypass was
-  used. Require the closing commit's positive lint/Gitleaks receipt.
-
-- **K-final-runtime:** live setup/OAuth/discovery, unsaved-draft scan
-  cancellation, four themes, pseudo-locale and 320px remain integration gates.
-  Focused host tests do not certify those surfaces. Final evidence and merge
-  status are recorded in `docs/certification/m95-k.md`.
-
-- **M95MU-HOST-API-RECORD (2026-10-05, integration prerequisite).** The
-  composed M/U tree's host API record still describes 30 commands rather
-  than the 33 from lane 0 and names only the chat stylesheet. Its gate
-  reports those two documentation differences; the 271 API names and 59
-  theme variables are unchanged. This lane adds no VS Code API. Safe while
-  unmerged: this is generated documentation, not a runtime policy change.
-  Lane W / the lead must regenerate and review it on the fully integrated
-  tree, where lane K also contributes APIs. The full quality gate remains
-  required before integration is proposed.
-
-- **M95-H bundle registration (FIXM95H, 2026-10-05).** All seven RVM95RH
-  codec/test findings are fixed; none is deferred. The independent Chat
-  lane still lacks its entry in `scripts/check-bundle-split.mjs`, owned by
-  lane W. Safe for this unintegrated branch because the codec is not yet
-  imported by a shipped entrypoint, and the unchanged split gate refuses
-  the build. Follow-up: lane W registers Chat, lane I supplies its caller's
-  vision capability and tools-retaining compaction body, then the lead runs
-  full integrated quality/live acceptance. No product-support claim here.
-
-- **M95 Ollama review repair (FIXM95O, 2026-10-05).** Rebuild the native
-  codec against nine counted local Ollama 0.35.1 receipts before changing
-  its parser: native tool index/id matching, caller-supplied session-unique
-  response identities, model-bound reasoning, bounded frames/arguments/items/
-  total streams, terminal-line closure, five byte goldens and translated
-  codec errors. No dependency, model pull, cloud call or paid call. Proof and
-  any remaining acceptance limits live in `docs/certification/m95-o.md`.
-  **O-INTEGRATION** remains an integration acceptance limit: the codec is
-  currently imported only by its owned test, so these changes cannot affect
-  existing Meta turns. Follow-up: lane T/I must inject a stable, session-unique
-  response ID, wire the lazy codec bundle, and the lead must prove the complete
-  provider turn/reload/resume flow and full quality on the final joined tree.
-  No Ollama review finding is intentionally deferred.
-  **O-SPLIT**: the existing split gate rejects the dormant codec as on neither
-  membership list. Safe for current Meta turns because it is not imported;
-  follow-up: lane W must enforce the planned separate codec bundle, without
-  exemptions or weakened guards. **O-HOST-API**: the inherited M95 manifest
-  has 34 commands while the generated host record has 31. Safe only as an
-  unmerged scaffold; follow-up: lane W regenerates/reviews the record before
-  milestone certification. Both are observed gate failures, not green gates.
-
-- **Open documentation residual RVM95SC-R-host-api-record (2026-10-05).**
-  The required merges leave five generated Node-import counts stale. The
-  source/API membership is unchanged by the owned fixes, and actual counts
-  are retained in the failed gate receipt, so this does not weaken a runtime
-  boundary. The host API gate remains red and aggregate certification stays
-  open. Lane W/lead must regenerate, inspect and recheck the record; its path
-  is outside FIXM95SC's file scope. Exact count deltas are in §7.
-
-- **Open integration item RVM95SC-R-shell-env (2026-10-05).** The extension's
-  inherited shell environment still forwards the user's `HF_TOKEN`,
-  `ANTHROPIC_AUTH_TOKEN` and `AWS_BEARER_TOKEN_BEDROCK`; hooks and ACP strip
-  them. This predates M95-S's changes and is outside FIXM95SC's authorized
-  redactor/test files. Stored keys are not injected by this lane, but that
-  fact does not certify shell isolation. Lane I/X/W must decide intended
-  inheritance versus stripping and test the shell boundary before broader
-  provider security certification. This is an open gate, not newly accepted
-  risk; see `docs/certification/m95-s.md`.
+K22 proved the activation size (608,089 bytes against 605,188 at ad916bc,
+growth 2,901 under the 3,072 cap, closed by fixing misplaced K15 recovery
+callbacks; all total bundle caps pass); full composed certification still
+belongs to the lead. K-contract: lane M supplies the shared Models schema and
+lane U supplies chat setupComplete, while K tests use M's exact temporary
+source dependency which is not committed; M must adopt strict providers/edit
+and scoped prefill variants, with the follow-up to certify the final composed
+protocol/editor flow. K-recovery (superseded by PROVWIZ9 on 2026-10-09):
+same-host snapshot comparisons remain, cross-window provider/key serialization
+awaits PROVSTORE-LOCKLIB after M123, and shared-store crash atomicity remains
+follow-up. The K-release-base merge was aborted (local origin/main at a95f24cf
+conflicts in release/build files, every manifest translation, extension and
+constants); the lead must reconcile the release base on integration,
+preserving the lane and both sides' behavior, and full certification stays
+open. K-hook verification regenerated the local sh -e Husky wrapper with the
+same configured hook path and no bypass was used; it requires the closing
+commit's positive lint/Gitleaks receipt. K-final-runtime leaves live
+setup/OAuth/discovery, unsaved-draft scan cancellation, four themes,
+pseudo-locale and 320px as integration gates, with final evidence and merge
+status in docs/certification/m95-k.md. M95MU-HOST-API-RECORD (integration
+prerequisite): the composed M/U tree's host API record still describes 30
+commands rather than the 33 from lane 0 and names only the chat stylesheet,
+with the 271 API names and 59 theme variables unchanged; lane W and the lead
+must regenerate and review it on the fully integrated tree where lane K also
+contributes APIs, and the full quality gate remains required before
+integration is proposed. M95-H fixed all seven RVM95RH codec/test findings
+with none deferred; follow-up: lane W registers Chat, lane I supplies its
+caller's vision capability and tools-retaining compaction body, then the lead
+runs full integrated quality and live acceptance. FIXM95O rebuilt the native
+Ollama codec against nine counted local Ollama 0.35.1 receipts with no
+dependency, model pull, cloud call or paid call (proof and any remaining
+acceptance limits in docs/certification/m95-o.md); O-INTEGRATION remains an
+integration acceptance limit since the codec is currently imported only by its
+owned test, with the follow-up that lane T/I inject a stable, session-unique
+response ID and wire the lazy codec bundle while the lead proves the complete
+provider turn/reload/resume flow and full quality on the final joined tree;
+O-SPLIT follow-up is lane W enforcing the planned separate codec bundle
+without exemptions or weakened guards; O-HOST-API follow-up is lane W
+regenerating and reviewing the record before milestone certification; both are
+observed gate failures, not green gates. The RVM95SC-R-host-api-record
+documentation residual leaves the host API gate red (five stale generated
+Node-import counts, source/API membership unchanged, actual counts retained in
+the failed gate receipt); aggregate certification stays open and lane W with
+the lead must regenerate, inspect and recheck the record. The
+RVM95SC-R-shell-env integration item is an open gate, not newly accepted risk:
+the inherited shell environment still forwards the user's HF_TOKEN,
+ANTHROPIC_AUTH_TOKEN and AWS_BEARER_TOKEN_BEDROCK while hooks and ACP strip
+them; lane I/X/W must decide intended inheritance versus stripping and test
+the shell boundary before broader provider security certification (see
+docs/certification/m95-s.md). Full record:
+[docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
@@ -36598,7 +36309,14 @@ No new escape hatch is introduced.
   refuse packaging and runtime allocation. Existing caps stay unchanged;
   no binary placeholder substitutes for an unbuilt architecture.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM118INT / RVM118INT (closed, 2026-10-06).** All five reviewed P2s
+  are fixed: sharing writers bind the canonical confinement result for target
+  and identity; prompt cancellation fences in-flight Save dialogs and atomic
+  admissions; terminal variables use the same single-pass resolver; activation
+  observes machine sync consent before first use; shared action errors become
+  visible conversation notices. Regression tests and valid red drills cover
+  each. No P1/P2/P3 review residual is left; existing M118 editor/CI dependencies
+  below remain unclaimed. No new dependency, wire shape or paid/live call.
 
 **M107-W-production-bindings (2026-10-06).** W scope does not authorize
 editing A/C1/U/H/J production code to invent joins. U–C1 must supply the
@@ -36623,9 +36341,21 @@ in `docs/certification/m107.md`.
   `docs/ide-compatibility/hosts.md`. Hosted full quality and online badge-image
   verification remain release requirements. No installed-editor parity is implied.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+**M107-W-DK4-review-block (resolved in W continuation, 2026-10-06).**
+The explicitly authorized no-fast-forward merge of final DK `bf84f179c`
+supersedes the requested `54194ed2f` snapshot. Preserve T3's `48e3b63c1`
+repairs and qualify no-replace renames, immediate held/name identity checks
+and native birth-time creation checks with the complete owning suites.
+The final empty-directory-name window is documented separately below;
+manifest-artifact growth/recovery and native delivery/platform receipts remain
+named qualifications, not clearance of production disk cleanup.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM118C / RVM118C.** All four reviewed P2 findings are fixed: colon-path
+  privacy, non-path text preservation, displayed outcome/citation completeness
+  and late confirmation lifecycle. No P1/P2/P3 from that review is deferred.
+  Existing C/W/X wiring and editor certification handoffs remain as named in
+  `docs/certification/m118-c.md`; the unknown-secret-shape preview limitation
+  and explicitly selected scrubbed attachment policy are unchanged.
 
 **M107-W-T3-empty-removal-window (2026-10-06).** The cgroup and its parent
 are pinned, final removal resolves the leaf through the parent descriptor,
@@ -36636,7 +36366,13 @@ substitutes are refused and no recursive file content is removed. Keep this
 bounded residual until a kernel identity-bound removal primitive is available.
 The harness-placement dispatch and PID/tick assumptions below remain unchanged.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM118P-P3-BUDGET / FIXM118P-ROW-SAVE (closed by M118INT).**
+  The library/search closure is classified in the existing 25 KiB action-dialog
+  group; history's new Save action stays within the original 50 KiB group.
+  Credential, policy, chat and sync adapters are in `dist/prompts.js` behind raw
+  activation ports. App binds exact own-message text and history's native picker;
+  row actions are retained. Final measurements and tests are in
+  `docs/certification/m118.md`; installed native-editor parity still waits on M104.
 
 - **M107-J-M102-history-binding (FIXM107J, 2026-10-06).** RVM107J's
   review findings are repaired, with scoped receipts in J's certification.
@@ -37124,13 +36860,42 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   history's `needsUser` error, and bind override authority to the user's actual
   decision. These planned integrations remain outside P's certification.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M116-U review repair (RVM116U2).** The second review's one P2 is fixed:
+  changed durable fields reconcile before enabled controls render, including
+  the round-limit selector after a rule save. No review residual is retained;
+  regression tests and byte-exact red-drill evidence are in
+  `docs/certification/m116-u.md`. Existing P/I/W integration handoffs below
+  remain open; no gate, budget or safety guard was widened.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M116-U review repair (RVM116U).** All three P2 findings are fixed; none
+  is retained as a review residual. Shared bridges require a caller-supplied
+  workspace id and host replies echoing the bridge/workspace correlation
+  fields. The same shared React changes serve VS Code, native hosts and the
+  companion; shared formatting serves CLI/ACP. P/I's authenticated durable
+  bindings and W's bundle/harness/docs/help registration remain the previously
+  named integration handoffs in `docs/certification/m116-u.md`. This base has
+  no feature catalogue or reference generator; W registers the integrated
+  surfaces when those files join. U introduces no released-support claim.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M116-L0 enforcement handoff (RVM116L0).** All six lane-0 review findings
+  are fixed in the contracts/fixtures; none is deferred as a residual.
+  Actual stable-id allocation/recovery, lineage counter inheritance,
+  struck-module overlap refusal, trusted registry identity admission and
+  severity/disposition policy belong to P and their adapter binding to I.
+  Safe for this lane: it supplies no running planner or enforcement claim.
+  Follow-up: P/I prove these invariants with real policy tests and restart
+  tests before W certifies the integrated milestone. Existing M104/help and
+  full-editor/full-quality handoffs remain in `m116-contracts.md`.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM115S review scope.** All six RVM115S2 P2 findings are fixed; none
+  is deferred. Core/runtime tests do not certify U/D's durable target ledger
+  or W's shipping editor bindings and full platform quality matrix. Blocked
+  recovery diagnostics are instance-local while intents remain durable;
+  U/D/W bind the status to existing surfaces. Native lease token records and
+  generation epochs retain small, prompt-free metadata linear in acquisitions
+  and compactions. The memory benchmark excludes native lease metadata and
+  filesystem allocation/locked retirement debt. These scope limits and the
+  corrected default-deadline evidence are in `docs/certification/m115-s.md`.
 
 - **FIXM115U7-PURE-HELPERS (named residual).** Recording factories accept
   only two fixed module-level named functions with one reader parameter;
@@ -37152,9 +36917,39 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   typing if the project later adopts it. No static purity guarantee is claimed.
   P2-2/P2-3 are fixed, with no lifecycle residual.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM115U6 review repair.** All three RVM115U5 P1s are fixed; that
+  report contains no P2/P3. No review residual is accepted. A derivation
+  receives only the input hashes of a closed recording scope; callers cannot
+  supply a completeness assertion. Cached Git facts include all raw metadata
+  and configuration-query reads, and undelivered Git material refuses because
+  `.git` is protected. Directory receipts cover their actual canonical member
+  paths; empty collections contain no repository text. Automatic scheduled
+  verification returns an explicit refusal before editor diagnostics/checks:
+  the editor port cannot inventory transitive language-server dependencies.
+  Follow-up is a dependency-complete guarded editor port, not a guessed edited-
+  file recipe. Interactive verification retains its behavior. Source identity
+  failures preserve ordinary read results but leave scopes uncertified.
+  Pending native commands survive idle until their own acknowledgement/failure;
+  monotonic evidence settles only earlier observed turns. Shared core/runtime
+  ports retain all editor handoffs. Default-timeout, byte-exact restored drills
+  and bounded final gates are in `docs/certification/m115-u.md`; W/lead owns
+  aggregate quality and unrun integrations. No dependency, paid/live request,
+  external wire shape, merge, push or rebase is added.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM115U5 review repair.** RVM115U4's P1 and all five P2 findings
+  are fixed; no review residual is accepted. Derived recipes explicitly
+  certify every input hash, including cached maps and compaction instructions.
+  Missing sources stay opaque; omitted reviewer material and truncated
+  rule/index bytes cannot acquire full delivery evidence. Mode effects clear
+  only their own tagged record. Undispatched/idle native admissions and local
+  withdrawn, stopped or failed steers release; ambiguous native dispatch still
+  quarantines until terminal/idle proof. Refused queued fires settle with their
+  admission reason and advance. Each run pins its canonical root and never
+  resolves a captured source alias again. The shared core ports retain all
+  editor/runtime handoffs. Eighteen default-timeout, byte-exact restored drills
+  are recorded in `docs/certification/fixm115-u5-drills.json`; bounded final
+  verification is recorded in `docs/certification/m115-u.md`. W/lead owns
+  aggregate quality; no guard, budget, dependency or external wire changes.
 
 - **FIXM115U2 review repair.** All four RVM115U2 P1s and its P2 are repaired;
   none is accepted as residual. Child tasks inside a fire are refused at the
@@ -37198,14 +36993,28 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   this base; those implementing lanes must certify the bound behavior before
   release. Evidence is in `docs/certification/m115-d.md`.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM115E-SharedStoreBinding.** All three RVM115E P2 findings are fixed;
+  none is deferred. E's open/join/consume logic uses an injected atomic shared
+  transaction, with a window-plus-lease takeover and separate imported legacy
+  receipts. S/W still own durable cross-process locking, persisted-state
+  validation, a clock comparable across hosts, awaited drain/discard and the
+  final schedule-authority check for every editor/runtime. Safe for now: E is
+  unregistered/unshipped. Follow-up: real multi-process and crash/reopen receipts
+  before shipping; `docs/certification/m115-e.md` records fake-only proofs.
 
 - **FIXM115E-PostConsumeDelivery.** A crash after atomic burst consumption and
   before delivery may lose the fire. Permanent member receipts prevent replay
   and duplicate actions/charges. S/W own the delivery/settlement handoff and
   catch-up/missed-fire policy; no replay of a consumed member is permitted.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM115E-LegacyIdentityAmbiguity.** An old unprefixed digest receipt
+  cannot identify whether its raw input was an account key or that digest.
+  Migration conservatively rejects both candidates, as its regression proves;
+  new `evk1:` receipts do not overlap. Safe for now: legacy event receipts were
+  internal/unshipped, and refusal prevents duplicate actions/charges. S/W may
+  normalize imported receipts only with a proven historical raw-key mapping;
+  otherwise retain the replay fence. A format redesign cannot recover absent
+  raw identity information, so no replay guard is weakened to guess it.
 
 - **FIXM115E-HostApiRecord.** The inherited inventory omits E's Git `execFile`
   entry; this repair adds no VS Code API or shipping binding; the engine's
@@ -37225,7 +37034,21 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   integrated tree. Fake-backed lane tests certify the admission arithmetic,
   not deployed ledger durability. Receipts: `docs/certification/m115-g.md`.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM115V bindings (unshipped).** RVM115V's ten P2s and P3 are repaired
+  in V's owned React/channel regions; no review finding is intentionally
+  deferred. W/S must publish validated `scheduleChanged` messages with the
+  durable workspace store revision after every write from any editor,
+  scheduler or runtime, including external-process writes, and bind the
+  channel's `subscribeChanges` into the surface. W also supplies target
+  titles/current conversation identity to transcript settlement details.
+  Until a title is supplied, the renderer says Named conversation plus its
+  id; it never falsely says This conversation. **HELPREF-M115V:** this base
+  lacks the feature catalogue/reference generator. Safe for now: these
+  repaired standalone components do not enable any unregistered command or
+  shipped v2 schedule. Follow-up: W merges HELPREF and registers the page,
+  its commands and corrected help with the existing integration bindings.
+  Aggregate quality/platform/live proof stays with W/lead; no paid or live
+  call is authorized here. Receipts: `docs/certification/m115-v.md`.
 
 - **FIXM115X5 review repair supersedes REDM115X's search/task/retirement claims.**
   Both RVM115X4 P1 findings and its P2 are fixed without deferral. Registration
@@ -37335,9 +37158,19 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   and `docs/certification/m115-0.md`. No new authority or shipping feature is
   enabled by this repair.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
+  `src/shared/featureCatalog.ts` or reference generator. The existing setting
+  and its full security contract are in README, D89.5, the manifest and all
+  translations, so the repair introduces no undocumented command or option.
+  Follow-up: add the setting to HELPREF's catalogue when that lane joins the
+  release. RVENVFENCE's two P1 findings are fixed; no review finding is deferred.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM102J / RVM102J (2026-10-05):** all four P2 findings are repaired;
+  no assigned finding remains. Generation-checked snapshots, complete-handle
+  rollup reads with fsync/atomic publication, owner-token release markers and
+  partial priced usage have regressions and byte-exact red drills in
+  `docs/certification/m102-j.md`. These shared fixes reach every consumer of
+  the journal; combined editor wiring and full quality remain lead/W work.
 
 - **FIXM102J-L10N-COMPOSITION:** the unchanged localization gate fails for
   fourteen missing `l10n/usage.<locale>.json` files and three unregistered
@@ -37351,7 +37184,9 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   review `docs/ide-compatibility/host-api.md` on the composed tree and pass the
   gate before release; the repair does not touch that W-owned file.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM102E / RVM102E (2026-10-05):** both assigned P2 findings are repaired
+  with SDK/process regressions and seven restored red drills in
+  `docs/certification/m102-e.md`; no assigned review finding is deferred.
 
 - **M102E-NATIVE-DIALOG-TRANSPORT (carried integration limit):** the bare
   `usage serve --stdio` route cannot supply native chooser/confirmation ports
@@ -37757,7 +37592,16 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   descriptor-relative filesystem primitives; never weaken containment.
   Full `npm run quality` remains the lead's gate as the rig brief requires.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M96 U2, RVM96B corrections (2026-10-05).** Findings 13–23 are fixed;
+  no finding in this lane is deferred. Older merge rows without affected
+  files or protected-path details remain readable but cannot approve a
+  merge. Lanes T/A/W must fill the new internal UI fields and send
+  `clearTeamTree` when the team is removed. Shared Zod schemas and the
+  synchronous reducer stay in the initial browser graph to validate every
+  message; TeamTree and TeamCards do not. The aggregate 900 KiB cap and
+  nonce-only script policy remain enforced. This pass certifies UI and
+  internal protocol behavior with fakes, not model calls or host-side
+  merge enforcement (`docs/certification/m96-u2.md`).
 
 - **FIXM96A2 A2-U01 — live entry-cap integration prerequisite.**
   `checkAndReserve` captures `request.caps`; only budgets refresh directly.
@@ -37802,7 +37646,11 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   provider security certification. This is an open gate, not newly accepted
   risk; see `docs/certification/m95-s.md`.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXVSIX2 / RVMVSIX2 (resolved).** P1's native-import export loss and P2's
+  checkout-dist test prerequisite are fixed and drilled. No P2/P3 review
+  residual remains. The existing integrated-release quality/platform checks
+  remain with the lead under this rig's explicit scoped-gate rule (§7); this
+  local repair does not claim installed-editor or cross-platform certification.
 
 - **FIXM106W audit outcome (2026-10-06).** All four RVM106W P2 findings and
   both P3 findings are fixed; none is deferred. Compaction owns its format even
@@ -37855,11 +37703,46 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   The lead retains integrated quality and real host/release certification.
   Tests, exact-restoration drills and rig receipts: docs/certification/diet1.md.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM117C review outcome.** RVM117C's sole P2 is fixed, with no review
+  finding deferred. Exclusive cross-basis lane claims prevent concurrent
+  identity conflicts; legacy identity conflicts and unknown/mixed basis records
+  are retained, skipped individually and reported by opaque ID/fixed code.
+  Other published corruption still fails closed. W must expose the journal's
+  `skippedRecords` diagnostics and include `.identity` claims in its storage
+  retention/deletion policy. Failed publication can retain a complete identity
+  claim without a sample; a same-identity retry is safe. The existing
+  `M117-W-host-api-record` generated-import-count refresh and aggregate quality
+  remain lead-owned handoffs, not accepted review findings. Evidence:
+  `docs/certification/m117-c-calibration.md`.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM117I retained P3 duration evidence (finding 17): closed by FIXM117I2.**
+  DAG nodes and the sampled-duration map carry `EstimateDurationEvidence`
+  (unit, source, basis, samples); plan defaults are assumption/0, an
+  assumption with samples is refused, and a date claims calibration only when
+  its trial's samples are calibrated (RVF117I2, 2026-10-07). Nothing deferred.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM117S review outcome (2026-10-06).** All four RVM117S P2s are
+  fixed; no review finding is deferred. Account-count search is exact up to
+  the existing 512-allocation bound; larger products use a deterministic
+  greedy fallback, explicitly qualified on selected lanes, or report
+  `account-selection-limit` if it cannot establish placement. This remains
+  list scheduling, with no optimality claim. Unknown required disk headroom
+  qualifies only selected lanes; it never certifies capacity. Unused disk
+  volumes and unreachable account quotas do not invalidate the forecast.
+  Upper-bound co-fit proofs and per-run reservation/window state retain hard
+  measured constraints. Forty-lane chain, independent and fan-out benchmarks
+  cover the unchanged two-second operation bound and all 2,000 trials with
+  paired bottleneck comparisons. Mac mini scoped receipts and byte-exact
+  drills are in `docs/certification/m117-s-schedule-and-simulation.md`.
+  **M117-S-cross-rig-and-W-bindings** remains an integration handoff: the
+  lead must run aggregate quality and benchmarks on other rigs, wire C's
+  evidence and U/W's disclosures/all-editor surfaces, and measure W's shipped
+  lazy chunk. S has no shipped entry on this base, so these library receipts
+  make no product-support or absent-bundle claim.
+  An unchanged shared-rig run exceeded the timing bound (2.28–2.55 seconds),
+  followed by a standalone pass and a complete unchanged 70/70 green run;
+  the certificate retains all samples without claiming calibrated timing or
+  its cause. The named handoff includes aggregate/cross-rig performance acceptance.
 
 - **M117-P provisioning bindings (partial).** Slice 1 implements the
   five-operation connected-provider adapter and audited first-wave owner.
@@ -37879,15 +37762,64 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   W retains product docs/reference, aggregate quality and the existing
   C-owned generated host-API import-count refresh.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM117R review outcome.** All three RVM117R P2 findings are fixed with
+  exact-money and existing-fleet regressions and eleven deliberate failures
+  followed by byte-exact restoration; no finding is deferred. R's existing
+  S/C, real fleet/catalog, U disclosure
+  and W shipping/product-doc bindings remain explicit in
+  `docs/certification/m117-r-recommendations.md`. This lane makes no live,
+  paid or public-network call and introduces no reachable product surface.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM117L0 contract review.** All six RVM117L0 findings are fixed
+  before the lane-0 freeze, with regression tests and byte-exact red drills;
+  no finding is accepted as a residual. Missing real
+  M103/M104 estimates and the existing M113/M104/fleet/history/surface bindings
+  remain the named integration handoffs in `docs/certification/m117-contracts.md`.
+  Unknown quotas, resources and review data never imply unlimited capacity or
+  zero demand. The lead owns aggregate quality and cross-rig certification.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM117U review outcome (2026-10-06).** Both RVM117U P2s are fixed, with
+  no deferred finding and no named residual. A lane completion received
+  before the first estimate result is treated as relevant and refreshes at
+  its timestamp; the superseded calculation's late result falls to the
+  generation check, keeping one serialized owner of the session. A replaced
+  panel adapter drops the previous request, forecast and activity in the old
+  subscription's cleanup, and a provisioning cycle tag keeps a late failure
+  off the new adapter, so no late update lands on it. Four regression tests
+  and three byte-exact red drills (U40–U42); receipts in
+  `docs/certification/m117-u-surfaces.md`. No new dependency, localization
+  key, gate change or shipped-bundle delta; the known W-owned host-API
+  record gap is unchanged.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-P-review-RVM113P (2026-10-06).** All seven P2 and both P3
+  findings are fixed; no review residual remains. Decoded strings are scrubbed,
+  all indented lane tables and delimiter widths are checked, dependencies
+  retain working/case/lane ids and malformed Needs stay blocked, branch/PR
+  evidence pairs exactly or reports ambiguity, owner decision text is retained
+  as answered, and every ledger reference is validated. A 4 MiB UTF-8 bound,
+  bounded gate reads, one heading index, duplicate-id sets, a single scan of
+  folded statuses and indexed ledger evidence replace unbounded/quadratic
+  parsing. Default-timeout regressions, 23 byte-exact red
+  drills and the real-plan zero-false-drift receipt are recorded in
+  `docs/certification/m113-p-the-plan-reader-and-check-plan.md`.
+  Aggregate quality, integrated surface/docs/reference wiring and the seven
+  unchanged unused Reports manifest keys remain the lead/W handoff already
+  recorded there, rather than a claim that all of M113 ships.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-K-review-RVM113K (2026-10-06).** All seven P2 collector findings
+  are fixed, with no review residuals. Facts retain provenance; missing or
+  partial evidence cannot prove absence. Regression tests and twelve
+  byte-exact deliberate-break receipts are recorded in
+  `docs/certification/m113-k-kinds.md`. K's new required `changeBranches`
+  selector receives bounded, merge-base-aware lane membership before the
+  pure collector runs; it never guesses from tips or dates. S/W binds it
+  with historical fork evidence for merged lanes (M113-K-branch-membership).
+  This is safe until integration because current shipped entries do not
+  import the collectors and their factory requires this evidence port.
+  Existing M113-K-localization-manifest (seven unused report keys) and
+  M113-K-host-api-record (node:crypto 46 → 47) remain W's gate handoffs;
+  W wires the manifest and regenerates the inventory before full quality.
+  No threshold, ignore, dependency, wire shape or startup budget is changed.
 
 - **M113-Q-review-RVM113Q (2026-10-06).** All eight findings are fixed;
   no review residual is deferred. Saving requires a serialized canonical-root
@@ -37905,7 +37837,14 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   orphan-on-manifest-failure limit, shape-only scrub and W integration/shipping
   handoffs remain, without any expanded guard or support claim.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-R-review-RVM113R2 (2026-10-06).** The single P2 is fixed;
+  no review finding is deferred. Known workspace paths consume the full
+  relative suffix, including spaces, through quotes, field ends or invalid
+  path characters, and normalize all separators before the shared scrub.
+  Ordinary, doubled and mixed Windows separators yield identical documents
+  and hashes. Text/JSON/HTML boundaries, saved-JSON round trips, outside
+  paths and three byte-exact red drills are recorded in the lane R
+  certification and `docs/certification/m113-r-review-drills.json`.
 
 - **M113-R-shape-only-source-prose (existing D93 limit, clarified by
   RVM113R2, 2026-10-06).** The scrub recognizes registered shapes after
@@ -37917,13 +37856,60 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   absence of arbitrary secrets in source prose. Follow-up: the shared-export
   scrub owner must design bounded decoding if that contract expands.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-R-review-RVM113R (2026-10-06).** The P1, both P2 findings and P3
+  are fixed with no review residuals. Report strings and object keys are
+  scrubbed as structured values, then serialized and hashed; saved input is
+  re-walked after decoding. Only `/header/contentHash` is exempt. Known
+  workspace paths retain normalized relative filenames, with Windows
+  case-insensitive root matching; paths outside the workspace remain
+  redacted. Terminal width uses a generated Unicode 16.0.0 W/F table and
+  emoji properties, preserving graphemes. Default-timeout tests and five
+  byte-exact red drills are recorded in
+  `docs/certification/m113-r-renderers,-redaction,-determinism.md` and
+  `docs/certification/m113-r-review-drills.json`. The existing shape-only
+  scrub limit and W's shipping, product-doc and integration-gate handoffs
+  remain; this lane adds no secret-free-prose claim or shipped command.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-V-review-RVM113V (2026-10-06).** All three P2s and the P3 are
+  fixed; no finding is deferred. Report iframe styles use the production
+  shell's nonce, with the empty sandbox and parent CSP preserved. Diff
+  re-scrubbing walks decoded strings and keys through R's `scrubFields`
+  helper; the only change to R's file is exporting its existing helper,
+  matching R's reviewed correction. Picker work has busy admission,
+  original-panel checks and canceled editor dialogs. The Usage report
+  button lives in the lazy reporting surface, supplied through
+  `UsageDialog.reportAction`; W must bind that slot through its reporting
+  lazy boundary and register the reporting chunks' measured budgets.
+  Existing W build/catalogue/manifest/inventory and X/editor handoffs stay
+  open as named in `docs/certification/m113-v-vs-code-surfaces.md`; this
+  lane does not claim shipping integration or editor parity. Scoped gates
+  and byte-exact failure drills are recorded there.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-X-review-RVM113X (2026-10-06).** All four P2 findings are fixed;
+  there were no P1/P3 findings and no review finding is deferred. CRLF/lone-CR
+  and Unicode-whitespace report commands stay local; revoked/cancelled runs
+  refuse the document after history saving; explicit formats are honored or
+  refused; equal-`asOf` comparisons use the latest saved sequence. The frozen
+  history payload has no sequence field, so H's port must list newest saved
+  first and X preserves that sequence with stable timestamp sorting. Existing
+  S/K/H bindings, actual native/companion/TUI/desktop receipts, and W's
+  manifest/docs/reference/build integration remain named handoffs rather than
+  claims of shipped functionality. Evidence and exact-restoration drills:
+  `docs/certification/m113-x-the-runtime,-acp,-the-companion,-mhp.md`.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-H-review-RVM113H2 (2026-10-06).** Both P2 findings are fixed:
+  O_EXCL leases hold PID, OS birth identity and a random token. Recovery
+  renames to a unique tombstone and deletes only the observed stale token;
+  a different token is restored. Pending tombstones block admission and
+  survive recoverer crashes. Native identity is checked again after the scan,
+  so restoring a live lease cannot admit a displaced creator. Release uses
+  the same compare-and-delete path.
+  Own-process probes retry within the existing bound, cache success only and
+  permit a later transaction after failure. Controlled races preserve both
+  real journal appends; the two-writer/two-recoverer interleaving model
+  includes crashes at every writer boundary and both recovery orders.
+  Named byte-restored red drills are in H's certification. No P1/P3 was
+  reported; no review finding is deferred.
 
 - **M113-H-unknown-owner-lease (2026-10-06).** A crash during initial
   O_EXCL record creation can leave an empty or malformed lease. Its exact
@@ -37936,9 +37922,31 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   publication design. This is an availability residual, not deletion
   authority inferred from elapsed time. No guard or threshold is widened.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-H-review-RVM113H (2026-10-06).** All six P2 findings are fixed,
+  with no review residual. HEAD capture precedes the final path guard;
+  writer ownership records PID and OS process start time. The RVM113H2 entry
+  supersedes its stale/unfinished-owner recovery certification. Contention uses
+  a separate two-second monotonic wait with bounded backoff and an explicit
+  failure on exhaustion. History prunes before publishing, refuses an
+  over-cap read and retries pruning on the next write. Diff metadata and
+  ordinary cells have separate identities; check retention follows append
+  sequence across clock corrections. Tests and byte-exact red drills are in
+  `docs/certification/m113-h-history,-diff-and-the-check-run-journal-(b).md`.
+  Existing W-owned codec/surface/bundle/documentation bindings and aggregate
+  fleet gates remain integration handoffs; this lane changes no command,
+  setting, dependency, wire contract, credential policy or guard threshold.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-N-final-RVM113N4 (2026-10-06).** The sole P2 throwing-effect
+  finding is fixed; no review residuals. The shell converts synchronous
+  effect throws to generation-tagged reducer events and continues sibling
+  effects. A failed refusal in `releasing` gets a fixed `source-failed`
+  rejection while the original release proceeds once; a failed dispatch
+  retires its owned response through cancellation/refusal/release effects.
+  Stale failures cannot disturb a successor. The existing numeric rate floor
+  remains enforced, including an unrepresentable reset; no guard is widened.
+  Regression and exact-restoration drill receipts are in N's certification.
+  Existing captures/storage/wiring/lazy-bundle and W's public
+  CHANGELOG/reference/localization/host API/quality handoffs remain.
 
 - **M113-N-lifecycle-RVM113N3 (2026-10-06).** The admission reducer owns
   queued/current generations, response ownership and rate publication. Abort,
@@ -37952,19 +37960,72 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   microtask abort schedules and byte-exact drills are in N's certification;
   no new live-service, model-call or integrated-editor claim is made.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-N-review-RVM113N2 (2026-10-06).** Both P2 findings fixed;
+  no review residuals. Each host has one admission owner; its waits and
+  transport settlement race the source's existing deadline/abort signal.
+  Cancellation releases admission even when the transport never settles;
+  obsolete generations discard late responses without rate/cache updates.
+  One shared policy function checks GitHub's live sign-in requirement at
+  each dispatch; public stores retain their declared eligibility. Regression
+  and byte-exact red-drill evidence is in N's certification. Existing
+  N-captures, N-cache-storage (storage must honour cancellation),
+  N-reader-wiring (one shared reader per host with live setting/sign-in
+  getters), N-lazy-bundle and W's documentation/quality handoffs remain;
+  no live-service or integrated-editor claim is added.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-N-review-RVM113N (2026-10-06).** All four P2 findings fixed;
+  no review residuals. Responses are parsed, scrubbed as decoded structured
+  values and validated before storage; 304s validate stored output separately
+  from transforming input schemas. One per-host lock covers rate admission,
+  dispatch and response-header updates; current network policy is checked
+  immediately before every send. Regression tests and byte-exact red drills
+  are in `docs/certification/m113-n-network-sources-(b).md`. Existing
+  N-captures, N-cache-storage, N-reader-wiring and other integration handoffs
+  in that record remain with their named owners; no live-service claim is
+  added. W retains unused manifest-key wiring and host API regeneration,
+  public documentation and the lead's full integrated quality run.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
+  finding is fixed with no review residuals. Capacity is derived from the
+  actual document section schemas, including Needs you and both inputs'
+  ordinary-section union. Every section field requires a comparison entry,
+  including optional fields. Document bounds remain unchanged; boundary,
+  overflow and required/optional-field drills are recorded in
+  `docs/certification/m113-0-contracts,-strings,-fakes-(lead).md`.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M113-L0-review-RVM113L0 (2026-10-06).** All four P2 and both P3
+  contract findings fixed; no review residuals. Scoped gate evidence and
+  byte-exact red drills are in
+  `docs/certification/m113-0-contracts,-strings,-fakes-(lead).md`. Existing
+  implementation handoffs remain with P/S/K/R/N/H/X/W; no runtime feature
+  availability is claimed by these contracts.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **ENVFENCE-HELPREF (resolved in REL0142 integration, 2026-10-06).** Main's
+  credential pass-through setting joins the Help permissions feature with its
+  existing translated manifest description and an explicit typed condition for
+  interactive Model API shell commands. The reference gate rejected the merged
+  source before this relationship and condition were added. Regenerated help
+  retains the complete security contract; RVENVFENCE's two P1 findings remain
+  fixed. Receipts: `docs/certification/rel0142.md`.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXHELPREF4 audit outcome.** RVHELPREF4's P1 and both P2 findings are fixed,
+  with no deferred finding. The closed predicate vocabulary is checked over
+  the complete emitted reference rather than a list of row kinds. Existing
+  state claims, enum meanings and paid-default facts retain typed conditions;
+  Best-of-N's prerequisite is tested against production admission with a fake
+  API. This supersedes FIXHELPREF3's incomplete C06 guard claim. Arbitrary prose
+  truth still needs an owning source audit. The original bundle cap and the
+  lead's integrated quality/release boundary remain unchanged. Evidence and
+  exact-restoration drills: `docs/certification/help-reference.md`.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXHELPREF3 audit outcome.** C01–C06 and the two additional C07 prose
+  corrections have no deferred finding. The structural guard certifies typed
+  conditional descriptions and rejects generic state wording in plain catalogue
+  descriptions; it does not establish arbitrary prose truth by itself. Source
+  witnesses, regressions and twelve byte-exact red drills are recorded in
+  `docs/certification/help-reference.md`. No cap or gate was weakened. The
+  pre-existing native/companion boundary below and the lead’s integrated
+  quality gate remain outside this scoped rig certification.
 
 - **HELPREF-native-companion-integration (pre-existing boundary).** Native
   shared-webview hosts and the phone companion are planned in the IDE
@@ -38677,9 +38738,37 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   the W-owned host API record remain integration work. Current proof and limits:
   `docs/certification/m109-b.md`; the old await inventory is historical only.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM109B2 / RVM109B2 (2026-10-06).** All four review findings are fixed;
+  no P1/P2/P3 is accepted as a residual. Every request retains its registration
+  incarnation and broker generation, including the channel's provenance await.
+  Lock owns audit/cleanup tasks from their start, bounds settlement, writes
+  terminal outcomes and surfaces writer failure rather than reporting success.
+  All management mutations use the same owner and post-await validator; C must
+  invoke the supplied grant authorization callback at its exact commit boundary.
+  The authorization schema is generated and drift-checked from source.
+  B's existing unbound C/P/T/route, Windows, all-editor and W/full-quality
+  handoffs remain open. The new `B-C-save-authorization` and
+  `B-W-audit-failure` bindings are mandatory before integration; no shipped
+  support or real-platform certification is implied. Evidence and every await's
+  boundary: `docs/certification/m109-b.md` and `m109-b-round2-awaits.md`.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM109B / RVM109B (2026-10-06).** All five P1 and four P2 findings
+  are fixed; none is deferred as an accepted residual. Disclosure recipients
+  are person-only and require fresh presence; processes retain only D89.4's
+  named bound routes. The broker's queued authorization and immediate
+  invalidation barriers use a local generation in addition to the shared
+  epoch, so a failed epoch write cannot resurrect an old unlock. Deadline,
+  item expiry, live grant coverage and requester registration are rechecked
+  after awaits before caching consent or releasing bytes. Revocation wipes
+  every affected active use before termination/audit I/O, and cancellation
+  and lock audit terminal denials for approvals and unused tickets. Private
+  connection closure cancels reads and erases pending/late material; failed
+  unlocks erase temporary keys and lock opened stores. Tests and byte-exact
+  red receipts: `docs/certification/m109-b.md`. B's existing C/P/T/route,
+  Windows, all-editor, audit-contract and W/full-gate handoffs remain open;
+  this unbound lane enables no product feature and claims no new platform
+  certification. A failed shared epoch write still reports failure rather
+  than claiming the other broker versions received it.
 
 - **FIXM106T / RVM106T F1–F3 (2026-10-06, macmini):** all three P2
   findings are fixed in shared core, with independent-bundle, mixed-Chat and
@@ -38692,7 +38781,23 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   decoder. Lead must capture and count a complete strict Meta stream before
   claiming that wire receipt. No new live/paid call is authorized here.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **FIXM106O22 (2026-10-06).** Both RVM106O22 P2 findings are fixed;
+  neither is deferred. O2's shared record parser refuses own `__proto__`,
+  `constructor` and `prototype` keys at every depth before strict grammar or
+  answer validation, preserving null-prototype records. Its single confined
+  schema reader opens first, uses final-component no-follow where supported,
+  compares the held file's exact BigInt device/inode with lstat of the path's
+  realpath, enforces workspace containment, and reads only that handle.
+  Regression seams cover file/parent swaps and Windows junctions; regular-file,
+  stat-size, growth, close and outside-disclosure controls remain enforced.
+  No new P2/P3 residual is accepted. Existing O2-CLI-W, O2-FORMAT-W-M95,
+  O2-RESULT-W and O2-HELP-DOC-W ownership handoffs below remain in force.
+  Follow-up: W adopts the same record preflight in canonical readers and
+  downstream contracts and publishes the help/CHANGELOG note after its fake
+  CLI smoke and the lead's certification. Suggested note: “Headless schema
+  validation refuses reserved record keys instead of dropping them; confined
+  schema reads verify the opened file before reading.” No supported public
+  feature or Windows-native execution is inferred from the scoped seam tests.
 
 - **O2-CLI-W / O2-FORMAT-W-M95 / O2-RESULT-W / O2-HELP-DOC-W
   (FIXM106O2, 2026-10-06).** All six RVM106O2 P2 findings are fixed in O2's
@@ -38859,7 +38964,22 @@ review findings and terminal settlement-pricing failure.
   guard that cannot start fails as its source fails. Follow-up: one Win11
   VM run of a Copilot and a Cline guard, and the live check in M91's plan.
 
-- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **M91-W-knip-constants (dead-code gate). Resolved by
+  `fix/knip-constants` (`5b3f2614`, 0.14.0 batch):** `execSchema.test.ts`'s
+  `Object.entries(constants)` marked every export used, and knip's defaults
+  left namespace imports unchecked; the fix imports by name and turns on
+  knip's namespace checks, and planted value and type drills exit 1. The
+  record as found: knip 6.38.0 recorded no export
+  of `src/shared/constants.ts` at all. `--trace-export` finds none of them,
+  `WINDOWS_POWERSHELL_COMMAND_ARGS` included, while it traces
+  `ModelApiHost.ts` (461 KB) and `paid.ts`. oxc-parser reads the file with
+  0 errors and 1,099 static exports. No namespace import, `export *`,
+  dynamic import, entry or ignore names the file, and moving the three
+  `vi.mock` tests aside changes nothing. Drill W22: an unused export there
+  leaves knip at exit 0; the same export in `paid.ts` exits 1.
+
+  It was safe meanwhile: a dead constant costs bytes, not behaviour, and
+  each lane checked its constants by search, as lane 0 did.
 
 - **M91 lane P source qualifications (RVM91P3).** The adapters remain unwired
   in this lane. `blockOperation: true` on an unsupported blocking stdin is an
