@@ -46,10 +46,14 @@ refuses 'frobnicate' frobnicate
 refuses 'providers accounts' providers accounts bogus
 refuses '--provider' login --provider foo
 refuses 'standard input' auth --backend bogus set
-refuses '--effort none' exec --effort none hi
+refuses '--effort' exec --effort bogus hi
+# `none` (Thinking off) parses: the refusal lists every accepted value, so
+# it must name none (CHANGELOG 0.19.0; the parse is pinned in execArgs.test).
+node "$agent" exec --effort bogus hi 2>&1 | grep -Fq '|none)' || fail 'accepted efforts name none'
+echo 'ok   the accepted efforts name none'
 refuses '--timeout' exec --timeout abc hi
 refuses '--range' usage --range bogus
-refuses 'developer' developer --help
+refuses 'developer' developer bogus
 prints_help() {
   code=0
   out=$(node "$agent" "$@" 2>&1) || code=$?
