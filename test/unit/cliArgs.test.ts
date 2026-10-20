@@ -18,6 +18,62 @@ describe('parseCommandLine failure rules', () => {
     expect(command.reason).not.toContain('positional')
   })
 
+  it('keeps a truly unknown argument as unknown', () => {
+    const option = parseCommandLine(['--frobnicate'])
+    invalid(option)
+    expect(option.exitCode).toBe(2)
+    expect(option.reason).toContain('Unknown option')
+    expect(option.reason).toContain('--frobnicate')
+    const positional = parseCommandLine(['frobnicate'])
+    invalid(positional)
+    expect(positional.exitCode).toBe(2)
+    expect(positional.reason).toContain('Unknown argument')
+  })
+
+  it('names a bad value of a known serve option, never the value', () => {
+    for (const [argv, option] of [
+      [['--questions-defer-after', 'abc'], '--questions-defer-after'],
+      [['--backend', 'foo'], '--backend'],
+      [['--shell-sandbox', 'foo'], '--shell-sandbox'],
+      [['--usage-history', 'foo'], '--usage-history'],
+      [['login', '--backend', 'foo'], '--backend'],
+    ] as const) {
+      const command = parseCommandLine([...argv])
+      invalid(command)
+      expect(command.exitCode).toBe(2)
+      expect(command.reason, argv.join(' ')).toContain(`Invalid value for ${option}`)
+      expect(command.reason, argv.join(' ')).toContain('--help')
+      expect(command.reason, argv.join(' ')).not.toContain('Unknown argument')
+      expect(command.reason, argv.join(' ')).not.toContain('abc')
+      expect(command.reason, argv.join(' ')).not.toContain('foo')
+    }
+  })
+
+  it('answers a dash-led or missing value with the option sentence, never the parser', () => {
+    for (const [argv, option] of [
+      [['--questions-defer-after', '-5'], '--questions-defer-after'],
+      [['--trust-workspace=foo'], '--trust-workspace'],
+      [['--backend'], '--backend'],
+      [['usage', '--range', 'foo'], '--range'],
+      [['usage', '--json=foo'], '--json'],
+      [['resources', '--json=foo'], '--json'],
+      [['scan-secrets', 'patch.diff', '--timeout'], '--timeout'],
+      [['scan-secrets', 'patch.diff', '--key-stdin=foo'], '--key-stdin'],
+      [['exec', '--verbose=foo', 'hi'], '--verbose'],
+      [['legal', '--json=foo'], '--json'],
+    ] as const) {
+      const command = parseCommandLine([...argv])
+      invalid(command)
+      expect(command.exitCode).toBe(2)
+      expect(command.reason, argv.join(' ')).toContain(`Invalid value for ${option}`)
+      expect(command.reason, argv.join(' ')).toContain('--help')
+      expect(command.reason, argv.join(' ')).not.toContain('ambiguous')
+      expect(command.reason, argv.join(' ')).not.toContain('Did you forget')
+      expect(command.reason, argv.join(' ')).not.toContain('does not take an argument')
+      expect(command.reason, argv.join(' ')).not.toContain('argument missing')
+    }
+  })
+
   it('points auth parse failures at the accounts help', () => {
     const command = parseCommandLine(['auth', '--nope'])
     invalid(command)

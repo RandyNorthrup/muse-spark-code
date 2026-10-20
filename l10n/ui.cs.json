@@ -3922,6 +3922,7 @@
   "execBudgetRequired": "Model API vyžaduje --max-budget-usd.",
   "execNumberInvalid": "Neplatné číslo nebo limit; rozpočet v USD přijímá nejvýše šest desetinných míst.",
   "execValueInvalid": "Neplatná hodnota pro {option}; přijatelné hodnoty a meze vypíše exec --help.",
+  "cliValueInvalid": "Neplatná hodnota pro {option}; přijatelné hodnoty a meze vypíše {help}.",
   "execLimitInvalid": "Neplatné číslo nebo limit pro {flag}.",
   "execTrustRefused": "Běhy bez rozhraní odmítají důvěru v pracovní prostor a obcházení oprávnění.",
   "execModeRefused": "Bez rozhraní jsou povoleny jen plan nebo acceptEdits.",
