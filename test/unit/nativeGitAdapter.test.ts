@@ -4,7 +4,7 @@
 // The surface records what the person would see; it answers nothing, so
 // every failure below is the real service and the real git failing.
 
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -20,7 +20,9 @@ import { neverCalled, testGit } from './helpers/nativeGitHarness'
 
 const quiet = (): void => undefined
 
-const root = mkdtempSync(path.join(tmpdir(), 'm123-native-adapter-'))
+// The canonical root: the panel binds and reports the real path, so the
+// harness must hand it the spelling the product keeps (macOS /tmp is a link).
+const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'm123-native-adapter-')))
 const dataFolder = mkdtempSync(path.join(root, 'data-'))
 const git = testGit(root)
 
