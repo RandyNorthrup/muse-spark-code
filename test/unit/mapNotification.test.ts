@@ -309,8 +309,9 @@ describe('mapNotification', () => {
     ],
     [
       // The cumulative cache reads sum on the prompt basis, so they are
-      // carried (live 2026-10-08 shape); the per-completion usage beside
-      // them is still dropped, and reasoning stays unreported.
+      // carried (live 2026-10-08 shape); the completion's own counters ride
+      // beside them for the journal, while the cumulative itself never
+      // carries reasoning.
       'session/tokenUsage',
       {
         sessionId,
@@ -338,6 +339,14 @@ describe('mapNotification', () => {
         outputTokens: 887,
         cachedTokens: 24_945,
         modelId: 'muse-spark-1.3-contributor',
+        completion: {
+          inputTokens: 25_790,
+          outputTokens: 117,
+          cachedTokens: 24_945,
+          reasoningTokens: 85,
+          cacheWriteTokens: 0,
+          modelId: 'muse-spark-1.3-contributor',
+        },
       },
     ],
     [

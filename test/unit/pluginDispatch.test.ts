@@ -798,6 +798,32 @@ describe.runIf(IS_REAL)('person-set plugin bounds (D121)', () => {
     expect(answer.reason).toContain('the session is closed after')
   })
 
+  it('a call refused on a closed session reads as refused, with no wait kept', async () => {
+    // The session ended before the call began: nothing waited, so the
+    // answer refuses instead of naming a wait Stop kept.
+    const h = host()
+    const session = new PluginSession({
+      env: h.env,
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      warn: () => undefined,
+    })
+    session.dispose()
+    const answer = await session.run(
+      {
+        system: 'opencode',
+        pluginPath: slowOpenCode(),
+        hook: 'tool.execute.before',
+        payload: {},
+        failClosed: false,
+      },
+      new AbortController().signal,
+    )
+    expect(answer.status).toBe('failed')
+    expect(answer.reason).toBe('opencode: the session is closed')
+  })
+
   it('a person-set probe wait names its wait instead of calling the runtime absent', async () => {
     // Real probe throughout: PATH resolves a hanging `node`, and the real
     // `--version` wait ends at the person's wait with the wait's own words.

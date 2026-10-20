@@ -5657,13 +5657,6 @@
     },
     {
       "route": "serve",
-      "name": "serve: --scheduled-prompts",
-      "description": "--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)",
-      "text": { "cli": "scheduled-prompts" },
-      "contract": { "type": "boolean", "repeatable": false, "default": false }
-    },
-    {
-      "route": "serve",
       "name": "serve: --max-budget-usd <value>",
       "description": "Set the spending reservation limit in USD for this run.",
       "text": { "cli": "max-budget-usd" },
@@ -7369,13 +7362,6 @@
         "default": false,
         "purpose": "keyFromStdin"
       }
-    },
-    {
-      "route": "exec",
-      "name": "exec: --vault",
-      "description": "--vault                          Allow headless exec to use vault items covered by unattended grants",
-      "text": { "cli": "vault" },
-      "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "vault" }
     },
     {
       "route": "exec",

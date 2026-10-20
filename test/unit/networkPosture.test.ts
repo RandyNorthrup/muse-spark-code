@@ -2,37 +2,24 @@
 // reads as absent, a status that cannot run reads as unreadable, and a
 // nonzero status reads as its exit code — never the CLI's own words.
 
-import { execFile } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { managedConfiguration } from '../../src/host/networkPosture'
 import type { ProcessResult } from '../../src/host/backend/sandboxSetup'
 
-function runReal(binary: string, args: readonly string[]): Promise<ProcessResult> {
-  return new Promise<ProcessResult>((resolve, reject) => {
-    execFile(binary, [...args], (error, stdout, stderr) => {
-      if (error) {
-        const failure: Error = error
-        reject(failure)
-      } else {
-        resolve({ exitCode: 0, stdout, stderr })
-      }
-    })
-  })
-}
-
 function runExit(binary: string, args: readonly string[]): () => Promise<ProcessResult> {
-  return async () => {
-    try {
-      return await runReal(binary, args)
-    } catch (error: unknown) {
-      if (typeof error === 'object' && error !== null && 'code' in error) {
-        const code = error.code
-        if (typeof code === 'number') {
-          return { exitCode: code, stdout: '', stderr: '' }
-        }
-      }
-      throw error
-    }
+  // The OS exit status is data, never an error shape: a nonzero exit
+  // reports its code in `status` on every platform, and only a failure
+  // to start (or a signal death, which the contract reads as negative)
+  // leaves it.
+  return () => {
+    const result = spawnSync(binary, [...args], { encoding: 'utf8' })
+    if (result.error !== undefined) return Promise.reject(result.error)
+    return Promise.resolve({
+      exitCode: result.status ?? -1,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    })
   }
 }
 
@@ -46,7 +33,7 @@ describe('managedConfiguration', () => {
 
   it('reads a status that cannot run as unreadable, never its words', async () => {
     await expect(
-      managedConfiguration(() => runReal('/muse-spark-test-no-such-cli', ['config', 'status'])),
+      managedConfiguration(runExit('/muse-spark-test-no-such-cli', ['config', 'status'])),
     ).resolves.toEqual({ ok: false, reason: 'could not read status' })
   })
 

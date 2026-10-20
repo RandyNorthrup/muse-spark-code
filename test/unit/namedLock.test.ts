@@ -1,6 +1,6 @@
 // The named lock's local-failure rule: a bind the OS refuses reads as
 // unavailable with the OS code and the failure on cause, never as a held lock.
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { NamedLockError, withNamedLock } from '../../src/runtime/namedLock'
@@ -36,6 +36,31 @@ describe.runIf(process.platform !== 'win32')('namedLock local failures', () => {
       if (!(failure instanceof NamedLockError)) throw new Error('unreachable')
       expect(failure.kind).toBe('unavailable')
       expect(typeof failure.reason).toBe('string')
+      expect(failure.cause).toBeInstanceOf(Error)
+    } finally {
+      await rm(base, { recursive: true, force: true })
+    }
+  })
+
+  it('reports an unreadable foreign entry as unavailable with its OS code and cause', async () => {
+    const base = await scratch('foreign-')
+    try {
+      // A foreign entry the lock cannot read is a local failure, never a
+      // held lock: the OS code reads as the reason and the failure itself
+      // stays on cause.
+      const foreign = path.join(base, 'test.lock.1.abcdef')
+      await writeFile(foreign, 'unreadable')
+      await chmod(foreign, 0o000)
+      let failure: unknown
+      try {
+        await withNamedLock(held, NAMES, { directory: base, timeoutMs: 1000 })
+      } catch (error) {
+        failure = error
+      }
+      expect(failure).toBeInstanceOf(NamedLockError)
+      if (!(failure instanceof NamedLockError)) throw new Error('unreachable')
+      expect(failure.kind).toBe('unavailable')
+      expect(failure.reason).toBe('EACCES')
       expect(failure.cause).toBeInstanceOf(Error)
     } finally {
       await rm(base, { recursive: true, force: true })
