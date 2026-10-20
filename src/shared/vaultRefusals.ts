@@ -13,10 +13,10 @@ export type VaultWriterFacts = NonNullable<
 >
 
 /**
- * The holder-detail sentence behind a busy refusal: the same words
- * `VaultWriterError` carries, shared crypto-free so the agent bundle can
- * name a holder without loading the write-only crypto.
- */
+The holder-detail sentence behind a busy refusal: the same words
+`VaultWriterError` carries, shared crypto-free so the agent bundle can
+name a holder without loading the write-only crypto.
+*/
 export function vaultWriterDetail(writer: VaultWriterFacts): string {
   const text = UI_TEXT.vault
   if (writer.kind === 'held') {
@@ -30,9 +30,9 @@ export function vaultWriterDetail(writer: VaultWriterFacts): string {
 }
 
 /**
- * Every named vault refusal's sentence key, with the refusal it names:
- * the panel and the terminal read the same installed sentences.
- */
+Every named vault refusal's sentence key, with the refusal it names:
+the panel and the terminal read the same installed sentences.
+*/
 const REFUSAL_SENTENCE_KEYS = [
   'locked', // protocol refusal `locked`
   'setupNeeded', // `uncreated`

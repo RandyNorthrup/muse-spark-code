@@ -47,10 +47,10 @@ const tokenSchema = z.object({
   scope: z.optional(nonempty),
 })
 /**
- * The token endpoint's answers that mean the refresh token or code is
- * unusable: clear it and repeat OAuth with the saved issued client
- * (SIWC errors and recovery, "Refresh errors", read 2026-10-17).
- */
+The token endpoint's answers that mean the refresh token or code is
+unusable: clear it and repeat OAuth with the saved issued client
+(SIWC errors and recovery, "Refresh errors", read 2026-10-17).
+*/
 const unusableGrantSchema = z.object({
   error: z.enum([
     'invalid_grant',
@@ -66,11 +66,11 @@ const invalidClientSchema = z.object({ error: z.literal('invalid_client') })
 const accountHashSchema = z.string().check(z.regex(/^[a-f0-9]{64}$/u))
 
 /**
- * One ChatGPT account's registration: the client OpenAI issued for it
- * (`oaiapp_…`, never `dynamic_agent_client`) and the hash of the verified
- * account it belongs to. Kept across sign-out and reused by later
- * sign-ins to that account; it holds no token.
- */
+One ChatGPT account's registration: the client OpenAI issued for it
+(`oaiapp_…`, never `dynamic_agent_client`) and the hash of the verified
+account it belongs to. Kept across sign-out and reused by later
+sign-ins to that account; it holds no token.
+*/
 export const chatGptRegistrationSchema = z.object({
   v: z.literal(CREDENTIAL_RECORD_VERSION),
   clientId: nonempty.check(z.refine((value) => value !== DYNAMIC_CLIENT)),
@@ -98,14 +98,9 @@ export const chatGptRecordSchema = z.object({
 })
 export type ChatGptRecord = z.infer<typeof chatGptRecordSchema>
 
-function parse<T>(
-  schema: z.ZodMiniType<T>,
-  value: unknown,
-  code: ChatGptSignInError['code'],
-  reason?: string,
-): T {
+function parse<T>(schema: z.ZodMiniType<T>, value: unknown, code: ChatGptSignInError['code']): T {
   const result = schema.safeParse(value)
-  if (!result.success) throw new ChatGptSignInError(code, reason)
+  if (!result.success) throw new ChatGptSignInError(code)
   return result.data
 }
 
@@ -137,13 +132,13 @@ function callbackUrl(value: string): URL {
 }
 
 /**
- * The host id for `stored`: a documented id is kept, a previous bare-random
- * id migrates in place to a fresh documented one (or the first one is
- * created when nothing is stored). Anything else is rejected, never
- * repaired. An issued client id stays valid across the migration: it is
- * bound to the user and workspace and spans hosts, so no re-authorization
- * is required.
- */
+The host id for `stored`: a documented id is kept, a previous bare-random
+id migrates in place to a fresh documented one (or the first one is
+created when nothing is stored). Anything else is rejected, never
+repaired. An issued client id stays valid across the migration: it is
+bound to the user and workspace and spans hosts, so no re-authorization
+is required.
+*/
 export function resolveChatGptHostId(stored: string | undefined): {
   readonly hostId: string
   readonly persist: boolean
@@ -161,12 +156,12 @@ export function resolveChatGptHostId(stored: string | undefined): {
 const AUTHORIZE_ERROR_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/
 
 /**
- * PKCE S256 and the persistent opaque host id. A first sign-in registers
- * with `dynamic_agent_client` and the app's name; a later one reauthorizes
- * with the saved issued `clientId` and omits the name (SIWC registration and
- * sign-in, read 2026-10-17). No ID-token or login hint is sent: this app
- * keeps neither the ID token nor the e-mail address.
- */
+PKCE S256 and the persistent opaque host id. A first sign-in registers
+with `dynamic_agent_client` and the app's name; a later one reauthorizes
+with the saved issued `clientId` and omits the name (SIWC registration and
+sign-in, read 2026-10-17). No ID-token or login hint is sent: this app
+keeps neither the ID token nor the e-mail address.
+*/
 export function buildChatGptAuthorizeUrl(options: {
   readonly redirectUri: string
   readonly hostId: string
@@ -207,12 +202,12 @@ export function buildChatGptAuthorizeUrl(options: {
 }
 
 /**
- * Validate the captured callback fields. A new registration's callback names
- * the issued client; a reauthorization with the saved `clientId` may omit it
- * and must never name another one (SIWC: "reject the result rather than
- * replacing the selected account's registration"). `scope` may be absent:
- * the token response's granted scopes decide.
- */
+Validate the captured callback fields. A new registration's callback names
+the issued client; a reauthorization with the saved `clientId` may omit it
+and must never name another one (SIWC: "reject the result rather than
+replacing the selected account's registration"). `scope` may be absent:
+the token response's granted scopes decide.
+*/
 export function parseChatGptCallback(
   value: string,
   redirectUri: string,
@@ -305,9 +300,9 @@ function jwtPart(value: string): unknown {
 }
 
 /**
- * The stored account identity: the product's SHA-256 over the verified
- * issuer and subject. Raw identity claims never leave this derivation.
- */
+The stored account identity: the product's SHA-256 over the verified
+issuer and subject. Raw identity claims never leave this derivation.
+*/
 export function chatGptAccountIdHash(issuer: string, subject: string): string {
   return createHash('sha256').update(`${issuer}\0${subject}`).digest('hex')
 }
@@ -377,9 +372,9 @@ export function verifyChatGptIdToken(options: {
 
 export interface ChatGptHostPort {
   /**
-   * The host's stable documented id (`urn:uuid:` plus one UUIDv4),
-   * persisted in host storage; never an account identifier.
-   */
+  The host's stable documented id (`urn:uuid:` plus one UUIDv4),
+  persisted in host storage; never an account identifier.
+  */
   readonly hostId: string
   readonly fetch: typeof fetch
   readonly now: () => number
@@ -513,12 +508,12 @@ export class ChatGptSignIn {
   }
 
   /**
-   * Sign in. A saved registration is reused: the browser reauthorizes the
-   * same account with its issued client, and a different account is refused
-   * before any credential is replaced. `isNewAccount` registers a new client
-   * instead ("Use a different ChatGPT account"), which then becomes the
-   * saved registration.
-   */
+  Sign in. A saved registration is reused: the browser reauthorizes the
+  same account with its issued client, and a different account is refused
+  before any credential is replaced. `isNewAccount` registers a new client
+  instead ("Use a different ChatGPT account"), which then becomes the
+  saved registration.
+  */
   public async signIn(options: { readonly isNewAccount?: boolean } = {}): Promise<void> {
     await this.guard(() =>
       this.host.withRefreshLock(async () => {
@@ -749,10 +744,10 @@ export class ChatGptSignIn {
   }
 
   /**
-   * Sign out. Revocation and refresh use the same lock; deletion also runs
-   * on refusal. The account's registration stays for its next sign-in:
-   * "Signing out … does not create a new client" (SIWC accounts and sessions).
-   */
+  Sign out. Revocation and refresh use the same lock; deletion also runs
+  on refusal. The account's registration stays for its next sign-in:
+  "Signing out … does not create a new client" (SIWC accounts and sessions).
+  */
   public async remove(): Promise<void> {
     await this.guard(() =>
       this.host.withRefreshLock(async () => {

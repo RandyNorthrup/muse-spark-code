@@ -69,10 +69,10 @@ function tokenCapTooSmall(minimum: number): TeamCapIssue {
 }
 
 /**
- * Validates one cap as the user types it. `siblingDayAmount` is the same
- * measure's `day` cap for the task-above-day case; `siblingTaskAmount` is
- * the `task` cap when validating a `day` cap.
- */
+Validates one cap as the user types it. `siblingDayAmount` is the same
+measure's `day` cap for the task-above-day case; `siblingTaskAmount` is
+the `task` cap when validating a `day` cap.
+*/
 export function validateCap(
   cap: TeamCapInput,
   model: TeamCapModelInfo,
@@ -125,10 +125,10 @@ export function validateCap(
 }
 
 /**
- * Validates the entry's whole cap set: an unpriced key model needs both a
- * `task` and a `day` token cap (D75), and `concurrent` never passes the
- * global caps.
- */
+Validates the entry's whole cap set: an unpriced key model needs both a
+`task` and a `day` token cap (D75), and `concurrent` never passes the
+global caps.
+*/
 export function validateEntryCaps(
   caps: readonly TeamCapInput[],
   model: TeamCapModelInfo,

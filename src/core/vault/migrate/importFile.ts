@@ -47,8 +47,8 @@ export interface VaultFileImportPort {
   list(): Promise<readonly VaultItemMetadata[]>
   read(id: string): Promise<VaultItem>
   /** C verifies staged decrypted items, then atomically publishes the batch AND its encrypted
-   * receipt under the migration writer. Verification failure publishes neither. Calls authorize
-   * at physical commit. Receipts persist across processes; no plaintext journal is permitted. */
+  receipt under the migration writer. Verification failure publishes neither. Calls authorize
+  at physical commit. Receipts persist across processes; no plaintext journal is permitted. */
   writeBatch(
     items: readonly VaultItem[],
     receipt: { id: string; record: ImportReceipt },
@@ -60,9 +60,9 @@ export interface VaultFileImportPort {
   listReceipts(): Promise<readonly { id: string; record: unknown }[]>
   forgetReceipt(id: string, authorize: () => void): Promise<void>
   /**
-   * Atomically removes the receipt, throwing when another broker already
-   * claimed it: the Keep/Delete serialization across processes.
-   */
+  Atomically removes the receipt, throwing when another broker already
+  claimed it: the Keep/Delete serialization across processes.
+  */
   takeReceipt(id: string, authorize: () => void): Promise<void>
 }
 
@@ -89,11 +89,11 @@ export class VaultFileImporter {
   }
 
   /**
-   * Bind every opened component to its canonical path, including on Windows
-   * where Node exposes no O_NOFOLLOW. The canonical name must remain inside
-   * the home and name the held native identity before any bytes are read.
-   * Retain the handles across awaits, and recheck them before source deletion.
-   */
+  Bind every opened component to its canonical path, including on Windows
+  where Node exposes no O_NOFOLLOW. The canonical name must remain inside
+  the home and name the held native identity before any bytes are read.
+  Retain the handles across awaits, and recheck them before source deletion.
+  */
   private holdParents(path: string): {
     assertPath: (leaf?: FileIdentity) => void
     close: () => void
@@ -159,12 +159,12 @@ export class VaultFileImporter {
   }
 
   /**
-   * The probe's true reason (RVAPP-CM1091D5 P3-1): only "does not exist"
-   * with a reachable home means gone. A permission error names permissions;
-   * an unreachable location (a down or away drive, with or without ENOENT)
-   * names that; any other code is invalid. Nothing but a proven-gone source
-   * discards the receipt, and an unavailable drive is never "gone".
-   */
+  The probe's true reason (RVAPP-CM1091D5 P3-1): only "does not exist"
+  with a reachable home means gone. A permission error names permissions;
+  an unreachable location (a down or away drive, with or without ENOENT)
+  names that; any other code is invalid. Nothing but a proven-gone source
+  discards the receipt, and an unavailable drive is never "gone".
+  */
   private probeRefusal(error: unknown): VaultMigrationFault {
     const code = systemCode(error)
     if (isAccessError(error)) return new VaultMigrationFault('unreadable')
@@ -237,9 +237,20 @@ export class VaultFileImporter {
   }
 
   /**
-   * The cross-process Keep/Delete claim: atomically removes the receipt, so
-   * exactly one side wins. A concurrent winner's claim reads as `invalid`.
-   */
+  The cross-process Keep/Delete claim: atomically removes the receipt, so
+  exactly one side wins. A concurrent winner's claim reads as `invalid`.
+  */
+  /** Best effort: the receipt stays for the attempt after this one. */
+  private async forgetReceiptBestEffort(receipt: string, lease: MigrationLease): Promise<void> {
+    try {
+      await this.vault.forgetReceipt(receipt, () => {
+        this.assertActive(lease)
+      })
+    } catch {
+      // Best effort: the receipt stays for the attempt after this one.
+    }
+  }
+
   private async claimReceipt(receipt: string, lease: MigrationLease): Promise<void> {
     try {
       await this.vault.takeReceipt(receipt, () => {
@@ -342,12 +353,12 @@ export class VaultFileImporter {
     })
   }
   /**
-   * The finish sweep (RVAPP-CM1091D5 P2-2): every receipt whose source or
-   * secret still exists, listed with the two real actions (finish the
-   * delete, keep the file). A receipt whose source is proven gone AND whose
-   * secret is gone is forgotten best-effort here instead of listed.
-   * Anything unproven keeps its receipt and is listed.
-   */
+  The finish sweep (RVAPP-CM1091D5 P2-2): every receipt whose source or
+  secret still exists, listed with the two real actions (finish the
+  delete, keep the file). A receipt whose source is proven gone AND whose
+  secret is gone is forgotten best-effort here instead of listed.
+  Anything unproven keeps its receipt and is listed.
+  */
   async pending(): Promise<readonly PendingImport[]> {
     return await this.owner.run(async (lease) => {
       this.assertActive(lease)
@@ -408,26 +419,19 @@ export class VaultFileImporter {
         // Only "does not exist" with a reachable home means gone: any other
         // probe failure keeps its receipt and names its true reason instead
         // of discarding it as deleted (RVCM1091G P2, RVAPP-CM1091D5 P3-1).
-        let isGone = false
+        // The file is already gone (a previous Delete removed it but could
+        // not forget its receipt, or the person deleted it): clear the
+        // leftover receipt at this next start and say what happened.
         try {
           lstatSync(saved.path)
         } catch (error: unknown) {
           const refusal = this.probeRefusal(error)
-          if (refusal.code !== 'orphaned') throw refusal
-          isGone = true
-        }
-        if (isGone) {
-          // The file is already gone (a previous Delete removed it but could
-          // not forget its receipt, or the person deleted it): clear the
-          // leftover receipt at this next start and say what happened.
-          try {
-            await this.vault.forgetReceipt(receipt, () => {
-              this.assertActive(lease)
-            })
-          } catch {
-            /* Best effort: the receipt stays for the attempt after this one. */
-          }
-          throw new VaultMigrationFault('orphaned')
+          // Only a proven-gone source clears here; any other probe outcome
+          // keeps its receipt and rides along as the cause.
+          if (refusal.code !== 'orphaned')
+            throw new VaultMigrationFault(refusal.code, { cause: error })
+          await this.forgetReceiptBestEffort(receipt, lease)
+          throw new VaultMigrationFault('orphaned', { cause: error })
         }
         parents = this.holdParents(saved.path)
         const read = await this.read(saved.path, parents.assertPath)
@@ -476,7 +480,7 @@ export class VaultFileImporter {
           // (the file is gone; nothing to retry) instead of a retryable
           // failure. The next Delete clears the receipt (see above).
           if (error instanceof VaultMigrationFault) throw error
-          throw new VaultMigrationFault('orphaned')
+          throw new VaultMigrationFault('orphaned', { cause: error })
         }
       } catch (error: unknown) {
         if (error instanceof VaultMigrationFault) throw error
@@ -486,7 +490,10 @@ export class VaultFileImporter {
         // (RVCM1091G P2, RVAPP-CM1091D5 P3-1).
         if (error instanceof VaultError && (error.code === 'busy' || error.code === 'rollback'))
           throw error
-        if (error instanceof Error && 'code' in error) throw this.probeRefusal(error)
+        if (error instanceof Error && 'code' in error) {
+          const refusal = this.probeRefusal(error)
+          throw new VaultMigrationFault(refusal.code, { cause: error })
+        }
         throw new VaultMigrationFault('storage', { cause: error })
       } finally {
         source?.fill(0)

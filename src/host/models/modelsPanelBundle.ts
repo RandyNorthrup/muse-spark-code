@@ -17,9 +17,9 @@ import { CredentialStore, type SecretStore } from '../auth/credentialStore'
 import type { ProviderEntry } from '../providers/providerPorts'
 
 /**
- * The configured providers: an unreadable providers file reads as none,
- * with the log naming only the failure's kind, never the file's words.
- */
+The configured providers: an unreadable providers file reads as none,
+with the log naming only the failure's kind, never the file's words.
+*/
 export async function readConfiguredProviders(
   readProviders: () => Promise<readonly ProviderEntry[]>,
   log: Logger,
@@ -87,12 +87,12 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Whether a required module carries the lane-P/T seam the panel's factory
- * takes: required members are objects; absent OpenRouter services stay absent.
- * Signatures are taken on
- * trust (PLAN.md §8): entry, loader and package come from one source tree,
- * one `npm run build` and one package.
- */
+Whether a required module carries the lane-P/T seam the panel's factory
+takes: required members are objects; absent OpenRouter services stay absent.
+Signatures are taken on
+trust (PLAN.md §8): entry, loader and package come from one source tree,
+one `npm run build` and one package.
+*/
 export function isModelsPanelSeam(value: unknown): value is ModelsPanelEntry.ModelsPanelSeam {
   if (!isObjectRecord(value)) {
     return false

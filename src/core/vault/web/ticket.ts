@@ -95,7 +95,7 @@ async function runTicket(
 export async function withWebTicket(...args: Parameters<typeof runTicket>): Promise<void> {
   try {
     await runTicket(...args)
-  } catch {
-    throw new Error('useChanged')
+  } catch (error: unknown) {
+    throw new Error('useChanged', { cause: error })
   }
 }

@@ -80,11 +80,11 @@ const state = { mayBeStored: false, isCut: false, cleaning: Promise.resolve() }
 let plain
 
 /**
- * Removes the key this diagnostic stored, through the product's own
- * command, and checks that it is gone. The key counts as stored until that
- * check is made, so a clean-up that is itself cut short is taken up again.
- * Its commands are not ended by a cut.
- */
+Removes the key this diagnostic stored, through the product's own
+command, and checks that it is gone. The key counts as stored until that
+check is made, so a clean-up that is itself cut short is taken up again.
+Its commands are not ended by a cut.
+*/
 async function removeStored(earlier) {
   await earlier
   if (!state.mayBeStored) return
@@ -96,12 +96,12 @@ async function removeStored(earlier) {
 }
 
 /**
- * The clean-up: the key, then the folders. It runs at the end, and when the
- * diagnostic is interrupted or fails with an error nobody caught; one at a
- * time, and a second call finds nothing left to do. (A process that is
- * ended outright runs nothing: the real-life run names an `rlq-` entry it
- * finds when it starts.)
- */
+The clean-up: the key, then the folders. It runs at the end, and when the
+diagnostic is interrupted or fails with an error nobody caught; one at a
+time, and a second call finds nothing left to do. (A process that is
+ended outright runs nothing: the real-life run names an `rlq-` entry it
+finds when it starts.)
+*/
 async function cleanUp() {
   state.cleaning = removeStored(state.cleaning)
   await state.cleaning

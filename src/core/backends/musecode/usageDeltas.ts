@@ -14,8 +14,8 @@ export interface UsageNotesBundle {
 }
 
 /** The journal's limit snapshot for one `usage/changed` meter reading: the
- * meter's tier names the subscription plan, except an empty tier, which the
- * label reader falls back from. Exported for the exact-assertion test. */
+meter's tier names the subscription plan, except an empty tier, which the
+label reader falls back from. Exported for the exact-assertion test. */
 export function museCodeLimitInput(
   usage: SubscriptionUsage,
 ): Parameters<UsageRecording['limit']>[0] {
@@ -43,7 +43,7 @@ export function museCodeLimitInput(
 }
 
 /** Each MSP report is journaled immediately: one completion's own counters
- * where the frame carries them (1.4), else the known cumulative delta. */
+where the frame carries them (1.4), else the known cumulative delta. */
 export class MuseUsageDeltas {
   private baseline: { inputTokens: number; outputTokens: number; cachedTokens?: number } | undefined
   private startedAt: number | undefined

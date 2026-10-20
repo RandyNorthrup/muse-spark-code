@@ -49,11 +49,11 @@ import { withoutCredentials } from '../runtime/credentialVariables'
 const importGit = processGitProcess()
 
 /**
- * Ignore metadata only: no workspace executable, inherited git override or
- * configured monitor. `signal` ends a stalled probe's child (PR #214
- * review): the probes name no deadline of their own, and the window
- * closing must still reach the child.
- */
+Ignore metadata only: no workspace executable, inherited git override or
+configured monitor. `signal` ends a stalled probe's child (PR #214
+review): the probes name no deadline of their own, and the window
+closing must still reach the child.
+*/
 async function isImportIgnored(
   absolutePath: string,
   workspaceRoot: string,
@@ -212,10 +212,10 @@ async function isDirectoryLink(absolutePath: string): Promise<boolean> {
 }
 
 /**
- * Read through one verified handle, at most maxBytes plus one sentinel
- * byte. A scan's project read is bound to the workspace root by path; a
- * plan-bound read (`project`) also compares the root's identity.
- */
+Read through one verified handle, at most maxBytes plus one sentinel
+byte. A scan's project read is bound to the workspace root by path; a
+plan-bound read (`project`) also compares the root's identity.
+*/
 async function readImportFile(
   absolutePath: string,
   maxBytes: number,

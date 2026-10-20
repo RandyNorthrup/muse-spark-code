@@ -44,10 +44,10 @@ export interface SurfaceOptions {
   readonly restoredSessionId: string | undefined
   readonly reveal: () => void
   /**
-   * Whether this surface is the active one for a focus decision (panel-focus
-   * F3): the panel's `active`, the sidebar's `visible`. Absent in tests,
-   * where every surface counts as active.
-   */
+  Whether this surface is the active one for a focus decision (panel-focus
+  F3): the panel's `active`, the sidebar's `visible`. Absent in tests,
+  where every surface counts as active.
+  */
   readonly isActive?: () => boolean
   readonly markUnread: () => void
   readonly setTitle: (title: string) => void
@@ -56,10 +56,10 @@ export interface SurfaceOptions {
 }
 
 /**
- * Whether a message ends the restore a panel is owed (M25): a session is
- * live on the surface (its history went out, or a new one started), or the
- * conversation was cleared (from the panel or a keybinding).
- */
+Whether a message ends the restore a panel is owed (M25): a session is
+live on the surface (its history went out, or a new one started), or the
+conversation was cleared (from the panel or a keybinding).
+*/
 function isRestoreEnding(message: HostToWebviewMessage): boolean {
   return (
     message.type === 'historyLoaded' ||
@@ -81,10 +81,10 @@ function buildInitMessage(context: WebviewHostContext, isSideChat: boolean): Hos
 }
 
 /**
- * Configures `webview` and starts handling its messages. Disposing the
- * returned surface stops the message handling; callers tie it to the owning
- * view's or panel's `onDidDispose`.
- */
+Configures `webview` and starts handling its messages. Disposing the
+returned surface stops the message handling; callers tie it to the owning
+view's or panel's `onDidDispose`.
+*/
 export function configureWebview(
   webview: vscode.Webview,
   context: WebviewHostContext,

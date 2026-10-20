@@ -15,3 +15,5 @@ de54295168f00474c4fe08bb47e4f17379097ad3:test/unit/authSource.test.ts:generic-ap
 # Report column keys naming the estimator's marginal-hour fields; detector matched ordinary identifiers, no credential.
 src/core/reporting/collect/estimate.ts:generic-api-key:123
 src/core/reporting/collect/estimate.ts:generic-api-key:124
+# Public hCaptcha site key inside MediaWiki's page config (wg*), served to every reader of the recorded Wikipedia fixture; site keys are public by design, no credential.
+test/fixtures/webfetch/wiki-internet.body:generic-api-key:6

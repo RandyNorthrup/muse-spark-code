@@ -14,9 +14,9 @@ export async function waitForHarness(page) {
 }
 
 /**
- * Screenshots `url` at `width`×`height` into `file` with headless Chrome.
- * The profile directory is the caller's, for the run's lifetime.
- */
+Screenshots `url` at `width`×`height` into `file` with headless Chrome.
+The profile directory is the caller's, for the run's lifetime.
+*/
 export async function screenshotUrl(chrome, url, file, { width, height, profileDir }) {
   const browser = await chromium.launchPersistentContext(profileDir, {
     ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),

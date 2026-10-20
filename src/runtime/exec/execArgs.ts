@@ -51,18 +51,18 @@ export interface ExecOptions {
   readonly untrustedFiles: readonly string[]
   readonly mode: ExecMode
   /**
-   * The BYO provider to run on (M95, PLAN.md D74): resolved only from the
-   * runner's own user file or a built-in preset's fixed origin, never a
-   * repository file. `model` is then the qualified `<provider>/<model>` ref.
-   */
+  The BYO provider to run on (M95, PLAN.md D74): resolved only from the
+  runner's own user file or a built-in preset's fixed origin, never a
+  repository file. `model` is then the qualified `<provider>/<model>` ref.
+  */
   readonly provider: string | undefined
   readonly model: string | undefined
   /**
-   * The requested tier, or `none` for Thinking off (lane REASONSHAPESR2:
-   * the terminal agent can be told to send none; the record decides what
-   * the wire carries). `EffortLevel` excludes `none`, so it is widened
-   * here, never in the shared union.
-   */
+  The requested tier, or `none` for Thinking off (lane REASONSHAPESR2:
+  the terminal agent can be told to send none; the record decides what
+  the wire carries). `EffortLevel` excludes `none`, so it is widened
+  here, never in the shared union.
+  */
   readonly effort: EffortLevel | typeof THINKING_OFF_EFFORT | undefined
   /** The plan route's Fast tier while on; off by default, refused where unoffered. */
   readonly fast: boolean
@@ -76,10 +76,10 @@ export interface ExecOptions {
   /** TOOLCAP: raise the per-tool-result byte guard for this run only. */
   readonly maxToolOutputBytes: number | undefined
   /**
-   * Optional lowering limit for the run's output cap (round 5): absent is
-   * the policy cap; present never exceeds it (larger values are refused at
-   * parsing). Carried into the request's output limit and its reservation.
-   */
+  Optional lowering limit for the run's output cap (round 5): absent is
+  the policy cap; present never exceeds it (larger values are refused at
+  parsing). Carried into the request's output limit and its reservation.
+  */
   readonly maxOutputTokens?: number | undefined
   /** No deadline of ours without `--timeout`: the run ends with the turn, the person, or the provider. */
   readonly timeoutMs: number | undefined
@@ -174,10 +174,10 @@ function invalidFlagValue(
 }
 
 /**
- * Bare single-segment IDs qualify immediately. Slash-containing IDs remain
- * intact until assembly can distinguish a configured native ID from a qualified
- * reference. Without a provider the model passes through untouched.
- */
+Bare single-segment IDs qualify immediately. Slash-containing IDs remain
+intact until assembly can distinguish a configured native ID from a qualified
+reference. Without a provider the model passes through untouched.
+*/
 export function qualifyProviderModel(
   provider: string | undefined,
   model: string | undefined,
@@ -270,15 +270,19 @@ export function parseExec(
     values['max-requests'] === undefined
       ? undefined
       : integer(values['max-requests'], 0, 1, Number.MAX_SAFE_INTEGER)
-  // TOOLCAP: absent keeps the setting default; the floor is the readable one
-  // (no 0-disables: one tool result can never end a conversation); the window
-  // fit is refused at runtime with its reason, where the model's window is known.
-  const maxToolOutputBytes = integer(
-    values['max-tool-output-bytes'],
-    SETTING_DEFAULTS.modelApiMaxToolOutputBytes,
-    TOOL_RESULT_MIN_BYTES,
-    Number.MAX_SAFE_INTEGER,
-  )
+  // TOOLCAP: absent keeps the setting default (D121: 0, no guard of ours);
+  // an explicit 0 keeps no guard either, while any other present value
+  // stays at or above the readable floor. The window fit is refused at
+  // runtime with its reason, where the model's window is known.
+  const maxToolOutputBytes =
+    values['max-tool-output-bytes'] === '0'
+      ? 0
+      : integer(
+          values['max-tool-output-bytes'],
+          SETTING_DEFAULTS.modelApiMaxToolOutputBytes,
+          TOOL_RESULT_MIN_BYTES,
+          Number.MAX_SAFE_INTEGER,
+        )
   // An absent flag keeps the policy cap; a present one only lowers it. The
   // parse-time ceiling is the absolute cap every policy cap sits at or
   // below; a larger value is refused here with its own sentence. The floor
@@ -426,12 +430,12 @@ export function parseExec(
 }
 
 /**
- * Headless paid-use admission for one feature: nobody can be asked, so
- * image generation needs its flag, acceptEdits and an affordable hard run
- * budget, and automatic compaction needs its flag and any remaining run
- * budget (no `--max-budget-usd` means no ledger, so no compaction). Pure,
- * so the run and its tests decide identically.
- */
+Headless paid-use admission for one feature: nobody can be asked, so
+image generation needs its flag, acceptEdits and an affordable hard run
+budget, and automatic compaction needs its flag and any remaining run
+budget (no `--max-budget-usd` means no ledger, so no compaction). Pure,
+so the run and its tests decide identically.
+*/
 export function isHeadlessPaidUseAllowed(
   options: Pick<ExecOptions, 'paidFeatures' | 'mode'>,
   remainingUsd: UsdAmount,

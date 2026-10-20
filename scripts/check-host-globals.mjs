@@ -78,6 +78,7 @@ const HOST_BUNDLES = [
   'dist/modelApiSessions.js',
   'dist/rulesFile.js',
   'dist/nativeGit.js',
+  'dist/execGuard.js',
   'dist/bundledSkills.js',
   'dist/legalScan.js',
   'dist/legalFix.js',

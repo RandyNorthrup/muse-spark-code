@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-import { type SpawnSyncOptions, type SpawnSyncReturns } from 'node:child_process'
 import {
   existsSync,
   lstatSync,
@@ -10,28 +8,30 @@ import {
   writeFileSync,
   rmSync,
 } from 'node:fs'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { processGitPath } from '../../../host/git'
-import { workspaceChildEnvironment } from '../../../core/executables'
 import {
   GIT_OUTPUT_MAX_BYTES,
   GIT_TIMEOUT_MS,
   PLAYBOOK_HOOK_NAMES,
 } from '../../../shared/constants'
-import { UI_TEXT } from '../../../shared/l10n/text'
 import {
   playbookConfigSnapshotSchema,
   type PlaybookConfigSnapshot,
   type PlaybookRecord,
   type PlaybookPushRange,
 } from '../../../shared/playbook'
+import { processGitPath } from '../../../host/git'
+import { workspaceChildEnvironment } from '../../execGuard'
+import { runTreeSync } from '../../../host/processTree'
+import { createHash } from 'node:crypto'
+import { type SpawnSyncOptions, type SpawnSyncReturns } from 'node:child_process'
+import { tmpdir } from 'node:os'
+import { UI_TEXT } from '../../../shared/l10n/text'
 import { redactSecrets } from '../../../shared/redact'
 import { withoutCredentials } from '../../credentialEnvironment'
-import { runTreeSync } from '../../../host/processTree'
 
 /** Tagged effects go through the harness's ordinary tool policy. Hooks receive
- * their real arguments/stdin, never an altered script or a substitute command. */
+their real arguments/stdin, never an altered script or a substitute command. */
 export interface PlaybookHookEffect {
   readonly kind: 'git' | 'hook'
   readonly cwd: string
@@ -41,8 +41,8 @@ export interface PlaybookHookEffect {
 export interface PlaybookHookAdmission {
   admit(effect: PlaybookHookEffect): boolean
   /** The harness's preprepared job/tree registry executes the
-   * original effect with these options and returns only after its entire
-   * tree is ended. Required on Windows; preferred for Linux cgroups/scopes. */
+  original effect with these options and returns only after its entire
+  tree is ended. Required on Windows; preferred for Linux cgroups/scopes. */
   readonly runContained?: (
     effect: PlaybookHookEffect,
     options: SpawnSyncOptions,
@@ -52,7 +52,7 @@ type Work = Extract<PlaybookRecord, { kind: 'work' }>['value']
 type Receipt = Extract<PlaybookRecord, { kind: 'verification' }>['value']
 
 /** Synchronous state transition: missing receipts never emit push/done. The
- * owner publishes every returned record with journal CAS before admission. */
+owner publishes every returned record with journal CAS before admission. */
 export function hasOutcomeReceipts(
   commits: readonly string[],
   digest: string,
@@ -86,10 +86,10 @@ export class PlaybookOutcomes {
   ) {}
 
   /**
-   * git resolved outside the workspace (links followed): a `git` planted in
-   * the repository never runs (D24). Every effect spawns this command, so
-   * the admission sees the absolute path it approves.
-   */
+  git resolved outside the workspace (links followed): a `git` planted in
+  the repository never runs (D24). Every effect spawns this command, so
+  the admission sees the absolute path it approves.
+  */
   private gitCommand(): string {
     const git = processGitPath(this.workspace)
     if (git === undefined) throw new Error(UI_TEXT.playbookUnavailable)
@@ -106,19 +106,24 @@ export class PlaybookOutcomes {
 
   private bytes(effect: PlaybookHookEffect, isMissingAllowed = false): Buffer {
     if (!this.admission.admit(effect)) throw new Error(UI_TEXT.playbookUnavailable)
+    const scrubbed = Object.fromEntries(
+      Object.entries(withoutCredentials(process.env)).filter(
+        ([name]) => !/^(?:GIT_.*|HUSKY|HUSKY_SKIP_HOOKS)$/iu.test(name),
+      ),
+    )
     const options = {
       cwd: effect.cwd,
-      // The child runs with the workspace as its working directory (or an
-      // isolated worktree of it): the guarded child PATH, so git's own
-      // bare-name helpers (`ssh`, `git-remote-https`) never run a planting.
+      // The child runs with the effect's working directory, which for a
+      // linked worktree is a checkout outside the main workspace: the
+      // guarded child PATH excludes both, so git's own bare-name helpers
+      // (`ssh`, `git-remote-https`) never run a planting from either.
       env: workspaceChildEnvironment(
         process.platform,
-        Object.fromEntries(
-          Object.entries(withoutCredentials(process.env)).filter(
-            ([name]) => !/^(?:GIT_.*|HUSKY|HUSKY_SKIP_HOOKS)$/iu.test(name),
-          ),
-        ),
-        { workspaceRoot: this.workspace, realpath: realpathSync },
+        workspaceChildEnvironment(process.platform, scrubbed, {
+          workspaceRoot: this.workspace,
+          realpath: realpathSync,
+        }),
+        { workspaceRoot: effect.cwd, realpath: realpathSync },
       ),
       timeout: GIT_TIMEOUT_MS,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
@@ -236,7 +241,7 @@ export class PlaybookOutcomes {
   }
 
   /** G17: the shared-config facts the hook digest covers, for drift reports.
-   * The effective hooks-path source line plus the sorted hook file list. */
+  The effective hooks-path source line plus the sorted hook file list. */
   configSnapshot(): PlaybookConfigSnapshot {
     const hookDir = this.git(['rev-parse', '--path-format=absolute', '--git-path', 'hooks'])
     const hooksPath = this.run(
@@ -261,7 +266,7 @@ export class PlaybookOutcomes {
   }
 
   /** Bind receipts to the exact configured hook bytes and exact push range.
-   * Symlinks cannot silently replace the configured hook set. */
+  Symlinks cannot silently replace the configured hook set. */
   digest(range?: PlaybookPushRange): string {
     const hookDir = this.git(['rev-parse', '--path-format=absolute', '--git-path', 'hooks'])
     const config = this.run(

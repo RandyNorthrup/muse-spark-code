@@ -53,6 +53,8 @@ async function isPlainFile(home: string, relativePath: string): Promise<boolean>
     } catch (error: unknown) {
       if (error !== null && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
         return false
+      // A missing entry is absent; anything else is not the absence and keeps
+      // its failure as the cause.
       throw new VaultMigrationFault('storage', { cause: error })
     }
   }
@@ -79,6 +81,8 @@ export async function discoverAmbientFiles(home: string): Promise<readonly Ambie
       'code' in error &&
       error.code === 'ENOENT'
     ))
+      // A missing .ssh directory leaves the base names; anything else is not
+      // the absence and keeps its failure as the cause.
       throw new VaultMigrationFault('storage', { cause: error })
   }
   const found: AmbientFile[] = []

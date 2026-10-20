@@ -1,53 +1,28 @@
-// The estimate composer binding (D119): the estimator's own refusal keeps
-// its detail in the notice; anything else reads failed and keeps its kind
-// past the composer for the host log.
+// The estimate composer binding: the estimator's own command text is
+// submitted through the port; anything else is left for the composer.
 import { describe, expect, it } from 'vitest'
-import {
-  catalogOptionsRefusal,
-  ESTIMATE_AS_OF,
-  estimateContractFailure,
-} from './helpers/estimateFailures'
-import { BASE_LOCALE, fill, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
-import { EN } from '../../src/shared/l10n/en'
 import { wasEstimateComposerHandled } from '../../src/webview/estimator/composer'
 
 describe('estimate composer binding', () => {
-  it('notices the estimator’s own refusal in its own words', async () => {
-    setUiText(EN, BASE_LOCALE)
-    const refusal = await catalogOptionsRefusal()
-    const notices: string[] = []
+  it('submits the estimator command text through the port', () => {
+    const submitted: string[] = []
     const wasHandled = wasEstimateComposerHandled('/estimate M117', {
-      context: () => ({ asOf: ESTIMATE_AS_OF, optimize: 'cost' }),
-      open: () => {
-        throw refusal
-      },
-      notice: (text) => {
-        notices.push(text)
+      submit: (text: string) => {
+        submitted.push(text)
       },
     })
     expect(wasHandled).toBe(true)
-    expect(notices).toEqual([fill(UI_TEXT.estimateFailed, { detail: 'catalog-options' })])
+    expect(submitted).toEqual(['/estimate M117'])
   })
 
-  it('notices failed while the foreign failure keeps its kind past the composer', () => {
-    setUiText(EN, BASE_LOCALE)
-    const foreign = estimateContractFailure()
-    const notices: string[] = []
-    let failure: unknown
-    try {
-      wasEstimateComposerHandled('/estimate M117', {
-        context: () => ({ asOf: ESTIMATE_AS_OF, optimize: 'cost' }),
-        open: () => {
-          throw foreign
-        },
-        notice: (text) => {
-          notices.push(text)
-        },
-      })
-    } catch (error: unknown) {
-      failure = error
-    }
-    expect(notices).toEqual([fill(UI_TEXT.estimateFailed, { detail: 'estimator-unavailable' })])
-    expect(failure).toBe(foreign)
+  it('leaves anything else for the composer', () => {
+    const submitted: string[] = []
+    const wasHandled = wasEstimateComposerHandled('hello', {
+      submit: (text: string) => {
+        submitted.push(text)
+      },
+    })
+    expect(wasHandled).toBe(false)
+    expect(submitted).toEqual([])
   })
 })

@@ -6,7 +6,7 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import { UI_TEXT, VAULT_LIMITS, VAULT_TRANSPORT_TIMEOUT_MS } from '../../../shared/constants'
 import { vaultPrivateDirectory } from '../broker/files'
-import { type VaultSecuredListenerPort } from '../broker/channel'
+import { type VaultSecuredListenerPort } from '../broker/ports'
 
 const requestSchema = z
   .strictObject({
@@ -145,6 +145,8 @@ export class VaultExecHelperServer {
             this.bytes.delete(owned)
           })
         } catch {
+          // Fail closed: the connection dies and nothing is served; the
+          // requester reports its own failure, so this teardown keeps no cause.
           socket.destroy()
         } finally {
           held.fill(0)
@@ -243,7 +245,7 @@ export async function callVaultExecHelper(
     if (!isAuthenticated || socket.destroyed) throw new Error(UI_TEXT.vault.noAccess)
     socket.end(outgoing, () => outgoing.fill(0))
     for await (const input of socket) {
-      if (!(input instanceof Buffer)) throw new Error(UI_TEXT.vault.noAccess)
+      if (!(input instanceof Buffer)) throw new TypeError(UI_TEXT.vault.noAccess)
       total += input.length
       if (total > VAULT_LIMITS.frameBytes) {
         input.fill(0)
@@ -265,8 +267,10 @@ export async function callVaultExecHelper(
     const result = Buffer.alloc(joined.length - 1)
     result.set(joined.subarray(1))
     return result
-  } catch {
-    throw new Error(UI_TEXT.vault.noAccess)
+  } catch (error: unknown) {
+    // A failed helper answer denies with fixed words; the transport failure
+    // rides along as the cause.
+    throw new Error(UI_TEXT.vault.noAccess, { cause: error })
   } finally {
     clearTimeout(timer)
     outgoing.fill(0)

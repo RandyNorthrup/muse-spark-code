@@ -35,16 +35,16 @@ export interface RecordingCommandDeps extends RecordingPreviewDeps {
   readonly maxSeconds: number
   readonly latest?: () => Promise<ScreenRecordingPreview | undefined>
   /**
-   * False once the conversation that started the recording cleared or
-   * closed: the bundle cancels the run instead of previewing it (M105 E1
-   * review). Absent means the caller owns liveness (tests, other hosts).
-   */
+  False once the conversation that started the recording cleared or
+  closed: the bundle cancels the run instead of previewing it (M105 E1
+  review). Absent means the caller owns liveness (tests, other hosts).
+  */
   readonly isLive?: () => boolean
   /**
-   * The bundle registers the driver's cancel here right after start and
-   * unregisters when the result settles; clear/dispose cancels what is
-   * still registered. Absent means nobody can cancel from outside.
-   */
+  The bundle registers the driver's cancel here right after start and
+  unregisters when the result settles; clear/dispose cancels what is
+  still registered. Absent means nobody can cancel from outside.
+  */
   readonly trackRun?: (cancel: () => Promise<void>) => () => void
 }
 
@@ -54,12 +54,12 @@ export type LatestRecordingResolution =
   | { readonly status: 'stale' }
 
 /**
- * The latest-file branch's settlement, beside the driver branch's own
- * checks: discovery ran, so liveness is rechecked now. A stale copy is
- * disposed here and never previewed (nor, once admission is wired, attached
- * to the replacement conversation). No `vscode` import, so unit tests drive
- * it directly.
- */
+The latest-file branch's settlement, beside the driver branch's own
+checks: discovery ran, so liveness is rechecked now. A stale copy is
+disposed here and never previewed (nor, once admission is wired, attached
+to the replacement conversation). No `vscode` import, so unit tests drive
+it directly.
+*/
 export async function resolveLatestRecording(
   deps: RecordingCommandDeps,
 ): Promise<LatestRecordingResolution> {
@@ -80,11 +80,11 @@ interface ScreenRecordBundle {
     isLatest: boolean,
   ) => Promise<void>
   /**
-   * Latest-file discovery lives in the bundle so activation never carries
-   * the scanner (activation budget): the port factories and the find call
-   * the latest command resolves on first use. Written out (not `typeof
-   * Entry.*`) so this loader never reaches the entry's vscode side.
-   */
+  Latest-file discovery lives in the bundle so activation never carries
+  the scanner (activation budget): the port factories and the find call
+  the latest command resolves on first use. Written out (not `typeof
+  Entry.*`) so this loader never reaches the entry's vscode side.
+  */
   readonly createLatestRecordingPort: (host: LatestRecordingPlatformHost) => LatestRecordingPort
   readonly findLatestRecording: (
     port: LatestRecordingPort,

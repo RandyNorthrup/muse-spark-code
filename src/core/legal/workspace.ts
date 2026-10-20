@@ -35,17 +35,17 @@ import {
 import { createYieldCheck } from './scanYield'
 
 /**
- * The pinned SPDX template data shipped beside the scanner (M97
- * CM971-R3): `legal-data/` next to this module, a layout the source tree
- * and `dist/` share.
- */
+The pinned SPDX template data shipped beside the scanner (M97
+CM971-R3): `legal-data/` next to this module, a layout the source tree
+and `dist/` share.
+*/
 export const PINNED_LEGAL_DATA_DIRECTORY = path.join(__dirname, 'legal-data')
 
 /**
- * Read one pinned data file's bytes, read-only and without following a
- * final link, bounded like a workspace file. `undefined` when it is
- * missing, a link, oversized or unreadable; the caller fails closed.
- */
+Read one pinned data file's bytes, read-only and without following a
+final link, bounded like a workspace file. `undefined` when it is
+missing, a link, oversized or unreadable; the caller fails closed.
+*/
 export function readPinnedLegalData(
   relativePath: string,
   directory: string = PINNED_LEGAL_DATA_DIRECTORY,
@@ -108,10 +108,10 @@ function isWithin(root: string, candidate: string): boolean {
 }
 
 /**
- * Admit a bounded, local workspace, excluding links and special files.
- * Reads are UTF-8 only; undecodable/binary material remains incomplete.
- * The directory-entry budget also bounds trees containing only empty dirs.
- */
+Admit a bounded, local workspace, excluding links and special files.
+Reads are UTF-8 only; undecodable/binary material remains incomplete.
+The directory-entry budget also bounds trees containing only empty dirs.
+*/
 export async function createLegalSnapshot(
   rootPath: string,
   signal?: AbortSignal,
@@ -139,9 +139,9 @@ export async function createLegalSnapshot(
   }
   let hashBytesRead = 0
   /**
-   * One admitted read of a member's exact bytes: the same identity checks
-   * for text and hash reads, each against its own budget.
-   */
+  One admitted read of a member's exact bytes: the same identity checks
+  for text and hash reads, each against its own budget.
+  */
   const readAdmitted = (
     local: string,
     fileMax: number,
@@ -218,12 +218,12 @@ export async function createLegalSnapshot(
     }
   }
   /**
-   * Scan scope (lead ruling 2026-10-10): what the workspace distributes is
-   * read first and outside the directory-entry budget. The bundle records
-   * (`dist/meta`, `dist/meta-hashes`), every workspace file they list, and
-   * the metadata and licence files of each installed package they ship
-   * from are admitted before the walk, so they are always reached.
-   */
+  Scan scope (lead ruling 2026-10-10): what the workspace distributes is
+  read first and outside the directory-entry budget. The bundle records
+  (`dist/meta`, `dist/meta-hashes`), every workspace file they list, and
+  the metadata and licence files of each installed package they ship
+  from are admitted before the walk, so they are always reached.
+  */
   const admitDistribution = (): void => {
     const records = filesIn(BUILD_META_DIR).filter((name) => name.endsWith('.json'))
     const packages = new Set<string>()

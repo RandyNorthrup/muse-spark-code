@@ -235,11 +235,11 @@ function isVsCodeDeclaration(declaration) {
 }
 
 /**
- * `window.showErrorMessage`, `Uri.file`, `Webview.postMessage`: the name
- * from the declaration's containers. A field of an inline options type
- * names its function and parameter:
- * `window.createOutputChannel(options.log)`.
- */
+`window.showErrorMessage`, `Uri.file`, `Webview.postMessage`: the name
+from the declaration's containers. A field of an inline options type
+names its function and parameter:
+`window.createOutputChannel(options.log)`.
+*/
 function apiName(symbol) {
   const declaration = symbol.declarations?.[0]
   if (
@@ -352,10 +352,10 @@ function isHandedOver(node) {
 }
 
 /**
- * A VS Code object handed to code that takes it by shape (the log channel
- * to `createLogger`, `SecretStorage` to the credential store): the members
- * that shape names are used, though no VS Code type is in sight there.
- */
+A VS Code object handed to code that takes it by shape (the log channel
+to `createLogger`, `SecretStorage` to the credential store): the members
+that shape names are used, though no VS Code type is in sight there.
+*/
 function handedOverMembers(checker, node, record) {
   if (!ts.isExpression(node) || !isHandedOver(node)) {
     return
@@ -392,10 +392,10 @@ function hostProgram() {
 }
 
 /**
- * A VS Code declaration a portable file names without importing it: the
- * ambient globals `@types/vscode` declares (`Thenable`), which no import
- * shows. Each as "file: name".
- */
+A VS Code declaration a portable file names without importing it: the
+ambient globals `@types/vscode` declares (`Thenable`), which no import
+shows. Each as "file: name".
+*/
 function ambientVsCodeNames(program, portableFiles) {
   const checker = program.getTypeChecker()
   const found = new Set()

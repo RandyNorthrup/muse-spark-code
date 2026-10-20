@@ -58,9 +58,9 @@ export interface ScheduleEngineOptions {
   readonly runtimeDelivery?: RuntimeScheduleDeliveryPorts
   readonly runtimeDeliveryFactory?: typeof createRuntimeScheduleDelivery
   /**
-   * A host installs complete unattended delivery; absent hosts stay refused.
-   * A host whose delivery loads on its first use returns its promise.
-   */
+  A host installs complete unattended delivery; absent hosts stay refused.
+  A host whose delivery loads on its first use returns its promise.
+  */
   readonly delivery?: (
     authority: ScheduleAuthorityStore,
   ) =>
@@ -87,9 +87,9 @@ export interface ScheduleEngineOptions {
 }
 
 /** The conservative failed accounting for a delivery round that produced no
- * settlement: a failed outcome with unknown cost and retained liability,
- * naming the delivery failure kind so the history shows why the fire
- * failed instead of a reason-less failure. */
+settlement: a failed outcome with unknown cost and retained liability,
+naming the delivery failure kind so the history shows why the fire
+failed instead of a reason-less failure. */
 export function scheduleFailedSettlement(
   intent: ScheduleRunIntent,
   error: unknown,

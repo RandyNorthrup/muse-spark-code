@@ -20,9 +20,9 @@ export interface McpVaultBroker {
 }
 
 /**
- * The window's own MCP parts (mcpServers.ts): its stdio builder and command
- * resolution, shared with unvaulted servers rather than copied here.
- */
+The window's own MCP parts (mcpServers.ts): its stdio builder and command
+resolution, shared with unvaulted servers rather than copied here.
+*/
 export interface McpVaultStartDeps {
   beforeStart(isCancelled: () => boolean): Promise<void>
   assembly(): Promise<string | undefined>
@@ -32,9 +32,9 @@ export interface McpVaultStartDeps {
 }
 
 /**
- * No server, credentials or lease exists until workspace and resource admission pass.
- * POSTSPAWN: loaded as dist/mcpVault.js on the first vault-backed server, never at activation.
- */
+No server, credentials or lease exists until workspace and resource admission pass.
+POSTSPAWN: loaded as dist/mcpVault.js on the first vault-backed server, never at activation.
+*/
 export function governedMcpVaultStart(
   deps: McpVaultStartDeps,
   broker: McpVaultBroker,
@@ -51,7 +51,7 @@ export function governedMcpVaultStart(
     let cleanup: Promise<void> | undefined
     let expiry: ReturnType<typeof setTimeout> | undefined
     let areStreamsDisposed = false
-    const release = async (hasSucceeded: boolean) => {
+    const release = async () => {
       clearTimeout(expiry)
       areStreamsDisposed = true
       for (const remove of unsubscribe) remove()
@@ -59,14 +59,14 @@ export function governedMcpVaultStart(
       for (const lease of leases) {
         lease.value.fill(0)
         lease.username?.fill(0)
-        await lease.close(hasSucceeded)
+        await lease.close(false)
       }
     }
     const stop = () => {
       cleanup ??= (async () => {
         controller.abort()
         if (child !== undefined) await child.kill()
-        await release(false)
+        await release()
       })()
       return cleanup
     }
@@ -173,7 +173,7 @@ export function governedMcpVaultStart(
       if (child === undefined) {
         resource?.failed?.()
         resource?.complete(true)
-        await release(false)
+        await release()
       } else await stop()
       throw error
     } finally {

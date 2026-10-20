@@ -15,6 +15,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   currentProcessOwner,
+  exactProcessBirth,
   isProcessOwnerGone,
   processStartTime,
   systemBootId,
@@ -54,6 +55,8 @@ function probe(self: ProcessOwner): ProcessOwnerProbe {
     self,
     isAlive: () => true,
     startTimeOf: (pid: number) => processStartTime(pid, 'linux'),
+    exactBirthOf: (pid: number) => exactProcessBirth(pid),
+    exactOnly: false,
   }
 }
 

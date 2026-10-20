@@ -31,10 +31,10 @@ export function pressAction(status: DictationUiStatus): DictationAction | undefi
 }
 
 /**
- * What the release of `press` does: a press that started recording and
- * lasted at least DICTATION_HOLD_MS was push-to-talk, so releasing stops. A
- * shorter press was a tap and the recording keeps going.
- */
+What the release of `press` does: a press that started recording and
+lasted at least DICTATION_HOLD_MS was push-to-talk, so releasing stops. A
+shorter press was a tap and the recording keeps going.
+*/
 export function releaseAction(
   press: DictationPress | undefined,
   now: number,

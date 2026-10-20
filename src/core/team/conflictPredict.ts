@@ -16,11 +16,11 @@ export interface PredictedConflict {
 }
 export interface ConflictPredictionDeps {
   /** Running and waiting writing tasks, read from their immutable diff
-   * snapshots. Q resolves ancestry and binary/added/deleted shapes. */
+  snapshots. Q resolves ancestry and binary/added/deleted shapes. */
   readonly readTasks: () => Promise<readonly PredictionTask[]>
   readonly integrationFiles: (task: PredictionTask) => Promise<readonly string[]>
   /** Adapter to Q's landing mergeRoutine, without a formatter or a write.
-   * Undefined `other` means the current integration state for this task. */
+  Undefined `other` means the current integration state for this task. */
   readonly merge: (
     path: string,
     task: PredictionTask,
@@ -28,7 +28,7 @@ export interface ConflictPredictionDeps {
   ) => Promise<{ kind: 'merged' | 'conflict' }>
   readonly onConflict: (conflict: PredictedConflict) => void
   /** The owner's error record: every poll failure is posted here, so the
-   * timer never drops one. */
+  timer never drops one. */
   readonly report: (error: unknown) => void
 }
 
@@ -56,7 +56,7 @@ export function plannedConflicts(
 }
 
 /** No timer starts at import/construction. Team activation starts polling;
- * known engine writes call poll immediately. Stop suppresses late results. */
+known engine writes call poll immediately. Stop suppresses late results. */
 export class ConflictPredictor {
   private timer: ReturnType<typeof setInterval> | undefined
   private pending: Promise<void> | undefined

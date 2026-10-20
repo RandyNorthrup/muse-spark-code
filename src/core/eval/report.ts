@@ -41,9 +41,9 @@ const requestEvidenceSchema = z.object({
   /** Number of unknown returned names, without retaining any of their text. */
   otherTools: z.optional(z.number().check(z.int(), z.minimum(0))),
   /**
-   * The request offered function tools with strict schemas throughout
-   * (M101 strict-tools engagement); absent in reports made before it.
-   */
+  The request offered function tools with strict schemas throughout
+  (M101 strict-tools engagement); absent in reports made before it.
+  */
   strictTools: z.optional(z.boolean()),
 })
 
@@ -75,9 +75,9 @@ export const evalTaskResultSchema = z.object({
   /** `recall_output` calls that succeeded (M73); absent in reports made before it. */
   recalls: z.optional(z.number()),
   /**
-   * Released D78 claims, including rejected and failed attempts. This is
-   * attempt accounting, never evidence of accepted history replacement.
-   */
+  Released D78 claims, including rejected and failed attempts. This is
+  attempt accounting, never evidence of accepted history replacement.
+  */
   compactionsSettled: z.optional(z.number()),
   /** Host accepted the summary and replaced history; rejected attempts never count. */
   compactionsApplied: z.optional(z.number()),
@@ -143,18 +143,18 @@ const evalReportFields = {
   generatedAt: z.string(),
   floors: z.array(evalFloorResultSchema),
   /**
-   * `incomplete`: a narrowed selection, empty split or global stop leaves evidence incomplete.
-   * `fail`: a floor fell, or a mechanism's own acceptance failed (M73's
-   * packing engagement or lane E's compaction engagement, below).
-   */
+  `incomplete`: a narrowed selection, empty split or global stop leaves evidence incomplete.
+  `fail`: a floor fell, or a mechanism's own acceptance failed (M73's
+  packing engagement or lane E's compaction engagement, below).
+  */
   verdict: z.enum(EVAL_VERDICTS),
 }
 
 /**
- * M73's acceptance beside the floors: the packing arm sent a packed
- * placeholder on every long-output task it ran. A run that holds the floors
- * without packing proves nothing about packing, so it fails the run.
- */
+M73's acceptance beside the floors: the packing arm sent a packed
+placeholder on every long-output task it ran. A run that holds the floors
+without packing proves nothing about packing, so it fails the run.
+*/
 const evalPackingEngagementSchema = z.object({
   arm: z.string(),
   /** The long-output tasks the run selected. */
@@ -165,14 +165,14 @@ const evalPackingEngagementSchema = z.object({
 })
 
 /**
- * Lane E's acceptance beside the floors: the D78 admission settled a
- * summary on every long-context task the auto-compaction arm ran (R2: the
- * runner's settled-admission count per task — more model calls than the
- * baseline is not evidence). A run that holds the floors without a
- * settled compaction proves nothing about compaction, so it fails the
- * run. A selection with no long-context task holds nothing: it is
- * incomplete, never a pass.
- */
+Lane E's acceptance beside the floors: the D78 admission settled a
+summary on every long-context task the auto-compaction arm ran (R2: the
+runner's settled-admission count per task — more model calls than the
+baseline is not evidence). A run that holds the floors without a
+settled compaction proves nothing about compaction, so it fails the
+run. A selection with no long-context task holds nothing: it is
+incomplete, never a pass.
+*/
 const evalCompactionEngagementSchema = z.object({
   arm: z.string(),
   /** The long-context tasks the run selected. */
@@ -183,13 +183,13 @@ const evalCompactionEngagementSchema = z.object({
 })
 
 /**
- * Lane E's acceptance beside the floors: the strict-tools arm sent
- * strict schemas on every request of every selected task (R6: the
- * wire's per-request strict flag, read from the request body, not from
- * the arm's declared mechanism). A run that holds the floors without
- * strict requests proves nothing about strict tools: it is incomplete,
- * never a pass. A selection with no task holds nothing the same way.
- */
+Lane E's acceptance beside the floors: the strict-tools arm sent
+strict schemas on every request of every selected task (R6: the
+wire's per-request strict flag, read from the request body, not from
+the arm's declared mechanism). A run that holds the floors without
+strict requests proves nothing about strict tools: it is incomplete,
+never a pass. A selection with no task holds nothing the same way.
+*/
 const evalStrictToolsEngagementSchema = z.object({
   arm: z.string(),
   /** The tasks the run selected. */
@@ -216,11 +216,11 @@ export const evalReportSchema = z.discriminatedUnion('version', [
     /** Recorded by a run with a strict-tools arm (M101 lane E R6); absent otherwise. */
     strictToolsEngagement: z.optional(evalStrictToolsEngagementSchema),
     /**
-     * The run stopped before every selected task could send: the call
-     * ceiling, the dollar budget or an unmeasurable reply ended it. A
-     * truncated run is `incomplete`, never `pass`: the missing sends are
-     * not evidence. Absent when every task ran to its own end.
-     */
+    The run stopped before every selected task could send: the call
+    ceiling, the dollar budget or an unmeasurable reply ended it. A
+    truncated run is `incomplete`, never `pass`: the missing sends are
+    not evidence. Absent when every task ran to its own end.
+    */
     stoppedEarly: z.optional(z.array(z.string())),
     /** Present only when every arm executed its frozen bundle snapshot. */
     harnessDigest: z.optional(z.string()),

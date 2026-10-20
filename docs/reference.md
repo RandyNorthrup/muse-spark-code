@@ -178,7 +178,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### museSpark.modelApiMaxToolOutputBytes
 
-conversationStart: The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.
+conversationStart: The per-tool-result byte guard. No limit unless you set one: 0 (the default) keeps results whole within the model's window; a set value cuts a past-it result to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.
 
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -286,7 +286,6 @@ Attach files by selecting or dropping them, and paste images into the composer. 
 
 ```json
 {
-  "maxAttachments": 20,
   "textExtensions": [
     ".txt",
     ".md",
@@ -311,10 +310,6 @@ Attach files by selecting or dropping them, and paste images into the composer. 
   ],
   "textSources": "trustedIndexedWorkspacePaths",
   "modelApiTextAllowanceTokens": 786432,
-  "imageBytes": 10485760,
-  "pdfBytes": 32000000,
-  "textBytes": 1048576,
-  "encodedMediaChars": 48000000,
   "requestMedia": 50,
   "vision": "modelCapability",
   "museCodeMessageBytes": 10485760,
@@ -427,11 +422,13 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model us
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
-### The structured answer was invalid. Retrying once…
+### The structured answer was not valid. Repairing it again (repair {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
-The structured answer was invalid. Retrying once…
+The structured answer was not valid. Repairing it again (repair {count})…
+
+The structured request failed. Trying again (attempt {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
@@ -516,7 +513,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 turnState: Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.
 
-Model API turns default to 200 model calls. Existing caller request limits win. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.
+No round count of ours ends a Model API turn: it runs until the model answers without a tool call, you press Stop, a hook stops it, the provider refuses it, or a limit you set is spent. A caller allowance still bounds its run: exec --max-requests, or a best-of-N attempt ceiling. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a capped turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.
 
 Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).
 
@@ -573,9 +570,9 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Submit
 
-Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer &lt;n&gt; &lt;text&gt; answers one.
+Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (no limit unless you set one; 0, the default, waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer &lt;n&gt; &lt;text&gt; answers one.
 
-Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer &lt;n&gt; &lt;text&gt; answers one.
+Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (no limit unless you set one; 0, the default, waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer &lt;n&gt; &lt;text&gt; answers one.
 
 ```json
 {
@@ -909,7 +906,9 @@ Commands: `museSpark.hooks`, `museSpark.runSetupHooks`, `museSpark.runHook`, `mu
 
 A new branch in its own folder and window; this checkout is untouched.
 
-The structured answer was invalid. Retrying once…
+The structured answer was not valid. Repairing it again (repair {count})…
+
+The structured request failed. Trying again (attempt {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
@@ -1561,7 +1560,9 @@ Commands: `museSpark.tabTurnOn`, `museSpark.tabTurnOff`, `museSpark.tabSnooze`, 
 
 Turn paid Judge advice on or off.
 
-The structured answer was invalid. Retrying once…
+The structured answer was not valid. Repairing it again (repair {count})…
+
+The structured request failed. Trying again (attempt {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
@@ -2400,7 +2401,7 @@ Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
 
 ### museSpark.modelApiSubagents
 
-Bounded paid child agents, with up to four requests per task including retries. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
+Paid child agents: a task runs until done or stopped, billed per request. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -2439,15 +2440,15 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.hooksMaxStopContinuations
 
-hooks: How many times in a row Stop hooks may keep a finished turn going (1–8; Muse Code's own bound 8, the default). Past that the turn ends. Higher values are refused, so no workspace can raise it.
+hooks: How many times in a row Stop hooks may keep a finished turn going. No limit unless you set one: 0 (the default) keeps going until the turn ends on its own; a set value stays within Muse Code's own 1–8, and higher values are refused, so no workspace can raise it.
 
-Type: `"number"`. Default: `8`. Scope: `machine`.
+Type: `"number"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "number",
-  "default": 8,
-  "minimum": 1,
+  "default": 0,
+  "minimum": 0,
   "maximum": 8
 }
 ```
@@ -2468,15 +2469,15 @@ Type: `"number"`. Default: `0`. Scope: `machine`.
 
 ### museSpark.subagentMaxConcurrent
 
-sessionBoard&subagents: How many subagents work at once (1–64, Muse Code's default 8). Later ones queue.
+sessionBoard&subagents: How many subagents work at once. No limit unless you set one: 0 (the default) starts every subagent at once, and a set value stays within 1–64. Later ones queue.
 
-Type: `"number"`. Default: `8`. Scope: `machine`.
+Type: `"number"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "number",
-  "default": 8,
-  "minimum": 1,
+  "default": 0,
+  "minimum": 0,
   "maximum": 64
 }
 ```
@@ -2667,14 +2668,14 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.modelApiMaxToolOutputBytes
 
-conversationStart: The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.
+conversationStart: The per-tool-result byte guard. No limit unless you set one: 0 (the default) keeps results whole within the model's window; a set value cuts a past-it result to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.
 
-Type: `"integer"`. Default: `64000`. Scope: `machine`.
+Type: `"integer"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "integer",
-  "default": 64000
+  "default": 0
 }
 ```
 
@@ -3164,14 +3165,14 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.resourceCpuMaxPercent
 
-resourceThreshold: Throttle when machine CPU use stays above this percentage for 30 seconds.
+resourceThreshold: Throttle when machine CPU use stays above this percentage for 30 seconds. Unset means no CPU limit.
 
-Type: `"number"`. Default: `85`. Scope: `machine`.
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ```json
 {
-  "type": "number",
-  "default": 85,
+  "type": ["number", "null"],
+  "default": null,
   "minimum": 30,
   "maximum": 100
 }
@@ -3179,14 +3180,14 @@ Type: `"number"`. Default: `85`. Scope: `machine`.
 
 ### museSpark.resourceMemoryMaxPercent
 
-resourceThreshold&memoryHeadroom=available: Throttle when memory in use stays above this percentage for two samples.
+resourceThreshold&memoryHeadroom=available: Throttle when memory in use stays above this percentage for two samples. Unset means no memory-use limit.
 
-Type: `"number"`. Default: `90`. Scope: `machine`.
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ```json
 {
-  "type": "number",
-  "default": 90,
+  "type": ["number", "null"],
+  "default": null,
   "minimum": 40,
   "maximum": 98
 }
@@ -3194,14 +3195,14 @@ Type: `"number"`. Default: `90`. Scope: `machine`.
 
 ### museSpark.resourceMemoryMinFreeGiB
 
-memoryHeadroom=available: Minimum available memory in GiB, capped at 15% of this machine’s RAM.
+memoryHeadroom=available: Minimum available memory in GiB, capped at 15% of this machine’s RAM. Unset means no memory floor.
 
-Type: `"number"`. Default: `2`. Scope: `machine`.
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ```json
 {
-  "type": "number",
-  "default": 2,
+  "type": ["number", "null"],
+  "default": null,
   "minimum": 0.5,
   "maximum": 64
 }
@@ -3239,7 +3240,7 @@ Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ### museSpark.resourceDiskMinFreeGiB
 
-resourceDiskThreshold: Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.
+resourceDiskThreshold: Free disk space floor in GiB. Unset means no floor; a set floor is at least 2 GiB.
 
 Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
@@ -3271,14 +3272,14 @@ Type: `"string"`. Default: `"paired"`. Scope: `machine`.
 
 ### museSpark.questions.deferAfterSeconds
 
-Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.
+Seconds before an unanswered question is deferred so Muse can keep working. No limit unless you set one: 0 (the default) never defers; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.
 
-Type: `"integer"`. Default: `60`. Scope: `machine`.
+Type: `"integer"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "integer",
-  "default": 60,
+  "default": 0,
   "minimum": 0,
   "maximum": 3600
 }
@@ -3338,15 +3339,15 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.webSearchMaxPerRequest
 
-conversationStart&hosted.webSearch: Maximum hosted web searches per response (1–20; default 5). The price and shared daily budget are shown before the first charge.
+conversationStart&hosted.webSearch: Maximum hosted web searches per response. No limit unless you set one: 0 (the default) sends no max and the provider decides; a set value stays within 1–20. The price and shared daily budget are shown before the first charge.
 
-Type: `"number"`. Default: `5`. Scope: `machine`.
+Type: `"number"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "number",
-  "default": 5,
-  "minimum": 1,
+  "default": 0,
+  "minimum": 0,
   "maximum": 20
 }
 ```
@@ -3483,15 +3484,15 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
 
 ### museSpark.mediaMaxUploadMiB
 
-Largest media file the extension opens for attach or recording, in MiB. 200 by default; no maximum. Larger files are refused before any read. Only this machine’s setting is used.
+Largest media file the extension opens for attach or recording, in MiB. No limit unless you set one: 0 (the default) opens any size, and a set value has no maximum. A file past a set value is refused before any read. Only this machine’s setting is used.
 
-Type: `"integer"`. Default: `200`. Scope: `machine`.
+Type: `"integer"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "integer",
-  "default": 200,
-  "minimum": 1
+  "default": 0,
+  "minimum": 0
 }
 ```
 
@@ -3512,15 +3513,15 @@ Type: `"integer"`. Default: `7`. Scope: `machine`.
 
 ### museSpark.screenRecordingMaxSeconds
 
-Longest screen recording the extension captures, in seconds. 120 by default; 10–600. The recorder stops at the limit and keeps what it captured. Only this machine’s setting is used.
+Longest screen recording the extension captures, in seconds. No limit unless you set one: 0 (the default) records until stopped, and a set value stays within 10–600. The recorder stops at a set limit and keeps what it captured. Only this machine’s setting is used.
 
-Type: `"integer"`. Default: `120`. Scope: `machine`.
+Type: `"integer"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "integer",
-  "default": 120,
-  "minimum": 10,
+  "default": 0,
+  "minimum": 0,
   "maximum": 600
 }
 ```
@@ -3749,7 +3750,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false}`
+- `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600) `{"type":"string","repeatable":false}`
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --scheduled-prompts`: --scheduled-prompts Offer paid scheduled prompts (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
@@ -3777,7 +3778,7 @@ These are defaults; editor customizations take precedence.
 - `login: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `login: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `login: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `login: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
@@ -3803,7 +3804,7 @@ These are defaults; editor customizations take precedence.
 - `setup: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `setup: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `setup: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3831,7 +3832,7 @@ These are defaults; editor customizations take precedence.
 - `authSet: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authSet: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authSet: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3858,7 +3859,7 @@ These are defaults; editor customizations take precedence.
 - `authStatus: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authStatus: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authStatus: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authStatus: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3885,7 +3886,7 @@ These are defaults; editor customizations take precedence.
 - `authClear: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set/status/clear). `{"type":"string","repeatable":false,"purpose":"provider"}`

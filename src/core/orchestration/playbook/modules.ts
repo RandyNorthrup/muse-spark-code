@@ -1,8 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto'
-import type { SpawnSyncOptions } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import nodePath from 'node:path'
-import { UI_TEXT } from '../../../shared/l10n/text'
 import {
   playbookModuleSchema,
   type PlaybookModule,
@@ -10,7 +6,6 @@ import {
   type PlaybookRound,
   type PlaybookDesignDecision,
 } from '../../../shared/playbook'
-import { redactSecrets } from '../../../shared/redact'
 import {
   GIT_OUTPUT_MAX_BYTES,
   GIT_TIMEOUT_MS,
@@ -21,11 +16,15 @@ import {
   PLAYBOOK_LINE_HASH_CHARS,
 } from '../../../shared/constants'
 import type { PlaybookLease } from '../../../shared/playbook'
-import { withoutCredentials } from '../../credentialEnvironment'
+import type { PlaybookHookAdmission } from './outcomes'
 import { processGitPath } from '../../../host/git'
 import { runTreeSync } from '../../../host/processTree'
-import { workspaceChildEnvironment } from '../../../core/executables'
-import type { PlaybookHookAdmission } from './outcomes'
+import { workspaceChildEnvironment } from '../../execGuard'
+import { createHash, randomUUID } from 'node:crypto'
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { UI_TEXT } from '../../../shared/l10n/text'
+import { redactSecrets } from '../../../shared/redact'
+import { withoutCredentials } from '../../credentialEnvironment'
 
 export interface ModuleState {
   module: PlaybookModule
@@ -40,7 +39,7 @@ export interface ModuleState {
 }
 
 /** Only workspace-relative selectors enter the registry. Segment-wise
- * normalization also makes Windows spelling and ./ aliases equivalent. */
+normalization also makes Windows spelling and ./ aliases equivalent. */
 export function modulePath(value: string): string {
   const path = value.replaceAll('\\', '/').replace(/^\.\//u, '')
   if (
@@ -65,8 +64,8 @@ export function normalizedModule(module: PlaybookModule): PlaybookModule {
 }
 
 /** Trusted adapters can declare lane/team selectors; without either, use
- * the first two directories under the source root. The registry journals
- * this returned id before dispatch; adapters retain it on subsequent calls. */
+the first two directories under the source root. The registry journals
+this returned id before dispatch; adapters retain it on subsequent calls. */
 export function newPlaybookModule(
   files: readonly string[],
   declaration?: { readonly source: 'lane' | 'team'; readonly key: string },
@@ -112,7 +111,7 @@ export function hasOverlappingFiles(left: PlaybookModule, right: PlaybookModule)
 }
 
 /** Internal technical journal tags, not user-supplied evidence. Fingerprints,
- * user decisions and legacy lease notes remain mandatory retention evidence. */
+user decisions and legacy lease notes remain mandatory retention evidence. */
 export const PLAYBOOK_IDENTITY_NOTE = 'playbook-file-identity'
 export const PLAYBOOK_LEASE_NOTE = 'playbook-patch-lease'
 export const PLAYBOOK_RELEASE_NOTE = 'playbook-patch-release'
@@ -157,7 +156,7 @@ export function fileIdentities(
 }
 
 /** Bounded line fingerprints retain no file text. Similarity catches edited
- * untracked moves too; Git history supplies path evidence after commit. */
+untracked moves too; Git history supplies path evidence after commit. */
 function contentIdentity(content: string): string {
   const lines = [
     ...new Set(
@@ -187,8 +186,8 @@ export function hasSimilarContent(left: string, right: string): boolean {
 }
 
 /** Git supplies similarity-based rename evidence even when moved code changed
- * bytes. Hashes separately cover untracked moves and copies. Never consult an
- * agent's claim about identity. Both staged and unstaged moves are inspected. */
+bytes. Hashes separately cover untracked moves and copies. Never consult an
+agent's claim about identity. Both staged and unstaged moves are inspected. */
 export function renamedFiles(
   workspace: string,
   admission: PlaybookHookAdmission,
@@ -216,7 +215,7 @@ export function renamedFiles(
     }
     if (!admission.admit(effect) || (process.platform === 'win32' && !admission.runContained))
       throw new Error(UI_TEXT.playbookUnavailable)
-    const options: SpawnSyncOptions = {
+    const options = {
       cwd: workspace,
       // The guarded child PATH for the workspace, so git's own bare-name
       // helpers never run a planting.
@@ -224,7 +223,7 @@ export function renamedFiles(
         workspaceRoot: workspace,
         realpath: realpathSync,
       }),
-      encoding: 'buffer',
+      encoding: 'buffer' as const,
       timeout: GIT_TIMEOUT_MS,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
       windowsHide: true,
@@ -304,8 +303,8 @@ function validateRound(round: PlaybookRound, state: ModuleState): void {
 }
 
 /** Replay in publication order. Class records carry their independent
- * lifetime counters; the aggregate retains the active findings and identities.
- * No current state comes from a lane name, branch or display key. */
+lifetime counters; the aggregate retains the active findings and identities.
+No current state comes from a lane name, branch or display key. */
 function applyRecord(record: PlaybookRecord, states: Map<string, ModuleState>): void {
   switch (record.kind) {
     case 'module': {

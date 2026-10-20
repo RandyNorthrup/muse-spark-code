@@ -206,10 +206,10 @@ function readVersionCatalog(text: string): Map<string, string> {
 }
 
 /**
- * Read Maven and Gradle evidence from the snapshot. Dynamic versions and
- * declarations no lock or catalog resolves stay versionless; executable
- * build logic is never evaluated.
- */
+Read Maven and Gradle evidence from the snapshot. Dynamic versions and
+declarations no lock or catalog resolves stay versionless; executable
+build logic is never evaluated.
+*/
 export function readJvm(
   snapshot: LegalFileSnapshot,
   isDependencyIncluded?: deps.LegalDependencyAdmission,

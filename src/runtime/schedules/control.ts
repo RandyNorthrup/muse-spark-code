@@ -274,15 +274,13 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
       .flatMap(([atMs, group]) => {
         const [first, ...rest] = group
         if (first === undefined) return []
-        return [
-          {
-            scheduleId: first.scheduleId,
-            atMs,
-            target: first.target,
-            collisionIds: rest.map((entry) => entry.scheduleId),
-            creator: first.creator,
-          },
-        ]
+        return {
+          scheduleId: first.scheduleId,
+          atMs,
+          target: first.target,
+          collisionIds: rest.map((entry) => entry.scheduleId),
+          creator: first.creator,
+        }
       })
     return { kind: 'timeline', entries }
   }

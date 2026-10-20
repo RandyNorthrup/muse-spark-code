@@ -1,15 +1,16 @@
+import process from 'node:process'
+import path from 'node:path'
+import * as z from 'zod/mini'
+import { runProgram } from '../processTree'
+import { windowsPowerShell } from '../../core/execGuard'
 import { constants as fsConstants, realpathSync, type Stats } from 'node:fs'
 import { chmod, lstat, mkdir, open, readdir, rm, stat } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import process from 'node:process'
-import path from 'node:path'
 import { homedir } from 'node:os'
 import { setTimeout as delay } from 'node:timers/promises'
-import * as z from 'zod/mini'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { renameReplacing } from '../fsAtomic'
 import { storeErrorCode } from '../backend/storeErrors'
-import { runProgram, windowsPowerShell } from '../processTree'
 import { powerShellQuoted } from '../../core/shellQuote'
 import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../shared/constants'
 
@@ -162,11 +163,11 @@ const hintSchema = z.strictObject({
 })
 
 /**
- * Whether a hint read failed fatally: a conflicting lock, a loop, an unsafe
- * file or a path that changed under the read still surfaces, while a torn,
- * malformed, linked or concurrently removed hint carries no authority and
- * is skipped.
- */
+Whether a hint read failed fatally: a conflicting lock, a loop, an unsafe
+file or a path that changed under the read still surfaces, while a torn,
+malformed, linked or concurrently removed hint carries no authority and
+is skipped.
+*/
 function isFatalHintFailure(error: unknown): boolean {
   return (
     storeErrorCode(error) === 'EACCES' ||

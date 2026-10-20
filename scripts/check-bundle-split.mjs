@@ -108,6 +108,7 @@ import {
   MODEL_API_TOOLS_ONLY,
   MODEL_API_VERIFY_ONLY,
   MODEL_API_BOUNDARY_SOURCES,
+  EXEC_GUARD_BUNDLE,
   checkDeferredBundles,
   checkResourceBundles,
 } from './lib/deferredBundles.mjs'
@@ -1015,6 +1016,20 @@ const RULES_FILE_ONLY = [
   'src/host/commands/rulesFileEntry.ts',
   'src/core/context/rulesTemplate.ts',
 ]
+// The guarded process-start layer ships beside activation (PLAN.md D24);
+// every Node bundle requires it instead of carrying it.
+const EXEC_GUARD_ONLY = ['src/core/execGuardEntry.ts', 'src/core/execGuard.ts']
+const execGuard = inputsOf(EXEC_GUARD_BUNDLE)
+for (const file of EXEC_GUARD_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which loads only with the guarded layer`)
+    }
+  }
+  if (!execGuard.has(file)) {
+    problems.push(`${EXEC_GUARD_BUNDLE.output} no longer carries ${file}`)
+  }
+}
 const rulesFile = inputsOf(RULES_FILE)
 for (const file of RULES_FILE_ONLY) {
   for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {

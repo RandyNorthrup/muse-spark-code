@@ -18,10 +18,10 @@ import { NamedLockError, personScope, withNamedLock, type NamedLockOptions } fro
 export type ChatGptLockOptions = NamedLockOptions
 
 /**
- * The contention deadline production waits: a suspended process holding the
- * grant lock reports `lock-busy` after this instead of hanging every CLI/ACP
- * account operation forever. A caller-supplied `timeoutMs` still wins.
- */
+The contention deadline production waits: a suspended process holding the
+grant lock reports `lock-busy` after this instead of hanging every CLI/ACP
+account operation forever. A caller-supplied `timeoutMs` still wins.
+*/
 export const CHATGPT_REFRESH_LOCK_TIMEOUT_MS = OAUTH_CODE_TTL_MS
 
 /** One person-scoped grant lock; no token, identity, file or child is involved. */

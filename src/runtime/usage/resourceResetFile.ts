@@ -15,9 +15,9 @@ const resetSchema = z.strictObject({ v: z.literal(1), resetAtMs: z.int().check(z
 const RESET_UNREADABLE_CODES: ReadonlySet<string> = new Set(['EACCES', 'EPERM'])
 
 /**
- * An unreadable or corrupt boundary fails closed; anything else keeps its
- * kind past this boundary.
- */
+An unreadable or corrupt boundary fails closed; anything else keeps its
+kind past this boundary.
+*/
 export function isResetReadError(error: unknown): boolean {
   return (
     error instanceof SyntaxError ||

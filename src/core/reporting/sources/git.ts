@@ -20,12 +20,12 @@ export interface ReportGitIo {
 }
 
 /**
- * The resolved git is Apple's Xcode stub whose developer tools cannot start:
- * the file exists on PATH, but no git command can run. A boolean brand, not
- * `instanceof`: the report IO runs in the runtime bundle while this source
- * reads in the lazy inputs bundle, and each carries its own copy of this
- * class (as with LocalSourceError, C-M113-2).
- */
+The resolved git is Apple's Xcode stub whose developer tools cannot start:
+the file exists on PATH, but no git command can run. A boolean brand, not
+`instanceof`: the report IO runs in the runtime bundle while this source
+reads in the lazy inputs bundle, and each carries its own copy of this
+class (as with LocalSourceError, C-M113-2).
+*/
 export class XcodeStubGitError extends Error {
   readonly isXcodeStubGitError = true
   public constructor() {
@@ -44,14 +44,14 @@ export function isXcodeStubGitError(value: unknown): value is XcodeStubGitError 
 }
 
 /**
- * Whether a failed git call is the Xcode stub refusing to run: on a Mac, the
- * stub's exit code together with its xcodebuild/xcode-select complaint. The
- * recorded shape (2026-10-18, `/usr/bin/git --version` on a Mac whose
- * developer directory points at a missing Xcode): exit 71 with "couldn't
- * spawn '.../xcodebuild'", "unable to locate xcodebuild" and the
- * `xcode-select -switch` hint on stderr. A bare code match would misdiagnose
- * a genuine git failure, so the complaint is required.
- */
+Whether a failed git call is the Xcode stub refusing to run: on a Mac, the
+stub's exit code together with its xcodebuild/xcode-select complaint. The
+recorded shape (2026-10-18, `/usr/bin/git --version` on a Mac whose
+developer directory points at a missing Xcode): exit 71 with "couldn't
+spawn '.../xcodebuild'", "unable to locate xcodebuild" and the
+`xcode-select -switch` hint on stderr. A bare code match would misdiagnose
+a genuine git failure, so the complaint is required.
+*/
 export function isXcodeStubGitFailure(
   platform: NodeJS.Platform,
   code: number | undefined,

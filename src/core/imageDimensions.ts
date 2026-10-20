@@ -182,16 +182,16 @@ function readWebpChunk(bytes: Uint8Array, chunk: string): ImageInfo | undefined 
       if (bytes.length < WEBP_VP8L_BITS_OFFSET + BYTES_PER_U32) {
         return undefined
       }
-      const [b0, b1, b2, b3] = bytes.subarray(
+      const [b0 = 0, b1 = 0, b2 = 0, b3 = 0] = bytes.subarray(
         WEBP_VP8L_BITS_OFFSET,
         WEBP_VP8L_BITS_OFFSET + BYTES_PER_U32,
       )
-      const width = 1 + ((b0 ?? 0) | (((b1 ?? 0) & VP8L_WIDTH_HIGH_MASK) << BITS_PER_BYTE))
+      const width = 1 + (b0 | ((b1 & VP8L_WIDTH_HIGH_MASK) << BITS_PER_BYTE))
       const height =
         1 +
-        (((b1 ?? 0) >> VP8L_HEIGHT_LOW_SHIFT) |
-          ((b2 ?? 0) << VP8L_HEIGHT_MID_SHIFT) |
-          (((b3 ?? 0) & VP8L_HEIGHT_HIGH_MASK) << VP8L_HEIGHT_HIGH_SHIFT))
+        ((b1 >> VP8L_HEIGHT_LOW_SHIFT) |
+          (b2 << VP8L_HEIGHT_MID_SHIFT) |
+          ((b3 & VP8L_HEIGHT_HIGH_MASK) << VP8L_HEIGHT_HIGH_SHIFT))
       return { mediaType: 'image/webp', width, height }
     }
     case 'VP8X': {

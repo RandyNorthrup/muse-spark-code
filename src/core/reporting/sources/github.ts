@@ -1,5 +1,3 @@
-import { type ExecFileOptionsWithStringEncoding } from 'node:child_process'
-import { execResourceFile } from '../../resources/launcher'
 import * as z from 'zod/mini'
 import {
   GITHUB_API_BASE_URL,
@@ -9,11 +7,6 @@ import {
   REPORT_MAX_ROWS,
   REPORT_SOURCE_TIMEOUT_MS,
 } from '../../../shared/constants'
-import { withoutCredentials } from '../../credentialEnvironment'
-import { resolveExecutable, type ExecutableProbe } from '../../executables'
-import { redactSecrets } from '../../redact'
-import { githubRepositoryOf, type GitHubRepository } from '../../git/githubRemote'
-import { isCommitSha } from '../../git/github'
 import {
   reportCiRunSchema,
   type ReportSourcePayloads,
@@ -21,8 +14,6 @@ import {
   type SourceReadContext,
 } from './types'
 import type { ReportKind } from '../../../shared/reportSchema'
-import { reportKindSchema } from '../../../shared/reportSchema'
-import { isReportNetworkAllowed, type ReportNetworkPolicy } from './cache'
 import {
   ReportNetworkFailure,
   type ReportNetworkQuery,
@@ -30,6 +21,16 @@ import {
   type ReportNetworkTransport,
   unavailableReportSource,
 } from './cache'
+import { type ExecutableProbe } from '../../executables'
+import { resolveExecutable } from '../../execGuard'
+import { type ExecFileOptionsWithStringEncoding } from 'node:child_process'
+import { execResourceFile } from '../../resources/launcher'
+import { withoutCredentials } from '../../credentialEnvironment'
+import { redactSecrets } from '../../redact'
+import { githubRepositoryOf, type GitHubRepository } from '../../git/githubRemote'
+import { isCommitSha } from '../../git/github'
+import { reportKindSchema } from '../../../shared/reportSchema'
+import { isReportNetworkAllowed, type ReportNetworkPolicy } from './cache'
 
 // M71's 2026-09-28 gh-api capture (githubCapture.ts), not new wire guesses.
 const namedRepository = z.object({ full_name: z.string() })
@@ -87,12 +88,12 @@ const githubFactsSchema = z.strictObject({
 })
 
 /**
- * N-captures: bind workflow/release readers only after approved wire captures.
- * A port returns its facts as `{ runs, releases }` (validated below) and may
- * return `reasons: string[]` naming the rows it skipped per row (RVCM1136B
- * P2): those reasons join the source's own partial reason while the
- * surviving rows stay.
- */
+N-captures: bind workflow/release readers only after approved wire captures.
+A port returns its facts as `{ runs, releases }` (validated below) and may
+return `reasons: string[]` naming the rows it skipped per row (RVCM1136B
+P2): those reasons join the source's own partial reason while the
+surviving rows stay.
+*/
 export interface ReportGitHubAdditionalPort {
   read(
     context: SourceReadContext,
@@ -402,19 +403,28 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
   }
 }
 
-const exec = (file: string, args: readonly string[], options: ExecFileOptionsWithStringEncoding) =>
-  execResourceFile('probe', file, args, options)
+const exec = (
+  file: string,
+  args: readonly string[],
+  options: ExecFileOptionsWithStringEncoding & { readonly workspaceRoot?: string | undefined },
+) => execResourceFile('probe', file, args, options)
 const commandResultSchema = z.object({ stdout: z.string(), stderr: z.string() })
 export interface ReportGhOptions {
   readonly environment: NodeJS.ProcessEnv
   readonly maxBytes: number
+  /**
+  The workspace the report reads for: `gh` never resolves to a file
+  inside it (resolved through links), and the probe's scope must exclude
+  this same root. REQUIRED.
+  */
+  readonly workspaceRoot: string
   /** Host file probe; the existing D24 resolver excludes workspace PATH entries. */
   readonly probe: ExecutableProbe
   /** Tests inject the actual child-process boundary, not an authentication fake. */
   readonly run?: (
     file: string,
     args: readonly string[],
-    options: ExecFileOptionsWithStringEncoding,
+    options: ExecFileOptionsWithStringEncoding & { readonly workspaceRoot?: string | undefined },
   ) => Promise<{ stdout: string; stderr: string }>
 }
 
@@ -458,6 +468,7 @@ export function ghReportTransport(options: ReportGhOptions): ReportNetworkTransp
         timeout: REPORT_SOURCE_TIMEOUT_MS,
         maxBuffer: options.maxBytes,
         windowsHide: true,
+        workspaceRoot: options.workspaceRoot,
       })
     } catch (error: unknown) {
       raw = error
@@ -471,8 +482,8 @@ export function ghReportTransport(options: ReportGhOptions): ReportNetworkTransp
     // is HTTP syntax, not a new upstream JSON shape. stderr is never used.
     const output = result.stdout.replaceAll('\r\n', '\n')
     const boundary = output.indexOf('\n\n')
-    const [statusLine, ...headers] = output.slice(0, boundary).split('\n')
-    const status = /^HTTP\/[\d.]+\s+(\d{3})(?:\s|$)/.exec(statusLine ?? '')?.[1]
+    const [statusLine = '', ...headers] = output.slice(0, boundary).split('\n')
+    const status = /^HTTP\/[\d.]+\s+(\d{3})(?:\s|$)/.exec(statusLine)?.[1]
     if (boundary === -1 || status === undefined)
       throw new ReportNetworkFailure('gh-response-invalid')
     const responseHeaders = new Headers()
@@ -519,7 +530,7 @@ export interface ReportPostingDeps {
   readonly enabled: (kind: ReportKind, target: PostTarget) => Promise<boolean>
   readonly previewed: (kind: ReportKind, target: PostTarget) => Promise<boolean>
   /** Q verifies the active occurrence/creator/workspace grant independently
-   * of the caller's fields. A prior target preview is not scheduler authority. */
+  of the caller's fields. A prior target preview is not scheduler authority. */
   readonly authorizeSchedule: (
     context: SourceReadContext,
     grant: PostScheduleGrant,
@@ -542,10 +553,10 @@ export type ReportPostResult =
     }
 
 /**
- * A manual invocation previews the entire exact scrubbed post. Unattended
- * posting needs a previously previewed target and a schedule grant naming it.
- * A pinned status issue is edited in place; retries never create new issues.
- */
+A manual invocation previews the entire exact scrubbed post. Unattended
+posting needs a previously previewed target and a schedule grant naming it.
+A pinned status issue is edited in place; retries never create new issues.
+*/
 function isPostingAllowed(deps: ReportPostingDeps, context: SourceReadContext): boolean {
   return isReportNetworkAllowed(deps.policy, context) && deps.policy.githubSignedIn
 }

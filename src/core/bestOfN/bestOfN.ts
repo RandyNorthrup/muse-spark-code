@@ -77,9 +77,9 @@ export function bestOfNDiffArgs(baseRef: string, tree: string): readonly string[
 }
 
 /**
- * "Take this one": apply and stage the frozen binary patch from stdin.
- * Ordinary apply refuses a changed target; no force or three-way fallback.
- */
+"Take this one": apply and stage the frozen binary patch from stdin.
+Ordinary apply refuses a changed target; no force or three-way fallback.
+*/
 export function bestOfNTakeArgs(): readonly string[] {
   return ['apply', '--index', '--binary', '-']
 }
@@ -115,7 +115,7 @@ export function parseBestOfNNumstat(output: string): readonly BestOfNChangedFile
     if (insertions === undefined || deletions === undefined || path === '') {
       throw new Error(`Refused best-of-N diff stat line ${line}`)
     }
-    return [{ path, insertions: numstatCount(insertions), deletions: numstatCount(deletions) }]
+    return { path, insertions: numstatCount(insertions), deletions: numstatCount(deletions) }
   })
 }
 

@@ -2717,6 +2717,16 @@ source and the upstream issue (`docs/certification/sdk144.md` has the table).
   production, so nothing user-visible breaks; it must not be wired for
   1.4.4 hosts.
 
+**Amendment 2026-10-19 (PR250FIX2, lane K activation budget).** The Muse
+Code delete offer (`canDeleteMuseSession`: CLI version plus the injected
+lifecycle reader) must stay out of the activation graph: `HostInfo`
+carries `canDeleteSessions?`, a Muse Code host omits it, and the gate lives
+in `src/core/backends/musecode/museDeleteGate.ts`, which no module the
+activation bundle includes may import. A sync constructor cannot serve a
+dynamic import, so the offer moved instead of the code; the reader
+injection wires the offer when it lands. History offers Delete on Muse Code
+nowhere until then, and nothing the CLI cannot answer is ever sent.
+
 The workarounds recorded elsewhere, re-checked the same day:
 
 ### D27 — The audit: editing correctness (2026-09-23)
@@ -8328,6 +8338,12 @@ one governor for everything the harness starts.
    - `museSpark.resourceRelocate`: `paired` (default), `ask` or `off`.
    - M96's `teamHeavyCommandSlots` and `teamWorkerPriority` stay; the
      governor only ever narrows below them.
+   - The default is no limit (owner 2026-10-19: the governor's own 85% CPU
+     default is removed; every threshold defaults to null). With nothing set
+     by the person the governor measures and shows but pauses, holds or
+     relocates nothing: an unset metric contributes no reading, and the
+     critical, transport and service trips each need a limit the person set
+     behind them. A limit the person sets works exactly as before.
 
 4. **The sampler is cheap and honest.**
    - **The machine,** every `RESOURCE_SAMPLE_MS` (5 seconds), with no child
@@ -15124,6 +15140,36 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   A23 above), so is the transcript item count (see A30 above), and so is
   the report reader's 16 MiB bound — report sources read at any size
   (row and text bounds elsewhere still refuse what they bound).
+- NOLIMITSRUN (this lane): `MODEL_API_MAX_TOOL_ROUNDS` (200/turn) and any
+  caller-allowance default removed — a turn runs until the model stops
+  calling tools or the person stops it, with the running round count shown.
+- NOLIMITSRUN: `MODEL_API_CONTINUATIONS_MAX` (1) removed — an output-limit
+  reply continues while the model is mid-answer, naming each part.
+- NOLIMITSRUN: `TOOL_REPEAT_LIMIT` (3) removed — a repeated identical tool
+  call never stops the turn; the person is told the model is repeating it.
+- NOLIMITSRUN: `STRUCTURED_OUTPUT_REPAIRS_MAX` (1) removed — a structured
+  answer repairs until valid, naming each repair round.
+- NOLIMITSRUN: `SUBAGENT_TASK_MAX_REQUESTS` (4) removed — a subagent task
+  runs until done or stopped; the paid-consent card prices each request as
+  it goes, never from a cap.
+- NOLIMITSRUN: `SHELL_DEFAULT_TIMEOUT_MS` and the hook timeout defaults
+  (`HOOK_DEFAULT_TIMEOUT_SECONDS`, `HOOK_MODEL_TIMEOUT_MS`,
+  `HOOK_SESSION_END_TIMEOUT_MS`) removed — a command or hook without a
+  timeout someone set runs until it ends or is stopped, showing its time.
+- NOLIMITSRUN: tool-result trimming removed (`TOOL_OUTPUT_MAX_CHARS`
+  64,000 fallback, `TOOL_RESULT_MAX_TOKENS` 16,000,
+  `TOOL_RESULT_MAX_LINE_CHARS` 8,000) — a result reaches the model whole;
+  only a byte guard the person set or the window share cuts, with a spill
+  file and a notice. Display clipping stays (it hides nothing from the
+  model or the saved record).
+- NOLIMITSRUN kept bounds, listed for the lead (outcome 4): the read/search/
+  list paging contracts (limits the model sets, honest continuation
+  notices), `readFileCharacterBudget` (window-derived when the record names
+  the window; its unknown-window 64 KiB branch is ours), the verify-note
+  budget `VERIFY_NOTE_MAX_CHARS` with per-check shares (M68/D27: beginning,
+  end and exit line kept), hook input preview bounds (hook contract, not the
+  model path), and every display/row clip. Record:
+  `docs/certification/nolimits-all.md` (this lane's section).
 
 ### D123 — The provider judges a key; no key is refused for its shape (lane PROVKEYS, 2026-10-12; numbered D108 until the 2026-10-17 merge with main, where D108 is the test overhaul)
 
@@ -15303,8 +15349,55 @@ the session's access and selects the human reviewer, while the default
 and Edit-automatically sessions start with `:ask-me`, Auto sessions with
 `:auto-review`, and every mode switch re-syncs the profile (experimental
 `session/setPermissionProfile`, tolerated as `methodNotFound` on older
-hosts). Headless sessions pass no profile and behave as before. Manual's
-words stand unchanged; they hold on Muse Code 1.4.7 and later. Record:
+hosts). Headless ACP starts (exec and every other non-interactive path)
+pass no profile and behave as before; a mode switch whose profile step
+fails with anything else puts the previous approval mode back before
+throwing, so the menu never shows a mode the host is not running; and a
+scheduled admission on a Manual conversation runs with `:auto-review` while
+the unattended run is in charge, putting the conversation's reviewer back
+when the mode is restored. The failure paths are closed too (lane
+PR251FIX2, 2026-10-19; corrected by lane PR251FIX3B after Grok's second
+re-review GRV251D): resume, fork and load seed the handle from the
+approval mode the envelope serves, so the first mode change rolls back
+like a live one. Every mode-switch failure names the wire mode the host
+runs: a refused mode command, or a profile step the rollback undoes,
+throws `ModeKeptError` with the running mode and turns stay live; an
+unknown previous mode, a failed rollback, a torn adoption, or a failed
+schedule restore quarantines with `PermissionReviewerError` naming the
+running mode instead. A refused command releases its effect without
+forgetting the mode, so later turns and mode changes are judged on their
+own. The Modes menu (panel composer) and the editor (ACP) show the running
+mode (`composerModeForApprovalMode`) with the error's own sentence; when no
+menu mode selects it, the panel refuses the send in flight instead (lane
+PR251FIX4, 2026-10-20, after Grok's third re-review GRV251E: a torn forward
+change says the named mode runs without its reviewer installed; a torn
+rollback says the previous mode is restored with its reviewer still
+installed, with turns refused until the mode is set again; a refused
+schedule restore quarantines too, naming the mode the host still runs; a
+quarantine keeps its sentence, which the next refused turn repeats; lane
+PR251FIX5, 2026-10-19, after Grok's fourth re-review GRV251F: the rollback
+notice naming the recorded mode keeps that sentence, and a genuinely
+different mode replaces it with the sentence naming that mode
+(`permissionModeChangedWhileQuarantined`: new turns stay refused until the
+mode is set again, with no reviewer or tear words, since the notice
+installs and removes no reviewer — lane PR251FIX6, 2026-10-19, after
+Grok's fifth re-review GRV251G); tears on Plan and Bypass say
+the acknowledged mode is in effect but unconfirmed, since those modes
+install no reviewer; the proof replays the recorded 1.4.7 frames through
+the real session). An
+unknown running mode says so. So Manual is never left running with the judge
+and the menu
+always agrees with the host; a finished schedule puts its mode and reviewer
+back as one unit, and when the reviewer cannot be put back the session
+refuses new turns while the restore gate resolves. The mode-sync
+orchestration lives in the deferred bundle `dist/approvalModes.js`
+(`src/core/backends/musecode/approvalModesEntry.ts`, loaded on the first
+mode change, schedule admission or restore), so activation carries only
+thin shells. No production path in this tree sends through the
+scheduled-admission entry points (the runtime engine's delivery targets
+refuse; `ScheduleAgentSession` is never constructed); the admission and
+restore paths are proven by live probes. Manual's words stand unchanged;
+they hold on Muse Code 1.4.7 and later. Record:
 `docs/certification/manualmode.md`.
 
 ## 3. Open questions (need the owner)
@@ -39602,6 +39695,10 @@ No new escape hatch is introduced.
 | VAULTMIGFIX location                                 | Escape hatch                                                     | Reason                                                                                                                                                                                                                      | Removal                                          |
 | ---------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | `src/host/vault/migrationShell.ts` (`MigrationLock`) | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The installed Node 20 host lacks `Promise.withResolvers` (same reason as `src/core/vault/store.ts` `withWriter` in §8). The Promise executor assigns the release callback synchronously; `finally` releases the next owner. | A supported `Promise.withResolvers` on the host. |
+
+| DEPSFINAL1 location                                            | Escape hatch                                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                         | Date       |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `src/shared/linuxHelperPins.ts`, `filePin` (`bytes`, `sha256`) | `eslint-disable-next-line unicorn/no-unnecessary-parameters` on each of the two slots | The release stamper (`scripts/build-linux-helper-pins.mjs`) rewrites the `bytes`/`sha256` fields of every pin call between the GENERATED markers, and `scripts/check-linux-helper-pins.mjs` validates the five-argument call shape; the parameters are the stamper's data slots, all unset (`0`, `''`) until release stamping. Dropping them breaks the stamper and its check. | 2026-10-19 |
 
 ## 9. Security assumptions and accepted residual risk
 

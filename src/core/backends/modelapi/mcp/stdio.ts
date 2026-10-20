@@ -154,10 +154,10 @@ export class ContentLengthFramer extends BufferedFramer {
 }
 
 /**
- * `auto`'s choice from the first bytes a server writes: Content-Length when
- * they are that header, lines otherwise; undefined while too few have come
- * to tell (they are held until then).
- */
+`auto`'s choice from the first bytes a server writes: Content-Length when
+they are that header, lines otherwise; undefined while too few have come
+to tell (they are held until then).
+*/
 export function framingOfFirstBytes(bytes: Uint8Array): 'content_length' | 'lines' | undefined {
   const text = Buffer.from(bytes).toString('latin1').trimStart()
   if (CONTENT_LENGTH_START.test(text)) {
@@ -246,10 +246,10 @@ export class McpStdioTransport implements McpTransport {
   }
 
   /**
-   * `auto`: the bytes held until the stream's start tells the framing, then
-   * all of them; a server that begins with a Content-Length header is
-   * spoken to that way from then on. Undefined while it cannot tell yet.
-   */
+  `auto`: the bytes held until the stream's start tells the framing, then
+  all of them; a server that begins with a Content-Length header is
+  spoken to that way from then on. Undefined while it cannot tell yet.
+  */
   private probe(chunk: Uint8Array): Uint8Array | undefined {
     if (this.probed === undefined) {
       return chunk

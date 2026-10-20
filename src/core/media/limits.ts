@@ -1,9 +1,4 @@
-import {
-  BYTES_PER_MIB,
-  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
-  MEDIA_SNIFF_MAX_BYTES,
-  UI_TEXT,
-} from '../../shared/constants'
+import { MEDIA_SNIFF_MAX_BYTES, UI_TEXT } from '../../shared/constants'
 import { fill, formatBytes, formatUnit } from '../../shared/l10n/text'
 import { mediaInfoSchema, type MediaInfo } from '../../shared/media'
 import { sniffIsoBmff } from './sniff/isoBmff'
@@ -100,14 +95,18 @@ export async function sniffMedia(source: MediaSource): Promise<SniffMediaResult>
   }
 }
 
-/** Size/duration/format admission; no provider or paid request occurs here. */
+/**
+Size/duration/format admission; no provider or paid request occurs here.
+D121: an absent or 0 size bound admits any size — the provider refuses
+what it cannot take, and the modality gate still enforces the model's
+own record.
+*/
 export function checkMediaLimits(info: MediaFileInfo, limits: MediaLimits = {}): MediaLimitResult {
-  const maximum = limits.maxUploadBytes ?? MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB
+  const maximum = limits.maxUploadBytes
   if (
-    !Number.isSafeInteger(maximum) ||
-    maximum <= 0 ||
+    (maximum !== undefined && maximum !== 0 && (!Number.isSafeInteger(maximum) || maximum < 0)) ||
     (limits.maxDurationSeconds !== undefined &&
-      (!Number.isFinite(limits.maxDurationSeconds) || limits.maxDurationSeconds <= 0))
+      (!Number.isFinite(limits.maxDurationSeconds) || limits.maxDurationSeconds < 0))
   )
     throw new RangeError('Invalid media limits')
   if (!mediaInfoSchema.safeParse(info).success || info.sizeBytes <= 0)
@@ -115,7 +114,7 @@ export function checkMediaLimits(info: MediaFileInfo, limits: MediaLimits = {}):
       ok: false,
       reason: fill(UI_TEXT.media.attachmentUnknownType, { type: info.mediaType }),
     }
-  if (info.sizeBytes > maximum)
+  if (maximum !== undefined && maximum > 0 && info.sizeBytes > maximum)
     return { ok: false, reason: fill(UI_TEXT.media.sizeExceeded, { size: formatBytes(maximum) }) }
   const canAccept =
     limits.acceptedMediaTypes === undefined
@@ -137,7 +136,8 @@ export function checkMediaLimits(info: MediaFileInfo, limits: MediaLimits = {}):
   }
   if (
     info.durationSeconds === null &&
-    (limits.capped === true || limits.maxDurationSeconds !== undefined)
+    (limits.capped === true ||
+      (limits.maxDurationSeconds !== undefined && limits.maxDurationSeconds > 0))
   )
     return {
       ok: false,
@@ -148,6 +148,7 @@ export function checkMediaLimits(info: MediaFileInfo, limits: MediaLimits = {}):
     }
   if (
     limits.maxDurationSeconds !== undefined &&
+    limits.maxDurationSeconds > 0 &&
     info.durationSeconds !== null &&
     info.durationSeconds > limits.maxDurationSeconds
   )

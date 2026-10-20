@@ -120,11 +120,11 @@ function pathOf(record: string): string {
 }
 
 /**
- * A `git ls-tree -z` stdout as it arrives: NUL ends every record, so the
- * byte stream splits cleanly even mid-character, and each whole record
- * decodes on its own. Undecodable bytes refuse the listing exactly as a
- * buffered read's replacement character does (`UNDECODABLE`, below).
- */
+A `git ls-tree -z` stdout as it arrives: NUL ends every record, so the
+byte stream splits cleanly even mid-character, and each whole record
+decodes on its own. Undecodable bytes refuse the listing exactly as a
+buffered read's replacement character does (`UNDECODABLE`, below).
+*/
 export class ListingRecords {
   private rest: Buffer = Buffer.alloc(0)
 
@@ -154,9 +154,9 @@ export class ListingRecords {
 }
 
 /**
- * The entries of `git ls-tree -r -z --full-tree --long <commit>` records to
- * write, in its order, or why none is.
- */
+The entries of `git ls-tree -r -z --full-tree --long <commit>` records to
+write, in its order, or why none is.
+*/
 export function heldTreeFromRecords(
   records: readonly string[],
   platform: NodeJS.Platform,
@@ -212,9 +212,9 @@ export function heldTreeFromRecords(
 }
 
 /**
- * The entries of a whole `git ls-tree -r -z --full-tree --long <commit>`
- * stdout, or why none is.
- */
+The entries of a whole `git ls-tree -r -z --full-tree --long <commit>`
+stdout, or why none is.
+*/
 export function heldTree(listing: string, platform: NodeJS.Platform): HeldTree {
   return heldTreeFromRecords(listing.split(NUL), platform)
 }

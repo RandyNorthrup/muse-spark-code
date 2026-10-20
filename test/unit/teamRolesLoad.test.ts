@@ -11,17 +11,17 @@ function roleFile(body: string): Uint8Array {
   return encoder.encode(body)
 }
 
-function coded(code: string): Error {
-  return Object.assign(new Error(`${code}: permission denied`), { code })
+function accessRefusal(): Error {
+  return Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
 }
 
 function io(files: Readonly<Record<string, string>>, failures: readonly string[] = []) {
   return {
     realPath: (absolute: string) =>
-      failures.includes('realPath') ? Promise.reject(coded('EACCES')) : Promise.resolve(absolute),
+      failures.includes('realPath') ? Promise.reject(accessRefusal()) : Promise.resolve(absolute),
     listDirectory: (absolute: string) =>
       failures.includes('listDirectory')
-        ? Promise.reject(coded('EACCES'))
+        ? Promise.reject(accessRefusal())
         : Promise.resolve(
             Object.keys(files)
               .filter((path) => path.startsWith(`${absolute}/`))
@@ -29,7 +29,7 @@ function io(files: Readonly<Record<string, string>>, failures: readonly string[]
           ),
     readFile: (absolute: string) =>
       failures.includes('readFile')
-        ? Promise.reject(coded('EACCES'))
+        ? Promise.reject(accessRefusal())
         : Promise.resolve(files[absolute] === undefined ? undefined : roleFile(files[absolute])),
   }
 }

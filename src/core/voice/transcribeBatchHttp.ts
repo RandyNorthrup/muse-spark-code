@@ -88,13 +88,13 @@ export interface TranscriptionPostDeps {
     readonly contentType: string
     readonly signal: AbortSignal
     /** Called synchronously immediately before the fetch, after the key and
-     * endpoint are ready; a throw refuses the POST (RVMEDIAV 2). */
+    endpoint are ready; a throw refuses the POST (RVMEDIAV 2). */
     readonly dispatch: () => void
   }) => Promise<Response>
   /** Bounded read of a converted file this adapter rendered. */
   readonly readAudioBytes: (absolutePath: string, signal: AbortSignal) => Promise<Uint8Array>
   /** The approved attachment's digest-verified stream (the registry's):
-   * a changed size or digest throws before its last chunk (RVMEDIAV 1). */
+  a changed size or digest throws before its last chunk (RVMEDIAV 1). */
   readonly readSource: (source: AudioSource, signal: AbortSignal) => AsyncIterable<Uint8Array>
 }
 
@@ -191,8 +191,8 @@ function audioCaps(modelId: string): AudioModelCapabilities {
 }
 
 /** Production sound context for the Model API backend. Unknown models stay
- * unknown, which the router refuses with a named reason; `wrapAsVideo`
- * stays off until lane V binds M2's encoder. */
+unknown, which the router refuses with a named reason; `wrapAsVideo`
+stays off until lane V binds M2's encoder. */
 export function createModelApiAudioContext(options: {
   readonly modelId: string
   readonly soundtrackModelId?: string

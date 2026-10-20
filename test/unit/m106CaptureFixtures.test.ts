@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { MSP_KNOWN_SCHEMA_FINGERPRINTS } from '../../src/shared/constants'
+import { captureFrameRow } from './helpers/wireCapture'
 
 const record = z.record(z.string(), z.unknown())
-const error = z.object({ code: z.number(), message: z.string(), data: record })
 const captureSchema = z.object({
   provenance: z.object({
     cli: z.literal('1.4.4-R5419.1'),
@@ -19,19 +19,7 @@ const captureSchema = z.object({
     omitted: z.array(z.string()),
     launchArguments: z.array(z.string()),
   }),
-  frames: z.array(
-    z.object({
-      direction: z.enum(['sent', 'received']),
-      frame: z.object({
-        jsonrpc: z.literal('2.0'),
-        id: z.number().optional(),
-        method: z.string().optional(),
-        params: record.optional(),
-        result: record.optional(),
-        error: error.optional(),
-      }),
-    }),
-  ),
+  frames: z.array(captureFrameRow),
 })
 type Capture = z.infer<typeof captureSchema>
 function readFixture(name: string): string {

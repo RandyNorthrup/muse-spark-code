@@ -12,10 +12,10 @@ import {
 } from './ports'
 
 /**
- * Journal note recorded when a finished retire finds the legacy copy
- * already absent: the engine deleted nothing, and the note says so, so the
- * join can tell a watched retire from a possibly raced external deletion.
- */
+Journal note recorded when a finished retire finds the legacy copy
+already absent: the engine deleted nothing, and the note says so, so the
+join can tell a watched retire from a possibly raced external deletion.
+*/
 const RETIRE_RESUMED_WITHOUT_COPY_NOTE = 'retire intent resumed with the legacy copy already absent'
 
 /** Private management service. No method is exposed to agent tools or the public protocol. */
@@ -159,10 +159,10 @@ export class VaultMigration {
     }
   }
   /**
-   * Drop the vault copy when it is still there. A crash past the vault
-   * remove leaves nothing to drop, and the remove refuses a missing id, so
-   * the list decides instead of the error shape.
-   */
+  Drop the vault copy when it is still there. A crash past the vault
+  remove leaves nothing to drop, and the remove refuses a missing id, so
+  the list decides instead of the error shape.
+  */
   private async removeVaultCopyIfPresent(
     entry: MigrationCredential,
     lease: MigrationLease,
@@ -236,19 +236,19 @@ export class VaultMigration {
     }
   }
   /**
-   * Whether the legacy copy is absent while the slot still retains it. Only
-   * an `active` slot with `retainLegacy` can report this: a retired slot
-   * owns no legacy copy, and every other phase is refused before this runs.
-   */
+  Whether the legacy copy is absent while the slot still retains it. Only
+  an `active` slot with `retainLegacy` can report this: a retired slot
+  owns no legacy copy, and every other phase is refused before this runs.
+  */
   /**
-   * Finish a retire the engine itself started: the journal already carries
-   * the retire intent, so the missing legacy copy is evidence of an
-   * interrupted retire, never of a user deletion. When the legacy copy is
-   * already absent, verifies only the vault digest and records `retired`
-   * with a note saying the engine did not see the delete. When a legacy
-   * copy is still present, compares it before deleting, so a change that
-   * landed after the intent still refuses.
-   */
+  Finish a retire the engine itself started: the journal already carries
+  the retire intent, so the missing legacy copy is evidence of an
+  interrupted retire, never of a user deletion. When the legacy copy is
+  already absent, verifies only the vault digest and records `retired`
+  with a note saying the engine did not see the delete. When a legacy
+  copy is still present, compares it before deleting, so a change that
+  landed after the intent still refuses.
+  */
   private async finishInterruptedRetire(
     entry: MigrationCredential,
     row: MigrationRecord,
@@ -274,16 +274,16 @@ export class VaultMigration {
     )
   }
   /**
-   * Finish one pending retire intent: a present copy the engine verifies is
-   * deleted and the slot is recorded `retired`; an absent one is recorded
-   * `retired` with a note saying the engine did not see the delete. A copy
-   * changed after the intent is left alone — the engine deletes nobody
-   * else's bytes — its stale intent is cleared so the change reads honestly,
-   * and `diverged` is reported instead of throwing. A vault-side failure is
-   * told apart from a changed legacy copy: the vault is re-verified before
-   * the row is touched, so a vault-side failure propagates with the intent
-   * intact and only a healthy vault with a changed copy reports `diverged`.
-   */
+  Finish one pending retire intent: a present copy the engine verifies is
+  deleted and the slot is recorded `retired`; an absent one is recorded
+  `retired` with a note saying the engine did not see the delete. A copy
+  changed after the intent is left alone — the engine deletes nobody
+  else's bytes — its stale intent is cleared so the change reads honestly,
+  and `diverged` is reported instead of throwing. A vault-side failure is
+  told apart from a changed legacy copy: the vault is re-verified before
+  the row is touched, so a vault-side failure propagates with the intent
+  intact and only a healthy vault with a changed copy reports `diverged`.
+  */
   private async finishOneIntent(
     entry: MigrationCredential,
     row: MigrationRecord,
@@ -317,14 +317,14 @@ export class VaultMigration {
     }
   }
   /**
-   * Whether the legacy copy is absent. The read buffer is owned inside a
-   * `try` that already exists before the first await: a stale lease refuses
-   * only after the buffer is wiped, so no refusal path leaves key material
-   * live. Every other helper that holds key material follows the same shape
-   * (the `try` opens before the first await); this one did not, and a lease
-   * invalidated between the read and the assert left the returned bytes
-   * unwiped.
-   */
+  Whether the legacy copy is absent. The read buffer is owned inside a
+  `try` that already exists before the first await: a stale lease refuses
+  only after the buffer is wiped, so no refusal path leaves key material
+  live. Every other helper that holds key material follows the same shape
+  (the `try` opens before the first await); this one did not, and a lease
+  invalidated between the read and the assert left the returned bytes
+  unwiped.
+  */
   private async legacyAbsent(entry: MigrationCredential, lease: MigrationLease): Promise<boolean> {
     let source: Uint8Array | null = null
     try {
@@ -336,12 +336,12 @@ export class VaultMigration {
     }
   }
   /**
-   * Whether the legacy copy changed since the migration, reusing
-   * `verifyLegacy` (which wipes every buffer): a legacy copy that no longer
-   * verifies against the vault — mismatched or undecodable — reports a
-   * boolean instead of throwing. Anything else, including the vault itself,
-   * still throws.
-   */
+  Whether the legacy copy changed since the migration, reusing
+  `verifyLegacy` (which wipes every buffer): a legacy copy that no longer
+  verifies against the vault — mismatched or undecodable — reports a
+  boolean instead of throwing. Anything else, including the vault itself,
+  still throws.
+  */
   private async legacyDiverged(
     entry: MigrationCredential,
     row: MigrationRecord,
@@ -360,11 +360,11 @@ export class VaultMigration {
     }
   }
   /**
-   * The legacy copy must still be the bytes this store call carries: a save
-   * that landed after the caller read refuses with `conflict` instead of
-   * being overwritten with the older value, and the next unlock heals the
-   * newer one. An absent copy refuses the same way.
-   */
+  The legacy copy must still be the bytes this store call carries: a save
+  that landed after the caller read refuses with `conflict` instead of
+  being overwritten with the older value, and the next unlock heals the
+  newer one. An absent copy refuses the same way.
+  */
   private async assertLegacyMatches(
     entry: MigrationCredential,
     snapshot: Uint8Array,
@@ -380,10 +380,10 @@ export class VaultMigration {
     }
   }
   /**
-   * One store inside the caller's lease (never nested in `run`). Checks the
-   * legacy copy still matches before the vault write and again before the
-   * legacy write, so a newer save is never overwritten with older bytes.
-   */
+  One store inside the caller's lease (never nested in `run`). Checks the
+  legacy copy still matches before the vault write and again before the
+  legacy write, so a newer save is never overwritten with older bytes.
+  */
   private async storeInLease(
     entry: MigrationCredential,
     snapshot: Uint8Array,
@@ -445,27 +445,27 @@ export class VaultMigration {
     }
   }
   /**
-   * Finish a sign-out the engine itself started: the journal already says
-   * `deleting`, so a missing legacy copy is evidence of the interrupted
-   * sign-out, never of a user deletion. A live legacy copy is compared
-   * against the journaled digest before anything is kept: the engine no
-   * longer clears SecretStorage before it journals `deleting`, so the same
-   * digest means the original key this sign-out started, and the sign-out
-   * finishes — the vault copy goes, the legacy copy goes, the row goes
-   * `deleted`. Only a different digest is a key saved after the
-   * interruption, and it is never deleted here: only the stale vault copy
-   * goes, and an apiKey record is then re-seeded with `store`, while an
-   * opaque one stays in SecretStorage with the row `deleted`, which the
-   * unlock skips like any signed-out opaque slot. A record that no longer
-   * decodes refuses with the codec's own fault and nothing is deleted. With
-   * no legacy copy, the legacy remove runs only against the absent copy it
-   * expects, and the row completes `deleted` without touching SecretStorage.
-   */
+  Finish a sign-out the engine itself started: the journal already says
+  `deleting`, so a missing legacy copy is evidence of the interrupted
+  sign-out, never of a user deletion. A live legacy copy is compared
+  against the journaled digest before anything is kept: the engine no
+  longer clears SecretStorage before it journals `deleting`, so the same
+  digest means the original key this sign-out started, and the sign-out
+  finishes — the vault copy goes, the legacy copy goes, the row goes
+  `deleted`. Only a different digest is a key saved after the
+  interruption, and it is never deleted here: only the stale vault copy
+  goes, and an apiKey record is then re-seeded with `store`, while an
+  opaque one stays in SecretStorage with the row `deleted`, which the
+  unlock skips like any signed-out opaque slot. A record that no longer
+  decodes refuses with the codec's own fault and nothing is deleted. With
+  no legacy copy, the legacy remove runs only against the absent copy it
+  expects, and the row completes `deleted` without touching SecretStorage.
+  */
   /**
-   * Record the finished sign-out both copies are already gone for: the
-   * terminal row drops every transition-only field, so it stays
-   * schema-valid whichever interrupted path lands here.
-   */
+  Record the finished sign-out both copies are already gone for: the
+  terminal row drops every transition-only field, so it stays
+  schema-valid whichever interrupted path lands here.
+  */
   private async completeDelete(row: MigrationRecord, lease: MigrationLease): Promise<void> {
     const base = { ...row }
     delete base.previous
@@ -510,10 +510,10 @@ export class VaultMigration {
     }
   }
   /**
-   * The live legacy record's decoded material kind. Null when the record is
-   * absent or damaged — each caller leaves those to its own recovery — and
-   * every buffer is wiped before returning.
-   */
+  The live legacy record's decoded material kind. Null when the record is
+  absent or damaged — each caller leaves those to its own recovery — and
+  every buffer is wiped before returning.
+  */
   private async liveMaterialKind(
     entry: MigrationCredential,
     lease: MigrationLease,
@@ -718,25 +718,25 @@ export class VaultMigration {
     })
   }
   /**
-   * Remove the slot from both stores. When the legacy copy is already
-   * absent, the vault copy is the only copy left, and deleting it needs the
-   * caller's explicit confirmation, typed as the literal `true` so a
-   * variable cannot satisfy it by accident. There are two confirmations and
-   * they cannot be confused in code: an `active` slot that still retains
-   * its legacy copy but finds it absent (with no retire intent) is the
-   * `legacyDeleted` report, answered only after asking the person, with
-   * `legacyDeletionConfirmed`; every other last copy — a `retired` slot, a
-   * credential born in the vault, an interrupted retire — is an ordinary
-   * delete, confirmed with `destroyLastCopyConfirmed` (a plain sign-out may
-   * pass it). Without the matching confirmation the call refuses with
-   * `conflict` and destroys nothing. Rows already being deleted complete
-   * without either: that delete was confirmed when it started. A resumed
-   * one never deletes a key saved after the interruption — a live legacy
-   * copy whose digest differs from the journaled one is kept, only the
-   * stale vault copy goes — while a live copy that still matches the
-   * journaled digest is the original key, and the sign-out finishes by
-   * removing it too. A vault copy already gone is not removed again.
-   */
+  Remove the slot from both stores. When the legacy copy is already
+  absent, the vault copy is the only copy left, and deleting it needs the
+  caller's explicit confirmation, typed as the literal `true` so a
+  variable cannot satisfy it by accident. There are two confirmations and
+  they cannot be confused in code: an `active` slot that still retains
+  its legacy copy but finds it absent (with no retire intent) is the
+  `legacyDeleted` report, answered only after asking the person, with
+  `legacyDeletionConfirmed`; every other last copy — a `retired` slot, a
+  credential born in the vault, an interrupted retire — is an ordinary
+  delete, confirmed with `destroyLastCopyConfirmed` (a plain sign-out may
+  pass it). Without the matching confirmation the call refuses with
+  `conflict` and destroys nothing. Rows already being deleted complete
+  without either: that delete was confirmed when it started. A resumed
+  one never deletes a key saved after the interruption — a live legacy
+  copy whose digest differs from the journaled one is kept, only the
+  stale vault copy goes — while a live copy that still matches the
+  journaled digest is the original key, and the sign-out finishes by
+  removing it too. A vault copy already gone is not removed again.
+  */
   async delete(
     key: string,
     options?: { destroyLastCopyConfirmed?: true; legacyDeletionConfirmed?: true },
@@ -779,17 +779,17 @@ export class VaultMigration {
     })
   }
   /**
-   * Drop a copy the engine can never verify: a `copying` or `writing` row
-   * whose vault item the private channel cannot serve, or whose legacy
-   * record no longer decodes to an apiKey row. Saves before the apiKey gate
-   * stranded such rows with a `secret` item the unlock used to skip before
-   * `resume` ever saw them. The stuck item goes when it is still there, and
-   * the journal row goes with it, so the opaque record keeps working in
-   * SecretStorage. Anything else — an apiKey row recovery can still finish,
-   * or a row with no stuck item and no opaque record — reports false and is
-   * left for its own recovery, and a damaged record stays the engine's to
-   * report instead of being rolled back here.
-   */
+  Drop a copy the engine can never verify: a `copying` or `writing` row
+  whose vault item the private channel cannot serve, or whose legacy
+  record no longer decodes to an apiKey row. Saves before the apiKey gate
+  stranded such rows with a `secret` item the unlock used to skip before
+  `resume` ever saw them. The stuck item goes when it is still there, and
+  the journal row goes with it, so the opaque record keeps working in
+  SecretStorage. Anything else — an apiKey row recovery can still finish,
+  or a row with no stuck item and no opaque record — reports false and is
+  left for its own recovery, and a damaged record stays the engine's to
+  report instead of being rolled back here.
+  */
   async rollbackCopy(key: string): Promise<boolean> {
     const entry = this.credential(key)
     return await this.run(async (lease) => {
@@ -830,19 +830,19 @@ export class VaultMigration {
     })
   }
   /**
-   * Drop a vault copy the legacy slot no longer owns: the live record
-   * decodes to something other than an apiKey row (an oauth, subscription
-   * or account record saved over a migrated apiKey slot) while the journal
-   * still claims the old key. A readable apiKey vault item is not "stuck",
-   * so `rollbackCopy` leaves it; this removes it instead, without touching
-   * the live SecretStorage record. A `copying` or `writing` row goes with
-   * its item the way a rollback drops it; any other owned row (`active`,
-   * `retired`, `deleting`) finishes `deleted` through the interrupted
-   * sign-out path, which keeps a live copy it did not expect. Anything
-   * else — no row, a terminal row, an absent or damaged record, or a
-   * record that still decodes to an apiKey row — reports false and changes
-   * nothing. Never deletes the SecretStorage record: that is the live key.
-   */
+  Drop a vault copy the legacy slot no longer owns: the live record
+  decodes to something other than an apiKey row (an oauth, subscription
+  or account record saved over a migrated apiKey slot) while the journal
+  still claims the old key. A readable apiKey vault item is not "stuck",
+  so `rollbackCopy` leaves it; this removes it instead, without touching
+  the live SecretStorage record. A `copying` or `writing` row goes with
+  its item the way a rollback drops it; any other owned row (`active`,
+  `retired`, `deleting`) finishes `deleted` through the interrupted
+  sign-out path, which keeps a live copy it did not expect. Anything
+  else — no row, a terminal row, an absent or damaged record, or a
+  record that still decodes to an apiKey row — reports false and changes
+  nothing. Never deletes the SecretStorage record: that is the live key.
+  */
   async removeStaleVaultCopy(key: string): Promise<boolean> {
     const entry = this.credential(key)
     return await this.run(async (lease) => {
@@ -986,18 +986,18 @@ export class VaultMigration {
     if (shouldMigrateAfterResume) await this.migrate(key)
   }
   /**
-   * Startup recovery: finish every pending retire intent at once. The vault
-   * calls this at every open before any other migration call, so no intent
-   * survives an open: a present legacy copy is deleted and the slot is
-   * recorded `retired`; an absent one is recorded `retired` with a journal
-   * note saying the copy was already absent when the intent was resumed. A
-   * row whose legacy copy changed after the intent is left alone — the
-   * engine deletes nobody else's bytes — its stale intent is cleared so the
-   * change reads honestly, and its state is reported; the call goes on to
-   * the other rows instead of throwing for it. A vault-side verification
-   * failure still throws. Returns the outcome per finished row; rows without
-   * a pending intent are absent from the result.
-   */
+  Startup recovery: finish every pending retire intent at once. The vault
+  calls this at every open before any other migration call, so no intent
+  survives an open: a present legacy copy is deleted and the slot is
+  recorded `retired`; an absent one is recorded `retired` with a journal
+  note saying the copy was already absent when the intent was resumed. A
+  row whose legacy copy changed after the intent is left alone — the
+  engine deletes nobody else's bytes — its stale intent is cleared so the
+  change reads honestly, and its state is reported; the call goes on to
+  the other rows instead of throwing for it. A vault-side verification
+  failure still throws. Returns the outcome per finished row; rows without
+  a pending intent are absent from the result.
+  */
   async finishPendingRetires(): Promise<Record<string, 'retired' | 'diverged'>> {
     const outcome: Record<string, 'retired' | 'diverged'> = {}
     for (const key of this.credentials.keys()) {

@@ -121,21 +121,21 @@ export interface GitWindow {
   readonly repository: (root: string) => Promise<GitRepository>
   readonly captureGitOwner: CaptureGitOwner
   /**
-   * A commit or a push runs the repository's hooks, signing programs and
-   * credential helpers, and a hook can write the workspace or leave a process
-   * behind. It starts only through the window's admission for workspace
-   * processes (M72, PLAN.md D51): trust, the window's closing and the backend's
-   * generation are asked at the last moment, and checkpoints' file restore
-   * becomes unavailable for this window, as after any command that may write.
-   */
+  A commit or a push runs the repository's hooks, signing programs and
+  credential helpers, and a hook can write the workspace or leave a process
+  behind. It starts only through the window's admission for workspace
+  processes (M72, PLAN.md D51): trust, the window's closing and the backend's
+  generation are asked at the last moment, and checkpoints' file restore
+  becomes unavailable for this window, as after any command that may write.
+  */
   readonly admit: <T>(start: () => Promise<T>) => Promise<T>
   /** VS Code's GitHub sign-in: `ask` may prompt, `silent` only reads one there is. */
   readonly githubToken: (mode: 'ask' | 'silent') => Promise<string | undefined>
   /**
-   * The window's GitHub sign-in over D104's sources (M123): the token for
-   * each call, the panel card (a device-flow code, the source and the
-   * account), Cancel and Sign out. `createGitWindow` always sets it.
-   */
+  The window's GitHub sign-in over D104's sources (M123): the token for
+  each call, the panel card (a device-flow code, the source and the
+  account), Cancel and Sign out. `createGitWindow` always sets it.
+  */
   readonly githubSignIn?: GitHubSignIn | undefined
   readonly github: GitHubClient
   readonly links: PullRequestLinks
@@ -158,11 +158,11 @@ export interface GitWindow {
   /** Formats the existing user turn; no separate draft request is started here. */
   readonly draftOutput?: GitDraftOutputPort | undefined
   /**
-   * M123's native route (PLAN.md D104) for a VS Code-family host without
-   * the `vscode.git` extension: the runtime adapter's deps over this
-   * window and the bundle it is in, or undefined when there is no folder or
-   * no git on PATH.
-   */
+  M123's native route (PLAN.md D104) for a VS Code-family host without
+  the `vscode.git` extension: the runtime adapter's deps over this
+  window and the bundle it is in, or undefined when there is no folder or
+  no git on PATH.
+  */
   readonly nativeGit?:
     | (() => { readonly deps: RuntimeGitDeps; readonly bundle: () => NativeGitBundle } | undefined)
     | undefined
@@ -299,9 +299,9 @@ function pushRefusalText(plan: Extract<PushPlan, { ok: false }>): string {
 }
 
 /**
- * The window's held-worktree card and the worktree line, as the panel shows
- * them: the same in every conversation of the window, on both routes.
- */
+The window's held-worktree card and the worktree line, as the panel shows
+them: the same in every conversation of the window, on both routes.
+*/
 export function windowWorktreeState(
   window: Pick<GitWindow, 'hold' | 'worktree' | 'isWorkspaceTrusted'>,
 ): Pick<GitState, 'hold' | 'worktree'> {
@@ -335,6 +335,12 @@ export function windowWorktreeState(
   }
 }
 
+/** The error constructors a conversation throws when no test double supplies its own. */
+const DEFAULT_CONVERSATION_GIT_ERROR_TYPES: ConversationGitErrorTypes = {
+  GitHubError,
+  GitUnavailableError,
+}
+
 export class ConversationGit implements ConversationGitPort {
   private generation: Generation | undefined
   private generationEpoch = 0
@@ -366,7 +372,7 @@ export class ConversationGit implements ConversationGitPort {
   public constructor(
     private readonly window: GitWindow,
     private readonly surface: GitSurface,
-    private readonly errorTypes: ConversationGitErrorTypes = { GitHubError, GitUnavailableError },
+    private readonly errorTypes: ConversationGitErrorTypes = DEFAULT_CONVERSATION_GIT_ERROR_TYPES,
   ) {
     // The sign-in card (a code to enter, the account) shows in every conversation of the window.
     this.stopWatchingSignIn = window.githubSignIn?.onDidChange(() => {
@@ -531,9 +537,9 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * Asks, then pushes exactly `plan`: three arguments to the git extension,
-   * never a force mode. True when the push went through.
-   */
+  Asks, then pushes exactly `plan`: three arguments to the git extension,
+  never a force mode. True when the push went through.
+  */
   private async pushWithConfirmation(
     repository: GitRepository,
     plan: Extract<PushPlan, { ok: true }>,
@@ -630,10 +636,10 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * A token for one GitHub call, from the window's sign-in in D104's order
-   * (`askWith`: the source the user picked). A sign-in that failed or was
-   * cancelled is said here, in fixed words; `isSaid` tells the caller.
-   */
+  A token for one GitHub call, from the window's sign-in in D104's order
+  (`askWith`: the source the user picked). A sign-in that failed or was
+  cancelled is said here, in fixed words; `isSaid` tells the caller.
+  */
   private async gitHubToken(
     mode: 'ask' | 'silent',
     askWith?: GitHubTokenSourceKind,
@@ -714,9 +720,9 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * Where the pull request opens: the remote's repository, or for a fork the
-   * repository it came from, with the branch named `owner:branch` there.
-   */
+  Where the pull request opens: the remote's repository, or for a fork the
+  repository it came from, with the branch named `owner:branch` there.
+  */
   private async destinationOf(token: string, target: PullRequestTarget): Promise<Destination> {
     const facts = await this.window.github.repositoryFacts(token, target.repository)
     this.checkCurrent()
@@ -1107,10 +1113,10 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * Runs `operation` unless another commit, push or pull request operation
-   * is running for this conversation: a second press is ignored, and a
-   * form's press is answered as failed, so its buttons come back.
-   */
+  Runs `operation` unless another commit, push or pull request operation
+  is running for this conversation: a second press is ignored, and a
+  form's press is answered as failed, so its buttons come back.
+  */
   private async exclusively(operation: () => Promise<void>, form?: GitForm): Promise<void> {
     if (this.isDisposed || this.isOperating) {
       this.window.log.info('A git operation is already running here; the second press is ignored')
@@ -1378,9 +1384,9 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * The hold card, the worktree line and the pull request strip, sent when
-   * they change; `isSurfaceReady` for a webview that starts with none of them.
-   */
+  The hold card, the worktree line and the pull request strip, sent when
+  they change; `isSurfaceReady` for a webview that starts with none of them.
+  */
   public postState(isSurfaceReady = false): void {
     if (this.isDisposed) {
       return
@@ -1509,9 +1515,9 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * What the model needs beside the user's own message asking for `kind`.
-   * Throws with the reason in words when it cannot be built.
-   */
+  What the model needs beside the user's own message asking for `kind`.
+  Throws with the reason in words when it cannot be built.
+  */
   public async promptFor(kind: GitDraftKind, base?: string): Promise<string> {
     const formEpoch = this.formEpoch
     const check = this.activityCheck()

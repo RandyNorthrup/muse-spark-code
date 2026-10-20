@@ -53,10 +53,10 @@ export const RECALL_TOOL_DEFINITION: FunctionToolDefinition = {
 /** Estimated tokens for `chars` characters (the ledger's rule of thumb; lives in toolResultBound.ts, beside the bound). */
 
 /**
- * TOOLCAP: a background completion note's recall id for its text. The host
- * registers cut notes under this id too, so their spills page back under
- * the same id the placeholder names.
- */
+TOOLCAP: a background completion note's recall id for its text. The host
+registers cut notes under this id too, so their spills page back under
+the same id the placeholder names.
+*/
 export function backgroundNoteId(text: string): string {
   return `background-${createHash('sha256').update(text).digest('hex')}`
 }

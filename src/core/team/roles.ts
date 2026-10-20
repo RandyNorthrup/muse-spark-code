@@ -240,9 +240,9 @@ export function hasRoleWriteTool(tools: readonly string[] | undefined): boolean 
 }
 
 /**
- * A role's workspace: the filed one, else `own-branch` for a role with a
- * write tool and `read-only` otherwise.
- */
+A role's workspace: the filed one, else `own-branch` for a role with a
+write tool and `read-only` otherwise.
+*/
 export function resolveRoleWorkspace(
   role: Pick<RoleDefinition, 'workspace' | 'tools'>,
 ): TeamWorkspaceMode {
@@ -368,13 +368,13 @@ function projectRoleRefusal(project: RoleDefinition): string | undefined {
 }
 
 /**
- * A project role may only narrow the role it shadows (a built-in or
- * personal role of the same id): its workspace no wider, its tools and
- * `write-paths` subsets, its `delegates` a subset — compared on resolved
- * values, so leaving a key out never widens. It can never set `in-place`,
- * and it names no model (`model`) and no skills: the pool chooses the
- * model, and skills come from user-level configuration only.
- */
+A project role may only narrow the role it shadows (a built-in or
+personal role of the same id): its workspace no wider, its tools and
+`write-paths` subsets, its `delegates` a subset — compared on resolved
+values, so leaving a key out never widens. It can never set `in-place`,
+and it names no model (`model`) and no skills: the pool chooses the
+model, and skills come from user-level configuration only.
+*/
 export function narrowProjectRole(
   shadow: RoleDefinition,
   project: RoleDefinition,
@@ -461,11 +461,11 @@ export function newRoleAsks(role: RoleDefinition): NewRoleAsks {
 }
 
 /**
- * A new-id project role as it runs: the ceiling until the workspace allows
- * its wider asks for this file's SHA-256. A personal role never passes
- * through here: it is the user's own and may change anything.
- * @unwired M96 new role ceiling
- */
+A new-id project role as it runs: the ceiling until the workspace allows
+its wider asks for this file's SHA-256. A personal role never passes
+through here: it is the user's own and may change anything.
+@unwired M96 new role ceiling
+*/
 export function applyNewRoleCeiling(
   role: RoleDefinition,
   allowance: TeamRoleAllowance | undefined,
@@ -624,10 +624,10 @@ function freezeEnvironment(environment: RoleEnvironment): RoleEnvironment {
 }
 
 /**
- * The one expected resolution failure: the permission meet could not prove
- * the project role widens nothing. Anything else is a resolver bug and
- * keeps its kind for the caller instead of reading as widening.
- */
+The one expected resolution failure: the permission meet could not prove
+the project role widens nothing. Anything else is a resolver bug and
+keeps its kind for the caller instead of reading as widening.
+*/
 function isWideningRefusal(error: unknown): boolean {
   return error instanceof Error && error.message === UI_TEXT.teamRoleGlobUnproven
 }
@@ -704,8 +704,8 @@ function resolveSnapshotRole(snapshot: RoleSnapshot, id: string): ResolvedRole |
 }
 
 /** Capture every input first. Any failure invalidates the whole catalogue.
- * @unwired M96 role catalogue loader
- */
+@unwired M96 role catalogue loader
+*/
 export async function loadRoles(
   deps: AgentsLoaderDeps,
   roots: readonly AgentRoot[],
@@ -914,15 +914,15 @@ export async function loadRoles(
 }
 
 /** No role is offered from an incomplete snapshot.
- * @unwired M96 offered roles
- */
+@unwired M96 offered roles
+*/
 export function offeredRoles(catalogue: RolesLoad): readonly ResolvedRole[] {
   return catalogue.snapshot.kind === 'known' ? catalogue.roles : []
 }
 
 /** An Unknown anywhere blocks every name, independent of source precedence.
- * @unwired M96 role resolution
- */
+@unwired M96 role resolution
+*/
 export function resolveRole(catalogue: RolesLoad, id: string): RoleResolution {
   if (catalogue.snapshot.kind === 'unknown') {
     const unknown = catalogue.snapshot

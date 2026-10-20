@@ -63,11 +63,11 @@ const APPROVING_DECISION_PREFIX = 'approved'
 type WireChoice = z.infer<typeof approvalChoiceSchema>
 
 /**
- * A file write the extension's list protects (D24, 2026-10-04) offers no
- * approval that outlasts it: "Always Allow" would be a rule Muse Code
- * answers later writes by, without a card. Allow once and every refusal
- * stay, as Muse Code offers for its own protected writes.
- */
+A file write the extension's list protects (D24, 2026-10-04) offers no
+approval that outlasts it: "Always Allow" would be a rule Muse Code
+answers later writes by, without a card. Allow once and every refusal
+stay, as Muse Code offers for its own protected writes.
+*/
 function choicesFor(
   subject: z.infer<typeof approvalSubjectSchema>,
   choices: WireChoice[],

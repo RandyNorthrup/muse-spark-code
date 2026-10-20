@@ -110,7 +110,7 @@ try {
               const otherDraft = page.locator('textarea[id$="-offload"]')
               await otherDraft.fill('Unsubmitted maintenance')
               const rounds = page.locator('form.playbook-rule').last()
-              await rounds.locator('select').selectOption('1')
+              await rounds.locator('input').fill('1')
               await rounds.locator('button').focus()
               await rounds.locator('button').press('Enter')
               await page.waitForFunction(() => {

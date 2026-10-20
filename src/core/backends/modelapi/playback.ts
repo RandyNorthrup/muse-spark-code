@@ -15,13 +15,13 @@ export function playbackToolRefusal(name: string): string {
 }
 
 /**
- * A playback reply with the contract's opening (D203): the verbatim marker
- * line first, then the model's own text. A stochastic model can paraphrase
- * or omit the requested prefix, so the host enforces it instead of trusting
- * the prompt. Empty text stays empty (no reply, nothing to open); text that
- * already opens with the marker — past leading blank lines — is returned
- * unchanged, never doubled.
- */
+A playback reply with the contract's opening (D203): the verbatim marker
+line first, then the model's own text. A stochastic model can paraphrase
+or omit the requested prefix, so the host enforces it instead of trusting
+the prompt. Empty text stays empty (no reply, nothing to open); text that
+already opens with the marker — past leading blank lines — is returned
+unchanged, never doubled.
+*/
 export function ensurePlaybackMarker(text: string): string {
   const marker = PLAYBACK_MODEL_TEXT.playbackMarker
   return text === '' || text.trimStart().startsWith(marker) ? text : `${marker}\n${text}`
@@ -36,12 +36,12 @@ export interface PlaybackMarkerCheck {
 }
 
 /**
- * A playback turn's streamed text against the marker (D203), called with the
- * message's text so far and its next delta. Text that opens with the marker
- * is compliant; text the marker still prefixes may yet comply, so it flows
- * untouched; anything else diverged, and the host prefixes the marker line
- * itself before the delta. Pure; the turn's flag records `ensured`.
- */
+A playback turn's streamed text against the marker (D203), called with the
+message's text so far and its next delta. Text that opens with the marker
+is compliant; text the marker still prefixes may yet comply, so it flows
+untouched; anything else diverged, and the host prefixes the marker line
+itself before the delta. Pure; the turn's flag records `ensured`.
+*/
 export function checkPlaybackMarker(textSoFar: string, delta: string): PlaybackMarkerCheck {
   const marker = PLAYBACK_MODEL_TEXT.playbackMarker
   const candidate = `${textSoFar}${delta}`

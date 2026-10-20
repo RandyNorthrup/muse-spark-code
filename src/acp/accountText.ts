@@ -6,13 +6,13 @@ import { UI_TEXT } from '../shared/constants'
 import { fill, formatDateTime } from '../shared/l10n/text'
 
 /** A port refused adoption: the switch did not happen and the session keeps its
- * current account. Carries the user-facing text, already filled, so later
- * layers can repeat it instead of reporting a generic failure. */
+current account. Carries the user-facing text, already filled, so later
+layers can repeat it instead of reporting a generic failure. */
 export class AccountSwitchRefusedError extends Error {
   /** Stable cross-bundle brand: the producer bundle (runtime accounts) and
-   * the consumer bundles (engine, ACP) each carry their own copy of this
-   * constructor, so `instanceof` is false across the boundary. Guards check
-   * this code, never the constructor. */
+  the consumer bundles (engine, ACP) each carry their own copy of this
+  constructor, so `instanceof` is false across the boundary. Guards check
+  this code, never the constructor. */
   public readonly code = 'accountSwitchRefused'
   public constructor(provider: string, account: string) {
     super(fill(UI_TEXT.accounts.switchUnavailable, { provider, account }))
@@ -21,7 +21,7 @@ export class AccountSwitchRefusedError extends Error {
 }
 
 /** A refused adoption, recognized across bundle boundaries by its brand
- * rather than its constructor (see the `code` field above). */
+rather than its constructor (see the `code` field above). */
 export function isAccountSwitchRefusedError(error: unknown): error is AccountSwitchRefusedError {
   return (
     error instanceof Error &&
@@ -32,8 +32,8 @@ export function isAccountSwitchRefusedError(error: unknown): error is AccountSwi
 }
 
 /** A refused providers file, recognized across bundle boundaries by its
- * brand rather than its constructor (each bundle carries its own copy of
- * the store error, like the refused switch above). */
+brand rather than its constructor (each bundle carries its own copy of
+the store error, like the refused switch above). */
 export function isInvalidProvidersFileError(error: unknown): error is Error {
   return (
     error instanceof Error &&
@@ -44,10 +44,10 @@ export function isInvalidProvidersFileError(error: unknown): error is Error {
 }
 
 /** Revocation has no provider flow outside VS Code: removing a sign-in
- * refuses loudly rather than orphan it. Carries the user-facing text,
- * already filled, so later layers can repeat it instead of reporting a
- * generic failure. Recognized across bundle boundaries by its brand
- * rather than its constructor (see the `code` field above). */
+refuses loudly rather than orphan it. Carries the user-facing text,
+already filled, so later layers can repeat it instead of reporting a
+generic failure. Recognized across bundle boundaries by its brand
+rather than its constructor (see the `code` field above). */
 export class RevokeUnsupportedError extends Error {
   public readonly code = 'revokeUnsupported'
   public constructor() {
@@ -57,7 +57,7 @@ export class RevokeUnsupportedError extends Error {
 }
 
 /** A refused revocation, recognized across bundle boundaries by its brand
- * rather than its constructor (see the `code` field above). */
+rather than its constructor (see the `code` field above). */
 export function isRevokeUnsupportedError(error: unknown): error is RevokeUnsupportedError {
   return (
     error instanceof Error &&
@@ -68,7 +68,7 @@ export function isRevokeUnsupportedError(error: unknown): error is RevokeUnsuppo
 }
 
 /** A store refusal, recognized the same brand-first way (never imported, so
- * this leaf stays out of the store's bundle). */
+this leaf stays out of the store's bundle). */
 function asStoreRefusal(error: Error): { code: string; cause: unknown } | undefined {
   if (error.name !== 'AccountStoreError' || !('code' in error)) return undefined
   const code: unknown = error.code

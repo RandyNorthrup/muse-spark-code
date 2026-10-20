@@ -132,12 +132,12 @@ export class CliAccount {
   }
 
   /**
-   * Whether a remembered answer stands for this question. A passive look
-   * takes it. A user action asks again after "could not say", and on macOS
-   * after any answer older than the click: a sign-in or sign-out made
-   * elsewhere may change only the Keychain, the file as it was (Codex on
-   * 2a324d48).
-   */
+  Whether a remembered answer stands for this question. A passive look
+  takes it. A user action asks again after "could not say", and on macOS
+  after any answer older than the click: a sign-in or sign-out made
+  elsewhere may change only the Keychain, the file as it was (Codex on
+  2a324d48).
+  */
   private mayReuse(answered: NonNullable<CliAccount['answered']>, isUserAction: boolean): boolean {
     return (
       !isUserAction ||
@@ -203,12 +203,12 @@ export class CliAccount {
   }
 
   /**
-   * Leaves an unanswered probe behind (Cancel; the review of PR #49): the
-   * next question asks afresh instead of joining it, and its late answer is
-   * neither remembered nor given to the callers that waited on it, who look
-   * again. A remembered answer stands, so what Cancel shows next needs no
-   * new question.
-   */
+  Leaves an unanswered probe behind (Cancel; the review of PR #49): the
+  next question asks afresh instead of joining it, and its late answer is
+  neither remembered nor given to the callers that waited on it, who look
+  again. A remembered answer stands, so what Cancel shows next needs no
+  new question.
+  */
   public abandonProbe(): void {
     if (this.asking !== undefined) {
       this.asking.isAbandoned = true
@@ -217,31 +217,31 @@ export class CliAccount {
   }
 
   /**
-   * Forgets everything the CLI said (after a sign-out, a new sign-in or
-   * Check again; the review of PR #49): the unanswered probe too, and the
-   * remembered answer, so the next question asks afresh. A change that
-   * leaves the file as it was (a Keychain sign-in or sign-out) would
-   * otherwise keep reading as before.
-   */
+  Forgets everything the CLI said (after a sign-out, a new sign-in or
+  Check again; the review of PR #49): the unanswered probe too, and the
+  remembered answer, so the next question asks afresh. A change that
+  leaves the file as it was (a Keychain sign-in or sign-out) would
+  otherwise keep reading as before.
+  */
   public forgetAnswers(): void {
     this.abandonProbe()
     this.answered = undefined
   }
 
   /**
-   * What the credential file settles alone, without asking the CLI (F60):
-   * `signedOut` for no file, `signedIn` for an inline credential off macOS,
-   * undefined when only the CLI can say. Synchronous, so activation can show
-   * it before a refresh's remaining reads answer.
-   */
+  What the credential file settles alone, without asking the CLI (F60):
+  `signedOut` for no file, `signedIn` for an inline credential off macOS,
+  undefined when only the CLI can say. Synchronous, so activation can show
+  it before a refresh's remaining reads answer.
+  */
   public peekFile(): CliSignIn | undefined {
     return this.look().settled
   }
 
   /**
-   * The CLI's sign-in. `isUserAction` lets macOS ask the CLI (the host may
-   * read the Keychain); elsewhere an ambiguous file is asked about at once.
-   */
+  The CLI's sign-in. `isUserAction` lets macOS ask the CLI (the host may
+  read the Keychain); elsewhere an ambiguous file is asked about at once.
+  */
   public async signIn(isUserAction: boolean): Promise<CliSignIn> {
     for (let attempt = 0; attempt < MUSE_CREDENTIAL_READ_ATTEMPTS; attempt += 1) {
       const look = this.look()

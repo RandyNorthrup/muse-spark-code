@@ -62,11 +62,11 @@ const REPORT_PLATFORMS = ['win32', 'darwin', 'linux'] as const
 const VERSION_PATTERN = /^\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9A-Za-z.-]{1,32})?$/
 
 /**
- * A setting name: the section, then one to four dotted segments of letters
- * and digits (`museSpark.backend`, `museSpark.vault.enabled`). A value never
- * rides along. Until 0.18.1 a second dot was refused, so anyone who had
- * changed a dotted setting could not open the report at all.
- */
+A setting name: the section, then one to four dotted segments of letters
+and digits (`museSpark.backend`, `museSpark.vault.enabled`). A value never
+rides along. Until 0.18.1 a second dot was refused, so anyone who had
+changed a dotted setting could not open the report at all.
+*/
 const SETTING_NAME_PATTERN = /^museSpark(?:\.[A-Za-z][A-Za-z0-9]{0,63}){1,4}$/
 
 /** How many setting names one report may carry; the manifest holds a hundred. */
@@ -90,9 +90,9 @@ const problemReportFactsSchema = z.strictObject({
   ),
   extensionVersion: z.string().check(z.minLength(1), z.maxLength(REPORT_VERSION_MAX_CHARS)),
   /**
-   * The editor's VS Code version; absent for the standalone agent, which
-   * has no VS Code to name (the report says so instead of guessing).
-   */
+  The editor's VS Code version; absent for the standalone agent, which
+  has no VS Code to name (the report says so instead of guessing).
+  */
   vscodeVersion: z.optional(
     z.string().check(z.minLength(1), z.maxLength(REPORT_VERSION_MAX_CHARS)),
   ),
@@ -124,16 +124,16 @@ const problemReportEventSchema = z.strictObject({
 })
 
 /**
- * One flight-recorder fact as the report consumes it (the explicit interface
- * lane R records through): a fixed kind, a short code, verified frames and a
- * relative age. No message, stack text, prompt, session id or free text.
- */
+One flight-recorder fact as the report consumes it (the explicit interface
+lane R records through): a fixed kind, a short code, verified frames and a
+relative age. No message, stack text, prompt, session id or free text.
+*/
 export type ProblemReportEvent = z.infer<typeof problemReportEventSchema>
 
 /**
- * The builder refused an input. The message names the field and the reason,
- * never the refused value itself, so a secret cannot reach the log this way.
- */
+The builder refused an input. The message names the field and the reason,
+never the refused value itself, so a secret cannot reach the log this way.
+*/
 export class ReportBuildError extends Error {
   public constructor(
     public readonly field: string,
@@ -149,20 +149,20 @@ function isReportVersion(value: string): boolean {
 }
 
 /**
- * A frame path is one of the package's own shipped files, exactly as the
- * recorder keeps them (REPORT_PACKAGE_FRAME_PATHS): package-relative, on one
- * line, with no absolute root, traversal segment or URL by construction.
- * Anything else fails the record that holds it.
- */
+A frame path is one of the package's own shipped files, exactly as the
+recorder keeps them (REPORT_PACKAGE_FRAME_PATHS): package-relative, on one
+line, with no absolute root, traversal segment or URL by construction.
+Anything else fails the record that holds it.
+*/
 function isReportFramePath(path: string): boolean {
   return REPORT_PACKAGE_FRAME_PATHS.has(path)
 }
 
 /**
- * The allowlisted facts, or the refusal that names the offending field. The
- * CLI's version is the CLI's own text (D72: not inherently safe): a value
- * that is not a version is left out rather than trusted or fatal.
- */
+The allowlisted facts, or the refusal that names the offending field. The
+CLI's version is the CLI's own text (D72: not inherently safe): a value
+that is not a version is left out rather than trusted or fatal.
+*/
 function validatedFacts(input: unknown): ProblemReportFacts {
   const parsed = problemReportFactsSchema.safeParse(input)
   if (!parsed.success) {
@@ -186,10 +186,10 @@ function validatedFacts(input: unknown): ProblemReportFacts {
 }
 
 /**
- * The facts a draft may use. A report with its facts switched off carries
- * none, so facts that fail validation must not stop it: it is built without
- * them, title included. With facts on, the refusal stands and names its field.
- */
+The facts a draft may use. A report with its facts switched off carries
+none, so facts that fail validation must not stop it: it is built without
+them, title included. With facts on, the refusal stands and names its field.
+*/
 function draftFacts(input: ProblemReportInput): ProblemReportFacts | undefined {
   try {
     return validatedFacts(input.facts)
@@ -207,13 +207,13 @@ export interface SelectedReportEvent {
 }
 
 /**
- * The stored records, validated again: a tampered journal cannot become an
- * arbitrary text attachment. Codes outside the recorder's vocabulary
- * (REPORT_ERROR_CODES) become the fixed word (D72); a record with any other
- * off-allowlist field is skipped. Keeps the last REPORT_RECENT_EVENT_COUNT
- * valid records, each with its input index, so a preview lists exactly the
- * records the draft carries.
- */
+The stored records, validated again: a tampered journal cannot become an
+arbitrary text attachment. Codes outside the recorder's vocabulary
+(REPORT_ERROR_CODES) become the fixed word (D72); a record with any other
+off-allowlist field is skipped. Keeps the last REPORT_RECENT_EVENT_COUNT
+valid records, each with its input index, so a preview lists exactly the
+records the draft carries.
+*/
 export function selectProblemReportEvents(
   input: readonly unknown[],
 ): readonly SelectedReportEvent[] {
@@ -252,9 +252,9 @@ export interface ReportScrubContext {
   /** The user's home directory; becomes `~` (D24). Empty means none known. */
   readonly homeDir: string
   /**
-   * Exact user/machine names the host read (login name, host name). Applied
-   * through the shared redactor; anything under EXTRA_LITERAL_MIN_CHARS is ignored.
-   */
+  Exact user/machine names the host read (login name, host name). Applied
+  through the shared redactor; anything under EXTRA_LITERAL_MIN_CHARS is ignored.
+  */
   readonly extraLiterals: readonly string[]
 }
 
@@ -279,10 +279,10 @@ function isIpv6Like(match: string): boolean {
 }
 
 /**
- * A Windows path compared as Windows compares it: letters in lower case
- * (where that keeps the length, so every index still points into the
- * original) and `/` for `\`.
- */
+A Windows path compared as Windows compares it: letters in lower case
+(where that keeps the length, so every index still points into the
+original) and `/` for `\`.
+*/
 function foldWindowsPath(text: string): string {
   return Array.from(text, (character) => {
     const lower = character.toLowerCase()
@@ -309,10 +309,10 @@ function rootMatchStart(text: string, at: number, isUnc: boolean): number | unde
 }
 
 /**
- * Windows roots have equivalent case, separators and extended spellings
- * (`\\?\C:\…`, `\\?\UNC\server\…`). Matched as literals, never as a pattern
- * built from the root.
- */
+Windows roots have equivalent case, separators and extended spellings
+(`\\?\C:\…`, `\\?\UNC\server\…`). Matched as literals, never as a pattern
+built from the root.
+*/
 function replaceReportRoot(text: string, root: string, mark: string): string {
   if (!WINDOWS_ROOT.test(root)) return text.replaceAll(root, () => mark)
   let plain = root
@@ -342,14 +342,14 @@ function replaceReportRoot(text: string, root: string, mark: string): string {
 }
 
 /**
- * The second scrub, over the entire final draft (D72): workspace roots, then
- * home, then other absolute user paths, URL queries and fragments, emails and
- * IP addresses, then every shared secret pattern (URL credentials among
- * them) with the host's user/machine names as exact literals, and finally
- * the refusal-leak scrub (round 2, finding 5): a pasted provider sentence
- * can carry a masked-key remnant or an account id that whole-secret patterns
- * never match.
- */
+The second scrub, over the entire final draft (D72): workspace roots, then
+home, then other absolute user paths, URL queries and fragments, emails and
+IP addresses, then every shared secret pattern (URL credentials among
+them) with the host's user/machine names as exact literals, and finally
+the refusal-leak scrub (round 2, finding 5): a pasted provider sentence
+can carry a masked-key remnant or an account id that whole-secret patterns
+never match.
+*/
 export function scrubFinalDraft(draft: string, context: ReportScrubContext): string {
   let text = draft
   const roots = [...context.workspaceRoots]
@@ -484,9 +484,9 @@ export function sealReportDraft(title: string, text: string): SealedReportDraft 
 }
 
 /**
- * Whether the title and text still match the seal: the draft shown equals the
- * draft exported. Any change after the preview fails this and invalidates the export.
- */
+Whether the title and text still match the seal: the draft shown equals the
+draft exported. Any change after the preview fails this and invalidates the export.
+*/
 export function isSealedDraftCurrent(draft: SealedReportDraft): boolean {
   return hashReportText(draft.title, draft.text) === draft.hash
 }
@@ -498,10 +498,10 @@ const REPLACEMENT_CODE_POINT = 0xff_fd
 const REPLACEMENT_CHARACTER = String.fromCodePoint(REPLACEMENT_CODE_POINT)
 
 /**
- * The description as the draft carries it: trimmed, well-formed (a field cut
- * mid-pair would otherwise make the issue link throw), and cut to
- * REPORT_DESCRIPTION_MAX_CHARS user-perceived characters with an ellipsis.
- */
+The description as the draft carries it: trimmed, well-formed (a field cut
+mid-pair would otherwise make the issue link throw), and cut to
+REPORT_DESCRIPTION_MAX_CHARS user-perceived characters with an ellipsis.
+*/
 function cappedDescription(description: string): string {
   const trimmed = description.trim().replaceAll(LONE_SURROGATE, () => REPLACEMENT_CHARACTER)
   const graphemes = Array.from(new Intl.Segmenter().segment(trimmed), (part) => part.segment)
@@ -511,10 +511,10 @@ function cappedDescription(description: string): string {
 }
 
 /**
- * Builds, scrubs and seals the report draft. Throws ReportBuildError for
- * off-allowlist facts; skips off-allowlist records. The returned text is the
- * final draft: the preview shows it byte-identical, and exports carry it unchanged.
- */
+Builds, scrubs and seals the report draft. Throws ReportBuildError for
+off-allowlist facts; skips off-allowlist records. The returned text is the
+final draft: the preview shows it byte-identical, and exports carry it unchanged.
+*/
 function reportParts(input: ProblemReportInput): { title: string; text: string } {
   if (!Number.isFinite(input.nowMs)) {
     throw new ReportBuildError('nowMs', 'not a finite time')
@@ -543,7 +543,7 @@ function reportParts(input: ProblemReportInput): { title: string; text: string }
 }
 
 /** Existing synchronous builder for callers with no vault.
- * @unwired M93 report-a-problem draft without vault */
+@unwired M93 report-a-problem draft without vault */
 export function buildProblemReportDraft(input: ProblemReportInput): SealedReportDraft {
   const parts = reportParts(input)
   return sealReportDraft(
@@ -568,10 +568,10 @@ export type IssueLink =
   { readonly kind: 'open'; readonly url: string } | { readonly kind: 'fallback' }
 
 /**
- * The prefilled new-issue URL for a sealed draft. Past
- * REPORT_ISSUE_URL_MAX_CHARS the caller copies the same draft and opens the
- * unfilled form instead; the extension never posts anything itself.
- */
+The prefilled new-issue URL for a sealed draft. Past
+REPORT_ISSUE_URL_MAX_CHARS the caller copies the same draft and opens the
+unfilled form instead; the extension never posts anything itself.
+*/
 export function issueLinkForDraft(title: string, body: string): IssueLink {
   const url = `${REPORT_ISSUE_NEW_URL}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`
   return url.length <= REPORT_ISSUE_URL_MAX_CHARS ? { kind: 'open', url } : { kind: 'fallback' }

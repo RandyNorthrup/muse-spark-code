@@ -147,10 +147,10 @@ export function formatDateTime(epochMs: number): string {
 }
 
 /**
- * A calendar date and time rendered as a UTC wall clock: the caller shifts
- * a recorded instant by its recorded offset first, so the label keeps the
- * timezone the record was written in across later timezone changes.
- */
+A calendar date and time rendered as a UTC wall clock: the caller shifts
+a recorded instant by its recorded offset first, so the label keeps the
+timezone the record was written in across later timezone changes.
+*/
 export function formatDateTimeUtc(epochMs: number): string {
   return current.dateTimesUtc.format(epochMs)
 }

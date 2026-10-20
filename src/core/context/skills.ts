@@ -68,10 +68,10 @@ export interface SkillRoot extends CatalogRoot<SkillSource> {
 }
 
 /**
- * The bundled source as the host hands it in (M89, PLAN.md D68): the
- * vendored package inside the installed extension, and its setting, read at
- * each load so turning it off empties the source at the next refresh.
- */
+The bundled source as the host hands it in (M89, PLAN.md D68): the
+vendored package inside the installed extension, and its setting, read at
+each load so turning it off empties the source at the next refresh.
+*/
 export interface BundledSkillsSource {
   readonly packageRoot: string
   /** The extension's own skills folder (M92, PLAN.md D71). */
@@ -181,19 +181,19 @@ export function extensionSkillsRoot(packageRoot: string, platform: NodeJS.Platfo
 }
 
 /**
- * Where the Muse Code install keeps its copy of the package (M89):
- * `skill-sources`, beside the managed personal skill root, in the config home
- * that root resolves to.
- */
+Where the Muse Code install keeps its copy of the package (M89):
+`skill-sources`, beside the managed personal skill root, in the config home
+that root resolves to.
+*/
 export function bundledSkillSourcesRoot(input: PersonalSkillsRootInput): string {
   const p = pathModule(input.platform)
   return p.join(p.dirname(personalSkillsRoot(input)), BUNDLED_SKILLS_SOURCES_DIR)
 }
 
 /**
- * A skill's body as the model reads it (`read_skill`, a typed `/id`): a
- * bundled one after the line naming its package root (M89, PLAN.md D68).
- */
+A skill's body as the model reads it (`read_skill`, a typed `/id`): a
+bundled one after the line naming its package root (M89, PLAN.md D68).
+*/
 export function skillBodyForModel(skill: SkillDefinition): string {
   return skill.packageRoot === undefined
     ? skill.body

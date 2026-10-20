@@ -228,7 +228,8 @@ async function stateDocument(root: string) {
   )
   const doc = await readJsonRecord(file)
   const { value, revision } = doc
-  if (typeof revision !== 'number') throw new Error('Expected the state revision to be a number')
+  if (typeof revision !== 'number')
+    throw new TypeError('Expected the state revision to be a number')
   return { file, doc, value: recordOf(value, 'state value'), revision }
 }
 
@@ -378,7 +379,8 @@ describe('schedules report lease identity words', () => {
       async (header: string) => {
         const doc = await readJsonRecord(header)
         const token = doc['fencingToken']
-        if (typeof token !== 'number') throw new Error('Expected the lease header to carry a token')
+        if (typeof token !== 'number')
+          throw new TypeError('Expected the lease header to carry a token')
         await writeFile(header, JSON.stringify({ ...doc, fencingToken: token + 1 }))
       },
     ],

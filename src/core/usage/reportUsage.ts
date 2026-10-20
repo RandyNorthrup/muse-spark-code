@@ -307,11 +307,11 @@ export interface UsageReportFacts {
 }
 
 /**
- * The usage kind from the durable journal: totals and the page-supported
- * breakdowns are aggregate.ts's own numbers; session/account breakdowns group
- * the kept records (rolled-up days are totals-only); per-tool use is not
- * recorded, so --by tool stays partial instead of inventing rows.
- */
+The usage kind from the durable journal: totals and the page-supported
+breakdowns are aggregate.ts's own numbers; session/account breakdowns group
+the kept records (rolled-up days are totals-only); per-tool use is not
+recorded, so --by tool stays partial instead of inventing rows.
+*/
 export function usageReportFacts(input: {
   readonly reportText: UiText
   readonly journal: UsageReportJournal
@@ -384,10 +384,10 @@ export function usageReportFacts(input: {
 }
 
 /**
- * The session kind's usage: the kept records for one session, grouped by
- * model. The journal never attributes rolled-up days to a session, so a
- * missing attribution is disclosed by the reader rather than inferred.
- */
+The session kind's usage: the kept records for one session, grouped by
+model. The journal never attributes rolled-up days to a session, so a
+missing attribution is disclosed by the reader rather than inferred.
+*/
 export function sessionUsageFacts(records: readonly UsageRecord[], sessionId: string): UsageFacts {
   const groups = new Map<string, TokenCostSums>()
   for (const record of records) {

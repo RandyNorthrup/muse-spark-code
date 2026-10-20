@@ -122,72 +122,80 @@ describe('bounded owner-only broker socket location', () => {
     )
     expect(vaultSocketFallbackBase('relative')).toBeNull()
   })
-  it('resolves the runtime directory when it verifies and falls back when it does not', async () => {
-    const runtime = path.join(root.directory, 'run')
-    await mkdir(runtime, { mode: 0o700 })
-    const resolved = await resolveVaultSocket('/data/one', {
-      platform: 'linux',
-      env: { XDG_RUNTIME_DIR: runtime },
-      tmpdir: os.tmpdir(),
-      homeDir: fakeHome(),
-    })
-    expect(path.dirname(resolved.socket)).toContain(runtime)
-    // A hostile runtime directory (a symlink) falls back to the next candidate.
-    const link = path.join(root.directory, 'run-link')
-    await symlink(runtime, link)
-    const fallback = await resolveVaultSocket('/data/one', {
-      platform: 'linux',
-      env: { XDG_RUNTIME_DIR: link },
-      tmpdir: runtime,
-      homeDir: fakeHome(),
-    })
-    expect(path.dirname(fallback.socket)).toContain(runtime)
-    expect(fallback.socket).not.toContain('run-link')
-  })
-  it('creates the home fallback when no shared base verifies, and skips an over-long shared base', async () => {
-    // Headless Linux: no runtime directory, unusable temporary root (a
-    // file). The fallback home stays short so the bounded leaf still binds.
-    const home = '/tmp'
-    const dataDir = '/data/fallback-test'
-    const notADirectory = path.join(root.directory, 'not-a-directory')
-    await writeFile(notADirectory, '', { mode: 0o600 })
-    const leaves = new Set<string>()
-    try {
-      const created = await resolveVaultSocket(dataDir, {
+  // Owner-only POSIX modes and uid checks do not exist on Windows (the
+  // product speaks named pipes there and never verifies socket files).
+  it.skipIf(process.platform === 'win32')(
+    'resolves the runtime directory when it verifies and falls back when it does not',
+    async () => {
+      const runtime = path.join(root.directory, 'run')
+      await mkdir(runtime, { mode: 0o700 })
+      const resolved = await resolveVaultSocket('/data/one', {
         platform: 'linux',
-        env: {},
-        tmpdir: notADirectory,
-        homeDir: home,
+        env: { XDG_RUNTIME_DIR: runtime },
+        tmpdir: os.tmpdir(),
+        homeDir: fakeHome(),
       })
-      leaves.add(created.directory)
-      expect(created.directory).toContain(path.join(home, '.muse-spark-code', 'run'))
-      expect(Buffer.byteLength(created.socket, 'utf8')).toBeLessThanOrEqual(107)
-      // A fitting fallback wins over an over-long shared base.
-      const deep = path.join(root.directory, 'f'.repeat(80), 'g'.repeat(80))
-      await mkdir(deep, { recursive: true, mode: 0o700 })
-      const skipped = await resolveVaultSocket(dataDir, {
-        platform: 'darwin',
-        env: {},
-        tmpdir: deep,
-        homeDir: home,
+      expect(path.dirname(resolved.socket)).toContain(runtime)
+      // A hostile runtime directory (a symlink) falls back to the next candidate.
+      const link = path.join(root.directory, 'run-link')
+      await symlink(runtime, link)
+      const fallback = await resolveVaultSocket('/data/one', {
+        platform: 'linux',
+        env: { XDG_RUNTIME_DIR: link },
+        tmpdir: runtime,
+        homeDir: fakeHome(),
       })
-      leaves.add(skipped.directory)
-      expect(skipped.directory).toContain(path.join(home, '.muse-spark-code', 'run'))
-    } finally {
-      // Only our own hash-named leaves; never a real home directory. Empty
-      // fallback parents are taken back when nothing else uses them.
-      for (const leaf of leaves) await rm(leaf, { recursive: true, force: true })
-      for (const parent of [
-        path.join(home, '.muse-spark-code', 'run'),
-        path.join(home, '.muse-spark-code'),
-      ])
-        try {
-          await rmdir(parent)
-        } catch {
-          /* Another broker's leaves still live here. */
-        }
-    }
-  })
+      expect(path.dirname(fallback.socket)).toContain(runtime)
+      expect(fallback.socket).not.toContain('run-link')
+    },
+  )
+  it.skipIf(process.platform === 'win32')(
+    'creates the home fallback when no shared base verifies, and skips an over-long shared base',
+    async () => {
+      // Headless Linux: no runtime directory, unusable temporary root (a
+      // file). The fallback home stays short so the bounded leaf still binds.
+      const home = '/tmp'
+      const dataDir = '/data/fallback-test'
+      const notADirectory = path.join(root.directory, 'not-a-directory')
+      await writeFile(notADirectory, '', { mode: 0o600 })
+      const leaves = new Set<string>()
+      try {
+        const created = await resolveVaultSocket(dataDir, {
+          platform: 'linux',
+          env: {},
+          tmpdir: notADirectory,
+          homeDir: home,
+        })
+        leaves.add(created.directory)
+        expect(created.directory).toContain(path.join(home, '.muse-spark-code', 'run'))
+        expect(Buffer.byteLength(created.socket, 'utf8')).toBeLessThanOrEqual(107)
+        // A fitting fallback wins over an over-long shared base.
+        const deep = path.join(root.directory, 'f'.repeat(80), 'g'.repeat(80))
+        await mkdir(deep, { recursive: true, mode: 0o700 })
+        const skipped = await resolveVaultSocket(dataDir, {
+          platform: 'darwin',
+          env: {},
+          tmpdir: deep,
+          homeDir: home,
+        })
+        leaves.add(skipped.directory)
+        expect(skipped.directory).toContain(path.join(home, '.muse-spark-code', 'run'))
+      } finally {
+        // Only our own hash-named leaves; never a real home directory. Empty
+        // fallback parents are taken back when nothing else uses them.
+        for (const leaf of leaves) await rm(leaf, { recursive: true, force: true })
+        for (const parent of [
+          path.join(home, '.muse-spark-code', 'run'),
+          path.join(home, '.muse-spark-code'),
+        ])
+          try {
+            await rmdir(parent)
+          } catch {
+            /* Another broker's leaves still live here. */
+          }
+      }
+    },
+  )
   it('refuses a symlink, a file and a permissive base without creating anything', async () => {
     const target = path.join(root.directory, 'base')
     await mkdir(target, { mode: 0o700 })
@@ -209,17 +217,20 @@ describe('bounded owner-only broker socket location', () => {
       }),
     ).rejects.toThrow(UI_TEXT.vault.brokerBlocked)
   })
-  it('creates the leaf owner-only and re-verifies it on every pass', async () => {
-    const leaf = path.join(root.directory, 'leaf-parent', 'muse-spark-vault-0123456789ab')
-    await ensureVaultSocketDirectory(leaf)
-    const sample = await lstat(leaf)
-    expect(sample.isDirectory()).toBe(true)
-    expect(sample.isSymbolicLink()).toBe(false)
-    expect(sample.mode & 0o777).toBe(0o700)
-    await expect(verifyVaultSocketBase(leaf)).resolves.toBeUndefined()
-    await chmod(leaf, 0o755)
-    await expect(verifyVaultSocketBase(leaf)).rejects.toThrow(UI_TEXT.vault.noAccess)
-  })
+  it.skipIf(process.platform === 'win32')(
+    'creates the leaf owner-only and re-verifies it on every pass',
+    async () => {
+      const leaf = path.join(root.directory, 'leaf-parent', 'muse-spark-vault-0123456789ab')
+      await ensureVaultSocketDirectory(leaf)
+      const sample = await lstat(leaf)
+      expect(sample.isDirectory()).toBe(true)
+      expect(sample.isSymbolicLink()).toBe(false)
+      expect(sample.mode & 0o777).toBe(0o700)
+      await expect(verifyVaultSocketBase(leaf)).resolves.toBeUndefined()
+      await chmod(leaf, 0o755)
+      await expect(verifyVaultSocketBase(leaf)).rejects.toThrow(UI_TEXT.vault.noAccess)
+    },
+  )
   it('measures the byte length before bind and refuses in a sentence when too long', () => {
     expect(vaultSocketPathLimit('darwin')).toBe(103)
     expect(vaultSocketPathLimit('linux')).toBe(107)
@@ -244,21 +255,28 @@ describe('bounded owner-only broker socket location', () => {
       }),
     ).rejects.toThrow(UI_TEXT.vault.brokerBlocked)
   })
-  it('keeps the real default macOS data folder and a 60-character home bindable-short', async () => {
-    const longHome = `/Users/${'u'.repeat(53)}`
-    expect(longHome).toHaveLength(60)
-    for (const homeDir of ['/Users/alex', longHome, os.homedir()]) {
-      const dataDir = path.join(agentDataFolder({ platform: 'darwin', env: {}, homeDir }), 'vault')
-      const location = await resolveVaultSocket(dataDir, {
-        platform: 'darwin',
-        env: {},
-        tmpdir: os.tmpdir(),
-        homeDir: fakeHome(),
-      })
-      expect(Buffer.byteLength(location.socket, 'utf8')).toBeLessThanOrEqual(103)
-      expect(location.socket).not.toContain(dataDir)
-    }
-  })
+  // Darwin socket limits against macOS homes never apply on Windows.
+  it.skipIf(process.platform === 'win32')(
+    'keeps the real default macOS data folder and a 60-character home bindable-short',
+    async () => {
+      const longHome = `/Users/${'u'.repeat(53)}`
+      expect(longHome).toHaveLength(60)
+      for (const homeDir of ['/Users/alex', longHome, os.homedir()]) {
+        const dataDir = path.join(
+          agentDataFolder({ platform: 'darwin', env: {}, homeDir }),
+          'vault',
+        )
+        const location = await resolveVaultSocket(dataDir, {
+          platform: 'darwin',
+          env: {},
+          tmpdir: os.tmpdir(),
+          homeDir: fakeHome(),
+        })
+        expect(Buffer.byteLength(location.socket, 'utf8')).toBeLessThanOrEqual(103)
+        expect(location.socket).not.toContain(dataDir)
+      }
+    },
+  )
   it('compares resolved identity across the /var versus /private/var alias', async () => {
     const temporary = os.tmpdir()
     const resolved = await realpath(temporary)

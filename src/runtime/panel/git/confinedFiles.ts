@@ -74,11 +74,11 @@ async function entryAt(target: string): Promise<BigIntStats | undefined> {
 }
 
 /**
- * The root and every directory below it on the way to the leaf, by
- * identity; undefined when one is missing. Throws `ConfinementError` when
- * the root is not the bound one, or a step is a link, a junction or not a
- * directory.
- */
+The root and every directory below it on the way to the leaf, by
+identity; undefined when one is missing. Throws `ConfinementError` when
+the root is not the bound one, or a step is a link, a junction or not a
+directory.
+*/
 async function ancestorChain(
   root: ConfinedRoot,
   parts: readonly string[],
@@ -145,10 +145,10 @@ async function openLeaf(leafPath: string, leaf: BigIntStats): Promise<ConfinedEn
 }
 
 /**
- * Opens `relative` under `root`, confined by identity (see the file
- * comment). `check` runs after every await. A missing file is `absent`, a
- * folder or a device `other`; a link's own text is read, never its target.
- */
+Opens `relative` under `root`, confined by identity (see the file
+comment). `check` runs after every await. A missing file is `absent`, a
+folder or a device `other`; a link's own text is read, never its target.
+*/
 export async function openConfined(
   root: ConfinedRoot,
   relative: string,
@@ -216,10 +216,10 @@ export async function readConfinedStart(
 }
 
 /**
- * One digest of the working tree's bytes under these paths (git's own
- * status names them): each path's kind, size and every byte of a regular
- * file, a link's text, or its absence. Streams in bounded chunks.
- */
+One digest of the working tree's bytes under these paths (git's own
+status names them): each path's kind, size and every byte of a regular
+file, a link's text, or its absence. Streams in bounded chunks.
+*/
 export async function fingerprintConfined(
   root: ConfinedRoot,
   files: readonly string[],

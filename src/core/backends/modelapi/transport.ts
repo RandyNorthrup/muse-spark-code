@@ -67,9 +67,9 @@ export interface TransportDeps {
   readonly vaultScrub?: SecretScrubPort
   readonly streamIdleMs?: number
   /**
-   * The still-waiting notice cadence for unnamed waits (a minute unless a
-   * test shortens it); the waits themselves never end at it.
-   */
+  The still-waiting notice cadence for unnamed waits (a minute unless a
+  test shortens it); the waits themselves never end at it.
+  */
   readonly noticeMs?: number
   readonly pacing?: RequestPacer
   readonly pacingOwner?: object
@@ -88,37 +88,37 @@ export interface TransportDeps {
   /** The preset's own retry table (OPENAI-G20); defaults to the Responses table. */
   readonly retryTable?: RetryTables
   /**
-   * The provider's documented retry bounds (lane RETRYLIMITS,
-   * `FormatQuirks.retryLimits`); the Model API transport defaults to Meta's
-   * own 3–5 attempts. Absent fields are values the provider does not
-   * document: the person's setting decides, and with none set the
-   * provider's own Retry-After (or stop answer) governs.
-   */
+  The provider's documented retry bounds (lane RETRYLIMITS,
+  `FormatQuirks.retryLimits`); the Model API transport defaults to Meta's
+  own 3–5 attempts. Absent fields are values the provider does not
+  document: the person's setting decides, and with none set the
+  provider's own Retry-After (or stop answer) governs.
+  */
   readonly retryLimits?: RetryLimits
   /**
-   * The person's `museSpark.modelApiMaxRetries` setting, read live so a
-   * change applies without a restart; undefined (or absent) leaves the
-   * provider's documented maximum in force.
-   */
+  The person's `museSpark.modelApiMaxRetries` setting, read live so a
+  change applies without a restart; undefined (or absent) leaves the
+  provider's documented maximum in force.
+  */
   readonly personCap?: (() => number | undefined) | undefined
   /**
-   * One timer chunk of a retry wait. A cooperating sleep clears its own
-   * timer when `signal` aborts (see `abortableSleep`); one that ignores
-   * the signal is abandoned by `pause`'s race exactly as before. Absent,
-   * the transport waits with `abortableSleep` (lane PR225W1: every
-   * production wait dies with Stop, with no per-client wiring to pay for
-   * in the activation bundle); tests keep injecting their own sleep.
-   */
+  One timer chunk of a retry wait. A cooperating sleep clears its own
+  timer when `signal` aborts (see `abortableSleep`); one that ignores
+  the signal is abandoned by `pause`'s race exactly as before. Absent,
+  the transport waits with `abortableSleep` (lane PR225W1: every
+  production wait dies with Stop, with no per-client wiring to pay for
+  in the activation bundle); tests keep injecting their own sleep.
+  */
   readonly sleep?: ((ms: number, signal?: AbortSignal) => Promise<void>) | undefined
   readonly now: () => number
   readonly random: () => number
   readonly log: CoreLogger
   readonly networkAdvice?: NetworkAdvice
   /**
-   * The sentence a send that produced no answer reads as: a configured
-   * provider names itself, the network failure and that whether the request
-   * arrived is unknown. Meta's network advice when absent.
-   */
+  The sentence a send that produced no answer reads as: a configured
+  provider names itself, the network failure and that whether the request
+  arrived is unknown. Meta's network advice when absent.
+  */
   readonly sendFailure?: (error: unknown) => string
 }
 
@@ -298,10 +298,10 @@ export function redactModelApiError(
 }
 
 /**
- * Local refusals keep their own sentence; the classifier rides the lazy
- * provider bundle, keeping this bundle on its pin. Everything else leaves
- * redacted, at the response's status.
- */
+Local refusals keep their own sentence; the classifier rides the lazy
+provider bundle, keeping this bundle on its pin. Everything else leaves
+redacted, at the response's status.
+*/
 export async function rethrowStreamError(
   error: unknown,
   redact: (text: string) => string,
@@ -404,9 +404,9 @@ async function describeFailure(
 }
 
 /**
- * `Retry-After` in milliseconds: a delay in seconds, or an HTTP date (RFC
- * 9110 §10.2.3 allows both; PLAN.md D25), measured from `now`.
- */
+`Retry-After` in milliseconds: a delay in seconds, or an HTTP date (RFC
+9110 §10.2.3 allows both; PLAN.md D25), measured from `now`.
+*/
 export function retryAfterMs(header: string | null, now: number): number | undefined {
   if (header === null || header.trim() === '') {
     return undefined
@@ -420,12 +420,12 @@ export function retryAfterMs(header: string | null, now: number): number | undef
 }
 
 /**
- * The wait an answer names, in every form a provider uses: `retry-after-ms`
- * (milliseconds; Azure OpenAI, read before `Retry-After` per research
- * azure-openai.md ZB2), then `Retry-After` (seconds or an HTTP date).
- * Read whole here; the retry loop honours it whole, tells the person when it
- * ends, and the turn's Stop ends it at once.
- */
+The wait an answer names, in every form a provider uses: `retry-after-ms`
+(milliseconds; Azure OpenAI, read before `Retry-After` per research
+azure-openai.md ZB2), then `Retry-After` (seconds or an HTTP date).
+Read whole here; the retry loop honours it whole, tells the person when it
+ends, and the turn's Stop ends it at once.
+*/
 export function providerWaitMs(headers: Headers, now: number): number | undefined {
   const milliseconds = headers.get(RETRY_AFTER_MS_HEADER)
   if (milliseconds !== null && milliseconds.trim() !== '') {
@@ -441,12 +441,12 @@ function documentedLimits(deps: TransportDeps): RetryLimits {
 }
 
 /**
- * What one retry tells the person: the plain `HTTP …` reason, or, for a
- * wait the provider named, that wait's sentence with when it ends in
- * absolute time and plain words. Pure — the request loop calls this per
- * retry — so the telling is provable with header values as plain input
- * and no provider answering.
- */
+What one retry tells the person: the plain `HTTP …` reason, or, for a
+wait the provider named, that wait's sentence with when it ends in
+absolute time and plain words. Pure — the request loop calls this per
+retry — so the telling is provable with header values as plain input
+and no provider answering.
+*/
 export function providerRetryReason(
   status: number,
   message: string,
@@ -462,12 +462,12 @@ export function providerRetryReason(
 }
 
 /**
- * Which requests join the pacing bucket. Meta governs only its inference
- * path with a model id; a configured provider's inference travels a native
- * path (never `/responses`) with the codec-supplied model id, so any of its
- * model-carrying requests joins the same bucket its rate-limit observations
- * feed. Count and list calls carry no model id and stay observation-only.
- */
+Which requests join the pacing bucket. Meta governs only its inference
+path with a model id; a configured provider's inference travels a native
+path (never `/responses`) with the codec-supplied model id, so any of its
+model-carrying requests joins the same bucket its rate-limit observations
+feed. Count and list calls carry no model id and stay observation-only.
+*/
 export function isPacingGoverned(
   path: string,
   modelId: string | undefined,
@@ -481,20 +481,20 @@ export interface RetryNotice {
   readonly phase?: 'pacing'
   readonly attempt: number
   /**
-   * The retries allowed, absent when neither the provider nor the person
-   * sets one: the provider's own Retry-After (or stop answer) governs.
-   */
+  The retries allowed, absent when neither the provider nor the person
+  sets one: the provider's own Retry-After (or stop answer) governs.
+  */
   readonly maxAttempts: number | undefined
   readonly delayMs: number
   readonly reason: string
 }
 
 /**
- * The retries one model call has used (the review of PR #28): a stream sent
- * again whole and the HTTP retries inside each of its requests draw on the
- * same count. No ceiling of our own (owner 2026-10-16): a call that names
- * same per-provider budget (lane RETRYLIMITS).
- */
+The retries one model call has used (the review of PR #28): a stream sent
+again whole and the HTTP retries inside each of its requests draw on the
+same count. No ceiling of our own (owner 2026-10-16): a call that names
+same per-provider budget (lane RETRYLIMITS).
+*/
 export interface RetryBudget {
   retriesUsed: number
   /** A ceiling this call names; absent, retries end at Stop, never at a count. */
@@ -507,16 +507,16 @@ export function canRetryWithinBudget(budget: RetryBudget | undefined, attempt: n
 }
 
 /**
- * Loop bound when no retry limit applies: the largest count, so only the
- * provider's own stop answers end the loop. A budget starting here refuses
- * every retry (see `noRetryBudget`).
- */
+Loop bound when no retry limit applies: the largest count, so only the
+provider's own stop answers end the loop. A budget starting here refuses
+every retry (see `noRetryBudget`).
+*/
 export const UNBOUNDED_RETRIES = Number.MAX_SAFE_INTEGER
 
 /**
- * A budget that refuses every retry before the first try: key checks and
- * other single-attempt paths spend it, so their loop bound is already met.
- */
+A budget that refuses every retry before the first try: key checks and
+other single-attempt paths spend it, so their loop bound is already met.
+*/
 export function noRetryBudget(): RetryBudget {
   return { retriesUsed: UNBOUNDED_RETRIES }
 }
@@ -528,10 +528,10 @@ export interface ConfirmedModelRequest {
   readonly providerId?: string | undefined
   readonly origin?: string | undefined
   /**
-   * Which confirmed run this identity belongs to. Stale-identity refusals
-   * keep the schedule guidance for scheduled prompts and name the hook call
-   * for model-hook runs.
-   */
+  Which confirmed run this identity belongs to. Stale-identity refusals
+  keep the schedule guidance for scheduled prompts and name the hook call
+  for model-hook runs.
+  */
   readonly runKind?: 'scheduled' | 'review' | 'hookModel' | undefined
   /** The paid gate and session model must still match before every HTTP try. */
   readonly isStillAllowed: () => boolean
@@ -540,9 +540,9 @@ export interface ConfirmedModelRequest {
 }
 
 /**
- * A stale-identity refusal that names the confirmed run: scheduled prompts
- * keep the schedule guidance, model-hook runs name the hook call.
- */
+A stale-identity refusal that names the confirmed run: scheduled prompts
+keep the schedule guidance, model-hook runs name the hook call.
+*/
 export function staleConfirmedError(confirmed: ConfirmedModelRequest): Error {
   return new UserRefusalError(
     confirmed.runKind === 'hookModel'
@@ -553,11 +553,11 @@ export function staleConfirmedError(confirmed: ConfirmedModelRequest): Error {
 }
 
 /**
- * Whether an error is a lapsed-confirmation refusal carrying the run's own
- * guidance. Branches whose catch maps failures to branch text (the plan
- * retry sentence, the adapter's failure text) let these through unchanged,
- * so a lapsed hook, schedule or review says what lapsed.
- */
+Whether an error is a lapsed-confirmation refusal carrying the run's own
+guidance. Branches whose catch maps failures to branch text (the plan
+retry sentence, the adapter's failure text) let these through unchanged,
+so a lapsed hook, schedule or review says what lapsed.
+*/
 export function isStaleConfirmedError(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -567,13 +567,13 @@ export function isStaleConfirmedError(error: unknown): boolean {
 }
 
 /**
- * The one confirmed-dispatch gate every provider branch runs: proceed while
- * the confirmation names this model and is still allowed, and refuse with
- * the run's own guidance otherwise. Branches that accept more than the bare
- * session model id (a catalogue id, a provider, an origin) check those
- * fields themselves and pass `isSameModel` for the model half, so a future
- * branch cannot miss a step by hand-copying the condition.
- */
+The one confirmed-dispatch gate every provider branch runs: proceed while
+the confirmation names this model and is still allowed, and refuse with
+the run's own guidance otherwise. Branches that accept more than the bare
+session model id (a catalogue id, a provider, an origin) check those
+fields themselves and pass `isSameModel` for the model half, so a future
+branch cannot miss a step by hand-copying the condition.
+*/
 export function assertConfirmedAllowed(
   requestModel: string,
   confirmed: ConfirmedModelRequest | undefined,
@@ -589,11 +589,11 @@ export function assertConfirmedAllowed(
 }
 
 /**
- * Mark a confirmed dispatch started: the start receipt and the
- * scheduled-prompt use tally run exactly once, adjacent to the send, with
- * the admission observer right after. Call sites invoke this once per
- * dispatch, after the final gate re-check.
- */
+Mark a confirmed dispatch started: the start receipt and the
+scheduled-prompt use tally run exactly once, adjacent to the send, with
+the admission observer right after. Call sites invoke this once per
+dispatch, after the final gate re-check.
+*/
 export function noteConfirmedRequestStarted(
   confirmed: ConfirmedModelRequest | undefined,
   admitAttempt: Pick<ResponseAttemptGuard, 'onRequestStarted'> | undefined,
@@ -641,11 +641,11 @@ export interface ResponseAttemptGuard {
   readonly onRequestStarted?: () => void
   readonly observe?: (observation: ResponseObservation) => void
   /**
-   * The provider refused this attempt before generating anything (a status
-   * in `NON_BILLABLE_HTTP_REJECTIONS`), told before the error is thrown, so a
-   * caller still knows nothing was billed when a wrapper rethrows the error
-   * without its status (D121).
-   */
+  The provider refused this attempt before generating anything (a status
+  in `NON_BILLABLE_HTTP_REJECTIONS`), told before the error is thrown, so a
+  caller still knows nothing was billed when a wrapper rethrows the error
+  without its status (D121).
+  */
   readonly onRefused?: (status: number) => void
 }
 
@@ -679,14 +679,14 @@ export function whenAborted(signal: AbortSignal): {
 }
 
 /**
- * Production `TransportDeps.sleep` (lane PR225FIX2): a real timer cleared
- * the moment `signal` aborts, so a retry wait a Stop abandons leaves no
- * timer behind (deliberately still referenced while it runs: an unaborted
- * wait holds the process exactly as before, only an abandoned one is
- * gone). Resolves early on abort; the caller observes the abort itself
- * (`pause`'s race rejects with the turn's cancellation, registered before
- * this listener).
- */
+Production `TransportDeps.sleep` (lane PR225FIX2): a real timer cleared
+the moment `signal` aborts, so a retry wait a Stop abandons leaves no
+timer behind (deliberately still referenced while it runs: an unaborted
+wait holds the process exactly as before, only an abandoned one is
+gone). Resolves early on abort; the caller observes the abort itself
+(`pause`'s race rejects with the turn's cancellation, registered before
+this listener).
+*/
 export function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise<void>((done) => {
     if (signal?.aborted === true) {
@@ -791,11 +791,11 @@ export class RequestTransport {
   }
 
   /**
-   * Headers and every body read, without timing local admission, backoff or
-   * consumers. A provider-named idle (`streamIdleMs`) still ends silence at
-   * it; unnamed, the fetch runs until it answers or Stop ends it, saying so
-   * out loud while waiting for the first bytes (owner 2026-10-16).
-   */
+  Headers and every body read, without timing local admission, backoff or
+  consumers. A provider-named idle (`streamIdleMs`) still ends silence at
+  it; unnamed, the fetch runs until it answers or Stop ends it, saying so
+  out loud while waiting for the first bytes (owner 2026-10-16).
+  */
   public async fetchWithIdleDeadline(url: string, init: RequestInit): Promise<Response> {
     const idleMs = this.deps.streamIdleMs
     // The named idle's sentence; unnamed waits never stall, so never say it.
@@ -910,14 +910,14 @@ export class RequestTransport {
   }
 
   /**
-   * U18 / D85.5: the batch transcription POST, and nothing else. The route is
-   * the captured `/asr/transcribe?sessionId=<uuid>`; the body is the
-   * adapter's multipart. Unlike Files, a refusal is not thrown: the adapter
-   * reads the captured 400 body ("The 'audio' part must be…"). The body is
-   * read bounded and the key redacted before it is handed back. One attempt:
-   * a charged POST is never retried here. `dispatch` is the paid admission,
-   * run after the key and endpoint checks, immediately before the fetch.
-   */
+  U18 / D85.5: the batch transcription POST, and nothing else. The route is
+  the captured `/asr/transcribe?sessionId=<uuid>`; the body is the
+  adapter's multipart. Unlike Files, a refusal is not thrown: the adapter
+  reads the captured 400 body ("The 'audio' part must be…"). The body is
+  read bounded and the key redacted before it is handed back. One attempt:
+  a charged POST is never retried here. `dispatch` is the paid admission,
+  run after the key and endpoint checks, immediately before the fetch.
+  */
   public async requestTranscription(
     route: string,
     signal: AbortSignal,
@@ -944,12 +944,12 @@ export class RequestTransport {
   }
 
   /**
-   * Waits `ms` whole, or rejects as soon as `signal` aborts. A timer holds
-   * at most `MODEL_API_TIMER_MAX_MS` and a longer delay fires after 1 ms, so
-   * a longer wait is slept in pieces no larger than that (PR #225): the
-   * provider is never asked again before the wait it named or the backoff
-   * it was given.
-   */
+  Waits `ms` whole, or rejects as soon as `signal` aborts. A timer holds
+  at most `MODEL_API_TIMER_MAX_MS` and a longer delay fires after 1 ms, so
+  a longer wait is slept in pieces no larger than that (PR #225): the
+  provider is never asked again before the wait it named or the backoff
+  it was given.
+  */
   public async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
     if (signal?.aborted === true) {
       throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
@@ -978,11 +978,11 @@ export class RequestTransport {
   }
 
   /**
-   * Headers and parsed-event progress have an idle deadline only when the
-   * provider names one (`idleMs`); unnamed, the stream runs until it
-   * finishes or Stop ends it, saying so out loud while silent (owner
-   * 2026-10-16). Cancellation owns the reader.
-   */
+  Headers and parsed-event progress have an idle deadline only when the
+  provider names one (`idleMs`); unnamed, the stream runs until it
+  finishes or Stop ends it, saying so out loud while silent (owner
+  2026-10-16). Cancellation owns the reader.
+  */
   public async streamRequest(
     path: string,
     init: {
@@ -1136,20 +1136,20 @@ export class RequestTransport {
   }
 
   /**
-   * The retries one call may use (lane RETRYLIMITS): the person's
-   * `museSpark.modelApiMaxRetries` setting when set, else the provider's
-   * documented maximum, else undefined (unbounded: the provider's own
-   * Retry-After waits and stop answers govern the loop).
-   */
+  The retries one call may use (lane RETRYLIMITS): the person's
+  `museSpark.modelApiMaxRetries` setting when set, else the provider's
+  documented maximum, else undefined (unbounded: the provider's own
+  Retry-After waits and stop answers govern the loop).
+  */
   public maxRetries(): number | undefined {
     return effectiveMaxRetries(this.deps.personCap?.(), documentedLimits(this.deps))
   }
 
   /**
-   * The person's live retry limit, before any provider maximum caps it
-   * (lane PR225W1): the turn loop reads it to tell a person-set cap stop
-   * from a provider refusal on the orchestrator's feed.
-   */
+  The person's live retry limit, before any provider maximum caps it
+  (lane PR225W1): the turn loop reads it to tell a person-set cap stop
+  from a provider refusal on the orchestrator's feed.
+  */
   public personCap(): number | undefined {
     return this.deps.personCap?.()
   }
@@ -1167,9 +1167,9 @@ export class RequestTransport {
   }
 
   /**
-   * One request with the documented retry policy. The response is handed
-   * back unread on success; a non-2xx status becomes a `ModelApiError`.
-   */
+  One request with the documented retry policy. The response is handed
+  back unread on success; a non-2xx status becomes a `ModelApiError`.
+  */
   public async request(
     path: string,
     init: {
@@ -1180,11 +1180,11 @@ export class RequestTransport {
       readonly estimatedTokens?: number
       readonly accept: string
       /**
-       * `rateLimitOnly` for a request that bills per call (M34, the review
-       * of PR #27): a 429 was refused before any work and is retried; a
-       * lost connection or a server error may have been done and billed,
-       * so it is not.
-       */
+      `rateLimitOnly` for a request that bills per call (M34, the review
+      of PR #27): a 429 was refused before any work and is retried; a
+      lost connection or a server error may have been done and billed,
+      so it is not.
+      */
       readonly headers?: Readonly<Record<string, string>>
       readonly retries?: 'all' | 'rateLimitOnly'
       readonly paid?: {

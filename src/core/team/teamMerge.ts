@@ -35,6 +35,9 @@ import { isTeamGitError, isSameTeamPath, teamProgramFreeGit, type TeamGit } from
 
 import path from 'node:path'
 
+/** A failure that wrote nothing has nothing to undo. */
+const NO_UNDO: TeamMergeUndo = { files: [] }
+
 /** A merge failure: the stable code travels with the error. */
 export class TeamMergeError extends Error {
   public constructor(
@@ -49,7 +52,7 @@ export class TeamMergeError extends Error {
       | 'mergeFailed',
     message: string,
     public readonly files: readonly string[] = [],
-    public readonly undo: TeamMergeUndo = { files: [] },
+    public readonly undo: TeamMergeUndo = NO_UNDO,
     public readonly rollback?: {
       readonly restored: readonly string[]
       readonly refused: readonly string[]
@@ -179,11 +182,11 @@ function hasNul(bytes: Uint8Array): boolean {
 }
 
 /**
- * Raw `--raw -z` records: `:oldmode newmode oldsha newsha STATUS`, NUL,
- * path, NUL. `--no-renames` is always passed, so every record is one header
- * and one path: anything else (a rename, a copy, a second path) is refused
- * rather than guessed.
- */
+Raw `--raw -z` records: `:oldmode newmode oldsha newsha STATUS`, NUL,
+path, NUL. `--no-renames` is always passed, so every record is one header
+and one path: anything else (a rename, a copy, a second path) is refused
+rather than guessed.
+*/
 function parseRawDiff(output: Uint8Array): readonly RawChange[] {
   const text = LOSSY_DECODER.decode(output)
   const tokens = text.split('\0').filter((token) => token !== '')
@@ -358,11 +361,11 @@ function areBytesEqual(left: Uint8Array | undefined, right: Uint8Array | undefin
 }
 
 /**
- * What the merge would do, without writing: the files, which are binary,
- * which need the protected-path approval, and which fall outside
- * `write-paths`. Throws for unsafe paths, link escapes and ref breaches.
- * @unwired M96 team merge planner
- */
+What the merge would do, without writing: the files, which are binary,
+which need the protected-path approval, and which fall outside
+`write-paths`. Throws for unsafe paths, link escapes and ref breaches.
+@unwired M96 team merge planner
+*/
 export async function planTeamMerge(
   io: TeamMergeIo,
   spec: TeamMergeSpec,
@@ -442,13 +445,13 @@ async function prepareTeamMerge(
 }
 
 /**
- * The merge itself. Re-derives the plan (a preview can go stale while the
- * card asks), then: `write-paths` violations refuse the whole merge; a ref
- * breach refuses it; protected paths refuse it unless `allowProtected`;
- * then derives every file through `git merge-file`. Conflicts go to the
- * task copy under rework; no result lands in the user tree until clean.
- * @unwired M96 team merge applier
- */
+The merge itself. Re-derives the plan (a preview can go stale while the
+card asks), then: `write-paths` violations refuse the whole merge; a ref
+breach refuses it; protected paths refuse it unless `allowProtected`;
+then derives every file through `git merge-file`. Conflicts go to the
+task copy under rework; no result lands in the user tree until clean.
+@unwired M96 team merge applier
+*/
 export async function applyTeamMerge(
   io: TeamMergeIo,
   spec: TeamMergeSpec,
@@ -859,11 +862,11 @@ async function mergeOneFile(
 }
 
 /**
- * Undo merge (M86's rule): restore each touched file to its bytes before
- * the merge, but only while the file still holds exactly what the merge
- * wrote. A file the user has since edited is refused and named; the rest
- * still restore.
- */
+Undo merge (M86's rule): restore each touched file to its bytes before
+the merge, but only while the file still holds exactly what the merge
+wrote. A file the user has since edited is refused and named; the rest
+still restore.
+*/
 export async function undoTeamMerge(
   repositoryRoot: string,
   undo: TeamMergeUndo,

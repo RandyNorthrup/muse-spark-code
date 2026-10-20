@@ -154,12 +154,16 @@ export async function runScreenRecordingCommand(
   )
   if (selected === undefined) return
   // A setting outside the schema range clamps instead of failing the
-  // command with a raw schema error (M105 E1 review).
+  // command with a raw schema error (M105 E1 review). 0 records until
+  // stopped (D121: no stop of ours) and passes through unclamped.
   const options = screenRecordingOptionsSchema.parse({
-    maxSeconds: Math.min(
-      SCREEN_RECORDING_MAX_SECONDS,
-      Math.max(SCREEN_RECORDING_MIN_SECONDS, deps.maxSeconds),
-    ),
+    maxSeconds:
+      deps.maxSeconds === 0
+        ? 0
+        : Math.min(
+            SCREEN_RECORDING_MAX_SECONDS,
+            Math.max(SCREEN_RECORDING_MIN_SECONDS, deps.maxSeconds),
+          ),
     microphone: selected.some((item) => item.audio === 'microphone'),
     systemAudio: selected.some((item) => item.audio === 'systemAudio'),
   })
@@ -174,11 +178,14 @@ export async function runScreenRecordingCommand(
   // status item (M105 E1 review).
   let isSettled = false
   try {
-    const run = await driver.start(options, (remaining) => {
+    const isUncapped = options.maxSeconds === 0
+    const run = await driver.start(options, (ticked) => {
       if (isSettled) return
-      status.text = fill(UI_TEXT.media.recordingCountdown, {
-        remaining: formatUnit(remaining, 'second'),
-      })
+      status.text = isUncapped
+        ? fill(UI_TEXT.media.recordingElapsed, { elapsed: formatUnit(ticked, 'second') })
+        : fill(UI_TEXT.media.recordingCountdown, {
+            remaining: formatUnit(ticked, 'second'),
+          })
       status.show()
     })
     // The conversation went away while the driver started: the run is

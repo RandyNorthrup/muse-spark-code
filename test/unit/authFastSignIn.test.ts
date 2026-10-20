@@ -81,11 +81,11 @@ function serviceFor(
 }
 
 /**
- * One refresh, wired as activation wires it: `cliSignIn` and the peek are
- * one real `CliAccount` over a temp credential file, so a state the file
- * settles never reaches the probe. The secret table's `get` is the
- * refresh's remaining wait, settled by `answerKeyRead`.
- */
+One refresh, wired as activation wires it: `cliSignIn` and the peek are
+one real `CliAccount` over a temp credential file, so a state the file
+settles never reaches the probe. The secret table's `get` is the
+refresh's remaining wait, settled by `answerKeyRead`.
+*/
 function start(contents: string, probe: () => Promise<AccountState | undefined>): Started {
   const dir = mkdtempSync(path.join(tmpdir(), 'fast-signin-'))
   scratchDirs.add(dir)

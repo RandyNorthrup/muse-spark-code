@@ -17,11 +17,11 @@ export interface SignInLossInput {
 }
 
 /**
- * The loud words for a turn refused for a sign-in its restarted backend
- * lost, or undefined when this turn is not that: no restart behind it,
- * or a failure of another kind. The message carries the restart's
- * cause, the turn's reason and the remedy.
- */
+The loud words for a turn refused for a sign-in its restarted backend
+lost, or undefined when this turn is not that: no restart behind it,
+or a failure of another kind. The message carries the restart's
+cause, the turn's reason and the remedy.
+*/
 export function signInLossText(input: SignInLossInput): string | undefined {
   if (input.errorKind !== AUTH_REQUIRED_ERROR_KIND || input.restartCause === undefined) {
     return undefined

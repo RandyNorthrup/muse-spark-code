@@ -96,10 +96,10 @@ async function refusalOf(response: Response): Promise<string> {
 }
 
 /**
- * The plan catalogue with each entry's capability facts. An entry that
- * fails the facts parse still lists by slug, without facts: listing never
- * loses a model to a field the app does not use.
- */
+The plan catalogue with each entry's capability facts. An entry that
+fails the facts parse still lists by slug, without facts: listing never
+loses a model to a field the app does not use.
+*/
 export async function chatGptCatalog(
   signIn: Pick<ChatGptSignIn, 'accessToken'>,
   fetcher: typeof fetch,
@@ -156,14 +156,14 @@ export async function chatGptModels(
 }
 
 /**
- * A non-OK answer from the plan route, handled as OpenAI's errors and
- * recovery page says (read 2026-10-17). `code` is OpenAI's own `error.code`
- * (or this app's name for the code-less direct-route 503), and the message
- * is what the person reads: OpenAI's own `error.message` or `detail` for a
- * refusal, never a header or a token. The usage limit is the plan-limit
- * answer; a 503 rides the turn's bounded retry with the credentials kept;
- * every other refusal is terminal and is never retried.
- */
+A non-OK answer from the plan route, handled as OpenAI's errors and
+recovery page says (read 2026-10-17). `code` is OpenAI's own `error.code`
+(or this app's name for the code-less direct-route 503), and the message
+is what the person reads: OpenAI's own `error.message` or `detail` for a
+refusal, never a header or a token. The usage limit is the plan-limit
+answer; a 503 rides the turn's bounded retry with the credentials kept;
+every other refusal is terminal and is never retried.
+*/
 class ChatgptPlanRequestError extends Error {
   public constructor(
     message: string,
@@ -177,13 +177,13 @@ class ChatgptPlanRequestError extends Error {
 const directAdmissionSchema = z.object({ detail: z.string() })
 
 /**
- * The one sentence for a failed ChatGPT sign-in, refresh, lock or catalogue
- * read, shared by the terminal and ACP commands, the Models panel, the
- * session's model listing and the plan stream's catch. Every code has its
- * own cause; none falls back to a general sentence. `reason` is the
- * operating system's code, OpenAI's error code, an HTTP status, Node's
- * network codes or this app's own word, never provider text.
- */
+The one sentence for a failed ChatGPT sign-in, refresh, lock or catalogue
+read, shared by the terminal and ACP commands, the Models panel, the
+session's model listing and the plan stream's catch. Every code has its
+own cause; none falls back to a general sentence. `reason` is the
+operating system's code, OpenAI's error code, an HTTP status, Node's
+network codes or this app's own word, never provider text.
+*/
 export function chatGptFailureText(code: ChatGptSignInError['code'], reason?: string): string {
   const named = reason ?? code
   switch (code) {
@@ -293,11 +293,11 @@ export function chatGptFailureText(code: ChatGptSignInError['code'], reason?: st
 }
 
 /**
- * The sentence for a refused plan answer, from a real `Response`: OpenAI's
- * own error message or admission detail where it sent one, the HTTP status
- * where it sent none, and the standing retry sentence only for the
- * documented transient (503 / retryable code).
- */
+The sentence for a refused plan answer, from a real `Response`: OpenAI's
+own error message or admission detail where it sent one, the HTTP status
+where it sent none, and the standing retry sentence only for the
+documented transient (503 / retryable code).
+*/
 export async function planRequestError(response: Response): Promise<ChatgptPlanRequestError> {
   const body = await jsonBody(response)
   const envelope = errorBodySchema.safeParse(body)
@@ -333,11 +333,11 @@ export async function planRequestError(response: Response): Promise<ChatgptPlanR
 }
 
 /**
- * What the plan route reports in its headers is kept as reported, through
- * the usage journal's allow list; nothing is read as a meter or a reset
- * time (OpenAI documents none for this route, and the 2026-10-05 capture
- * carries none). An observation failure never changes the request.
- */
+What the plan route reports in its headers is kept as reported, through
+the usage journal's allow list; nothing is read as a meter or a reset
+time (OpenAI documents none for this route, and the 2026-10-05 capture
+carries none). An observation failure never changes the request.
+*/
 function observePlanAnswer(guard: ResponseAttemptGuard | undefined, response: Response): void {
   try {
     guard?.observe?.({
@@ -374,10 +374,10 @@ function subscriptionRecord(record: unknown) {
 }
 
 /**
- * A session's model listing and resolution say a ChatGPT failure in its own
- * sentence: the error a session shows is its message, and a sign-in error's
- * message is only its technical code.
- */
+A session's model listing and resolution say a ChatGPT failure in its own
+sentence: the error a session shows is its message, and a sign-in error's
+message is only its technical code.
+*/
 async function named<T>(work: () => Promise<T>): Promise<T> {
   try {
     return await work()
@@ -417,32 +417,32 @@ export interface SubscriptionRegistryDeps {
   readonly saveUsage?: (rows: readonly PlanUsageRow[]) => void
   readonly copilotUsage?: () => readonly PlanUsageRow[]
   /**
-   * Lane PR225W1: the person's `museSpark.modelApiMaxRetries` setting, read
-   * live. The plan routes document no retry maximum, so with none set their
-   * limit is undefined. Headless passes none (unset).
-   */
+  Lane PR225W1: the person's `museSpark.modelApiMaxRetries` setting, read
+  live. The plan routes document no retry maximum, so with none set their
+  limit is undefined. Headless passes none (unset).
+  */
   readonly personCap?: () => number | undefined
   /**
-   * How long the ChatGPT stream may send nothing, headers or frames, before
-   * it is ended; absent, the stream ends at Stop, never at an invented kill
-   * (owner 2026-10-16). It is the only time limit on that stream: there is
-   * no limit on its total.
-   */
+  How long the ChatGPT stream may send nothing, headers or frames, before
+  it is ended; absent, the stream ends at Stop, never at an invented kill
+  (owner 2026-10-16). It is the only time limit on that stream: there is
+  no limit on its total.
+  */
   readonly streamIdleMs?: number
   /**
-   * Where indefinite stream waits say so (PR #214 review): without a
-   * provider-named idle nothing else ends the silence, so the wait would
-   * otherwise look hung until Stop. Unnamed, the branch stays silent.
-   */
+  Where indefinite stream waits say so (PR #214 review): without a
+  provider-named idle nothing else ends the silence, so the wait would
+  otherwise look hung until Stop. Unnamed, the branch stays silent.
+  */
   readonly log?: CoreLogger
 }
 
 /**
- * Periodic still-waiting notices for an indefinite provider wait (PR #214
- * review): each notice restarts the silence clock, as the transport does
- * for its own streams. A named log with a provider-named idle, or no log
- * at all, notices nothing — the idle ends silence itself.
- */
+Periodic still-waiting notices for an indefinite provider wait (PR #214
+review): each notice restarts the silence clock, as the transport does
+for its own streams. A named log with a provider-named idle, or no log
+at all, notices nothing — the idle ends silence itself.
+*/
 export function silentWaitNotices(
   log: CoreLogger | undefined,
   idleMs: number | undefined,

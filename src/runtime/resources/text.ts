@@ -3,7 +3,6 @@ import {
   RESOURCE_TRANSPORT_FAILURE_PERCENT,
   RESOURCE_CRITICAL_CPU_PERCENT,
   RESOURCE_CRITICAL_MEMORY_FLOOR_FRACTION,
-  RESOURCE_GIB_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
 import {
@@ -40,18 +39,36 @@ export function resourceLevelText(level: ResourceLevel): string {
 const percentage = (value: number | null | undefined) =>
   value == null ? UI_TEXT.resourceUnknown : formatPercent(value)
 
+// An unset limit shows no parenthetical: the reading is measured, not held.
+const limited = (reading: string, threshold: string | null): string =>
+  threshold === null ? reading : `${reading} (${threshold})`
+
+function availableMemoryText(sample: ResourceStatus['sample'], floor: number | null): string {
+  if (sample?.memoryAvailableBytes == null) return UI_TEXT.resourceUnknown
+  return limited(
+    formatBytes(sample.memoryAvailableBytes),
+    floor === null ? null : formatBytes(floor),
+  )
+}
+
 export function resourceStatusText(raw: ResourceStatus): string {
   const status = resourceStatusSchema.parse(raw)
   const { sample, settings } = status
   const floor =
     sample?.memoryTotalBytes == null
-      ? settings.memoryMinFreeGiB * RESOURCE_GIB_BYTES
+      ? null
       : resourceMemoryFloorBytes(settings, sample.memoryTotalBytes)
   const lines = [
     `${UI_TEXT.resourceTitle}: ${resourceLevelText(status.level)}`,
-    `${UI_TEXT.resourceCpu}: ${percentage(sample?.cpuPercent)} (${formatPercent(settings.cpuMaxPercent)})`,
-    `${UI_TEXT.resourceMemory}: ${percentage(sample?.memoryUsedPercent)} (${formatPercent(settings.memoryMaxPercent)})`,
-    `${UI_TEXT.resourceAvailableMemory}: ${sample?.memoryAvailableBytes == null ? UI_TEXT.resourceUnknown : formatBytes(sample.memoryAvailableBytes)} (${formatBytes(floor)})`,
+    `${UI_TEXT.resourceCpu}: ${limited(
+      percentage(sample?.cpuPercent),
+      settings.cpuMaxPercent === null ? null : formatPercent(settings.cpuMaxPercent),
+    )}`,
+    `${UI_TEXT.resourceMemory}: ${limited(
+      percentage(sample?.memoryUsedPercent),
+      settings.memoryMaxPercent === null ? null : formatPercent(settings.memoryMaxPercent),
+    )}`,
+    `${UI_TEXT.resourceAvailableMemory}: ${availableMemoryText(sample, floor)}`,
   ]
   if (settings.gpuMaxPercent !== null)
     lines.push(
@@ -86,14 +103,16 @@ export function resourceNoticeText(event: ResourceEvent, status: ResourceStatus)
   if (event.type !== 'levelChanged') return [UI_TEXT.resourceWaiting, ...details].join('\n')
   const sample = status.sample
   const reason = event.reason
+  const memoryFloor =
+    sample?.memoryTotalBytes == null
+      ? null
+      : resourceMemoryFloorBytes(status.settings, sample.memoryTotalBytes)
   const isFree =
     reason === 'memoryFree' ||
     (reason === 'critical' &&
+      memoryFloor !== null &&
       sample?.memoryAvailableBytes != null &&
-      sample.memoryTotalBytes !== null &&
-      sample.memoryAvailableBytes <
-        resourceMemoryFloorBytes(status.settings, sample.memoryTotalBytes) *
-          RESOURCE_CRITICAL_MEMORY_FLOOR_FRACTION)
+      sample.memoryAvailableBytes < memoryFloor * RESOURCE_CRITICAL_MEMORY_FLOOR_FRACTION)
   let metric = UI_TEXT.resourceCpu
   let reading = percentage(sample?.cpuPercent)
   let threshold = percentage(
@@ -147,11 +166,10 @@ export function resourceNoticeText(event: ResourceEvent, status: ResourceStatus)
         ? UI_TEXT.resourceUnknown
         : formatBytes(sample.memoryAvailableBytes)
     threshold =
-      sample?.memoryTotalBytes == null
+      memoryFloor === null
         ? UI_TEXT.resourceUnknown
         : formatBytes(
-            resourceMemoryFloorBytes(status.settings, sample.memoryTotalBytes) *
-              (reason === 'critical' ? RESOURCE_CRITICAL_MEMORY_FLOOR_FRACTION : 1),
+            memoryFloor * (reason === 'critical' ? RESOURCE_CRITICAL_MEMORY_FLOOR_FRACTION : 1),
           )
   }
   return [fill(UI_TEXT.resourcePauseNotice, { metric, reading, threshold }), ...details].join('\n')

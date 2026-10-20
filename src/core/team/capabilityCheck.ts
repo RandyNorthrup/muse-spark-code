@@ -72,10 +72,10 @@ function unknownWarning(model: string, roleId: string): TeamCapabilityWarning {
 }
 
 /**
- * Whether `model` may be saved into `role`: refused without tool calling
- * or below the minimum window, warned otherwise. An unknown model or an
- * unknown field warns; it never refuses.
- */
+Whether `model` may be saved into `role`: refused without tool calling
+or below the minimum window, warned otherwise. An unknown model or an
+unknown field warns; it never refuses.
+*/
 export function checkRoleCapability(
   model: string,
   role: TeamCapabilityRole,

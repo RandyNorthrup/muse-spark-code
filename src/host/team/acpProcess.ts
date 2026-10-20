@@ -90,10 +90,10 @@ export interface AcpPresetInstall {
 }
 
 /**
- * The install source per preset, from the ACP registry's distributions
- * (research §4.6). `gemini`, `copilot` and our own agent have none here:
- * the user installs those CLIs themselves, or the extension bundles ours.
- */
+The install source per preset, from the ACP registry's distributions
+(research §4.6). `gemini`, `copilot` and our own agent have none here:
+the user installs those CLIs themselves, or the extension bundles ours.
+*/
 export const ACP_PRESET_INSTALLS: Readonly<Record<AcpPresetId, AcpPresetInstall | undefined>> = {
   claude: {
     package: '@agentclientprotocol/claude-agent-acp',
@@ -134,11 +134,11 @@ export interface SpawnAcpAgentInput {
 }
 
 /**
- * Spawns the agent through lane K's launcher with the scrubbed environment:
- * no credential variable except the profile's passthrough names, and the
- * launch marker. The per-preset switch for leaving out the user's own MCP
- * servers is appended only once step 1 has captured it.
- */
+Spawns the agent through lane K's launcher with the scrubbed environment:
+no credential variable except the profile's passthrough names, and the
+launch marker. The per-preset switch for leaving out the user's own MCP
+servers is appended only once step 1 has captured it.
+*/
 export async function spawnAcpAgent(input: SpawnAcpAgentInput): Promise<TeamChildProcess> {
   const grant = await assertWorkerRoot({ ...input, folder: input.cwd })
   const args = acpSpawnArgs(input)
@@ -161,10 +161,10 @@ export interface AcpTerminal {
 }
 
 /**
- * Terminal sign-in (research §4.1): runs the agent's program interactively
- * and reports its exit code. The caller reconnects when it exits 0, and
- * never sends `authenticate` for a terminal method.
- */
+Terminal sign-in (research §4.1): runs the agent's program interactively
+and reports its exit code. The caller reconnects when it exits 0, and
+never sends `authenticate` for a terminal method.
+*/
 export async function runTerminalSignIn(input: {
   readonly command: string
   readonly args: readonly string[]
@@ -271,7 +271,7 @@ function selectorOf(
 function valuesOf(selector: z.infer<typeof configSelector>): readonly string[] {
   return selector.options.flatMap((option) => {
     const value = configValue.safeParse(option)
-    if (value.success) return [value.data.value]
+    if (value.success) return value.data.value
     const group = configGroup.safeParse(option)
     return group.success ? group.data.options.map((entry) => entry.value) : []
   })
@@ -286,11 +286,11 @@ export function updateTextOf(update: unknown): string | undefined {
 }
 
 /**
- * Loosens the SDK client's constructor router exactly as headless `exec`
- * does (`src/runtime/exec/execClient.ts`): lane W drives the agent through
- * `request()`, never the active-session helpers, so unknown updates reach
- * the loose boundary instead of the isClosed-union router.
- */
+Loosens the SDK client's constructor router exactly as headless `exec`
+does (`src/runtime/exec/execClient.ts`): lane W drives the agent through
+`request()`, never the active-session helpers, so unknown updates reach
+the loose boundary instead of the isClosed-union router.
+*/
 function loosenClientRouter(clientApp: ReturnType<typeof acp.client>): void {
   const builder: unknown = Reflect.get(clientApp, 'builder')
   if (typeof builder !== 'object' || builder === null) {
@@ -385,11 +385,11 @@ export function asAcpSdkError(
 }
 
 /**
- * Connects the SDK client to the spawned agent's stdio and adapts it to
- * lane W's connection: `initialize`, `session/new` with `cwd` and the
- * bridge's servers, the mode, the prompt, and cancel. Pending permission
- * requests answer `cancelled` on cancel, as the protocol requires.
- */
+Connects the SDK client to the spawned agent's stdio and adapts it to
+lane W's connection: `initialize`, `session/new` with `cwd` and the
+bridge's servers, the mode, the prompt, and cancel. Pending permission
+requests answer `cancelled` on cancel, as the protocol requires.
+*/
 export function connectAcpAgent(input: {
   readonly stdin: Writable
   readonly stdout: Readable

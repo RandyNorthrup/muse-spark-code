@@ -8,9 +8,9 @@ import type { AnswerMaterial, JudgeQuestionKind, JudgeTechnique } from './judge'
 import { canonicalAnswerToken, renormalizeAlternatives, type LogprobAlternative } from './math'
 
 /**
- * What a captured capability record says about logprobs: a real top-k, a
- * chosen token only, a refusal, or a silently dropped parameter (xAI, Z.ai).
- */
+What a captured capability record says about logprobs: a real top-k, a
+chosen token only, a refusal, or a silently dropped parameter (xAI, Z.ai).
+*/
 export type LogprobCapability = 'topk' | 'top1' | 'refused' | 'dropped'
 
 /** The per-model capability the technique choice reads (D77). */
@@ -19,10 +19,10 @@ export interface ModelJudgeCapability {
 }
 
 /**
- * Choose the technique from the captured capability, never per provider.
- * A top-1 estimate is excluded from choice, score and calibrated uses, so
- * non-noul questions on a top-1 model use stated confidence.
- */
+Choose the technique from the captured capability, never per provider.
+A top-1 estimate is excluded from choice, score and calibrated uses, so
+non-noul questions on a top-1 model use stated confidence.
+*/
 export function selectTechnique(
   capability: ModelJudgeCapability,
   kind: JudgeQuestionKind,
@@ -45,10 +45,10 @@ const logprobCandidateSchema = z.object({ token: z.string(), logprob: z.number()
 const logprobFieldSchema = z.array(logprobCandidateSchema)
 
 /**
- * Read the top-k field of a response. Undefined means the engine cannot
- * answer from logprobs: a missing or dropped field (xAI, Z.ai), a wrong
- * shape, or an empty list. An engine failure, never read as certainty.
- */
+Read the top-k field of a response. Undefined means the engine cannot
+answer from logprobs: a missing or dropped field (xAI, Z.ai), a wrong
+shape, or an empty list. An engine failure, never read as certainty.
+*/
 export function parseLogprobCandidates(field: unknown): LogprobAlternative[] | undefined {
   const parsed = logprobFieldSchema.safeParse(field)
   return !parsed.success || parsed.data.length === 0 ? undefined : parsed.data
@@ -110,10 +110,10 @@ export interface LogprobInputs {
 }
 
 /**
- * Answer from a top-k: the renormalized mass of the distinct answer tokens.
- * `partial` when fewer distinct alternatives were seen than offered. No
- * answer token among the top-k is an engine failure.
- */
+Answer from a top-k: the renormalized mass of the distinct answer tokens.
+`partial` when fewer distinct alternatives were seen than offered. No
+answer token among the top-k is an engine failure.
+*/
 export function materialForLogprobs(inputs: LogprobInputs): LogprobMaterial {
   const alternatives = alternativeCount(inputs.kind, inputs.optionCount)
   const renormalized = renormalizeAlternatives(
@@ -150,15 +150,15 @@ export type Top1Material =
   | { readonly outcome: 'fallback-to-stated' }
 
 /**
- * Binary-from-top-1, valid only for a noul whose top-1 token is a yes or
- * no variant at or above the floor (`JUDGE_TOP1_MIN_PROB`, lane 0). The
- * value is p for "yes", 1 − p for "no": the residual 1 − p is attributed
- * to the other answer although it may hold other tokens, so the floor
- * bounds that error at 1 − floor and the label stays "approximate
- * (top-1)". Anything else — a non-noul, a non-answer token, a corrupt or
- * under-floor probability — falls back to stated confidence; the RVM98
- * counterexample (no at 0.60 with yes at 0.10) falls back.
- */
+Binary-from-top-1, valid only for a noul whose top-1 token is a yes or
+no variant at or above the floor (`JUDGE_TOP1_MIN_PROB`, lane 0). The
+value is p for "yes", 1 − p for "no": the residual 1 − p is attributed
+to the other answer although it may hold other tokens, so the floor
+bounds that error at 1 − floor and the label stays "approximate
+(top-1)". Anything else — a non-noul, a non-answer token, a corrupt or
+under-floor probability — falls back to stated confidence; the RVM98
+counterexample (no at 0.60 with yes at 0.10) falls back.
+*/
 export function materialForTop1(
   kind: JudgeQuestionKind,
   reading: Top1Reading,
@@ -217,12 +217,12 @@ export interface StatedInputs {
 }
 
 /**
- * Parse one structured stated-confidence response: `{answer, confidence
- * 0–100}` for a noul, or a 100-point `{probabilities}` distribution for a
- * choice or score. Values are normalized by us, exactly like logprob
- * masses; only shape violations fail. A missing field is a failure, never
- * read as certainty.
- */
+Parse one structured stated-confidence response: `{answer, confidence
+0–100}` for a noul, or a 100-point `{probabilities}` distribution for a
+choice or score. Values are normalized by us, exactly like logprob
+masses; only shape violations fail. A missing field is a failure, never
+read as certainty.
+*/
 export function materialForStated(inputs: StatedInputs): StatedMaterial {
   const failure = (reason: StatedParseFailure): StatedMaterial => ({
     outcome: 'failure',

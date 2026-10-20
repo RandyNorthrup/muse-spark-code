@@ -20,11 +20,12 @@ import {
   MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS,
 } from '../../shared/constants'
 import { spawnMcpJob, type McpJobLaunch } from './mcpJobLaunch'
+import type { GuardedChildEnv } from '../../core/executables'
 
 /** What every encoder launch enforces (structurally `convert.ts`'s `LimitedRunOptions`). */
 export interface JobEncoderRunOptions {
   readonly cwd: string
-  readonly env: NodeJS.ProcessEnv
+  readonly env: GuardedChildEnv
   readonly timeoutMs: number
   readonly signal?: AbortSignal
   readonly outputPath: string
@@ -66,10 +67,10 @@ export class ConversionJobFailed extends Error {
 }
 
 /**
- * The M109 seam: the one place a job's ending becomes media's failure. Once
- * the attested launcher's RESULT record reports `jobMemory`, the conversion
- * fails as `EMEDIA_MEMORY_CAP`; everything else is a plain job failure.
- */
+The M109 seam: the one place a job's ending becomes media's failure. Once
+the attested launcher's RESULT record reports `jobMemory`, the conversion
+fails as `EMEDIA_MEMORY_CAP`; everything else is a plain job failure.
+*/
 export function conversionJobFailure(
   enforcedLimits: readonly ConversionJobLimit[],
 ): ConversionJobFailed {
@@ -108,10 +109,10 @@ function isLaunchable(command: string, options: JobEncoderRunOptions): boolean {
 }
 
 /**
- * One output check, bounded like conversion's resource samples: a stat that
- * does not answer in time (a stalled share, a hung redirected folder) is a
- * failed check, so cancellation, the deadline and close always settle.
- */
+One output check, bounded like conversion's resource samples: a stat that
+does not answer in time (a stalled share, a hung redirected folder) is a
+failed check, so cancellation, the deadline and close always settle.
+*/
 async function isOutputWithinCap(
   options: JobEncoderRunOptions,
   statOutput: (file: string) => Promise<OutputStat>,
@@ -211,11 +212,11 @@ function runInJob(
 }
 
 /**
- * `convert.ts`'s `memoryLimitedRun` on Windows: one encoder run in a fresh
- * kernel job capped at `maxRssBytes`, its output size and deadline enforced,
- * and the launcher's close awaited. Any refusal or failure rejects with
- * `ConversionJobFailed`; a missing launcher refuses before anything starts.
- */
+`convert.ts`'s `memoryLimitedRun` on Windows: one encoder run in a fresh
+kernel job capped at `maxRssBytes`, its output size and deadline enforced,
+and the launcher's close awaited. Any refusal or failure rejects with
+`ConversionJobFailed`; a missing launcher refuses before anything starts.
+*/
 export function jobMemoryLimitedRun(
   deps: JobEncoderRunDeps,
 ): (command: string, args: readonly string[], options: JobEncoderRunOptions) => Promise<void> {

@@ -5,14 +5,11 @@ import {
   MODEL_API_PRICED_MODELS,
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
-  BYTES_PER_MIB,
   FILE_EDIT_TOOLS,
   FILE_READ_TOOLS,
   IDE_CONTEXT_TAGS,
   IMAGE_MAKING_TOOLS,
-  MAX_IMAGE_BYTES,
-  MAX_DOCUMENT_BYTES,
-  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
+  MEDIA_READ_MAX_BYTES,
   PDF_MEDIA_TYPE,
   MODEL_API_WEB_SEARCH_TOOL,
   SHELL_TOOLS,
@@ -257,11 +254,11 @@ export function planEntries(items: readonly TodoItem[]): PlanEntry[] {
 }
 
 /**
- * Turns one session's AgentEvents into ACP session updates. It remembers,
- * per item, how much text went out (an item can arrive whole after its
- * deltas, or whole on its own in a replayed history) and a tool call's
- * output so far, which ACP sends whole with the finished call.
- */
+Turns one session's AgentEvents into ACP session updates. It remembers,
+per item, how much text went out (an item can arrive whole after its
+deltas, or whole on its own in a replayed history) and a tool call's
+output so far, which ACP sends whole with the finished call.
+*/
 export class UpdateTranslator {
   private readonly sentText = new Map<string, number>()
   private readonly summaryParts = new Map<string, number>()
@@ -281,10 +278,10 @@ export class UpdateTranslator {
     private readonly readCost?: () => UsageCost | undefined,
     private readonly backend: 'modelApi' | 'museCode' = 'museCode',
     /**
-     * The client advertised `session.notices`: backend notices go out as
-     * their own `notice` update, never as the model's words. Otherwise the
-     * protocol's sanctioned fallback is an agent message.
-     */
+    The client advertised `session.notices`: backend notices go out as
+    their own `notice` update, never as the model's words. Otherwise the
+    protocol's sanctioned fallback is an agent message.
+    */
     private readonly areNoticesSupported = false,
   ) {}
 
@@ -564,11 +561,11 @@ export function permissionOptions(choices: readonly ApprovalChoice[]): Permissio
 }
 
 /**
- * The choice to decide with (D62): the one the client picked when it was
- * offered, and otherwise (cancelled, unknown, no answer) the backend's own
- * deny choice, preferring "this once". Undefined only when the backend
- * offered no way to deny, and then the caller stops the turn instead.
- */
+The choice to decide with (D62): the one the client picked when it was
+offered, and otherwise (cancelled, unknown, no answer) the backend's own
+deny choice, preferring "this once". Undefined only when the backend
+offered no way to deny, and then the caller stops the turn instead.
+*/
 export function decidedChoice(
   response: RequestPermissionResponse | undefined,
   choices: readonly ApprovalChoice[],
@@ -682,11 +679,14 @@ export function decodeAcpBlob(
 }
 
 function imagePart(base64Data: string, mime?: string): TurnPart | string {
+  // D121: an editor blob decodes whole, bounded only by host memory — no
+  // size of ours. Past it the file cannot be taken; the provider answers
+  // for the rest at send.
   const bytes = decodeAcpBlob(
     base64Data,
-    MAX_IMAGE_BYTES,
+    MEDIA_READ_MAX_BYTES,
     mime ?? 'image',
-    UI_TEXT.attachmentTooLarge,
+    UI_TEXT.attachmentUnreadable,
   )
   if (typeof bytes === 'string') return bytes
   const info = readImageInfo(bytes)
@@ -731,20 +731,22 @@ async function blockPart(
       const { resource } = block
       if ('text' in resource)
         return { type: 'text', text: attachedContext(resource.uri, resource.text) }
+      // D121: an embedded blob decodes whole, bounded only by host memory —
+      // no size of ours. A PDF the backend cannot take is refused as
+      // before; the provider answers for sizes at send.
       const bytes = decodeAcpBlob(
         resource.blob,
-        resource.mimeType === PDF_MEDIA_TYPE
-          ? MAX_DOCUMENT_BYTES
-          : MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
+        MEDIA_READ_MAX_BYTES,
         resource.mimeType ?? 'blob',
-        resource.mimeType === PDF_MEDIA_TYPE ? UI_TEXT.documentTooLarge : UI_TEXT.execFileTooLarge,
+        resource.mimeType === PDF_MEDIA_TYPE
+          ? UI_TEXT.attachmentUnreadable
+          : UI_TEXT.execFileTooLarge,
       )
       if (typeof bytes === 'string') return bytes
       if (isPdf(bytes)) {
         if (resource.mimeType != null && resource.mimeType !== PDF_MEDIA_TYPE)
           return fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType })
         if (!canAcceptDocuments) return UI_TEXT.pdfNeedsModelApi
-        if (bytes.length > MAX_DOCUMENT_BYTES) return UI_TEXT.documentTooLarge
         return {
           type: 'file',
           name: resourceName(resource.uri),
@@ -788,10 +790,10 @@ export function resourceName(uri: string): string {
 }
 
 /**
- * Whether a prompt link names media (M105 E2 review): only these route to
- * the media port. Ordinary context links and URLs stay mentions/text even
- * when the port is bound; binding the port must not file-open them.
- */
+Whether a prompt link names media (M105 E2 review): only these route to
+the media port. Ordinary context links and URLs stay mentions/text even
+when the port is bound; binding the port must not file-open them.
+*/
 export function isMediaLink(block: Extract<ContentBlock, { type: 'resource_link' }>): boolean {
   return (
     /^(?:image|audio|video)\//u.test(block.mimeType ?? '') ||
@@ -801,10 +803,10 @@ export function isMediaLink(block: Extract<ContentBlock, { type: 'resource_link'
 }
 
 /**
- * A prompt's blocks as the turn's parts; the first block the backend cannot
- * take refuses the whole prompt, so nothing is sent half. `displayText` is
- * what the user typed, for the stored transcript.
- */
+A prompt's blocks as the turn's parts; the first block the backend cannot
+take refuses the whole prompt, so nothing is sent half. `displayText` is
+what the user typed, for the stored transcript.
+*/
 export async function promptParts(
   blocks: readonly ContentBlock[],
   cwd: string,
@@ -823,7 +825,7 @@ export async function promptParts(
     parts.push(part)
   }
   const displayText = blocks
-    .flatMap((block) => (block.type === 'text' ? [block.text] : []))
+    .flatMap((block) => (block.type === 'text' ? block.text : []))
     .join(PART_SEPARATOR)
   return { ok: true, parts, displayText }
 }
@@ -839,10 +841,10 @@ function pairs(entries: readonly { readonly name: string; readonly value: string
 }
 
 /**
- * An ACP client's MCP servers as the engine's (M63c): stdio and HTTP, keyed
- * by name. SSE and the unstable ACP transport are left out, as is a second
- * server under a name already taken.
- */
+An ACP client's MCP servers as the engine's (M63c): stdio and HTTP, keyed
+by name. SSE and the unstable ACP transport are left out, as is a second
+server under a name already taken.
+*/
 export function mcpServersFrom(requested: readonly McpServer[]): ForwardedMcpServers {
   const servers = new Map<string, SessionMcpServer>()
   const skipped: string[] = []

@@ -11,11 +11,13 @@ import { editAutomaticallyChoice } from '../../agent/approvalRules'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import { SessionOwner, type SessionToken, type SessionEffect } from '../../schedules/sessionOwner'
 import type { ScheduleApprovalAction } from '../../../shared/scheduleV2'
-import { mspApprovalMode, mspPermissionProfile } from '../../../shared/permissionModes'
+import { mspApprovalMode } from '../../../shared/permissionModes'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
-import { type ChildProcess, spawn } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
+import { spawnGuarded } from '../../guardedChildProcess'
+import type { GuardedChildEnv } from '../../executables'
 // Exact SDK pin: reuse bounded process teardown while wrapping actual submission.
 import { ChildStdioTransport } from '@muse-code/sdk/dist/src/connection/spawn.js'
 // Deep SDK imports (never the barrel): the barrel's facade, fold and
@@ -33,6 +35,7 @@ import type {
   SpawnMspConnectionOptions,
 } from '@muse-code/sdk/dist/src/connection/spawn.js'
 import type { MuseCodeAccountHome } from './accountHomes'
+import type { ModeSyncOps } from './approvalModesEntry'
 import * as z from 'zod/mini'
 import {
   type AgentEvent,
@@ -67,8 +70,7 @@ import {
   MSP_USER_SHELL_CAPABILITY,
   MUSE_APPROVAL_LEDGER_FAULT,
   MUSE_APPROVAL_REPLAY_FAULT,
-  MUSE_DELETE_FIRST_VERSION,
-  MUSE_DELETE_REMOVED_VERSION,
+  MUSE_AUTO_REVIEW_PROFILE,
   MUSE_EVENT_LOG_FAULT,
   MUSE_EXIT_PERSISTENT_CODES,
   type EffortLevel,
@@ -78,7 +80,6 @@ import {
 } from '../../../shared/constants'
 import { isEffortLevel } from '../../../shared/effort'
 import { fill } from '../../../shared/l10n/text'
-import { compareVersions, isVersion } from '../../whatsNew/whatsNewVersions'
 import { DeadlineError, startStillWaiting, stillWaitingText, withDeadline } from '../../timeouts'
 import { textFileInput } from '../../textAttachment'
 import {
@@ -184,11 +185,11 @@ export interface MuseCodeEffortInfo {
 }
 
 /**
- * Reads one `model/list` row's effort metadata (Muse Code 1.4.0/1.4.1 carry
- * the tiers a model serves, a described subset and the default). The row
- * shape is UNVERIFIED until a 1.4.x live capture lands (capture plan
- * META-LIST): unknown fields stay absent, never guessed.
- */
+Reads one `model/list` row's effort metadata (Muse Code 1.4.0/1.4.1 carry
+the tiers a model serves, a described subset and the default). The row
+shape is UNVERIFIED until a 1.4.x live capture lands (capture plan
+META-LIST): unknown fields stay absent, never guessed.
+*/
 export function parseMuseCodeEffortInfo(row: unknown): MuseCodeEffortInfo {
   const parsed = museCodeEffortRowSchema.safeParse(row)
   if (!parsed.success) return {}
@@ -214,11 +215,11 @@ const museCodeEffortRowSchema = z.looseObject({
 })
 
 /**
- * The slider steps and default for one model's effort metadata: the row's
- * tiers in order, kept only where they name a UI tier, deduplicated; the
- * row's default where it names one. Empty where the row carries nothing
- * the UI can offer (the static family table applies downstream).
- */
+The slider steps and default for one model's effort metadata: the row's
+tiers in order, kept only where they name a UI tier, deduplicated; the
+row's default where it names one. Empty where the row carries nothing
+the UI can offer (the static family table applies downstream).
+*/
 export function museModelEffortTiers(info: MuseCodeEffortInfo): {
   readonly levels: readonly EffortLevel[]
   readonly defaultEffort: EffortLevel | undefined
@@ -253,14 +254,14 @@ export interface MuseCodeFeaturePorts {
     parseModel(row: unknown): MuseCodeEffortInfo
   }
   /**
-   * True while this host's `serve` runs with `--contributor-mode on` (the
-   * person's own Muse Code settings enabled it); absent reads as off. The
-   * CLI's `model/list` never names contributor-tier models (verified
-   * 2026-10-18 on 1.4.10: the same four ids with and without the flag), so
-   * `listModels` derives each listed model's `-contributor` counterpart by
-   * name while this holds. The provider, not the product, decides whether
-   * the person may use one.
-   */
+  True while this host's `serve` runs with `--contributor-mode on` (the
+  person's own Muse Code settings enabled it); absent reads as off. The
+  CLI's `model/list` never names contributor-tier models (verified
+  2026-10-18 on 1.4.10: the same four ids with and without the flag), so
+  `listModels` derives each listed model's `-contributor` counterpart by
+  name while this holds. The provider, not the product, decides whether
+  the person may use one.
+  */
   readonly contributorMode?: boolean
 }
 
@@ -301,27 +302,6 @@ const initializeResultSchema = z.object({
 
 const WINDOWS_OS = 'windows'
 const DURABLE_SESSIONS = 'durable'
-// Installed build labels (`1.4.4-R5419.1`) name the same release, not a
-// semver prerelease (the controller strips them the same way for D26).
-const BUILD_LABEL_SUFFIX = /-R\d+\.\d+$/
-
-/**
- * Whether History may offer Delete on a Muse Code host: its CLI serves
- * `session/delete` (new in 1.4.0, gone from 1.4.4 on, PLAN.md D26) and the
- * lifecycle reader that waits for its terminal notification is injected.
- * Unknown versions stay refused: nothing is sent that the CLI cannot answer.
- */
-export function canDeleteMuseSession(serverVersion: string, hasLifecycleReader: boolean): boolean {
-  if (!hasLifecycleReader) {
-    return false
-  }
-  const version = serverVersion.replace(BUILD_LABEL_SUFFIX, '')
-  return (
-    isVersion(version) &&
-    compareVersions(version, MUSE_DELETE_FIRST_VERSION) >= 0 &&
-    compareVersions(version, MUSE_DELETE_REMOVED_VERSION) < 0
-  )
-}
 
 const approvalDecideResultSchema = z.object({ terminal: z.optional(z.boolean()) })
 
@@ -422,9 +402,9 @@ export const modelListResultSchema = z.object({
 })
 
 /**
- * One recorded `model/list` row as the summary the picker reads (M127):
- * `null` limits read as absent. Exported for the capture tests.
- */
+One recorded `model/list` row as the summary the picker reads (M127):
+`null` limits read as absent. Exported for the capture tests.
+*/
 export function toModelSummary(
   model: z.infer<typeof modelListResultSchema>['models'][number],
   modelEfforts?: { parseModel(row: unknown): MuseCodeEffortInfo },
@@ -447,15 +427,15 @@ export function toModelSummary(
 }
 
 /**
- * One listed base model's contributor counterpart, by name: the CLI accepts
- * `<base>-contributor` at `session/start` for every listed base (verified
- * 2026-10-18 on 1.4.10 for all four served ids, and the CLI's own bundled
- * code-review agent names `muse-wonder-full-1.0-contributor`), while
- * `model/list` never serves the row itself. Limits and effort support are
- * the base row's own; the label is the id, never an invented name; a
- * contributor session is never flagged active on the wire, so neither is
- * the derived row.
- */
+One listed base model's contributor counterpart, by name: the CLI accepts
+`<base>-contributor` at `session/start` for every listed base (verified
+2026-10-18 on 1.4.10 for all four served ids, and the CLI's own bundled
+code-review agent names `muse-wonder-full-1.0-contributor`), while
+`model/list` never serves the row itself. Limits and effort support are
+the base row's own; the label is the id, never an invented name; a
+contributor session is never flagged active on the wire, so neither is
+the derived row.
+*/
 export function toContributorSummary(base: MuseCodeModelSummary): MuseCodeModelSummary {
   return {
     modelId: `${base.modelId}${CONTRIBUTOR_MODEL_SUFFIX}`,
@@ -475,10 +455,10 @@ export function toContributorSummary(base: MuseCodeModelSummary): MuseCodeModelS
 }
 
 /**
- * The contributor counterparts of a `model/list` reading: one per listed
- * base model, skipping rows that already name the tier (so a future CLI
- * that serves the rows itself never doubles them).
- */
+The contributor counterparts of a `model/list` reading: one per listed
+base model, skipping rows that already name the tier (so a future CLI
+that serves the rows itself never doubles them).
+*/
 export function contributorModelSummaries(
   models: readonly MuseCodeModelSummary[],
 ): readonly MuseCodeModelSummary[] {
@@ -493,9 +473,9 @@ export function contributorModelSummaries(
 }
 
 /**
- * One recorded `skill/list` row as the summary the palette reads (M127):
- * the declared `title` rides along only when the skill sets one.
- */
+One recorded `skill/list` row as the summary the palette reads (M127):
+the declared `title` rides along only when the skill sets one.
+*/
 export function toSkillSummary(
   skill: z.infer<typeof skillListResultSchema>['skills'][number],
 ): SkillSummary {
@@ -628,11 +608,11 @@ const recapRequestResultSchema = z.object({
 })
 
 /**
- * Claims a `recap/completed` settlement for its waiter by the request's
- * commandId (M127): removes the waiter and answers the recap, or answers
- * undefined when nobody asked (a late settlement past the wait). Exported
- * for the capture tests.
- */
+Claims a `recap/completed` settlement for its waiter by the request's
+commandId (M127): removes the waiter and answers the recap, or answers
+undefined when nobody asked (a late settlement past the wait). Exported
+for the capture tests.
+*/
 export function claimRecapSettlement(
   pending: Map<
     string,
@@ -807,11 +787,11 @@ const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true })
 const FRAME_ENVELOPE = { jsonrpc: '2.0', id: Number.MAX_SAFE_INTEGER }
 
 /**
- * How long a command may wait (PLAN.md D25); overridable for tests. An
- * unnamed wait has no deadline: the command is waited on until Muse Code
- * answers or the wait is stopped, saying so out loud while it waits (owner
- * 2026-10-16: no arbitrary limits, no silent hangs).
- */
+How long a command may wait (PLAN.md D25); overridable for tests. An
+unnamed wait has no deadline: the command is waited on until Muse Code
+answers or the wait is stopped, saying so out loud while it waits (owner
+2026-10-16: no arbitrary limits, no silent hangs).
+*/
 export interface CommandTimeouts {
   readonly normalMs?: number | undefined
   readonly longMs?: number | undefined
@@ -827,17 +807,17 @@ export function commandTimeoutMs(method: string, timeouts: CommandTimeouts): num
 }
 
 /**
- * Whether `muse serve` still answers at all (the unresponsive-host watchdog,
- * CLI recovery 2026-10-03). Every frame from it (an answer, an event, a
- * server request) is heard here and clears the count. A command that
- * misses its named deadline counts once; a wait with none counts once per
- * notice period it spends silent, however many commands wait in that
- * period (PR #214 review: two long commands no longer count twice as fast
- * as one). At `MSP_UNRESPONSIVE_MISSES` in a row with nothing heard for the
- * silence, Muse Code is not answering: that is logged and told once, and
- * new commands fail at once until a frame comes. The waiting commands
- * themselves keep waiting.
- */
+Whether `muse serve` still answers at all (the unresponsive-host watchdog,
+CLI recovery 2026-10-03). Every frame from it (an answer, an event, a
+server request) is heard here and clears the count. A command that
+misses its named deadline counts once; a wait with none counts once per
+notice period it spends silent, however many commands wait in that
+period (PR #214 review: two long commands no longer count twice as fast
+as one). At `MSP_UNRESPONSIVE_MISSES` in a row with nothing heard for the
+silence, Muse Code is not answering: that is logged and told once, and
+new commands fail at once until a frame comes. The waiting commands
+themselves keep waiting.
+*/
 export class HostLiveness {
   private lastHeardAt = Date.now()
   private misses = 0
@@ -869,9 +849,9 @@ export class HostLiveness {
   }
 
   /**
-   * A wait with no deadline is still waiting past a notice. Every waiting
-   * command tells once a notice period, so the period counts once.
-   */
+  A wait with no deadline is still waiting past a notice. Every waiting
+  command tells once a notice period, so the period counts once.
+  */
   public stillWaiting(method: string): void {
     // Periods count from the last frame heard: a frame resets both the
     // clock and the dedup, so a period counts once however many commands
@@ -1054,10 +1034,10 @@ function isRetryableRefusal(error: unknown): boolean {
 }
 
 /**
- * A card that waits on the user, an approval or a question: shown again to a
- * later surface, it is marked replayed, so it is never approved on its own
- * and raises no new notice (M82).
- */
+A card that waits on the user, an approval or a question: shown again to a
+later surface, it is marked replayed, so it is never approved on its own
+and raises no new notice (M82).
+*/
 function isPendingPrompt(
   event: AgentEvent,
 ): event is Extract<AgentEvent, { type: 'approvalRequested' | 'questionRequested' }> {
@@ -1071,10 +1051,10 @@ function pause(ms: number): Promise<void> {
 }
 
 /**
- * A turn's parts as MSP takes them. `TurnInputPart` is text, image or skill
- * in 1.3.0. Text files are named text parts; PDFs are refused because an
- * unknown type is `invalidParams` (msp.d.ts, M54, sdk issue #48).
- */
+A turn's parts as MSP takes them. `TurnInputPart` is text, image or skill
+in 1.3.0. Text files are named text parts; PDFs are refused because an
+unknown type is `invalidParams` (msp.d.ts, M54, sdk issue #48).
+*/
 function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
   const input: TurnPart[] = []
   let attachmentBytes = 0
@@ -1107,16 +1087,16 @@ function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
 }
 
 /**
- * `Connection.command` without its memory (PLAN.md D26). Up to SDK 1.4.2 it
- * kept the canonical payload of every command for the connection's life,
- * an image turn's base64 included, to check replays across reconnects this
- * extension never makes (#35). 1.4.4 keeps a SHA-256 per command instead,
- * still never evicted; this stays because each attempt here is also fenced
- * by the host generation and heard by the watchdog (SDK144). The same
- * contract otherwise: the command id rides in the params, the ack must echo
- * it, and a refusal that admitted nothing (`overloaded`, `backpressured`)
- * is retried with the same id after a short, growing, jittered wait.
- */
+`Connection.command` without its memory (PLAN.md D26). Up to SDK 1.4.2 it
+kept the canonical payload of every command for the connection's life,
+an image turn's base64 included, to check replays across reconnects this
+extension never makes (#35). 1.4.4 keeps a SHA-256 per command instead,
+still never evicted; this stays because each attempt here is also fenced
+by the host generation and heard by the watchdog (SDK144). The same
+contract otherwise: the command id rides in the params, the ack must echo
+it, and a refusal that admitted nothing (`overloaded`, `backpressured`)
+is retried with the same id after a short, growing, jittered wait.
+*/
 async function sendCommand(
   channel: CommandChannel,
   generation: number,
@@ -1155,9 +1135,9 @@ async function sendCommand(
 }
 
 /**
- * One request's answer, heard by the watchdog: a result, or an error the
- * host wrote. A late answer, after its deadline, is heard too.
- */
+One request's answer, heard by the watchdog: a result, or an error the
+host wrote. A late answer, after its deadline, is heard too.
+*/
 async function answered(
   channel: CommandChannel,
   generation: number,
@@ -1180,12 +1160,12 @@ async function answered(
 }
 
 /**
- * A request with the wait its timeouts name, refused at once while Muse
- * Code is not answering (the watchdog). A wait with no deadline is waited
- * on until Muse Code answers or the wait is stopped, saying so out loud
- * (owner 2026-10-16); each notice period counts toward the watchdog like a
- * missed deadline did, so a truly wedged host is still detected.
- */
+A request with the wait its timeouts name, refused at once while Muse
+Code is not answering (the watchdog). A wait with no deadline is waited
+on until Muse Code answers or the wait is stopped, saying so out loud
+(owner 2026-10-16); each notice period counts toward the watchdog like a
+missed deadline did, so a truly wedged host is still detected.
+*/
 async function requestWithin<T>(
   channel: CommandChannel,
   generation: number,
@@ -1237,10 +1217,10 @@ async function requestWithin<T>(
 }
 
 /**
- * One MSP command with the wait its timeouts name (none by default).
- * `sessionNotLoaded` (the host evicted or closed the session) becomes a
- * `SessionNotLoadedError` the controller answers by resuming the session.
- */
+One MSP command with the wait its timeouts name (none by default).
+`sessionNotLoaded` (the host evicted or closed the session) becomes a
+`SessionNotLoadedError` the controller answers by resuming the session.
+*/
 async function commandWithin(
   channel: CommandChannel,
   generation: number,
@@ -1326,11 +1306,11 @@ export class MuseSession implements ScheduledAgentSession {
   /** A stage's callers share its eventual result, and Stop waits for it. */
   private readonly decisionsInFlight = new Map<string, Promise<void>>()
   /**
-   * What arrived before anyone listened (D26): the events right after
-   * `session/resume` (the re-issued prompts, a running turn's stream) land
-   * before the surface that asked for the session has attached. Held until
-   * the first listener, released with the handle.
-   */
+  What arrived before anyone listened (D26): the events right after
+  `session/resume` (the re-issued prompts, a running turn's stream) land
+  before the surface that asked for the session has attached. Held until
+  the first listener, released with the handle.
+  */
   private early: AgentEvent[] | undefined = []
   /** The surfaces holding this handle (PLAN.md D25): the last release disposes it. */
   private holders = 1
@@ -1338,9 +1318,9 @@ export class MuseSession implements ScheduledAgentSession {
   /** Told when Muse Code reports this session's event log failed (CLI recovery). */
   private readonly logDamagedListeners = new Set<() => void>()
   /**
-   * Queued turns `turn/unqueued` withdrew (M87): MSP's authoritative removal,
-   * which a lost or failed `turn/unqueue` ack does not undo.
-   */
+  Queued turns `turn/unqueued` withdrew (M87): MSP's authoritative removal,
+  which a lost or failed `turn/unqueue` ack does not undo.
+  */
   private readonly unqueuedTurns = new Set<string>()
   private readonly log: CoreLogger
   private readonly owner: SessionOwner
@@ -1359,8 +1339,7 @@ export class MuseSession implements ScheduledAgentSession {
     }
   >()
   private drainingSchedules = false
-  /** Set on the first `methodNotFound` from `session/setPermissionProfile`: the host predates it. */
-  private profileSyncUnsupported = false
+  private modeOpsCache: ModeSyncOps | undefined
   private readonly leaseGeneration: number
 
   public constructor(
@@ -1455,11 +1434,23 @@ export class MuseSession implements ScheduledAgentSession {
     send: (token: SessionToken) => Promise<TurnSubmission>,
     expectedTurnId?: string,
   ): Promise<TurnSubmission> {
+    await this.restoringScheduleMode
+    if (this.owner.quarantined)
+      throw new Error(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     const token = this.owner.claim(waiter, run, expectedTurnId)
     if (token === undefined) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
     this.heldScheduleEvents = []
     try {
-      await this.changeApprovalMode(mspApprovalMode(run.context.mode), token, run)
+      const admittedMode = mspApprovalMode(run.context.mode)
+      const modes = await import('./approvalModesEntry')
+      await modes.applyModeChange(this.modeOps(), admittedMode, token, run)
+      // While the unattended run is in charge the session reviews with the
+      // host default `:auto-review`: the run answers what the grant allows
+      // and refuses the rest itself, so the human reviewer must not be
+      // installed here — on a Manual conversation `:ask-me` would turn every
+      // unmatched command into a refusal instead of letting the judge allow
+      // it, as it did before profiles existed.
+      await modes.setSessionProfile(this.modeOps(), MUSE_AUTO_REVIEW_PROFILE, admittedMode)
       if (!run.isActive())
         throw expectedTurnId === undefined
           ? new Error(UI_TEXT.scheduleBusy)
@@ -1479,10 +1470,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Best effort after a failed admission: a turn that kept running is
-   * stopped. A stop that fails is recorded and left running; the admission
-   * failure stays the failure the caller sees.
-   */
+  Best effort after a failed admission: a turn that kept running is
+  stopped. A stop that fails is recorded and left running; the admission
+  failure stays the failure the caller sees.
+  */
   private async stopAfterFailedAdmission(run: UnattendedRun): Promise<void> {
     const cancellation = this.owner.token()
     try {
@@ -1492,12 +1483,35 @@ export class MuseSession implements ScheduledAgentSession {
     }
   }
 
+  /**
+  What the deferred mode sync needs from this session (built once, never at
+  activation): the owner, the effect runners, the profile command and the log.
+  */
+  private modeOps(): ModeSyncOps {
+    return (this.modeOpsCache ??= {
+      owner: this.owner,
+      applyEffect: (effect) => this.applyModeEffect(effect),
+      sendProfile: (profileId) => this.command('session/setPermissionProfile', { profileId }),
+      log: (level, message) => {
+        this.log[level](message)
+      },
+    })
+  }
+
   private restoreScheduleMode(effect: SessionEffect | undefined): void {
     if (effect === undefined) return
-    this.restoringScheduleMode = this.applyModeEffect(effect)
-    void this.restoringScheduleMode.catch(() => {
-      this.log.warn('Scheduled mode could not be restored; new turns are refused')
-    })
+    // The gate resolves once the outcome is recorded: a failed restore must
+    // not reject every later turn and mode change on the handle.
+    this.restoringScheduleMode = (async () => {
+      try {
+        const modes = await import('./approvalModesEntry')
+        await modes.restoreScheduleEffect(this.modeOps(), effect)
+      } catch (error: unknown) {
+        this.log.warn(
+          `Scheduled mode or reviewer could not be restored (${failureForLog(error)}); new turns are refused until the permission mode is set again`,
+        )
+      }
+    })()
   }
 
   private stopScheduledRun(run: UnattendedRun): void {
@@ -1579,10 +1593,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Muse Code 1.4.2 answers every message of a session whose event log
-   * failed with that failure (the owner's session of 2026-10-02/03): the
-   * conversation is told, which takes no new message in it after this.
-   */
+  Muse Code 1.4.2 answers every message of a session whose event log
+  failed with that failure (the owner's session of 2026-10-02/03): the
+  conversation is told, which takes no new message in it after this.
+  */
   private noteLogFault(error: unknown): void {
     if (!(error instanceof MspError) || !error.message.includes(MUSE_EVENT_LOG_FAULT)) {
       return
@@ -1606,12 +1620,12 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * A Stop under a multi-stage approval with a stage already decided rejects
-   * its waiting stage first, through `approval/decide`: a turn cancelled
-   * under such an approval leaves Muse Code 1.4.2 refusing every later
-   * `turn/start` of the session (the `approvalReplay` fault, captured live
-   * 2026-10-02), while one whose approval was rejected first runs on.
-   */
+  A Stop under a multi-stage approval with a stage already decided rejects
+  its waiting stage first, through `approval/decide`: a turn cancelled
+  under such an approval leaves Muse Code 1.4.2 refusing every later
+  `turn/start` of the session (the `approvalReplay` fault, captured live
+  2026-10-02), while one whose approval was rejected first runs on.
+  */
   private async rejectPartlyDecided(): Promise<void> {
     // A click locks the stage before its command settles. Let the host's
     // answer and stage update land before deciding what Stop must reject.
@@ -1732,10 +1746,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Whether the host, which answered the decision with a refusal, still
-   * waits on this very stage: then the decision did not apply and may be
-   * made again. A check that fails cannot tell, and the stage stays decided.
-   */
+  Whether the host, which answered the decision with a refusal, still
+  waits on this very stage: then the decision did not apply and may be
+  made again. A check that fails cannot tell, and the stage stays decided.
+  */
   private async isStillWaiting(requirementId: RequirementRef): Promise<boolean> {
     let pending: z.infer<typeof listPendingResultSchema>
     try {
@@ -1755,13 +1769,13 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * What a failed `turn/steer` means for its message (CLI recovery,
-   * 2026-10-03). On 2026-10-02 a steer Muse Code answered after the 60 s
-   * deadline had been taken for a refusal and sent again as a new turn, and
-   * Muse Code applied both. So only a refusal that says no turn was there is
-   * a `SteerRefusedError`; no answer (the deadline, a closed connection) is
-   * said as such; any other refusal keeps its own words.
-   */
+  What a failed `turn/steer` means for its message (CLI recovery,
+  2026-10-03). On 2026-10-02 a steer Muse Code answered after the 60 s
+  deadline had been taken for a refusal and sent again as a new turn, and
+  Muse Code applied both. So only a refusal that says no turn was there is
+  a `SteerRefusedError`; no answer (the deadline, a closed connection) is
+  said as such; any other refusal keeps its own words.
+  */
   private steerFailure(expectedTurnId: string, error: unknown): unknown {
     if (error instanceof MspError) {
       const reason = error.data['reason']
@@ -1780,7 +1794,15 @@ export class MuseSession implements ScheduledAgentSession {
     return error
   }
 
-  private async applyModeEffect(effect: SessionEffect): Promise<void> {
+  /**
+  Run the mode command for an effect. Returns the mode the host runs when
+  the adoption tore (the ack arrived but a turn ended while it was in
+  flight, so the host runs the mode with a reviewer that was never
+  confirmed): the deferred caller quarantines with that mode named, so the
+  surface shows it. A refused command releases the effect but keeps the
+  mode (the host never changed).
+  */
+  private async applyModeEffect(effect: SessionEffect): Promise<string | undefined> {
     if (!this.owner.matches(effect.token)) {
       this.owner.modeApplied(effect, false)
       throw new Error(UI_TEXT.scheduleBusy)
@@ -1795,50 +1817,10 @@ export class MuseSession implements ScheduledAgentSession {
           `Muse Code runs approval mode ${wireWordForLog(effective)} instead of the requested ${effect.mode}`,
         )
       }
-      if (!this.owner.modeApplied(effect, true)) throw new Error(UI_TEXT.scheduleBusy)
+      return this.owner.modeApplied(effect, true) ? undefined : (effective ?? effect.mode)
     } catch (error: unknown) {
       this.owner.modeApplied(effect, false)
       throw ceilingOr(error)
-    }
-  }
-
-  private async changeApprovalMode(
-    mode: string,
-    token: SessionToken,
-    run?: UnattendedRun,
-  ): Promise<void> {
-    const effect = this.owner.modeEffect(token, mode, run)
-    if (effect === undefined) throw new Error(UI_TEXT.scheduleBusy)
-    await this.applyModeEffect(effect)
-  }
-
-  /**
-   * Keep the session's native permission profile on the mode's reviewer
-   * (Muse Code 1.4.7, amendment 42624): a switch into an asking mode must
-   * take the human reviewer, or the judge keeps allowing; a switch back to
-   * Auto restores the AI reviewer its words describe. Modes without a
-   * reviewer leave the profile alone. Only the interactive surfaces call
-   * this (panel, ACP agent, Plan-hold restore); headless sessions never
-   * switch modes, so they keep the host default and cannot stall. A host
-   * without `session/setPermissionProfile` answers `methodNotFound` and the
-   * mode change stands without the profile; any other refusal surfaces, so
-   * a managed profile exclusion fails loudly instead of silently judging.
-   */
-  private async syncPermissionProfile(mode: string): Promise<void> {
-    if (this.profileSyncUnsupported) return
-    const profileId = mspPermissionProfile(mode)
-    if (profileId === undefined) return
-    try {
-      await this.command('session/setPermissionProfile', { profileId })
-    } catch (error: unknown) {
-      if (error instanceof MspError && error.kind === 'methodNotFound') {
-        this.profileSyncUnsupported = true
-        this.log.info(
-          `Muse Code runs approval mode ${wireWordForLog(mode)} without a permission profile on this host; Manual asks only on Muse Code 1.4.7 and later`,
-        )
-        return
-      }
-      throw error
     }
   }
 
@@ -1873,10 +1855,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * The first listener gets what arrived before it; a later one (a second
-   * surface on the same session) gets the prompts still open, which the
-   * host will not announce again.
-   */
+  The first listener gets what arrived before it; a later one (a second
+  surface on the same session) gets the prompts still open, which the
+  host will not announce again.
+  */
   public onEvent(listener: SessionEventListener): () => void {
     this.listeners.add(listener)
     const backlog = this.early ?? this.prompts.open()
@@ -2105,10 +2087,10 @@ export class MuseSession implements ScheduledAgentSession {
 
   /** Submit one user turn; queued behind a running turn by host default. */
   /**
-   * Submit a turn. `displayText` is the transcript's presentation form of the
-   * prompt (MSP: durable, never model-visible), used when the parts carry
-   * more than the user typed (editor context, M5).
-   */
+  Submit a turn. `displayText` is the transcript's presentation form of the
+  prompt (MSP: durable, never model-visible), used when the parts carry
+  more than the user typed (editor context, M5).
+  */
   public async sendTurn(
     parts: readonly TurnPart[],
     displayText?: string,
@@ -2116,6 +2098,8 @@ export class MuseSession implements ScheduledAgentSession {
   ): Promise<TurnSubmission> {
     const token = this.owner.token()
     await this.restoringScheduleMode
+    if (this.owner.quarantined)
+      throw new Error(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     if (scheduledOwner !== undefined) await scheduledOwner.checkParts(parts)
     if (!this.owner.start(token, scheduledOwner)) throw new Error(UI_TEXT.scheduleBusy)
     let ack: unknown
@@ -2140,24 +2124,26 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Required by `AgentSession`; a no-op here. Muse Code manages its own
-   * turn bounds over MSP, so no caller allowance is bound.
-   */
+  Required by `AgentSession`; a no-op here. Muse Code manages its own
+  turn bounds over MSP, so no caller allowance is bound.
+  */
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- AgentSession requires the member so the compiler lists every implementer; Muse Code manages its own turn bounds over MSP, so this intentionally binds nothing (PLAN.md §8).
   public setModelCallAllowance(_remaining: (() => number) | undefined): void {}
 
   /**
-   * Inject input into the turn believed to be running. The host rejects the
-   * steer when that turn is no longer the running one, so input meant for one
-   * turn never leaks into the next. That refusal is a `SteerRefusedError`,
-   * after which the caller may send the input as a new turn; a steer with no
-   * answer may still reach the turn, and fails in words that say so.
-   */
+  Inject input into the turn believed to be running. The host rejects the
+  steer when that turn is no longer the running one, so input meant for one
+  turn never leaks into the next. That refusal is a `SteerRefusedError`,
+  after which the caller may send the input as a new turn; a steer with no
+  answer may still reach the turn, and fails in words that say so.
+  */
   public async steer(
     expectedTurnId: string,
     parts: readonly TurnPart[],
     scheduledOwner?: UnattendedRun,
   ): Promise<TurnSubmission> {
+    if (this.owner.quarantined)
+      throw new SteerRefusedError(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     const token = this.owner.token()
     const run = scheduledOwner ?? this.getScheduledRun(expectedTurnId)
     if (run !== undefined) await run.checkParts(parts)
@@ -2174,17 +2160,17 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Take back a submit acknowledged `queued` before it launches (M87, PLAN.md
-   * D66): MSP `turn/unqueue`. A steered message is in the running turn
-   * already, which `turn/unqueue` does not reach: too late. As captured live
-   * on 2026-10-04 (docs/certification/m87-c.md), the ack is admission and the
-   * race at once (`turn/unqueued` follows, or comes first); a reclaim after
-   * the launch is refused `run_active`, and one already won `already_applied`
-   * (it will not run either way). Once `turn/unqueued` named the turn, a
-   * timed-out or failed ack still reports the withdrawal (the review of lane
-   * C); any other failure or refusal fails as Muse Code said it. Muse Code
-   * keeps no image bytes, so none come back.
-   */
+  Take back a submit acknowledged `queued` before it launches (M87, PLAN.md
+  D66): MSP `turn/unqueue`. A steered message is in the running turn
+  already, which `turn/unqueue` does not reach: too late. As captured live
+  on 2026-10-04 (docs/certification/m87-c.md), the ack is admission and the
+  race at once (`turn/unqueued` follows, or comes first); a reclaim after
+  the launch is refused `run_active`, and one already won `already_applied`
+  (it will not run either way). Once `turn/unqueued` named the turn, a
+  timed-out or failed ack still reports the withdrawal (the review of lane
+  C); any other failure or refusal fails as Muse Code said it. Muse Code
+  keeps no image bytes, so none come back.
+  */
   public async withdrawQueued(ref: QueuedMessageRef): Promise<WithdrawOutcome> {
     if (ref.disposition !== QUEUED_DISPOSITION) {
       return TOO_LATE
@@ -2243,12 +2229,21 @@ export class MuseSession implements ScheduledAgentSession {
     await this.command('session/setReasoningEffort', { reasoningEffort })
   }
 
-  /** Select one of the host's preconfigured approval modes. */
+  /**
+  Select one of the host's preconfigured approval modes and keep the
+  session's reviewer on the mode's. The orchestration (profile sync, put
+  the previous mode back when it fails, quarantine with the running mode
+  named when it cannot) lives in the deferred mode sync
+  (`approvalModesEntry`, loaded on the first mode change), so activation
+  carries only this shell. Every failure names the wire mode the host runs
+  (`ModeKeptError` when the host kept running it, `PermissionReviewerError`
+  with quarantine when it runs a mode whose reviewer is unconfirmed).
+  */
   public async setApprovalMode(mode: string): Promise<void> {
     const token = this.owner.token()
     await this.restoringScheduleMode
-    await this.changeApprovalMode(mode, token)
-    await this.syncPermissionProfile(mode)
+    const modes = await import('./approvalModesEntry')
+    await modes.runSetApprovalMode(this.modeOps(), token, mode)
   }
 
   /** Summarise older context; `status` is `noop` with a reason when nothing to do. */
@@ -2258,12 +2253,12 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Answer a gated tool call: one decision per stage (PLAN.md D26).
-   * `requirementId` is the stage token from the request; a stale one is
-   * rejected by the host, never silently applied. A second decision for a
-   * stage already decided is not sent (a repeated click, a re-rendered card,
-   * a second surface), nor one for a stage the approval has left.
-   */
+  Answer a gated tool call: one decision per stage (PLAN.md D26).
+  `requirementId` is the stage token from the request; a stale one is
+  rejected by the host, never silently applied. A second decision for a
+  stage already decided is not sent (a repeated click, a re-rendered card,
+  a second surface), nor one for a stage the approval has left.
+  */
   public async decideApproval(decision: ApprovalDecision): Promise<void> {
     const { approvalId, requirementId } = decision
     const key = `${approvalId}\u{0}${String(requirementId.sourceIndex)}`
@@ -2372,9 +2367,9 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * `session/userShell` (M46): the command runs at once, outside any turn;
-   * its row and output arrive as a `userShell` item.
-   */
+  `session/userShell` (M46): the command runs at once, outside any turn;
+  its row and output arrive as a `userShell` item.
+  */
   public async runUserShell(command: string): Promise<void> {
     if (!this.canRunUserShell) {
       throw new Error(UI_TEXT.userShellNotGranted)
@@ -2408,11 +2403,11 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * `goal/set`, `edit`, `pause`, `resume` or `clear` (M45, PLAN.md D38).
-   * An idle set, edit or resume wakes a goal-driving turn, which then
-   * arrives as its own `turn/started`; the goal arrives as
-   * `session/goalChanged`.
-   */
+  `goal/set`, `edit`, `pause`, `resume` or `clear` (M45, PLAN.md D38).
+  An idle set, edit or resume wakes a goal-driving turn, which then
+  arrives as its own `turn/started`; the goal arrives as
+  `session/goalChanged`.
+  */
   public async controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
     let ack: unknown
     try {
@@ -2438,10 +2433,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Set the durable session name; resolves to the canonical name the host
-   * settled, or undefined when it will arrive as `session/nameChanged`.
-   * Muse Code 1.3.0 refuses this on Windows (UnsupportedPlatform, PLAN.md M6).
-   */
+  Set the durable session name; resolves to the canonical name the host
+  settled, or undefined when it will arrive as `session/nameChanged`.
+  Muse Code 1.3.0 refuses this on Windows (UnsupportedPlatform, PLAN.md M6).
+  */
   public async rename(name: string): Promise<string | undefined> {
     const result = sessionRenameResultSchema.parse(await this.command('session/rename', { name }))
     return result.name
@@ -2474,10 +2469,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Import foreign skills through the host seam (M127, `skill/import`):
-   * `source` is `claude` or `codex`; `dryRun` previews without writing.
-   * The receipt answers per-skill ids plus counts, commandId-idempotent.
-   */
+  Import foreign skills through the host seam (M127, `skill/import`):
+  `source` is `claude` or `codex`; `dryRun` previews without writing.
+  The receipt answers per-skill ids plus counts, commandId-idempotent.
+  */
   public async importForeignSkills(
     source: string,
     options?: { readonly dryRun?: boolean; readonly force?: boolean },
@@ -2496,10 +2491,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Resume a paused workflow run (M127, `workflow/resume`): host-driven,
-   * the reply names the driven turn. The read-only Tasks surface shows
-   * runs; resuming one from it is an owner UI decision (certification).
-   */
+  Resume a paused workflow run (M127, `workflow/resume`): host-driven,
+  the reply names the driven turn. The read-only Tasks surface shows
+  runs; resuming one from it is an owner UI decision (certification).
+  */
   public async resumeWorkflowRun(
     workflowRunId: string,
   ): Promise<{ readonly status: string; readonly turnId: string }> {
@@ -2543,9 +2538,9 @@ export class MuseCodeHost implements AgentHost {
   /** Injected once by the editor/runtime before hosts are constructed. */
   public static usageRecording: UsageRecording | undefined
   /**
-   * The deferred usage writers (dist/usageService.js), loaded on the first
-   * session. Unset outside the editor (unit tests drive the writers directly).
-   */
+  The deferred usage writers (dist/usageService.js), loaded on the first
+  session. Unset outside the editor (unit tests drive the writers directly).
+  */
   public static usageNotesLoader: (() => UsageNotesBundle) | undefined
   private readonly observedUsage = new Set<number>()
   private readonly sessions = new Map<string, MuseSession>()
@@ -2564,12 +2559,12 @@ export class MuseCodeHost implements AgentHost {
   private isClosing = false
   private readonly commandOwner: MuseCodeCommandOwner
   /**
-   * Session starts, resumes and forks in flight (D26). The SDK hands every
-   * frame of one read to the handlers before the awaiting command resumes,
-   * so the prompts re-issued right after a resume answer arrive before the
-   * handle exists. While one is in flight, events for an unknown session
-   * wait here for `track`.
-   */
+  Session starts, resumes and forks in flight (D26). The SDK hands every
+  frame of one read to the handlers before the awaiting command resumes,
+  so the prompts re-issued right after a resume answer arrive before the
+  handle exists. While one is in flight, events for an unknown session
+  wait here for `track`.
+  */
   private opening = 0
   private readonly unclaimed = new Map<string, MappedNotification[]>()
   /** Methods already logged as unshown or malformed: one line each per host (D26). */
@@ -2644,11 +2639,12 @@ export class MuseCodeHost implements AgentHost {
       // is limited there until one is verified (D26). A 1.3.0 ceiling showed
       // the failing actions again on 1.4.0 (0.9.1, release-0.9.1.md).
       canEditSessions: parsed.platformOs !== WINDOWS_OS,
-      // `session/delete` is gone from 1.4.4 on (PLAN.md D26): the 1.4.4
-      // probe answered `methodNotFound` (docs/certification/sdk144.md), and
-      // the 1.4.10 probe and schema export of 2026-10-18 agree. Nothing is
-      // sent there; the reader's injection opens Delete below that floor.
-      canDeleteSessions: canDeleteMuseSession(serverVersion, this.features.lifecycle !== undefined),
+      // No `canDeleteSessions`: the delete gate
+      // (`./museDeleteGate.ts`, version plus the injected lifecycle reader)
+      // lives outside the activation graph so the budget holds, so a Muse
+      // Code host omits the field and History offers no Delete there.
+      // Nothing is sent the CLI cannot answer (PLAN.md D26); the reader
+      // injection wires the offer when it lands.
     }
     this.log.info(
       `MSP host on ${parsed.platformOs ?? 'an unreported OS'}, schema v${String(parsed.schema?.version ?? 'unreported')} ${parsed.schema?.fingerprint ?? ''}, sessions ${parsed.sessionDurability ?? DURABLE_SESSIONS}`,
@@ -2780,9 +2776,9 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Runs a session start, resume or fork with early events held for its
-   * handle (D26); whatever no handle claimed by the end is logged and dropped.
-   */
+  Runs a session start, resume or fork with early events held for its
+  handle (D26); whatever no handle claimed by the end is logged and dropped.
+  */
   private async opened<T>(open: () => Promise<T>): Promise<T> {
     this.opening += 1
     try {
@@ -2809,11 +2805,11 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Host-level notifications bypass the per-session routing: the list
-   * stream (`sessionListStream` grant) is about stored sessions, loaded here
-   * or not, and `usage/changed` is about the account. True when the method
-   * was one of them.
-   */
+  Host-level notifications bypass the per-session routing: the list
+  stream (`sessionListStream` grant) is about stored sessions, loaded here
+  or not, and `usage/changed` is about the account. True when the method
+  was one of them.
+  */
   private dispatchHostEvent(method: string, params: unknown): boolean {
     // A requested recap's settlement never reaches the conversation: it
     // resolves the waiter by the request's commandId. Anything else with
@@ -2884,10 +2880,10 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * The deferred usage writers, or undefined when the service bundle is not
-   * loaded (outside the editor) or cannot be read: journaling is best-effort,
-   * so a session without writers is kept but not recorded.
-   */
+  The deferred usage writers, or undefined when the service bundle is not
+  loaded (outside the editor) or cannot be read: journaling is best-effort,
+  so a session without writers is kept but not recorded.
+  */
   private usageNotes(): UsageNotesBundle | undefined {
     const loader = MuseCodeHost.usageNotesLoader
     if (loader === undefined) return undefined
@@ -2966,7 +2962,9 @@ export class MuseCodeHost implements AgentHost {
 
   private loaded(envelope: SessionEnvelope, modelId: string): LoadedSession {
     return {
-      session: this.track(envelope.session, modelId),
+      // The envelope serves the mode the host runs: the handle starts
+      // knowing it, so the first mode change rolls back like a live one.
+      session: this.track(envelope.session, modelId, false, envelope.session.approvalMode?.mode),
       record: envelope.session,
       history: historyOutcome(envelope),
       activeTurnId: envelope.session.activeTurnId ?? undefined,
@@ -2974,11 +2972,11 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * The pending prompts a resume's pointers name, pulled with
-   * `approval/listPending` (the documented dual of the re-issued requests,
-   * tdd SS5.7), so the cards appear however the re-issue was delivered; the
-   * ledger shows each once (D26).
-   */
+  The pending prompts a resume's pointers name, pulled with
+  `approval/listPending` (the documented dual of the re-issued requests,
+  tdd SS5.7), so the cards appear however the re-issue was delivered; the
+  ledger shows each once (D26).
+  */
   private async presentPending(sessionId: string): Promise<void> {
     try {
       const pending = listPendingResultSchema.parse(
@@ -3082,13 +3080,13 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Why the host this one replaced went away (`AgentHost.peekRestartCause`):
-   * every turn that fails for the lost sign-in names it — concurrent
-   * conversations on this shared host classify the same loss (Codex on PR
-   * #211) — until `clearRestartCause` proves the host. Set at construction
-   * by the backend manager, never over the wire: a restart cause is local
-   * process knowledge.
-   */
+  Why the host this one replaced went away (`AgentHost.peekRestartCause`):
+  every turn that fails for the lost sign-in names it — concurrent
+  conversations on this shared host classify the same loss (Codex on PR
+  #211) — until `clearRestartCause` proves the host. Set at construction
+  by the backend manager, never over the wire: a restart cause is local
+  process knowledge.
+  */
   public peekRestartCause(): string | undefined {
     return this.restartCause
   }
@@ -3099,10 +3097,10 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Told once each time Muse Code stops answering (the watchdog): commands
-   * missed their deadlines and nothing came from it for a while. It answers
-   * again on its own only if a frame arrives; the window restarts it.
-   */
+  Told once each time Muse Code stops answering (the watchdog): commands
+  missed their deadlines and nothing came from it for a while. It answers
+  again on its own only if a frame arrives; the window restarts it.
+  */
   public onUnresponsive(listener: () => void): () => void {
     this.unresponsiveListeners.add(listener)
     return () => {
@@ -3137,11 +3135,11 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * A "while you were away" recap (M127): the ack admits, then the request
-   * settles exactly once on `recap/completed` matched by commandId. Past
-   * `RECAP_SETTLE_TIMEOUT_MS` the wait ends and a late settlement becomes
-   * a notice instead of a hang. One in flight per session, host-enforced.
-   */
+  A "while you were away" recap (M127): the ack admits, then the request
+  settles exactly once on `recap/completed` matched by commandId. Past
+  `RECAP_SETTLE_TIMEOUT_MS` the wait ends and a late settlement becomes
+  a notice instead of a hang. One in flight per session, host-enforced.
+  */
   public async requestSessionRecap(sessionId: string): Promise<SessionRecap> {
     for (const pending of this.pendingRecaps.values()) {
       if (pending.sessionId === sessionId) {
@@ -3181,9 +3179,9 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Cancel the session's in-flight recap (M127): it settles `cancelled`;
-   * idle is an accepted no-op. Answers the cancel's admission status.
-   */
+  Cancel the session's in-flight recap (M127): it settles `cancelled`;
+  idle is an accepted no-op. Answers the cancel's admission status.
+  */
   public async cancelSessionRecap(sessionId: string): Promise<string> {
     const commandId = this.channel.connection.mintCommandId()
     const result = recapRequestResultSchema.parse(
@@ -3200,10 +3198,10 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * The host's computer-use setup state (M127, `computerUseSetup/check`):
-   * the three macOS grants with no prompt, never requesting one. Refusals
-   * (a Linux host answers `computerUseUnavailable`) flow as the MSP error.
-   */
+  The host's computer-use setup state (M127, `computerUseSetup/check`):
+  the three macOS grants with no prompt, never requesting one. Refusals
+  (a Linux host answers `computerUseUnavailable`) flow as the MSP error.
+  */
   public async checkComputerUseSetup(): Promise<ComputerUseSetup> {
     const result = await this.command('computerUseSetup/check', {})
     const parsed = computerUseSetupSchema.parse(result)
@@ -3226,15 +3224,14 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * The caller confirms permanent deletion before invoking this operation.
-   * Resolves once the terminal `deleteCompleted` notification arrives; that
-   * terminal itself reaches `onMuseCodeLifecycleEvent` listeners.
-   */
+  The caller confirms permanent deletion before invoking this operation.
+  Resolves once the terminal `deleteCompleted` notification arrives; that
+  terminal itself reaches `onMuseCodeLifecycleEvent` listeners. (No caller
+  uses the terminal return, so this resolves `void`.)
+  */
   public async deleteSession(sessionId: string): Promise<void> {
     const reader = this.features.lifecycle
-    if (reader === undefined) {
-      throw new Error(fill(UI_TEXT.sessionDeleteUnsupported, { version: this.info.serverVersion }))
-    }
+    if (reader === undefined) throw new Error(UI_TEXT.memoryDeleteAction)
     const signal = this.deletionStopped.signal
     signal.throwIfAborted()
     const commandId = this.channel.connection.mintCommandId()
@@ -3333,12 +3330,12 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Load a stored session on this connection with its history as a folded
-   * snapshot where the host's budget allows (the served mode is reported):
-   * the items, and the name, todo list and goal beside them (M45).
-   * `modelId` is the caller's standing selection: the record's own
-   * `modelId` is the metadata fold's and not to be trusted (PLAN.md M6).
-   */
+  Load a stored session on this connection with its history as a folded
+  snapshot where the host's budget allows (the served mode is reported):
+  the items, and the name, todo list and goal beside them (M45).
+  `modelId` is the caller's standing selection: the record's own
+  `modelId` is the metadata fold's and not to be trusted (PLAN.md M6).
+  */
   public async resumeSession(
     sessionId: string,
     modelId: string,
@@ -3405,10 +3402,10 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Copy a session's completed turns (through `lastTurnId`, or all of them)
-   * into a new session, loaded here. Muse Code 1.3.0 refuses this on
-   * Windows ("invalid fork boundary ... WriteFailed", PLAN.md M6).
-   */
+  Copy a session's completed turns (through `lastTurnId`, or all of them)
+  into a new session, loaded here. Muse Code 1.3.0 refuses this on
+  Windows ("invalid fork boundary ... WriteFailed", PLAN.md M6).
+  */
   public async forkSession(
     sessionId: string,
     modelId: string,
@@ -3427,11 +3424,11 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * The visible model catalogue; with a session id the active row is
-   * flagged. While this host runs with `--contributor-mode on`, each
-   * listed model's `-contributor` counterpart rides along (the CLI serves
-   * no such row itself); otherwise the wire reading stands as served.
-   */
+  The visible model catalogue; with a session id the active row is
+  flagged. While this host runs with `--contributor-mode on`, each
+  listed model's `-contributor` counterpart rides along (the CLI serves
+  no such row itself); otherwise the wire reading stands as served.
+  */
   public async listModels(
     sessionId?: string,
     signal?: AbortSignal,
@@ -3542,17 +3539,23 @@ export class MuseCodeHost implements AgentHost {
 export function spawnAccountMspConnection(
   options: Pick<
     SpawnMspConnectionOptions,
-    'command' | 'args' | 'cwd' | 'env' | 'onStderr' | 'shutdownTimeoutMs'
-  >,
+    'command' | 'args' | 'cwd' | 'onStderr' | 'shutdownTimeoutMs'
+  > & {
+    /**
+    The child's whole environment: the guarded serve environment for its
+    cwd, so a raw environment does not type-check here.
+    */
+    readonly env: GuardedChildEnv
+  },
   accountHome: MuseCodeAccountHome,
   /** The resource governor's registration of the spawned tree (M107). */
   onSpawn?: (child: ChildProcess) => void,
 ) {
   accountHome.assertCurrent()
   const hasProcessGroup = process.platform !== 'win32'
-  const child = spawn(options.command, [...(options.args ?? [])], {
+  const child = spawnGuarded(options.command, [...(options.args ?? [])], {
     ...(options.cwd !== undefined && { cwd: options.cwd }),
-    ...(options.env !== undefined && { env: options.env }),
+    env: options.env,
     detached: hasProcessGroup,
     windowsHide: true,
   })

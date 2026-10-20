@@ -61,7 +61,7 @@ export interface ScheduleEditorDeliveryPorts {
   ): Promise<void>
   readonly safety: ScheduleRunDeps['safety']
   /** Paid delivery requires an authoritative ledger; terminal events alone
-   * never establish cost. C-M115-3 installs consent and both reservations. */
+  never establish cost. C-M115-3 installs consent and both reservations. */
   paid?(
     schedule: ScheduleV2,
     session: BackendSession,
@@ -94,7 +94,7 @@ interface PendingRun {
 }
 
 /** Lazy host composition. The scheduler owns claims and ordering; the backend
- * owns unattended safety and the final turn. No ordinary send can bypass it. */
+owns unattended safety and the final turn. No ordinary send can bypass it. */
 export function createScheduleDeliveryBinding(
   ports: ScheduleEditorDeliveryPorts,
   authority: ScheduleAuthorityStore,

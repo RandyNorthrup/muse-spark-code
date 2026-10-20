@@ -199,8 +199,9 @@ hash verification and migrate when read.
 ### Earlier in 0.14.3
 
 - **Questions never block.** A question Muse asks you is pinned in the
-  attention dock above the composer and kept in the transcript. After a minute
-  (`museSpark.questions.deferAfterSeconds`), Muse carries on with work that
+  attention dock above the composer and kept in the transcript. After your
+  own delay (`museSpark.questions.deferAfterSeconds`, unset by default so
+  questions never defer on their own), Muse carries on with work that
   does not need the answer.
 - **Answer later.** An unanswered question becomes an **Open Question** you can
   answer any time using **Answer** on its transcript marker or the open-question chip; **Dismiss** closes it
@@ -1086,8 +1087,9 @@ Ctrl+Alt+Shift+J (Cmd+Option+J and Cmd+Option+Shift+J on macOS). The view badge,
 tab title and History marker show the count. Native editors use their own
 bindings: these keys conflict with defaults in JetBrains and Visual Studio.
 
-`museSpark.questions.deferAfterSeconds` is machine-scoped: 60 by default,
-0 to wait indefinitely, otherwise 10–3600 seconds (1–9 are read as 10).
+`museSpark.questions.deferAfterSeconds` is machine-scoped: no limit unless
+you set one (0, the default, waits indefinitely; otherwise 10–3600 seconds,
+and 1–9 are read as 10).
 A workspace setting cannot change it. Open questions survive a reload and
 resume, with at most 20 open per session and two reminders per question.
 A late answer is your own message in the current mode and approves nothing.
@@ -1809,8 +1811,9 @@ the ones that answer in JSON are shown as what they mean:
 - **Pictures**: when the agent reads an image or generates one (the Model
   API backend, or Muse Code through the extension's paid image tools), the
   row shows it; click it to open the file. Only images
-  inside the workspace are shown. The preview reads the checked target with
-  the same 10 MiB file cap if a workspace link or file changes meanwhile.
+  inside the workspace are shown. The preview reads the checked target
+  within its own 10 MiB display bound if a workspace link or file changes
+  meanwhile (the model still reads the image whole).
 - **MCP tools** read "tool (server)", and any tool the panel has no special
   view for shows its arguments and result as indented JSON.
 
@@ -2011,8 +2014,9 @@ and opens it. Turning the setting off stops hook dispatch in an open session;
 source file changes are read at the next session start.
 
 Two machine-scoped settings bound hook loops. `hooksMaxStopContinuations`
-(1–8; Muse Code's own bound 8, the default) is how many times in a row a
-blocking Stop hook may continue a finished turn; past that the turn ends.
+is how many times in a row a blocking Stop hook may continue a finished
+turn: no limit unless you set one (0, the default, keeps going until the
+turn ends on its own; a set value stays within Muse Code's own 1–8).
 Higher values are refused, so no workspace can raise billed Stop-hook
 spending past what Muse Code itself spends. It governs only Stop-hook
 continuations: a task write a hook keeps refusing pauses the turn after 8
@@ -3032,8 +3036,10 @@ Meta's paid web search.
   XML, CSV, YAML, TOML, CSS and JavaScript come back as they are; XHTML
   (`application/xhtml+xml`) is refused, since read as HTML its XML syntax
   would be misread; anything else is refused with the reason. The whole page is read (after decompression) within 30
-  seconds, however large; the model reads the first 50,000 characters, and is told when
-  there was more. A page built to expand stops converting at 100,000.
+  seconds, however large; the model reads the whole page, and past its
+  context window the text spills to a file it pages through, saying so.
+  A page built to expand converts whole within the worker's time and memory
+  limits instead.
 - **Where it may go.** Public internet addresses only. A URL that names a
   local or reserved name (`localhost`, `*.local`, `*.internal`, single-label
   intranet names) or a non-public address is refused before anything else
@@ -3242,36 +3248,39 @@ integration owners; editor font settings continue to decide inside editors.
   for the messages Muse Code queued (a handoff, a message with a text file,
   a refused steer).
 - The `+` button attaches images (PNG, JPEG, GIF, WebP), PDFs on the Model
-  API backend, and UTF-8 text files up to 1 MiB from trusted, indexed workspace
+  API backend, and UTF-8 text files at any size from trusted, indexed workspace
   paths (`.txt`, `.md`, `.markdown`, `.csv`, `.tsv`, `.json`, `.jsonl`,
   `.yaml`, `.yml`, `.xml`, `.log`, `.html`, `.css`, `.js`, `.jsx`, `.ts`,
   `.tsx`, `.py`, `.ps1` and `.sh`; another text file becomes an `@`
-  mention). Text files travel with their names as text on both backends. Files
-  attached to Muse Code share its 10 MiB message limit; the composer counts
-  their serialized content, including escaping, and refuses combinations
-  that leave too little room for the prompt. Remove an attachment or shorten
-  the message if that happens. Switching backends keeps visible chips; Muse
-  Code checks them again before a send or steer and may require removal of an
-  image attached under Model API. Model API text attachments share a separate
-  768 KiB allowance for their UTF-8 content and file-name wrappers. A large
-  single file can be refused despite the 1 MiB per-file read cap; attach a
-  shorter excerpt or remove another text attachment. A long conversation may
-  still exceed the Model API context limit. Files outside that set
-  become `@` path mentions; known binary types and private
-  files are refused. A PDF picked under a `.png` or `.txt` name follows its
-  detected PDF header and 32 MB limit; Muse Code gives its PDF refusal.
-  Ordinary unindexed text remains a path mention, and private filenames are
-  refused before any PDF check.
+  mention). No count or size of ours stops an attachment: any number attaches
+  at any size (reads are bounded only by host memory), and the selected
+  model's capability record admits from the provider's documented limits
+  (Meta: 50 MB per inline image or document, 50 images per request) while the
+  provider answers for the rest at send. Text files travel with their names
+  as text on both backends. Files attached to Muse Code travel inside its
+  10 MiB message frame; the composer counts their serialized content,
+  including escaping, and refuses combinations that leave too little room
+  for the prompt. Remove an attachment or shorten the message if that happens.
+  Switching backends keeps visible chips; Muse Code checks them again before
+  a send or steer and may require removal of an image attached under Model API.
+  Model API text attachments share a separate 768 KiB allowance for their
+  UTF-8 content and file-name wrappers. A long conversation may still exceed
+  the Model API context limit. Files outside that set become `@` path
+  mentions; known binary types and private files are refused. A PDF picked
+  under a `.png` or `.txt` name follows its detected PDF header and the
+  model's document limit (Meta: 50 MB inline); Muse Code gives its PDF
+  refusal. Ordinary unindexed text remains a path mention, and private
+  filenames are refused before any PDF check.
   Images and PDFs also paste and drop. A dismissible banner gives the specific
   size, media, backend, text or private-file refusal; unknown file reasons
   keep generic unsupported-type guidance. Muse Code's MSP 1.3.0 cannot take a PDF part, so a PDF attachment
   there names the Model API backend instead. The Model API agent can read a
   workspace PDF or image through `read_file`; other workspace files use its
   existing UTF-8 text reader. Excluded text files share only a path mention,
-  and the Model API reader confines paths to the workspace. Picker reads stop
-  at the file's size cap even if it grows during the read. A native picker
-  still open after New Conversation or sign-out cannot add an old file or
-  mention to the new draft. Model API text,
+  and the Model API reader confines paths to the workspace. Picker reads are
+  bounded only by host memory even if the file grows during the read. A native
+  picker still open after New Conversation or sign-out cannot add an old file
+  or mention to the new draft. Model API text,
   image and PDF reads use the checked canonical workspace target if a link
   changes after confinement. Host file I/O also rejects an observed change
   to that checked path when a parent directory becomes a junction after the
@@ -3279,14 +3288,15 @@ integration owners; editor font settings continue to decide inside editors.
   Replayed requests keep newer media within the provider's per-request image
   budget, announcing when older media is omitted from the request.
   Paste/drop checks the first 1 KiB of image-labelled files: a PDF named
-  `.png` or `.txt` uses the 32 MB PDF limit and PDF media type, while a real image over
-  10 MiB is refused without encoding its full bytes. The check is discarded
+  `.png` or `.txt` takes the PDF media type at any size, and a real image is
+  taken at any size the message transport carries. The check is discarded
   if the conversation changes before it finishes. Plain text clipboard content
   keeps its normal paste behavior; text-named files without clipboard text are
   probed and ignored when they are not PDFs. Private names are refused first.
-  A PDF whose page tree cannot be counted without ambiguity reserves all 50
-  image slots, including when comments, escaped names or indirect `/Count` or
-  `/Type` references obscure the real tree beside a visible decoy.
+  A PDF whose page tree cannot be counted without ambiguity still weighs all
+  50 image slots when a request is packed against the provider's budget,
+  including when comments, escaped names or indirect `/Count` or `/Type`
+  references obscure the real tree beside a visible decoy.
   The original attachments remain in local history. A batch of Model API
   `read_file` tool calls uses the same media cap; a file over that batch cap
   gets a failed tool result before its bytes are retained. PDF and image
@@ -3333,7 +3343,8 @@ integration owners; editor font settings continue to decide inside editors.
   Screen Recording** can inspect an existing Linux recording, but admission
   still requires the media bindings. Remote windows need the companion route,
   whose server is pending M104. The Windows VM has no working direct-capture
-  receipt. `mediaMaxUploadMiB` caps an upload. Uploads carry
+  receipt. `mediaMaxUploadMiB` caps an upload only when set (0, the default,
+  opens any size). Uploads carry
   `mediaUploadExpiryDays` (seven days by default, 1–30); releasing the last
   session that refers to an upload deletes it at once, however young.
   Deleting a session, or the `cleanupPeriodDays` purge, releases its
@@ -3850,9 +3861,11 @@ tokens, the background tasks, and each agent's own transcript.
   be reopened on the Model API backend. Muse Code's Reopen and Mark result
   read controls wait for a live capture of their accepted MSP commands;
   its captured Interrupt, Stop, Resume and Close controls remain available.
-- On the Model API backend, the agent can spawn up to eight child sessions at
-  once (`museSpark.subagentMaxConcurrent`: 1–64, default 8, machine-scoped,
-  read when a conversation starts); more wait in order, up to 64 per conversation. A child has its own
+- On the Model API backend, the agent can spawn child sessions at once with
+  no limit of their own (`museSpark.subagentMaxConcurrent`: no limit unless
+  you set one — 0, the default, starts every subagent at once, and a set
+  value stays within 1–64; machine-scoped, read when a conversation
+  starts); more wait in order, up to 64 per conversation. A child has its own
   conversation and the same workspace tools and approvals, but cannot spawn
   again or ask you a question. Children share the workspace and use your
   Model API key; their tokens count in the conversation's usage. Paid
@@ -3862,11 +3875,12 @@ tokens, the background tasks, and each agent's own transcript.
   nothing: one asking for worktree isolation, or one reusing
   an earlier spawn's command id for a different task is refused first, and a
   retry of the same spawn under its command id answers with that child.
-  One approval allows at most four actual
-  response requests, including retries and tool rounds. A running note uses
-  that same allowance; a follow-up or reopen needs a new grant, asked for
+  One approval covers the task until it ends or is stopped: every actual
+  response request, including retries and tool rounds, is tallied as it goes
+  at the published rates the card names. A running note uses
+  that same grant; a follow-up or reopen needs a new grant, asked for
   unless subagents are allowed always in this workspace. This is
-  a request limit, not a dollar limit. Failed requests without a usage report
+  billed per request, not a dollar limit. Failed requests without a usage report
   appear as unknown cost in Account & usage. A resumed child whose queued
   notes survived a window restart shows those notes in its fresh approval
   before they run. Stopping a
@@ -4212,10 +4226,11 @@ What asks, and when:
   starts from, and the price. Plan refuses it (it writes a file), and a
   path that is taken, outside the workspace, or not a `.png`, or a source
   that is missing, outside the workspace, not a PNG, JPEG or WebP image, or
-  over 10 MiB, is refused before anything is asked or billed. Edit sources
-  are read from their checked canonical workspace targets, even if a link
-  changes after the check. An image written to a protected path (D24) asks
-  even when images are allowed always.
+  past the record's documented edit count (Meta: an edit needs 1–10 items),
+  is refused before anything is asked or billed. Edit sources read whole
+  (bounded only by host memory) from their checked canonical workspace
+  targets, even if a link changes after the check. An image written to a
+  protected path (D24) asks even when images are allowed always.
 - **Muse Voice**: before each recording. **Allow once** covers one
   recording; **Always** covers the workspace until revoked through
   Account & usage. The popup names the hourly price and shared daily budget.
@@ -4436,24 +4451,28 @@ failed with "Context window full: /compact or /handoff" instead, and anything
 the turn was holding (a goal wake, steered input) is re-queued for its own
 turn. ACP returns
 `max_turn_requests`; headless exec reports `request_cap` (exit 5) with the answer.
-The default is 200 model calls per turn. Existing caller request allowances
-replace that default with what remains: `exec --max-requests` (default 30,
-range 1–500) and best-of-N attempts (production ACP binds none). The turn's first
+No round count of ours ends a turn: with no caller allowance it runs until
+the model answers without a tool call, you press Stop, a hook stops it, the
+provider refuses it, or a limit you set is spent. A caller's own allowance
+still bounds its run: `exec --max-requests` (no default; a set value is any
+positive safe integer) and best-of-N attempt ceilings (production ACP binds
+none). The turn's first
 model call always runs with tools, even when it is also the last one allowed: an
 answer completes the turn (exec exit 0), while a tool request ends it at the
 request cap, said plainly. Stop hooks still run on a wrap-up turn; a hook
 asking for more work cannot be honoured past the limit, and the notice says so.
-A caller allowance above 200 remains usable. Paid child-task grants are the
-exception: all 4 attempts stay tool calls and exhaustion stays the child's
-typed request-limit stop. Retries spend calls; money caps
+A caller allowance of any size remains usable. Paid child-task grants work
+the same way: every attempt stays a tool call, and the task runs until done
+or stopped. Retries spend calls; money caps
 and compaction's own admission and accounting still apply.
 
 The table below describes Meta Muse. M95's provider core resolves capabilities
 per configured provider and native model, with user overrides taking precedence
 over captures, model lists, the catalogue and presets. Unknown support does not
 permit tools or media. Images and PDFs have separate support and limits.
-Native image evidence retains the existing 10 MiB application byte bound;
-Anthropic uses its documented, smaller 10 MB bound. Enabled budgeted thinking
+Native image evidence carries a byte bound only where the provider documents
+one (Anthropic's documented 10 MB); otherwise no size is enforced locally and
+the provider answers for it. Enabled budgeted thinking
 uses a positive default even when the catalogue permits zero. Effort is sent
 only when the record explicitly lists the selected native level; otherwise
 supported thinking uses its native default. Effort-only metadata establishes
@@ -4473,13 +4492,13 @@ ACP configuration and CLI/exec flags currently expose no separate output-token
 cap; they share the provider entry and request validation.
 
 Tool results have their own bound on the Model API backend. One choke point
-cuts any result past 16,000 estimated tokens, any line past 8,000
-characters, or any result past a quarter of the model's remaining window, so
-one oversized result can never fill the window and end the conversation. A
-cut keeps the full text under `.muse-spark/tool-results/` (git-ignored) for
-paging and says what was cut and how to read more, to the model and on the
-row. The byte guard is `museSpark.modelApiMaxToolOutputBytes` (64,000 by
-default, machine-scoped; values below 1,024 bytes or past the model's window
+cuts a result past the byte guard you set, or past a quarter of the model's
+remaining window, so one oversized result can never fill the window and end
+the conversation. A cut keeps the full text under `.muse-spark/tool-results/`
+(git-ignored) for paging and says what was cut and how to read more, to the
+model and on the row. The byte guard is `museSpark.modelApiMaxToolOutputBytes`
+(no limit unless you set one — 0, the default, keeps results whole;
+machine-scoped; values below 1,024 bytes or past the model's window
 are refused with the reason); `exec --max-tool-output-bytes` raises it for
 one headless run.
 
@@ -4514,18 +4533,18 @@ a value, no explicitly refuses support, and unknown supplies no evidence.
 User-file parsing stamps known overrides with `source.kind: "user"`; a supplied
 source cannot elevate their priority. See [M95 N's record contract](docs/certification/m95-n.md).
 
-| What                             | Limit                                                                                                                                                                                                                                                           |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Images and PDFs                  | 20 attachments per message together; images 10 MiB each (PDFs: next row)                                                                                                                                                                                        |
-| PDFs on the Model API backend    | 32 MB each locally (Meta allows 50 MB per inline file); images and PDF page images together: 50 per message. Meta reads text from the first 100 pages and page images from the first 50 (Meta's [file-handling guide](https://dev.meta.ai/docs/file-handling)). |
-| Model API replayed media         | No aggregate character budget; the provider's per-request image budget decides, newest first, with older media named when left out. The platform refuses what it cannot take.                                                                                   |
-| Picked UTF-8 text attachments    | 1 MiB per-file read cap from trusted and indexed workspace paths; Model API also caps combined text and file-name wrappers at 768 KiB to leave context room.                                                                                                    |
-| A message to Muse Code           | 10 MiB. Attachment admission reserves 2 MiB for the prompt, context and frame; serialized text and base64 images count toward the rest. The exact outbound frame is checked at send.                                                                            |
-| Model API: shell commands        | 2 minutes by default, 10 at most                                                                                                                                                                                                                                |
-| Model API: retries               | Retryable failures (429, 500, 502 and 503, and a reply stream the server shut down or overloaded) retry honouring `Retry-After` at any length, shown in the transcript; attempts end at Stop, never at a count, and quota never retries                         |
-| Model API: a silent reply stream | Waits until Stop, saying so while it lasts; a provider-named idle still ends silence at it                                                                                                                                                                      |
-| Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
-| Opened tool outputs              | 16 MiB each; every document is kept and stays readable                                                                                                                                                                                                          |
+| What                             | Limit                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Images and PDFs                  | No count or size of ours: any number attaches at any size (reads bounded only by host memory). The selected model's capability record admits from the provider's documented limits (Meta: 50 MB per inline image, 50 images per request); the transports keep their own frame validity and the provider answers for the rest at send. |
+| PDFs on the Model API backend    | No size of ours (Meta documents 50 MB per inline file); images and PDF page images together: 50 per request on Meta. Meta reads text from the first 100 pages and page images from the first 50 (Meta's [file-handling guide](https://dev.meta.ai/docs/file-handling)).                                                               |
+| Model API replayed media         | No aggregate character budget; the provider's per-request image budget decides, newest first, with older media named when left out. The platform refuses what it cannot take.                                                                                                                                                         |
+| Picked UTF-8 text attachments    | No per-file size of ours from trusted and indexed workspace paths (reads bounded only by host memory); Model API also caps combined text and file-name wrappers at 768 KiB to leave context room.                                                                                                                                     |
+| A message to Muse Code           | 10 MiB. Attachment admission reserves 2 MiB for the prompt, context and frame; serialized text and base64 images count toward the rest. The exact outbound frame is checked at send.                                                                                                                                                  |
+| Model API: shell commands        | Run until they end or are stopped; a set `timeout_ms` still bounds the run                                                                                                                                                                                                                                                            |
+| Model API: retries               | Retryable failures (429, 500, 502 and 503, and a reply stream the server shut down or overloaded) retry honouring `Retry-After` at any length, shown in the transcript; attempts end at Stop, never at a count, and quota never retries                                                                                               |
+| Model API: a silent reply stream | Waits until Stop, saying so while it lasts; a provider-named idle still ends silence at it                                                                                                                                                                                                                                            |
+| Model API: file tools            | Text up to 10 MiB through the file tools; images and PDFs read whole through the media reader (bounded only by host memory); the search tool skips files over 1 MiB                                                                                                                                                                   |
+| Opened tool outputs              | 16 MiB each; every document is kept and stays readable                                                                                                                                                                                                                                                                                |
 
 ## Legal scan (M97)
 
@@ -4848,11 +4867,11 @@ Bypass at once.
 | `modelApiImageGeneration`         | `true`                                                                                  | Image generation and editing ($0.01 per image). Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `modelApiVoice`                   | `true`                                                                                  | Offers Muse Voice ($0.18 per audio hour); free OS dictation remains the default. Muse Voice reserves bounded recordings against the daily budget and any conversation cap. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `modelApiPromptCacheRetention`    | `in_memory`                                                                             | How long Meta is asked to keep the cached start of Model API requests: `in_memory` by default, or up to `24h` when you choose it. Both have the same cached-input price; longer retention may improve cache hits after a pause. Meta may evict sooner. Machine-scoped, so a repository cannot extend it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `modelApiSubagents`               | `true`                                                                                  | Bounded paid child agents, with up to four requests per task including retries. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `subagentMaxConcurrent`           | `8`                                                                                     | How many subagents work at once on the Model API backend (1–64, Muse Code's default 8). Later ones queue. Machine-scoped, read when a conversation starts.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `modelApiSubagents`               | `true`                                                                                  | Paid child agents: a task runs until done or stopped, billed per request. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `subagentMaxConcurrent`           | `0`                                                                                     | How many subagents work at once on the Model API backend. No limit unless you set one: 0 (the default) starts every subagent at once, and a set value stays within 1–64. Later ones queue. Machine-scoped, read when a conversation starts.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `modelApiScheduledPrompts`        | `true`                                                                                  | Explicit scheduled Model API runs at the selected model’s token prices. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `modelApiHooks`                   | `true`                                                                                  | On by default; inert without a hooks file. Runs your configured commands outside the agent sandbox, only in trusted workspaces. Review them in Muse Spark: Hooks. Provider credentials are withheld.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `hooksMaxStopContinuations`       | `8`                                                                                     | How many times in a row Stop hooks may keep a finished turn going (1–8; Muse Code's own bound 8, the default). Past that the turn ends. Higher values are refused. Machine-scoped. Governs only Stop-hook continuations: refused task writes pause the turn after 8 in a row, and an idle teammate stops being kept working after 8 keeps, each on its own bound.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `hooksMaxStopContinuations`       | `0`                                                                                     | How many times in a row Stop hooks may keep a finished turn going. No limit unless you set one: 0 (the default) keeps going until the turn ends on its own; a set value stays within Muse Code's own 1–8, and higher values are refused. Machine-scoped. Governs only Stop-hook continuations: refused task writes pause the turn after 8 in a row, and an idle teammate stops being kept working after 8 keeps, each on its own bound.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `hooksMaxRunningCommands`         | `0`                                                                                     | How many hook commands run at once (minimum 0). `0` starts them all at once, as Muse Code does; otherwise at most this many per dispatch and per hook process. Machine-scoped, read per dispatch so a changed setting applies.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `shell.passEnvironmentVariables`  | `[]`                                                                                    | Names permitted in interactive top-level Model API shell and `!` commands. Can expose credentials to the conversation and model provider. Verification/`then_run`, schedules, child/team workers and hooks never honor this machine-scoped exception. See Privacy and security                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `environmentVariables`            | `[]`                                                                                    | `{ name, value }` pairs for the Muse Code process and the terminals that run the CLI (Open in Terminal, MCP sign-in, `muse logout`); an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too. Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -4880,20 +4899,20 @@ Bypass at once.
 | `paidDailyBudgetUsd`              | `0`                                                                                     | A daily limit in USD you set for interactive paid extras (`0`: none, the default); machine-scoped. Each request's reported cost joins the shared day's total after it ends; daily reservations persist across windows. Tab uses its own separate ledger.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `linuxDictationModel`             | `true`                                                                                  | Free offline English dictation on local Linux x64/arm64. First use asks once before the helper (~7.6 MB, release assets) and model (74 MiB, Hugging Face) downloads. `false` stops dictation and removes the helper, the model and partial downloads; enable and reload to resume. Windows/macOS are unaffected.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `dictationEngine`                 | `"system"`                                                                              | Model API dictation engine: `system` (free default) or `museVoice` (paid, bounded and admitted before connecting). Muse Code retains its explicit voice opt-in.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `mediaMaxUploadMiB`               | `200`                                                                                   | Uploaded media cap in MiB, minimum 1 and no maximum; machine-scoped. An attachment over it is refused before it is read                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `mediaMaxUploadMiB`               | `0`                                                                                     | Uploaded media cap in MiB. No limit unless you set one: 0 (the default) opens any size, and a set value has no maximum; machine-scoped. An attachment past a set value is refused before it is read                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `mediaUploadExpiryDays`           | `7`                                                                                     | Uploaded media expiry in days, 1–30; machine-scoped. **Delete Uploaded Files…** removes them early                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `screenRecordingMaxSeconds`       | `120`                                                                                   | Screen recording length cap in seconds, 10–600; machine-scoped. Shorter bounds are clamped, not refused                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `screenRecordingMaxSeconds`       | `0`                                                                                     | Screen recording length cap in seconds. No limit unless you set one: 0 (the default) records until stopped, and a set value stays within 10–600; machine-scoped. Shorter bounds are clamped, not refused                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `mediaAudioAction`                | `"transcribe"`                                                                          | What attached audio becomes: `transcribe` (paid Muse Voice, consent first) or `sendAudio` (only on a model with captured audio support; otherwise an explicit refusal); machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `mediaConverterPath`              | `""`                                                                                    | Absolute path to the `ffmpeg` that converts attached sound for transcription; empty uses documented installs only, never `PATH`. A set path is the only candidate and must pass the trusted-path check; machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `--max-requests <count>`          | 30 / 1–500 (Model API)                                                                  | Uses the remaining allowance, reserves the last model call for a summary without tools, then returns `request_cap`, exit 5, with that summary in `finalMessage`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `--max-budget-usd <usd>`          | Required on Model API                                                                   | Hard spending admission remains separate from the request allowance.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `resourceGovernor`                | `true`                                                                                  | Enable this machine's governor                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `resourceCpuMaxPercent`           | `85`                                                                                    | 30–100%; sustained for 30 seconds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `resourceMemoryMaxPercent`        | `90`                                                                                    | 40–98% in use                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `resourceMemoryMinFreeGiB`        | `2`                                                                                     | 0.5–64 GiB; effective floor at most 15% of RAM                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `resourceCpuMaxPercent`           | `null`                                                                                  | 30–100%; no CPU limit until configured; sustained for 30 seconds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `resourceMemoryMaxPercent`        | `null`                                                                                  | 40–98% in use; no memory-use limit until configured                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `resourceMemoryMinFreeGiB`        | `null`                                                                                  | 0.5–64 GiB; no memory floor until configured; effective floor at most 15% of RAM                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `resourceGpuMaxPercent`           | `null`                                                                                  | 1–100%; no GPU probe until configured                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `resourceDiskBusyMaxPercent`      | `null`                                                                                  | 1–100%; no disk-busy probe until configured                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `resourceDiskMinFreeGiB`          | `null`                                                                                  | Adaptive floor: smaller of 10 GiB and 10% of the volume, at least 2 GiB; explicit floor at least 2 GiB                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `resourceDiskMinFreeGiB`          | `null`                                                                                  | No floor until configured; explicit floor at least 2 GiB                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 | `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, minimum 1 and no maximum; machine-scoped. An attachment over it is refused before it is read |
 | `mediaUploadExpiryDays` | `7` | Uploaded media expiry in days, 1–30; machine-scoped. **Delete Uploaded Files…** removes them early |
@@ -5200,9 +5219,10 @@ below it must be a plain file or folder.
   A refusal answered before any processing is never billed: the turn's
   result counts it with settled 0 and uncertain 0.
 - **The agent says a file is too large (Model API backend)** — the file tools
-  read and edit text and images up to 10 MiB and read PDFs up to 32 MB; the
-  search tool skips files over 1 MiB. The agent can read part of a larger
-  file with a shell command.
+  read and edit text up to 10 MiB; images and PDFs reach the model whole
+  through the media reader (bounded only by host memory); the search tool
+  skips files over 1 MiB. The agent can read part of a larger file with a
+  shell command.
 - **Sign-out does not finish, or the panel stays gated** — sign-out asks
   Muse Code to sign itself out (`account/logout`). Only when Muse Code
   still reads signed in afterwards does it open `muse logout` in a
@@ -5554,8 +5574,10 @@ here. (The heading stays because the help reference links this anchor.)
 ## Keeping your machine responsive
 
 M107's integration candidate adds one portable governor per harness process.
-It is on by default and loads on the first governed launch. It delays new
-background work when the machine is busy; running work continues. At pause, new
+It is on by default and loads on the first governed launch. It holds nothing
+back until you set a limit: with no limits set it measures and shows the
+machine's state, and delays new background work only once your limits say the
+machine is busy; running work continues. At pause, new
 background launches and containment-helper builds are refused at once with
 `Resources: Paused`, the words `muse-spark-code-acp resources status` prints.
 Every launch names its lifetime: `login` runs in your terminal; browser and
@@ -5575,15 +5597,15 @@ reclaimable memory. Newer runtimes include inactive and purgeable pages.
 These settings are machine-scoped; workspace values are ignored. Settings
 names below start with `museSpark.`.
 
-| Setting                      | Default | Range or meaning                                                                                       |
-| ---------------------------- | ------- | ------------------------------------------------------------------------------------------------------ |
-| `resourceGovernor`           | `true`  | Enable this machine's governor                                                                         |
-| `resourceCpuMaxPercent`      | `85`    | 30–100%; sustained for 30 seconds                                                                      |
-| `resourceMemoryMaxPercent`   | `90`    | 40–98% in use                                                                                          |
-| `resourceMemoryMinFreeGiB`   | `2`     | 0.5–64 GiB; effective floor at most 15% of RAM                                                         |
-| `resourceGpuMaxPercent`      | `null`  | 1–100%; no GPU probe until configured                                                                  |
-| `resourceDiskBusyMaxPercent` | `null`  | 1–100%; no disk-busy probe until configured                                                            |
-| `resourceDiskMinFreeGiB`     | `null`  | Adaptive floor: smaller of 10 GiB and 10% of the volume, at least 2 GiB; explicit floor at least 2 GiB |
+| Setting                      | Default | Range or meaning                                                                 |
+| ---------------------------- | ------- | -------------------------------------------------------------------------------- |
+| `resourceGovernor`           | `true`  | Enable this machine's governor                                                   |
+| `resourceCpuMaxPercent`      | `null`  | 30–100%; no CPU limit until configured; sustained for 30 seconds                 |
+| `resourceMemoryMaxPercent`   | `null`  | 40–98% in use; no memory-use limit until configured                              |
+| `resourceMemoryMinFreeGiB`   | `null`  | 0.5–64 GiB; no memory floor until configured; effective floor at most 15% of RAM |
+| `resourceGpuMaxPercent`      | `null`  | 1–100%; no GPU probe until configured                                            |
+| `resourceDiskBusyMaxPercent` | `null`  | 1–100%; no disk-busy probe until configured                                      |
+| `resourceDiskMinFreeGiB`     | `null`  | No floor until configured; explicit floor at least 2 GiB                         |
 
 Levels are **normal**, **throttle**, **relocate** and **pause**. At throttle,
 background capacity narrows to one per kind; at pause, new background work
@@ -5596,8 +5618,9 @@ as unknown: they neither trip nor clear a level. Recovery has hysteresis and a
 minimum dwell, so near-threshold readings do not flicker between levels.
 
 Free disk space is sampled even with the optional disk-busy probe unset.
-Disk-heavy launches wait below the floor; critical-volume writes refuse with a
-reason. The temporary-root registry confines cleanup to recorded harness roots,
+When you set a floor, disk-heavy launches wait below it; critical-volume
+writes refuse with a reason whether or not you set one. The temporary-root
+registry confines cleanup to recorded harness roots,
 requires fresh exit and ownership proof, and retains failed-run roots for 24
 hours. Native cleanup and all-volume watch bindings still need qualification;
 the integration record names the remaining native delivery and storage qualifications.
@@ -6174,7 +6197,7 @@ DEFLATE compression after `vsce` creates the archive. Python 3 (`python3`,
 are skipped, including Windows' Microsoft Store aliases. The step preserves
 entry paths, metadata, every UI JSON value and all other uncompressed bytes.
 Only packaged translation JSON whitespace is compacted; source tables stay
-unchanged and malformed JSON refuses publication. Each platform's VSIX package meets the same 3700 KiB budget, which covers the measured universal package plus D6's margin (one package per platform: PLAN.md D123); individual bundle caps follow their recorded measurements.
+unchanged and malformed JSON refuses publication. Each platform package keeps the same 3700 KiB VSIX budget (PLAN.md D6, one package per platform: D123); individual bundle caps follow their recorded measurements.
 The legal scanner's pinned data is embedded in its lazy bundle, with separate
 notice/provenance files in both packages.
 
@@ -6363,7 +6386,7 @@ one poll deadline, and unfinished targets are re-checked in the same job;
 network errors get bounded retries;
 already-published versions require matching artifact hashes/integrity. A final
 summary reports every channel and fails if any channel failed. A `.vsix` packed
-locally has no macOS helper, so only CI's per-target artifacts and its universal fallback are published.
+locally has no macOS helper, so only CI's six platform artifacts are published.
 See [the release and recovery guide](docs/RELEASING.md) for half-published
 states, npm EOTP, signing decisions and the M80 hooks (the schemas as
 release assets and the Action's `v0` tag). A manual run of `release.yml` on
@@ -6572,13 +6595,17 @@ Model API strict tool declarations and safe parallel reads are on by default.
 machine-scoped switches; each conversation snapshots the choice. Strict
 schemas require the selected model's known support. Turning strict schemas
 off preserves the previous declarations. Safe reads run at most four at a
-time; writes and other tools retain their order. An output-limit continuation
-is bounded to one request for text-only replies. A cut-short reply containing
+time; writes and other tools retain their order. A reply cut at the output
+limit keeps going for as long as the model is mid-answer, saying so with its
+part count each round. A cut-short reply containing
 tool calls runs none of them and fails the turn; replay retains their error
-results. Repeated unchanged tool results stop the turn.
+results. A repeated unchanged tool result never stops the turn: the panel,
+terminal and ACP say which call is repeating with its count, the call runs
+again, and only Stop ends it.
 
-`museSpark.webSearchMaxPerRequest` bounds hosted searches to 1–20 (default 5)
-where the selected model supports that bound. The first paid use presents the
+`museSpark.webSearchMaxPerRequest` sends no search bound of ours unless you
+set one (0, the default, leaves the count to the provider; a set value stays
+within 1–20) where the selected model supports hosted search. The first paid use presents the
 existing Allow once / Always in this workspace / Deny choices, its price and
 `museSpark.paidDailyBudgetUsd`. Allow once covers hosted search in this window;
 Always remains revocable. Unknown prices cannot spend under a dollar cap.
@@ -6587,7 +6614,7 @@ retain liability.
 
 Argument previews use a separate lazy chunk and are available only with
 recorded streaming-argument support. Structured side calls prefer a captured
-schema format, allow one repair and retain the text fallback. Git commit and
+schema format, repair until the answer validates (saying so each round) and retain the text fallback. Git commit and
 pull-request drafts apply this contract to the user's own turn, with repairs
 under the session's hooks and budget. Judge uses the selected model's captured
 format. Compaction applies its own summary contract even when a headless final

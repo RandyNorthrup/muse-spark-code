@@ -30,7 +30,7 @@ describe('isBlankWireText (BYO 1)', () => {
   it('treats empty and whitespace-only text as blank', () => {
     expect(isBlankWireText('')).toBe(true)
     expect(isBlankWireText(' '.repeat(3))).toBe(true)
-    expect(isBlankWireText(' ')).toBe(true)
+    expect(isBlankWireText('\u{A0}')).toBe(true)
   })
 
   it('keeps text with visible characters', () => {

@@ -32,17 +32,17 @@ export function webviewErrorReport(
 const WEBVIEW_FRAME_PATH = [...WEBVIEW_DIST_SEGMENTS, WEBVIEW_SCRIPT_FILE].join('/')
 
 /**
- * The scrubbed failure for the report workflow (M93, PLAN.md D72): the event
- * kind, where it came from, the error's class when it is a known one (the
- * fixed unknown word otherwise) and the frames inside this webview's own
- * bundle — never the error's message, stack text, a function name, an
- * absolute URL or anything the user typed. A frame counts only when its
- * location is exactly `ownScriptUrl` (the bundle's resolved URL, read once at
- * load); it is then named by the package path, so the URL (which holds the
- * install folder) never leaves. Without a known script URL no frame is kept.
- * The recorder checks code and path vocabularies again on the host. A
- * `hostMessage` failure has no journal kind, so callers do not send one.
- */
+The scrubbed failure for the report workflow (M93, PLAN.md D72): the event
+kind, where it came from, the error's class when it is a known one (the
+fixed unknown word otherwise) and the frames inside this webview's own
+bundle — never the error's message, stack text, a function name, an
+absolute URL or anything the user typed. A frame counts only when its
+location is exactly `ownScriptUrl` (the bundle's resolved URL, read once at
+load); it is then named by the package path, so the URL (which holds the
+install folder) never leaves. Without a known script URL no frame is kept.
+The recorder checks code and path vocabularies again on the host. A
+`hostMessage` failure has no journal kind, so callers do not send one.
+*/
 export function reportWebviewErrorMessage(
   kind: ReportWebviewErrorKind,
   source: WebviewErrorSource,

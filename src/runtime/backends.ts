@@ -1,14 +1,12 @@
 import { UserRefusalError } from '../shared/refusal'
 import type { ScheduleBillingPorts } from '../host/schedules/paidBinding'
 import type { ScheduleCallerContext } from './schedules/args'
-import { resolveExecOutputCap } from './exec/runLedger'
-import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
-import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
 import { runtimeConverterPath } from './runtimeConverterPath'
-import { Usd, sumUsd } from '../shared/usd'
-import { loadLegalScanner } from './legal/legalScanner'
+import { sumUsd } from '../shared/usd'
 import { providersFilePath } from './providerPaths'
 import { ModelApiClient } from '../core/backends/modelapi/client'
+import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
+import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
 import type { ProviderClient } from '../core/backends/modelapi/client'
 import type { runtimeSubscriptionClient } from './chatGptProviderCommands'
 import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvidersEntry'
@@ -26,22 +24,10 @@ import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvid
 // through the client (M63c).
 
 import { createHash, randomUUID } from 'node:crypto'
-import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
-import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
-import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
-import { environmentValue } from '../core/childEnvironment'
-import { buildChildEnvironment, withLoopbackBypass } from '../core/backends/musecode/launch'
-import { personalSkillsRoot } from '../core/context/skills'
-import { personalAgentsRoot } from '../core/context/customAgents'
-import { memoryDataRoot } from '../core/memory/memoryLocation'
-import { MemoryStore } from '../core/memory/memoryStore'
-import { WorkspaceEdits } from '../core/verify/workspaceEdits'
-import { redactSecrets } from '../core/redact'
-import { recordPaidUse } from '../core/paid/paidFeatures'
 import {
   checkScheduleOwnCap,
   paidExtraAdmission,
@@ -49,32 +35,7 @@ import {
 } from '../core/paid/spendClaim'
 import type { UsageRecording } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
-import { fileContextIo } from '../host/backend/contextIo'
-import { describeEnvironment } from '../host/backend/environment'
-import { createFileSessionStore } from '../host/backend/fileSessionStore'
-import { jobSourceReader } from '../host/backend/jobSource'
-import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
-import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
-import { MuseCodeBackendManager, type ProxySettings } from '../host/backend/museCodeBackendManager'
-import { shellJobAssembly } from '../host/backend/shellJob'
-import { mcpJobExecutable } from '../host/backend/mcpJobExecutable'
-import { createToolIo } from '../host/backend/toolIo'
-import type { ToolIo } from '../core/backends/modelapi/tools'
-import type { AcpMediaFactory } from '../acp/media'
-import type { AcpUploadsPort } from '../acp/uploads'
-import { createUploadedFilesPort } from '../core/media/uploadedFiles'
-import type { UploadLedger } from '../core/media/uploadLedger'
-import type { AttachedMedia, AttachedMediaPort } from '../core/media/attachedMedia'
-import { lazyAttachedMedia } from '../core/media/attachedMediaPort'
-import type * as RuntimeMediaEntry from './runtimeMediaEntry'
-import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
-import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
-import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
 import type { Logger } from '../host/logger'
-import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
-import { pageConverter } from '../host/web/pageConverter'
-import { createWebFetcher } from '../host/web/webFetcher'
-import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
   FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
@@ -95,7 +56,6 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
-import { fill, uiLocale } from '../shared/l10n/text'
 import type { ServeOptions } from './cliArgs'
 import {
   agentDataFolder,
@@ -108,13 +68,55 @@ import {
   withoutCredentials,
   withoutKeyringRoutes,
 } from './credentialVariables'
-import { walkFiles } from './fileWalk'
 import { isStoreUnavailable, StoreUnavailableError } from './keyStore'
 import { isPlanModelRef } from '../shared/providerRouting'
 import { providersFile } from '../host/backend/providersEntry'
-import { paidGrantFile } from './paidGrants'
 
 import type { AssembledProviderRun } from './exec/providerExec'
+import { type GuardedChildEnv, NO_WORKSPACE } from '../core/executables'
+import { withLoopbackBypass } from '../core/backends/musecode/launch'
+import { buildChildEnvironment, environmentValue } from '../core/execGuard'
+import { createToolIo } from '../host/backend/toolIo'
+import { resolveExecOutputCap } from './exec/runLedger'
+import { Usd } from '../shared/usd'
+import { loadLegalScanner } from './legal/legalScanner'
+import { existsSync, realpathSync } from 'node:fs'
+import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
+import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
+import { personalSkillsRoot } from '../core/context/skills'
+import { personalAgentsRoot } from '../core/context/customAgents'
+import { memoryDataRoot } from '../core/memory/memoryLocation'
+import { MemoryStore } from '../core/memory/memoryStore'
+import { WorkspaceEdits } from '../core/verify/workspaceEdits'
+import { redactSecrets } from '../core/redact'
+import { recordPaidUse } from '../core/paid/paidFeatures'
+import { fileContextIo } from '../host/backend/contextIo'
+import { describeEnvironment } from '../host/backend/environment'
+import { createFileSessionStore } from '../host/backend/fileSessionStore'
+import { jobSourceReader } from '../host/backend/jobSource'
+import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
+import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
+import { MuseCodeBackendManager, type ProxySettings } from '../host/backend/museCodeBackendManager'
+import { shellJobAssembly } from '../host/backend/shellJob'
+import { mcpJobExecutable } from '../host/backend/mcpJobExecutable'
+import type { ToolIo } from '../core/backends/modelapi/tools'
+import type { AcpMediaFactory } from '../acp/media'
+import type { AcpUploadsPort } from '../acp/uploads'
+import { createUploadedFilesPort } from '../core/media/uploadedFiles'
+import type { UploadLedger } from '../core/media/uploadLedger'
+import type { AttachedMedia, AttachedMediaPort } from '../core/media/attachedMedia'
+import { lazyAttachedMedia } from '../core/media/attachedMediaPort'
+import type * as RuntimeMediaEntry from './runtimeMediaEntry'
+import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
+import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
+import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
+import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
+import { pageConverter } from '../host/web/pageConverter'
+import { createWebFetcher } from '../host/web/webFetcher'
+import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
+import { fill, uiLocale } from '../shared/l10n/text'
+import { walkFiles } from './fileWalk'
+import { paidGrantFile } from './paidGrants'
 
 const { readProvidersFile } = providersFile
 
@@ -167,22 +169,22 @@ export interface RuntimeBackend {
   /** The flagged paid features and their questions, shared with the agent (M63c, M58). */
   readonly paid: AcpPaidUse
   /**
-   * At start: "always" lapses for a paid feature the Model API agent was
-   * started without. A Muse Code agent has no paid flags, so it leaves the
-   * grants to the Model API agent, which a user may run beside it.
-   */
+  At start: "always" lapses for a paid feature the Model API agent was
+  started without. A Muse Code agent has no paid flags, so it leaves the
+  grants to the Model API agent, which a user may run beside it.
+  */
   readonly forgetUnflaggedGrants: () => Promise<void>
   /**
-   * Lane V seam 5: ACP serve's and exec's media port on the Model API
-   * backend, over the runtime's attached-media registry. Absent on Muse
-   * Code, which refuses media with its own reason.
-   */
+  Lane V seam 5: ACP serve's and exec's media port on the Model API
+  backend, over the runtime's attached-media registry. Absent on Muse
+  Code, which refuses media with its own reason.
+  */
   readonly media?: AcpMediaFactory
   /**
-   * M105 lane F: ACP serve's uploaded-files port on the Model API backend,
-   * over the same account ledger the session store cleans. Absent without
-   * upload storage (ephemeral runs say so and delete nothing).
-   */
+  M105 lane F: ACP serve's uploaded-files port on the Model API backend,
+  over the same account ledger the session store cleans. Absent without
+  upload storage (ephemeral runs say so and delete nothing).
+  */
   readonly uploads?: AcpUploadsPort
   readonly close: () => Promise<void>
 }
@@ -206,7 +208,7 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
   // VS Code inherits its host environment (D1); the standalone runtime has
   // a stricter boundary, shared by serve, account hosts and login.
   const Manager = class extends MuseCodeBackendManager {
-    public override childEnvironment(): NodeJS.ProcessEnv {
+    public override childEnvironment(): GuardedChildEnv {
       const env = museCodeEnvironment(deps.env)
       return withLoopbackBypass(
         buildChildEnvironment({
@@ -215,7 +217,10 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
           extraVariables: [],
           systemRoot: environmentValue(env, deps.platform, 'SystemRoot'),
           programFiles: environmentValue(env, deps.platform, 'ProgramFiles'),
-          ...(workspaceRoot !== undefined && { workspaceRoot, realpath: realpathSync }),
+          scope:
+            workspaceRoot === undefined
+              ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+              : { workspaceRoot, realpath: realpathSync },
         }),
         deps.platform,
       )
@@ -263,21 +268,21 @@ interface MuseHomes {
 }
 
 /**
- * The last Meta-key probe's outcome, shared by the session gate (which
- * probes) and the workspace managers (which list and dispatch). The gate
- * runs before the model list, so a dead store is known before anything
- * dials, and a step that needs the stored key can name the store instead
- * of claiming that no key is stored.
- */
+The last Meta-key probe's outcome, shared by the session gate (which
+probes) and the workspace managers (which list and dispatch). The gate
+runs before the model list, so a dead store is known before anything
+dials, and a step that needs the stored key can name the store instead
+of claiming that no key is stored.
+*/
 interface MetaKeyProbe {
   state: 'key' | 'absent' | 'storeDown' | undefined
 }
 
 /**
- * A Files-capable client over the pinned transport: the stored key, read
- * per use and never handed to a child process. Shared by the session
- * store's upload binding and the /uploads port.
- */
+A Files-capable client over the pinned transport: the stored key, read
+per use and never handed to a child process. Shared by the session
+store's upload binding and the /uploads port.
+*/
 function newFilesClient(input: {
   readonly fetch: typeof fetch
   readonly apiKey: () => Promise<string | undefined>
@@ -872,18 +877,18 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   })
 
   /**
-   * Muse Code's readiness, as the panel's sign-in gate counts it (D26):
-   * `META_API_KEY` in the CLI's environment (with it `muse serve` starts
-   * whatever the file says), or the CLI's own sign-in from the file's
-   * structure, asked of the CLI where only it can say. `authenticate`, the
-   * user saying they signed in, is the agent's user action, as the panel's
-   * Check again is: it forgets what the CLI said before and may ask on
-   * macOS, where a question can read the Keychain. A session or a list is
-   * not: on macOS it takes the file's word or the panel's passive estimate
-   * (a turn's `authRequired` corrects it) rather than start `muse serve`
-   * each time. A macOS file on Windows or Linux stops `muse serve`, so it is
-   * said as such.
-   */
+  Muse Code's readiness, as the panel's sign-in gate counts it (D26):
+  `META_API_KEY` in the CLI's environment (with it `muse serve` starts
+  whatever the file says), or the CLI's own sign-in from the file's
+  structure, asked of the CLI where only it can say. `authenticate`, the
+  user saying they signed in, is the agent's user action, as the panel's
+  Check again is: it forgets what the CLI said before and may ask on
+  macOS, where a question can read the Keychain. A session or a list is
+  not: on macOS it takes the file's word or the panel's passive estimate
+  (a turn's `authRequired` corrects it) rather than start `muse serve`
+  each time. A macOS file on Windows or Linux stops `muse serve`, so it is
+  said as such.
+  */
   const museCodeReadiness = async (isRecheck: boolean): Promise<BackendReadiness> => {
     const resolution = museCode.resolveLaunch()
     if (!resolution.ok) {

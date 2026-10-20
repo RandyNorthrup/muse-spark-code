@@ -15,11 +15,8 @@ import { confineWorkspacePath } from '../core/workspacePath'
 import { isProtectedPath } from '../core/protectedPaths'
 import { isPrivateFileName } from '../shared/privateFiles'
 import {
-  BYTES_PER_MIB,
-  MAX_DOCUMENT_BYTES,
-  MAX_IMAGE_BYTES,
-  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   MEDIA_NAME_MAX_CHARS,
+  MEDIA_READ_MAX_BYTES,
   UI_TEXT,
   type AcpBackendKind,
 } from '../shared/constants'
@@ -79,10 +76,10 @@ export interface AcpMediaDeps extends AcpMediaContext {
   /** Bind metadata carrier + private source to M2; admission includes C/A's consent and budgets. */
   readonly prepare: (input: AcpMediaInput, signal: AbortSignal) => Promise<TurnPart>
   /**
-   * Lane V seam 5: whether this runtime transcribes attached sound (the
-   * agent's Muse Voice flag). Audio the model does not hear is then
-   * admitted for transcription; absent, the gate's refusal stands.
-   */
+  Lane V seam 5: whether this runtime transcribes attached sound (the
+  agent's Muse Voice flag). Audio the model does not hear is then
+  admitted for transcription; absent, the gate's refusal stands.
+  */
   readonly transcribesSound?: (info: MediaInfo) => boolean
   /** Releases this port's registrations when the session is let go (RVMEDIAV 7). */
   readonly release?: () => void
@@ -93,11 +90,11 @@ export interface AcpMediaDeps extends AcpMediaContext {
 }
 
 /**
- * A refusal the person reads as written: its message is always a UI
- * sentence (an unknown type, an unreadable file, a model limit). Anything
- * else never reaches the person in its own words. The attach boundary
- * answers these as written and unreadable for the rest.
- */
+A refusal the person reads as written: its message is always a UI
+sentence (an unknown type, an unreadable file, a model limit). Anything
+else never reaches the person in its own words. The attach boundary
+answers these as written and unreadable for the rest.
+*/
 export class MediaRefusal extends Error {}
 
 function unknown(type: string): MediaRefusal {
@@ -177,11 +174,14 @@ export class AcpMedia implements AcpMediaPort {
     await this.deps.assertReadable(confined, signal)
     signal.throwIfAborted()
     const name = path.posix.basename(confined.relative.replaceAll('\\', '/'))
-    let isPdfFile = name.toLowerCase().endsWith('.pdf')
     if (this.deps.io.readMedia !== undefined) {
+      // D121: the lazy sniff reads head and tail only (bounded inside), so
+      // it takes no size cap of ours — the person's mediaMaxUploadMiB
+      // already defaults to no cap. Admission is the gate's and the
+      // record's in `accepted()` below.
       const file = await this.deps.io.readMedia(
         confined.checkedAbsolute,
-        MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
+        Number.MAX_SAFE_INTEGER,
         confined.checkedAbsolute,
         signal,
       )
@@ -194,16 +194,18 @@ export class AcpMedia implements AcpMediaPort {
           signal,
         )
       }
-      isPdfFile = file.isPdf === true
     } else if (
       /\.(?:mp4|mov|mp3|wav|webm|mkv|m4a)$/iu.test(name) ||
       /^(?:audio|video)\//u.test(mime ?? '')
     ) {
       throw new MediaRefusal(UI_TEXT.media.uploadUnavailable)
     }
+    // D121: the file reads whole, bounded only by host memory — no size of
+    // ours. The store admits from the record (or nothing locally without
+    // one), and the provider answers for the rest at send.
     const bytes = await this.deps.io.readBytes(
       confined.checkedAbsolute,
-      isPdfFile ? MAX_DOCUMENT_BYTES : MAX_IMAGE_BYTES,
+      MEDIA_READ_MAX_BYTES,
       confined.checkedAbsolute,
     )
     signal.throwIfAborted()
@@ -268,7 +270,9 @@ export class AcpMedia implements AcpMediaPort {
       const data = block.type === 'audio' ? block.data : resource?.blob
       if (data === undefined) throw unknown(block.type)
       const mime = block.type === 'audio' ? block.mimeType : resource?.mimeType
-      const maximum = MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB
+      // D121: an embedded blob decodes whole, bounded only by host memory —
+      // no size of ours. Past it the generic input bound answers.
+      const maximum = MEDIA_READ_MAX_BYTES
       const bytes = decodeAcpBlob(data, maximum, mime ?? 'blob', UI_TEXT.execFileTooLarge)
       if (typeof bytes === 'string') throw new MediaRefusal(bytes)
       const info = sniffMediaBytes(bytes)

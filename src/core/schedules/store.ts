@@ -125,11 +125,11 @@ export interface ScheduleRunJournalPort {
   maintain(workspaceKey: string, now: number): Promise<void>
 }
 /**
- * The one expected answer for a process that cannot be: ESRCH or EINVAL
- * reads as not alive, EPERM (alive but unsignallable) as alive. Anything
- * else keeps its kind for the caller instead of guessing the process
- * either way.
- */
+The one expected answer for a process that cannot be: ESRCH or EINVAL
+reads as not alive, EPERM (alive but unsignallable) as alive. Anything
+else keeps its kind for the caller instead of guessing the process
+either way.
+*/
 function isAbsentProcess(error: unknown): boolean {
   return isStoreErrorCode(error, 'ESRCH') || isStoreErrorCode(error, 'EINVAL')
 }

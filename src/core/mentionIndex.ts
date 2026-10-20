@@ -75,10 +75,10 @@ export class MentionIndex {
   }
 
   /**
-   * Whether the index lists this file: false for gitignored / excluded files
-   * (and, since the index is capped, for files beyond the cap), which is when
-   * Claude Code shares a path but not its content.
-   */
+  Whether the index lists this file: false for gitignored / excluded files
+  (and, since the index is capped, for files beyond the cap), which is when
+  Claude Code shares a path but not its content.
+  */
   public async contains(relativePath: string): Promise<boolean> {
     const items = await this.load()
     return items.some((item) => !item.isFolder && item.path === relativePath)

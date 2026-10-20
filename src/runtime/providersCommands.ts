@@ -91,9 +91,9 @@ export interface ProvidersDeps {
   readonly print: (line: string) => void
   readonly printError: (line: string) => void
   /**
-   * D4: the priced catalogue for runnable-model warnings. Absent (or
-   * unreadable) in tests: add/test/list skip the warnings, never fail.
-   */
+  D4: the priced catalogue for runnable-model warnings. Absent (or
+  unreadable) in tests: add/test/list skip the warnings, never fail.
+  */
   readonly readCatalog?: () => Promise<unknown>
 }
 
@@ -126,9 +126,9 @@ export function userFileIo(filePath: string): {
 }
 
 /**
- * The user file, or why it cannot be used. A missing file is the first-run
- * state (an empty file); anything else is reported, never defaulted.
- */
+The user file, or why it cannot be used. A missing file is the first-run
+state (an empty file); anything else is reported, never defaulted.
+*/
 function fileOrError(
   read: ProvidersFileRead,
 ): { readonly file: ProvidersFile } | { readonly reason: string } {
@@ -302,9 +302,9 @@ export async function providersList(deps: ProvidersDeps): Promise<number> {
 }
 
 /**
- * D4: one warning per configured model without a price card. An unreadable
- * catalogue warns nothing; the run-time refusal stays the backstop.
- */
+D4: one warning per configured model without a price card. An unreadable
+catalogue warns nothing; the run-time refusal stays the backstop.
+*/
 async function missingPriceWarnings(
   deps: ProvidersDeps,
   entry: ProviderEntry,
@@ -368,11 +368,11 @@ const catalogProviders = z.object({
 })
 
 /**
- * Which added models the catalogue does not confirm for tool calling
- * (F83): the same catalogue evidence the registry resolves, so the
- * warning matches what the list states and the turn refusal repeats.
- * A missing catalogue stays silent; the list and the refusal still say it.
- */
+Which added models the catalogue does not confirm for tool calling
+(F83): the same catalogue evidence the registry resolves, so the
+warning matches what the list states and the turn refusal repeats.
+A missing catalogue stays silent; the list and the refusal still say it.
+*/
 async function unconfirmedToolModels(
   preset: ProviderPreset,
   providerId: string,
@@ -446,11 +446,11 @@ function ignoreProbeLog(): void {
 }
 
 /**
- * One pinned, authenticated provider GET as JSON: the shared read behind
- * `getProviderJson` (D119) and `probeProvider` (D74). It answers the status
- * with its parsed body, or the raw transport error with its signal for the
- * caller to map; transport detail never reaches the terminal.
- */
+One pinned, authenticated provider GET as JSON: the shared read behind
+`getProviderJson` (D119) and `probeProvider` (D74). It answers the status
+with its parsed body, or the raw transport error with its signal for the
+caller to map; transport detail never reaches the terminal.
+*/
 async function readProviderJson(
   fetchImpl: typeof fetch,
   provider: ResolvedProvider,
@@ -571,10 +571,10 @@ function providerListHeaders(provider: ResolvedProvider): Record<string, string>
 }
 
 /**
- * The provider's own model list (D119): the ids as the provider lists them,
- * or undefined where the list cannot be read with the stored key (no key,
- * no free check, unreachable, unparseable). Nothing is billed.
- */
+The provider's own model list (D119): the ids as the provider lists them,
+or undefined where the list cannot be read with the stored key (no key,
+no free check, unreachable, unparseable). Nothing is billed.
+*/
 export async function listProviderModels(
   fetch: typeof globalThis.fetch,
   provider: ResolvedProvider,
@@ -597,12 +597,12 @@ export async function listProviderModels(
 }
 
 /**
- * The raw connection failure behind the endpoint pin's refused-connection
- * refusal: the pin answers `providerProbeUnreachable` with the fetch
- * failure as its cause. A refusal with no such cause (a failed DNS lookup,
- * a codeless local refusal) has no codes to name and keeps the fixed
- * sentence.
- */
+The raw connection failure behind the endpoint pin's refused-connection
+refusal: the pin answers `providerProbeUnreachable` with the fetch
+failure as its cause. A refusal with no such cause (a failed DNS lookup,
+a codeless local refusal) has no codes to name and keeps the fixed
+sentence.
+*/
 function pinRefusedCause(error: unknown): unknown {
   return error instanceof Error &&
     error.name === 'UserRefusalError' &&
@@ -614,11 +614,11 @@ function pinRefusedCause(error: unknown): unknown {
 }
 
 /**
- * The free check that proves a key works (D74): the preset's models list,
- * or its provider-key path where the list is public. Nothing is billed.
- * Azure's `paid-token` test has no free check and stays in the panel, where
- * its cost is asked first.
- */
+The free check that proves a key works (D74): the preset's models list,
+or its provider-key path where the list is public. Nothing is billed.
+Azure's `paid-token` test has no free check and stays in the panel, where
+its cost is asked first.
+*/
 type ProbeProviderSeamArgs = [
   fetch: typeof globalThis.fetch,
   provider: ResolvedProvider,
@@ -1129,10 +1129,10 @@ async function resolvedForAdd(
 }
 
 /**
- * The stored key behind a provider read: the key, or the line that says why
- * not. Silent reads (the models list) report nothing; the caller notes the
- * unreadable list instead.
- */
+The stored key behind a provider read: the key, or the line that says why
+not. Silent reads (the models list) report nothing; the caller notes the
+unreadable list instead.
+*/
 export async function storedProviderKey(
   deps: ProvidersDeps,
   provider: ResolvedProvider,

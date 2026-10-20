@@ -1,11 +1,7 @@
 // Reinterpret captured native metadata without discarding its JSON fields.
 // A field absent from a list stays unknown; a price never proves a feature.
 import * as z from 'zod/mini'
-import {
-  ANTHROPIC_MAX_IMAGE_BYTES,
-  IMAGE_MEDIA_TYPES,
-  MAX_IMAGE_BYTES,
-} from '../../shared/constants'
+import { ANTHROPIC_MAX_IMAGE_BYTES, IMAGE_MEDIA_TYPES } from '../../shared/constants'
 import type { CapabilityEvidence, CapabilityOverrides, CapabilitySource } from './capabilityRecord'
 
 export const nativeModelMetadataSchema = z.record(z.string(), z.json())
@@ -47,12 +43,12 @@ export function nativeCapabilityEvidence(
   const limits: NonNullable<CapabilityOverrides['limits']> = {}
   const modalities: NonNullable<CapabilityOverrides['modalities']> = {}
   const sampling: NonNullable<CapabilityOverrides['sampling']> = {}
-  // Native support is required. Research supplies Anthropic's provider bound;
-  // other providers retain the product's existing conservative image bound.
-  const imagePolicy = {
-    mimes: [...IMAGE_MEDIA_TYPES],
-    maxBytes: preset === 'anthropic' ? ANTHROPIC_MAX_IMAGE_BYTES : MAX_IMAGE_BYTES,
-  }
+  // Native support is required. Research supplies Anthropic's documented
+  // provider bound; other providers state no image byte bound here, so none
+  // is enforced locally for them (D121) — the provider's own refusal reaches
+  // the caller in words.
+  const imagePolicy: { mimes: string[]; maxBytes?: number } = { mimes: [...IMAGE_MEDIA_TYPES] }
+  if (preset === 'anthropic') imagePolicy.maxBytes = ANTHROPIC_MAX_IMAGE_BYTES
   const context =
     read(numeric, 'limit', 'context') ??
     read(numeric, 'context_length') ??

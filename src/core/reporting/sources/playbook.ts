@@ -41,8 +41,8 @@ function project(records: readonly PlaybookRecord[]): PlaybookView {
     id: state.module.id,
     key: state.module.key,
     strikes: state.strikes,
-    rounds: Array.from(state.counts, ([className, round]) => ({
-      class: className ?? null,
+    rounds: Array.from(state.counts, ([className = null, round]) => ({
+      class: className,
       round,
     })),
   })).toSorted(

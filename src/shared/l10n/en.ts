@@ -63,7 +63,7 @@ export const EN = {
   resourceDiskFree: 'Free Disk Space',
   resourceDiskWriteRefused: 'Cannot write to {volume}: critically low free disk space.',
   resourceDiskMinFreeGiBDescription:
-    'Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.',
+    'Free disk space floor in GiB. Unset means no floor; a set floor is at least 2 GiB.',
   resourceHistory: 'Resource History',
   resourceHarness: 'Harness Work',
   resourceCpuTime: 'CPU Time',
@@ -112,11 +112,11 @@ export const EN = {
   resourceGovernorDescription:
     'Keep this machine responsive by slowing or deferring work started by the harness. On by default.',
   resourceCpuMaxPercentDescription:
-    'Throttle when machine CPU use stays above this percentage for 30 seconds.',
+    'Throttle when machine CPU use stays above this percentage for 30 seconds. Unset means no CPU limit.',
   resourceMemoryMaxPercentDescription:
-    'Throttle when memory in use stays above this percentage for two samples.',
+    'Throttle when memory in use stays above this percentage for two samples. Unset means no memory-use limit.',
   resourceMemoryMinFreeGiBDescription:
-    'Minimum available memory in GiB, capped at 15% of this machine’s RAM.',
+    'Minimum available memory in GiB, capped at 15% of this machine’s RAM. Unset means no memory floor.',
   resourceGpuMaxPercentDescription: 'Optional GPU use limit in percent. Unset means no GPU probe.',
   resourceDiskBusyMaxPercentDescription:
     'Optional disk busy limit in percent. Unset means no disk probe.',
@@ -132,11 +132,12 @@ export const EN = {
   toolArgumentPreviewTruncated: 'Preview truncated.',
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
   toolArgumentPreviewPreparing: 'Preparing arguments…',
-  modelApiContinuing: 'The output limit was reached. Continuing once…',
-  modelApiContinuationLimit: 'The output limit was reached again. Send a message to continue.',
-  modelApiToolStuck:
-    'The turn stopped because the same tool call kept returning an unchanged result. Send a message to try another approach.',
-  structuredOutputRepair: 'The structured answer was invalid. Retrying once…',
+  modelApiContinuing: 'The output limit was reached. Continuing (part {count})…',
+  modelApiToolRepeating:
+    'The model is repeating the same {tool} call with an unchanged result ({count} in a row). The call runs again — Stop ends the turn.',
+  structuredOutputRepair:
+    'The structured answer was not valid. Repairing it again (repair {count})…',
+  structuredOutputRetry: 'The structured request failed. Trying again (attempt {count})…',
   structuredOutputFallback:
     'The structured answer could not be validated. Using the text fallback.',
   outputSchemaInvalid: 'The output schema is outside the supported strict subset: {detail}',
@@ -422,7 +423,7 @@ export const EN = {
       '--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)',
     verbose: '--verbose                        Log every detail on stderr',
     'questions-defer-after':
-      '--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600',
+      '--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600)',
     help: 'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
     version: 'Print the installed agent version.',
     cwd: 'Use this directory as the workspace.',
@@ -572,7 +573,7 @@ export const EN = {
   referenceQuestions:
     'Choose and Submit an answer, explain in your own words, or Cancel. Muse receives submitted answers and explanations in the conversation.',
   referenceQuestionsDeferral:
-    'Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer <n> <text> answers one.',
+    'Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (no limit unless you set one; 0, the default, waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer <n> <text> answers one.',
   referencePermissionLimits:
     'museCode:manual: Muse asks before running each command, unless a permission rule allows it; Muse Code edits workspace files without asking\nmuseCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking, and asks before running each command, unless a permission rule allows it\nmuseCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmuseCode:bypassPermissions: Muse will edit files and run commands without asking\nmodelApi:manual: Muse will ask for approval before each edit and each command\nmodelApi:acceptEdits: Muse will edit files without asking and ask before running commands\nmodelApi:plan: Muse will explore the code and present a plan before editing\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.',
   referenceElicitationTitle: 'MCP Elicitation',
@@ -682,8 +683,8 @@ export const EN = {
   playbookSafetyAlwaysOn: 'Safety checks always apply. This rule cannot be turned off.',
   playbookPatchRoundsLabel: 'Fix Rounds Before Redesign',
   playbookPatchRoundsHelp:
-    'The limit can be lowered. After it is reached, write a design decision and dispatch a redesign lane.',
-  playbookPatchRoundsInvalid: 'Choose one or two fix rounds; the ceiling cannot be raised.',
+    '0 means fix rounds continue until the work converges or you stop it. Set a number to require a design decision and a redesign lane after that many fix rounds.',
+  playbookPatchRoundsInvalid: 'Enter 0 for unlimited fix rounds, or a whole number of 1 or more.',
   playbookFallbackReviewer: 'Fallback reviewer for classifier-blocked reviews: {reviewer}',
   playbookFallbackNone: 'No fallback reviewer named',
   playbookResidualAccepted: 'Residual Accepted',
@@ -711,7 +712,7 @@ export const EN = {
   playbookSaved: 'Playbook settings saved.',
   playbookStrikeBadge: forms({ one: '{count} review round', other: '{count} review rounds' }),
   playbookRules: {
-    threeStrikes: 'Redesign After Three Strikes',
+    threeStrikes: 'Redesign After Fix Rounds',
     onePassReview: 'Review Every Class in One Pass',
     contractsFirst: 'Contracts and Prerequisites First',
     smallFirst: 'Small Work First, After Dependencies',
@@ -1144,8 +1145,6 @@ export const EN = {
     uploadFailed: 'Upload failed: {reason}',
     uploadExpired: 'The upload expired. Attach {name} again.',
     sourceChanged: '{name} changed since upload. Attach it again.',
-    attachedLimit:
-      'Too many video and audio attachments are in use. Wait for a reply to finish, then attach again.',
     uploadedFiles: 'Uploaded Files',
     filesOurs: 'Uploaded by This App',
     filesOtherApp: 'From Another App',
@@ -1165,6 +1164,7 @@ export const EN = {
     attachRecording: 'Attach Screen Recording…',
     attachLatestRecording: 'Attach Latest Screen Recording',
     recordingCountdown: 'Recording: {remaining} remaining',
+    recordingElapsed: 'Recording: {elapsed} elapsed',
     recordingMicrophone: 'Microphone',
     recordingSystemAudio: 'System Audio',
     recordingPreview: 'Preview Screen Recording',
@@ -2612,14 +2612,11 @@ export const EN = {
   slashNoMatches: 'No matching commands; Enter sends the text as it is',
   attachmentsLabel: 'Attachments',
   removeAttachment: 'Remove',
-  attachmentTooLarge: 'Images must be 10 MB or smaller.',
   modelAttachmentUnsupported: 'This model does not support this attachment.',
   providerCapabilityUnsupported: 'Selected model does not support these request settings.',
   modelAttachmentOverLimit: "This attachment exceeds the model's limits.",
   attachmentUnsupported: 'Only PNG, JPEG, GIF and WebP images can be attached.',
-  attachmentLimit: 'At most 20 files per message.',
   attachmentUnreadable: 'The file could not be read.',
-  documentTooLarge: 'PDFs must be 32 MB or smaller.',
   documentsOverBudget: 'Files must total at most 50 images and PDF pages per message.',
   olderMediaOmitted:
     'Older images or PDFs were left out of this request to stay within media limits. They remain in local history.',
@@ -2842,10 +2839,10 @@ export const EN = {
   /** A web fetch on the Model API backend (M69): {action} is the URL, shown as code. */
   approvalFetch: 'Muse wants to fetch {action}',
   /**
-   * A browser check on the Model API backend (M81): {action} is the URL. The
-   * second when its host is beyond loopback and the setting: allowing it
-   * widens the check to that host.
-   */
+  A browser check on the Model API backend (M81): {action} is the URL. The
+  second when its host is beyond loopback and the setting: allowing it
+  widens the check to that host.
+  */
   approvalBrowserCheck: 'Muse wants to open {action} in a headless browser',
   approvalBrowserCheckWiden:
     'Muse wants to open {action} in a headless browser, beyond this computer',
@@ -3067,6 +3064,7 @@ export const EN = {
   historyDeleteConfirmDetail: 'It leaves History for good. This cannot be undone.',
   historyDeleted: 'Deleted {name}',
   historyDeleteFailed: 'Could not delete the conversation',
+  historyDeleteCleanupFailed: 'Deleted {name}, but finishing the cleanup failed: {reason}',
   historyCurrent: 'Current',
   historyForkMark: 'Fork',
   historyTurns: forms({ one: '{count} turn', other: '{count} turns' }),
@@ -3387,7 +3385,7 @@ export const EN = {
   // TOOLCAP: a configured tool-output cap that cannot be honoured is refused
   // here, with the reason, and the default is used instead.
   toolResultCapRefused:
-    'The {source} tool-output cap of {value} is refused ({reason}); using the default of {fallback}.',
+    'The {source} tool-output cap of {value} is refused ({reason}); the result enters whole unless the model’s window share cuts it.',
   // TOOLCAP: the two reasons a configured tool-output cap is refused, each
   // its own translated sentence for the person reading the refusal above.
   toolResultCapBelowFloor: 'below the readable floor of {floor} bytes',
@@ -4449,6 +4447,43 @@ export const EN = {
   effortNotApplied: 'Reasoning effort could not be applied',
   permissionModeNotApplied: 'Could not apply the permission mode',
   permissionModeChangeFailed: 'Could not change the permission mode',
+  // {reason}: the reviewer's own refusal, such as a managed exclusion.
+  permissionReviewerNotInstalled:
+    'The permission mode was applied, but its reviewer could not be installed ({reason}). New turns are refused until the mode is set again.',
+  // The tear that kept a forward mode change's reviewer from being confirmed,
+  // as {reason} for the sentence above: the acknowledgement named the mode,
+  // so the mode is known and only the reviewer is missing.
+  permissionReviewerTornReason: 'the mode change tore while applying',
+  permissionReviewerMissing:
+    'New turns are refused: the permission reviewer could not be installed. Set the permission mode again to recover.',
+  // {mode}: the wire mode a later mode notice named while turns were
+  // refused. The notice installs and removes no reviewer (Plan and Bypass
+  // install none), so the sentence names that mode and says turns stay
+  // refused until the mode is set again, with no reviewer or tear words.
+  permissionModeChangedWhileQuarantined:
+    'The permission mode changed to {mode} while new turns were refused. New turns stay refused until the mode is set again.',
+  // {mode}: the previous wire mode the torn rollback restored. The profile
+  // never changed, so that mode's reviewer is still installed; the adoption
+  // itself could not be confirmed, so turns stay refused until a reset.
+  permissionReviewerRollbackTorn:
+    'The permission mode change tore while applying; the previous mode ({mode}) is restored and its reviewer is still installed, but the adoption could not be confirmed. New turns are refused until the mode is set again.',
+  // {mode}: the wire mode the host runs after a torn change (the
+  // acknowledged mode on a forward tear, the restored previous mode on a
+  // rollback's). The mode installs no reviewer (Plan, Bypass), so the tear
+  // must not claim one failed: the mode is in effect, only the adoption is
+  // unconfirmed, and turns stay refused until a reset.
+  permissionModeTornUnconfirmed:
+    'The permission mode change tore while applying; the host runs {mode} but the adoption could not be confirmed. New turns are refused until the mode is set again.',
+  permissionReviewerUnknown:
+    'The permission mode could not be changed and the mode the host runs is unknown. New turns are refused until the mode is set again.',
+  // {reason}: the refusal that stopped the change, in its own words.
+  permissionModeKept:
+    'The permission mode change did not take ({reason}); the host keeps running its mode.',
+  // {reason}: the refusal that stopped the restore, in its own words;
+  // {mode}: the wire mode the host still runs (the admission's, with its
+  // reviewer), because the conversation's mode never came back.
+  permissionRestoreRefused:
+    "The conversation's permission mode could not be put back ({reason}); the host still runs {mode}. New turns are refused until the mode is set again.",
   // {action}: the panel's id for a host command, such as `openSettings`.
   hostActionFailed: '{action} failed',
   backendListenerFailed:
@@ -4537,7 +4572,7 @@ export const EN = {
     '  --trust-workspace                Load the folder’s rules, skills and memory',
     '  --muse-binary <path>             The Muse Code CLI to run',
     '  --shell-sandbox auto|muse|off    Muse Code’s shell sandbox',
-    '  --questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600',
+    '  --questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600)',
     '  --allow-dangerously-skip-permissions  Offer the Bypass permissions mode',
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
@@ -4754,7 +4789,7 @@ export const EN = {
     other: 'At most {count} input files are allowed.',
   }),
   referenceTurnLimit:
-    'Model API turns default to 200 model calls. Existing caller request limits win. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.',
+    'No round count of ours ends a Model API turn: it runs until the model answers without a tool call, you press Stop, a hook stops it, the provider refuses it, or a limit you set is spent. A caller allowance still bounds its run: exec --max-requests, or a best-of-N attempt ceiling. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a capped turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.',
   modelApiWrapUpReserved:
     'The remaining request is reserved for the final answer. The image was not generated.',
   modelApiTurnLimit: forms({
@@ -5084,7 +5119,7 @@ export const EN = {
   paidScheduledName: 'Scheduled Prompts',
   paidSubagentsName: 'Subagents',
   paidSubagentRates:
-    '{model}: {input} input, {cached} cached input, {output} output per million tokens; up to {limit} requests per task, including retries.',
+    '{model}: {input} input, {cached} cached input, {output} output per million tokens; billed per request until the task ends or is stopped.',
   paidSubagentTaskTitle: 'Approve paid task for {role}?',
   paidSubagentTaskDetail:
     '{objective}\n\n{price}\n\nBilled to your Model API key. Actual cost depends on tokens used. Other enabled paid tools are charged separately. Allow once covers this task only.',
@@ -5360,8 +5395,6 @@ export const EN = {
   subagentConsentDeclined: 'The paid child task was not approved.',
   subagentContributorBlocked:
     'The custom agent names a contributor-tier model, which cannot run while this workspace is confidential (museSpark.confidentialWorkspace).',
-  subagentRequestLimit:
-    'The child task reached its approved limit of {limit} requests, including retries.',
   subagentKeyChanged:
     'The Model API key changed after approval. Approve a new child task to continue.',
   subagentModelChanged: 'The model changed after approval. Approve a new child task to continue.',

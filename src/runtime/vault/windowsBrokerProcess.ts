@@ -5,7 +5,7 @@ import { unlinkSync } from 'node:fs'
 import type * as z from 'zod/mini'
 import { VaultBrokerDiscovery, type VaultBrokerLocation } from '../../core/vault/broker/discovery'
 import { isVaultFileMissing, type VaultPrivateFilesPort } from '../../core/vault/broker/files'
-import type { VaultSecuredListenerPort } from '../../core/vault/broker/channel'
+import type { VaultSecuredListenerPort } from '../../core/vault/broker/ports'
 import { WindowsVaultPeerVerifier, type VaultPeerVerifier } from '../../core/vault/broker/peer'
 import {
   MILLISECONDS_PER_SECOND,
@@ -100,15 +100,25 @@ async function clearStaleWindowsBroker(
   }
 }
 
+/** The broker starts only on Windows, in absolute folders it can own. */
+function assertWindowsBrokerOptions(options: {
+  readonly runDirectory: string
+  readonly dataDir: string
+}): void {
+  if (process.platform !== 'win32') throw new Error(UI_TEXT.vault.noAccess)
+  if (!path.isAbsolute(options.runDirectory) || !path.isAbsolute(options.dataDir))
+    throw new Error(UI_TEXT.vault.noAccess)
+}
+
 /** One serve helper's live pipe, shared by the starter that owns it. */
 export type WindowsVaultBrokerServe = Awaited<ReturnType<typeof startWindowsPipeServe>>
 
 /**
- * Start (or adopt) the vault broker on Windows: one serve helper owns the
- * pipe and the owner-only files; the claim publishes the pipe name where
- * POSIX publishes the socket path. A racing starter loses the claim and its
- * child exits: discovery then finds the winner.
- */
+Start (or adopt) the vault broker on Windows: one serve helper owns the
+pipe and the owner-only files; the claim publishes the pipe name where
+POSIX publishes the socket path. A racing starter loses the claim and its
+child exits: discovery then finds the winner.
+*/
 export async function startWindowsVaultBrokerProcess(
   options: WindowsVaultBrokerProcessOptions,
 ): Promise<{
@@ -116,9 +126,7 @@ export async function startWindowsVaultBrokerProcess(
   close(): Promise<void>
   closed: Promise<void>
 }> {
-  if (process.platform !== 'win32') throw new Error(UI_TEXT.vault.noAccess)
-  if (!path.isAbsolute(options.runDirectory) || !path.isAbsolute(options.dataDir))
-    throw new Error(UI_TEXT.vault.noAccess)
+  assertWindowsBrokerOptions(options)
   const pipe = windowsVaultPipeName()
   const serve = await startWindowsPipeServe(options.pipeHelper, pipe)
   try {
@@ -134,10 +142,10 @@ export async function startWindowsVaultBrokerProcess(
 }
 
 /**
- * The broker on an already-serving pipe: the installed entry builds the
- * serve relay first (its platform feeds the bindings), then starts the
- * broker on it instead of serving twice.
- */
+The broker on an already-serving pipe: the installed entry builds the
+serve relay first (its platform feeds the bindings), then starts the
+broker on it instead of serving twice.
+*/
 export async function startWindowsVaultBrokerOnServe(
   options: WindowsVaultBrokerProcessOptions & {
     /** The serve helper's own file: the files port verifies integrity against it. */
@@ -149,9 +157,7 @@ export async function startWindowsVaultBrokerOnServe(
   close(): Promise<void>
   closed: Promise<void>
 }> {
-  if (process.platform !== 'win32') throw new Error(UI_TEXT.vault.noAccess)
-  if (!path.isAbsolute(options.runDirectory) || !path.isAbsolute(options.dataDir))
-    throw new Error(UI_TEXT.vault.noAccess)
+  assertWindowsBrokerOptions(options)
   const pipe = serve.relay.pipe
   if (pipe === null) throw new Error(UI_TEXT.vault.noAccess)
   const relay = serve.relay
@@ -213,15 +219,12 @@ export async function startWindowsVaultBrokerOnServe(
     // The empty-socket shutdown is an idle, never the startup budget:
     // the same 30 s the POSIX broker waits, so an unlocked broker never
     // drops seconds after listen on Windows while macOS and Linux wait.
+    // The interval only decides when an empty broker shuts down: the
+    // lock callback runs once, from close() below (as the POSIX broker
+    // runs its own from process shutdown), so a connected or unlocked
+    // broker is never locked from under itself on a tick.
     const idleMs = options.idleMs ?? VAULT_BROKER_EMPTY_IDLE_MS
     const interval = setInterval(() => {
-      void (async () => {
-        try {
-          await options.lock(lifecycle)
-        } catch {
-          /* A lock check never fails startup; the next round retries. */
-        }
-      })()
       if (lifecycle.isClosing || sockets.size > 0) lifecycle.emptySince = null
       else {
         if (lifecycle.emptySince === null) lifecycle.emptySince = Date.now()
@@ -246,15 +249,22 @@ export async function startWindowsVaultBrokerOnServe(
       const settlement = settlements[0]
       if (!settlement) throw new Error(UI_TEXT.vault.noAccess)
       try {
-        for (const socket of sockets) socket.destroy()
-        await channel.close()
+        // The lock-before-exit cleanup runs once, here: it cancels an
+        // in-progress setup and drops the in-memory unlock, the way the
+        // POSIX broker locks on process shutdown.
         try {
-          await claim.release()
-        } catch {
-          /* The claim is already gone; disposal still runs. */
+          await options.lock(lifecycle)
+        } finally {
+          for (const socket of sockets) socket.destroy()
+          await channel.close()
+          try {
+            await claim.release()
+          } catch {
+            /* The claim is already gone; disposal still runs. */
+          }
+          await options.dispose()
+          await serve.stop()
         }
-        await options.dispose()
-        await serve.stop()
       } finally {
         settlement.resolve()
       }

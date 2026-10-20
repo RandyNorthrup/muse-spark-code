@@ -52,7 +52,7 @@ export interface WindowsRecorderDeps {
   /** Direct spawn, argument array, credential-free environment, no shell. */
   readonly launch: (executable: string, args: readonly string[]) => WindowsRecorderProcess
   /** Reserves a unique, absent absolute path under the host's trusted temp root.
-   * The helper atomically creates it with an owner-only Windows DACL. */
+  The helper atomically creates it with an owner-only Windows DACL. */
   readonly reserveDirectory: () => Promise<string>
   /** Confines deletion to this reserved path; removes only our private copy. */
   readonly removeDirectory: (directory: string) => Promise<void>
@@ -65,7 +65,7 @@ export interface WindowsRecorderDeps {
 
 export interface WindowsScreenRecorder extends ScreenRecordingDriver {
   /** Copies the newest recent Snipping Tool mp4 into a private preview.
-   * Its original is never deleted, modified, or uploaded by this driver. */
+  Its original is never deleted, modified, or uploaded by this driver. */
   readonly attachLatest: () => Promise<ScreenRecordingResult>
 }
 
@@ -82,9 +82,9 @@ function unavailable(): string {
 }
 
 /**
- * Whether the removal failure is a lock a scanner may still hold: busy,
- * denied, or not yet empty. Anything else is not worth the bounded wait.
- */
+Whether the removal failure is a lock a scanner may still hold: busy,
+denied, or not yet empty. Anything else is not worth the bounded wait.
+*/
 function isRemoveRetriable(error: unknown): boolean {
   return (
     isErrno(error, 'EBUSY') ||
@@ -277,7 +277,20 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
           end(true)
           return
         }
+        // D121: maxSeconds 0 records until stopped — the tick then reports
+        // seconds recorded and nothing ends the run automatically.
+        const isUncapped = options.maxSeconds === 0
+        let elapsed = 0
         countdown = setInterval(() => {
+          if (isUncapped) {
+            elapsed += 1
+            try {
+              onCountdown(elapsed)
+            } catch {
+              end(true)
+            }
+            return
+          }
           remaining = Math.max(0, remaining - 1)
           try {
             onCountdown(remaining)
@@ -316,7 +329,7 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
             info.sizeBytes > deps.maxBytes ||
             info.durationSeconds === null ||
             (options !== undefined &&
-              (info.durationSeconds > options.maxSeconds ||
+              ((options.maxSeconds > 0 && info.durationSeconds > options.maxSeconds) ||
                 info.hasSoundtrack !== (options.microphone || options.systemAudio)))
             ? { ok: false, reason: unavailable() }
             : { ok: true, preview: { path: output, info, dispose } }

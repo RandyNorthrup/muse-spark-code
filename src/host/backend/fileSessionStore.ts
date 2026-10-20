@@ -134,12 +134,12 @@ async function withSessionWriter<T>(
 }
 
 /**
- * The header fields a listing validates (M101 BYO 16): the scalars the
- * history row needs, with the full schema's own field schemas (one source
- * for the constraints), plus the turn ids, whose items are never validated
- * here — only their count becomes the turn count. The replay and transcript
- * items themselves are never read.
- */
+The header fields a listing validates (M101 BYO 16): the scalars the
+history row needs, with the full schema's own field schemas (one source
+for the constraints), plus the turn ids, whose items are never validated
+here — only their count becomes the turn count. The replay and transcript
+items themselves are never read.
+*/
 const {
   version,
   sessionId,
@@ -247,19 +247,19 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
   }
 
   /**
-   * A file saved before the D121 legacy migration may hold an open
-   * reservation in its total (the old snapshot added it); rebuild the
-   * settled-only total from the legacy journal's seed plus settled claims
-   * (D121: a reservation is never spend). A claim the writer left open
-   * with a retained liability still counts that liability: fees its run
-   * incurred past the reservation, known before final token settlement.
-   * Runs once per file: new snapshots carry `spendSettledOnly`, so later
-   * loads skip the journal, and the save below lands the rebuild instead
-   * of merging onto the old total. Anything unreadable — including a
-   * claim row detached from its journal entry — keeps the stored total
-   * with a log line: a resume never fails for a best-effort migration,
-   * and a session without a journal keeps what its file holds.
-   */
+  A file saved before the D121 legacy migration may hold an open
+  reservation in its total (the old snapshot added it); rebuild the
+  settled-only total from the legacy journal's seed plus settled claims
+  (D121: a reservation is never spend). A claim the writer left open
+  with a retained liability still counts that liability: fees its run
+  incurred past the reservation, known before final token settlement.
+  Runs once per file: new snapshots carry `spendSettledOnly`, so later
+  loads skip the journal, and the save below lands the rebuild instead
+  of merging onto the old total. Anything unreadable — including a
+  claim row detached from its journal entry — keeps the stored total
+  with a log line: a resume never fails for a best-effort migration,
+  and a session without a journal keeps what its file holds.
+  */
   const migrateLegacySpend = async (session: StoredSession): Promise<StoredSession> => {
     if (session.budgetSpentUsd === undefined || session.spendSettledOnly === true) return session
     try {
@@ -339,12 +339,12 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
   }
 
   /**
-   * A session's header without its conversation (M101 BYO 16): listing
-   * parses the file's JSON once but validates only the header fields, so
-   * a history of large sessions lists without paying for every replay and
-   * transcript. A file whose header does not read is skipped with a log
-   * line, as before; the session itself is read whole when it is opened.
-   */
+  A session's header without its conversation (M101 BYO 16): listing
+  parses the file's JSON once but validates only the header fields, so
+  a history of large sessions lists without paying for every replay and
+  transcript. A file whose header does not read is skipped with a log
+  line, as before; the session itself is read whole when it is opened.
+  */
   const readHeader = async (name: string): Promise<StoredSessionHeader | undefined> => {
     const raw = await readRaw(name)
     if (raw === undefined) {
@@ -457,10 +457,10 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
   }
 
   /**
-   * TOOLCAP: the spill directory's entries, or undefined when there is
-   * nothing to sweep. A missing directory means no spills; any other failure
-   * is said, and never stops the store.
-   */
+  TOOLCAP: the spill directory's entries, or undefined when there is
+  nothing to sweep. A missing directory means no spills; any other failure
+  is said, and never stops the store.
+  */
   const listSpillDir = async (dir: string, blurb: string): Promise<string[] | undefined> => {
     try {
       return await readdir(dir)
@@ -472,9 +472,9 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
   }
 
   /**
-   * TOOLCAP: a session's spill files die with it. Failures are said (log),
-   * never swallowed; a missing spill directory means there is nothing to do.
-   */
+  TOOLCAP: a session's spill files die with it. Failures are said (log),
+  never swallowed; a missing spill directory means there is nothing to do.
+  */
   const removeSpillsForSession = async (
     workspaceRoot: string | undefined,
     sessionId: string,
@@ -505,10 +505,10 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
   }
 
   /**
-   * TOOLCAP: the spill age rule. Only spill-shaped files are ever removed;
-   * anything else in the directory is left alone. Failures are said, and a
-   * sweep that cannot list never stops the store.
-   */
+  TOOLCAP: the spill age rule. Only spill-shaped files are ever removed;
+  anything else in the directory is left alone. Failures are said, and a
+  sweep that cannot list never stops the store.
+  */
   const pruneStaleSpills = async (workspaceRoot: string): Promise<void> => {
     const dir = path.join(workspaceRoot, TOOL_RESULT_SPILL_DIR)
     const names = await listSpillDir(dir, 'Spill files could not be listed')

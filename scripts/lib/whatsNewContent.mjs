@@ -44,12 +44,12 @@ const SCHEMA_VERSION = 1
 // through the page's full-changelog link.
 const FULL_NOTES_RELEASES = 2
 /**
- * A released version, prereleases included. The writer classifies the
- * Markdown parser's own heading nodes with this (never raw lines, so a
- * fenced example or an indented heading cannot confuse it), and the
- * packager slices the parsed source ranges instead of matching headings
- * itself: one parser, never a second heading inventory.
- */
+A released version, prereleases included. The writer classifies the
+Markdown parser's own heading nodes with this (never raw lines, so a
+fenced example or an indented heading cannot confuse it), and the
+packager slices the parsed source ranges instead of matching headings
+itself: one parser, never a second heading inventory.
+*/
 const RELEASE_VERSION = String.raw`\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?`
 const RELEASE_HEADING = new RegExp(String.raw`^\[(${RELEASE_VERSION})\] - (\d{4}-\d{2}-\d{2})$`)
 const UNRELEASED_HEADING = '[Unreleased]'
@@ -280,21 +280,21 @@ function finishRelease(release, repository, allowed) {
 }
 
 /**
- * The released sections of a CHANGELOG, newest first as written.
- *
- * Each release carries its source range in a non-enumerable `range`: the
- * whole `## ` section, its LF/CRLF-terminated heading and its body, plus the `### Highlights`
- * subsection's offsets (heading line included) when it has one. The
- * returned array carries the same way a non-enumerable `unreleased`: the
- * `[Unreleased]` section's Highlights content offsets (bullets only), or
- * undefined when there is no such section. Both stay out of every JSON
- * envelope and artifact; the packager slices the parsed text by them
- * instead of inventorying headings a second time.
- *
- * @param {string} markdown CHANGELOG.md's text
- * @param {{ commands: Set<string>, settings: Set<string> }} allowed what a Try it may name
- * @param {string} repository the repository's web address, for relative links
- */
+The released sections of a CHANGELOG, newest first as written.
+
+Each release carries its source range in a non-enumerable `range`: the
+whole `## ` section, its LF/CRLF-terminated heading and its body, plus the `### Highlights`
+subsection's offsets (heading line included) when it has one. The
+returned array carries the same way a non-enumerable `unreleased`: the
+`[Unreleased]` section's Highlights content offsets (bullets only), or
+undefined when there is no such section. Both stay out of every JSON
+envelope and artifact; the packager slices the parsed text by them
+instead of inventorying headings a second time.
+
+@param {string} markdown CHANGELOG.md's text
+@param {{ commands: Set<string>, settings: Set<string> }} allowed what a Try it may name
+@param {string} repository the repository's web address, for relative links
+*/
 export function parseChangelog(markdown, allowed, repository) {
   if (/\r(?!\n)/.test(markdown)) {
     throw new Error('CHANGELOG.md: CR-only line endings are not supported; use LF or CRLF')
@@ -423,14 +423,14 @@ export function parseChangelog(markdown, allowed, repository) {
 }
 
 /**
- * The kinds of parts some release notes are made of: everything the page has
- * a layout for. The screenshots render a fixed fixture, not the real notes
- * (test/harness/whats-new/CHANGELOG.fixture.md); the fixture must hold every
- * kind the real notes use, which whatsNewFixture.test.mjs checks with this.
- *
- * @param {ReturnType<typeof parseChangelog>} releases
- * @returns {Set<string>}
- */
+The kinds of parts some release notes are made of: everything the page has
+a layout for. The screenshots render a fixed fixture, not the real notes
+(test/harness/whats-new/CHANGELOG.fixture.md); the fixture must hold every
+kind the real notes use, which whatsNewFixture.test.mjs checks with this.
+
+@param {ReturnType<typeof parseChangelog>} releases
+@returns {Set<string>}
+*/
 export function constructKinds(releases) {
   const kinds = new Set()
   const inline = (nodes) => {
@@ -473,11 +473,11 @@ export function constructKinds(releases) {
 }
 
 /**
- * Why a release cannot ship as written, or undefined (the changelog-version
- * test, M99): a minor or major release (patch 0) needs a Highlights list,
- * since it opens What's New, and no release being made has more than
- * MAX_HIGHLIGHTS of them.
- */
+Why a release cannot ship as written, or undefined (the changelog-version
+test, M99): a minor or major release (patch 0) needs a Highlights list,
+since it opens What's New, and no release being made has more than
+MAX_HIGHLIGHTS of them.
+*/
 export function highlightsProblem(releases, version) {
   const release = releases.find((entry) => entry.version === version)
   if (release === undefined) {
@@ -527,23 +527,23 @@ function highlightsOnly(release, href) {
 }
 
 /**
- * Enumerate complete plans, never provisional admissions (D79).
- *
- * Preference is lexicographic, newest first: full > Highlights + link >
- * omitted, then the next release. The newest is always full. The standing
- * fallback has only Highlights + link and omitted forms, and is needed
- * only when the retained window has no Highlights. Keeping it alone does
- * not set `shortened`; reducing a window entry or omitting a needed
- * fallback does. At most three releases and 27 complete plans.
- *
- * Every plan is measured with its final flag and the real encoder. All
- * feasible plans are considered in preference order; the first wins.
- * No feasible plan means a named refusal, never hiding the newest.
- *
- * @param {import('../../src/core/whatsNew/whatsNewContent').ReleaseNotes[]} allReleases parsed, newest first
- * @param {string} repository the repository's web address, for the full-notes links
- * @param {number} maxDecodeBytes the decoded bound the envelope must stay within
- */
+Enumerate complete plans, never provisional admissions (D79).
+
+Preference is lexicographic, newest first: full > Highlights + link >
+omitted, then the next release. The newest is always full. The standing
+fallback has only Highlights + link and omitted forms, and is needed
+only when the retained window has no Highlights. Keeping it alone does
+not set `shortened`; reducing a window entry or omitting a needed
+fallback does. At most three releases and 27 complete plans.
+
+Every plan is measured with its final flag and the real encoder. All
+feasible plans are considered in preference order; the first wins.
+No feasible plan means a named refusal, never hiding the newest.
+
+@param {import('../../src/core/whatsNew/whatsNewContent').ReleaseNotes[]} allReleases parsed, newest first
+@param {string} repository the repository's web address, for the full-notes links
+@param {number} maxDecodeBytes the decoded bound the envelope must stay within
+*/
 export function selectWhatsNewReleases(
   allReleases,
   repository,

@@ -21,13 +21,13 @@ export function sourceEvent(
 }
 
 /**
- * The one expected delivery failure: the host handed over a malformed
- * event or one meant for another source. The subscriber drops it and
- * counts the rejection. Anything else is a bug in the subscriber and
- * keeps its kind for the caller instead of reading as a rejected event.
- * A zod parse failure carries the `$ZodError` name; matching it by name
- * keeps zod's core out of this bundle (the bundle-split gate).
- */
+The one expected delivery failure: the host handed over a malformed
+event or one meant for another source. The subscriber drops it and
+counts the rejection. Anything else is a bug in the subscriber and
+keeps its kind for the caller instead of reading as a rejected event.
+A zod parse failure carries the `$ZodError` name; matching it by name
+keeps zod's core out of this bundle (the bundle-split gate).
+*/
 export function isRejectedDelivery(error: unknown): boolean {
   return (
     (error instanceof Error && error.name === '$ZodError') ||

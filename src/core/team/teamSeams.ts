@@ -8,10 +8,10 @@
 export type TeamAgentKind = 'engine' | 'musecode' | 'external'
 
 /**
- * One custom (non-Default) pool entry as the single-model check sees it.
- * Lane R (`teamConfig.ts`) owns the full entry; this is the projection the
- * declaration rule needs.
- */
+One custom (non-Default) pool entry as the single-model check sees it.
+Lane R (`teamConfig.ts`) owns the full entry; this is the projection the
+declaration rule needs.
+*/
 export interface TeamCustomEntryRef {
   /** Stable within the workspace team; used only to match probe results. */
   readonly entryId: string
@@ -25,12 +25,12 @@ export interface TeamCustomEntryRef {
 }
 
 /**
- * Everything `decideTeamConversationMode` needs, read where the conversation
- * starts. Lane R supplies the entries and `sameModel`; lane K the probe
- * results behind `isEntryReady`; lane A the paid `teamWorkers` gate behind
- * `teamWorkersOn`. The host reads each once per conversation start: no probe
- * runs on a conversation's path.
- */
+Everything `decideTeamConversationMode` needs, read where the conversation
+starts. Lane R supplies the entries and `sameModel`; lane K the probe
+results behind `isEntryReady`; lane A the paid `teamWorkers` gate behind
+`teamWorkersOn`. The host reads each once per conversation start: no probe
+runs on a conversation's path.
+*/
 export interface TeamDecisionSource {
   /** `museSpark.team`, on by default. */
   readonly teamSwitchOn: boolean
@@ -43,9 +43,9 @@ export interface TeamDecisionSource {
   /** Lane R's `sameModel`: model ids compared whatever serves them. */
   readonly isSameModel: (a: string, b: string) => boolean
   /**
-   * The entry's latest probe in this window showed its own model observably
-   * loaded (listed, served, or selected). Unknown entries are not ready.
-   */
+  The entry's latest probe in this window showed its own model observably
+  loaded (listed, served, or selected). Unknown entries are not ready.
+  */
   readonly isEntryReady: (entryId: string) => boolean
   /** Lane A's paid `teamWorkers`: key-billed tasks ask the D48 popup. */
   readonly teamWorkersOn: boolean
@@ -100,13 +100,13 @@ export interface TeamToolContext {
 }
 
 /**
- * The team runner lanes A (pools, admission), W (workers) and I (merge)
- * supply. Lane T declares the tools and refuses honestly without one: a
- * missing runner is an explicit error, never an empty success.
- * The runner enforces the batch approval, key consent, paid gates, limits and
- * merge approval before dispatching a worker or writing. Arguments arrive as
- * unknown: the runner validates its own input, as every JSON boundary does.
- */
+The team runner lanes A (pools, admission), W (workers) and I (merge)
+supply. Lane T declares the tools and refuses honestly without one: a
+missing runner is an explicit error, never an empty success.
+The runner enforces the batch approval, key consent, paid gates, limits and
+merge approval before dispatching a worker or writing. Arguments arrive as
+unknown: the runner validates its own input, as every JSON boundary does.
+*/
 export interface TeamToolRunner {
   /** Select and report the same task plan, without starting workers or buying requests. */
   readonly preview: (args: unknown, context: TeamToolContext) => Promise<TeamToolResult>

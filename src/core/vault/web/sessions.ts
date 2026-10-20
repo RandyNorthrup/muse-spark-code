@@ -126,8 +126,8 @@ export async function signInYourself(
 ): Promise<VaultItemMetadata> {
   try {
     return await captureSession(...args)
-  } catch {
-    throw new Error('useChanged')
+  } catch (error: unknown) {
+    throw new Error('useChanged', { cause: error })
   }
 }
 

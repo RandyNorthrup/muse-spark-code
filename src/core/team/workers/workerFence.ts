@@ -3,24 +3,25 @@ import type { MuseWorkerApprovalRequest, MuseWorkerApprovalAnswer } from './muse
 import type { AcpPermissionInput, AcpPermissionVerdict, AcpPreset, AcpPresetId } from './acpWorker'
 // One admission authority for every team worker (PLAN.md M96 W-F1-W-F3).
 // Names locate objects; only native identities establish containment.
-import { open, realpath } from 'node:fs/promises'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-import { handleIdentity } from '../../fs/fileIdentity'
-import { scrubWorkerEnv } from './workerEnv'
-import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
-import { homedir } from 'node:os'
-import { pathModule } from '../../workspaceRoot'
-import { windowsPathProblem } from '../../windowsPathSpelling'
 import type { RealPathIo } from '../../workspacePath'
-import { isProtectedPath } from '../../protectedPaths'
-import { isGlobMatch } from '../../backends/modelapi/globLimits'
-import { commandShape, looseWords, type ShellDialect } from '../../backends/modelapi/shellSyntax'
 import {
   WORKER_ACP_MAX_PERMISSION_PATHS,
   WORKER_FILE_PATH_TIMEOUT_MS,
 } from '../../../shared/constants'
 import type { WorkerRolePolicy } from './workerTypes'
+import { noWorkspaceChildEnvironment } from '../../execGuard'
+import { open, realpath } from 'node:fs/promises'
+import { realpathSync } from 'node:fs'
+import { handleIdentity } from '../../fs/fileIdentity'
+import { execFileGuarded } from '../../guardedChildProcess'
+import { scrubWorkerEnv } from './workerEnv'
+import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
+import { homedir } from 'node:os'
+import { pathModule } from '../../workspaceRoot'
+import { windowsPathProblem } from '../../windowsPathSpelling'
+import { isProtectedPath } from '../../protectedPaths'
+import { isGlobMatch } from '../../backends/modelapi/globLimits'
+import { commandShape, looseWords, type ShellDialect } from '../../backends/modelapi/shellSyntax'
 
 export interface WorkerFenceIo extends RealPathIo {
   /** Windows volume serial + file index; POSIX device + inode. Never a path string. */
@@ -48,17 +49,28 @@ async function openWorkerFile(absolute: string, isWrite: boolean): Promise<Worke
       if (process.platform === 'win32') final = await realpath(absolute)
       else if (process.platform === 'darwin') {
         // macOS fd paths are not symlinks; lsof reads the kernel's fd name.
-        const result = await promisify(execFile)(
-          '/usr/sbin/lsof',
-          ['-a', '-p', String(process.pid), '-d', String(handle.fd), '-Fn'],
-          {
-            timeout: WORKER_FILE_PATH_TIMEOUT_MS,
-            env: {
-              ...scrubWorkerEnv({ platform: process.platform, baseEnv: process.env }),
-              LC_CTYPE: 'en_US.UTF-8',
+        // Fixed `/usr/sbin/lsof`: absolute entries only, links followed.
+        const result = await new Promise<{ stdout: string }>((resolve, reject) => {
+          execFileGuarded(
+            '/usr/sbin/lsof',
+            ['-a', '-p', String(process.pid), '-d', String(handle.fd), '-Fn'],
+            {
+              timeout: WORKER_FILE_PATH_TIMEOUT_MS,
+              env: noWorkspaceChildEnvironment(
+                process.platform,
+                {
+                  ...scrubWorkerEnv({ platform: process.platform, baseEnv: process.env }),
+                  LC_CTYPE: 'en_US.UTF-8',
+                },
+                realpathSync,
+              ),
             },
-          },
-        )
+            (error, stdout) => {
+              if (error === null) resolve({ stdout })
+              else reject(error instanceof Error ? error : new Error('lsof failed'))
+            },
+          )
+        })
         const names = result.stdout.split('\n').filter((line) => line.startsWith('n'))
         if (names.length !== 1 || names[0] === undefined) throw new MuseWorkerFolderError()
         final = await realpath(names[0].slice(1))
@@ -475,13 +487,13 @@ const LIST_ONLY_FLAGS = new Set([
 const LIST_ONLY_SHORT = new Set(['-l', '-a', '-r', '-v', '-n'])
 
 /**
- * A worker's `git` argument list, refused at call admission. Every git
- * command that commits, merges, rebases, resets, checks out or switches,
- * moves or deletes a branch or tag, edits a ref, adds or removes a
- * worktree, stashes, reaches another repository, or smuggles configuration
- * (`-c credential.helper=…`, `--git-dir`, `-C <elsewhere>`) is refused.
- * Unknown subcommands are refused too: the guard is fail-closed.
- */
+A worker's `git` argument list, refused at call admission. Every git
+command that commits, merges, rebases, resets, checks out or switches,
+moves or deletes a branch or tag, edits a ref, adds or removes a
+worktree, stashes, reaches another repository, or smuggles configuration
+(`-c credential.helper=…`, `--git-dir`, `-C <elsewhere>`) is refused.
+Unknown subcommands are refused too: the guard is fail-closed.
+*/
 export function classifyWorkerGitCommand(args: readonly string[]): RefFenceVerdict {
   const words = [...args]
   const command = words.join(' ')
@@ -619,7 +631,7 @@ function isGitExecutable(word: string): boolean {
 }
 
 /** The tokenizer supplies only argv after the executable. Unknown Git
- * commands and program-running options refuse through this one classifier. */
+commands and program-running options refuse through this one classifier. */
 export function isRefMovingGitCommand(words: readonly string[]): boolean {
   const index = words.findIndex((word) => isGitExecutable(word))
   return index !== -1 && !classifyWorkerGitCommand(words.slice(index + 1)).allowed
@@ -758,9 +770,9 @@ export async function isWorkerCommandAllowed(
 }
 
 /**
- * Whether any run of the command line moves a ref: `looseWords` reads
- * wider than the shell, so a nested `$(git push)` is seen too.
- */
+Whether any run of the command line moves a ref: `looseWords` reads
+wider than the shell, so a nested `$(git push)` is seen too.
+*/
 export function hasRefMove(command: string, dialect: ShellDialect): boolean {
   const hasRefMoves = (text: string, depth: number): boolean =>
     looseWords(text, dialect).some(
@@ -773,14 +785,14 @@ export function hasRefMove(command: string, dialect: ShellDialect): boolean {
 
 const ACP_WRITE_KINDS: ReadonlySet<string> = new Set(['edit', 'delete', 'move'])
 /**
- * Answers a `session/request_permission` by the role's policy. Rejected
- * without asking: paths outside the working copy (links followed), an edit
- * outside `write-paths`, an `execute` for a role without the shell, a git
- * command the ref guard refuses, a `fetch` for a role without the network,
- * and for a `read-only` role any edit and any command off the read-only
- * list. Everything else becomes the user's card.
- * @unwired M96 ACP permission answer
- */
+Answers a `session/request_permission` by the role's policy. Rejected
+without asking: paths outside the working copy (links followed), an edit
+outside `write-paths`, an `execute` for a role without the shell, a git
+command the ref guard refuses, a `fetch` for a role without the network,
+and for a `read-only` role any edit and any command off the read-only
+list. Everything else becomes the user's card.
+@unwired M96 ACP permission answer
+*/
 export async function answerAcpPermission(
   input: AcpPermissionInput,
 ): Promise<AcpPermissionVerdict> {
@@ -893,11 +905,11 @@ export class MuseWorkerCapturePendingError extends Error {
 }
 
 /**
- * Switches a user's exclusive servers off for one session. Step 1 captures
- * whether `config.mcpServers` can override or switch off a user-configured
- * server of the same name; until it does, this throws rather than running
- * the worker beside a second copy of a singleton server.
- */
+Switches a user's exclusive servers off for one session. Step 1 captures
+whether `config.mcpServers` can override or switch off a user-configured
+server of the same name; until it does, this throws rather than running
+the worker beside a second copy of a singleton server.
+*/
 export function userServerExclusion(names: readonly string[]): void {
   if (names.length > 0) {
     throw new MuseWorkerCapturePendingError()

@@ -66,10 +66,10 @@ const textSchema = z.string()
 const labelsSchema = z.array(z.string())
 
 /**
- * One question's answer as the form asked for it, or undefined: a single
- * choice one of its options, free text (non-blank) only where it has none,
- * and a multiple choice distinct options, as many as it allows.
- */
+One question's answer as the form asked for it, or undefined: a single
+choice one of its options, free text (non-blank) only where it has none,
+and a multiple choice distinct options, as many as it allows.
+*/
 function answerOf(question: Question, value: unknown): QuestionAnswer | undefined {
   const labels = new Set(question.options.map((option) => option.label))
   if (question.selection.mode === MULTIPLE_SELECTION) {
@@ -102,10 +102,10 @@ function answerOf(question: Question, value: unknown): QuestionAnswer | undefine
 }
 
 /**
- * The form's answers as the backend takes them, or undefined when the form
- * was not accepted or any answer is not one the form allowed: the question
- * is then declined, and nothing is answered by a guess (D62).
- */
+The form's answers as the backend takes them, or undefined when the form
+was not accepted or any answer is not one the form allowed: the question
+is then declined, and nothing is answered by a guess (D62).
+*/
 export function formAnswers(
   questions: readonly Question[],
   raw: unknown,
@@ -205,10 +205,10 @@ function elicitationProperty(field: ElicitationField): ElicitationPropertySchema
 }
 
 /**
- * An MCP server's validated fields as the ACP client's `elicitation/create`
- * takes them, retaining every supported constraint. The session validates
- * the client's answer before it reaches the server.
- */
+An MCP server's validated fields as the ACP client's `elicitation/create`
+takes them, retaining every supported constraint. The session validates
+the client's answer before it reaches the server.
+*/
 export function elicitationSchema(fields: readonly ElicitationField[]): ElicitationSchema {
   return {
     type: 'object',

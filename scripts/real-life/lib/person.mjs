@@ -14,13 +14,13 @@ const MODEL_OPTION = 'model'
 const PERMISSION_KIND = { allow: 'allow_once', reject: 'reject_once' }
 
 /**
- * @param {object} cell
- * @param {import('./product.mjs').Product} cell.product
- * @param {object} cell.route the route as lib/routes.mjs gives it
- * @param {string} cell.workspace a new, empty folder
- * @param {string} cell.admitUsd the hard cap handed to each `exec` (the product reserves a request's worst case against it)
- * @param {string | undefined} cell.key the route's key, for a route that takes it on standard input
- */
+@param {object} cell
+@param {import('./product.mjs').Product} cell.product
+@param {object} cell.route the route as lib/routes.mjs gives it
+@param {string} cell.workspace a new, empty folder
+@param {string} cell.admitUsd the hard cap handed to each `exec` (the product reserves a request's worst case against it)
+@param {string | undefined} cell.key the route's key, for a route that takes it on standard input
+*/
 export function personFor(cell) {
   const { product, route, workspace } = cell
   const editors = []
@@ -89,10 +89,10 @@ export function personFor(cell) {
   }
 
   /**
-   * An amount the product printed, in millionths of a dollar. One it did not
-   * print is nothing; one the run cannot read is spend nobody knows, and is
-   * kept as the text it was (`made.unread`).
-   */
+  An amount the product printed, in millionths of a dollar. One it did not
+  print is nothing; one the run cannot read is spend nobody knows, and is
+  kept as the text it was (`made.unread`).
+  */
   function readUsd(text, what) {
     if (text === undefined || text === null) return 0
     const micro = microUsd(text)
@@ -102,10 +102,10 @@ export function personFor(cell) {
   }
 
   /**
-   * A turn on a route to Meta's own models: first what the product would
-   * run, asked with a budget under which nothing can be sent; the turn
-   * itself only when that is the route's model (lib/admission.mjs).
-   */
+  A turn on a route to Meta's own models: first what the product would
+  run, asked with a budget under which nothing can be sent; the turn
+  itself only when that is the route's model (lib/admission.mjs).
+  */
   async function execReadBack(prompt, options) {
     const asked = await execOnce(prompt, options, READ_BACK_USD)
     if (!isTurnedAwayUnsent(asked)) {
@@ -251,21 +251,21 @@ export function personFor(cell) {
     /** A word no model would say by itself: the prompt asks for it, the scenario looks for it. */
     marker: () => `RL-${randomBytes(4).toString('hex').toUpperCase()}`,
     /**
-     * An ordinary request no model has a reason to refuse, whose answer
-     * still proves it came from this turn: the reference code comes back.
-     * (A bare "reply with exactly this" was refused by one model as an
-     * order to print a token.)
-     */
+    An ordinary request no model has a reason to refuse, whose answer
+    still proves it came from this turn: the reference code comes back.
+    (A bare "reply with exactly this" was refused by one model as an
+    order to print a token.)
+    */
     connectionCheck: (code) =>
       `This is a connection check. Please confirm that you received this message by quoting its reference code back to me. The reference code is ${code}.`,
     command,
     exec,
     openEditor,
     /**
-     * The product's own usage records for this home, as `usage --json`
-     * prints them. An unreadable usage fails the scenario: it is spend
-     * nobody knows, never an empty reading.
-     */
+    The product's own usage records for this home, as `usage --json`
+    prints them. An unreadable usage fails the scenario: it is spend
+    nobody knows, never an empty reading.
+    */
     async usage() {
       const read = parseUsageOutput(await command(['usage', '--json']))
       if (!read.ok) throw new Error(`the usage could not be read: ${read.reason}`)

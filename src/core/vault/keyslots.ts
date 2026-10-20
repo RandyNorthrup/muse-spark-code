@@ -180,9 +180,11 @@ export function createRecoverySlot(
     }
     wrappingKey = recoveryKey(code, vaultId)
     return { code, slot: wrapSlot(key, wrappingKey, emptySlot(vaultId, clock, 'recovery', null)) }
-  } catch {
+  } catch (error: unknown) {
     code.fill(0)
-    throw new VaultError('invalid')
+    // A failed recovery wrap reads invalid; the failure rides along as the
+    // cause while the person keeps fixed words.
+    throw new VaultError('invalid', { cause: error })
   } finally {
     entropy.fill(0)
     wrappingKey?.fill(0)

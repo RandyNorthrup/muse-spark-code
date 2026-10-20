@@ -51,6 +51,13 @@ export function targetOfVsix(artifact) {
   return VSIX_TARGETS.find((known) => known === target)
 }
 
+// The release's published VSIX inventory: one artifact per target, no
+// universal package. The release receipt and verifier share this list, so
+// the packages job checks exactly what the release publishes.
+export function vsixReleaseAssets(name, version) {
+  return VSIX_TARGETS.map((target) => vsixArtifactName(name, version, target))
+}
+
 function platformOf(target) {
   return target.split('-', 1)[0]
 }
@@ -60,10 +67,10 @@ function archOf(target) {
 }
 
 /**
- * Whether the target's package keeps a repo-relative file. `file` is a
- * VSCE inventory path with any separator; comparison normalises to `/` so
- * the check holds on Windows checkouts too.
- */
+Whether the target's package keeps a repo-relative file. `file` is a
+VSCE inventory path with any separator; comparison normalises to `/` so
+the check holds on Windows checkouts too.
+*/
 export function isVsixTargetFile(target, file) {
   if (!VSIX_TARGETS.includes(target)) throw new Error(`Unknown VSIX target: ${target}`)
   const normalized = file.replaceAll('\\', '/')

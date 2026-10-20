@@ -29,10 +29,10 @@ const STORE_UNAVAILABLE =
   'No Model API key is available from the operating system credential store. Use muse-spark-code-acp auth set before enabling live tests.'
 
 /**
- * Reject the old transport without reading, echoing or deleting its value.
- * Only an enabled run starts processes the model steers, so only it refuses:
- * a stale variable must not fail the default test run, which collects these files.
- */
+Reject the old transport without reading, echoing or deleting its value.
+Only an enabled run starts processes the model steers, so only it refuses:
+a stale variable must not fail the default test run, which collects these files.
+*/
 export function assertNoLiveKeyEnvironment(env: NodeJS.ProcessEnv, isEnabled: boolean): void {
   if (isEnabled && Object.hasOwn(env, LEGACY_KEY_VARIABLE)) {
     throw new Error(
@@ -110,13 +110,13 @@ export interface LiveToolIoOptions {
 }
 
 /**
- * The tools' file and shell access for a live harness. A shell command the
- * model asks for is allowed without a person reading it, so it gets the
- * environment without any credential variable (`*_API_KEY` and the named
- * ones), as every process the ACP agent starts does: another provider's key
- * the owner keeps in his shell must not reach a tool's output, Meta or the
- * report.
- */
+The tools' file and shell access for a live harness. A shell command the
+model asks for is allowed without a person reading it, so it gets the
+environment without any credential variable (`*_API_KEY` and the named
+ones), as every process the ACP agent starts does: another provider's key
+the owner keeps in his shell must not reach a tool's output, Meta or the
+report.
+*/
 export function liveToolIo(options: LiveToolIoOptions): ToolIo {
   return createToolIo({
     platform: process.platform,
@@ -146,10 +146,10 @@ export interface LiveEvalSelection {
 }
 
 /**
- * What an enabled live run evaluates; an unknown task id stops it. Read only
- * inside the enabled test, never while the suite is skipped: a stale or
- * mistyped selection must not fail the default run, which collects this file.
- */
+What an enabled live run evaluates; an unknown task id stops it. Read only
+inside the enabled test, never while the suite is skipped: a stale or
+mistyped selection must not fail the default run, which collects this file.
+*/
 export function liveEvalSelection(env: NodeJS.ProcessEnv, isEnabled: boolean): LiveEvalSelection {
   if (!isEnabled) {
     throw new Error(NOT_ENABLED)
@@ -180,11 +180,11 @@ export function liveEvalSelection(env: NodeJS.ProcessEnv, isEnabled: boolean): L
 }
 
 /**
- * The long-output tasks on which an arm never sent a packed placeholder
- * (M73): a packing run that passes its floors without packing proves
- * nothing about packing, so its acceptance needs every one of them to have
- * packed. The arm missing from the report counts as never engaged.
- */
+The long-output tasks on which an arm never sent a packed placeholder
+(M73): a packing run that passes its floors without packing proves
+nothing about packing, so its acceptance needs every one of them to have
+packed. The arm missing from the report counts as never engaged.
+*/
 /** One arm's saved results; an arm missing from the report counts as never engaged. */
 function armResults(report: EvalReport, armName: string) {
   return report.arms.find((arm) => arm.name === armName)?.results ?? []
@@ -215,14 +215,14 @@ function engagementVerdict(
 }
 
 /**
- * The report with M73's packing acceptance recorded in it (PLAN.md M73):
- * the arm's engagement on the run's long-output tasks, and the verdict
- * `fail` when it never packed on one, whatever the floors say. A selection
- * with no long-output task holds nothing: a `pass` becomes `incomplete`,
- * never stays a pass for want of evidence. Applied before the report is
- * printed or written, so both artifacts say what the run's acceptance
- * decided.
- */
+The report with M73's packing acceptance recorded in it (PLAN.md M73):
+the arm's engagement on the run's long-output tasks, and the verdict
+`fail` when it never packed on one, whatever the floors say. A selection
+with no long-output task holds nothing: a `pass` becomes `incomplete`,
+never stays a pass for want of evidence. Applied before the report is
+printed or written, so both artifacts say what the run's acceptance
+decided.
+*/
 export function withPackingEngagement(
   report: EvalReport,
   armName: string,
@@ -248,15 +248,15 @@ export function withPackingEngagement(
 }
 
 /**
- * The long-context tasks on which the D78 admission settled no summary
- * for the arm (M101 lane E R2): "compaction engaged" means the runner's
- * accepted-history count reached at least one and its admission settled with no outstanding or unknown liability — more model
- * calls than the baseline is not evidence, in either direction. A shorter
- * continuation after a real summary still engaged; an extra tool round
- * without one never did. A task from before the settled count (absent) or
- * an arm missing from the report counts as never engaged. The baseline
- * arm missing from the report counts as never engaged.
- */
+The long-context tasks on which the D78 admission settled no summary
+for the arm (M101 lane E R2): "compaction engaged" means the runner's
+accepted-history count reached at least one and its admission settled with no outstanding or unknown liability — more model
+calls than the baseline is not evidence, in either direction. A shorter
+continuation after a real summary still engaged; an extra tool round
+without one never did. A task from before the settled count (absent) or
+an arm missing from the report counts as never engaged. The baseline
+arm missing from the report counts as never engaged.
+*/
 export function unengagedCompactionTasks(
   report: EvalReport,
   armName: string,
@@ -288,14 +288,14 @@ export function unengagedCompactionTasks(
 }
 
 /**
- * The selected tasks on which the strict-tools arm never proved strict
- * schemas (M101 lane E R6): a task engages only when it sent at least
- * one model call and every recorded request carried strict function
- * tools. A task with no recorded request, a request without strict
- * tools (as when a host regression drops
- * `modelFacts.supportsStrictTools`), or an arm missing from the report
- * counts as never engaged.
- */
+The selected tasks on which the strict-tools arm never proved strict
+schemas (M101 lane E R6): a task engages only when it sent at least
+one model call and every recorded request carried strict function
+tools. A task with no recorded request, a request without strict
+tools (as when a host regression drops
+`modelFacts.supportsStrictTools`), or an arm missing from the report
+counts as never engaged.
+*/
 export function unengagedStrictToolsTasks(
   report: EvalReport,
   armName: string,
@@ -311,15 +311,15 @@ export function unengagedStrictToolsTasks(
 }
 
 /**
- * The report with lane E's strict-tools acceptance recorded in it
- * (PLAN.md M101): the arm's engagement on the run's selected tasks.
- * Unlike packing and compaction, an unengaged run is `incomplete`,
- * never `fail` and never `pass`: without strict requests the run holds
- * no evidence about strict tools in either direction, so a passing
- * floor proves nothing and a failing floor keeps its own verdict.
- * Applied before the report is printed or written, so both artifacts
- * say what the run's acceptance decided.
- */
+The report with lane E's strict-tools acceptance recorded in it
+(PLAN.md M101): the arm's engagement on the run's selected tasks.
+Unlike packing and compaction, an unengaged run is `incomplete`,
+never `fail` and never `pass`: without strict requests the run holds
+no evidence about strict tools in either direction, so a passing
+floor proves nothing and a failing floor keeps its own verdict.
+Applied before the report is printed or written, so both artifacts
+say what the run's acceptance decided.
+*/
 export function withStrictToolsEngagement(
   report: EvalReport,
   armName: string,
@@ -349,14 +349,14 @@ export function withStrictToolsEngagement(
 }
 
 /**
- * The report with lane E's compaction acceptance recorded in it (PLAN.md
- * M101): the arm's engagement on the run's long-context tasks, and the
- * verdict `fail` when it settled no compaction on one, whatever the
- * floors say. A selection with no long-context task holds nothing: a
- * `pass` becomes `incomplete`, never stays a pass for want of evidence.
- * Applied before the report is printed or written, so both artifacts say
- * what the run's acceptance decided.
- */
+The report with lane E's compaction acceptance recorded in it (PLAN.md
+M101): the arm's engagement on the run's long-context tasks, and the
+verdict `fail` when it settled no compaction on one, whatever the
+floors say. A selection with no long-context task holds nothing: a
+`pass` becomes `incomplete`, never stays a pass for want of evidence.
+Applied before the report is printed or written, so both artifacts say
+what the run's acceptance decided.
+*/
 export function withCompactionEngagement(
   report: EvalReport,
   armName: string,

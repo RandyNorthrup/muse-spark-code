@@ -28,9 +28,9 @@ export interface SharingPortsDeps {
 }
 
 /**
- * The sharing ports' backend options: the documented empty-argv default, never
- * a literal command word (the strict parser treats `serve` as unknown).
- */
+The sharing ports' backend options: the documented empty-argv default, never
+a literal command word (the strict parser treats `serve` as unknown).
+*/
 export function defaultServeOptions(): ServeOptions {
   const parsed = parseCommandLine([])
   if (parsed.command !== 'serve') throw new Error(UI_TEXT.exportHistoryUnavailable)

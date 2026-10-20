@@ -1,6 +1,6 @@
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import * as z from 'zod/mini'
 import {
   REPORT_NETWORK_MAX_BYTES,
@@ -47,18 +47,18 @@ const GITHUB_API_HOST = new URL(GITHUB_API_BASE_URL).hostname
 const NPM_REGISTRY_HOST = LEGAL_REGISTRY_HOSTS.npm
 
 /**
- * Production transport composition (RVCM1136 P1, RVCM1136B P1): one
- * transport behind the reader, routed by host. `api.github.com` keeps the
- * surface's own lane — the editor's credential-owning fetch, or the CLI/ACP
- * `gh` child process — so GitHub traffic never leaves its lane (the GitHub
- * sweep: its binding is unchanged, only addressed) and the editor Bearer [REDACTED]
- * never reaches a gallery. The public store hosts (npm plus both galleries
- * the production binding binds) ride the credential-free public fetch, under
- * the same policy and egress consent the reader already enforces before any
- * transport runs. The reader's own allow-list, gallery-POST rule and size
- * bounds still apply first; any other host is refused, exactly as the `gh`
- * lane refused it before.
- */
+Production transport composition (RVCM1136 P1, RVCM1136B P1): one
+transport behind the reader, routed by host. `api.github.com` keeps the
+surface's own lane — the editor's credential-owning fetch, or the CLI/ACP
+`gh` child process — so GitHub traffic never leaves its lane (the GitHub
+sweep: its binding is unchanged, only addressed) and the editor Bearer [REDACTED]
+never reaches a gallery. The public store hosts (npm plus both galleries
+the production binding binds) ride the credential-free public fetch, under
+the same policy and egress consent the reader already enforces before any
+transport runs. The reader's own allow-list, gallery-POST rule and size
+bounds still apply first; any other host is refused, exactly as the `gh`
+lane refused it before.
+*/
 export function routeReportTransport(
   github: ReportNetworkTransport,
   fetchPublic: typeof fetch = (input, init) => globalThis.fetch(input, init),
@@ -127,21 +127,21 @@ export function reportingResponseCache(storageRoot: string): ReportResponseCache
 }
 
 /**
- * CLI uses gh's own identity; editors inject their credential-owning HTTPS
- * transport. Without a workspace project the stores source stays unbound, as
- * before; with one, every channel reads through its captured adapter
- * (Marketplace, Open VSX, npm) and GitHub reads workflow runs and releases
- * through the captured port. A private manifest's npm row refuses with
- * `npm-private-manifest` (the manifest publishes no npm package under its
- * own name); uncaptured shapes refuse with their own reasons.
- */
+CLI uses gh's own identity; editors inject their credential-owning HTTPS
+transport. Without a workspace project the stores source stays unbound, as
+before; with one, every channel reads through its captured adapter
+(Marketplace, Open VSX, npm) and GitHub reads workflow runs and releases
+through the captured port. A private manifest's npm row refuses with
+`npm-private-manifest` (the manifest publishes no npm package under its
+own name); uncaptured shapes refuse with their own reasons.
+*/
 /**
- * The captured channel adapters for one workspace identity, mirroring the
- * source's own channel applicability: the gallery channels only for an
- * extension identity (publisher plus `engines.vscode`), the npm channel
- * always (the source itself refuses it for a private manifest, whose
- * published name it cannot know without hard-coding one).
- */
+The captured channel adapters for one workspace identity, mirroring the
+source's own channel applicability: the gallery channels only for an
+extension identity (publisher plus `engines.vscode`), the npm channel
+always (the source itself refuses it for a private manifest, whose
+published name it cannot know without hard-coding one).
+*/
 function storeAdapters(project: ReportStoreProject): ReportStoreAdapter[] {
   const adapters: ReportStoreAdapter[] = [npmStoreAdapter(project.name)]
   if (
@@ -170,10 +170,12 @@ export function createReportingNetwork(
         ghReportTransport({
           environment: process.env,
           maxBytes: REPORT_NETWORK_MAX_BYTES,
+          workspaceRoot: context.workspaceRoot,
           probe: {
             platform: process.platform,
             pathVariable: process.env['PATH'] ?? process.env['Path'],
             fileExists: existsSync,
+            scope: { workspaceRoot: context.workspaceRoot, realpath: realpathSync },
           },
         }),
       context.fetchPublic,

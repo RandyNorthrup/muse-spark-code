@@ -57,11 +57,11 @@ type HunkPlace =
   { readonly ok: true; readonly start: number } | { readonly ok: false; readonly reason: string }
 
 /**
- * Where the hunk's "new" side is in `lines`, `predicted` being at or after
- * `cursor`: at `predicted` when it is there, else at its one exact
- * occurrence at or after `cursor`. A side with no lines (a deletion with no
- * context) matches at `predicted` by definition, so it is never searched for.
- */
+Where the hunk's "new" side is in `lines`, `predicted` being at or after
+`cursor`: at `predicted` when it is there, else at its one exact
+occurrence at or after `cursor`. A side with no lines (a deletion with no
+context) matches at `predicted` by definition, so it is never searched for.
+*/
 function placeOf(
   lines: readonly string[],
   expected: readonly string[],
@@ -104,16 +104,16 @@ function isWholeFileAdd(hunks: readonly PatchHunk[]): boolean {
 }
 
 /**
- * Reverse-applies `hunks` (ordered, non-overlapping, as the CLI stores them)
- * to `currentText`. `newStart` is 1-based; a hunk with `newStart` 0 and no
- * "new" side means the file was deleted, which is not an edit this handles.
- *
- * `isCreated` is the patch's own word that the edit created the file (the
- * Model API's tools give it); without it a whole-file add stands in (Muse
- * Code's documents). Either way the file counts as created only when
- * nothing is left once the edit is taken out (PLAN.md D27): lines the user
- * added since are written back, never trashed with it.
- */
+Reverse-applies `hunks` (ordered, non-overlapping, as the CLI stores them)
+to `currentText`. `newStart` is 1-based; a hunk with `newStart` 0 and no
+"new" side means the file was deleted, which is not an edit this handles.
+
+`isCreated` is the patch's own word that the edit created the file (the
+Model API's tools give it); without it a whole-file add stands in (Muse
+Code's documents). Either way the file counts as created only when
+nothing is left once the edit is taken out (PLAN.md D27): lines the user
+added since are written back, never trashed with it.
+*/
 export function revertHunks(
   currentText: string,
   hunks: readonly PatchHunk[],

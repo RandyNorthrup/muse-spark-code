@@ -21,10 +21,10 @@ export interface SlotChildProcess extends SlotChildErrorSource {
 }
 
 /**
- * Fail the exchange on caller abort, child error or stdin error. The caller
- * stops this by settling: there is no timer here (the Windows screen-lock
- * probe must not time out).
- */
+Fail the exchange on caller abort, child error or stdin error. The caller
+stops this by settling: there is no timer here (the Windows screen-lock
+probe must not time out).
+*/
 export function watchSlotChildErrors(
   child: SlotChildProcess,
   signal: AbortSignal | undefined,
@@ -36,10 +36,10 @@ export function watchSlotChildErrors(
 }
 
 /**
- * Collect one stdout chunk, erasing it and failing closed past the limit.
- * Returns the size to keep: unchanged on overflow, since the exchange is
- * already failed.
- */
+Collect one stdout chunk, erasing it and failing closed past the limit.
+Returns the size to keep: unchanged on overflow, since the exchange is
+already failed.
+*/
 export function collectSlotChunk(
   chunks: Buffer[],
   size: number,

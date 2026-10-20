@@ -132,9 +132,9 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
   }
 
   /**
-   * The one protected record, as text. Overridden by the file anchor, which
-   * keeps the same record and the same rollback rules without the OS store.
-   */
+  The one protected record, as text. Overridden by the file anchor, which
+  keeps the same record and the same rollback rules without the OS store.
+  */
   protected async readRaw(): Promise<string | null | undefined> {
     try {
       return await storeOperation(() =>

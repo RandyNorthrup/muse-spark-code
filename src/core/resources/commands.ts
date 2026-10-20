@@ -1,21 +1,22 @@
 import type { ExecFileOptionsWithStringEncoding } from 'node:child_process'
-import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
-import { resolveExecutable, workspaceChildEnvironment } from '../executables'
-import { environmentValue } from '../childEnvironment'
-import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
-import { spawnResourceProcess } from './process'
 import {
   ResourceCapRefusedError,
   ResourceMemoryLimitError,
   type ResourceHandoffUntil,
 } from './launch'
+import { type GuardedChildEnv } from '../executables'
+import { isWorkspacePath, resolveExecutable, workspaceChildEnvironment } from '../execGuard'
+import { environmentValue } from '../execGuard'
+import { existsSync, realpathSync } from 'node:fs'
+import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
+import { spawnResourceProcess } from './process'
 
 /**
- * The workspace a governed child runs in: product lookups (`xdg-open`,
- * `open`, `rundll32.exe`, the governed probes) never resolve to a file
- * inside it, and the child's PATH is the guarded child PATH for it.
- */
+The workspace a governed child runs in: product lookups (`xdg-open`,
+`open`, `rundll32.exe`, the governed probes) never resolve to a file
+inside it, and the child's PATH is the guarded child PATH for it.
+*/
 export interface GovernedWorkspace {
   readonly workspaceRoot: string
 }
@@ -25,21 +26,28 @@ function resolveCommand(
   env: NodeJS.ProcessEnv,
   workspace: GovernedWorkspace,
 ): string {
-  const file = path.isAbsolute(command)
-    ? command
-    : resolveExecutable(command, {
-        platform: process.platform,
-        pathVariable: environmentValue(env, process.platform, 'PATH'),
-        fileExists: existsSync,
-        workspaceRoot: workspace.workspaceRoot,
-        realpath: realpathSync,
-      })
+  const scope = { workspaceRoot: workspace.workspaceRoot, realpath: realpathSync }
+  if (path.isAbsolute(command)) {
+    // An absolute configured path inside the workspace is refused like a
+    // bare name there: a planted absolute `gh` must not run with the
+    // person's login when a report reads GitHub.
+    if (isWorkspacePath(process.platform, scope, command))
+      throw new Error('Governed command unavailable')
+    if (!existsSync(command)) throw new Error('Governed command unavailable')
+    return command
+  }
+  const file = resolveExecutable(command, {
+    platform: process.platform,
+    pathVariable: environmentValue(env, process.platform, 'PATH'),
+    fileExists: existsSync,
+    scope,
+  })
   if (file === undefined || !existsSync(file)) throw new Error('Governed command unavailable')
   return file
 }
 
 /** The child's environment: the guarded child PATH for its workspace. */
-function childEnvironment(env: NodeJS.ProcessEnv, workspace: GovernedWorkspace): NodeJS.ProcessEnv {
+function childEnvironment(env: NodeJS.ProcessEnv, workspace: GovernedWorkspace): GuardedChildEnv {
   return workspaceChildEnvironment(process.platform, env, {
     workspaceRoot: workspace.workspaceRoot,
     realpath: realpathSync,
@@ -47,12 +55,12 @@ function childEnvironment(env: NodeJS.ProcessEnv, workspace: GovernedWorkspace):
 }
 
 /**
- * Hand a URL, file or text to a fixed OS adapter (opener, clipboard). Waits for
- * the adapter's own exit inside RESOURCE_HANDOFF_TIMEOUT_MS; one still running
- * then is detached and counts as launched. Never waits for, or stops, what the
- * OS started for the user. `until: 'spawn'` is for a foreground handler
- * (xdg-open), launched once started; it takes no input.
- */
+Hand a URL, file or text to a fixed OS adapter (opener, clipboard). Waits for
+the adapter's own exit inside RESOURCE_HANDOFF_TIMEOUT_MS; one still running
+then is detached and counts as launched. Never waits for, or stops, what the
+OS started for the user. `until: 'spawn'` is for a foreground handler
+(xdg-open), launched once started; it takes no input.
+*/
 export async function handoffResourceFile(
   command: string,
   args: readonly string[],
@@ -62,9 +70,9 @@ export async function handoffResourceFile(
     signal?: AbortSignal
     readonly until?: ResourceHandoffUntil
     /**
-     * The workspace the child runs in (guards its lookup and PATH).
-     * Defaults to the spawn's own working directory, else this process's.
-     */
+    The workspace the child runs in (guards its lookup and PATH).
+    Defaults to the spawn's own working directory, else this process's.
+    */
     readonly workspaceRoot?: string | undefined
   },
 ): Promise<void> {
@@ -103,9 +111,9 @@ export async function execResourceFile(
   args: readonly string[],
   options: ExecFileOptionsWithStringEncoding & {
     /**
-     * The workspace the child runs in (guards its lookup and PATH).
-     * Defaults to the spawn's own working directory, else this process's.
-     */
+    The workspace the child runs in (guards its lookup and PATH).
+    Defaults to the spawn's own working directory, else this process's.
+    */
     readonly workspaceRoot?: string | undefined
   },
 ): Promise<{ stdout: string; stderr: string }> {

@@ -55,10 +55,10 @@ export function scrubSecretSubject(subject: ApprovalSubject): ApprovalSubject {
 }
 
 /**
- * The choices with no standing approve left (a non-once approve would
- * auto-allow the secret command later) and display text redacted. The abort
- * and allow-once choices never name the command.
- */
+The choices with no standing approve left (a non-once approve would
+auto-allow the secret command later) and display text redacted. The abort
+and allow-once choices never name the command.
+*/
 export function scrubSecretChoices(choices: readonly ApprovalChoice[]): ApprovalChoice[] {
   return choices
     .filter(
@@ -75,10 +75,10 @@ export function scrubSecretChoices(choices: readonly ApprovalChoice[]): Approval
 type ApprovalCard = Extract<AgentEvent, { type: 'approvalRequested' | 'approvalUpdated' }>
 
 /**
- * The card the panel may show: the value redacted, a secret note, and no
- * standing approve choice. Cards without a shell secret come back as they
- * were. The note replaces any quieter reason: the secret is what matters.
- */
+The card the panel may show: the value redacted, a secret note, and no
+standing approve choice. Cards without a shell secret come back as they
+were. The note replaces any quieter reason: the secret is what matters.
+*/
 export function scrubSecretApproval<T extends ApprovalCard>(event: T): T {
   if (!hasApprovalSecret(event.subject)) {
     return event

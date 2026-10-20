@@ -153,10 +153,10 @@ function fileErrorCode(error: unknown): unknown {
   return error instanceof Error && 'code' in error ? error.code : undefined
 }
 /**
- * The catch-gate-visible form of the expected file-lock condition: `is`-named
- * so the inventory reads it as the one handled case, with exactly the same
- * answer as the code-list check on every input.
- */
+The catch-gate-visible form of the expected file-lock condition: `is`-named
+so the inventory reads it as the one handled case, with exactly the same
+answer as the code-list check on every input.
+*/
 function isFileErrorCode(error: unknown, ...codes: readonly string[]): boolean {
   return codes.includes(String(fileErrorCode(error)))
 }
@@ -261,10 +261,10 @@ async function withFileLock<T>(
 }
 
 /**
- * The grant's SecretStorage calls. A refusal is the editor's credential
- * store and is said as such: the sign-in core's guard would otherwise report
- * any foreign error as a temporary ChatGPT failure (F14).
- */
+The grant's SecretStorage calls. A refusal is the editor's credential
+store and is said as such: the sign-in core's guard would otherwise report
+any foreign error as a temporary ChatGPT failure (F14).
+*/
 async function grantStore<T>(work: () => Thenable<T>): Promise<T> {
   try {
     return await work()

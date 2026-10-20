@@ -16,11 +16,11 @@ export type MessageSource = Pick<Window, 'addEventListener' | 'removeEventListen
 
 export interface HostBridge {
   /**
-   * Posts to the host. The chat panel's messages and the Models & Agents
-   * panel's (M95) share this bridge; each side validates what it receives.
-   * The panel's vault section (C-M109-1 P1) posts the vault's own messages
-   * over the same bridge; the host routes them to the vault binding.
-   */
+  Posts to the host. The chat panel's messages and the Models & Agents
+  panel's (M95) share this bridge; each side validates what it receives.
+  The panel's vault section (C-M109-1 P1) posts the vault's own messages
+  over the same bridge; the host routes them to the vault binding.
+  */
   post(
     message:
       WebviewToHostMessage | PanelToHostMessage | UsagePageToServiceMessage | VaultClientMessage,

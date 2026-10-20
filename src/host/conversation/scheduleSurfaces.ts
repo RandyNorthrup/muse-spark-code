@@ -47,10 +47,10 @@ export interface ScheduleSnapshot {
     error?: unknown,
   ) => void
   /**
-   * Reports a surfaced failure exactly as an error notice does (the person
-   * sees the same text; the host log keeps the redacted failure). Named
-   * `report` so the catch gate recognises the error sink.
-   */
+  Reports a surfaced failure exactly as an error notice does (the person
+  sees the same text; the host log keeps the redacted failure). Named
+  `report` so the catch gate recognises the error sink.
+  */
   readonly report: (text: string, error: unknown) => void
   readonly post: (message: HostToWebviewMessage) => void
   readonly attach: (session: BackendSession, backend: BackendKind) => Promise<void>

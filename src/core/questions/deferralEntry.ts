@@ -28,7 +28,9 @@ export async function deferMuseQuestions(
   })
   try {
     await session.clarifyQuestions(userInputId, text)
-    await withDeadline(settled, timeoutMs, timeoutText)
+    // D121: no deadline of ours — 0 waits for the answer until it settles.
+    if (timeoutMs > 0) await withDeadline(settled, timeoutMs, timeoutText)
+    else await settled
   } catch (error: unknown) {
     if (isPromptSettledError(error)) unmark()
     throw error

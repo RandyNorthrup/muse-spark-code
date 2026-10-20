@@ -50,9 +50,9 @@ export class SurfaceRegistry {
   }
 
   /**
-   * Observe the active surface changing (M46): the keybindings' context keys
-   * follow the conversation the user is looking at.
-   */
+  Observe the active surface changing (M46): the keybindings' context keys
+  follow the conversation the user is looking at.
+  */
   public onActiveChanged(listener: () => void): vscode.Disposable {
     this.activeListeners.add(listener)
     return {

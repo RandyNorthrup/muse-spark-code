@@ -48,12 +48,12 @@ export function isTeamGitError(value: unknown): value is TeamGitError {
 }
 
 /**
- * One git command's stdout as bytes (binary-safe for blobs); rejects with
- * `TeamGitError` on a non-zero exit. The host adapts its git process to
- * this; tests run real git through `execFile`. The adapter MUST honour an
- * explicit environment: automatic worker-copy calls supply credential-free
- * `workerEnvironment`, never the host's inherited environment.
- */
+One git command's stdout as bytes (binary-safe for blobs); rejects with
+`TeamGitError` on a non-zero exit. The host adapts its git process to
+this; tests run real git through `execFile`. The adapter MUST honour an
+explicit environment: automatic worker-copy calls supply credential-free
+`workerEnvironment`, never the host's inherited environment.
+*/
 export type TeamGit = (
   args: readonly string[],
   cwd: string,
@@ -243,13 +243,13 @@ async function revParse(runGit: TeamGit, repo: string, rev: string): Promise<str
 }
 
 /**
- * The base commit: the orchestrator's `HEAD` when the working tree is
- * clean, else a commit made from the current tree with `HEAD` as its
- * parent (`git commit-tree` through a private index, which writes no user ref), so the
- * worker sees the uncommitted work. Nothing is committed to the user's
- * branch either way.
- * @unwired M96 team base commit resolver
- */
+The base commit: the orchestrator's `HEAD` when the working tree is
+clean, else a commit made from the current tree with `HEAD` as its
+parent (`git commit-tree` through a private index, which writes no user ref), so the
+worker sees the uncommitted work. Nothing is committed to the user's
+branch either way.
+@unwired M96 team base commit resolver
+*/
 export async function resolveBaseCommit(runGit: TeamGit, repositoryRoot: string): Promise<string> {
   const status = await runGit(
     ['--no-optional-locks', 'status', '--porcelain=v1', '-z', '--untracked-files=normal'],
@@ -349,15 +349,15 @@ async function removeRemote(runGit: TeamGit, folder: string): Promise<void> {
 }
 
 /**
- * Start a task's workspace. `own-branch` gets its own shared clone (objects
- * borrowed from the user's repository, refs of its own, no remote) on
- * `agents/<role>/<task-id>` from the base, and the extension writes that
- * same ref into the user's repository so Review diff and git tools see it.
- * Every `read-only` worker gets a scratch copy instead (detached, no
- * `agents/` ref: there is nothing to merge). `in-place` runs in the user's
- * tree; its lock is lane T's.
- * @unwired M96 team workspace starter
- */
+Start a task's workspace. `own-branch` gets its own shared clone (objects
+borrowed from the user's repository, refs of its own, no remote) on
+`agents/<role>/<task-id>` from the base, and the extension writes that
+same ref into the user's repository so Review diff and git tools see it.
+Every `read-only` worker gets a scratch copy instead (detached, no
+`agents/` ref: there is nothing to merge). `in-place` runs in the user's
+tree; its lock is lane T's.
+@unwired M96 team workspace starter
+*/
 export async function startTeamWorkspace(
   runGit: TeamGit,
   storageRoot: string,
@@ -409,12 +409,12 @@ export function teamCommitSubject(role: string, taskId: string, entryId: string)
 }
 
 /**
- * The end-of-task commit: the working copy's state on the clone's branch,
- * as one commit naming the role, the entry and the task. The worker never
- * commits; the extension does. Returns the branch head (the base when
- * nothing changed, without an empty commit).
- * @unwired M96 task branch committer
- */
+The end-of-task commit: the working copy's state on the clone's branch,
+as one commit naming the role, the entry and the task. The worker never
+commits; the extension does. Returns the branch head (the base when
+nothing changed, without an empty commit).
+@unwired M96 task branch committer
+*/
 export async function commitTaskBranch(
   runGit: TeamGit,
   folder: string,
@@ -464,8 +464,8 @@ async function readAgentsRef(
 }
 
 /** Import objects without updating a ref, then publish with Git's atomic CAS.
- * @unwired M96 task ref publisher
- */
+@unwired M96 task ref publisher
+*/
 export async function publishTaskRef(
   runGit: TeamGit,
   repositoryRoot: string,
@@ -559,11 +559,11 @@ async function validateTeamFolder(storageRoot: string, folder: string): Promise<
 }
 
 /**
- * Cleanup: the working copy is removed when its task is merged or
- * discarded, and the branch goes with it. A finished task that is neither
- * keeps both until the user acts: this function is only called for merge
- * or discard.
- */
+Cleanup: the working copy is removed when its task is merged or
+discarded, and the branch goes with it. A finished task that is neither
+keeps both until the user acts: this function is only called for merge
+or discard.
+*/
 export async function removeTeamWorkspace(
   runGit: TeamGit,
   repositoryRoot: string,
@@ -636,10 +636,10 @@ export function parseScratchStatus(porcelain: Uint8Array): readonly string[] {
 }
 
 /**
- * A read-only worker's change found in its scratch copy fails the task:
- * any change or new file there is a breach of its role.
- * @unwired M96 scratch-copy breach scanner
- */
+A read-only worker's change found in its scratch copy fails the task:
+any change or new file there is a breach of its role.
+@unwired M96 scratch-copy breach scanner
+*/
 export async function scratchBreach(runGit: TeamGit, folder: string): Promise<readonly string[]> {
   runGit = teamProgramFreeGit(runGit)
   const status = await runGit(

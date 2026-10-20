@@ -16,7 +16,7 @@ const JOB = z.object({
   bytes: z.instanceof(Uint8Array),
   charset: z.optional(z.string()),
   url: z.string(),
-  maxChars: z.number(),
+  maxChars: z.optional(z.number()),
 })
 
 function convert(): HtmlConversion {

@@ -11,11 +11,11 @@ import type { VaultActionDialogDeps } from './vaultActionDialogs'
 import type { VaultPanelHostDeps } from './vaultPanelHost'
 
 /**
- * What dist/vaultActions.js exports. Only values read here may be used from
- * dist/vault.js: a value imported from there directly would carry the
- * editor, the dialogs and the write crypto back into the opening bundle,
- * which the bundle-split gate refuses.
- */
+What dist/vaultActions.js exports. Only values read here may be used from
+dist/vault.js: a value imported from there directly would carry the
+editor, the dialogs and the write crypto back into the opening bundle,
+which the bundle-split gate refuses.
+*/
 export interface VaultActionsBundle {
   readonly vaultActionDialogs: (
     deps: VaultActionDialogDeps,
@@ -44,11 +44,11 @@ export interface VaultActionsLoaderDeps {
 }
 
 /**
- * The actions bundle, required the first time it is asked for and kept from
- * then on. A missing or corrupt bundle throws the operation failure sentence
- * and is tried again on the next call (the log names the bundle, never a
- * credential).
- */
+The actions bundle, required the first time it is asked for and kept from
+then on. A missing or corrupt bundle throws the operation failure sentence
+and is tried again on the next call (the log names the bundle, never a
+credential).
+*/
 export function vaultActionsLoader(deps: VaultActionsLoaderDeps): () => VaultActionsBundle {
   return lazyBundleLoader({
     ...deps,

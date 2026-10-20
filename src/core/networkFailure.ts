@@ -27,9 +27,9 @@ export type NetworkFailureKind =
   'certificate' | 'proxyCredentials' | 'proxyRefused' | 'unreachable' | 'other'
 
 /**
- * Whose settings the advice names: VS Code's `http.*` settings in the
- * extension, the agent's environment variables in the ACP agent.
- */
+Whose settings the advice names: VS Code's `http.*` settings in the
+extension, the agent's environment variables in the ACP agent.
+*/
 export type NetworkAdvice = 'vscode' | 'agent'
 
 export interface NetworkFailure {
@@ -92,7 +92,7 @@ function kindOf(links: readonly Link[], proxyStatus: number | undefined): Networ
   if (proxyStatus !== undefined) {
     return proxyStatus === HTTP_PROXY_AUTHENTICATION_REQUIRED ? 'proxyCredentials' : 'proxyRefused'
   }
-  const codes = links.flatMap((link) => (link.code === undefined ? [] : [link.code]))
+  const codes = links.flatMap((link) => link.code ?? [])
   if (codes.some((code) => TLS_TRUST_ERROR_CODES.has(code))) {
     return 'certificate'
   }
@@ -110,11 +110,11 @@ export function describeNetworkFailure(error: unknown): NetworkFailure {
 }
 
 /**
- * The error and its causes by their codes (`ERR_TLS_CERT_ALTNAME_INVALID`),
- * a cause's message only where it has no code (M69). A code is Node's own
- * word; a message can carry what a server sent, such as the names on its
- * certificate.
- */
+The error and its causes by their codes (`ERR_TLS_CERT_ALTNAME_INVALID`),
+a cause's message only where it has no code (M69). A code is Node's own
+word; a message can carry what a server sent, such as the names on its
+certificate.
+*/
 export function networkFailureCodes(error: unknown): string {
   return redactSecrets(
     chainOf(error)
@@ -124,10 +124,10 @@ export function networkFailureCodes(error: unknown): string {
 }
 
 /**
- * The error and its causes by their codes, or by their class names where
- * they carry none (`TypeError: ENOTFOUND`): never a message, so nothing a
- * server, a path or a secret put in one can reach a sentence.
- */
+The error and its causes by their codes, or by their class names where
+they carry none (`TypeError: ENOTFOUND`): never a message, so nothing a
+server, a path or a secret put in one can reach a sentence.
+*/
 export function failureCodeNames(error: unknown): string {
   const names: string[] = []
   let current: unknown = error
@@ -140,12 +140,12 @@ export function failureCodeNames(error: unknown): string {
 }
 
 /**
- * Whether `error` is a failure of the connection itself: Node, undici or a
- * proxy refusing the tunnel name one with a string code somewhere in its
- * causes (`ECONNRESET`, `UND_ERR_SOCKET`, `ERR_TLS_…`, `ERR_WEB_FETCH_NOT_TLS`).
- * A refusal the product raises before sending (a budget stop, an endpoint
- * pin) carries no such code and is never read, or retried, as one.
- */
+Whether `error` is a failure of the connection itself: Node, undici or a
+proxy refusing the tunnel name one with a string code somewhere in its
+causes (`ECONNRESET`, `UND_ERR_SOCKET`, `ERR_TLS_…`, `ERR_WEB_FETCH_NOT_TLS`).
+A refusal the product raises before sending (a budget stop, an endpoint
+pin) carries no such code and is never read, or retried, as one.
+*/
 export function isConnectionFailure(error: unknown): boolean {
   return chainOf(error).some((link) => link.code !== undefined)
 }
@@ -174,10 +174,10 @@ function adviceFor(failure: NetworkFailure, advice: NetworkAdvice): string | und
 }
 
 /**
- * The advice, with the technical detail in parentheses; the detail alone
- * when there is none. A proxy's refusal names no setting, so both hosts
- * share it.
- */
+The advice, with the technical detail in parentheses; the detail alone
+when there is none. A proxy's refusal names no setting, so both hosts
+share it.
+*/
 export function networkFailureMessage(error: unknown, advice: NetworkAdvice = 'vscode'): string {
   const failure = describeNetworkFailure(error)
   const text = adviceFor(failure, advice)

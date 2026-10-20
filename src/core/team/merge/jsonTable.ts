@@ -310,7 +310,7 @@ function hasSameOrder(before: JsonNode, after: JsonNode): boolean {
 }
 
 /** Q injects M68 formatAfterEdit bound to the staging paths, then saves these
- * returned bytes before checks. No formatter runs in prediction or the merge. */
+returned bytes before checks. No formatter runs in prediction or the merge. */
 export async function formatMergedJsonTable(
   input: { path: string; base: string; ours: string; theirs: string; text: string },
   formatAfterEdit: (path: string, text: string) => Promise<string | undefined>,

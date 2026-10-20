@@ -1,4 +1,5 @@
 import { spawnResourceProcess } from '../../../core/resources/launcher'
+import { probeChildEnvironment } from '../../../core/resources/trees/run'
 import path from 'node:path'
 import {
   UI_TEXT,
@@ -50,19 +51,14 @@ try {
 }
 
 /**
- * A guarded helper launch: the helper shape is proven, then PowerShell
- * starts it with no inherited credentials, shell, or visible console window.
- */
-export async function spawnGuardedHelper(
+Spawn the guarded helper: the packaged guard script through the absolute
+system PowerShell, without inheriting credentials, a shell, or a visible
+console window. Shared by the slot exchanges and the pipe relay, which
+launch the same binary the same way.
+*/
+export async function spawnGuardedVaultHelper(
   helper: WindowsVaultExecutable,
 ): Promise<Awaited<ReturnType<typeof spawnResourceProcess>>> {
-  if (
-    !path.isAbsolute(helper.file) ||
-    !helper.file.toLowerCase().endsWith('.exe') ||
-    !path.isAbsolute(helper.powershell) ||
-    !/^[a-f0-9]{64}$/u.test(helper.sha256)
-  )
-    throw new Error(UI_TEXT.vault.noAccess)
   // Do not inherit credentials, a shell, or a visible console window.
   try {
     return await spawnResourceProcess(
@@ -79,7 +75,9 @@ export async function spawnGuardedHelper(
       ],
       {
         cwd: path.dirname(helper.powershell),
-        env: {},
+        // Absolute PowerShell with an empty environment: absolute entries
+        // only, links followed.
+        env: probeChildEnvironment({}),
         windowsHide: true,
       },
     )
@@ -93,6 +91,13 @@ export function windowsVaultTransport(
   helper: WindowsVaultExecutable,
   signal?: AbortSignal,
 ): WindowsVaultTransport {
+  if (
+    !path.isAbsolute(helper.file) ||
+    !helper.file.toLowerCase().endsWith('.exe') ||
+    !path.isAbsolute(helper.powershell) ||
+    !/^[a-f0-9]{64}$/u.test(helper.sha256)
+  )
+    throw new Error(UI_TEXT.vault.noAccess)
   return {
     exchange: async (header, key) => {
       if (signal?.aborted || header.length > VAULT_LIMITS.text) {
@@ -111,7 +116,7 @@ export function windowsVaultTransport(
       ) {
         throw new Error(UI_TEXT.vault.noAccess)
       }
-      const { child, stop } = await spawnGuardedHelper(helper)
+      const { child, stop } = await spawnGuardedVaultHelper(helper)
       return await new Promise((resolve, reject) => {
         const chunks: Buffer[] = []
         let size = 0

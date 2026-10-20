@@ -44,10 +44,10 @@ for (const id of SPDX_DEPRECATED_EXCEPTIONS) {
 }
 
 /**
- * The list's own spelling of a license id, matched case-insensitively
- * (manifests commonly write `mit`): `undefined` when the id is neither
- * current nor deprecated.
- */
+The list's own spelling of a license id, matched case-insensitively
+(manifests commonly write `mit`): `undefined` when the id is neither
+current nor deprecated.
+*/
 export function canonicalLicenseId(id: string): string | undefined {
   return canonicalByLowerId.get(id.toLowerCase())
 }
@@ -58,19 +58,19 @@ export function isDeprecatedLicenseId(id: string): boolean {
 }
 
 /**
- * The exception list's own spelling of a `WITH` exception id, or
- * `undefined` when unrecognized.
- */
+The exception list's own spelling of a `WITH` exception id, or
+`undefined` when unrecognized.
+*/
 export function canonicalExceptionId(id: string): string | undefined {
   return canonicalExceptionByLowerId.get(id.toLowerCase())
 }
 
 /**
- * One pinned SPDX template file (M97 CM971-R3): its path under
- * `legal-data/`, what it holds, and the SHA-256 of its exact upstream
- * bytes. The files themselves ship beside the scanner, not inside it, so
- * the 150 KiB scanner budget carries only these records.
- */
+One pinned SPDX template file (M97 CM971-R3): its path under
+`legal-data/`, what it holds, and the SHA-256 of its exact upstream
+bytes. The files themselves ship beside the scanner, not inside it, so
+the 150 KiB scanner budget carries only these records.
+*/
 export interface SpdxTemplateFile {
   readonly path: string
   readonly kind: 'template' | 'equivalentWords'
@@ -88,10 +88,10 @@ const templateFileSchema = z.array(
 )
 
 /**
- * The pinned template files from the provenance record. A missing or
- * malformed record yields no files, which the loader reports as a named
- * problem, so matching fails closed instead of guessing.
- */
+The pinned template files from the provenance record. A missing or
+malformed record yields no files, which the loader reports as a named
+problem, so matching fails closed instead of guessing.
+*/
 export const SPDX_TEMPLATE_FILES: readonly SpdxTemplateFile[] =
   templateFileSchema.safeParse(
     provenance.datasets.find((dataset) => dataset.name === TEMPLATE_DATASET)?.files,

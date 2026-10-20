@@ -4,9 +4,45 @@ import { readFile, writeFile, rename, unlink } from 'node:fs/promises'
 import * as z from 'zod/mini'
 import { NodeVaultFiles, VaultStore, type VaultFilePort } from '../../../../src/core/vault/store'
 import { createRecoverySlot } from '../../../../src/core/vault/keyslots'
+import { startWindowsPipeFiles } from '../../../../src/runtime/vault/windowsPipeRelay'
+import type { WindowsVaultExecutable } from '../../../../src/runtime/vault/slots/windowsVaultTransport'
+
+/**
+The fixture files: POSIX needs no guard, while Windows requires the real
+owner-only file guard or the files refuse every operation. The Windows
+relay serves the test's prebuilt pipe helper (passed as a JSON path);
+serving is per child, the compile happens once in the test's hook.
+*/
+async function fixtureFiles(
+  root: string,
+  helperJson: string | undefined,
+): Promise<{ files: InterruptedFiles; stop: () => Promise<void> }> {
+  const vaultPath = path.join(root, 'vault')
+  if (process.platform !== 'win32') {
+    return {
+      files: new InterruptedFiles(vaultPath, VAULT_LIMITS.frameBytes),
+      stop: () => Promise.resolve(),
+    }
+  }
+  if (helperJson === undefined || helperJson === '')
+    throw new Error('the Windows crash fixture needs its prebuilt pipe helper')
+  const built = JSON.parse(await readFile(helperJson, 'utf8')) as Omit<
+    WindowsVaultExecutable,
+    'rebuild' | 'report'
+  >
+  const pipeFiles = await startWindowsPipeFiles({
+    ...built,
+    rebuild: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
+    report: () => undefined,
+  })
+  return {
+    files: new InterruptedFiles(vaultPath, VAULT_LIMITS.frameBytes, pipeFiles.files, 'win32'),
+    stop: () => pipeFiles.stop(),
+  }
+}
 import { createEncryptedBackup, restoreEncryptedBackup } from '../../../../src/core/vault/backup'
 import { VaultError } from '../../../../src/core/vault/crypto'
-import { VAULT_LIMITS, MILLISECONDS_PER_SECOND } from '../../../../src/shared/constants'
+import { UI_TEXT, VAULT_LIMITS, MILLISECONDS_PER_SECOND } from '../../../../src/shared/constants'
 import { type VaultAnchorPort } from '../../../../src/core/vault/broker/repository'
 
 const stateSchema = z.strictObject({
@@ -79,15 +115,18 @@ class InterruptedFiles extends NodeVaultFiles {
 async function run(): Promise<void> {
   const chunks: Buffer[] = []
   for await (const bytes of process.stdin) {
-    if (!(bytes instanceof Buffer)) throw new Error('private fixture input')
+    if (!(bytes instanceof Buffer)) throw new TypeError('private fixture input')
     chunks.push(bytes)
   }
   const encoded = Buffer.concat(chunks)
   const key = Buffer.from(encoded.toString(), 'base64')
   encoded.fill(0)
   for (const bytes of chunks) bytes.fill(0)
+  let stop: () => Promise<void> = () => Promise.resolve()
   try {
-    const files = new InterruptedFiles(path.join(root, 'vault'), VAULT_LIMITS.frameBytes)
+    const built = await fixtureFiles(root, process.argv[5])
+    stop = built.stop
+    const files = built.files
     const options = { files, anchor, key }
     const clear = () => {
       /* This fixture has no cancellation during a completed stage. */
@@ -183,6 +222,7 @@ async function run(): Promise<void> {
     process.stdout.write(`${JSON.stringify({ kind: 'complete' })}\n`)
   } finally {
     key.fill(0)
+    await stop()
   }
 }
 void run().catch((error: unknown) => {

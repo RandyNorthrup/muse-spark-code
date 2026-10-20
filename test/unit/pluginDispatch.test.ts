@@ -5,7 +5,7 @@
 // and arguments included. Real children run under this node (OpenCode's bun
 // stood in for), each in its own process group; no model is called.
 
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -268,7 +268,8 @@ function writePlugin(source: string, name = 'plugin.mjs'): string {
 }
 
 /** The host side for real children: this node, standing in for bun too. */
-function host(warnings: string[] = []): PluginHostDeps {
+function host(): PluginHostDeps {
+  const warnings: string[] = []
   const dir = mkdtempSync(path.join(tmpdir(), 'm91b-bin-'))
   const bun = path.join(dir, 'bun')
   // Portable fixture: its Bun stand-in is this Node with a real heap bound.
@@ -316,14 +317,11 @@ function definitions(
   format: string,
   sourceEvent: string,
   plugin: string,
-  extra: Record<string, unknown> = {},
 ): readonly HookDefinition[] {
   const result = parseForeignHooks(
     JSON.stringify({
       hooks: {
-        [event]: [
-          { format, sourceEvent, plugin, hooks: [{ type: 'plugin', timeout: 20 }], ...extra },
-        ],
+        [event]: [{ format, sourceEvent, plugin, hooks: [{ type: 'plugin', timeout: 20 }] }],
       },
     }),
     'user',
@@ -462,7 +460,12 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
     await expect(
       runPluginHook(
         { system: 'amp', pluginPath: missing, hook: 'tool.call', payload: {}, failClosed: false },
-        { env: process.env, platform: process.platform },
+        {
+          env: process.env,
+          platform: process.platform,
+          workspaceRoot: ROOT,
+          realpath: realpathSync,
+        },
       ),
     ).rejects.toMatchObject({ code: 'ERR_INVALID_ARG_VALUE' })
   })

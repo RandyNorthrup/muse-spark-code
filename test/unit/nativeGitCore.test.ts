@@ -4,7 +4,7 @@
 // route to local bare repositories through `insteadOf`).
 
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -291,6 +291,7 @@ describe('native Git against the fixture repositories', () => {
       platform: process.platform,
       env: repos().environment,
       fileExists: existsSync,
+      realpath: realpathSync,
       spawn,
     })
   }, FIXTURE_BUILD_TIMEOUT_MS)

@@ -42,11 +42,11 @@ export interface ResourceRelocationTarget {
   /** Also checks the existing exact role/check, snapshot and repository grants. */
   hasOffer: ResourceLinkedDevice['hasOffer']
   /**
-   * Bound to the existing task/attempt and transport; metadata is the only addition.
-   * Receiver rechecks its own governor and permissions at durable admission.
-   * Abort requests Keep here. Refused proves no admission, including cancellation;
-   * loss of that proof is uncertain. Admitted wins over a late abort.
-   */
+  Bound to the existing task/attempt and transport; metadata is the only addition.
+  Receiver rechecks its own governor and permissions at durable admission.
+  Abort requests Keep here. Refused proves no admission, including cancellation;
+  loss of that proof is uncertain. Admitted wins over a late abort.
+  */
   dispatch(
     metadata: RelocationMetadata,
     signal: AbortSignal,

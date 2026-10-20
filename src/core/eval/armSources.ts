@@ -45,10 +45,10 @@ function parseNodeVersion(version: string): { major: number; minor: number } | u
 }
 
 /**
- * The evaluation is a development and CI tool: it refuses to run on a Node
- * without the permission flags it confines arms with (RVCM1012H finding 2).
- * The product floor stays where `package.json` engines puts it.
- */
+The evaluation is a development and CI tool: it refuses to run on a Node
+without the permission flags it confines arms with (RVCM1012H finding 2).
+The product floor stays where `package.json` engines puts it.
+*/
 export function requireEvalArmRuntime(version: string = process.version): void {
   const floor22 = parseNodeVersion(EVAL_ARM_MIN_NODE_VERSION)
   const floor23 = parseNodeVersion(EVAL_ARM_MIN_NODE_VERSION_23)
@@ -71,18 +71,18 @@ export function requireEvalArmRuntime(version: string = process.version): void {
 }
 
 /**
- * Every external load the bundler left for the child fails the freeze
- * unless the allowlist names it (reviews RVCM1012H finding 1, RVCM1012I
- * finding 2). The check reads the same build's own metafile — probed on
- * this rig, the CJS `outputs[].imports` list is empty, and the external
- * loads live in `inputs[*].imports` with `external: true` — never a second
- * resolver. Bundled relative loads and package dependencies are inlined,
- * so a remaining external is a built-in: `node:`-prefixed or bare (both
- * spellings are refused alike, so there is no deny-list to miss one), and
- * a `..` segment (the `node:fs/../sqlite` dodge) fails too. Computed
- * loader names never reach the metafile; they are outside the freeze's
- * threat model (PLAN.md M101: arms change only through review).
- */
+Every external load the bundler left for the child fails the freeze
+unless the allowlist names it (reviews RVCM1012H finding 1, RVCM1012I
+finding 2). The check reads the same build's own metafile — probed on
+this rig, the CJS `outputs[].imports` list is empty, and the external
+loads live in `inputs[*].imports` with `external: true` — never a second
+resolver. Bundled relative loads and package dependencies are inlined,
+so a remaining external is a built-in: `node:`-prefixed or bare (both
+spellings are refused alike, so there is no deny-list to miss one), and
+a `..` segment (the `node:fs/../sqlite` dodge) fails too. Computed
+loader names never reach the metafile; they are outside the freeze's
+threat model (PLAN.md M101: arms change only through review).
+*/
 function refuseNonAllowlistedBuiltinImports(metafile: Metafile, root: string): void {
   const externals = new Set<string>()
   for (const input of Object.values(metafile.inputs)) {
@@ -243,13 +243,13 @@ if (typeof __armName !== 'string' || __armName === '') {
 }
 
 /** No source execution in the parent. The bundle runs in the child host
- * context under `--permission`, with reads granted only to the frozen
- * bundle and fixture files: an undeclared filesystem read or load fails
- * there. That is the whole run-time layer — it does not confine built-ins
- * the grants do not cover, and it stops no deliberately hostile arm
- * (review RVCM1012I finding 1). A refusal is an error, never a pass: the
- * caller maps a throw to a failed task before any model request.
- */
+context under `--permission`, with reads granted only to the frozen
+bundle and fixture files: an undeclared filesystem read or load fails
+there. That is the whole run-time layer — it does not confine built-ins
+the grants do not cover, and it stops no deliberately hostile arm
+(review RVCM1012I finding 1). A refusal is an error, never a pass: the
+caller maps a throw to a failed task before any model request.
+*/
 export function executeArmBundle(bundle: ArmBundle): unknown {
   requireEvalArmRuntime()
   if (armBundleDigest(bundle) !== bundle.sha256)
@@ -297,16 +297,16 @@ export function executeArmBundle(bundle: ArmBundle): unknown {
 }
 
 /**
- * The canonical JSON value: sorted keys, kept array order, and an own
- * `__proto__` field kept as data (review RVCM1012C finding 4). Plain
- * assignment to `out['__proto__']` would change the object's prototype
- * instead of creating an enumerable own field, so two values differing
- * only in that field would serialize identically; the field is defined
- * instead, and survives `JSON.stringify` as `{"__proto__":…}`.
- * Anything that has no JSON meaning (a function, `undefined`, a symbol,
- * a non-finite number, a class instance) throws, so an unhashable value
- * breaks the digest instead of hashing as `{}` or `null`.
- */
+The canonical JSON value: sorted keys, kept array order, and an own
+`__proto__` field kept as data (review RVCM1012C finding 4). Plain
+assignment to `out['__proto__']` would change the object's prototype
+instead of creating an enumerable own field, so two values differing
+only in that field would serialize identically; the field is defined
+instead, and survives `JSON.stringify` as `{"__proto__":…}`.
+Anything that has no JSON meaning (a function, `undefined`, a symbol,
+a non-finite number, a class instance) throws, so an unhashable value
+breaks the digest instead of hashing as `{}` or `null`.
+*/
 export function canonicalize(value: unknown, where: string): unknown {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
   if (typeof value === 'number') {

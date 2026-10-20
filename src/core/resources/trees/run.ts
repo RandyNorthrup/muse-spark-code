@@ -1,11 +1,25 @@
-import { execFile } from 'node:child_process'
+import { type GuardedChildEnv } from '../../executables'
+import { noWorkspaceChildEnvironment } from '../../execGuard'
+import { realpathSync } from 'node:fs'
 import { PROCESS_TABLE_TIMEOUT_MS } from '../../../shared/constants'
+import { execFileGuarded } from '../../guardedChildProcess'
 
 export type ResourceTreeRun = (
   file: string,
   args: readonly string[],
-  env?: NodeJS.ProcessEnv,
+  env: GuardedChildEnv,
 ) => Promise<string>
+
+/**
+The guarded environment for a fixed absolute probe (`/bin/ps`,
+`/usr/bin/getconf`, the compiled tree helpers, SystemRoot PowerShell):
+absolute PATH entries only, links followed — never a PATH search, so a
+planted program never runs. The call sites name this form explicitly
+instead of leaving the environment unguarded.
+*/
+export function probeChildEnvironment(env: NodeJS.ProcessEnv): GuardedChildEnv {
+  return noWorkspaceChildEnvironment(process.platform, env, realpathSync)
+}
 
 /** Share one in-flight OS table across concurrent trees; never retain an action-time table. */
 export function coalescedTreeRead<T>(read: () => Promise<T>): () => Promise<T> {
@@ -24,11 +38,11 @@ export function coalescedTreeRead<T>(read: () => Promise<T>): () => Promise<T> {
 export function boundedTreeProgram(timeoutMs: number, maxBuffer?: number): ResourceTreeRun {
   return (file, args, env) =>
     new Promise((resolve, reject) => {
-      execFile(
+      execFileGuarded(
         file,
         [...args],
         {
-          env: env ?? { LC_ALL: 'C' },
+          env,
           windowsHide: true,
           timeout: timeoutMs,
           ...(maxBuffer !== undefined && { maxBuffer }),

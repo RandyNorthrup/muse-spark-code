@@ -12,7 +12,7 @@ import {
   type ResourceProcessIdentity,
   type ResourceTicket,
 } from '../../../shared/resources'
-import { runTreeProgram, type ResourceTreeRun } from '../trees/run'
+import { probeChildEnvironment, runTreeProgram, type ResourceTreeRun } from '../trees/run'
 import type { WindowsTreeDeps } from '../trees/windows'
 import type { ResourceActuatorPort, ResourceControl } from './controls'
 
@@ -53,7 +53,7 @@ export class WindowsResourceActuator implements ResourceActuatorPort {
     const raw = await this.run(
       path.win32.join(this.deps.systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
       [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
-      { SystemRoot: this.deps.systemRoot },
+      probeChildEnvironment({ SystemRoot: this.deps.systemRoot }),
     )
     const result: unknown = JSON.parse(raw)
     return result

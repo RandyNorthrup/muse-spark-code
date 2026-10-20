@@ -288,12 +288,12 @@ export function playbookSections(view: PlaybookView, options: ReportOptions): Re
 }
 
 /**
- * Route-around refusals are the safety-rule notes that refused something.
- * Allowed safety-rule notes (`checksPassed` for an admitted command or hook
- * check, `fallbackReviewer` for an applied fallback reviewer) are not
- * refusals: listing them would bury a real `hookTampering`, `gateSkipped`,
- * `permissionLaundering` or `classifierBlocked` refusal past the row cap.
- */
+Route-around refusals are the safety-rule notes that refused something.
+Allowed safety-rule notes (`checksPassed` for an admitted command or hook
+check, `fallbackReviewer` for an applied fallback reviewer) are not
+refusals: listing them would bury a real `hookTampering`, `gateSkipped`,
+`permissionLaundering` or `classifierBlocked` refusal past the row cap.
+*/
 export function isRouteAroundRefusal(rule: string, code: string): boolean {
   return rule === PLAYBOOK_SAFETY_RULE && code !== 'checksPassed' && code !== 'fallbackReviewer'
 }

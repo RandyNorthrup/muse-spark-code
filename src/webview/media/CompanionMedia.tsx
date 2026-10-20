@@ -163,12 +163,15 @@ function MediaControls({
     recordingIntent.current = true
     setRecording(true)
     try {
-      const started = await recorder.start(options.data, (remaining) => {
+      const isUncapped = options.data.maxSeconds === 0
+      const started = await recorder.start(options.data, (ticked) => {
         if (isLive())
           setStatus(
-            fill(UI_TEXT.media.recordingCountdown, {
-              remaining: formatUnit(remaining, 'second'),
-            }),
+            isUncapped
+              ? fill(UI_TEXT.media.recordingElapsed, { elapsed: formatUnit(ticked, 'second') })
+              : fill(UI_TEXT.media.recordingCountdown, {
+                  remaining: formatUnit(ticked, 'second'),
+                }),
           )
       })
       if (isLive()) {

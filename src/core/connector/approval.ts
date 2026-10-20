@@ -97,9 +97,9 @@ export class ApprovalLedger {
   }
 
   /**
-   * Our approval page's authenticated click. The digest must be the one the
-   * page was shown; a changed, expired or already settled intent refuses.
-   */
+  Our approval page's authenticated click. The digest must be the one the
+  page was shown; a changed, expired or already settled intent refuses.
+  */
   public decide(intentId: string, digest: string, isApproved: boolean): DecisionOutcome {
     this.expireDue()
     const intent = this.intents.get(intentId)
@@ -112,9 +112,9 @@ export class ApprovalLedger {
   }
 
   /**
-   * Compare-and-swap at dispatch: only an approved, unexpired intent whose
-   * binding still matches exactly is consumed, once.
-   */
+  Compare-and-swap at dispatch: only an approved, unexpired intent whose
+  binding still matches exactly is consumed, once.
+  */
   public consume(intentId: string, current: ApprovalBinding): boolean {
     const intent = this.intents.get(intentId)
     if (intent?.state !== 'approved') return false

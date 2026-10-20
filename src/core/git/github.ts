@@ -137,9 +137,9 @@ export type GitHubFailureKind =
   'signIn' | 'notFound' | 'invalid' | 'rateLimited' | 'server' | 'network' | 'response'
 
 /**
- * A call GitHub refused or that never reached it. `message` is for the user
- * (GitHub's own words where it gave them); the log gets `kind` and `status`.
- */
+A call GitHub refused or that never reached it. `message` is for the user
+(GitHub's own words where it gave them); the log gets `kind` and `status`.
+*/
 export class GitHubError extends Error {
   public constructor(
     message: string,
@@ -153,11 +153,11 @@ export class GitHubError extends Error {
 }
 
 /**
- * A 401 drops the credential at its source (M123, PLAN.md D104), so the
- * user signs in again. True when `error` was GitHub's sign-in refusal.
- * Here, beside the error it reads, so the token sources (which the
- * terminal's sign-in loads) never carry the REST client.
- */
+A 401 drops the credential at its source (M123, PLAN.md D104), so the
+user signs in again. True when `error` was GitHub's sign-in refusal.
+Here, beside the error it reads, so the token sources (which the
+terminal's sign-in loads) never carry the REST client.
+*/
 export async function didDropRejectedCredential(
   signIn: { rejected(credential: GitHubCredential): Promise<void> },
   credential: GitHubCredential,
@@ -234,11 +234,11 @@ function errorMessage(body: unknown, status: number): string {
   }
   const details = (parsed.data.errors ?? []).flatMap((error) => {
     if (error.message !== undefined) {
-      return [error.message]
+      return error.message
     }
     return error.field === undefined || error.code === undefined
       ? []
-      : [`${error.field} ${error.code}`]
+      : `${error.field} ${error.code}`
   })
   return details.length === 0
     ? parsed.data.message
@@ -331,11 +331,11 @@ export class GitHubClient {
   public constructor(private readonly deps: GitHubClientDeps) {}
 
   /**
-   * One call: JSON in and out, the token in the header, a deadline,
-   * GitHub's refusals as `GitHubError`. An operation's signal joins the
-   * deadline, so Cancel stops pull-request discovery at once (Codex on PR
-   * #227); without one the deadline stands alone as before.
-   */
+  One call: JSON in and out, the token in the header, a deadline,
+  GitHub's refusals as `GitHubError`. An operation's signal joins the
+  deadline, so Cancel stops pull-request discovery at once (Codex on PR
+  #227); without one the deadline stands alone as before.
+  */
   private async request(
     token: string,
     method: 'GET' | 'POST',

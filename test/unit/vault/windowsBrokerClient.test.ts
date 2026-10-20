@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { build } from 'esbuild'
 import { vaultClientPlatform } from '../../../src/runtime/vault/clientPlatform'
 import type { VaultClientPlatform } from '../../../src/runtime/vault/clientPlatform'
@@ -27,6 +28,18 @@ describe.skipIf(process.platform !== 'win32')('Windows vault broker end to end',
   beforeAll(async () => {
     fixture.root = await mkdtemp(path.join(tmpdir(), 'vs-wbroker-'))
     const dist = path.join(fixture.root, 'dist')
+    // The client reads the slot and pipe sources beside dist exactly as the
+    // package lays them out, so the fixture stages those real sources.
+    const sources = path.join(fixture.root, 'native', 'windows')
+    await mkdir(sources, { recursive: true })
+    for (const name of [
+      'MuseSparkVault.cs',
+      'MuseSparkVaultCng.cs',
+      'MuseSparkVaultHello.cs',
+      'MuseSparkVaultLock.cs',
+      'MuseSparkVaultPipe.cs',
+    ])
+      await copyFile(path.resolve('native/windows', name), path.join(sources, name))
     const entries: [string, string][] = [
       ['src/runtime/vault/vaultBrokerEntry.ts', 'vaultBroker.js'],
       ['src/core/resources/resourceGovernorEntry.ts', 'resourceGovernor.js'],
@@ -76,9 +89,22 @@ describe.skipIf(process.platform !== 'win32')('Windows vault broker end to end',
       const location = await broker.get()
       // The claim publishes a pipe name, never a socket path.
       expect(windowsVaultPipeNameSchema.safeParse(location.lock.socket).success).toBe(true)
-      const response = await client.send({ kind: 'status' })
-      if (response.kind !== 'status') throw new Error('broker answered outside the channel')
-      expect(response.status.state).toBe('uncreated')
+      const first = await client.send({ kind: 'status' })
+      if (first.kind !== 'status') throw new Error('broker answered outside the channel')
+      // The broker alone answers `locked` with no store open: `uncreated`
+      // is the management view's answer (its snapshot over the data
+      // folder), and this request never reaches it.
+      expect(first.status.state).toBe('locked')
+      expect(first.status.reason).toBe('locked')
+      // The idle interval must not lock under a live broker: every lock
+      // bumps the epoch, so a stable epoch across more than one
+      // one-second tick proves the unlock survives while the broker runs.
+      const epoch = first.status.lockEpoch
+      await delay(1200)
+      const second = await client.send({ kind: 'status' })
+      if (second.kind !== 'status') throw new Error('broker answered outside the channel')
+      expect(second.status.state).toBe('locked')
+      expect(second.status.lockEpoch).toBe(epoch)
     } finally {
       client.close()
       platform.dispose?.()

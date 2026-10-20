@@ -54,13 +54,13 @@ export function derivedSourceId(sourceId: string, facet: string): string {
 }
 
 /**
- * The one row-identity guarantee every collected row passes through. The
- * first row with a key keeps the bare key, so saved reports, links and ids
- * for unique rows never change; each later row sharing a key in source order
- * takes a `key/2`, `key/3`, … suffix reserved against all original keys.
- * No collector — present or later — can fail validation through a duplicate key, whatever
- * plan, journal, git, GitHub or store data repeats (RVCM1132E findings 1–2).
- */
+The one row-identity guarantee every collected row passes through. The
+first row with a key keeps the bare key, so saved reports, links and ids
+for unique rows never change; each later row sharing a key in source order
+takes a `key/2`, `key/3`, … suffix reserved against all original keys.
+No collector — present or later — can fail validation through a duplicate key, whatever
+plan, journal, git, GitHub or store data repeats (RVCM1132E findings 1–2).
+*/
 function uniqueRowKeys(original: Set<string>): (wanted: string) => string {
   const used = new Set<string>()
   const ordinals = new Map<string, number>()
@@ -95,12 +95,12 @@ export function dedupeRowKeys(rows: readonly ReportRow[]): ReportRow[] {
 }
 
 /**
- * Admission before validation for forwarded source sections: keep the
- * first rows and count the omitted, so a section past the row limit still
- * reaches the schema intact and the collector discloses the gap instead of
- * throwing it away (RVREPORTJOIN P2-4). Only array `rows` are touched; the
- * schema still validates everything it receives strictly.
- */
+Admission before validation for forwarded source sections: keep the
+first rows and count the omitted, so a section past the row limit still
+reaches the schema intact and the collector discloses the gap instead of
+throwing it away (RVREPORTJOIN P2-4). Only array `rows` are touched; the
+schema still validates everything it receives strictly.
+*/
 function forwardedRows(value: unknown): readonly unknown[] | undefined {
   if (typeof value !== 'object' || value === null || !('rows' in value)) return undefined
   const rows: unknown = value.rows
@@ -119,7 +119,7 @@ export function admitForwardedSection(value: unknown): { section: unknown; omitt
 }
 
 /** Blind pre-parse pass for forwarded source sections, whose rows have not
- * been validated yet; only string `key` fields of array `rows` are touched. */
+been validated yet; only string `key` fields of array `rows` are touched. */
 export function dedupeUnknownRowKeys(value: unknown): unknown {
   return Array.isArray(value)
     ? value.map((section) => dedupeUnknownSection(section))

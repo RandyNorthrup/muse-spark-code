@@ -25,10 +25,10 @@ const GITLAB_BRANCH_SOURCES = new Set(['push', 'web', 'schedule', 'api'])
 const AZURE_BRANCH_REASONS = new Set(['Manual', 'IndividualCI', 'Schedule'])
 
 /**
- * Azure's string booleans: Azure turns every boolean into the text True or
- * False, so the comparison ignores case. Empty is undefined; anything else
- * is refused by name.
- */
+Azure's string booleans: Azure turns every boolean into the text True or
+False, so the comparison ignores case. Empty is undefined; anything else
+is refused by name.
+*/
 export function azureBoolean(value, name) {
   if (value === undefined || value === '') return
   const lower = value.toLowerCase()
@@ -231,11 +231,11 @@ export function ciFacts(system, env) {
 }
 
 /**
- * The launcher's own gate over the facts, after the system's mechanism has
- * already kept untrusted runs out: an unsupported event, a fork, a pull
- * request without trust-pull-requests, or an unprotected GitLab ref is
- * refused with a fixed reason, and image generation needs fix mode.
- */
+The launcher's own gate over the facts, after the system's mechanism has
+already kept untrusted runs out: an unsupported event, a fork, a pull
+request without trust-pull-requests, or an unprotected GitLab ref is
+refused with a fixed reason, and image generation needs fix mode.
+*/
 export function decideCi(facts, inputs) {
   if (facts.event === 'unsupported') return refuse('this pipeline event cannot start a run')
   if (facts.isFork) return refuse('the change comes from a fork')

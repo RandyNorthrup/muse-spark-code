@@ -14,10 +14,10 @@ export interface DeferredScheduleSurfaceProps {
 }
 
 /**
- * W's deferred surface mount (M115): the port over the panel channel plus
- * the close that drops the panel state. The time math stays in this chunk,
- * out of the activation bundle.
- */
+W's deferred surface mount (M115): the port over the panel channel plus
+the close that drops the panel state. The time math stays in this chunk,
+out of the activation bundle.
+*/
 export function ScheduleSurfaceView({
   surface,
   request,

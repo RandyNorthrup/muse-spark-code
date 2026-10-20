@@ -22,10 +22,10 @@ import {
 
 export interface ScheduleReportPort {
   /** M113 Q binding: resolve only configured root/recipient/connection ids,
-   * validate its ScheduledReportAction, then call ScheduledReportRunner.run
-   * (schedule.id, asOf, action). Bind Q's live full-destination authority,
-   * durable occurrence/root leases, previews and scrub before enabling it.
-   * This port has no prompt backend or paid-reservation dependency. */
+  validate its ScheduledReportAction, then call ScheduledReportRunner.run
+  (schedule.id, asOf, action). Bind Q's live full-destination authority,
+  durable occurrence/root leases, previews and scrub before enabling it.
+  This port has no prompt backend or paid-reservation dependency. */
   run(
     schedule: ScheduleV2 & { action: ScheduleReportAction },
     context: ScheduleRunContext,
@@ -50,8 +50,8 @@ export interface ScheduleReportDeps {
 }
 
 /** S calls this after the ordinary permanent claim and per-target admission.
- * @unwired M115 schedule report action runner
- * No second scheduler, prompt turn, interactive question or money reservation. */
+@unwired M115 schedule report action runner
+No second scheduler, prompt turn, interactive question or money reservation. */
 export class ScheduleReportActionRunner implements ScheduleReportDeliveryPort {
   constructor(private readonly deps: ScheduleReportDeps) {}
 
@@ -151,11 +151,11 @@ export class ScheduleReportActionRunner implements ScheduleReportDeliveryPort {
 }
 
 /** G's port must enforce charter, full destination authority (including creator
- * roots and verified recipients), consent, caps, depth and creator lifetime.
- * Tool arguments never provide the creator, consent or rescheduling permission. */
+roots and verified recipients), consent, caps, depth and creator lifetime.
+Tool arguments never provide the creator, consent or rescheduling permission. */
 export interface ScheduleReportAgentPort {
   /** Resolve complete targets under the creator's canonical roots and verified
-   * recipient/post permissions. Matching an opaque id alone is insufficient. */
+  recipient/post permissions. Matching an opaque id alone is insufficient. */
   destinationsAllowed(action: ScheduleReportAction): Promise<boolean>
   admit(draft: ScheduleDraft): Promise<unknown>
 }

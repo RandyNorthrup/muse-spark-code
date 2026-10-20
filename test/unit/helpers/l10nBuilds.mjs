@@ -55,10 +55,10 @@ export const loadResourceEnglish = () => import('browser-resource-english');`,
 }
 
 /**
- * uiTextRegions: the Node regional outputs, the shared text module (as
- * text-source.js), the compact browser English (browser-english.js) and the
- * browser entries under browser/.
- */
+uiTextRegions: the Node regional outputs, the shared text module (as
+text-source.js), the compact browser English (browser-english.js) and the
+browser entries under browser/.
+*/
 export async function buildRegionalEnglish(folder) {
   mkdirSync(folder, { recursive: true })
   // One parallel batch: these builds are independent.

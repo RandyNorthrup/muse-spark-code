@@ -74,10 +74,10 @@ export interface BudgetFit {
 }
 
 /**
- * The owner conversation's running total, for calls made outside its own
- * transcript (a review, a hook model, a best-of-N attempt): they are checked
- * against the owner's limit and charged to the owner's total.
- */
+The owner conversation's running total, for calls made outside its own
+transcript (a review, a hook model, a best-of-N attempt): they are checked
+against the owner's limit and charged to the owner's total.
+*/
 export interface OwnedSessionBudgetScope {
   readonly sessionId: string
   readonly accountId: string
@@ -101,9 +101,9 @@ export class SessionBudgetExceededError extends Error {
 }
 
 /**
- * Why a wrap-up request itself could not be completed: the fixed kind the
- * limit sentence names. Absent for an ordinary limit (the summary was kept).
- */
+Why a wrap-up request itself could not be completed: the fixed kind the
+limit sentence names. Absent for an ordinary limit (the summary was kept).
+*/
 export type WrapUpFailedKind = 'rateLimited' | 'modelError' | 'budget' | 'stopped'
 
 /** A normal, resumable model-call limit; carries the actual permitted count. */
@@ -141,10 +141,10 @@ export function requestParts(
 }
 
 /**
- * The request's input estimated high from the base (see the file comment):
- * with no base, every part counts; with one, the base's tokens plus the
- * parts it did not carry.
- */
+The request's input estimated high from the base (see the file comment):
+with no base, every part counts; with one, the base's tokens plus the
+parts it did not carry.
+*/
 export function estimateInput(
   parts: readonly (string | BudgetMediaPart)[],
   base: BudgetBase | undefined,
@@ -192,14 +192,14 @@ export function estimateInput(
 }
 
 /**
- * Fits a request whose input is estimated at `estimatedInputTokens` into
- * what is left of the limit, at the model's list price with no cache
- * discount assumed. Throws when the model has no verified price (the limit
- * could not be kept) or when the provider's minimum output
- * (`minOutputTokens`, 1 when no minimum was captured) does not fit on top of
- * the input: the request is not sent, and the turn stops with the budget
- * reason instead of a provider rejection.
- */
+Fits a request whose input is estimated at `estimatedInputTokens` into
+what is left of the limit, at the model's list price with no cache
+discount assumed. Throws when the model has no verified price (the limit
+could not be kept) or when the provider's minimum output
+(`minOutputTokens`, 1 when no minimum was captured) does not fit on top of
+the input: the request is not sent, and the turn stops with the budget
+reason instead of a provider rejection.
+*/
 export function fitRequest(request: {
   readonly capUsd: UsdAmount
   readonly spentUsd: UsdAmount
@@ -283,11 +283,11 @@ export function searchAllowanceUsd(
 }
 
 /**
- * A hidden paid request's cost (a review, a hook model): zero when it was not
- * sent or was refused before any response; its price from the reported usage;
- * `undefined` (cost unknown) when it went out and no usable usage or price
- * came back. Never its estimate.
- */
+A hidden paid request's cost (a review, a hook model): zero when it was not
+sent or was refused before any response; its price from the reported usage;
+`undefined` (cost unknown) when it went out and no usable usage or price
+came back. Never its estimate.
+*/
 export function helperRequestCost(
   modelId: string,
   usage: Usage | null | undefined,

@@ -29,10 +29,10 @@ const BUDGET_GRAMMAR = /^[0-9]+(?:\.[0-9]{1,6})?$/
 export const MAX_BUDGET_MICRO_USD = 20_000_000n
 
 /**
- * The CLI budget grammar to integer micro-USD; undefined outside it. Unlike
- * the canonical-dollar reader, this accepts trailing zeros (`1.00`), exactly
- * as `exec --max-budget-usd` does.
- */
+The CLI budget grammar to integer micro-USD; undefined outside it. Unlike
+the canonical-dollar reader, this accepts trailing zeros (`1.00`), exactly
+as `exec --max-budget-usd` does.
+*/
 export function parseBudgetUsd(text) {
   if (typeof text !== 'string' || !BUDGET_GRAMMAR.test(text)) {
     return
@@ -63,10 +63,10 @@ export function microUsdToString(units) {
 }
 
 /**
- * Resolve `wanted` under `root`, refusing escapes (`..`, absolute paths) and
- * symlink redirections: both sides are canonicalised first, so a symlinked
- * directory inside the root cannot smuggle a path outside it.
- */
+Resolve `wanted` under `root`, refusing escapes (`..`, absolute paths) and
+symlink redirections: both sides are canonicalised first, so a symlinked
+directory inside the root cannot smuggle a path outside it.
+*/
 export function resolveWithin(root, wanted, label) {
   let base
   let target
@@ -109,10 +109,10 @@ function isRecord(value) {
 }
 
 /**
- * A workspace file the product must report as changed: a relative path with
- * no escape, as the result schema's own path list holds it (forward
- * slashes; a steps file authored on Windows may use backslashes).
- */
+A workspace file the product must report as changed: a relative path with
+no escape, as the result schema's own path list holds it (forward
+slashes; a steps file authored on Windows may use backslashes).
+*/
 function isStepPath(value) {
   return (
     typeof value === 'string' &&
@@ -124,14 +124,14 @@ function isStepPath(value) {
 }
 
 /**
- * The validated steps: version 1, 1-8 steps, each one `exec` prompt with a
- * plan/acceptEdits mode, an optional budget no looser than the CLI grammar,
- * an optional expected status (default completed, and always one the result
- * schema names, so a typo fails before any key or money is involved), an
- * optional expected text a person must see in the released final message,
- * optional workspace files the result must list as changed, and an optional
- * no-requests flag for pre-dispatch refusal probes.
- */
+The validated steps: version 1, 1-8 steps, each one `exec` prompt with a
+plan/acceptEdits mode, an optional budget no looser than the CLI grammar,
+an optional expected status (default completed, and always one the result
+schema names, so a typo fails before any key or money is involved), an
+optional expected text a person must see in the released final message,
+optional workspace files the result must list as changed, and an optional
+no-requests flag for pre-dispatch refusal probes.
+*/
 export function parseStepsFile(text) {
   let document
   try {
@@ -217,11 +217,11 @@ export function parseStepsFile(text) {
 }
 
 /**
- * The one fixed `exec` shape every step runs: the contributor model by its
- * explicit name, JSON result on stdout, the prompt by file (stdin carries the
- * key), an empty workspace, and the remaining calls/dollars as the product's
- * own caps. Nothing in the steps file reaches argv except the mode.
- */
+The one fixed `exec` shape every step runs: the contributor model by its
+explicit name, JSON result on stdout, the prompt by file (stdin carries the
+key), an empty workspace, and the remaining calls/dollars as the product's
+own caps. Nothing in the steps file reaches argv except the mode.
+*/
 export function buildExecArgs({
   agentJs,
   workspace,
@@ -259,14 +259,14 @@ export function buildExecArgs({
 }
 
 /**
- * PASS is narrow on purpose: the validated result's own status equals the
- * step's expected status, completed means process exit 0 (anything else means
- * nonzero), the expected text, when the step names one, appears in the
- * released final message, every expected file is in the result's changed
- * list, and a no-requests probe sent nothing billable (zero requests and a
- * zero or absent cost). The full prose stays in the transcript so a person
- * can overrule.
- */
+PASS is narrow on purpose: the validated result's own status equals the
+step's expected status, completed means process exit 0 (anything else means
+nonzero), the expected text, when the step names one, appears in the
+released final message, every expected file is in the result's changed
+list, and a no-requests probe sent nothing billable (zero requests and a
+zero or absent cost). The full prose stays in the transcript so a person
+can overrule.
+*/
 export function verdictForStep(step, result, exitCode) {
   if (!isExecResult(result)) return { verdict: 'FAIL', reason: 'no valid result' }
   if (result.status !== step.expectStatus) {
@@ -301,13 +301,13 @@ export function keepFinalMessage(message) {
 }
 
 /**
- * The keyless check over one finished run: every transcript step re-reads its
- * own result file (confined to the run folder), each result is valid and on
- * the contributor model, verdicts are all PASS, the summed requests/dollars
- * equal the transcript's actuals and stay within the stated inputs, the
- * ledger never reports a breach, no trap fired, and no published file holds
- * a key-shaped string or the sentinel. Returns every failure; empty passes.
- */
+The keyless check over one finished run: every transcript step re-reads its
+own result file (confined to the run folder), each result is valid and on
+the contributor model, verdicts are all PASS, the summed requests/dollars
+equal the transcript's actuals and stay within the stated inputs, the
+ledger never reports a breach, no trap fired, and no published file holds
+a key-shaped string or the sentinel. Returns every failure; empty passes.
+*/
 export function checkRealUseRun({ runDir, transcript, steps, stated }) {
   const failures = []
   const check = (isOk, what) => {
@@ -354,10 +354,10 @@ export function checkRealUseRun({ runDir, transcript, steps, stated }) {
 }
 
 /**
- * Strict `--flag value` argv parsing: every entry is a wanted flag with a
- * non-flag value, each wanted flag exactly once. Throws on anything else, so
- * a mistyped invocation fails before any key or child is involved.
- */
+Strict `--flag value` argv parsing: every entry is a wanted flag with a
+non-flag value, each wanted flag exactly once. Throws on anything else, so
+a mistyped invocation fails before any key or child is involved.
+*/
 export function parseFlagArgs(argv, wanted) {
   const flags = new Map()
   for (let index = 0; index < argv.length; index += 2) {
@@ -399,11 +399,11 @@ export function checkTraps(trapsDir) {
 }
 
 /**
- * No key-shaped string and no sentinel in any published file; names only.
- * The shapes are the two Meta Model API key shapes as src/shared/redact.ts
- * matches them: unanchored, so a key inside JSON or prose is caught, not
- * only a file that is exactly the key.
- */
+No key-shaped string and no sentinel in any published file; names only.
+The shapes are the two Meta Model API key shapes as src/shared/redact.ts
+matches them: unanchored, so a key inside JSON or prose is caught, not
+only a file that is exactly the key.
+*/
 const KEY_SHAPE = /LLM_[\w-]{16,}|LLM\|\d+\|[\w+./=-]+/
 export function checkNoLeak(files, base, label, sentinel) {
   const failures = []

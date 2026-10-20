@@ -10,17 +10,17 @@ export interface LazyBundleRow {
   /** The bundle's path below dist/, e.g. 'tab.js' or 'webview/models.js'. */
   readonly file: string
   /**
-   * Which process loads it: the VS Code extension host, the agent, or both.
-   * A bundle no import edge and no load by file name reaches (an empty
-   * requestedBy) takes the side of the packages that carry it, and
-   * `unreached` when neither does.
-   */
+  Which process loads it: the VS Code extension host, the agent, or both.
+  A bundle no import edge and no load by file name reaches (an empty
+  requestedBy) takes the side of the packages that carry it, and
+  `unreached` when neither does.
+  */
   readonly side: 'vscode' | 'acp' | 'both' | 'unreached'
   /**
-   * Every source that names it by file name: the file, the function, method
-   * or constant the name stands in, and the side that load needs. No line
-   * number: an unrelated edit of the source must not make this file stale.
-   */
+  Every source that names it by file name: the file, the function, method
+  or constant the name stands in, and the side that load needs. No line
+  number: an unrelated edit of the source must not make this file stale.
+  */
   readonly requestedBy: readonly {
     readonly importer: string
     readonly symbol: string
@@ -49,6 +49,27 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'vscode',
     requestedBy: [
       { importer: 'src/shared/constants.ts', symbol: 'AGENT_IMPORT_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
+  {
+    file: 'approvalModes.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/core/backends/musecode/MuseCodeHost.ts',
+        symbol: 'MuseSession.admitScheduled',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/core/backends/musecode/MuseCodeHost.ts',
+        symbol: 'MuseSession.restoreScheduleMode',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/core/backends/musecode/MuseCodeHost.ts',
+        symbol: 'MuseSession.setApprovalMode',
+        side: ['acp', 'vscode'],
+      },
     ],
   },
   {
@@ -236,6 +257,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'acp',
     requestedBy: [{ importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] }],
   },
+  { file: 'execGuard.js', side: 'both', requestedBy: [] },
   { file: 'extension.js', side: 'vscode', requestedBy: [] },
   {
     file: 'extensionHooks.js',

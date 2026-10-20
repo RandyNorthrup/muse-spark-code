@@ -5,9 +5,9 @@ import { formatUsd } from '../../core/usage/insights'
 import { FactRows } from './FactRows'
 
 /**
- * How a provider row's cost reads: settled dollars, `unpriced`, `local`,
- * `plan`, or nothing yet for a priced model the host has not settled (M95).
- */
+How a provider row's cost reads: settled dollars, `unpriced`, `local`,
+`plan`, or nothing yet for a priced model the host has not settled (M95).
+*/
 function providerCost(row: ProviderUsageRow): string | undefined {
   if (row.pricing === 'plan') return UI_TEXT.modelPlan
   if (row.costUsd !== undefined) {
@@ -28,11 +28,11 @@ function providerCost(row: ProviderUsageRow): string | undefined {
 }
 
 /**
- * This window's tallies per BYO provider (M95): tokens with their settled
- * cost, and an account-connected key's own usage, limit and remainder where
- * the provider reports them (today only OpenRouter's `/key`, in USD). Each
- * metric is its own row, so no language's word order is assumed.
- */
+This window's tallies per BYO provider (M95): tokens with their settled
+cost, and an account-connected key's own usage, limit and remainder where
+the provider reports them (today only OpenRouter's `/key`, in USD). Each
+metric is its own row, so no language's word order is assumed.
+*/
 export function ProviderUsageSection({
   providers,
 }: {

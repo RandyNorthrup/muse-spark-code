@@ -101,10 +101,10 @@ export interface TeamBridgeDeps {
   readonly pool: TeamBridgePool
   readonly leases: ResourceRegistry
   /**
-   * This window's servers by origin, from the settings entries (M31's
-   * reader) at the glue: stdio entries are local, streamable-HTTP ones
-   * remote. Absent means unknown: treated as remote, never restarted.
-   */
+  This window's servers by origin, from the settings entries (M31's
+  reader) at the glue: stdio entries are local, streamable-HTTP ones
+  remote. Absent means unknown: treated as remote, never restarted.
+  */
   readonly serverOrigins: Readonly<Record<string, TeamServerOrigin>>
   /** Command and package per server, for the registry's defaults. */
   readonly serverIdentities?: Readonly<Record<string, ServerIdentity>> | undefined
@@ -178,10 +178,10 @@ export class TeamMcpBridge {
 
   public constructor(private readonly deps: TeamBridgeDeps) {}
 
-  private clientId(caller: LiveCaller, serverName?: string): string {
+  private clientId(caller: LiveCaller, serverName = ''): string {
     // The token identifies this registration, including after an id is reused.
     // Kept in memory only, never returned in call identities or logs.
-    const id = `${caller.token}\n${serverName ?? ''}`
+    const id = `${caller.token}\n${serverName}`
     caller.clients.add(id)
     return id
   }
@@ -541,10 +541,10 @@ export class TeamMcpBridge {
   }
 
   /**
-   * A call from an engine worker, in process: lease admission, the pool's raw
-   * result, and the lease's terminal answer. Refusals come back as tool
-   * errors, never thrown, so the worker hears them as the orchestrator does.
-   */
+  A call from an engine worker, in process: lease admission, the pool's raw
+  result, and the lease's terminal answer. Refusals come back as tool
+  errors, never thrown, so the worker hears them as the orchestrator does.
+  */
   public async callAs(
     callerId: string,
     functionName: string,
@@ -563,11 +563,11 @@ export class TeamMcpBridge {
   }
 
   /**
-   * The bridge's entries for `config.mcpServers` (Muse Code sessions) and
-   * `session/new` `mcpServers` (external agents): every allowed server under
-   * its own name, pointing at this caller's endpoint with its token. Merged
-   * after lane T's entries by the backend manager at integration.
-   */
+  The bridge's entries for `config.mcpServers` (Muse Code sessions) and
+  `session/new` `mcpServers` (external agents): every allowed server under
+  its own name, pointing at this caller's endpoint with its token. Merged
+  after lane T's entries by the backend manager at integration.
+  */
   public serverEntriesFor(callerId: string): Readonly<Record<string, SessionMcpServer>> {
     const live = this.liveCaller(callerId)
     return Object.fromEntries(
@@ -584,9 +584,9 @@ export class TeamMcpBridge {
   }
 
   /**
-   * Registers a caller and mints its endpoint and token. The bridge must be
-   * started first; registering the same id twice is refused.
-   */
+  Registers a caller and mints its endpoint and token. The bridge must be
+  started first; registering the same id twice is refused.
+  */
   public registerCaller(caller: BridgeCaller): BridgeEndpoint {
     if (this.closed || this.port === undefined) {
       throw new Error('The team bridge is not started')

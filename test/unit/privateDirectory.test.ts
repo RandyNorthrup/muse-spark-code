@@ -1,10 +1,12 @@
 import { Buffer } from 'node:buffer'
+import { realpathSync } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
-import { runProgram, windowsPowerShell } from '../../src/host/processTree'
+import { noWorkspaceChildEnvironment, windowsPowerShell } from '../../src/core/execGuard'
+import { runProgram } from '../../src/host/processTree'
 import {
   createPrivateDirectory,
   openPrivateRoot,
@@ -440,7 +442,7 @@ async function grantUsers(folder: string): Promise<void> {
   await runProgram(
     path.win32.join(systemRoot(), 'System32', 'icacls.exe'),
     [folder, '/grant', `*${USERS}:(OI)(CI)F`],
-    { SystemRoot: systemRoot() },
+    noWorkspaceChildEnvironment('win32', { SystemRoot: systemRoot() }, realpathSync),
   )
 }
 

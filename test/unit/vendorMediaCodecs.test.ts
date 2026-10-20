@@ -18,6 +18,7 @@ import { createResponsesCodec } from '../../src/core/backends/modelapi/codecs/re
 import { encodeAnthropicRequest } from '../../src/core/backends/modelapi/codecs/anthropic'
 import { encodeOllamaRequest } from '../../src/core/backends/modelapi/codecs/ollama'
 import { PLAN_KEY_PRESETS, PRESETS } from '../../src/core/providers/presets'
+import { CHATGPT_TOOL_NAMESPACE_DESCRIPTION } from '../../src/shared/constants'
 import { metaMediaCapabilities } from '../../src/core/media/metaMediaCapabilities'
 import { modalityGate } from '../../src/core/media/modalityGate'
 import { sniffMediaBytes } from '../../src/core/media/limits'
@@ -153,7 +154,11 @@ describe('M105 lane V vendor video refusals', () => {
         }).encodeRequest({ ...chatBody([HELD_VIDEO]), model: 'm' }),
       ).toThrow('m nimmt.m')
       expect(() =>
-        createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' }).encodeRequest({
+        createResponsesCodec({
+          profile: 'chatgpt',
+          toolNamespace: 'functions',
+          toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+        }).encodeRequest({
           ...chatBody([HELD_VIDEO]),
           model: 'm',
         }),
@@ -264,7 +269,11 @@ function encodeRoute(route: string, kind: string, model: string, body: CreateRes
       return
     }
     case 'chatgpt': {
-      createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' }).encodeRequest({
+      createResponsesCodec({
+        profile: 'chatgpt',
+        toolNamespace: 'functions',
+        toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+      }).encodeRequest({
         ...body,
         model,
       })

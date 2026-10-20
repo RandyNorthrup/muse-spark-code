@@ -17,9 +17,9 @@ export interface ProviderKeyPrompt {
 }
 
 /**
- * Asks for a provider's key in the password box. The trimmed key, or
- * undefined when the box was dismissed or accepted empty.
- */
+Asks for a provider's key in the password box. The trimmed key, or
+undefined when the box was dismissed or accepted empty.
+*/
 export async function promptForProviderKey(
   showInputBox: typeof vscode.window.showInputBox,
   prompt: ProviderKeyPrompt,

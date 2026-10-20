@@ -9,14 +9,19 @@ function twice(guard: RepeatGuard) {
   guard.observe(reordered, 'same bytes', 'fresh state')
 }
 
+// NOLIMITSRUN (PLAN.md D121): no repeat bound of ours. The guard names a
+// repeat so the person is told in plain words, and the call always runs.
 describe('tool repeat guard', () => {
-  it('skips the third unchanged call and stops the fourth without executing either', () => {
+  it('never suppresses or stops: the third and later unchanged calls run with a repeat count', () => {
     const guard = new RepeatGuard()
     expect(guard.before(call, 'fresh state')).toBe('run')
     twice(guard)
     expect(guard.needsWitness(reordered)).toBe(true)
-    expect(guard.before(reordered, 'fresh state')).toBe('skip')
-    expect(guard.before(call, 'fresh state')).toBe('stuck')
+    expect(guard.before(reordered, 'fresh state')).toEqual({ repeat: 3 })
+    guard.observe(reordered, 'same bytes', 'fresh state')
+    expect(guard.before(call, 'fresh state')).toEqual({ repeat: 4 })
+    guard.observe(call, 'same bytes', 'fresh state')
+    expect(guard.before(call, 'fresh state')).toEqual({ repeat: 5 })
   })
 
   it('canonicalizes nested objects, preserves array order and separates tool names', () => {
@@ -28,7 +33,7 @@ describe('tool repeat guard', () => {
       toolRepeatKey({ name: 'a', arguments: '[2,1]' }),
     )
     expect(toolRepeatKey({ name: 'a', arguments: 'bad json' })).not.toBe(
-      toolRepeatKey({ name: 'a', arguments: 'other bad json' }),
+      toolRepeatKey({ name: 'a', arguments: '"bad json"' }),
     )
   })
 
@@ -65,10 +70,11 @@ describe('tool repeat guard', () => {
     }
   })
 
-  it('checks the fresh state again before stopping the fourth call', () => {
+  it('checks the fresh state again and still runs when it changed', () => {
     const guard = new RepeatGuard()
     twice(guard)
-    expect(guard.before(call, 'fresh state')).toBe('skip')
+    expect(guard.before(call, 'fresh state')).toEqual({ repeat: 3 })
+    guard.observe(call, 'same bytes', 'fresh state')
     expect(guard.before(call, 'changed after note')).toBe('run')
   })
 })

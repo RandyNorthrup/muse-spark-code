@@ -4,9 +4,10 @@
 // copy lives here so the suites do not repeat it.
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import path from 'node:path'
-import { resolveExecutable } from '../../../src/core/executables'
+import { resolveExecutable } from '../../../src/core/execGuard'
+import { NO_WORKSPACE } from '../../../src/core/executables'
 import type { GitHubCredential, GitHubTokenSource } from '../../../src/core/git/tokenSource'
 import type { CoreLogger } from '../../../src/core/logging'
 
@@ -66,6 +67,7 @@ export function testGit(scratch: string): TestGit {
     platform: process.platform,
     pathVariable: process.env['PATH'],
     fileExists: existsSync,
+    scope: { noWorkspace: NO_WORKSPACE, realpath: realpathSync },
   })
   if (resolved === undefined) {
     throw new Error('git is not on PATH')

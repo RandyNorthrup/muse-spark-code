@@ -69,12 +69,12 @@ export async function createRuntimeSchedules(
           },
         }
   /**
-   * The deferred editor delivery (dist/scheduleDelivery.js, D6): the
-   * workspace targets, run dispatch and grant checks, loaded on the first
-   * delivery. Each caller fails its own safe way: a bundle that cannot load
-   * refuses the run with the chunk named, never an undelivered run and never
-   * a default target.
-   */
+  The deferred editor delivery (dist/scheduleDelivery.js, D6): the
+  workspace targets, run dispatch and grant checks, loaded on the first
+  delivery. Each caller fails its own safe way: a bundle that cannot load
+  refuses the run with the chunk named, never an undelivered run and never
+  a default target.
+  */
   let pendingDelivery: Promise<typeof ScheduleDelivery> | undefined
   const loadDelivery = async () => {
     pendingDelivery ??= (async () => {

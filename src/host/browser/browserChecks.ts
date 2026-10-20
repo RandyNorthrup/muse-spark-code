@@ -133,9 +133,9 @@ export class BrowserChecks {
   }
 
   /**
-   * Admission as a signal: ended, with its reason, as soon as the caller's
-   * predicate, the runtime setting or the window says no.
-   */
+  Admission as a signal: ended, with its reason, as soon as the caller's
+  predicate, the runtime setting or the window says no.
+  */
   private watchAdmission(admission: CheckAdmission): {
     readonly signal: AbortSignal
     readonly isValid: () => boolean
@@ -200,9 +200,9 @@ export class BrowserChecks {
   }
 
   /**
-   * The Download command: the same runtime entry and preparation lifetime
-   * as a check, without any page. Never throws.
-   */
+  The Download command: the same runtime entry and preparation lifetime
+  as a check, without any page. Never throws.
+  */
   public async prepareOnly(
     signal: AbortSignal,
     admission: CheckAdmission,

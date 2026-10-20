@@ -77,10 +77,10 @@ export function Clipped({
 }
 
 /**
- * A diff clipped to the preview line count behind "Click to expand" (M15):
- * with `onExpand` the click opens the real file in the diff editor (as
- * Claude Code's expands into an editor); without it the rows unfold inline.
- */
+A diff clipped to the preview line count behind "Click to expand" (M15):
+with `onExpand` the click opens the real file in the diff editor (as
+Claude Code's expands into an editor); without it the rows unfold inline.
+*/
 export function DiffTable({
   rows,
   onExpand,

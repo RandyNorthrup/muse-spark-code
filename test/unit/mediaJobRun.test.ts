@@ -1,8 +1,11 @@
 import { spawn } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import type { GuardedChildEnv } from '../../src/core/executables'
+import { noWorkspaceChildEnvironment } from '../../src/core/execGuard'
 import type { McpJobLaunch } from '../../src/host/backend/mcpJobLaunch'
 import {
   ConversionJobFailed,
@@ -37,11 +40,15 @@ async function workspace(): Promise<{ cwd: string; output: string; marker: strin
 }
 
 /** The encoder's minimal environment: this Node and, on Windows, its system root. */
-function encoderEnv(): NodeJS.ProcessEnv {
-  return {
-    PATH: path.dirname(process.execPath),
-    ...(process.env['SystemRoot'] !== undefined && { SystemRoot: process.env['SystemRoot'] }),
-  }
+function encoderEnv(): GuardedChildEnv {
+  return noWorkspaceChildEnvironment(
+    process.platform,
+    {
+      PATH: path.dirname(process.execPath),
+      ...(process.env['SystemRoot'] !== undefined && { SystemRoot: process.env['SystemRoot'] }),
+    },
+    realpathSync,
+  )
 }
 
 function options(

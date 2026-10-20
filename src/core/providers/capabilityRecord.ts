@@ -3,8 +3,8 @@
 import * as z from 'zod/mini'
 import {
   IMAGE_MEDIA_TYPES,
-  MAX_IMAGE_BYTES,
-  MAX_DOCUMENT_BYTES,
+  META_DOCUMENT_MAX_BYTES,
+  META_IMAGE_MAX_BYTES,
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MIN_OUTPUT_TOKENS,
   MODEL_API_PDF_PAGE_IMAGES,
@@ -74,18 +74,18 @@ const reasoningSchema = z.strictObject({
   summary: flag,
   replay: replaySchema,
   /**
-   * The Thinking-off value the model takes instead of `disabled` (lane
-   * REASONSHAPESR2): Claude Sonnet 5.5's `between_tools`, which turns off
-   * up-front thinking where `disabled` answers 400. Absent means the
-   * product's off switch is `disabled` itself.
-   */
+  The Thinking-off value the model takes instead of `disabled` (lane
+  REASONSHAPESR2): Claude Sonnet 5.5's `between_tools`, which turns off
+  up-front thinking where `disabled` answers 400. Absent means the
+  product's off switch is `disabled` itself.
+  */
   offSwitch: z.optional(z.enum(['disabled', 'between_tools'])),
   /**
-   * The model's own default effort where its list names one (lane
-   * REASONSHAPESR2, XAI-G01): xAI's `default_reasoning_effort` (`low`
-   * for grok-4.3 in the recorded list). The picker falls back to the
-   * highest served tier without it.
-   */
+  The model's own default effort where its list names one (lane
+  REASONSHAPESR2, XAI-G01): xAI's `default_reasoning_effort` (`low`
+  for grok-4.3 in the recorded list). The picker falls back to the
+  highest served tier without it.
+  */
   defaultEffort: z.optional(z.string()),
 })
 const cacheSchema = z.strictObject({
@@ -111,9 +111,23 @@ const limitsSchema = z.strictObject({
 })
 const modalitiesSchema = z.strictObject({
   image: known(
-    z.strictObject({ mimes: strings, maxBytes: z.optional(count), maxCount: z.optional(count) }),
+    z.strictObject({
+      mimes: strings,
+      maxBytes: z.optional(count),
+      maxCount: z.optional(count),
+      // D121: the provider's documented image-edit item cap, when it states
+      // one (Meta documents 1–10). Nothing local is enforced past it without
+      // this field; the provider's own refusal then reaches the caller.
+      maxEditSources: z.optional(count),
+    }),
   ),
-  pdf: known(z.strictObject({ maxPages: z.optional(count), maxBytes: z.optional(count) })),
+  pdf: known(
+    z.strictObject({
+      maxPages: z.optional(count),
+      maxBytes: z.optional(count),
+      maxCount: z.optional(count),
+    }),
+  ),
   audio: flag,
 })
 const logprobsSchema = known(
@@ -307,10 +321,31 @@ export function resolveModelCapabilities(
     throw new RangeError(outputTokenMinimumMessage(record.output.minTokens ?? 1))
   return record
 }
-/** Meta policy is built only from today's constants; callers keep their exact wire. */
+/**
+Meta policy, from Meta's own documented numbers (each with its URL, read
+2026-10-19), never a product limit: D121 removed every attach count and
+size of ours, so these record values are the only local media admission
+left, and only where a record reached the call. Callers keep their exact
+wire; without a record nothing local is enforced and Meta's own refusal
+reaches the caller in words.
+*/
 export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord {
   const source: CapabilitySource = { kind: 'preset', ref: 'meta' }
   const yes = <T>(value: T) => ({ state: 'yes' as const, value, source })
+  // The image-understanding page documents the inline bytes and the
+  // per-request count; the image-generation error catalog documents the
+  // 1–10 edit-item range ("an edit needs 1–10 items"). One leaf carries one
+  // source, so the edit range's own URL lives in the comment beside it.
+  const imageSource: CapabilitySource = {
+    kind: 'preset',
+    ref: 'https://dev.meta.ai/docs/image-understanding',
+  }
+  const imageYes = <T>(value: T) => ({ state: 'yes' as const, value, source: imageSource })
+  const pdfSource: CapabilitySource = {
+    kind: 'preset',
+    ref: 'https://dev.meta.ai/docs/file-handling',
+  }
+  const pdfYes = <T>(value: T) => ({ state: 'yes' as const, value, source: pdfSource })
   return resolveModelCapabilities({ provider: 'meta', nativeModel, format: 'responses' }, [
     {
       source,
@@ -334,15 +369,33 @@ export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord
           acceptsLimit: yes(true),
           formats: yes(['text']),
         },
+        cache: { mode: 'implicit', acceptsKey: true, retention: [...PROMPT_CACHE_RETENTIONS] },
+      },
+    },
+    {
+      source: imageSource,
+      fields: {
         modalities: {
-          image: yes({
+          image: imageYes({
             mimes: [...IMAGE_MEDIA_TYPES],
-            maxBytes: MAX_IMAGE_BYTES,
+            maxBytes: META_IMAGE_MAX_BYTES,
+            maxCount: MODEL_API_MEDIA_PER_REQUEST,
+            // dev.meta.ai/docs/image-generation: "an edit needs 1–10 items".
+            maxEditSources: 10,
+          }),
+        },
+      },
+    },
+    {
+      source: pdfSource,
+      fields: {
+        modalities: {
+          pdf: pdfYes({
+            maxPages: MODEL_API_PDF_PAGE_IMAGES,
+            maxBytes: META_DOCUMENT_MAX_BYTES,
             maxCount: MODEL_API_MEDIA_PER_REQUEST,
           }),
-          pdf: yes({ maxPages: MODEL_API_PDF_PAGE_IMAGES, maxBytes: MAX_DOCUMENT_BYTES }),
         },
-        cache: { mode: 'implicit', acceptsKey: true, retention: [...PROMPT_CACHE_RETENTIONS] },
       },
     },
     {

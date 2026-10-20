@@ -7,6 +7,7 @@ import { BASE_LOCALE, fill, setUiText, UI_TEXT } from '../../src/shared/l10n/tex
 import { EN } from '../../src/shared/l10n/en'
 import type { EstimateRunPort } from '../../src/runtime/estimator/command'
 import { EstimateViewSession } from '../../src/runtime/estimator/session'
+import { estimateFailureText } from '../../src/shared/estimateDiagnostic'
 
 const AS_OF_1 = '2026-10-17T00:00:01.000Z'
 const AS_OF_2 = '2026-10-17T00:00:02.000Z'
@@ -16,7 +17,6 @@ function makeSession(runner: EstimateRunPort): {
   texts: string[]
 } {
   const texts: string[] = []
-  const sections: unknown[] = []
   const listeners: ((event: unknown) => void)[] = []
   const session = new EstimateViewSession(
     {
@@ -34,11 +34,8 @@ function makeSession(runner: EstimateRunPort): {
         }
       },
     },
-    (section) => {
-      sections.push(section)
-    },
-    (text) => {
-      texts.push(text)
+    (state) => {
+      if (state.status === 'failed') texts.push(estimateFailureText(state.diagnostic))
     },
   )
   return { session, texts }

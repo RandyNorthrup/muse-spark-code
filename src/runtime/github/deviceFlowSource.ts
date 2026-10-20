@@ -143,12 +143,12 @@ async function untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T
 }
 
 /**
- * One run of `work` at a time, joined by every caller while it lasts and
- * while `era` reads what it read when the run began (a Sign out of the
- * source in between makes the next caller start a run of its own). The run
- * owns its own signal: a caller's abort ends that caller's wait only, and
- * the run is aborted once no caller is left waiting for it.
- */
+One run of `work` at a time, joined by every caller while it lasts and
+while `era` reads what it read when the run began (a Sign out of the
+source in between makes the next caller start a run of its own). The run
+owns its own signal: a caller's abort ends that caller's wait only, and
+the run is aborted once no caller is left waiting for it.
+*/
 function shared<T>(
   work: (signal: AbortSignal) => Promise<T>,
   era: () => number,
@@ -244,12 +244,12 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
       return true
     })
   /**
-   * Publish `tokens` under `start`, the generation the operation read when
-   * it began, and no other. Nothing is written once the generation has
-   * moved. A rotation (`from`) replaces only the pair it began from, or the
-   * slot that pair's own refusal emptied; over another pair it writes
-   * nothing and uses that pair. Undefined when nothing may be served.
-   */
+  Publish `tokens` under `start`, the generation the operation read when
+  it began, and no other. Nothing is written once the generation has
+  moved. A rotation (`from`) replaces only the pair it began from, or the
+  slot that pair's own refusal emptied; over another pair it writes
+  nothing and uses that pair. Undefined when nothing may be served.
+  */
   const publish = (
     tokens: DeviceFlowTokens,
     start: Generation,

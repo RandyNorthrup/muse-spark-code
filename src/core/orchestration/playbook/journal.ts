@@ -35,8 +35,8 @@ import {
 } from './modules'
 
 /** The planner must share one journal per canonical workspace, across teams,
- * branches and lanes. replace is synchronous, atomic and compare-and-swap;
- * rejection must throw before the caller grants admission. */
+branches and lanes. replace is synchronous, atomic and compare-and-swap;
+rejection must throw before the caller grants admission. */
 export interface PlaybookJournal {
   read(): readonly unknown[]
   replace(records: readonly PlaybookRecord[], expected: readonly unknown[]): void
@@ -89,17 +89,17 @@ function scrub(value: unknown): unknown {
 }
 
 /** Second scrub applies on both publication and recovery, including reasons,
- * dispositions, paths and identifiers. Strict schemas forbid raw output. */
+dispositions, paths and identifiers. Strict schemas forbid raw output. */
 export function validatedRecords(records: readonly unknown[]): PlaybookRecord[] {
   if (records.length > PLAYBOOK_RECORD_MAX) throw new Error(UI_TEXT.playbookUnavailable)
   return records.map((record) => playbookRecordSchema.parse(scrub(record)))
 }
 
 /** Keep safety history, module lineage, every review identity and every design.
- * Evict oldest informational notes. Settings retain every audited opt-out.
- * Round snapshots stay in publication order: moving an answer ahead of a split would change
- * the evidence that the child inherited.
- * If mandatory evidence alone fills the bound, stop instead of resetting it. */
+Evict oldest informational notes. Settings retain every audited opt-out.
+Round snapshots stay in publication order: moving an answer ahead of a split would change
+the evidence that the child inherited.
+If mandatory evidence alone fills the bound, stop instead of resetting it. */
 export function retainRecords(records: readonly PlaybookRecord[]): PlaybookRecord[] {
   let excess = records.length - PLAYBOOK_RECORD_MAX
   const bounded = records.filter((record) => {
