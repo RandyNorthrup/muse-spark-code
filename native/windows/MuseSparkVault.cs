@@ -132,7 +132,11 @@ public static class VaultPathGuard
     private static SafeFileHandle Hold(string name, bool strict, bool directory)
     {
         // FILE_LIST_DIRECTORY makes directory handles participate in sharing checks; metadata-only opens do not.
-        var handle = CreateFile(name, ReadControl | (directory ? 0x81u : 0x80000000u), directory ? 3u : 1u, IntPtr.Zero, OpenExisting, OpenReparse | BackupSemantics, IntPtr.Zero);
+        // A file is held against writers only: delete sharing lets the owner
+        // publish or retire a record (a link, a rename, a delete) while another
+        // process checks it, instead of refusing that check. The hold ends with
+        // the check, so it pins nothing a delete could take away.
+        var handle = CreateFile(name, ReadControl | (directory ? 0x81u : 0x80000000u), directory ? 3u : 5u, IntPtr.Zero, OpenExisting, OpenReparse | BackupSemantics, IntPtr.Zero);
         if (handle.IsInvalid)
         {
             int error = Marshal.GetLastWin32Error();
