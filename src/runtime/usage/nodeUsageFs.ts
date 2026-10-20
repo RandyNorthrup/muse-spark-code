@@ -494,7 +494,11 @@ export class NodeUsageFs implements UsageFs {
       let previousToken: string
       try {
         const content = await readFile(await this.resolve(previous.claim), 'utf8')
-        previousToken = content.trim()
+        // A writer that died writing its claim can leave only NUL bytes (on
+        // Windows the length reached the disk, the token never did): that is
+        // an unwritten claim, like an empty one, taken over once stale. It
+        // was refused as invalid at every try and usage stopped for good.
+        previousToken = content.replaceAll('\0', '').trim()
       } catch (error) {
         if (isUsageErrorCode(error, 'ENOENT')) return undefined
         throw error
