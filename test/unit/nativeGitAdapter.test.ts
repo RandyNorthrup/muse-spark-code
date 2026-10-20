@@ -22,7 +22,9 @@ const quiet = (): void => undefined
 
 // The canonical root: the panel binds and reports the real path, so the
 // harness must hand it the spelling the product keeps (macOS /tmp is a link).
-const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'm123-native-adapter-')))
+// The native resolver, as the product's: it expands Windows 8.3 short names
+// (a hosted runner's TEMP is C:\Users\RUNNER~1\...) where the JS one keeps them.
+const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'm123-native-adapter-')))
 const dataFolder = mkdtempSync(path.join(root, 'data-'))
 const git = testGit(root)
 
