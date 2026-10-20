@@ -18008,162 +18008,6 @@ expects 401 but the server answers 502.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
-- [x] Merge `main-0150`; retain all package inputs and isolated builds. Owning
-      package/ACP suites pass 59 tests on Node 22 at repository deadlines.
-- [x] Merge `m105/e3-fix`; union Unreleased notes. Companion suites pass
-      91 tests, including real browser transport, at repository deadlines.
-- [x] Merge `m117/w-fix3`; preserve integration boundaries and release behavior.
-      Resolve size regressions structurally: formatting callers import the
-      existing localization helper rather than the whole palette; estimator
-      grammar owns its small options table; display-only catalog prices use
-      Intl without admission arithmetic; estimator envelopes share the lazy
-      estimate-contract bundle; optional account English gets a measured
-      first-use region. Existing startup and deferred caps remain unchanged.
-- [x] Merge accepted `m108/w-fix4`, preserving the durable limit-block redesign;
-      pool test import retains integration's account-USD namespace and the new
-      localized error assertions. Pool/remote/receiver owning suites: 89 passed.
-- [x] Merge `main-latest` (PR #139 harness readiness and bounded scheduling),
-      retain both harness behaviors and rerun owning tests for conflicts.
-      The rig brief forbids widened defaults: omit incoming Windows-wide
-      15/30-second overrides and their §8 row; retain original test/hook defaults.
-      Merge validation exposed a readiness message arriving before the body
-      script defines `playScenario`. Preserve the ready flag and notify through
-      a native event; the body subscribes before DOMContentLoaded. Add an
-      early-message regression, retain exactly-once admission and prove its guard.
-      Harness owning suites: 61 passed; both deliberate event-order breaks fail
-      and restore byte-exact. M108's nine complete owning files: 188 passed.
-      Restart the fresh-clone workflow on the resulting committed source.
-- [x] Repair every remaining test, vault-default and SAST failure by cause;
-      add failing-before/passing-after regressions and byte-exact guard drills.
-      The boolean vault parent hides its children in VS Code: move its public
-      setting to `vault.enabled`, retain explicitly configured legacy booleans
-      unless the new flag is explicitly set, and verify both editor versions.
-      Restore request fixtures byte-for-byte from accepted main-0150 captures:
-      the prior integration combined incompatible captures into retry sequences.
-      Optimize scrub automaton scanning without changing encodings, streaming
-      semantics or the 50 MB/s floor.
-      SAST repairs replace SSH wildcard regex construction with direct matching,
-      restrict estimator pointer traversal to own data properties, and reuse
-      the existing one-pass HTML encoder. No suppression or scanner downgrade.
-      Direct SSH matching retains the former Unicode case equivalences (long s,
-      Greek final sigma); regressions cover these alongside literal punctuation.
-      Full coverage shards also expose stale test composition: machine-scope
-      metadata must name `vault.enabled`; cold review actions await the palette;
-      package/localization fixtures carry the estimator option module and the
-      fake-only launcher builds its required estimator entry. Warmup includes
-      the palette grammar, cold English tests assert first-use help loading,
-      and independent large export refusal scenarios get independent cases
-      without changing their data, assertions, limits or default deadlines.
-      Register vault/estimator bundles in the recorder's exact package-frame
-      vocabulary, remove duplicate package-input rows, open folded steps before
-      measuring transcript renders, and await real native close after the fake
-      termination deadline. Investigate audio dispatch with its terminal events.
-      The final ordinary-send guard compared a prepared per-message audio model
-      against the unchanged session model, rejecting every approved override.
-      Compare ordinary requests with the current prepared model; compaction and
-      direct paid requests retain the configured-model check. Preserve revision,
-      resolved-model, key, abort and prepared-audio fences; certify the existing
-      multi-request override and refusal regressions and a restored guard drill.
-      The next exact coverage sweep finds forty-lane simulations taking
-      2.28–2.65 seconds against the unchanged two-second local budget. Every
-      trial currently materializes dates, slack and critical paths that ranking
-      does not read. Reuse the same validated reservation engine for a timing-only
-      trial result; build the complete timeline only for the selected P50 trial.
-      Retain all 2,000 samples, deterministic draws, resource checks and unknown
-      limits, with full/trial equivalence tests and deliberate regression drills.
-      With report-only work removed, the next full shard still measures one
-      independent-lane case at 2.04 seconds. Reservation boundary sets are
-      rebuilt and sorted after every placement although only failed placements
-      read them; compute this set on demand and invalidate after each placement.
-      Maintain the same maximum assigned end incrementally and reuse a single
-      date for the existing overflow checks. Preserve gap, quota and date guards
-      and verify the complete resource scheduler alongside the performance suite.
-      The fresh static job catches a duplicated seven-line CI fixture in the
-      new regression; share that test-only lane setup, retaining every input,
-      assertion and the unchanged zero-duplication threshold.
-      The standalone accounts accessibility build still pulls the complete
-      Models panel, vault, team and keybinding schemas through its account slice
-      import (78.6 / 25 KiB). Move the existing captured account projection into
-      its own shared module and import it directly from account surfaces; keep
-      the Models panel re-exports and all validation. Measure the whole unchanged
-      standalone closure and retain every accessibility page and assertion.
-      The first extraction removes 29.6 KiB but the closure still reaches
-      49.0 KiB: its test build omits the production keyboard split, and the
-      English collector includes all Help labels even when Help is unreachable.
-      Use the real keyboard plugin, derive its startup contexts from the actual
-      standalone entry, and collect generated Help labels only for a graph that
-      includes ReferencePage. Chat retains its current startup contexts; translated
-      table shape/slots and every reachable English reader remain unchanged.
-      Final source `9733edba2`: all 20,034 tests pass (146 existing skips);
-      actual latest/floor editors each pass 40 tests. Full pinned Semgrep runs
-      533 rules on 2,487 files with zero findings in 91.26 seconds. No suppression
-      or default test/hook deadline changes; twenty-six restored guard drills.
-- [x] Recover startup through first-use chunks and deduplication: final fresh
-      build measures 739,475 / 751,411 bytes. Shrink the whole account closure
-      from 80,488 to 27,338 bytes; the brief-authorized D6 calculation gives
-      51,200 bytes (50 KiB). Keep every other existing bundle cap unchanged.
-- [ ] Measure the actual universal VSIX with genuine hosted macOS artifacts;
-      only then apply its authorized universal bytes +5%, rounded up to
-      25 KiB rule. The existing 2,841,600-byte cap remains unchanged until then
-      (Q-REL0150M-UNIVERSAL); helperless bytes do not certify this measurement.
-- [x] Diagnose full accessibility cost and run its complete harness alone.
-      Checkpoint `630710858` completes all 988 pages in 223.85 seconds with zero
-      violations/undecided rules, but eight filtered slash pages have no result:
-      their palette grammar reads deferred English before a component loads it.
-      Await English alongside the grammar and show the existing accessible
-      loading/failure surface for filtered commands until both are ready.
-      Prove cold loading, failure and cancellation without eager startup bytes.
-      The legal keyboard gate separately reports escaped focus; trace the actual
-      matrix case and repair its cause before repeating the whole gate.
-      Fresh `1a5bc2fa9`: exact static job passes in 552.75 seconds; startup is
-      739,475 / 751,411 bytes. Cold slash pages now pass and legal completes
-      all 96 keyboard/zoom checks plus 24 English/pseudo WCAG pages. Honest
-      named-scene readiness exposes four long-reply pages exceeding ten seconds;
-      measure the complete delta replay alone, then remove its scheduling or
-      rendering bottleneck while retaining all deltas, pages and deadlines.
-      The unchanged four-theme long-only diagnostic passes. The full pool runs
-      twelve concurrent axe/scenario pages; that competing work starves the
-      complete streamed replay. Keep ordinary concurrency, then scan all four
-      long-reply pages serially after the pool closes. Verify exactly-once page
-      coverage and absence of overlap; keep every delta and ten-second deadline.
-      Fresh `9733edba2` installs normally and passes the exact static sequence
-      in 571.14 seconds; startup remains 739,475 / 751,411 bytes. Complete
-      accessibility runs alone on the hashed production artifact, before
-      four coverage shards, both editor versions, pinned scans and packaging.
-      The final full command passes all 988 pages in 326.52 seconds, with zero
-      violations, undecided rules or missing results. Legal passes all 96 native
-      keyboard/zoom checks plus 24 English/pseudo WCAG pages in 106.51 seconds.
-      Every original page, streamed delta and readiness deadline is retained.
-      All four final coverage shards and the merge pass on `9733edba2`; no
-      failure or setup error. The complete map passes every unchanged threshold:
-      92.99 / 88.11 / 93.96 / 93.79 percent. Editor integration follows.
-      The first integration attempt stops before any test: the official editor
-      release lookup reports ETIMEDOUT. The installed SDK's same lookup then
-      succeeds (stable 1.141.0; manifest floor 1.99.0). Rerun the unchanged job;
-      preserve that infrastructure failure and add no test retry or deadline.
-      The unchanged integration job then passes in 53.71 seconds: real VS Code
-      1.141.0 and 1.99.0 each pass all 40 tests, including nested vault defaults.
-- [x] Commit fixes, clone committed source fresh, `npm ci`, `CI=true`, and
-      execute every independent exact Linux build.yml command serially at its
-      repository deadline; record the native dependency and resulting red jobs.
-      Final source `9733edba2`: static, all four shards/coverage, full accessibility,
-      both editors, pinned SAST and history secrets pass. Unit totals: 20,034
-      passed, 146 existing skips, no failures or setup errors. Four-CPU affinity
-      lets Vitest choose its normal three workers; no CLI worker/deadline override.
-      Gitleaks 8.24.3 scans 1,829 commits with zero leaks. ACP cold exports (45),
-      installed localization, fake exec (44), the workflow's registry gate (1),
-      SBOM and asset hashes pass. Genuine Mac preparation belongs to hosted CI,
-      whose pass is still required; no release helper is fabricated here.
-      Package/member/size checks and the replayed required aggregate remain red:
-      helperless VSIX 2,897,076 / 2,841,600 bytes; four missing VSIX Mac members
-      and one missing ACP Mac member. Every other required member is present.
-- [x] Add completion receipts to `docs/certification/int0180.md`, including
-      commands, counts, drills, cap measurements and any external blocker.
-      `docs/certification/int0180b-linux.json` binds commands, exits, hashes,
-      editor identities and all twenty-six failed/restored drills to source
-      `9733edba2`. Do not claim every Linux CI job passes until the genuine
-      universal package and required aggregate pass.
-
 ### INT0180 — Pre-integrate 0.18.0 on the 0.15.0 candidate (2026-10-07, linuxlt)
 
 **Status 2026-10-07: built.** Linux receipts in `docs/certification/int0180.md`; the package job stays red without genuine macOS artifacts.
@@ -18562,7 +18406,7 @@ only measured named heavy-work limits registered in §8. Historical stopped path
 for this explicitly requested repair slice. Hosted platform results remain
 separate from Linux rig receipts.
 
-- **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### INT0170 — Pre-integrate reports, design polish and playbook (2026-10-07)
 
@@ -19488,7 +19332,7 @@ extension's own storage, never the workspace's `.git`.
     is archived as `_archive-2026-10-01/m73-m75-join-wip`; what was kept
     and dropped is in `docs/certification/m73.md`.
 
-- **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### M74 — Long tasks: automatic compaction and handoff (D49)
 
@@ -20109,8 +19953,6 @@ re-rendered. Evidence: `docs/certification/m87.md`, "Integration on
   | W Wiring  | `package.json` (setting, commands), README, PRIVACY, CHANGELOG, PLAN, `docs/certification/m89.md`, the full gate                                                                                                                                             |
 
 - **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
-
-- **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M90 — Auto on Muse Code: the reviewer (D69)
 
@@ -34091,8 +33933,6 @@ Final evidence is recorded in `docs/certification/macslow.md`.
       | D Docs / integration  | last (alongside)                     | README, `docs/judge.md` (phase 1), `docs/PRIVACY.md`, SECURITY, CHANGELOG, PLAN, `docs/certification/m98.md`, the bundle and package scripts, knip and dpdm entries                                                                                                                                                                                                                                                                                                                                            | Documented behaviour only after real runs; costs from receipts; Muse Code's narrowed claim stated                                                                                              |
 
 - **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
-
-- **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
