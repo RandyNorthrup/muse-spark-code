@@ -142,6 +142,39 @@ are stored, everything else is Zopfli raw deflate with correct CRC and
 sizes; the VSIX-shipped archive loads all 21 templates with no problems
 (probed from the packed bytes).
 
+### Diet exhaustion (VSIXFIT follow-up, 2026-10-20, linuxlt rig)
+
+win32 (complete, gate red at −12,022) and the full darwin package
+(estimated −135,000 or worse) have no legitimate lever left inside "budget
+never raised, no feature/locale/helper/text cut":
+
+- Compression is maxed and measured: Zopfli numiterations=15 deflate with
+  stored `.br`; both solid brotli archives already at quality 11, and
+  larger windows on the real payloads measure identical or worse (code
+  archive lgwin 23 vs 24: same 1,349,336 bytes; locale tables lgwin 22 vs
+  23/24: 993,162 vs 993,666).
+- Exact-duplicate scan of the win32 package: one 1,071-byte LICENSE pair
+  (both copies required), nothing else.
+- All JS/CSS minified (esbuild production), no `.map`/`.d.ts` members, no
+  vendored-code duplication across webview chunks (0/200 shingle overlap),
+  no embedded fonts/assets in the webview CSS, tables already indexed and
+  JSON already compact.
+- The arithmetic is airtight: neutral content measures ~3,746,900 bytes in
+  every target (byte-identical shared members across all three local
+  packs), leaving ~42,000 bytes for platform helpers. The x64 pair costs
+  17,295, the arm64 pair ~19,000 estimated, the fallback ~36,500 estimated
+  (thin) — but the Windows sources cost ~55,500 and the darwin binaries
+  ~175,000 or more (the `muse-dictate` binary ships twice at 80,798
+  deflated each: loose and inside the `.app`, a byte copy per
+  `native/darwin/build.sh`).
+- Concrete blockers: darwin's dictate duplication (161,596 bytes) can only
+  go with signed-bundle surgery (a symlink or single-copy layout inside
+  the codesigned `.app`); even that leaves darwin over before `muse-vault`
+  (Swift `-Osize` universal, size CI). win32 is short 12,022 bytes with
+  images (~85 KB shipped) the only unmaxed surface, worth a few KB at most
+  under its own pipeline — not this lane. Further neutral diet past this
+  point needs product-level changes, which no packaging lane makes.
+
 CI's package job prints every package's bytes (`stat -c '%n %s' ./*.vsix`),
 checks each against the budget, and asserts per target: all shared
 bundles present, only its own helpers present, no other platform's
