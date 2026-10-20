@@ -10,15 +10,7 @@
 // separators before comparing, so the check holds on Windows checkouts.
 import { createHash } from 'node:crypto'
 import { Buffer } from 'node:buffer'
-import {
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { lstatSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { brotliCompressSync, brotliDecompressSync, constants as zlibConstants } from 'node:zlib'
 
@@ -85,46 +77,27 @@ person reads) beside it. `root` is the repository checkout, `stage` its
 package stage. Returns the member count with the loose and archived byte
 sizes for the packaging log.
 */
-export function packSolidTextArchive(
-  stage,
-  sourceRel,
-  archiveRel,
-  keep = new Set(),
-  quality = SOLID_TEXT_ARCHIVE_QUALITY,
-  exclude = new Set(),
-) {
-  const source = path.join(stage, ...sourceRel.split('/'))
-  if (!lstatSync(source).isDirectory())
-    throw new Error(`Solid archive source is missing: ${source}`)
-  // Kept members stay loose beside the archive; excluded members leave the
-  // stage entirely (never shipped, e.g. an agent-only bundle inside the
-  // webview tree that VSCE never allowlisted).
-  for (const file of exclude) rmSync(path.join(source, ...file.split('/')), { force: true })
-  const files = listTextMembers(source).filter((file) => !keep.has(file))
-  if (files.length === 0) throw new Error(`Solid archive would be empty: ${source}`)
-  const { members, looseBytes } = readTextMembers(source, files)
+/**
+Pack the `sourceDir` tree into the `archiveFile`: every member except `keep`
+(the loose evidence and attribution a person reads) and `exclude` (never
+shipped, e.g. an agent-only bundle inside the webview tree that VSCE never
+allowlisted). The source tree is only read; the loose members simply never
+enter the package stage. Returns the member count with the loose and
+archived byte sizes for the packaging log.
+*/
+export function packSolidTextArchive(sourceDir, archiveFile, options = {}) {
+  const { keep = new Set(), exclude = new Set(), quality = SOLID_TEXT_ARCHIVE_QUALITY } = options
+  if (!lstatSync(sourceDir).isDirectory())
+    throw new Error(`Solid archive source is missing: ${sourceDir}`)
+  const files = listTextMembers(sourceDir).filter((file) => !keep.has(file) && !exclude.has(file))
+  if (files.length === 0) throw new Error(`Solid archive would be empty: ${sourceDir}`)
+  const { members, looseBytes } = readTextMembers(sourceDir, files)
   const packed = brotliCompressSync(encodeSolidTextArchive(members), {
     params: { [zlibConstants.BROTLI_PARAM_QUALITY]: quality },
   })
-  const archive = path.join(stage, ...archiveRel.split('/'))
-  mkdirSync(path.dirname(archive), { recursive: true })
-  writeFileSync(archive, packed)
-  for (const file of files) rmSync(path.join(source, ...file.split('/')), { force: true })
-  removeEmptyDirs(source)
+  mkdirSync(path.dirname(archiveFile), { recursive: true })
+  writeFileSync(archiveFile, packed)
   return { members: files.length, looseBytes, archiveBytes: packed.byteLength }
-}
-
-/** Remove dirs left hollow by the archive packing, keeping the kept loose files' parents. */
-function removeEmptyDirs(source) {
-  const visit = (directory) => {
-    for (const name of readdirSync(directory)) {
-      const absolute = path.join(directory, name)
-      if (lstatSync(absolute).isDirectory()) visit(absolute)
-    }
-    if (directory !== source && readdirSync(directory).length === 0)
-      rmSync(directory, { recursive: true, force: true })
-  }
-  if (existsSync(source)) visit(source)
 }
 
 /**

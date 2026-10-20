@@ -5,7 +5,6 @@
 // The real skill loader lists the same skills through the archive-backed
 // reader as through the loose tree, and a damaged archive warns instead of
 // failing the turn.
-import { brotliCompressSync, brotliDecompressSync, constants as zlibConstants } from 'node:zlib'
 import {
   cpSync,
   existsSync,
@@ -14,16 +13,24 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import {
+  copyRig,
+  damageSolidArchiveBytes,
+  damageSolidArchiveMember,
+  readSolidArchiveMembers,
+} from './helpers/solidArchive'
 import { fileContextIo } from '../../src/host/backend/contextIo'
 import { withBundledSkillsArchive } from '../../src/core/context/bundledSkillsArchive'
 import { bundledSkillsRoot, loadSkills, type SkillRoot } from '../../src/core/context/skills'
 import { installBundledSkills } from '../../src/host/skills/bundledSkillsInstall'
-import { BUNDLED_SKILLS_ARCHIVE_FILE } from '../../src/shared/constants'
+import {
+  BUNDLED_SKILLS_ARCHIVE_FILE,
+  BUNDLED_SKILLS_ARCHIVE_VERSION,
+} from '../../src/shared/constants'
 import { packSolidTextArchive } from '../../scripts/lib/solidTextArchive.mjs'
 
 const VENDOR = path.resolve('vendor/high-quality-projects-skill')
@@ -37,20 +44,6 @@ const looseVendor = path.join(root, 'loose', PACKAGE)
 const packagedParent = path.join(root, 'packaged')
 const packagedVendor = path.join(packagedParent, PACKAGE)
 const packagedArchive = path.join(packagedParent, BUNDLED_SKILLS_ARCHIVE_FILE)
-
-function isRecord(value: unknown): value is Record<string, { sha256: string; text: string }> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    Object.values(value).every(
-      (member: unknown) =>
-        typeof member === 'object' &&
-        member !== null &&
-        typeof Reflect.get(member, 'sha256') === 'string' &&
-        typeof Reflect.get(member, 'text') === 'string',
-    )
-  )
-}
 
 const byName = (left: string, right: string): number => left.localeCompare(right, 'en')
 
@@ -89,18 +82,21 @@ function rootsFor(vendorRoot: string): SkillRoot[] {
 
 beforeAll(() => {
   cpSync(VENDOR, looseVendor, { recursive: true })
-  const stage = path.join(root, 'stage')
-  cpSync(VENDOR, path.join(stage, 'vendor', PACKAGE), { recursive: true })
   const packed = packSolidTextArchive(
-    stage,
-    `vendor/${PACKAGE}`,
-    `vendor/${BUNDLED_SKILLS_ARCHIVE_FILE}`,
-    new Set(['LICENSE', 'VENDOR.json']),
+    VENDOR,
+    path.join(root, 'stage', BUNDLED_SKILLS_ARCHIVE_FILE),
+    {
+      keep: new Set(['LICENSE', 'VENDOR.json']),
+    },
   )
   expect(packed.members).toBeGreaterThan(0)
-  mkdirSync(packagedParent, { recursive: true })
-  cpSync(path.join(stage, 'vendor', PACKAGE), packagedVendor, { recursive: true })
-  cpSync(path.join(stage, 'vendor', BUNDLED_SKILLS_ARCHIVE_FILE), packagedArchive)
+  mkdirSync(packagedVendor, { recursive: true })
+  // The packaged layout: the archive beside only the loose evidence and
+  // attribution, exactly what the stage check ships.
+  for (const name of ['LICENSE', 'VENDOR.json']) {
+    cpSync(path.join(VENDOR, name), path.join(packagedVendor, name))
+  }
+  cpSync(path.join(root, 'stage', BUNDLED_SKILLS_ARCHIVE_FILE), packagedArchive)
   mkdirSync(path.join(root, 'first-party-skills'), { recursive: true })
 })
 
@@ -131,6 +127,18 @@ function installArea(): {
   }
 }
 
+/** The real installer over an area, with the test's clock and identity. */
+function install(area: { vendorRoot: string; skillsRoot: string; sourcesRoot: string }) {
+  return installBundledSkills({
+    vendorRoot: area.vendorRoot,
+    skillsRoot: area.skillsRoot,
+    sourcesRoot: area.sourcesRoot,
+    platform: process.platform,
+    now: () => Date.now(),
+    newId: () => 'testid',
+  })
+}
+
 /** The installed copy's staged tree, without the installer's own marker. */
 function installedTree(sourcesRoot: string): Record<string, Buffer> {
   const copy = path.join(sourcesRoot, PACKAGE)
@@ -150,12 +158,7 @@ describe('packaged skill archive', () => {
     const vendor = JSON.parse(readFileSync(path.join(packagedVendor, 'VENDOR.json'), 'utf8')) as {
       files: { path: string }[]
     }
-    const parsed: unknown = JSON.parse(
-      brotliDecompressSync(readFileSync(packagedArchive)).toString('utf8'),
-    )
-    const files: unknown =
-      typeof parsed === 'object' && parsed !== null ? Reflect.get(parsed, 'files') : undefined
-    if (!isRecord(files)) throw new Error('Test archive is malformed')
+    const files = readSolidArchiveMembers(packagedArchive)
     expect(Object.keys(files).toSorted(byName)).toEqual(
       vendor.files
         .map((file) => file.path)
@@ -167,14 +170,7 @@ describe('packaged skill archive', () => {
   it('installs byte-identical from the archive', async () => {
     const area = installArea()
     try {
-      const result = await installBundledSkills({
-        vendorRoot: area.vendorRoot,
-        skillsRoot: area.skillsRoot,
-        sourcesRoot: area.sourcesRoot,
-        platform: process.platform,
-        now: () => Date.now(),
-        newId: () => 'testid',
-      })
+      const result = await install(area)
       expect(result.failure).toBeUndefined()
       expect(result.installed.toSorted(byName)).toEqual([
         'feature_delivery',
@@ -198,30 +194,12 @@ describe('packaged skill archive', () => {
     const area = installArea()
     try {
       const rigArchive = path.join(path.dirname(area.vendorRoot), BUNDLED_SKILLS_ARCHIVE_FILE)
-      const parsed: unknown = JSON.parse(
-        brotliDecompressSync(readFileSync(rigArchive)).toString('utf8'),
-      )
-      const files: unknown =
-        typeof parsed === 'object' && parsed !== null ? Reflect.get(parsed, 'files') : undefined
-      if (!isRecord(files)) throw new Error('Test archive is malformed')
-      const victim = 'skills/project_setup/SKILL.md'
-      const original = files[victim]?.text ?? ''
-      expect(original.length).toBeGreaterThan(0)
-      files[victim] = { sha256: files[victim]?.sha256 ?? '', text: `X${original.slice(1)}` }
-      writeFileSync(
+      damageSolidArchiveMember(
         rigArchive,
-        brotliCompressSync(JSON.stringify({ version: 1, files }), {
-          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 1 },
-        }),
+        'skills/project_setup/SKILL.md',
+        BUNDLED_SKILLS_ARCHIVE_VERSION,
       )
-      const result = await installBundledSkills({
-        vendorRoot: area.vendorRoot,
-        skillsRoot: area.skillsRoot,
-        sourcesRoot: area.sourcesRoot,
-        platform: process.platform,
-        now: () => Date.now(),
-        newId: () => 'testid',
-      })
+      const result = await install(area)
       expect(result.failure).toBeDefined()
       expect(result.failure?.reason.kind).toBe('error')
       expect(existsSync(path.join(area.sourcesRoot, PACKAGE))).toBe(false)
@@ -250,15 +228,11 @@ describe('packaged skill archive', () => {
       const looseBody = loose.skills.find((candidate) => candidate.id === skill.id)?.body
       expect(skill.body).toBe(looseBody)
     }
-    const rig = mkdtempSync(path.join(tmpdir(), 'muse-skill-damaged-'))
+    const rig = copyRig(packagedParent)
     try {
-      const vendorRoot = path.join(rig, PACKAGE)
-      cpSync(packagedVendor, vendorRoot, { recursive: true })
-      const rigArchive = path.join(rig, BUNDLED_SKILLS_ARCHIVE_FILE)
-      cpSync(packagedArchive, rigArchive)
-      const damaged = readFileSync(rigArchive)
-      damaged.writeUInt8((damaged.at(-1) ?? 0) ^ 0xff, damaged.length - 1)
-      writeFileSync(rigArchive, damaged)
+      const vendorRoot = path.join(rig.dir, PACKAGE)
+      const rigArchive = path.join(rig.dir, BUNDLED_SKILLS_ARCHIVE_FILE)
+      damageSolidArchiveBytes(rigArchive)
       const refused = await loadSkills(
         {
           io: withBundledSkillsArchive(fileContextIo, vendorRoot, process.platform),
@@ -269,7 +243,7 @@ describe('packaged skill archive', () => {
       expect(refused.skills).toEqual([])
       expect(refused.warnings.length).toBeGreaterThan(0)
     } finally {
-      rmSync(rig, { recursive: true, force: true })
+      rig.cleanup()
     }
   })
 })

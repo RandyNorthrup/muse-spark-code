@@ -1,8 +1,13 @@
 // M112 U: actual VS Code renderer + a test-only injected host, no model process/call.
 import * as assert from 'node:assert/strict'
 import { EventEmitter, once } from 'node:events'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import * as vscode from 'vscode'
 import { EN } from '../../src/shared/l10n/en'
+import { withFailureDocument } from '../../src/host/views/webviewBundle'
+import { tryResolveWebviewBundleDir } from '../../src/host/views/webviewBundleRoot'
 import {
   CHAT_PANEL_VIEW_TYPE,
   EXTENSION_QUALIFIED_ID,
@@ -41,8 +46,21 @@ suite('M112 real panel', () => {
     })
     const answerEvents = new EventEmitter()
     const answered = once(answerEvents, 'answered')
+    // The webview bundle (VSIXWEB A) resolves through the real resolver
+    // against the real extension tree, into a test-only storage folder.
+    const storagePath = mkdtempSync(path.join(tmpdir(), 'm112-webview-storage-'))
     const context: WebviewHostContext = {
       extensionUri: extension.extensionUri,
+      globalStoragePath: storagePath,
+      resolveWebviewBundle: () =>
+        withFailureDocument(
+          tryResolveWebviewBundleDir({
+            extensionPath: extension.extensionUri.fsPath,
+            globalStoragePath: storagePath,
+          }),
+          EN.webviewBundleUnavailable,
+          'en',
+        ),
       l10n: { locale: 'en', table: EN },
       log: channel,
       getSettings: () =>

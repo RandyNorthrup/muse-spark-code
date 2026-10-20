@@ -5,11 +5,7 @@ import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'no
 import path from 'node:path'
 import { packLegalDataArchive } from './lib/legalArchive.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
-import {
-  SOLID_TEXT_ARCHIVE_QUALITY,
-  parseSolidTextArchive,
-  packSolidTextArchive,
-} from './lib/solidTextArchive.mjs'
+import { parseSolidTextArchive, packSolidTextArchive } from './lib/solidTextArchive.mjs'
 import { compactVsix } from './lib/compactVsix.mjs'
 import { removePackageStage } from './lib/packageStage.mjs'
 import {
@@ -182,14 +178,13 @@ export async function stageVsix(root, stage, target) {
   // first use (src/host/views/webviewBundleRoot.ts).
   // The ACP agent's voice companion lives in the same build tree but was
   // never allowlisted into the VSIX (the agent's npm package ships it
-  // loose): it leaves the stage instead of joining the archive.
+  // loose): it is excluded from the archive instead of joining it.
   packSolidTextArchive(
-    stage,
-    'dist/webview',
-    'dist/webview.json.br',
-    new Set(),
-    SOLID_TEXT_ARCHIVE_QUALITY,
-    new Set(['voiceCompanion.js', 'voiceCompanion.css']),
+    path.join(root, 'dist', 'webview'),
+    path.join(stage, 'dist', 'webview.json.br'),
+    {
+      exclude: new Set(['voiceCompanion.js', 'voiceCompanion.css']),
+    },
   )
   const webviewMembers = new Set(
     Object.keys(
@@ -208,10 +203,11 @@ export async function stageVsix(root, stage, target) {
   // which stay loose (the legal evidence and the attribution a person
   // reads). The installer stages from the archive (src/host/skills/).
   packSolidTextArchive(
-    stage,
-    'vendor/high-quality-projects-skill',
-    'vendor/high-quality-projects-skill.json.br',
-    new Set(['LICENSE', 'VENDOR.json']),
+    path.join(root, 'vendor', 'high-quality-projects-skill'),
+    path.join(stage, 'vendor', 'high-quality-projects-skill.json.br'),
+    {
+      keep: new Set(['LICENSE', 'VENDOR.json']),
+    },
   )
   writeFileSync(
     path.join(stage, 'README.md'),
