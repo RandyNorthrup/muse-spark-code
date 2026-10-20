@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import manifest from '../../package.json'
-import {
-  QUESTION_DEFER_DEFAULT_SECONDS,
-  QUESTION_DEFER_MAX_SECONDS,
-  QUESTION_DEFER_SETTING,
-} from '../../src/shared/constants'
+import { QUESTION_DEFER_DEFAULT_SECONDS, QUESTION_DEFER_SETTING } from '../../src/shared/constants'
 
 const focus = "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
 describe('M112 question contributions', () => {
-  it('uses machine scope and the frozen default/range, admitting 0 and 1–9 for host normalization', () => {
+  it('uses machine scope and the frozen default, with no maximum of ours', () => {
     const setting =
       manifest.contributes.configuration.properties['museSpark.questions.deferAfterSeconds']
     expect(QUESTION_DEFER_SETTING).toBe('questions.deferAfterSeconds')
@@ -16,9 +12,9 @@ describe('M112 question contributions', () => {
       type: 'integer',
       default: QUESTION_DEFER_DEFAULT_SECONDS,
       minimum: 0,
-      maximum: QUESTION_DEFER_MAX_SECONDS,
       scope: 'machine',
     })
+    expect('maximum' in setting).toBe(false)
   })
   it('binds both directions only to the actual chat focus scopes, with platform-specific chords', () => {
     const bindings = new Map(

@@ -3342,7 +3342,7 @@ Type: `"string"`. Default: `"paired"`. Scope: `machine`.
 
 ### museSpark.questions.deferAfterSeconds
 
-Seconds before an unanswered question is deferred so Muse can keep working. No limit unless you set one: 0 (the default) never defers; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.
+Seconds before an unanswered question is deferred so Muse can keep working. No limit unless you set one: 0 (the default) never defers; any other whole number of seconds is used as you set it. The question stays open and can be answered later. Only this machine’s setting is used.
 
 Type: `"integer"`. Default: `0`. Scope: `machine`.
 
@@ -3350,8 +3350,7 @@ Type: `"integer"`. Default: `0`. Scope: `machine`.
 {
   "type": "integer",
   "default": 0,
-  "minimum": 0,
-  "maximum": 3600
+  "minimum": 0
 }
 ```
 
@@ -3834,7 +3833,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600) `{"type":"string","repeatable":false}`
+- `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false}`
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --max-budget-usd <value>`: Set the spending reservation limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"decimals":6,"required":"modelApi","unit":"USD"}`
@@ -3861,7 +3860,7 @@ These are defaults; editor customizations take precedence.
 - `login: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `login: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `login: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `login: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
@@ -3887,7 +3886,7 @@ These are defaults; editor customizations take precedence.
 - `setup: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `setup: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `setup: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3915,7 +3914,7 @@ These are defaults; editor customizations take precedence.
 - `authSet: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authSet: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authSet: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3942,7 +3941,7 @@ These are defaults; editor customizations take precedence.
 - `authStatus: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authStatus: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authStatus: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authStatus: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3969,7 +3968,7 @@ These are defaults; editor customizations take precedence.
 - `authClear: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers; 1–9 read as 10, maximum 3600) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set/status/clear). `{"type":"string","repeatable":false,"purpose":"provider"}`
