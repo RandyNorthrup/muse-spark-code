@@ -1,7 +1,7 @@
 import { spawnResourceProcess } from '../../resources/launcher'
 import { Socket } from 'node:net'
 import { type Duplex } from 'node:stream'
-import { probeChildEnvironment } from '../../resources/trees/run'
+import { probeChildEnvironment } from '../../executables'
 import * as z from 'zod/mini'
 import { VAULT_TRANSPORT_TIMEOUT_MS, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
 

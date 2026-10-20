@@ -14,7 +14,8 @@ import { LinuxResourceTreeReader, type LinuxTreeDeps } from './linux'
 import type { ResourceTreeKillResult } from './actions'
 import { ResourceTreeRegistry } from './registry'
 import { parseLinuxStat } from './posixTable'
-import { probeChildEnvironment, runTreeProgram } from './run'
+import { probeChildEnvironment } from '../../executables'
+import { runTreeProgram } from './run'
 
 /** Trusted launch site only. Scope gate runs before any workload instruction or fork. */
 export async function launchLinuxResourceTree(

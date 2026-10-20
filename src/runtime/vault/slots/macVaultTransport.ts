@@ -1,5 +1,5 @@
 import { spawnResourceProcess } from '../../../core/resources/launcher'
-import { probeChildEnvironment } from '../../../core/resources/trees/run'
+import { probeChildEnvironment } from '../../../core/executables'
 import path from 'node:path'
 import { UI_TEXT, VAULT_TRANSPORT_TIMEOUT_MS } from '../../../shared/constants'
 import { macVaultFailure, type MacVaultTransport } from './macVaultProtocol'

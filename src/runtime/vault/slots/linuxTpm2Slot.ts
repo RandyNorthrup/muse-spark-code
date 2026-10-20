@@ -15,7 +15,7 @@ import {
   type VaultSlotRecord,
 } from '../../../shared/vault'
 import { spawnResourceProcess } from '../../../core/resources/launcher'
-import { probeChildEnvironment } from '../../../core/resources/trees/run'
+import { probeChildEnvironment } from '../../../core/executables'
 import { wrapSlotKey } from './slotWrap'
 import { slotContextSchema, type SlotContext } from './slotEntries'
 

@@ -1,6 +1,6 @@
 import type { ResourceDiskSampler } from '../disk'
 import { access, open, readdir } from 'node:fs/promises'
-import { probeChildEnvironment } from '../trees/run'
+import { probeChildEnvironment } from '../../executables'
 import { execFileGuarded } from '../../guardedChildProcess'
 import * as os from 'node:os'
 import path from 'node:path'

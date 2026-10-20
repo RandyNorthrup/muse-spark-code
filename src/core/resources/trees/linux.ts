@@ -27,12 +27,8 @@ import {
 } from '../../../shared/resources'
 import { PosixResourceTreeReader, type PosixTreeSnapshot, type PosixTreeSource } from './posix'
 import { parseLinuxStat, type ProcessSample } from './posixTable'
-import {
-  coalescedTreeRead,
-  probeChildEnvironment,
-  runTreeProgram,
-  type ResourceTreeRun,
-} from './run'
+import { probeChildEnvironment } from '../../executables'
+import { coalescedTreeRead, runTreeProgram, type ResourceTreeRun } from './run'
 import {
   signalVerifiedPosix,
   type ResourceActionResult,

@@ -14,7 +14,8 @@ import {
   type ResourceTreeReader,
   type ResourceTreeUsage,
 } from '../../../shared/resources'
-import { probeChildEnvironment, runTreeProgram, type ResourceTreeRun } from './run'
+import { probeChildEnvironment } from '../../executables'
+import { runTreeProgram, type ResourceTreeRun } from './run'
 import {
   resourceActionResultSchema,
   type ResourceActionResult,
