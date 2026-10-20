@@ -952,8 +952,13 @@ export function step(
       }
       case 'dispose': {
         state.disposed = true
-        op.command = { kind: 'lock', bump: true }
-        lock(op, true)
+        // The shutdown lock already cleared every live material, so a
+        // dispose then locks nothing new and must not advance the epoch a
+        // second time: the file keeps the lock's own generation, still
+        // monotonic for the next broker. A dispose of a live broker bumps.
+        const shouldBump = state.store !== undefined || state.key !== undefined
+        op.command = { kind: 'lock', bump: shouldBump }
+        lock(op, shouldBump)
         return
       }
       case 'lock': {
