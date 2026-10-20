@@ -7,7 +7,7 @@
 // store refuses a replacement over it; saving clears both. Runs inside
 // the Extension Development Host (see .vscode-test.mjs).
 import * as assert from 'node:assert/strict'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
@@ -17,6 +17,7 @@ import { MemoryStore } from '../../src/core/memory/memoryStore'
 import { FILE_REFUSAL_MODEL_TEXT, MENTION_INDEX_LIMIT } from '../../src/shared/constants'
 import { walkFiles } from '../../src/runtime/fileWalk'
 import type { Logger } from '../../src/host/logger'
+import { removeFolder } from '../unit/helpers/temporaryFolders'
 
 const silentLog: Logger = {
   trace: () => undefined,
@@ -39,7 +40,10 @@ suite('unsaved buffers refuse memory writes (D27)', () => {
 
   suiteTeardown(async () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
-    await rm(root, { recursive: true, force: true })
+    // VS Code lets go of a closed document's folder on its own clock (seen
+    // on 1.142, Windows: EBUSY on the notes folder): the shared removal
+    // retries as every unit suite's does.
+    await removeFolder(root)
   })
 
   test('a dirty document reports unsaved and refuses a note replacement', async () => {
