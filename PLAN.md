@@ -26573,6 +26573,7 @@ Acceptance and the exact composed gate receipts live in
 - **Goal.** Firmware and device work with Muse Spark Code is safe, with tokens
   never leaked, and practical, with bounded flash and monitor runs, without
   duplicating the SDK's own agent guide.
+
 - **Scope.**
   - **M92a, tokens:** `src/core/redact.ts` and its consumers; the existing
     secret warnings; tests; CHANGELOG Security; README, SECURITY.md and
@@ -26618,6 +26619,7 @@ Acceptance and the exact composed gate receipts live in
       still runs the command as proposed. Model API Bypass asks too. Muse
       Code Bypass can execute without an approval event; see the named §9
       residual, RVM92E-BYPASS-MUSE.
+
 - **RVM92E corrections (2026-10-04, FIXM92E).** Fix all four P1s and
   the prompt concurrency, explicit resend and approval-note P2s with failing
   regressions and byte-exact red drills. The pure shared detection table must
@@ -26635,6 +26637,7 @@ Acceptance and the exact composed gate receipts live in
   The duplication gate also exposes copied M92 secret-dialog boot setup;
   replace that owned test setup with an initialized UI store, preserving all
   assertions and the zero-duplication threshold.
+
 - **Acceptance.**
   1. A valid `mgst_` token is redacted everywhere the shared table applies, and
      `scan-secrets` counts it. Near-misses (wrong last character or length,
@@ -26654,14 +26657,18 @@ Acceptance and the exact composed gate receipts live in
      Model API it is never auto-approved by an allow rule, a session rule,
      a hook or the Auto reviewer; on Muse Code every emitted approval is
      scrubbed and excluded from the reviewer (CLI admission residual in §9).
+
 - **Tests.** Unit tests for each item, each red-drilled. M92b's process-tree
   proof runs on the three rigs (targeted files only). No hardware, network or
   model call is needed.
+
 - **Gates.** The full quality gate, check-l10n, host-API, VSIX size.
+
 - **Security.** A token never appears in a fixture literal (fixtures are built
   at runtime). The skill tells the user to enter tokens themselves. Nothing
   installs or talks to gadget services. M92e adds no pattern list: every
   guard reads the one shared table.
+
 - **Certification checklist.**
   - [x] M92a: redaction, consumers and warnings, with drills
         (`docs/certification/m92.md`)
