@@ -289,6 +289,10 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- On Windows the vault starts inside VS Code. VS Code runs extensions from
+  its own install folder, so the editor's own runtime read as a program
+  planted in a workspace and the vault's broker was never launched: the
+  panel only said "The vault operation failed".
 - `auth status` tells apart two providers made from one preset (two
   Anthropic keys): each line adds the provider's id instead of printing the
   same sentence twice.
