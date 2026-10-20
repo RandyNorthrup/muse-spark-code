@@ -57,7 +57,10 @@ export class WindowsVaultPipeConnection extends Duplex {
     readonly client: WindowsVaultPipeClient,
     private readonly send: (bytes: Uint8Array) => void,
   ) {
-    super()
+    // A net socket closes when its peer ends: when the client goes, the
+    // writable side ends too, so the stream closes and the broker stops
+    // counting it (its idle shutdown waits for no open connection).
+    super({ allowHalfOpen: false })
   }
   override _read(): void {
     /* The helper pushes; the channel pulls. */
