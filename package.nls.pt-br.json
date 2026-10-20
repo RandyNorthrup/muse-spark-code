@@ -164,6 +164,7 @@
   "config.schedules.description": "Controla /loop no chat do Muse Code. A entrega de prompts agendados requer certificação.",
   "config.schedules.defaultDelivery.description": "Seleciona a forma de entrega gravada nos novos rascunhos de agendamento; não habilita a execução agendada.",
   "config.schedules.agentCreation.description": "Mantida por compatibilidade; esta preferência não tem efeito nesta compilação.",
+  "config.schedulePauseAfterFailures.description": "Quantas falhas consecutivas pausam um agendamento. Sem pausa salvo se definido: 0 (o padrão) nunca pausa um agendamento por falhas, e cada falha continua registrada em seu histórico.",
   "command.tabLanguages.title": "Idiomas do Tab",
   "command.openPullRequestInConversation.title": "Abrir uma Solicitação de Pull em uma Conversa…",
   "config.judge.engine.description": "`auto` (seu próprio modelo de conversa; `same` na fase 1) e `same` só podem acrescentar cautela a uma ação arriscada do Auto que nenhuma regra resolve: uma cautela pronta transforma uma permissão em pergunta, ou em nota no cartão de aprovação. `off` não executa nenhum avaliador. No back-end Model API cada julgamento é cobrado na sua chave e pede confirmação uma vez antes; no Muse Code usa sua assinatura.",

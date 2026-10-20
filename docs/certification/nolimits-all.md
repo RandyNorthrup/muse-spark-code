@@ -689,3 +689,156 @@ per-check shares (M68/D27 design: beginning, end and exit line kept),
 hook path was left because hooks never see more than the preview anyway),
 and every display/row/panel clip (they hide nothing from the model or the
 saved record).
+---
+
+# Lane NOLIMITSFINAL2 — the final product-set sweep (D121)
+
+Branch `fix/0190-nolimitsfinal2`, base `d27853b421`. The owner's order:
+no limit of ours in any default; the person sets one in settings when they
+want one. Six removals, each below with its old default, new default,
+setting, commit and test. Joined beside NOLIMITSRUN (`cand/JOIN0190/171`,
+`ea77b7b27a`) and NOLIMITSINPUT (`cand/JOIN0190/169`, `270d33bc67`);
+both were checked first and nothing they already removed was redone (both
+still carry `WEB_FETCH_TIMEOUT_MS`, and 171 still carries
+`HOOK_MODEL_MAX_OUTPUT_TOKENS`).
+
+## The six removals (old default → new default, setting, commit, test)
+
+- `WEB_FETCH_TIMEOUT_MS` (30 s) → no deadline: the fetch reads a page
+  whole however slow it answers, until the page answers or Stop ends it.
+  The wait names how long it has waited (`stillWaitingText` with the new
+  `webFetch` subject, English `the web page` plus all fourteen locales)
+  through the host's log, as Model API requests already do. No setting:
+  Stop is the person's control, as with model requests. The `timeout`
+  failure kind and both its sentences (`WEB_FETCH_MODEL_TEXT` English,
+  `UI_TEXT` display) go with it. README's web-fetch section says the
+  wait instead of the old 30 seconds. Commit
+  `c374e69a7782e58d78050a6fce8b4d2b9bf75962`. Tests:
+  `test/unit/webFetchNoDeadline.test.ts` (new: a 300 ms injected
+  transport reads whole; notices name the wait; Stop ends it) and the new
+  `webFetch` row in `test/unit/stillWaiting.test.ts`.
+- `HOOK_MODEL_MAX_OUTPUT_TOKENS` (1024) → the capability record's
+  published maximum, or nothing sent: `hookModelOutputCap` reads
+  `modelPolicyFor(modelId).output.maxTokens` (Meta: 131,072); a model the
+  record names none for omits the key and the provider's own default
+  applies. No setting: the person's dollar budgets still cap (the session
+  fit lowers the sent number, the daily reserve holds the sent number and
+  the tally settles the true cost after). Two shared-layer reads stay
+  honest for the absent key: the pacing estimate counts the input side
+  alone (`estimatedStreamTokens`), and a manual thinking step keeps its
+  full size (`manualThinkingBudget`, new pure helper); every other caller
+  sends a budget, unchanged. Two `as` casts with §8 rows (the shared body
+  type still requires the key; widening it would force dead fallbacks at
+  every reader). Commit `d870200053f81f7e4e2c323e796c4bb1eeb7d581`.
+  Tests: `test/unit/hookModelOutputCap.test.ts` (record maximum for a
+  Meta model, nothing for a record-silent one) and
+  `test/unit/hookUncappedEstimates.test.ts` (finite input-side pacing
+  estimate; full thinking step uncapped, fitted step capped).
+- `EXEC_SCAN_TIMEOUT_MS` (30 s) and `HEADLESS_FIXED_TIMEOUT_MS` → the scan
+  runs until it finishes; a CI job that wants a deadline sets one per run
+  with `scan-secrets --timeout <seconds>` (whole seconds within the
+  platform timer's range; what it cannot hold is refused with the flag's
+  own sentence). Commit `2e965fd7e2e4e63d86c57dd569154c8d7b63f5d2`.
+  Tests: `test/unit/cliArgs.test.ts` (the `--timeout` case),
+  `test/unit/scanSecrets.test.ts`.
+- `SCHEDULE_PAUSE_AFTER_FAILURES` (3) → a schedule never pauses itself;
+  every failure still tells the person. New setting
+  `museSpark.schedulePauseAfterFailures` (default 0 = never; a set count
+  pauses after that many consecutive failures), threaded from the bridge
+  through the binding, runtime and engine into the store. Commit
+  `e6e823611acf3331d89e3f1f1be7ccd1e90c5d2f`. Tests:
+  `test/unit/schedulePauseAfterFailures.test.ts` (new),
+  `test/unit/scheduleFireFailures.test.ts`,
+  `test/unit/schedulePromptLoop.test.ts`,
+  `test/unit/scheduleWorkspaceBridge.test.ts`.
+- The plugin child's bounds → no bound of ours: `PLUGIN_HOOK_TIMEOUT_MS`
+  (30 s), `PLUGIN_RUNTIME_PROBE_TIMEOUT_MS` (15 s),
+  `PLUGIN_CHILD_MAX_HEAP_MB` (256: no heap flag, the runtime's own default
+  applies), `PLUGIN_CHILD_MAX_MEMORY_BYTES` (1 GiB),
+  `PLUGIN_RESPONSE_MAX_BYTES` (64 KiB), `MAX_FAILURES` (2) and the same
+  kind of import bound. A wait names how long it has waited and Stop ends
+  it; a retry backoff that only paces retries stays (it bounds nothing).
+  No new settings (an explicit per-hook timeout already exists). Commit
+  `cddd267ea5ae5fb309b076b703c4f2ac30de18af`. Tests:
+  `test/unit/pluginDispatch.test.ts`, `test/unit/pluginContainment.test.ts`
+  (new), `test/unit/pluginImportFiles.test.ts` (new).
+- The governor's disk thresholds `RESOURCE_DISK_MIN_FREE_GIB` (2),
+  `RESOURCE_DISK_CRITICAL_GIB` (1) and `RESOURCE_DISK_CRITICAL_FRACTION`
+  (1%) → the governor measures and shows free space and refuses writes
+  only at a threshold the person set, the NOGOVLIMITS convention for CPU
+  and memory; the 2 GiB set-value minimum, hysteresis and sampler stay.
+  Commit `11d992201efa9cdb2acd4687ea0cbebba8139aca`. Test:
+  `test/unit/resourceNoLimits.test.ts`.
+
+## Proof (break-once per removal, base worktree, then green on this tree)
+
+Each new test was run on the base worktree (`d27853b421`, same rig,
+same repo timeout, no `--testTimeout`) and failed only on the new-behaviour
+assertions, then passed here. Measured: `webFetchNoDeadline` + `webFetch`
+subject row 2 failed on base, 11 green on this tree with `webFetchBomb`;
+`hookModelOutputCap` 2 failed on base, 2 green here;
+`hookUncappedEstimates` 3 failed on base, 3 green here; the cliArgs
+`--timeout` case 1 failed on base; `schedulePauseAfterFailures` 5 failed
+on base; `pluginDispatch` 4, `pluginContainment` 1 and `pluginImportFiles`
+1 failed on base; `resourceNoLimits` 2 failed on base. No stand-ins:
+every test drives the real function or schema the production path calls
+(a slow injected transport, the real policy record, real budgets, real
+probes, real filesystem). The base worktree was restored byte-identical
+after each probe (`git status` clean apart from its pre-existing
+untracked `node_modules`).
+
+## Kept, unchanged
+
+`VAULT_APPROVAL_TTL_MS` (120 s, approval lifetime, not a work cap), the
+hook-matcher 25 ms / 250 ms guard (`HOOK_MATCHER_TIMEOUT_MS` /
+`HOOK_MATCHER_COMPILE_TIMEOUT_MS`: matcher shape, not work), the
+workspace-trust ceiling on `hooksMaxStopContinuations`
+(`HOOK_MAX_STOP_CONTINUATIONS` 8, Muse Code's own bound; the default stays
+0), and `WEB_FETCH_BUFFER_WINDOW_MIB` (5 MiB decompression-bomb guard:
+safety, not a time limit). None is touched by any commit of this lane.
+
+## Pre-existing failures (not this lane)
+
+- Unit typecheck: 27 errors on this tree, file-for-file the 27 on the
+  untouched base (diffed sorted lists: `IDENTICAL_DRIFT`); e2e typecheck: 1
+  error, the same shared-helper error on both. None in a file this lane
+  touched.
+- `test/unit/commandHelp.test.ts` (`openRouterConnect`) fails on the
+  untouched base too; `elicitationHookSeam` logs an EPIPE on the base too.
+  Left alone.
+- `npm run check:plan`: stops — PLAN.md is 3,817,806 bytes, over 85%
+  (3,565,158) of the plan reader's 4,194,304-byte bound (this lane's §8
+  rows add ~1 KB to a file already over). Not worked around.
+- `npm run build`: stops at the What's New bound (326,287 bytes decoded
+  against a 76,800 bound; this lane's CHANGELOG lines add ~1 KB to a file
+  already 4x over). Bundle-size, bundle-split and later build steps
+  therefore did not run in this lane. Not worked around.
+
+## Final gate states (this lane)
+
+- `npm run format:check`: green (whole repo).
+- `npm run lint:js:main` and `npm run lint:js:tests`: zero warnings.
+- `npm run check:l10n`: 0 problems (English `webFetch` subject plus all
+  fourteen locales; best-effort translations of `the web page`).
+- `npm run check:reference`: current. `npm run cycles`: no cycles.
+- `npm run deadcode` (knip): red on the base and red here for the same 12
+  pre-existing unused-tag/export lines (the only base-vs-tree diff is
+  `VAULT_UI_TICK_MS`'s line number shifting with the removals; the export
+  itself is untouched). Not worked around.
+- `npm run check:catches`: red on the base and red here for the same
+  stale-baseline counts on media/record/vault files no commit of this lane
+  touches (counts identical base-vs-tree). This lane re-identifies 4
+  GENERIC sites whose bodies its edits changed, no new catch semantics:
+  `webFetch.ts:941` (the deadline branch is gone),
+  `pluginHost.ts:271, 301` and `extensionHooks.ts:1162` (item-5 edits).
+  The baseline is not regenerated here: that would mask other lanes' drift.
+- Touched suites, repository's own timeout, no `--testTimeout`, at most 3
+  files per run: webFetchNoDeadline, webFetchBomb, webFetchHost,
+  stillWaiting, hookModelOutputCap, hookUncappedEstimates,
+  hookModelTurns, modelApiLoopContracts, responsesCodec, anthropicCodec,
+  providerPacing, judgeSameSideRequest, cliArgs, scanSecrets,
+  resourceNoLimits, schedulePauseAfterFailures, scheduleFireFailures,
+  schedulePromptLoop, scheduleWorkspaceBridge, pluginDispatch,
+  pluginContainment, pluginImportFiles, noDefaultLimits,
+  elicitationHookSeam, capabilityRecord, invariants. All green; counts in
+  the lane's final message.

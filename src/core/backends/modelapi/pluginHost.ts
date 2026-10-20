@@ -21,28 +21,23 @@
 //   errors and kill errors all settle the call;
 // - a disposed session spawns nothing, rechecked after every await [8];
 // - the answer completes on its response line, then the tree is ended [11];
-// - bounds: PLUGIN_HOOK_TIMEOUT_MS per call, PLUGIN_CHILD_MAX_HEAP_MB heap
-//   for node, PLUGIN_RESPONSE_MAX_BYTES UTF-8 bytes per answer frame [14].
+// - waits: no deadline of ours — a call waits for the child's answer line,
+//   an explicit per-hook timeout, or Stop, and the runtime answers whole;
+//   an explicit timeout names the bound it waited, and a stopped probe
+//   names how long it waited, while a stopped call answers nothing [14].
+import { Buffer } from 'node:buffer'
+import { admitResource, stopResourceTree } from '../../resources/admission'
 
 import type { ChildProcess } from 'node:child_process'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import {
-  PLUGIN_CHILD_MAX_HEAP_MB,
-  PLUGIN_CHILD_MAX_MEMORY_BYTES,
-  PLUGIN_HOOK_TIMEOUT_MS,
-  PLUGIN_NODE_MINIMUM,
-  PLUGIN_RESPONSE_MAX_BYTES,
-  PLUGIN_RUNTIME_PROBE_TIMEOUT_MS,
-} from '../../../shared/constants'
-
+import { MILLISECONDS_PER_SECOND, PLUGIN_NODE_MINIMUM } from '../../../shared/constants'
+import { formatUnit } from '../../../shared/l10n/text'
 import type { ForeignHookAnswer } from './hookFormats/contract'
 import { type GuardedChildEnv } from '../../executables'
 import { resolveExecutable, workspaceChildEnvironment } from '../../execGuard'
 import { environmentValue } from '../../execGuard'
 import { resourceEnvironment, type ResourceLease } from '../../resources/launch'
-import { Buffer } from 'node:buffer'
-import { admitResource, stopResourceTree } from '../../resources/admission'
 import { spawnGuarded } from '../../guardedChildProcess'
 import { withoutCredentials } from '../../credentialEnvironment'
 import { statSync } from 'node:fs'
@@ -150,10 +145,19 @@ async function defaultRunVersion(
 ): Promise<string> {
   const tree = treeFor(deps, deps.platform ?? process.platform)
   if (tree === undefined) throw new Error('Plugin runtime probe has no process tree')
+  // D121: no probe timeout of ours — the probe waits for the runtime's
+  // answer, its exit, or Stop, and Stop names how long it waited.
+  const startedAt = Date.now()
+  const waitedText = (): string =>
+    formatUnit(
+      Math.max(0, Math.round((Date.now() - startedAt) / MILLISECONDS_PER_SECOND)),
+      'second',
+    )
   const resource = await admitResource('hook', signal)
   let child: PluginChildHandle
   try {
-    if (signal?.aborted === true) throw new Error('Plugin runtime probe cancelled')
+    if (signal?.aborted === true)
+      throw new Error(`Plugin runtime probe cancelled after ${waitedText()}`)
     child = await tree.spawn(command, ['--version'], {
       env: resourceEnvironment(
         workspaceChildEnvironment(deps.platform ?? process.platform, env, {
@@ -171,23 +175,18 @@ async function defaultRunVersion(
   }
   return await new Promise<string>((resolve, reject) => {
     const chunks: Buffer[] = []
-    let bytes = 0
     let isDone = false
     const finish = (error?: Error) => {
       if (isDone) return
       isDone = true
-      clearTimeout(timer)
       signal?.removeEventListener('abort', abort)
       endTree(tree, child)
       if (error === undefined) resolve(Buffer.concat(chunks).toString('utf8'))
       else reject(error)
     }
     const abort = () => {
-      finish(new Error('Plugin runtime probe cancelled'))
+      finish(new Error(`Plugin runtime probe cancelled after ${waitedText()}`))
     }
-    const timer = setTimeout(() => {
-      finish(new Error('Plugin runtime probe timed out'))
-    }, PLUGIN_RUNTIME_PROBE_TIMEOUT_MS)
     signal?.addEventListener('abort', abort, { once: true })
     child.onError(() => {
       finish(new Error('Plugin runtime probe failed'))
@@ -201,10 +200,7 @@ async function defaultRunVersion(
     })
     child.onStdout((chunk) => {
       if (isDone) return
-      bytes += chunk.byteLength
-      if (bytes > PLUGIN_RESPONSE_MAX_BYTES)
-        finish(new Error('Plugin runtime probe output exceeded its bound'))
-      else chunks.push(chunk)
+      chunks.push(chunk)
     })
     if (signal?.aborted === true) abort()
   })
@@ -283,8 +279,15 @@ export async function resolvePluginRuntime(
     let text: string
     try {
       text = await runVersion(command, env)
-    } catch {
-      return { ok: false, reason: 'amp: the system node runtime is not installed' }
+    } catch (error: unknown) {
+      // Stop ends the probe with the wait's own words, not 'not installed'.
+      return {
+        ok: false,
+        reason:
+          error instanceof Error && error.message.startsWith('Plugin runtime probe cancelled after')
+            ? error.message
+            : 'amp: the system node runtime is not installed',
+      }
     }
     const version = parseVersion(text)
     if (version === undefined)
@@ -294,14 +297,11 @@ export async function resolvePluginRuntime(
         ok: false,
         reason: `amp: system node ${version.join('.')} is too old (need >= ${PLUGIN_NODE_MINIMUM} for type stripping)`,
       }
+    // D121: no heap flag of ours — the runtime's own default applies.
     return {
       ok: true,
       command,
-      args: [
-        `--max-old-space-size=${String(PLUGIN_CHILD_MAX_HEAP_MB)}`,
-        '--input-type=module',
-        '-e',
-      ],
+      args: ['--input-type=module', '-e'],
     }
   }
   if (command === undefined) {
@@ -309,44 +309,20 @@ export async function resolvePluginRuntime(
   }
   try {
     await runVersion(command, env)
-  } catch {
-    return { ok: false, reason: 'opencode: the installed bun runtime is absent' }
+  } catch (error: unknown) {
+    // Stop ends the probe with the wait's own words, not 'absent'.
+    return {
+      ok: false,
+      reason:
+        error instanceof Error && error.message.startsWith('Plugin runtime probe cancelled after')
+          ? error.message
+          : 'opencode: the installed bun runtime is absent',
+    }
   }
-  return boundedBun(command, env, platform, deps)
-}
-
-/**
-Bun has no heap flag, so its memory is bounded outside it (RVM91X P2 12)
-where the OS offers a spawner-set cap: on Windows by the job's memory
-limit (the host's tree), on Linux by util-linux's `prlimit --data`, the
-data segment and private writable mappings since Linux 4.7. macOS offers
-neither, and OpenCode itself runs bun plugins with no memory bound there —
-so on macOS bun runs directly, under the same per-call timeout, answer
-frame and process-tree bounds as everywhere else, and the same fail-closed
-rule. A plugin child that outgrows the machine is ended with its tree on
-timeout or by the OS, not refused up front.
-*/
-function boundedBun(
-  bun: string,
-  env: NodeJS.ProcessEnv,
-  platform: NodeJS.Platform,
-  deps: PluginRunDeps,
-): RuntimeResolution {
-  if (platform === 'win32' || platform === 'darwin') {
-    return { ok: true, command: bun, args: ['-e'] }
-  }
-  if (platform !== 'linux') {
-    return { ok: false, reason: `opencode: bun's memory cannot be bounded on ${platform}` }
-  }
-  const prlimit = probeRuntime('prlimit', deps, env, platform)
-  if (prlimit === undefined) {
-    return { ok: false, reason: 'opencode: prlimit is absent, so bun cannot be bounded' }
-  }
-  return {
-    ok: true,
-    command: prlimit,
-    args: [`--data=${String(PLUGIN_CHILD_MAX_MEMORY_BYTES)}`, '--', bun, '-e'],
-  }
+  // D121: no memory bound of ours on any platform — bun runs directly, and
+  // a plugin child that outgrows the machine is ended with its tree on an
+  // explicit timeout, by Stop, or by the OS, not refused up front.
+  return { ok: true, command, args: ['-e'] }
 }
 
 /** Wraps a Node child: the request goes in once, and stderr is drained unread. */
@@ -703,33 +679,46 @@ async function runInScope(
     endTree(tree, child)
     return closed()
   }
+  // D121: no deadline of ours — the call waits for the child's answer
+  // line, an explicit per-hook timeout (which names the bound it waited),
+  // or Stop, and the answer arrives whole, whatever its size.
   return await new Promise<ForeignHookAnswer>((resolve) => {
     scope?.owned.add(child)
     const onAbort = (): void => {
       finish(transportFailure(call, 'the plugin call was cancelled'))
     }
     let isDone = false
-    let bytes = 0
     const chunks: Buffer[] = []
-    const timeoutMs = call.timeoutMs ?? PLUGIN_HOOK_TIMEOUT_MS
+    const timeoutMs = call.timeoutMs
     const finish = (answer: ForeignHookAnswer): void => {
       if (isDone) return
       isDone = true
       scope?.owned.delete(child)
       scope?.signal?.removeEventListener('abort', onAbort)
-      clearTimeout(timer)
+      if (timer !== undefined) clearTimeout(timer)
       endTree(tree, child)
       // A call its session ended answers nothing: the session is gone.
       resolve(scope?.isClosed() === true ? closed() : settled(call, sanitizePluginAnswer(answer)))
     }
-    const timer = setTimeout(
-      () => {
-        finish(transportFailure(call, 'the plugin child timed out'))
-      },
-      Math.max(timeoutMs, 1),
-    )
+    // Only an explicit per-hook timeout ends the wait; without one the
+    // child answers, crashes, exits, or Stop ends it. The timeout names
+    // the bound it waited, as a wait with no deadline names Stop's wait.
+    const timer =
+      timeoutMs === undefined
+        ? undefined
+        : setTimeout(
+            () => {
+              finish(
+                transportFailure(
+                  call,
+                  `the plugin child timed out after ${formatUnit(Math.max(1, Math.round(timeoutMs / MILLISECONDS_PER_SECOND)), 'second')}`,
+                ),
+              )
+            },
+            Math.max(timeoutMs, 1),
+          )
     // Do not let a straggler keep the host alive.
-    timer.unref()
+    timer?.unref()
     scope?.signal?.addEventListener('abort', onAbort, { once: true })
     child.onError(() => {
       finish(transportFailure(call, 'the plugin child crashed'))
@@ -738,11 +727,6 @@ async function runInScope(
       if (isDone) return
       const end = chunk.indexOf(NEWLINE)
       const part = end === -1 ? chunk : chunk.subarray(0, end)
-      bytes += part.byteLength
-      if (bytes > PLUGIN_RESPONSE_MAX_BYTES) {
-        finish(transportFailure(call, 'the plugin answer exceeded its frame'))
-        return
-      }
       chunks.push(part)
       if (end !== -1) finish(readFrame(call, Buffer.concat(chunks).toString('utf8'), deps))
     })

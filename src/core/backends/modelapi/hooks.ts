@@ -35,7 +35,6 @@ import {
   HOOK_DELETE_CODE,
   MILLISECONDS_PER_SECOND,
   PLUGIN_FORMATS,
-  PLUGIN_HOOK_TIMEOUT_MS,
   PROJECT_HOOKS_SEGMENTS,
 } from '../../../shared/constants'
 import { type ContextIo, decodeContextText } from '../../context/contextFiles'
@@ -993,10 +992,9 @@ function pluginGroup(
     event,
     source,
     command: plugin,
-    timeoutSeconds: Math.max(
-      typeof timeout === 'number' ? timeout : PLUGIN_HOOK_TIMEOUT_MS / MILLISECONDS_PER_SECOND,
-      1,
-    ),
+    // D121: no default of ours — without an explicit timeout the plugin
+    // hook waits for the child's answer or Stop.
+    ...(typeof timeout === 'number' && { timeoutSeconds: Math.max(timeout, 1) }),
     matcher,
     isAsync: group.async === true,
     foreign: { ...spec, plugin },

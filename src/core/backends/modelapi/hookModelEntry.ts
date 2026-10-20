@@ -14,14 +14,21 @@ import type { reviewPaidCall } from './reviewerEntry'
 import type { ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 import { streamRepairAttempt } from './repairAttempt'
 import { isFunctionCallItem } from './schemas'
-import type { FunctionCallItem, InputItem, StreamEvent, ToolDefinition, Usage } from './schemas'
+import type {
+  CreateResponseBody,
+  FunctionCallItem,
+  InputItem,
+  StreamEvent,
+  ToolDefinition,
+  Usage,
+} from './schemas'
 import { fitRequest, helperRequestCost, type OwnedSessionBudgetScope } from './sessionBudget'
 import { estimateCostUsd } from '../../usage/insights'
 import type { SubagentUsage } from '../../../shared/paid'
 import type { ItemSnapshot } from '../../../shared/agentEvents'
 import {
-  HOOK_MODEL_MAX_OUTPUT_TOKENS,
   HOOK_MODEL_ROW_TOOL,
+  HOOK_MODEL_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
 } from '../../../shared/constants'
 import { hookDecisionSchema } from '../../../shared/sideCallSchemas'
@@ -269,6 +276,15 @@ async function callHookModel(
   return { text, usage: counted }
 }
 
+/**
+D121: the hook call sends no output cap of ours. The capability record's
+published maximum rides along; a model the record names none for sends
+none, and the provider's own default applies.
+*/
+export function hookModelOutputCap(modelId: string): number | undefined {
+  return modelPolicyFor(modelId).output.maxTokens
+}
+
 /** One request of the hook turn; returns the model's read-only calls, if any. */
 async function requestHookStep(
   context: HookModelContext,
@@ -281,6 +297,8 @@ async function requestHookStep(
   onPart: (text: string, usage: Usage | null | undefined) => void,
 ): Promise<readonly FunctionCallItem[]> {
   const modelId = confirmed.modelId
+  const policy = modelPolicyFor(modelId)
+  const outputCap = hookModelOutputCap(modelId)
   let body = context.keyed(
     sideCallBody(
       context.keyed({
@@ -293,8 +311,11 @@ async function requestHookStep(
         stream: true,
         store: false,
         include: ['reasoning.encrypted_content'],
-        max_output_tokens: HOOK_MODEL_MAX_OUTPUT_TOKENS,
-      }),
+        // No cap of ours: the record's maximum, or no key at all. The
+        // spread is absent exactly when the record is silent, so the key
+        // is missing at runtime (PLAN.md §8).
+        ...(outputCap !== undefined && { max_output_tokens: outputCap }),
+      } as Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_retention'>),
       attempt,
       context.deps.forceSideCallTool,
     ),
@@ -311,6 +332,12 @@ async function requestHookStep(
   try {
     // Under the conversation's limit the request is fitted into what is left
     // (D121); its estimate is compared again before the send, never held.
+    // The estimate below is the number actually sent: the record's maximum
+    // fitted into the person's budget, or the fit alone when the record is
+    // silent. With neither, the provider's own minimum floors the hold and
+    // the daily tally settles the true cost after.
+    const minimum = minOutputTokensForPolicy(policy)
+    let sentMax = outputCap ?? minimum
     const capUsd = budgetScope?.capUsd() ?? Usd.from(0).toAmount()
     if (budgetScope !== undefined && isPositiveUsd(capUsd)) {
       const fit = fitRequest({
@@ -318,18 +345,20 @@ async function requestHookStep(
         spentUsd: budgetScope.spentUsd(),
         estimatedInputTokens: Buffer.byteLength(JSON.stringify(body), 'utf8'),
         modelId,
-        minOutputTokens: minOutputTokensForPolicy(modelPolicyFor(modelId)),
+        minOutputTokens: minimum,
       })
+      sentMax =
+        outputCap === undefined ? fit.maxOutputTokens : Math.min(outputCap, fit.maxOutputTokens)
       body = {
         ...body,
-        max_output_tokens: Math.min(body.max_output_tokens, fit.maxOutputTokens),
+        max_output_tokens: sentMax,
       }
     }
     const estimatedInputTokens = Buffer.byteLength(JSON.stringify(body), 'utf8')
     dailyClaim = await context.deps.hookModelDailyBudget?.reserve(
       modelId,
       estimatedInputTokens,
-      body.max_output_tokens,
+      sentMax,
       signal,
     )
     directBudget = {
@@ -337,7 +366,7 @@ async function requestHookStep(
       estimateUsd: estimateCostUsd(
         {
           inputTokens: estimatedInputTokens,
-          outputTokens: body.max_output_tokens,
+          outputTokens: sentMax,
           cachedTokens: 0,
         },
         modelId,
@@ -364,7 +393,7 @@ async function requestHookStep(
       context.deps.client,
       body,
       signal,
-      undefined,
+      HOOK_MODEL_TIMEOUT_MS,
       admission,
       confirmed,
     )

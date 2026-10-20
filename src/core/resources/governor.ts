@@ -293,15 +293,15 @@ export class ResourceGovernor {
         ? null
         : resourceMemoryFloorBytes(this.settings, sample.memoryTotalBytes)
     const disk = diskPressure(sample.diskVolumes ?? [], this.settings)
-    // The disk hold judges free space, so it needs the person's disk floor.
-    // A critically full volume still refuses writes through assertWrite.
+    // The disk hold judges free space, so it needs the person's disk floor
+    // behind it; a volume past it refuses writes through assertWrite too.
     const hasDiskFloor = this.settings.diskMinFreeGiB !== null
-    const isDiskCritical = hasDiskFloor && (disk.isCritical || disk.isPaused)
+    const isDiskPaused = hasDiskFloor && disk.isPaused
     if (!hasDiskFloor) this.diskHeld = false
-    else if (isDiskCritical || disk.high === true) this.diskHeld = true
+    else if (isDiskPaused || disk.high === true) this.diskHeld = true
     else if (disk.hasRecovered && this.current === 'normal') this.diskHeld = false
     const isCritical =
-      isDiskCritical ||
+      isDiskPaused ||
       (this.criticalSince !== undefined &&
         now - this.criticalSince >= RESOURCE_CRITICAL_CPU_WINDOW_MS) ||
       (sample.memoryAvailableBytes !== null &&

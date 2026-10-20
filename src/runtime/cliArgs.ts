@@ -17,9 +17,11 @@ import {
   type AcpBackendKind,
   type AcpPaidFeature,
   CHATGPT_NEW_ACCOUNT_FLAG,
+  MILLISECONDS_PER_SECOND,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
+  TIMER_MAX_DELAY_MS,
   UI_TEXT,
   REPORT_KINDS,
 } from '../shared/constants'
@@ -165,7 +167,16 @@ export type RuntimeCommand =
       readonly json: boolean
     }
   | { readonly command: 'chatGptProvider'; readonly action: ChatGptProviderAction }
-  | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
+  | {
+      readonly command: 'scan-secrets'
+      readonly file: string
+      readonly keyFromStdin: boolean
+      /**
+      D121: a CI-set deadline in milliseconds, or absent when the scan
+      runs until it finishes. No default of ours.
+      */
+      readonly timeoutMs?: number | undefined
+    }
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'legal'; readonly options: LegalOptions }
   | { readonly command: 'reports'; readonly args: readonly string[] }
@@ -1113,11 +1124,31 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
         options: CLI_OPTION_REGISTRY['scan-secrets'].options,
       })
       if (values.help === true) return { command: 'helpTopic', topic: 'scan-secrets' }
+      // D121: no deadline of ours — absent runs until the scan finishes. A
+      // set value is whole seconds within the platform timer's range.
+      const rawTimeout = values.timeout
+      let timeoutMs: number | undefined
+      if (rawTimeout !== undefined) {
+        const seconds =
+          typeof rawTimeout === 'string' && /^[0-9]+$/.test(rawTimeout) ? Number(rawTimeout) : NaN
+        if (
+          !Number.isSafeInteger(seconds) ||
+          seconds < 1 ||
+          seconds > Math.floor(TIMER_MAX_DELAY_MS / MILLISECONDS_PER_SECOND)
+        )
+          return {
+            command: 'invalid',
+            reason: fill(UI_TEXT.execLimitInvalid, { flag: '--timeout' }),
+            exitCode: 2,
+          }
+        timeoutMs = seconds * MILLISECONDS_PER_SECOND
+      }
       return positionals.length === 1 && positionals[0] !== undefined
         ? {
             command: 'scan-secrets',
             file: positionals[0],
             keyFromStdin: values['key-stdin'] === true,
+            ...(timeoutMs !== undefined && { timeoutMs }),
           }
         : { command: 'invalid', reason: UI_TEXT.execScanUsage, exitCode: 2 }
     }

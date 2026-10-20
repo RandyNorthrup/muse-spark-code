@@ -2090,15 +2090,16 @@ imported.
 
 - **Where they run.** Only on the Model API backend. Each call runs in a
   child process of its own, under your installed `node` (22.18 or later) for
-  Amp and `bun` for OpenCode, with the narrow hook environment:
-  - **Windows:** in a job object with a memory limit, which ends the plugin
-    and everything it started.
-  - **Linux:** in its own process group, with OpenCode's `bun` held to the
-    same memory limit by `prlimit`.
-  - **macOS:** `bun` runs directly, as OpenCode itself runs it: the same
-    per-call timeout, answer-size and process-tree bounds as everywhere else,
-    but no memory cap, so a plugin that outgrows the machine is ended with
-    its tree on timeout or by the operating system.
+  Amp and `bun` for OpenCode, with the narrow hook environment. No deadline,
+  heap flag, memory bound or answer-size bound of ours: a call waits for the
+  child's answer line, an explicit per-hook timeout, or Stop, and the runtime
+  answers whole. Containment still holds everywhere it did:
+  - **Windows:** in a job object, which ends the plugin and everything it
+    started.
+  - **Linux:** in its own process group, with OpenCode's `bun` run directly.
+  - **macOS:** `bun` runs directly, as OpenCode itself runs it.
+  - A plugin that outgrows the machine is ended with its tree on an explicit
+    timeout, by Stop, or by the operating system.
   - **The ACP agent:** plugin hooks are refused.
 - **What they can do.** A plugin can refuse a call, narrow its input, add
   context or replace a tool's output, as its own agent allows. It has no
@@ -2607,6 +2608,10 @@ Its host defaults are `museSpark.scheduleDefaultDelivery` (`whenIdle`) and
 avoid VS Code's scalar-parent conflict; the reader still validates previous
 `schedules.defaultDelivery` and `schedules.agentCreation` values when a new key
 is absent. Paid consent and the shared daily budget still apply.
+A schedule never pauses itself on failures unless you set
+`museSpark.schedulePauseAfterFailures` (`0`, the default, keeps firing and
+every failure stays in its run history); a set count pauses the schedule
+after that many failures in a row.
 
 The v2 commands (**Schedule this prompt…**, **Show schedules** and
 **Show schedule timeline**) are not in the Command Palette yet: they stay
@@ -3035,11 +3040,11 @@ Meta's paid web search.
   page nested to be slow to parse), and then refused with the reason. Plain text, Markdown, JSON,
   XML, CSV, YAML, TOML, CSS and JavaScript come back as they are; XHTML
   (`application/xhtml+xml`) is refused, since read as HTML its XML syntax
-  would be misread; anything else is refused with the reason. The whole page is read (after decompression) within 30
-  seconds, however large; the model reads the whole page, and past its
-  context window the text spills to a file it pages through, saying so.
-  A page built to expand converts whole within the worker's time and memory
-  limits instead.
+  would be misread; anything else is refused with the reason. The whole page is read (after decompression),
+  however large — a fetch waits until the page answers or you press Stop, saying how long it has waited;
+  the model reads the whole page, and past its context window the text
+  spills to a file it pages through, saying so. A page built to expand
+  converts whole within the worker's time and memory limits instead.
 - **Where it may go.** Public internet addresses only. A URL that names a
   local or reserved name (`localhost`, `*.local`, `*.internal`, single-label
   intranet names) or a non-public address is refused before anything else
@@ -3054,7 +3059,7 @@ Meta's paid web search.
   lookup, and TLS still verifies the page's name; when one address does not
   connect within a quarter of a second, the next is tried too. A redirect on
   the same host is checked and pinned the same way, as many times as it takes
-  within the 30 seconds (a loop of redirects ends at the deadline); a
+  until the page answers or you press Stop; a
   redirect to another host is handed back to the model, which asks again.
 - **Asking.** Each host is approved on its own: the Model API backend's card
   names the URL, and "Always allow in this session" covers that host only.
@@ -5448,7 +5453,7 @@ positive number of billable HTTP attempts, retries included.
 muse-spark-code-acp exec [options] <prompt>
 muse-spark-code-acp exec [options] --prompt-file <path>
 muse-spark-code-acp exec [options] -
-muse-spark-code-acp scan-secrets <file> [--key-stdin]
+muse-spark-code-acp scan-secrets <file> [--key-stdin] [--timeout <seconds>]
 ```
 
 | Exec flag                | Default / range        | Limit behavior                                                                                                                                                   |
@@ -5487,9 +5492,10 @@ verified completed response plus ACP `end_turn` exits 0; unverified accounting
 exits 9. Tool output text never leaves exec, and a cut-short agent message is
 withheld whole.
 
-`scan-secrets <file> [--key-stdin]` scans one bounded UTF-8 file locally,
+`scan-secrets <file> [--key-stdin] [--timeout <seconds>]` scans one bounded UTF-8 file locally,
 prints only a count and exits 0 when clean, 10 on matches or 2 on refusal or
-error. Its 30-second lifetime includes reading the key and flushing output.
+error. The scan runs until it finishes or a signal stops it; `--timeout <seconds>`
+sets a deadline per run for callers (such as CI) that want one.
 Only known literals and patterns are covered.
 
 `prompts use <id> [--chat active|new]` prints the prepared prompt text after

@@ -157,6 +157,10 @@ export function createWebFetcher(
         request: pinnedHttpsRequest,
         convertHtml,
         newMarker: () => randomBytes(WEB_FETCH_MARKER_BYTES).toString('hex'),
+        // D121: a page answers, or Stop ends the wait; the wait says so.
+        notice: (text) => {
+          log.info(text)
+        },
       },
       signal,
       isStillAllowed,

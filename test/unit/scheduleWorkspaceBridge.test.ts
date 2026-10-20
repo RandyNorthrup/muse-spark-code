@@ -19,6 +19,7 @@ function idleBridge(isEnabled = true) {
     log: { trace: record, info: record, warn: record, error: record },
     isEnabled: () => isEnabled,
     defaultDelivery: () => 'whenIdle',
+    pauseAfterFailures: () => 0,
   })
 }
 

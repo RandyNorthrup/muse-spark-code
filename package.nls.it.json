@@ -164,6 +164,7 @@
   "config.schedules.description": "Controlla /loop nella chat di Muse Code. La consegna delle richieste pianificate richiede la certificazione.",
   "config.schedules.defaultDelivery.description": "Seleziona la modalità di consegna scritta nelle nuove bozze di pianificazione; non abilita l’esecuzione pianificata.",
   "config.schedules.agentCreation.description": "Conservata per compatibilità; questa preferenza non ha effetto in questa versione.",
+  "config.schedulePauseAfterFailures.description": "Quanti errori consecutivi mettono in pausa una pianificazione. Nessuna pausa senza un valore impostato: 0 (il valore predefinito) non mette mai in pausa una pianificazione in caso di errori, e ogni errore resta registrato nella cronologia delle esecuzioni.",
   "command.tabLanguages.title": "Lingue di Tab",
   "command.openPullRequestInConversation.title": "Apri una richiesta pull in una conversazione…",
   "config.judge.engine.description": "`auto` (il tuo modello di conversazione; `same` nella fase 1) e `same` possono solo aggiungere cautela a un’azione Auto rischiosa che nessuna regola decide: una cautela pronta trasforma un’autorizzazione in una domanda, o in una nota sulla scheda di approvazione. `off` non esegue alcun valutatore. Sul backend Model API ogni giudizio viene addebitato alla tua chiave e chiede prima conferma una volta; su Muse Code usa il tuo abbonamento.",

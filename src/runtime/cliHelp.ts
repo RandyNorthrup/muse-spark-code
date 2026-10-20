@@ -20,10 +20,12 @@ import {
   EXEC_EXIT,
   isAutoCompactionEvaluated,
   LEGAL_EXIT,
+  MILLISECONDS_PER_SECOND,
   REPORT_EXIT_CODES,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
   THINKING_OFF_EFFORT,
+  TIMER_MAX_DELAY_MS,
 } from '../shared/constants'
 import type { UiText } from '../shared/l10n/en'
 import { fill } from '../shared/l10n/text'
@@ -129,6 +131,17 @@ function factFor(name: string): CliOptionFact | undefined {
         kind: 'range',
         min: 1,
         max: Number.MAX_SAFE_INTEGER,
+      }
+    }
+    case 'scan-timeout': {
+      // D121: no default and no maximum of ours — absent runs until the
+      // scan finishes; a set value is whole seconds the platform timer can
+      // hold, so the range ends where setTimeout overflows.
+      return {
+        kind: 'range',
+        min: 1,
+        max: Math.floor(TIMER_MAX_DELAY_MS / MILLISECONDS_PER_SECOND),
+        unit: 'seconds',
       }
     }
     case 'max-budget-usd': {
@@ -355,10 +368,11 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
   {
     name: 'scan-secrets',
     purpose: (table) => table.cliHelp.purposeScanSecrets,
-    usage: [(command) => `${command} scan-secrets <file> [--key-stdin]`],
+    usage: [(command) => `${command} scan-secrets <file> [--key-stdin] [--timeout <seconds>]`],
     routes: ['scan-secrets'],
     options: [
       { name: 'key-stdin', shape: '' },
+      { name: 'timeout', shape: '<seconds>', fact: factFor('scan-timeout') },
       { name: 'help', shape: '' },
     ],
     examples: [

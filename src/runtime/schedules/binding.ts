@@ -33,6 +33,7 @@ interface RuntimeSchedulesModule {
     runtimeDelivery?: RuntimeScheduleDeliveryPorts,
     migration?: { source: ScheduleMigrationSource; zone: string },
     scheduleEngine?: RuntimeScheduleEngineModule,
+    pauseAfterFailures?: number | (() => number),
   ): Promise<RuntimeSchedulesBinding>
 }
 
@@ -53,6 +54,11 @@ export function runtimeSchedulesBinding(
   runtimeDelivery?: RuntimeScheduleDeliveryPorts,
   migration?: { source: ScheduleMigrationSource; zone: string },
   scheduleEngine?: RuntimeScheduleEngineModule,
+  /**
+   * D121: the person's pause-after-failures count (0 never pauses), read
+   * live on every settlement when it is a function. Absent never pauses.
+   */
+  pauseAfterFailures?: number | (() => number),
 ): () => Promise<RuntimeSchedulesBinding> {
   const load = lazyBundleLoader({
     bundlePath,
@@ -71,7 +77,7 @@ export function runtimeSchedulesBinding(
       }
       if (runtimeDelivery === undefined) {
         binding =
-          delivery === undefined && migration === undefined
+          delivery === undefined && migration === undefined && pauseAfterFailures === undefined
             ? load().createRuntimeSchedules(UI_TEXT, uiLocale())
             : load().createRuntimeSchedules(
                 UI_TEXT,
@@ -80,6 +86,7 @@ export function runtimeSchedulesBinding(
                 undefined,
                 migration,
                 scheduleEngine,
+                pauseAfterFailures,
               )
       } else
         binding = load().createRuntimeSchedules(
@@ -89,6 +96,7 @@ export function runtimeSchedulesBinding(
           runtimeDelivery,
           migration,
           scheduleEngine,
+          pauseAfterFailures,
         )
     }
     try {

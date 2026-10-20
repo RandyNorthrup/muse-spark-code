@@ -67,6 +67,11 @@ export interface ScheduleEngineOptions {
     | Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>
     | Promise<Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>>
   readonly fs: ScheduleFsPort
+  /**
+  D121: the person's pause-after-failures count (0 never pauses), read
+  live on every settlement when it is a function. Absent never pauses.
+  */
+  readonly pauseAfterFailures?: number | (() => number)
   readonly queue: ScheduleQueuePort
   /** M52's v1 jobs migrate into v2 once per workspace, verified then removed. */
   readonly migration?: {
@@ -132,7 +137,12 @@ function unavailableTarget(): Promise<never> {
 export async function createScheduleEngine(options: ScheduleEngineOptions) {
   const closeSignal = new AbortController()
   const now = options.now ?? Date.now
-  const store = createScheduleStore(options.fs)
+  const store = createScheduleStore(
+    options.fs,
+    options.pauseAfterFailures === undefined
+      ? undefined
+      : { pauseAfterFailures: options.pauseAfterFailures },
+  )
   const authority = createAuthorityStore(store, options.fs, 'runtime/grant-audits.json')
   const registry = createWorkspaceRegistry(options.fs, 'runtime/workspaces.json')
   const runtimeDelivery =

@@ -13,12 +13,11 @@ export const RESOURCE_SAMPLE_MS = 5000
 export const RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR = 52
 // IOKit's storage busy counters tick in nanoseconds; samples tick in milliseconds.
 export const RESOURCE_NS_PER_MS = 1_000_000
-// D87.14: free-space policy and owned-tree retention.
+// D87.14: free-space policy and owned-tree retention. D121 (owner
+// 2026-10-16): no threshold of ours — the person's disk floor (null by
+// default) is the only level the governor holds against.
 export const RESOURCE_DISK_SAMPLE_MS = 30_000
 export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000
-export const RESOURCE_DISK_MIN_FREE_GIB = 2
-export const RESOURCE_DISK_CRITICAL_GIB = 1
-export const RESOURCE_DISK_CRITICAL_FRACTION = 0.01
 export const RESOURCE_DISK_HYSTERESIS_GIB = 2
 export const RESOURCE_DISK_TREND_MS = 5 * 60_000
 export const RESOURCE_DISK_ETA_MS = 10 * 60_000
@@ -685,6 +684,9 @@ export const SETTING_DEFAULTS = {
   schedules: ARE_SCHEDULES_ON_BY_DEFAULT,
   scheduleDefaultDelivery: 'whenIdle' as (typeof SCHEDULE_DELIVERIES)[number],
   scheduleAgentCreation: 'ask' as (typeof SCHEDULE_AGENT_CREATIONS)[number],
+  // D121 (owner 2026-10-16): a schedule never pauses itself by default —
+  // 0 means failures never pause it; the person sets a count to pause one.
+  schedulePauseAfterFailures: 0,
   modelApiSubagents: true,
   // Best-of-N parallel attempts (M77, PLAN.md D49): N worktree-rooted
   // conversations per run, each billed to the key.
@@ -1052,13 +1054,12 @@ export const HOOK_NOTIFICATION_DELAY_MS = 6000
 // waits until they end, saying so in plain words instead of hanging silently.
 // Cline v1 contextModification cap (M91 lane X; hooks-parity/raw-copilot-cline.md:25).
 export const CLINE_CONTEXT_MODIFICATION_MAX_CHARS = 50_000
-// M91 lane X: the plugin child runs one plugin per hook call under these bounds.
-export const PLUGIN_HOOK_TIMEOUT_MS = 30_000
+// M91 lane X: the plugin child runs one plugin per hook call. D121 (owner
+// 2026-10-16): no bound of ours — a call waits for the child's answer, an
+// explicit per-hook timeout, or Stop, and the runtime answers whole. Only
+// the runtime's own floor stays: the node version it needs for type
+// stripping.
 export const PLUGIN_NODE_MINIMUM = '22.18.0'
-export const PLUGIN_CHILD_MAX_HEAP_MB = 256
-export const PLUGIN_RESPONSE_MAX_BYTES = 64 * 1024
-// How long `node --version` / `bun --version` may take before the runtime counts as absent.
-export const PLUGIN_RUNTIME_PROBE_TIMEOUT_MS = 15_000
 // M91 handler types (PLAN.md D70, lane H): the http, mcp_tool, prompt and
 // agent handlers take the same caps as commands (M91 acceptance: stdin,
 // stdout and timeout caps shared).
@@ -1069,23 +1070,24 @@ export const HOOK_IP_V6_FAMILY = 6
 export const HOOK_HTTP_REDIRECT_MIN_STATUS = 300
 // A prompt or agent handler's own model call: one attempt, no retry, with
 // the hook's answer parsed like a command's.
-// D121 (owner 2026-10-16): no default deadline of ours on a hook's own
-// model call — it runs until it ends or the person stops it. No provider
-// documents such a timeout, so the product sets none.
-export const HOOK_MODEL_MAX_OUTPUT_TOKENS = 1024
+export const HOOK_MODEL_TIMEOUT_MS = 60_000
+// D121: the hook call sends no output cap of ours — the capability record's
+// published maximum rides along (hookModelEntry.hookModelOutputCap), or none
+// is sent when the record names none.
 // An agent handler's read-only tool loop runs until the model stops calling
 // tools (D121: the removed 5-step ceiling was invented); a verdict resting
 // on a partial answer is parsed as-is when the run ends.
 // A prompt/agent hook's transcript row: the paid run is loud, like a review's.
 export const HOOK_MODEL_ROW_TOOL = 'hook_model'
-// RVM91X P2 12: a plugin child's whole memory, as a Windows job limit and,
-// for bun on Linux, as prlimit's data limit (node also keeps its heap cap).
-export const PLUGIN_CHILD_MAX_MEMORY_BYTES = 1024 * 1024 * 1024
+// D121: no memory bound of ours on a plugin child — the runtime's own
+// default applies, and a child that outgrows the machine is ended with its
+// tree, not refused up front.
 // After the Windows job launcher fails to prepare, the next plugin dispatch
-// past this delay tries once more; a second failure stays until Retry.
+// past this delay tries once more; the delay only paces retries and bounds
+// nothing, so it stays.
 export const PLUGIN_JOB_RETRY_BACKOFF_MS = 5000
-// The plugin files an import reads to find their events, per system.
-export const PLUGIN_IMPORT_MAX_BYTES = 256 * 1024
+// D121: no import bound of ours on plugin files — an import reads the whole
+// file through the shared import reader.
 export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
@@ -3018,8 +3020,10 @@ export type AddressFamily = (typeof ADDRESS_FAMILIES)[keyof typeof ADDRESS_FAMIL
 export const HTTP_REDIRECT_STATUSES: ReadonlySet<number> = new Set([301, 302, 303, 307, 308])
 export const HTTP_SUCCESS_MIN = 200
 export const HTTP_SUCCESS_MAX = 299
-// The whole fetch, redirects and body included, ends by this deadline.
-export const WEB_FETCH_TIMEOUT_MS = 30_000
+// D121: no deadline of ours on the whole fetch — the page answers, or Stop
+// ends the wait. (NOLIMITSFINAL2: the fetch used to end at 30 s and refuse
+// with `timeout`; the https-only, no-credentials and public-hosts refusals
+// stay: they are safety rules, not time limits.)
 // Redirects on the same host are followed without a count of their own,
 // each hop resolved, checked and pinned again; a redirect to another host
 // is handed back to the model instead. (NOLIMITS A17: the fetch used to
@@ -4688,7 +4692,9 @@ export const EXEC_RESPONSE_MAX_BYTES = 33_554_432
 export const EXEC_SSE_FRAME_MAX_BYTES = 16_777_216
 export const EXEC_OBSERVER_HIGH_WATER_BYTES = 16_777_216
 export const EXEC_SCAN_MAX_BYTES = 16_777_216
-export const EXEC_SCAN_TIMEOUT_MS = 30_000
+// D121 (owner 2026-10-16): no deadline of ours on the secret scan — it runs
+// until it finishes or a signal stops it. A CI job that wants a deadline
+// sets one per run with `scan-secrets --timeout`.
 export const EXEC_SCAN_EXIT_FOUND = 10
 // Headless runs refuse smaller caps at the same floor Meta enforces.
 /** @alias the Model API's floor under the headless name */
@@ -4897,7 +4903,9 @@ export const SCHEDULE_NATIVE_MAX_OUTPUT_BYTES = 64 * 1024
 @unwired unassigned read only by tests deleted 2026-10-17 (no fakes)
 */
 export const SCHEDULE_COLLISION_WINDOW_MS = SCHEDULE_MIN_INTERVAL_MS
-export const SCHEDULE_PAUSE_AFTER_FAILURES = 3
+// D121 (owner 2026-10-16): no auto-pause of ours — a schedule pauses
+// after failures only at the count the person sets in
+// `museSpark.schedulePauseAfterFailures` (0, the default, never pauses).
 /** Lead flips after the complete VS Code/OS/review receipts, never per-path enablement. */
 export const SCHEDULE_EDITOR_DELIVERY_CERTIFICATION: Readonly<{ isReady: boolean }> = {
   isReady: false,
@@ -7081,7 +7089,6 @@ export const WEB_FETCH_MODEL_TEXT = {
     "the response's compression ({encoding}) could not be decoded: it is unsupported or damaged",
   webFetchEncodingUnnamed:
     "the response's compression could not be decoded: it is unsupported or damaged",
-  webFetchTimeout: 'no complete response within {seconds} seconds',
   webFetchConversionTimeout:
     'the page arrived, but its HTML could not be converted in the time allowed (at most {seconds} seconds; for example, a page nested to be slow to parse), so none of it was read',
   webFetchConversionMemory:

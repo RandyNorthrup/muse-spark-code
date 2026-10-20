@@ -100,6 +100,11 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly schedules: boolean
   readonly scheduleDefaultDelivery: (typeof SCHEDULE_DELIVERIES)[number]
   readonly scheduleAgentCreation: (typeof SCHEDULE_AGENT_CREATIONS)[number]
+  /**
+  Consecutive failures that pause a schedule (M115, PLAN.md D95, D121:
+  0 is never — a schedule pauses itself only at a count the person set).
+  */
+  readonly schedulePauseAfterFailures: number
   readonly modelApiSubagents: boolean
   /** Best-of-N availability; an explicit run and consent choose its extra attempts. */
   readonly modelApiBestOfN: boolean
@@ -259,6 +264,7 @@ const settingSchemas = {
   schedules: z.boolean(),
   scheduleDefaultDelivery: z.enum(SCHEDULE_DELIVERIES),
   scheduleAgentCreation: z.enum(SCHEDULE_AGENT_CREATIONS),
+  schedulePauseAfterFailures: z.number().check(z.int(), z.gte(0)),
   modelApiSubagents: z.boolean(),
   modelApiBestOfN: z.boolean(),
   modelApiTeamWorkers: z.boolean(),
@@ -442,6 +448,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     schedules: readSetting(config, 'schedules', log),
     scheduleDefaultDelivery: readSetting(config, 'scheduleDefaultDelivery', log),
     scheduleAgentCreation: SETTING_DEFAULTS.scheduleAgentCreation,
+    schedulePauseAfterFailures: readSetting(config, 'schedulePauseAfterFailures', log),
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
     modelApiTeamWorkers: SETTING_DEFAULTS.modelApiTeamWorkers,

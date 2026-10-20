@@ -7,12 +7,17 @@ import { statfs } from 'node:fs/promises'
 import * as os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ResourceDiskSampler, resourceDiskFloorBytes } from '../../src/core/resources/disk'
+import {
+  ResourceDiskSampler,
+  diskPressure,
+  resourceDiskFloorBytes,
+} from '../../src/core/resources/disk'
 import { ResourceEvents } from '../../src/core/resources/events'
 import { ResourceGovernor } from '../../src/core/resources/governor'
 import { ResourceQueue } from '../../src/core/resources/queue'
 import { createMachineResourceSampler } from '../../src/core/resources/sampler/system'
 import {
+  resourceDiskVolumeSchema,
   resourceMemoryFloorBytes,
   resourceSettingsSchema,
   type ResourceClock,
@@ -98,6 +103,7 @@ describe('resource governor without person-set limits', () => {
     expect(resourceSettingsSchema.safeParse({ cpuMaxPercent: 29 }).success).toBe(false)
     expect(resourceSettingsSchema.safeParse({ memoryMaxPercent: 99 }).success).toBe(false)
     expect(resourceSettingsSchema.safeParse({ memoryMinFreeGiB: 0.4 }).success).toBe(false)
+    expect(resourceSettingsSchema.safeParse({ diskMinFreeGiB: 1.9 }).success).toBe(false)
   })
 
   it('computes no memory or disk floor without a person’s floor, on this machine’s real totals', () => {
@@ -163,6 +169,40 @@ describe('resource governor without person-set limits', () => {
       governor.dispose()
       clear()
     }
+  })
+
+  it('names no critical level of ours on a nearly full volume with no floor set', () => {
+    const settings = resourceSettingsSchema.parse({})
+    const volume = resourceDiskVolumeSchema.parse({
+      role: 'workspace',
+      atMs: Date.now(),
+      freeBytes: 512,
+      totalBytes: 10 ** 12,
+      etaMs: null,
+    })
+    const pressure = diskPressure([volume], settings)
+    expect('isCritical' in pressure).toBe(false)
+    expect(pressure.isPaused).toBe(false)
+    expect(pressure.high).toBe(false)
+  })
+
+  it('refuses writes only at the person’s floor, never with no floor set', async () => {
+    const stats = await statfs(process.cwd(), { bigint: true })
+    const freeGiB = Number(stats.bsize * stats.bavail) / RESOURCE_GIB_BYTES
+    const open = new ResourceDiskSampler(
+      [{ role: 'workspace', path: path.resolve(process.cwd()) }],
+      () => resourceSettingsSchema.parse({}),
+    )
+    // The live volume admits writes with no floor set, however little is free.
+    await open.assertWrite(path.resolve(process.cwd()))
+    // A floor past twice the live free space refuses at the person's level.
+    const held = new ResourceDiskSampler(
+      [{ role: 'workspace', path: path.resolve(process.cwd()) }],
+      () => resourceSettingsSchema.parse({ diskMinFreeGiB: 2 * Math.ceil(freeGiB) + 2 }),
+    )
+    await expect(held.assertWrite(path.resolve(process.cwd()))).rejects.toMatchObject({
+      code: 'resourceDiskFloor',
+    })
   })
 
   it('still pauses and resumes on a person-set disk floor against the live volume', async () => {
