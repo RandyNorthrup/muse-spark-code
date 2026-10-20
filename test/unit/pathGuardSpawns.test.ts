@@ -129,12 +129,6 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     reason:
       'gh resolved with the report workspace scope (links followed) + exec workspaceRoot for it; an absolute gh inside it is refused',
   },
-  'src/core/reporting/history.ts': {
-    kind: 'reviewed',
-    anchor: '/bin/ps',
-    reason:
-      'fixed absolute /bin/ps and SystemRoot powershell only; the governed boundary refuses a workspace-absolute path',
-  },
   'src/core/schedules/events/git.ts': {
     kind: 'guarded',
     anchor: 'workspaceRoot',
