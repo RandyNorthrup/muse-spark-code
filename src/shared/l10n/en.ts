@@ -4692,8 +4692,11 @@ export const EN = {
   execModeRefused: 'Headless runs permit only plan or acceptEdits.',
   execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',
   execPaidNeedsEdits: 'Image generation requires acceptEdits.',
-  execModelApiOnly: 'These options require the Model API backend.',
-  execMuseCodeOnly: 'These options require the Muse Code backend.',
+  // {options}: the refused command-line options as typed, joined by commas.
+  execModelApiOnly: 'These options require the Model API backend (--backend modelApi): {options}.',
+  // {options}: the refused command-line options as typed, joined by commas.
+  execMuseCodeOnly:
+    'These options require the Muse Code backend, the default without --backend modelApi: {options}.',
   execModelUnpriced: 'This model has no known tariff.',
   execPromptMissing: 'Provide one nonempty prompt.',
   execPromptTwice: 'Choose exactly one prompt source.',

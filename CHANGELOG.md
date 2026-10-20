@@ -289,6 +289,9 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- `exec` names the options it refuses for the chosen backend (for example
+  "--max-budget-usd, --max-requests" on Muse Code) and how to choose the
+  other backend, instead of a bare "These options require…".
 - In an editor connected over ACP that cannot show notices, a Muse Code
   notice after the answer (such as "The turn finished its visible work")
   now starts its own paragraph instead of running on from the answer's

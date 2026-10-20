@@ -331,27 +331,29 @@ export function parseExec(
     return invalidFlagValue('output-schema', values['output-schema'])
   if (values['output-schema-outside'] === true && values['output-schema'] === undefined)
     return invalidFlagValue('output-schema-outside', values['output-schema-outside'])
-  if (
-    backend === 'museCode' &&
-    [
-      'max-budget-usd',
-      'max-requests',
-      'max-tool-output-bytes',
-      'max-output-tokens',
-      'ephemeral',
-      'key-stdin',
-      'image-generation',
-      'auto-compaction',
-      'output-schema',
-      'output-schema-outside',
-    ].some((key) => values[key] !== undefined && values[key] !== false)
-  )
-    return invalid(UI_TEXT.execModelApiOnly)
-  if (
-    backend === 'modelApi' &&
-    ['muse-binary', 'shell-sandbox'].some((key) => values[key] !== undefined)
-  )
-    return invalid(UI_TEXT.execMuseCodeOnly)
+  // The refusal names the options the person gave, as typed.
+  const given = (keys: readonly string[]): string =>
+    keys
+      .filter((key) => values[key] !== undefined && values[key] !== false)
+      .map((key) => `--${key}`)
+      .join(', ')
+  const modelApiOnly = given([
+    'max-budget-usd',
+    'max-requests',
+    'max-tool-output-bytes',
+    'max-output-tokens',
+    'ephemeral',
+    'key-stdin',
+    'image-generation',
+    'auto-compaction',
+    'output-schema',
+    'output-schema-outside',
+  ])
+  if (backend === 'museCode' && modelApiOnly !== '')
+    return invalid(fill(UI_TEXT.execModelApiOnly, { options: modelApiOnly }))
+  const museCodeOnly = given(['muse-binary', 'shell-sandbox'])
+  if (backend === 'modelApi' && museCodeOnly !== '')
+    return invalid(fill(UI_TEXT.execMuseCodeOnly, { options: museCodeOnly }))
   if (mode !== 'acceptEdits' && values['image-generation'] === true)
     return invalid(UI_TEXT.execPaidNeedsEdits)
   const files = values['untrusted-file']
