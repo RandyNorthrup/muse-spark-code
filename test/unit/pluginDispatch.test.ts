@@ -815,6 +815,43 @@ describe.runIf(IS_REAL)('person-set plugin bounds (D121)', () => {
     expect(resolution.reason).toContain('timed out after')
   })
 
+  it('a probe failure that is neither the person’s wait nor a refused start keeps its kind', async () => {
+    // Real probe runner throughout: PATH resolves a `node` that exits
+    // before answering, so the version read fails with its own failure.
+    // The resolution rejects with that failure instead of calling the
+    // runtime absent.
+    const dir = mkdtempSync(path.join(tmpdir(), 'm91b-node-'))
+    writeFileSync(path.join(dir, 'node'), '#!/bin/sh\nexit 3\n', { mode: 0o755 })
+    const workspace = mkdtempSync(path.join(tmpdir(), 'm91b-ws-'))
+    await expect(
+      resolvePluginRuntime('amp', {
+        env: { PATH: `${dir}:/usr/bin:/bin` },
+        platform: 'linux',
+        workspaceRoot: workspace,
+        realpath: realpathSync,
+      }),
+    ).rejects.toThrow('Plugin runtime probe exited unsuccessfully')
+  })
+
+  it('a refused probe start reads as an absent runtime', async () => {
+    // The start refusal the OS reports (a runtime removed between the PATH
+    // lookup and the spawn) keeps the absent-runtime answer.
+    const dir = mkdtempSync(path.join(tmpdir(), 'm91b-node-'))
+    writeFileSync(path.join(dir, 'node'), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+    const refusal = Object.assign(new Error('spawn /x/node ENOENT'), { code: 'ENOENT' })
+    const resolution = await resolvePluginRuntime('amp', {
+      env: { PATH: `${dir}:/usr/bin:/bin` },
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      runVersion: () => Promise.reject(refusal),
+    })
+    expect(resolution).toEqual({
+      ok: false,
+      reason: 'amp: the system node runtime is not installed',
+    })
+  })
+
   it('a set memory ceiling caps the node heap, and none leaves the default', async () => {
     // Real resolution against this node: the heap flag rides along only
     // when the person sets a ceiling.
