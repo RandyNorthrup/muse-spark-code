@@ -1,7 +1,9 @@
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { isVaultFileMissing } from '../../core/vault/broker/files'
 import { VaultStoreUnavailableError } from '../../core/vault/broker/ports'
+import type { KeyringEntryFactory } from '../keyStore'
 import { KeyringVaultAnchor } from './keyringAnchor'
 
 /**
@@ -81,6 +83,54 @@ export class FileVaultAnchor extends KeyringVaultAnchor {
       await unlink(this.file)
     } catch (error: unknown) {
       if (!isVaultFileMissing(error)) throw new VaultStoreUnavailableError()
+    }
+  }
+}
+
+/**
+The owner-only file of one protected record the OS store would otherwise
+hold (the audit checkpoint and its pending intent), beside the anchor
+file. The account names the vault, so the file name is the digest of the
+service and account: an account may carry characters no file name allows.
+*/
+function vaultRecordFile(dataDir: string, service: string, account: string): string {
+  const name = createHash('sha256').update(`${service}\n${account}`).digest('hex')
+  return path.join(dataDir, 'anchor', `${name}.json`)
+}
+
+/** One such record, stored exactly as the file anchor stores its own. */
+class FileVaultRecord extends FileVaultAnchor {
+  async load(): Promise<string | null> {
+    return await this.readRaw()
+  }
+  async save(raw: string): Promise<void> {
+    await this.writeRaw(raw)
+  }
+  /** True when a record was there to delete; a missing one is already gone. */
+  async erase(): Promise<boolean> {
+    const isPresent = (await this.readRaw()) !== null
+    await this.deleteRaw()
+    return isPresent
+  }
+}
+
+/**
+The protected records the OS store holds where its binding is installed
+(the audit log's checkpoint and pending intent), kept as owner-only files
+beside the file anchor where it is not, with the anchor's own rules. The
+anchor alone falling back left every audited operation (setup's first
+unlock, every unlock) refused with storeUnavailable in a staged package.
+*/
+export function fileRecordEntries(
+  dataDir: string,
+  protect?: (file: string, kind: 'directory' | 'file') => Promise<void>,
+): KeyringEntryFactory {
+  return (service, account) => {
+    const record = new FileVaultRecord(vaultRecordFile(dataDir, service, account), protect)
+    return {
+      getPassword: () => record.load(),
+      setPassword: (value) => record.save(value),
+      deletePassword: () => record.erase(),
     }
   }
 }

@@ -69,6 +69,9 @@ const builtSchema = z.strictObject({
 const resultsSchema = z.strictObject({
   results: z.strictObject({
     echo: z.string(),
+    echoAgain: z.string(),
+    missedDials: z.number(),
+    missedInspections: z.number(),
     serverResult: z.string(),
     serverOwnerSid: z.string(),
     // The helper's whole server answer: the trust predicate runs against
@@ -146,6 +149,14 @@ describe.skipIf(process.platform !== 'win32')('Windows pipe relay against the re
     // `ownerOnlyDacl: false` fails here, as the dial would refuse it),
     // and the examined process against this fixture child.
     expect(report.results.echo).toBe('hello-relay')
+    // Bytes the server wrote after its client went away left the helper
+    // serving: the queries after them were answered and a new client echoed.
+    expect(report.results.echoAgain).toBe('hello-again')
+    // Clients that came and went at once never left the pipe without an
+    // instance: every dial of the waves connected, and every server
+    // inspection beside them found the pipe.
+    const { missedDials, missedInspections } = report.results
+    expect({ missedDials, missedInspections }).toEqual({ missedDials: 0, missedInspections: 0 })
     expect(report.results.serverResult).toBe('ok')
     expect(report.results.serverOwnerSid).toBe(fixture.ownerSid)
     expect(isVaultPipeServerTrusted(report.results.server, fixture.ownerSid)).toBe(true)

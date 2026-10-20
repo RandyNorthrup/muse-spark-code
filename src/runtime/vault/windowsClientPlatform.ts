@@ -1,5 +1,4 @@
-import { connect, type Socket } from 'node:net'
-import { once } from 'node:events'
+import { connect } from 'node:net'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
@@ -116,20 +115,18 @@ export async function windowsVaultClientPlatform(
           if (!location) return null
           // The broker record carries the pipe name: speak only to a pipe
           // this user's helper owns. A foreign record never directs this
-          // client elsewhere.
+          // client elsewhere. The record is the readiness: the serve helper
+          // owns the pipe before the claim names it and keeps an instance of
+          // it while the claim stands (the name never vanishes between
+          // connections), and a connection made before the channel listens
+          // waits in the relay. A dial-and-drop probe proved nothing more.
           const pipe = windowsVaultPipeNameSchema.parse(location.lock.socket)
           const server = await pipeFiles.inspectServer(pipe)
           if (!isVaultPipeServerTrusted(server, ownerSid)) throw new Error(UI_TEXT.vault.noAccess)
-          // Discovery is published before listen; a real pipe connection proves readiness.
-          const probe: Socket = connect(pipe)
-          try {
-            await once(probe, 'connect')
-          } finally {
-            probe.destroy()
-          }
           return location
         } catch (error: unknown) {
-          // Only proven death permits launch. Missing token/pipe during live startup waits.
+          // Only proven death permits launch. During a live startup the claim
+          // publishes the lock before the boot token: a missing token waits.
           if (
             await isBrokerLockGone(
               pipeFiles.privateFiles,
@@ -142,13 +139,7 @@ export async function windowsVaultClientPlatform(
             )
           )
             return null
-          const isStarting =
-            isVaultFileMissing(error) ||
-            (error !== null &&
-              typeof error === 'object' &&
-              'code' in error &&
-              (error.code === 'ECONNREFUSED' || error.code === 'ENOENT'))
-          if (!isStarting || Date.now() >= deadline) throw error
+          if (!isVaultFileMissing(error) || Date.now() >= deadline) throw error
           await delay(VAULT_BROKER_NATIVE_TIMEOUT_MS / 100)
         }
       }
