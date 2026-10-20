@@ -316,13 +316,14 @@ function parseVersion(text: string): readonly [number, number, number] | undefin
 /**
 Stop and the person's own wait end the probe with the wait's own words, not
 the absent-runtime reason: a cancelled or timed-out probe reports itself.
+Any other probe failure keeps its kind for the caller.
 */
-function probeAbsentReason(error: unknown, absent: string): string {
-  return error instanceof Error &&
+function isProbeSettled(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
     (error.message.startsWith('Plugin runtime probe cancelled after') ||
       error.message.startsWith('Plugin runtime probe timed out after'))
-    ? error.message
-    : absent
+  )
 }
 
 function isAtLeast(have: readonly [number, number, number], want: string): boolean {
@@ -383,10 +384,12 @@ export async function resolvePluginRuntime(
     try {
       text = await runVersion(command, env)
     } catch (error: unknown) {
-      return {
-        ok: false,
-        reason: probeAbsentReason(error, 'amp: the system node runtime is not installed'),
-      }
+      // A wait the person ended reports its own words; a start the OS
+      // refused means the runtime is absent. Anything else keeps its kind.
+      if (isProbeSettled(error)) return { ok: false, reason: error.message }
+      if (isSpawnStartRefusal(error))
+        return { ok: false, reason: 'amp: the system node runtime is not installed' }
+      throw error
     }
     const version = parseVersion(text)
     if (version === undefined)
@@ -414,10 +417,12 @@ export async function resolvePluginRuntime(
   try {
     await runVersion(command, env)
   } catch (error: unknown) {
-    return {
-      ok: false,
-      reason: probeAbsentReason(error, 'opencode: the installed bun runtime is absent'),
-    }
+    // A wait the person ended reports its own words; a start the OS
+    // refused means the runtime is absent. Anything else keeps its kind.
+    if (isProbeSettled(error)) return { ok: false, reason: error.message }
+    if (isSpawnStartRefusal(error))
+      return { ok: false, reason: 'opencode: the installed bun runtime is absent' }
+    throw error
   }
   // D121: no memory bound of ours on any platform — without a set ceiling
   // bun runs directly, and a plugin child that outgrows the machine is
