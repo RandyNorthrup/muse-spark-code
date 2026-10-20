@@ -478,13 +478,10 @@ describe('packaging (M26)', () => {
   })
 
   it('ships What’s New: its bundle, its content and its page (M99)', () => {
+    // The page's script and style ride in the webview archive (VSIXWEB),
+    // whose every member the archive suites check by digest.
     expect(shipped).toEqual(
-      expect.arrayContaining([
-        'dist/whatsNew.js',
-        'dist/whatsNew.json',
-        'dist/webview/whatsNew.js',
-        'dist/webview/whatsNew.css',
-      ]),
+      expect.arrayContaining(['dist/whatsNew.js', 'dist/whatsNew.json', 'dist/webview.json.br']),
     )
   })
 
@@ -1042,7 +1039,11 @@ describe('tiered CI (CIFLOW)', () => {
             return `( export ${exports}; set -eo pipefail; eval "$STEP" ) >/dev/null 2>&1; echo "$?"`
           })
           .join('\n')
-        const run = spawnSync(bash ?? '', ['--noprofile', '--norc', '-c', wrapper], {
+        // The wrapper goes in on standard input: a multi-line script with
+        // quotes as one -c argument does not survive Windows' command-line
+        // quoting into Git's bash ("unexpected end of file").
+        const run = spawnSync(bash ?? '', ['--noprofile', '--norc', '-s'], {
+          input: wrapper,
           env: { STEP: body.join('\n') },
           encoding: 'utf8',
           timeout: BASH_CASES_TIMEOUT_MS,
