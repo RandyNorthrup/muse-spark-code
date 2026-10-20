@@ -1,6 +1,6 @@
 import { fill, plural } from '../../shared/l10n/text'
 import { fingerprint } from '../verify/fingerprint'
-import { compareLegalText } from './files'
+import { compareLegalText, loadFixPlanner } from './files'
 import { createYieldCheck } from './scanYield'
 // The deterministic scan (M97, PLAN.md D76): every reader over one
 // bounded snapshot, findings sorted before stable ids are assigned, and
@@ -58,7 +58,6 @@ import { readNpm } from './ecosystems/npm'
 import { readNuGet } from './ecosystems/nuget'
 import { readPython } from './ecosystems/python'
 import type { LegalFindingDraft } from './finding'
-import type * as LegalFix from './legalFixEntry'
 import type { LegalPreparedPatch } from '../../shared/legalScanEntry'
 import {
   assertWorkspaceRelative,
@@ -831,24 +830,10 @@ export async function scanLegal(
   })
   results.sort((a, b) => compareLegalText(a.id, b.id))
 
-  // The header-fix planner loads with the fix chunk (dist/legalFix.js,
-  // D6): a scan with nothing fixable never loads it. A scan that needs it
-  // and cannot load it is refused, never silently unfixable.
   const fixable = results.filter((finding) => finding.fixable)
   let patched: readonly LegalPreparedPatch[] = []
   if (fixable.length > 0) {
-    let prepare: typeof LegalFix.prepareLegalHeaderPatches
-    try {
-      const fix = await import('./legalFixEntry.js')
-      prepare = fix.prepareLegalHeaderPatches
-    } catch (error) {
-      throw new LegalScanError(
-        fill(UI_TEXT.legalScanFailed, {
-          reason: error instanceof Error ? error.message : String(error),
-        }),
-        { cause: error },
-      )
-    }
+    const prepare = await loadFixPlanner()
     patched = prepare(bounded, fixable)
   }
   const repairable = new Set(patched.map((entry) => entry.patch.path))

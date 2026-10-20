@@ -1,35 +1,22 @@
 // The lazy runtime binding lane X named for W/S: the real engine, no fakes.
 // Loaded by the schedule CLI and the ACP agent through runtimeSchedulesBinding.
 import { homedir } from 'node:os'
-import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import { UI_TEXT } from '../../shared/constants'
 import { agentDataFolder, schedulesFolder } from '../dataFolder'
 import { carryLegacyScheduleStore } from './storeRoot'
 import { createNodeScheduleFs, createNodeScheduleQueue } from './nodeScheduleFs'
-import type { RuntimeSchedulesBinding } from './binding'
+import type { CreateRuntimeSchedulesArgs, RuntimeSchedulesBinding } from './binding'
 import { createScheduleEngine } from './engine'
 import type * as ScheduleDelivery from '../../host/schedules/scheduleDeliveryEntry'
-import type { ScheduleEditorDeliveryPorts } from '../../host/schedules/scheduleDeliveryEntry'
 import { agentFileBeside, createVerifyWake } from './wake'
 import type { createScheduleBilling } from '../../host/schedules/paidBinding'
-import type { ScheduleMigrationSource } from '../../core/schedules/migrate'
-
-import type { RuntimeScheduleDeliveryPorts, RuntimeScheduleEngineModule } from './delivery'
 
 export async function createRuntimeSchedules(
-  table: UiText,
-  locale: string,
-  delivery?: ScheduleEditorDeliveryPorts,
-  runtimeDelivery?: RuntimeScheduleDeliveryPorts,
-  migration?: { source: ScheduleMigrationSource; zone: string },
-  scheduleEngine?: RuntimeScheduleEngineModule,
-  /**
-  D121: the person's pause-after-failures count (0 never pauses), read
-  live on every settlement when it is a function. Absent never pauses.
-  */
-  pauseAfterFailures?: number | (() => number),
+  ...args: CreateRuntimeSchedulesArgs
 ): Promise<RuntimeSchedulesBinding> {
+  const [table, locale, delivery, runtimeDelivery, migration, scheduleEngine, pauseAfterFailures] =
+    args
   // The engine module lives on the ACP side (main.ts installs it); the
   // schedules bundle never loads it from VS Code, so the VSIX need not
   // carry the runtime engine for schedules.

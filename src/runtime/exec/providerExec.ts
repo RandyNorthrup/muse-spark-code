@@ -585,11 +585,9 @@ function parsePinnedUrl(
 /** The pin over an injected fetch (the exec tests' seam): typed refusals, abortable resolve, mapped connect failures. */
 function pinProviderFetchViaFetch(
   fetch: typeof globalThis.fetch,
-  provider: ResolvedProvider,
-  rules: readonly ProviderPathRule[],
-  resolveHost: (hostname: string) => Promise<readonly string[]>,
-  onDispatch?: () => void,
+  ...rest: PinnedDialArgs
 ): typeof globalThis.fetch {
+  const [provider, rules, resolveHost, onDispatch] = rest
   return async (url, init) => {
     const parsed = parsePinnedUrl(provider, rules, url)
     if (parsed === undefined) throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
@@ -627,12 +625,8 @@ function pinProviderFetchViaFetch(
 }
 
 /** The pin over the checked address itself (the audit's DNS-rebinding dial): refused answers and redirects never connect. */
-function pinProviderFetchViaDial(
-  provider: ResolvedProvider,
-  rules: readonly ProviderPathRule[],
-  resolveHost: (hostname: string) => Promise<readonly string[]>,
-  onDispatch?: () => void,
-): typeof globalThis.fetch {
+function pinProviderFetchViaDial(...args: PinnedDialArgs): typeof globalThis.fetch {
+  const [provider, rules, resolveHost, onDispatch] = args
   return async (url, init) => {
     const parsed = parsePinnedUrl(provider, rules, url)
     if (parsed === undefined) throw new Error('refused')
