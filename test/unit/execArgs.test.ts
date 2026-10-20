@@ -37,7 +37,24 @@ describe('M80 args (A1–A10, F1)', () => {
     // Muse Code backend refuses the flag instead of accepting a no-op.
     expect(parseExec({ 'auto-compaction': true }, ['hi'])).toEqual({
       ok: false,
-      reason: UI_TEXT.execModelApiOnly,
+      reason: fill(UI_TEXT.execModelApiOnly, { options: '--auto-compaction' }),
+    })
+    // Real use, Windows 0.19.0: the refusal names every refused option the
+    // person gave, never a bare "these options".
+    expect(parseExec({ 'max-requests': '100000', 'max-budget-usd': '25' }, ['hi'])).toEqual({
+      ok: false,
+      reason:
+        'These options require the Model API backend (--backend modelApi): --max-budget-usd, --max-requests.',
+    })
+    expect(
+      parseExec(
+        { backend: 'modelApi', 'max-budget-usd': '1', 'shell-sandbox': 'off', 'muse-binary': 'm' },
+        ['hi'],
+      ),
+    ).toEqual({
+      ok: false,
+      reason:
+        'These options require the Muse Code backend, the default without --backend modelApi: --muse-binary, --shell-sandbox.',
     })
     const modelApi = { backend: 'modelApi', 'max-budget-usd': '1' }
     const flagged = parseExec({ ...modelApi, 'auto-compaction': true }, ['hi'])
@@ -137,7 +154,7 @@ describe('M80 args (A1–A10, F1)', () => {
       expect(parseExec({ ...values, 'output-schema': outputSchema }, ['task']).ok).toBe(false)
     expect(parseExec({ 'output-schema': 'answer.json' }, ['task'])).toEqual({
       ok: false,
-      reason: UI_TEXT.execModelApiOnly,
+      reason: fill(UI_TEXT.execModelApiOnly, { options: '--output-schema' }),
     })
   })
   it('requires the outside-schema flag to be explicit and paired with a Model API schema', () => {
@@ -304,7 +321,7 @@ describe('M80 args (A1–A10, F1)', () => {
       })
     expect(parseExec({ backend: 'museCode', 'max-output-tokens': '2000' }, ['hi'])).toEqual({
       ok: false,
-      reason: UI_TEXT.execModelApiOnly,
+      reason: fill(UI_TEXT.execModelApiOnly, { options: '--max-output-tokens' }),
     })
     expect(
       parseCommandLine([
