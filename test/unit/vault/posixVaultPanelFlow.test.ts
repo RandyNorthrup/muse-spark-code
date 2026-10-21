@@ -38,69 +38,79 @@ function hasProcessListing(): boolean {
   }
 }
 
-describe.skipIf(process.platform === 'win32' || !hasBrokerSocketFit() || !hasProcessListing())(
-  'POSIX vault through the panel',
-  () => {
-    beforeAll(async () => {
-      fixture.current = await startPosixPanelFixture('vs-ppanel-')
-      // One-time OS costs belong in hooks, never in a case: the first exec
-      // of each fresh helper binary pays macOS trust evaluation, so warm
-      // both here without the governor (raw exec, like the session suites)
-      // so no case races that cost against the test timeout.
-      execFileSync(vaultPeerExecutable(fixture.current.root), ['identity', String(process.pid)], {
-        stdio: 'ignore',
-      })
-      if (process.platform === 'darwin')
-        execFileSync(
-          path.join(
-            fixture.current.root,
-            DICTATION_HELPER_DIR,
-            ...darwinDictationHelperSegments(process.arch),
-          ),
-          ['proc-identity', String(process.pid)],
-          { stdio: 'ignore' },
+/**
+Linux's OS store is the Secret Service, reached over the session bus: a
+machine with no session bus (an SSH login, a CI runner) has no store, and
+setup rightly refuses with the credential-store sentence. Such a rig skips
+with this reason; a desktop session, or a private `dbus-run-session` with
+an unlocked keyring, runs the flow.
+*/
+function hasSessionBus(): boolean {
+  return process.platform !== 'linux' || (process.env['DBUS_SESSION_BUS_ADDRESS'] ?? '') !== ''
+}
+
+describe.skipIf(
+  process.platform === 'win32' || !hasBrokerSocketFit() || !hasProcessListing() || !hasSessionBus(),
+)('POSIX vault through the panel', () => {
+  beforeAll(async () => {
+    fixture.current = await startPosixPanelFixture('vs-ppanel-')
+    // One-time OS costs belong in hooks, never in a case: the first exec
+    // of each fresh helper binary pays macOS trust evaluation, so warm
+    // both here without the governor (raw exec, like the session suites)
+    // so no case races that cost against the test timeout.
+    execFileSync(vaultPeerExecutable(fixture.current.root), ['identity', String(process.pid)], {
+      stdio: 'ignore',
+    })
+    if (process.platform === 'darwin')
+      execFileSync(
+        path.join(
+          fixture.current.root,
+          DICTATION_HELPER_DIR,
+          ...darwinDictationHelperSegments(process.arch),
+        ),
+        ['proc-identity', String(process.pid)],
+        { stdio: 'ignore' },
+      )
+  })
+  afterAll(async () => {
+    await fixture.current?.dispose()
+  })
+
+  it(
+    'sets up, unlocks, adds, reads back, locks and unlocks again through the real broker',
+    async () => {
+      const current = fixture.current
+      if (!current) throw new Error('the client platform did not build')
+      const client = await current.startClient('panel')
+      try {
+        await drivePanelFlow(
+          { home: path.join(client.dataDir, 'home'), connect: client.connect },
+          process.cwd(),
+          'panel',
         )
-    })
-    afterAll(async () => {
-      await fixture.current?.dispose()
-    })
+      } finally {
+        await client.dispose()
+      }
+    },
+    TEST_TIMEOUT_MS,
+  )
 
-    it(
-      'sets up, unlocks, adds, reads back, locks and unlocks again through the real broker',
-      async () => {
-        const current = fixture.current
-        if (!current) throw new Error('the client platform did not build')
-        const client = await current.startClient('panel')
-        try {
-          await drivePanelFlow(
-            { home: path.join(client.dataDir, 'home'), connect: client.connect },
-            process.cwd(),
-            'panel',
-          )
-        } finally {
-          await client.dispose()
-        }
-      },
-      TEST_TIMEOUT_MS,
-    )
-
-    it(
-      'works with the extension host working folder at the filesystem root',
-      async () => {
-        const current = fixture.current
-        if (!current) throw new Error('the client platform did not build')
-        const client = await current.startClient('panel-root')
-        try {
-          await drivePanelFlow(
-            { home: path.join(client.dataDir, 'home'), connect: client.connect },
-            '/',
-            'panel-root',
-          )
-        } finally {
-          await client.dispose()
-        }
-      },
-      TEST_TIMEOUT_MS,
-    )
-  },
-)
+  it(
+    'works with the extension host working folder at the filesystem root',
+    async () => {
+      const current = fixture.current
+      if (!current) throw new Error('the client platform did not build')
+      const client = await current.startClient('panel-root')
+      try {
+        await drivePanelFlow(
+          { home: path.join(client.dataDir, 'home'), connect: client.connect },
+          '/',
+          'panel-root',
+        )
+      } finally {
+        await client.dispose()
+      }
+    },
+    TEST_TIMEOUT_MS,
+  )
+})
