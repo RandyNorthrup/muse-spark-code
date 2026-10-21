@@ -772,6 +772,16 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   to yourself, or nowhere yet — and everything already typed stays while a
   mistyped answer (Target, expiry date, name, label or address) asks again
   with the reason.
+- The vault's Expires box says what it takes: a date as YYYY-MM-DD (the
+  start of that day, your time) or a date and time as YYYY-MM-DDTHH:MM.
+  Anything else asks again naming both shapes, where it used to be guessed
+  ("1" was stored as 1 January 2001, "12/1" as 1 December 2001, a date alone
+  as midnight UTC instead of your own midnight), and a date that has already
+  passed asks again with its own sentence. An OAuth or session login's
+  expiry reads the same way and cannot be left empty; editing another
+  setting of an already expired item still keeps its date; and a grant
+  whose expiry has already passed is refused with the same sentence
+  instead of being saved.
 
 ### Security
 

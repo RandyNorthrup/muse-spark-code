@@ -6,6 +6,7 @@ import {
   vaultBindingSchema,
   type VaultGrant,
 } from '../../../../shared/vault'
+import { readVaultExpiry } from '../../../../shared/vaultExpiry'
 import { VaultDetails } from './vaultPresentation'
 
 export interface VaultGrantEditorProps {
@@ -26,7 +27,7 @@ const integerOrNull = (value: FormDataEntryValue | null) =>
 /** All scope fields are explicit. Targets start from an item's existing validated binding. */
 export function VaultGrantEditor({ items, onSave, onClose, now, newId }: VaultGrantEditorProps) {
   const [itemId, setItemId] = useState(items[0]?.id ?? '')
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const item = items.find((entry) => entry.id === itemId)
   const [bindingIndex, setBindingIndex] = useState(0)
   function submit(form: HTMLFormElement): void {
@@ -34,6 +35,16 @@ export function VaultGrantEditor({ items, onSave, onClose, now, newId }: VaultGr
     const field = (key: string): string => {
       const value = data.get(key)
       return typeof value === 'string' ? value : ''
+    }
+    const createdAt = now()
+    // The vault's one expiry reading: the picker's local date and time, never
+    // a moment that has already passed (a grant is never edited, so nothing
+    // stored is kept).
+    const expiry =
+      field('expiresAt') === '' ? null : readVaultExpiry(field('expiresAt'), createdAt, null)
+    if (expiry !== null && expiry.refusal !== null) {
+      setError(expiry.refusal)
+      return
     }
     const roles =
       data.get('roles') === 'any'
@@ -51,7 +62,7 @@ export function VaultGrantEditor({ items, onSave, onClose, now, newId }: VaultGr
       target: target.success ? target.data : undefined,
       maxUses: integerOrNull(data.get('maxUses')),
       uses: 0,
-      expiresAt: data.get('expiresAt') === '' ? null : new Date(field('expiresAt')).getTime(),
+      expiresAt: expiry?.at ?? null,
       window:
         data.get('days') === ''
           ? null
@@ -67,14 +78,14 @@ export function VaultGrantEditor({ items, onSave, onClose, now, newId }: VaultGr
         data.get('ceiling') === 'none' || data.get('ceiling') === 'ask'
           ? data.get('ceiling')
           : lines(field('ceiling')),
-      createdAt: now(),
+      createdAt,
       createdBy: 'vaultPanel',
     })
     if (!parsed.success) {
-      setError(true)
+      setError(UI_TEXT.vault.invalidFields)
       return
     }
-    setError(false)
+    setError(null)
     onSave(parsed.data)
   }
   return (
@@ -175,7 +186,7 @@ export function VaultGrantEditor({ items, onSave, onClose, now, newId }: VaultGr
         {UI_TEXT.vault.ceiling} ({UI_TEXT.vault.ceilingHint})
         <textarea name="ceiling" defaultValue="ask" required />
       </label>
-      {error && <p role="alert">{UI_TEXT.vault.invalidFields}</p>}
+      {error !== null && <p role="alert">{error}</p>}
       <div className="vault-actions">
         <button type="submit">{UI_TEXT.vault.grant}</button>
         <button type="button" onClick={onClose}>
