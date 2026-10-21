@@ -208,3 +208,131 @@ longer carries node_modules/…" lines come from `node_modules` being a
 junction (the metafiles read `../mx-final/node_modules/…`); the build and
 all 199 budgets passed, `dist/vaultActions.js` at 25,504 of its 25,600
 bytes.
+
+## 10. A conversation that could not be opened took messages silently
+
+Real use on Linux (`release-0.19.0-final-L.md`, "Findings and
+observations" 1; `release-0.19.0-restart.md`): Restart Muse Code, reload
+the window, open a conversation from History, send. The turn was not sent
+and nothing said so; only opening it from History again showed "Could not
+resume the conversation: …". The restart lane removed that one rejection
+(the IDE MCP secret); any other failed opening stayed silent.
+
+Cause (base 611b9be1e5, `src/host/conversation/conversationController.ts`):
+
+- `adopt` lets go of the conversation shown so far with `dropSession()`
+  (5196), which moves `sendInvalidationEpoch`. Any failure after that
+  (`setModel` and the model read-back in `enforceResumedModel`, the
+  listing, attaching) reached `resumeSession`'s catch, whose
+  `if (generation !== this.sendInvalidationEpoch) return` (5347) took the
+  opening's own epoch move for "the panel moved on": logged, never said. A
+  backend restart or exit during the opening was hushed the same way. The
+  second open failed earlier, at `session/resume`, before `adopt`, so only
+  it was shown.
+- Nothing recorded the failure. With no session and nothing to resume,
+  the next message went through `openSession` (4400) to a brand-new
+  conversation the panel did not show, where it ran or failed on that
+  conversation's own terms, never with the resume's cause.
+
+Fix: a failed opening (History, a restore, the session board, and fork,
+import and rewind, which share `adopt`) is said unless the panel was asked
+for another conversation since (`conversationChoice`: New Conversation,
+a later opening, an account boundary), so its own drop, a restart or an
+exit no longer hush it. When it leaves the panel with neither a session
+nor one to resume, `openSession` refuses every message and action with
+the same sentence (the message's `sendFailed` card keeps the typed text;
+the notice offers New Conversation), until another conversation is open
+here or New Conversation is chosen. Nothing retries. A conversation still
+live in the panel is untouched, and a restart's resume target (D25) keeps
+its own path. `adopt` also drops a stale resume target once the panel
+shows the new conversation. No new sentence: `resumeFailed`, `forkFailed`,
+`importSessionFailed`, `rewindConversationFailed` and
+`turnStoppedByRestart` say it.
+
+Test: `test/unit/resumeFailureSend.test.ts` (4 cases) drives the real
+controller through `handle` on the product's Model API host, built and
+loaded as `modelApiEntry.ts` builds it, over the real file store; the
+panel harness moved out of `sessionDelete.test.ts` into
+`test/unit/helpers/conversationPanel.ts`, shared by both. Failures are the
+host's own: a conversation it does not hold ("session … is not held by
+this window", before `adopt`), and a saved conversation opened while the
+picker holds a provider model the host cannot resolve ("This model is not
+available for this run.", refused by `setModel` inside `adopt`, after the
+drop). The real webview reducer shows the refused card with the typed
+text. On the base tree the second case posted no notice at all, and both
+cases sent the message to a new conversation ("The message was not sent:
+this window could not tell other windows on this folder that a turn is
+starting.").
+
+- Break A, the swallow put back in `resumeSession`'s catch:
+  `npx vitest run test/unit/resumeFailureSend.test.ts` 1 failed | 3 passed,
+  exit 1 (no notice: `expected [] to deeply equal [ { level: 'error', … } ]`).
+- Break B, the refusal removed from `openSession`: same command, 3 failed |
+  1 passed, exit 1 (the message reached a new conversation instead of the
+  resume's cause).
+- Restored: `npx vitest run test/unit/resumeFailureSend.test.ts
+test/unit/sessionDelete.test.ts` 14/14, exit 0.
+
+### The race: Send while a History open is still loading
+
+Cause: a message sent while an opening ran went on at once. With no live
+session it started a conversation of its own, which the opening's `adopt`
+then dropped; `sessionForAction` returned `undefined` with nothing posted
+when the epoch or session had moved under it (its barrier check, and the
+check after `ensureSession`), and `send` gave up without a word. The
+webview's `historyLoaded` for another session keeps none of the old
+transcript, so the message's pending card vanished with it.
+
+Fix:
+
+- Openings (History, a restore, the session board, a fork, an import, a
+  rewind) are counted while they run. A message sent meanwhile waits for
+  them to settle, with no clock of ours, then goes to the conversation
+  that opened, or is refused with the opening's own cause through the
+  refusal above. A New Conversation or account boundary during the wait
+  refuses it in fixed words (`requestStaleTurn`). No opening awaits a
+  send, so the wait cannot close on itself.
+- `sessionForAction` no longer drops a message silently: a message the
+  conversation changed under is refused with `requestStaleTurn` ("The
+  model or conversation changed while sending. Send your message again.")
+  or, signed out, `notSignedInReason`. Other actions stay quiet as before.
+- The webview carries the cards the host has not answered yet (status
+  `pending`) after another conversation's history, numbered on from it,
+  with their pending drafts. A message answered before the history arrives
+  stays with the conversation it was answered in, as before.
+
+The rig now resolves the shell sandbox posture with the product's
+`resolveShellSandbox` over the setting's default instead of failing
+closed, since every opened conversation reads it, and it records the
+controller's log, the test operator's view of the output channel, so a
+test can name the session a message went to (`Session <id> resumed on
+the … backend`).
+
+Test: three cases in `test/unit/resumeFailureSend.test.ts`, each posting
+the History row and Send as the webview does, the second before the host
+answered the first:
+
+- open first, the conversation opens: only that session is ever attached
+  (no `started` line), and the message's one answer is the turn mark
+  refusal (`sendMarkFailed`: the rig's window has no checkpoint folder),
+  the last step before the session takes a turn, reached only by a message
+  bound for the conversation now open; the answer lands on the card, which
+  came through the opened conversation's history;
+- open first, the opening fails (the removed provider model): the message
+  is refused with the opening's cause, the card keeps the text, and no
+  conversation was started for it;
+- Send first, the opening right behind it: exactly one answer, and it
+  lands on a card on screen, in the old transcript or carried into the
+  opened one, whichever came first.
+
+Five repeated runs of the suite: 7/7 each.
+
+- Break C, the hold removed from `send` (its condition made never true):
+  `npx vitest run test/unit/resumeFailureSend.test.ts` 2 failed | 5 passed,
+  exit 1 (the message started a conversation of its own,
+  `test-session-1 started`).
+- Break D, the webview carrying no unanswered card: same command, 1 failed
+  | 6 passed, exit 1 (`expected undefined to match object`: the answer
+  found no card on screen).
+- Restored: `npx vitest run test/unit/resumeFailureSend.test.ts
+test/unit/sessionDelete.test.ts` 17/17, exit 0.
