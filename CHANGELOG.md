@@ -193,6 +193,14 @@ schedules` read the orchestrator journal, upcoming and recent fires,
 
 ### Changed
 
+- **The browser check runs on Chrome for Testing 156.0.8078.47** (r1706539,
+  published 2026-10-20), pinned in place of 154.0.8037.92, which the
+  release's pin check refused as more than 14 days behind the newest Stable.
+  After the update the check downloads the new version once, as it did the
+  last one, checked against its pinned length and SHA-256. The pin now comes
+  from `scripts/pin-browser-runtime.mjs`, which reads the Chrome for Testing
+  and ChromiumDash records the pin check reads and measures each archive
+  with the runtime's own ZIP reader (docs/RELEASING.md).
 - Legal scans read shipped vendor licences as written (affiliate and `et
 al.` notice suffixes, terminal periods, paired email/URL contacts) while
   restrictive holder text still needs human review. A workspace-root
