@@ -289,6 +289,11 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- After Restart Muse Code, a conversation opened from History keeps going.
+  Continuing it used to fail with "session MCP configuration conflicts with
+  the loaded session runtime" and the message was never sent; the
+  conversation now resumes with the tools it was started with, so the next
+  message gets an answer.
 - "Muse Spark Code stopped unexpectedly last time — report it?" no longer
   appears after an ordinary close. The window's crash marker is cleared as
   soon as VS Code asks the extension to stop, instead of after a shutdown
