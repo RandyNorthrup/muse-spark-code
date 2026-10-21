@@ -7227,6 +7227,42 @@ export const EN = {
     workspaces: 'Workspaces',
     workspacesHint: 'any',
     target: 'Target',
+    // The Add/Edit flow asks where a secret may be used through a picker
+    // first; the JSON box stays for the uses the picker cannot express.
+    // Retry reasons name the field in fixed words and never repeat an answer.
+    targetNone: 'Nowhere yet — the vault holds it and nothing may use it',
+    targetSsh: 'One SSH computer — its name, user and host key',
+    targetSshAny: 'Any SSH computer — the user name',
+    targetSshSign: 'Git commit signing — the key fingerprint',
+    targetGit: 'Git over HTTPS — the host and repository path',
+    targetOrigin: 'A website — its address',
+    targetCustom: 'Something else — type it as JSON',
+    targetKeep: 'Keep the current targets',
+    targetAddAnother: 'Add another use',
+    targetDone: 'Done',
+    targetHostName: 'Host name',
+    targetPath: 'Repository path',
+    targetKeyFingerprint: 'Key fingerprint, starting with SHA256:',
+    targetHelp:
+      'Where this secret may be used. Empty, as [ ], means nowhere yet: the vault holds it and nothing may use it. Type a JSON list with one entry per use. One SSH computer: {"kind":"ssh","host":"ssh.example.com","remoteUser":"deploy","hostKeyFingerprint":"SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","forwarding":false}. Any SSH computer: {"kind":"sshAnyHost","remoteUser":"deploy","forwarding":false}. Git commit signing: {"kind":"sshSign","keyFingerprint":"SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","namespace":"git"}. Git over HTTPS: {"kind":"git","protocol":"https","host":"git.example.com","path":"team/repo"}. A website: {"kind":"origin","origin":"https://app.example.com"}. An app login: {"kind":"oauth","origin":"https://app.example.com","issuer":"https://login.example.com","resource":"https://app.example.com/api"}. Show it to yourself: {"kind":"disclosure","recipient":"person"}.',
+    targetNotJson: 'That did not parse as JSON. Type a JSON list.',
+    targetFieldIssue: 'The {field} entry is missing or not valid.',
+    targetListInvalid: 'That is not a list of uses. Type a JSON list.',
+    fieldMissing: 'That answer is empty. Try again.',
+    fieldInvalid: 'That answer is not valid. Try again.',
+    expiresInvalid: 'That date is not valid. Leave it empty for no expiry, or type a date.',
+    nameInvalid:
+      'Names start with a lowercase letter and use only lowercase letters, numbers and dashes.',
+    labelInvalid: 'Type a label using its own words on one line.',
+    originInvalid:
+      'That address is not valid. Type the full address starting with http:// or https://.',
+    originHttpsInvalid:
+      'That address is not valid. Type the full website address starting with https://.',
+    originsInvalid:
+      'One address is not valid. Type website addresses separated by commas, each starting with https://.',
+    issuerInvalid:
+      'That issuer is not valid. Type the https:// address of the service that issued this login.',
+    resourceInvalid: 'That resource is not valid. Type the https:// address this login is for.',
     command: 'Command',
     cwd: 'Working Folder',
     environmentNames: 'Environment Variable Names',

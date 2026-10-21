@@ -72,6 +72,8 @@ export const vaultIssuerSchema = z
     z.maxLength(VAULT_LIMITS.text),
     z.regex(/^[hH][tT][tT][pP][sS]:\/\/[^/?#\\\s@]+(?:\/[^?#\\\s\0]*)?$/u),
   )
+/** OAuth protected resources: an http(s) address without credentials or a fragment. */
+export const vaultResourceSchema = resource
 const fingerprint = text.check(z.regex(/^SHA256:[A-Za-z0-9+/]{43}$/u))
 const names = z.array(text).check(
   z.minLength(1),
