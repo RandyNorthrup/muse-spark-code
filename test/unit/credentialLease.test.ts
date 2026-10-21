@@ -98,31 +98,61 @@ describe('acquireCredentialLock', () => {
   })
 
   it('lets exactly one of two contenders take a crashed lock, keeping the winner', async () => {
-    for (let round = 0; round < 6; round += 1) {
-      const dir = path.join(await freshDir(), `round-${String(round)}.lock`)
-      await acquireCredentialLock(dir, { pid: DEAD_PID })
-      const [first, second] = await Promise.allSettled([
-        acquireCredentialLock(dir),
-        acquireCredentialLock(dir),
-      ])
-      const releases = [first, second].flatMap((outcome) =>
-        outcome.status === 'fulfilled' ? [outcome.value] : [],
-      )
-      const busy = [first, second].filter(
-        (outcome) =>
-          outcome.status === 'rejected' && outcome.reason instanceof CredentialLockBusyError,
-      )
-      try {
-        expect(releases).toHaveLength(1)
-        expect(busy).toHaveLength(1)
-        // The loser removed nothing: the winner's live record stands.
-        const owner = JSON.parse(await readFile(path.join(dir, 'owner.json'), 'utf8')) as {
-          pid: number
-        }
-        expect(owner.pid).toBe(process.pid)
-      } finally {
-        for (const release of releases) await release()
+    // A crashed lock is taken over by exactly one contender: removal of
+    // the stale lock is conditional on the moved record still being the
+    // observed dead one, and the loser reports busy without removing the
+    // winner's live lock. Background filesystem load keeps both
+    // contenders' reads and writes overlapping so the stale-check/remove
+    // interleaving is exercised in every run; all on real files with the
+    // real process-liveness check.
+    const churnDir = await freshDir()
+    let shouldStopChurn = false
+    const churn = async (id: number): Promise<void> => {
+      const file = path.join(churnDir, `churn-${String(id)}.junk`)
+      let count = 0
+      while (!shouldStopChurn) {
+        count += 1
+        await writeFile(file, `payload-${String(count)}`.padEnd(4096, 'x'))
+        await rm(file, { force: true })
       }
+    }
+    const churners = Array.from({ length: 8 }, (_, id) => churn(id))
+    try {
+      // Time-boxed, not round-counted: a slow machine races fewer rounds
+      // but with wider interleaving windows, while a fast one runs many;
+      // either way the test stays inside the repository's per-test timeout.
+      const startedAt = Date.now()
+      let round = 0
+      while (Date.now() - startedAt < 3500 && round < 1200) {
+        const dir = path.join(await freshDir(), `round-${String(round)}.lock`)
+        round += 1
+        await acquireCredentialLock(dir, { pid: DEAD_PID })
+        const [first, second] = await Promise.allSettled([
+          acquireCredentialLock(dir),
+          acquireCredentialLock(dir),
+        ])
+        const releases = [first, second].flatMap((outcome) =>
+          outcome.status === 'fulfilled' ? [outcome.value] : [],
+        )
+        const busy = [first, second].filter(
+          (outcome) =>
+            outcome.status === 'rejected' && outcome.reason instanceof CredentialLockBusyError,
+        )
+        try {
+          expect(releases).toHaveLength(1)
+          expect(busy).toHaveLength(1)
+          // The loser removed nothing: the winner's live record stands.
+          const owner = JSON.parse(await readFile(path.join(dir, 'owner.json'), 'utf8')) as {
+            pid: number
+          }
+          expect(owner.pid).toBe(process.pid)
+        } finally {
+          for (const release of releases) await release()
+        }
+      }
+    } finally {
+      shouldStopChurn = true
+      await Promise.all(churners)
     }
   })
 
